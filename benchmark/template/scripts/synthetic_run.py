@@ -173,6 +173,30 @@ def synthetic_canonical_catalog(root: Path) -> dict[str, dict[str, Any]]:
     }
 
 
+
+def synthetic_canonical_verification(
+    root: Path, catalog: dict[str, dict[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    """Structurally exercise V1 without pretending CI compiled fake fragments."""
+    return {
+        probe_id: {
+            "entry_file": "main.txt",
+            "fragment_files": ["main.txt"],
+            "files": {
+                "main.txt": (
+                    "synthetic fixture prefix\n"
+                    + str(record["fragment"])
+                    + "\nsynthetic fixture suffix\n"
+                )
+            },
+            "mode": "nm-add2" if probe_id == "F20.P2" else "run",
+            "run_count": 0 if probe_id == "F20.P2" else (20 if probe_id == "F19.P2" else 1),
+        }
+        for probe_id, record in catalog.items()
+        if str(record.get("level")).upper() in {"FULL", "PARTIAL"}
+    }
+
+
 def synthetic_coverage_score(
     root: Path, catalog: dict[str, dict[str, Any]]
 ) -> float:
@@ -300,6 +324,9 @@ def unit_payload(
                 for language in assigned
             }
             evidence["canonical_fragments"] = catalog
+            evidence["canonical_verification"] = synthetic_canonical_verification(
+                root, catalog
+            )
 
     digest = synthetic_catalog_digest(root, unit, units)
     if digest is not None:

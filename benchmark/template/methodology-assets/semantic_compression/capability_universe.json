@@ -73,7 +73,7 @@
     "multi_unit_recipes": {
       "_purpose": "Probes F18.P2 and F14.P3 require a visibility boundary or an extension boundary between two code units. Several frozen single-file recipes cannot build two units, which is a harness limitation, not a language limitation. Spec 10.4 forbids scoring an infrastructure defect as a language failure. The augmented commands below ARE the frozen recipe for those two probes and are NOT a P-b deviation; P-e likewise does not apply to them.",
       "C++": "clang++ -std=c++20 -O2 util.cpp FILE.cpp -o BIN",
-      "Go": "go build -o BIN ./...  (run inside a directory containing go.mod and a util/ package)",
+      "Go": "go build -o BIN .  (run inside a directory containing go.mod and a util/ package imported by the root main package)",
       "Swift": "swiftc -O util.swift FILE.swift -o BIN",
       "Java": "javac -d OUT util/Util.java FILE.java  (run: java -cp OUT Main)",
       "Rust": "unchanged — the frozen recipe already follows `mod`/path module references",

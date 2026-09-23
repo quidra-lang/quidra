@@ -3767,6 +3767,421 @@ def validate_support_adjudication_against_canonical_fragments(
                 )
 
 
+
+SEMANTIC_VERIFICATION_ENTRY_FILES = {
+    "Quidra": "main.qui",
+    "Python": "main.py",
+    "C++": "main.cpp",
+    "Rust": "main.rs",
+    "Go": "main.go",
+    "Java": "Main.java",
+    "TypeScript": "main.ts",
+    "Kotlin": "main.kt",
+    "Swift": "main.swift",
+    "Zig": "main.zig",
+}
+SEMANTIC_MULTI_UNIT_PROBES = {"F14.P3", "F18.P2"}
+SEMANTIC_NATIVE_NM_LANGUAGES = {"Quidra", "C++", "Rust", "Go", "Swift", "Zig"}
+
+
+def _semantic_verification_path(raw: Any) -> PurePosixPath:
+    text = str(raw or "")
+    path = PurePosixPath(text)
+    if (
+        not text
+        or path.is_absolute()
+        or any(part in {"", ".", ".."} for part in path.parts)
+    ):
+        raise BenchmarkError(f"invalid Semantic Compression verification path: {text!r}")
+    return path
+
+
+def _semantic_code_normalize(text: str) -> str:
+    return " ".join(str(text).split())
+
+
+def _semantic_verification_schema(
+    catalog: dict[str, dict[str, Any]], evidence: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    raw = evidence.get("canonical_verification")
+    if not isinstance(raw, dict):
+        raise BenchmarkError(
+            "canonical fragment owner must write evidence.canonical_verification"
+        )
+    expected = {
+        probe_id
+        for probe_id, record in catalog.items()
+        if str(record.get("level")).upper() in {"FULL", "PARTIAL"}
+    }
+    if set(raw) != expected:
+        raise BenchmarkError(
+            "canonical verification must cover exactly every FULL/PARTIAL probe; "
+            f"missing={sorted(expected-set(raw))}, extra={sorted(set(raw)-expected)}"
+        )
+
+    normalized: dict[str, dict[str, Any]] = {}
+    for probe_id in sorted(expected):
+        row = raw[probe_id]
+        if not isinstance(row, dict):
+            raise BenchmarkError(f"{probe_id}: canonical verification must be an object")
+        allowed = {"entry_file", "fragment_files", "files", "mode", "run_count"}
+        unknown = sorted(set(row) - allowed)
+        if unknown:
+            raise BenchmarkError(
+                f"{probe_id}: canonical verification has unknown fields: {unknown}"
+            )
+        files = row.get("files")
+        if not isinstance(files, dict) or not files or len(files) > 12:
+            raise BenchmarkError(
+                f"{probe_id}: verification files must contain 1..12 text files"
+            )
+        normalized_files: dict[str, str] = {}
+        total_bytes = 0
+        for raw_path, content in files.items():
+            path = _semantic_verification_path(raw_path)
+            if not isinstance(content, str):
+                raise BenchmarkError(
+                    f"{probe_id}: verification file {path} must be UTF-8 text"
+                )
+            encoded = content.encode("utf-8")
+            total_bytes += len(encoded)
+            if total_bytes > 262_144:
+                raise BenchmarkError(
+                    f"{probe_id}: verification fixture exceeds 262144 bytes"
+                )
+            normalized_files[path.as_posix()] = content
+
+        entry = _semantic_verification_path(row.get("entry_file")).as_posix()
+        if entry not in normalized_files:
+            raise BenchmarkError(
+                f"{probe_id}: entry_file {entry!r} is not present in verification files"
+            )
+        fragment_files = row.get("fragment_files")
+        if (
+            not isinstance(fragment_files, list)
+            or not fragment_files
+            or not all(isinstance(item, str) for item in fragment_files)
+        ):
+            raise BenchmarkError(
+                f"{probe_id}: fragment_files must be a non-empty string array"
+            )
+        fragment_paths = [
+            _semantic_verification_path(item).as_posix() for item in fragment_files
+        ]
+        if len(set(fragment_paths)) != len(fragment_paths):
+            raise BenchmarkError(f"{probe_id}: fragment_files contains duplicates")
+        missing_fragment_files = sorted(set(fragment_paths) - set(normalized_files))
+        if missing_fragment_files:
+            raise BenchmarkError(
+                f"{probe_id}: fragment_files are missing from files: "
+                + ", ".join(missing_fragment_files)
+            )
+        measured = _semantic_code_normalize(
+            "\n".join(normalized_files[name] for name in fragment_paths)
+        )
+        fragment = _semantic_code_normalize(str(catalog[probe_id]["fragment"]))
+        if not fragment or fragment not in measured:
+            raise BenchmarkError(
+                f"{probe_id}: verification fixture does not contain the canonical "
+                "fragment verbatim modulo whitespace"
+            )
+
+        expected_mode = "nm-add2" if probe_id == "F20.P2" else "run"
+        mode = str(row.get("mode") or "")
+        if mode != expected_mode:
+            raise BenchmarkError(
+                f"{probe_id}: verification mode must be {expected_mode!r}, got {mode!r}"
+            )
+        expected_runs = 0 if probe_id == "F20.P2" else (20 if probe_id == "F19.P2" else 1)
+        try:
+            run_count = int(row.get("run_count"))
+        except (TypeError, ValueError) as exc:
+            raise BenchmarkError(
+                f"{probe_id}: verification run_count must be {expected_runs}"
+            ) from exc
+        if run_count != expected_runs:
+            raise BenchmarkError(
+                f"{probe_id}: verification run_count must be {expected_runs}, got {run_count}"
+            )
+        normalized[probe_id] = {
+            "entry_file": entry,
+            "fragment_files": fragment_paths,
+            "files": normalized_files,
+            "mode": mode,
+            "run_count": run_count,
+        }
+    return normalized
+
+
+def _semantic_verification_recipe(
+    language: str,
+    probe_id: str,
+    entry: str,
+    files: dict[str, str],
+) -> tuple[list[str] | None, list[str] | None, str | None]:
+    expected_entry = SEMANTIC_VERIFICATION_ENTRY_FILES.get(language)
+    if expected_entry is None:
+        raise BenchmarkError(f"unknown Semantic Compression language: {language}")
+    if entry != expected_entry:
+        raise BenchmarkError(
+            f"{probe_id}: {language} verification entry must be {expected_entry!r}"
+        )
+
+    multi = probe_id in SEMANTIC_MULTI_UNIT_PROBES
+    if multi:
+        if language == "C++" and "util.cpp" not in files:
+            raise BenchmarkError(f"{probe_id}: C++ multi-unit verification requires util.cpp")
+        if language == "Swift" and "util.swift" not in files:
+            raise BenchmarkError(f"{probe_id}: Swift multi-unit verification requires util.swift")
+        if language == "Java" and "util/Util.java" not in files:
+            raise BenchmarkError(f"{probe_id}: Java multi-unit verification requires util/Util.java")
+        if language == "Kotlin" and "util.kt" not in files:
+            raise BenchmarkError(f"{probe_id}: Kotlin multi-unit verification requires util.kt")
+        if language == "Go":
+            if "go.mod" not in files or not any(
+                name.startswith("util/") and name.endswith(".go") for name in files
+            ):
+                raise BenchmarkError(
+                    f"{probe_id}: Go multi-unit verification requires go.mod and util/*.go"
+                )
+
+    if language == "Quidra":
+        return ["quidra", "build", entry, "-o", "program"], ["./program"], "program"
+    if language == "Python":
+        return None, ["python3", entry], None
+    if language == "C++":
+        sources = (["util.cpp"] if multi else []) + [entry]
+        return ["clang++", "-std=c++20", "-O2", *sources, "-o", "program"], ["./program"], "program"
+    if language == "Rust":
+        return ["rustc", "-O", "-C", "debug-assertions=on", entry, "-o", "program"], ["./program"], "program"
+    if language == "Go":
+        build = ["go", "build", "-o", "program", "."] if multi else [
+            "go", "build", "-o", "program", entry
+        ]
+        return build, ["./program"], "program"
+    if language == "Java":
+        sources = (["util/Util.java"] if multi else []) + [entry]
+        return ["javac", "-d", "out", *sources], ["java", "-cp", "out", "Main"], None
+    if language == "TypeScript":
+        return [
+            "tsc", "--strict", "--target", "es2022", "--module", "nodenext", entry
+        ], ["node", str(PurePosixPath(entry).with_suffix(".js"))], None
+    if language == "Kotlin":
+        sources = (["util.kt"] if multi else []) + [entry]
+        return [
+            "kotlinc", *sources, "-include-runtime", "-d", "program.jar"
+        ], ["java", "-jar", "program.jar"], None
+    if language == "Swift":
+        sources = (["util.swift"] if multi else []) + [entry]
+        return ["swiftc", "-O", *sources, "-o", "program"], ["./program"], "program"
+    if language == "Zig":
+        return [
+            "zig", "build-exe", "-OReleaseSafe", entry, "-femit-bin=program"
+        ], ["./program"], "program"
+    raise BenchmarkError(f"unsupported Semantic Compression verification language: {language}")
+
+
+def _semantic_process_record(
+    argv: list[str], completed: subprocess.CompletedProcess[str]
+) -> dict[str, Any]:
+    stdout = completed.stdout or ""
+    stderr = completed.stderr or ""
+    return {
+        "argv": list(argv),
+        "exit_code": int(completed.returncode),
+        "stdout_sha256": sha256_bytes(stdout.encode("utf-8")),
+        "stderr_sha256": sha256_bytes(stderr.encode("utf-8")),
+        "stdout": stdout[:4096],
+        "stderr": stderr[:4096],
+    }
+
+
+def _semantic_run_process(
+    root: Path, cwd: Path, argv: list[str], *, label: str
+) -> dict[str, Any]:
+    try:
+        completed = subprocess.run(
+            argv,
+            cwd=cwd,
+            env=sanitized_subprocess_env(root, cwd),
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=300,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise BenchmarkError(f"{label} could not execute: {exc}") from exc
+    record = _semantic_process_record(argv, completed)
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip()[:1200]
+        raise BenchmarkError(
+            f"{label} failed with exit {completed.returncode}: {detail}"
+        )
+    return record
+
+
+def _semantic_nm_has_add2(output: str) -> bool:
+    for line in output.splitlines():
+        fields = line.split()
+        if len(fields) < 2 or fields[-1] not in {"add2", "_add2"}:
+            continue
+        if fields[-2].upper() != "U":
+            return True
+    return False
+
+
+def _semantic_nm_self_test(root: Path, cwd: Path) -> dict[str, Any]:
+    positive = cwd / "nm_positive.c"
+    negative = cwd / "nm_negative.c"
+    positive.write_text("int add2(int a, int b) { return a + b; }\n", encoding="utf-8")
+    negative.write_text("int other(int a, int b) { return a + b; }\n", encoding="utf-8")
+    pos_build = _semantic_run_process(
+        root, cwd, ["cc", "-c", positive.name, "-o", "nm_positive.o"],
+        label="Semantic Compression nm positive-control build",
+    )
+    neg_build = _semantic_run_process(
+        root, cwd, ["cc", "-c", negative.name, "-o", "nm_negative.o"],
+        label="Semantic Compression nm negative-control build",
+    )
+    pos_nm = _semantic_run_process(
+        root, cwd, ["nm", "nm_positive.o"],
+        label="Semantic Compression nm positive control",
+    )
+    neg_nm = _semantic_run_process(
+        root, cwd, ["nm", "nm_negative.o"],
+        label="Semantic Compression nm negative control",
+    )
+    positive_ok = _semantic_nm_has_add2(pos_nm["stdout"])
+    negative_ok = not _semantic_nm_has_add2(neg_nm["stdout"])
+    if not positive_ok or not negative_ok:
+        raise BenchmarkError(
+            "Semantic Compression nm validator failed its mandatory positive/negative controls"
+        )
+    return {
+        "positive_build": pos_build,
+        "negative_build": neg_build,
+        "positive_nm": pos_nm,
+        "negative_nm": neg_nm,
+        "positive_control_passed": positive_ok,
+        "negative_control_passed": negative_ok,
+    }
+
+
+def validate_canonical_fragment_verification(
+    root: Path,
+    language: str,
+    catalog: dict[str, dict[str, Any]],
+    evidence: dict[str, Any],
+) -> dict[str, Any]:
+    """Mechanically enforce capability-universe R6 / pre-measurement V1."""
+    verification = _semantic_verification_schema(catalog, evidence)
+    synthetic = bool(evidence.get("synthetic"))
+    audit_path = (
+        root / "work" / "audit" / "semantic-compression"
+        / f"canonical_verification_{slug_id(language)}.json"
+    )
+    if synthetic:
+        payload = {
+            "schema_version": 1,
+            "language": language,
+            "synthetic_ci": True,
+            "verified_probes": sorted(verification),
+            "note": (
+                "Synthetic CI validates the complete verification-fixture contract "
+                "but never substitutes fake toolchain execution for paid-run evidence."
+            ),
+        }
+        json_dump(audit_path, payload)
+        return payload
+
+    verify_root = (
+        root / "work" / "root" / "commands"
+        / f"sc-canonical-verification-{slug_id(language)}"
+    )
+    shutil.rmtree(verify_root, ignore_errors=True)
+    verify_root.mkdir(parents=True, exist_ok=True)
+    report: dict[str, Any] = {
+        "schema_version": 1,
+        "language": language,
+        "synthetic_ci": False,
+        "probes": {},
+    }
+    nm_self_test: dict[str, Any] | None = None
+
+    for probe_id in sorted(verification):
+        row = verification[probe_id]
+        probe_dir = verify_root / slug_id(probe_id)
+        probe_dir.mkdir(parents=True, exist_ok=True)
+        for relative, content in row["files"].items():
+            destination = require_under(
+                probe_dir.joinpath(*PurePosixPath(relative).parts), probe_dir
+            )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(content, encoding="utf-8")
+
+        build_argv, run_argv, native_artifact = _semantic_verification_recipe(
+            language, probe_id, row["entry_file"], row["files"]
+        )
+        probe_report: dict[str, Any] = {
+            "mode": row["mode"],
+            "run_count": row["run_count"],
+            "canonical_fragment_sha256": sha256_bytes(
+                str(catalog[probe_id]["fragment"]).encode("utf-8")
+            ),
+            "source_files": {
+                name: sha256_bytes(content.encode("utf-8"))
+                for name, content in sorted(row["files"].items())
+            },
+        }
+        if build_argv is not None:
+            probe_report["build"] = _semantic_run_process(
+                root, probe_dir, build_argv,
+                label=f"{language} {probe_id} frozen build recipe",
+            )
+
+        if row["mode"] == "nm-add2":
+            if language not in SEMANTIC_NATIVE_NM_LANGUAGES or not native_artifact:
+                raise BenchmarkError(
+                    f"{probe_id}: {language} has no native artifact under the frozen "
+                    "recipe, so it cannot be FULL/PARTIAL for the mandatory nm probe"
+                )
+            if nm_self_test is None:
+                nm_self_test = _semantic_nm_self_test(root, verify_root)
+                report["nm_validator_self_test"] = nm_self_test
+            nm_record = _semantic_run_process(
+                root, probe_dir, ["nm", native_artifact],
+                label=f"{language} {probe_id} nm verification",
+            )
+            if not _semantic_nm_has_add2(nm_record["stdout"]):
+                raise BenchmarkError(
+                    f"{probe_id}: {language} built successfully but nm did not expose "
+                    "a defined exact add2/_add2 symbol"
+                )
+            probe_report["nm"] = nm_record
+            probe_report["symbol_add2_defined"] = True
+        else:
+            if run_argv is None:
+                raise BenchmarkError(
+                    f"{probe_id}: {language} frozen recipe has no runnable command"
+                )
+            runs = []
+            for index in range(row["run_count"]):
+                runs.append(_semantic_run_process(
+                    root, probe_dir, run_argv,
+                    label=(
+                        f"{language} {probe_id} frozen run recipe"
+                        + (f" #{index + 1}" if row["run_count"] > 1 else "")
+                    ),
+                ))
+            probe_report["runs"] = runs
+        report["probes"][probe_id] = probe_report
+
+    report["verified_probe_count"] = len(report["probes"])
+    json_dump(audit_path, report)
+    return report
+
+
 def validate_canonical_fragment_owner_result(
     root: Path, task: dict[str, Any], result: dict[str, Any]
 ) -> None:
@@ -3776,6 +4191,9 @@ def validate_canonical_fragment_owner_result(
         raise BenchmarkError("canonical fragment owner must be language-sharded")
     language = str(assigned[0])
     catalog = canonical_fragment_catalog(root, result)
+    validate_canonical_fragment_verification(
+        root, language, catalog, result.get("evidence") or {}
+    )
     aggregation = json_load(root / "template" / "config" / "aggregation.json")
     owner = (
         aggregation.get("evaluations", {}).get("semantic_compression", {})

@@ -33,6 +33,8 @@ def make_root(td: str) -> Path:
     root = Path(td)
     (root / "work/root").mkdir(parents=True)
     (root / "work/audit/semantic-compression").mkdir(parents=True)
+    (root / "home").mkdir(parents=True)
+    (root / "tmp").mkdir(parents=True)
     # The tests exercise the real frozen matrix/policy without copying it.
     (root / "template").symlink_to((ROOT / "benchmark/template").resolve(), target_is_directory=True)
     return root
@@ -222,6 +224,111 @@ def assert_cohort_work_is_cacheable() -> None:
     assert benchmark.cache_scope(audit) == "comparability"
 
 
+
+def assert_canonical_fragment_verification_runs_real_recipe() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        matrix = json.loads(
+            (
+                ROOT
+                / "benchmark/template/methodology-assets/semantic_compression/semantic_site_matrix.json"
+            ).read_text()
+        )
+        catalog = {
+            str(probe["probe_id"]): canonical("NONE", None, none="N-1")
+            for probe in matrix["probes"]
+        }
+        fragment = "n = 7\nreturn n"
+        catalog["F01.P1"] = canonical("FULL", fragment)
+        evidence = {
+            "canonical_verification": {
+                "F01.P1": {
+                    "entry_file": "main.py",
+                    "fragment_files": ["main.py"],
+                    "files": {
+                        "main.py": (
+                            "def probe():\n"
+                            "    n = 7\n"
+                            "    return n\n\n"
+                            "assert probe() == 7\n"
+                        )
+                    },
+                    "mode": "run",
+                    "run_count": 1,
+                }
+            }
+        }
+        report = benchmark.validate_canonical_fragment_verification(
+            root, "Python", catalog, evidence
+        )
+        assert report["verified_probe_count"] == 1, report
+        assert report["probes"]["F01.P1"]["runs"][0]["exit_code"] == 0, report
+        audit = root / "work/audit/semantic-compression/canonical_verification_python.json"
+        assert audit.is_file(), audit
+
+        broken = json.loads(json.dumps(evidence))
+        broken["canonical_verification"]["F01.P1"]["files"]["main.py"] += (
+            "\nraise SystemExit(7)\n"
+        )
+        try:
+            benchmark.validate_canonical_fragment_verification(
+                root, "Python", catalog, broken
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "frozen run recipe failed" in str(exc), exc
+        else:
+            raise AssertionError("a canonical fragment whose fixture fails must be rejected")
+
+
+def assert_synthetic_verification_cannot_masquerade_as_real() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        matrix = json.loads(
+            (
+                ROOT
+                / "benchmark/template/methodology-assets/semantic_compression/semantic_site_matrix.json"
+            ).read_text()
+        )
+        catalog = {
+            str(probe["probe_id"]): canonical("NONE", None, none="N-1")
+            for probe in matrix["probes"]
+        }
+        catalog["F01.P1"] = canonical("FULL", "synthetic_fragment()")
+        evidence = {
+            "synthetic": "deterministic harness evidence",
+            "canonical_verification": {
+                "F01.P1": {
+                    "entry_file": "main.txt",
+                    "fragment_files": ["main.txt"],
+                    "files": {"main.txt": "synthetic_fragment()\n"},
+                    "mode": "run",
+                    "run_count": 1,
+                }
+            },
+        }
+        report = benchmark.validate_canonical_fragment_verification(
+            root, "Python", catalog, evidence
+        )
+        assert report["synthetic_ci"] is True, report
+        assert "probes" not in report, report
+
+
+def assert_go_multi_unit_recipe_builds_one_main_package() -> None:
+    build, run, artifact = benchmark._semantic_verification_recipe(
+        "Go",
+        "F18.P2",
+        "main.go",
+        {
+            "main.go": "package main\n",
+            "go.mod": "module example\n",
+            "util/util.go": "package util\n",
+        },
+    )
+    assert build == ["go", "build", "-o", "program", "."], build
+    assert run == ["./program"], run
+    assert artifact == "program", artifact
+
+
 def main() -> None:
     assert_complete_support_record_contract()
     assert_probe_alias_rows_are_recognized()
@@ -229,6 +336,9 @@ def main() -> None:
     assert_repair_loop_is_scoped_and_idempotent()
     assert_every_sampled_probe_has_a_cohort_adjudicator()
     assert_cohort_work_is_cacheable()
+    assert_canonical_fragment_verification_runs_real_recipe()
+    assert_synthetic_verification_cannot_masquerade_as_real()
+    assert_go_multi_unit_recipe_builds_one_main_package()
     print("semantic compression reconciliation contract: ok")
 
 

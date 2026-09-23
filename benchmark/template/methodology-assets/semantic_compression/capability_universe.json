@@ -994,6 +994,30 @@
   "pre_measurement_validation": {
     "_purpose": "Spec 6.1.7 and the mandatory pre-flight require each probe to be validated against a real implementation or authoritative specification before scoring. Preserve the validation evidence so an unsupported result cannot be confused with a broken instrument.",
     "V1_fragments_build_and_match": "Every fragment scored FULL or PARTIAL builds and runs under its frozen recipe, unmodified, and its observed output matches the canonical_task's stated result. This was already implied by authoring rule R6; it is now an explicit gate, and the build command, exit status and observed stdout are preserved as evidence for every (probe, language) pair.",
+    "V1_fixed_stdout_oracles": {
+      "normalization": "For each listed probe, every successful verification run must produce stdout whose leading and trailing whitespace is stripped to exactly the frozen string. Only probes whose canonical task fixes a language-neutral concrete result are listed; unlisted probes remain subject to the mandatory self-checking fixture and zero-exit build/run contract.",
+      "by_probe": {
+        "F01.P1": "7",
+        "F02.P2": "1",
+        "F04.P1": "9",
+        "F05.P2": "12",
+        "F05.P3": "-1",
+        "F06.P1": "2",
+        "F11.P2": "20",
+        "F12.P1": "0",
+        "F15.P1": "4p",
+        "F15.P2": "5",
+        "F15.P3": "a",
+        "F16.P1": "6",
+        "F16.P2": "1",
+        "F17.P2": "1",
+        "F18.P1": "x",
+        "F18.P2": "6",
+        "F19.P1": "42",
+        "F19.P2": "2000",
+        "F20.P1": "3"
+      }
+    },
     "V2_validators_and_harness_conventions": "Every mechanical validator the probe set defines is exercised on a known-positive AND a known-negative case before it is trusted, and both outcomes are recorded. Specifically, F20.P2's `nm` check is run once on a binary known to export `add2` and once on a binary known not to, and both outcomes are recorded; a validator that can never fail, or never pass, would otherwise produce NONE rows silently. Separately, every harness convention a canonical_task withholds — Java's `Main` class name, file naming, package directories, entry wrappers, the async runtime block F19.P1 permits — is satisfied by the harness and is NEVER charged to the fragment as tokens, as a P-e PARTIAL, or as a NONE.",
     "V3_every_probe_expressible_somewhere": "Every probe is demonstrated expressible at FULL in at least one of the ten languages, with the working fragment recorded, BEFORE any language is scored NONE against that probe. A probe no language can satisfy is an instrument defect, not a finding about the languages.",
     "V4_suspicious_rows_and_columns": "Any probe with ten NONEs, and any language with NONE on more than one third of probes, is investigated as a suspected instrument defect before publication. Preserve the investigation, conclusion, and evidence in the current run evidence. Apply the same rule to unexpectedly low and unexpectedly high columns.",

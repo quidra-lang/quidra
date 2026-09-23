@@ -728,8 +728,67 @@ def assert_cached_validator_rejection_becomes_miss() -> None:
         assert unit["id"] in status["hits"] and unit["id"] not in status["misses"]
 
 
+def assert_ecosystem_runner_owned_scoring() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        asset = benchmark.ecosystem_rubric_asset(root)
+        assert asset["frozen"] is True
+        assert len(asset["metrics"]) == 15
+        reqs = [
+            "metric.installation_distribution_experience",
+            "metric.toolchain_stability_release_maturity",
+        ]
+        task = {
+            "evaluation": "ecosystem",
+            "assigned_languages": ["Python"],
+            "requirement_ids": reqs,
+        }
+        evidence = {}
+        for index, rid in enumerate(reqs):
+            rubric = asset["metrics"][rid]
+            component_ids = [row["id"] for row in rubric["components"]]
+            level = 4 if index == 0 else 3
+            evidence[rid] = {
+                "rubric_id": rubric["rubric_id"],
+                "component_levels": {cid: level for cid in component_ids},
+                "component_findings": {
+                    cid: f"verified evidence for {cid}" for cid in component_ids
+                },
+                "sources": ["https://example.invalid/evidence"],
+                "snapshot_date": "2026-09-23",
+                "limitations": "",
+            }
+        result = {
+            "schema_version": 1,
+            "evaluation": "ecosystem",
+            "requirements": {
+                rid: {"Python": -1} for rid in reqs
+            },
+            "evidence": evidence,
+        }
+        benchmark.apply_ecosystem_runner_scores(root, task, result)
+        assert result["requirements"][reqs[0]] == {"Python": 100.0}
+        assert result["requirements"][reqs[1]] == {"Python": 75.0}
+        assert (
+            result["evidence"]["runner_scoring"]["rubric_set_id"]
+            == "ecosystem-runner-rubric-v2"
+        )
+
+        broken = json.loads(json.dumps(result))
+        broken["evidence"][reqs[0]]["component_levels"].pop(
+            next(iter(broken["evidence"][reqs[0]]["component_levels"]))
+        )
+        try:
+            benchmark.apply_ecosystem_runner_scores(root, task, broken)
+        except benchmark.BenchmarkError as exc:
+            assert "component_levels" in str(exc), exc
+        else:
+            raise AssertionError("incomplete Ecosystem component evidence was accepted")
+
+
 def main() -> None:
     assert_accepted_trial_start_marks_the_scored_boundary()
+    assert_ecosystem_runner_owned_scoring()
     assert_execution_identity_paths_are_policy_authoritative()
     assert_quidra_execution_identity_reuse_guard()
     assert_cached_validator_rejection_becomes_miss()

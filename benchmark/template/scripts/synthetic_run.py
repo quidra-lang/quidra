@@ -312,6 +312,41 @@ def unit_payload(
                 for language in languages
             }
         elif (
+            unit.get("evaluation") == "ecosystem"
+            and requirement_id.startswith("metric.")
+        ):
+            rubric_asset = json.loads(
+                (
+                    root
+                    / "template"
+                    / "methodology-assets"
+                    / "ecosystem"
+                    / "rubrics.json"
+                ).read_text(encoding="utf-8")
+            )
+            rubric = rubric_asset["metrics"][requirement_id]
+            component_ids = [row["id"] for row in rubric["components"]]
+            requirements[requirement_id] = {
+                language: 75.0 for language in assigned
+            }
+            evidence[requirement_id] = {
+                "rubric_id": rubric["rubric_id"],
+                "component_levels": {cid: 3 for cid in component_ids},
+                "component_findings": {
+                    cid: f"synthetic verified evidence for {cid}"
+                    for cid in component_ids
+                },
+                "sources": ["synthetic://ecosystem-evidence"],
+                "candidate_universe": "synthetic frozen candidate universe",
+                "selection_rule": rubric["selection_rule"],
+                "retrieval_route": "provider-brokered web search",
+                "snapshot_date": str(
+                    json.loads((root / "run.json").read_text(encoding="utf-8"))
+                    .get("created_at_utc", "2026-09-23")
+                )[:10],
+                "limitations": "synthetic deterministic harness evidence",
+            }
+        elif (
             unit.get("evaluation") == "llm_proficiency"
             and requirement_id in {
                 "metric.generation_success_rate",

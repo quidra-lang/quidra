@@ -9,6 +9,7 @@ on:
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"
       - "tests/benchmark_adversarial_tests.py"
+      - "tests/benchmark_semantic_compression_tests.py"
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
@@ -19,6 +20,7 @@ on:
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"
       - "tests/benchmark_adversarial_tests.py"
+      - "tests/benchmark_semantic_compression_tests.py"
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
 
@@ -91,6 +93,7 @@ jobs:
               root / "config" / "aggregation.json",
               root / "config" / "work_plan_templates.json",
               root / "config" / "quidra_representation_schema.json",
+              root / "config" / "semantic_compression_comparability.json",
               root / "programs" / "python" / "micro" / "mb01.py",
               root / "programs" / "python" / "micro" / "mb00.py",
               root / "fixtures" / "micro" / "reference",
@@ -1120,6 +1123,9 @@ jobs:
 
       - name: Certified cache reuse contract
         run: python tests/benchmark_cache_tests.py
+
+      - name: Semantic Compression reconciliation contract
+        run: python tests/benchmark_semantic_compression_tests.py
 
       - name: Mechanical adversarial scorer replays the frozen decision list
         run: python tests/benchmark_adversarial_tests.py

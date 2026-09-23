@@ -2451,6 +2451,49 @@ def test_proficiency_toolchain_evidence_precedes_scored_trials() -> None:
     )
 
 
+def test_proficiency_repair_feedback_is_runtime_owned() -> None:
+    failed = {
+        "compile_parse_ok": True,
+        "test_passed": False,
+        "expected_exit_code": 0,
+        "expected_stdout": "SVM PASS",
+        "compile_or_parse": {
+            "label": "build", "argv": ["python3", "-m", "py_compile", "main.py"],
+            "exit_code": 0, "stdout": "", "stderr": "",
+        },
+        "run": {
+            "label": "run", "argv": ["python3", "main.py"],
+            "exit_code": 3, "stdout": "wrong\n", "stderr": "validation failed\n",
+        },
+    }
+    first = benchmark.proficiency_repair_prompt(failed)
+    second = benchmark.proficiency_repair_prompt(json.loads(json.dumps(failed)))
+    check(first == second, "Proficiency repair feedback is not deterministic")
+    check(
+        "SVM PASS" in first and "validation failed" in first
+        and "Return only one complete replacement source program" in first,
+        f"trusted repair prompt lost verifier facts: {first}",
+    )
+    passed = dict(failed, test_passed=True)
+    try:
+        benchmark.proficiency_repair_prompt(passed)
+    except benchmark.BenchmarkError as exc:
+        check(
+            "success is terminal" in str(exc),
+            f"a passing trial was rejected for the wrong reason: {exc}",
+        )
+    else:
+        check(False, "a passing Proficiency trial was allowed to request a repair")
+
+    runtime = (SCRIPTS / "sandbox_agent.py").read_text(encoding="utf-8")
+    check(
+        "repair feedback is runtime-owned" in runtime
+        and "benchmark.proficiency_repair_prompt" in runtime
+        and "omit message instead of supplying custom guidance" in runtime,
+        "sandbox runtime does not enforce verifier-only Proficiency repairs",
+    )
+
+
 def test_proficiency_requires_the_complete_primary_trial_set() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td).resolve())

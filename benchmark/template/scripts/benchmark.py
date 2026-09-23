@@ -945,8 +945,13 @@ def cmd_init(args: argparse.Namespace) -> int:
     catalog_hash = sha256_file(catalog_path) if catalog_path.exists() else None
     materialized_hash = sha256_file(materialized_path) if materialized_path.exists() else None
     template_hash = sha256_tree(root / "template")
+    cache_cfg_for_identity = json_load(
+        root / "template" / "config" / "cache_policy.json"
+    )
     target_execution_identity = quidra_execution_identity_from_git(
-        source, meta["commit_sha"]
+        source,
+        meta["commit_sha"],
+        quidra_execution_input_paths(cache_cfg_for_identity),
     )
 
     run = {
@@ -5553,6 +5558,17 @@ def cache_policy(root: Path) -> dict[str, Any]:
     data = json_load(path)
     if data.get("schema_version") != 1 or data.get("cache_schema_version") != 1:
         raise BenchmarkError("unsupported certified cache policy schema")
+    identity = data.get("quidra_execution_identity") or {}
+    paths = quidra_execution_input_paths(data)
+    baseline = identity.get("legacy_baseline") or {}
+    baseline_objects = baseline.get("git_objects")
+    if baseline_objects is not None and (
+        not isinstance(baseline_objects, dict)
+        or set(baseline_objects) != set(paths)
+    ):
+        raise BenchmarkError(
+            "cache policy legacy Quidra execution baseline does not match input_paths"
+        )
     return data
 
 
@@ -5635,26 +5651,57 @@ def audit_languages(root: Path, unit: dict[str, Any]) -> list[str]:
     return languages
 
 
-QUIDRA_EXECUTION_INPUT_PATHS = (
-    "CMakeLists.txt",
-    "project.toml",
-    "quidra.manifest.json",
-    "src",
-    "include",
-    "docs/spec/grammar.ebnf",
-)
+def quidra_execution_input_paths(policy: dict[str, Any]) -> tuple[str, ...]:
+    """The cache policy is the single authority for Quidra execution inputs."""
+    identity = policy.get("quidra_execution_identity") or {}
+    raw = identity.get("input_paths")
+    if not isinstance(raw, list) or not raw:
+        raise BenchmarkError(
+            "cache policy quidra_execution_identity.input_paths must be non-empty"
+        )
+    paths: list[str] = []
+    for value in raw:
+        if not isinstance(value, str) or not value:
+            raise BenchmarkError(
+                "cache policy Quidra execution input paths must be non-empty strings"
+            )
+        path = PurePosixPath(value)
+        if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+            raise BenchmarkError(
+                f"invalid cache policy Quidra execution input path: {value!r}"
+            )
+        paths.append(path.as_posix())
+    if len(paths) != len(set(paths)):
+        raise BenchmarkError("cache policy Quidra execution input paths contain duplicates")
+    return tuple(paths)
 
 
 def quidra_execution_identity_from_git(
-    source: Path, revision: str = "HEAD"
+    source: Path,
+    revision: str = "HEAD",
+    input_paths: tuple[str, ...] | list[str] | None = None,
 ) -> dict[str, Any]:
     """Content identity of the compiler/runtime implementation a run executes.
 
-    Benchmark-only edits must not invalidate Quidra measurements, while a
-    compiler/runtime change under the same declared version must.
+    The path set comes from cache_policy.json so benchmark code and policy
+    cannot silently drift. Benchmark-only edits must not invalidate Quidra
+    measurements, while a compiler/runtime change under the same declared
+    version must.
     """
+    if input_paths is None:
+        policy_path = source / "benchmark" / "template" / "config" / "cache_policy.json"
+        if not policy_path.is_file():
+            raise BenchmarkError(
+                "cannot locate cache_policy.json for Quidra execution identity"
+            )
+        input_paths = quidra_execution_input_paths(json_load(policy_path))
+    else:
+        input_paths = tuple(str(value) for value in input_paths)
+        if not input_paths:
+            raise BenchmarkError("Quidra execution identity requires at least one input path")
+
     objects: dict[str, str] = {}
-    for relative in QUIDRA_EXECUTION_INPUT_PATHS:
+    for relative in input_paths:
         try:
             observed = run_capture(
                 ["git", "rev-parse", f"{revision}:{relative}"], source
@@ -5686,12 +5733,13 @@ def current_quidra_execution_identity(root: Path) -> dict[str, Any] | None:
     )
     if raw is None:
         return None
+    expected_paths = set(quidra_execution_input_paths(cache_policy(root)))
     if (
         not isinstance(raw, dict)
         or raw.get("schema_version") != 1
         or not re.fullmatch(r"[0-9a-f]{64}", str(raw.get("sha256") or ""))
         or not isinstance(raw.get("git_objects"), dict)
-        or set(raw["git_objects"]) != set(QUIDRA_EXECUTION_INPUT_PATHS)
+        or set(raw["git_objects"]) != expected_paths
     ):
         raise BenchmarkError("run.json carries an invalid Quidra execution identity")
     return raw
@@ -12041,7 +12089,9 @@ def cache_impact(source: Path) -> dict[str, Any]:
     policy = json_load(template / "config" / "cache_policy.json")
     declared = policy.get("declared_epochs") or {}
     target_language = str(policy.get("target_language") or "Quidra")
-    current_target_execution = quidra_execution_identity_from_git(source, "HEAD")
+    current_target_execution = quidra_execution_identity_from_git(
+        source, "HEAD", quidra_execution_input_paths(policy)
+    )
     target_identity_policy = policy.get("quidra_execution_identity") or {}
     legacy_target_baseline = target_identity_policy.get("legacy_baseline") or {}
     legacy_verified_prefixes = {

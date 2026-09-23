@@ -8542,24 +8542,62 @@ def proficiency_runtime_verification_problems(
                             f"{trial_id}: call {index} oracle case {case_id} hash/visibility mismatch"
                         )
                     run = row.get("run")
-                    expected_problem = (
-                        None
-                        if isinstance(run, dict) and run.get("exit_code") == 0
-                        else (
-                            f"program exited with {run.get('exit_code')}"
-                            if isinstance(run, dict)
-                            else "missing run evidence"
+                    if bool(case["hidden"]):
+                        if not isinstance(run, dict):
+                            problems.append(
+                                f"{trial_id}: call {index} hidden oracle case {case_id} "
+                                "has no run evidence"
+                            )
+                            continue
+                        if run.get("output_redacted") is not True:
+                            problems.append(
+                                f"{trial_id}: call {index} hidden oracle case {case_id} "
+                                "did not redact stdout/stderr"
+                            )
+                        if "stdout" in run or "stderr" in run:
+                            problems.append(
+                                f"{trial_id}: call {index} hidden oracle case {case_id} "
+                                "retained hidden output bytes"
+                            )
+                        for hash_name in ("stdout_sha256", "stderr_sha256"):
+                            value = str(run.get(hash_name) or "")
+                            if not re.fullmatch(r"[0-9a-f]{64}", value):
+                                problems.append(
+                                    f"{trial_id}: call {index} hidden oracle case {case_id} "
+                                    f"has invalid {hash_name}"
+                                )
+                        expected_passed = row.get("passed") is True
+                        problem_text = str(row.get("problem") or "").strip()
+                        if expected_passed and problem_text:
+                            problems.append(
+                                f"{trial_id}: call {index} hidden oracle case {case_id} "
+                                "passed but retains a failure reason"
+                            )
+                        if not expected_passed and not problem_text:
+                            problems.append(
+                                f"{trial_id}: call {index} hidden oracle case {case_id} "
+                                "failed without a preserved reason"
+                            )
+                    else:
+                        expected_problem = (
+                            None
+                            if isinstance(run, dict) and run.get("exit_code") == 0
+                            else (
+                                f"program exited with {run.get('exit_code')}"
+                                if isinstance(run, dict)
+                                else "missing run evidence"
+                            )
                         )
-                    )
-                    if expected_problem is None:
-                        expected_problem = _proficiency_oracle_output_problem(
-                            case, str((run or {}).get("stdout") or "")
-                        )
-                    expected_passed = expected_problem is None
-                    if bool(row.get("passed")) != expected_passed:
-                        problems.append(
-                            f"{trial_id}: call {index} oracle case {case_id} pass verdict mismatch"
-                        )
+                        if expected_problem is None:
+                            expected_problem = _proficiency_oracle_output_problem(
+                                case, str((run or {}).get("stdout") or "")
+                            )
+                        expected_passed = expected_problem is None
+                        if bool(row.get("passed")) != expected_passed:
+                            problems.append(
+                                f"{trial_id}: call {index} oracle case {case_id} "
+                                "pass verdict mismatch"
+                            )
                     if expected_passed:
                         recomputed_passed += 1
                 if int(verification.get("oracle_passed_count", -1) or 0) != recomputed_passed:

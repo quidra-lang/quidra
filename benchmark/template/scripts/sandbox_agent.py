@@ -757,8 +757,11 @@ before finalizing; any other trial ID is rejected before it can spend a scored
 call. Do NOT author an initial prompt. Use
 `{"action":"trial_start","trial_id":"<id>"}` (or batch entries containing only
 `trial_id`). The runtime inserts the frozen workload/scenario prompt. A custom
-prompt is rejected before inference. Repair messages remain yours and must
-contain the real compiler/test diagnostics from that trial.
+prompt is rejected before inference. Repair feedback is also runtime-owned:
+omit the message field on trial_continue. The runtime sends only the trusted
+verifier's compile/run facts plus the frozen replacement-source instruction.
+Custom repair guidance is rejected before inference, and a trial that already
+passed cannot be repaired.
 
 {required}
 """

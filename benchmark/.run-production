@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T06:04:00Z
-reason: full run of all five Primary evaluations on the develop snapshot; every work unit but sc-comparability hydrates from the 227 certified cache records, so the soft guard is five dollars rather than the default hundred; smoke 09137c6 passed its twelve checks
+requested_at_utc: 2026-09-23T07:36:00Z
+reason: full run of all five Primary evaluations on the develop snapshot, to stand as the benchmark's first published result with its score breakdown and worker evidence; all 227 work units hydrate from the certified cache and only sc-comparability is measured, so the soft guard stays at five dollars; smoke 0a3b6dc passed its twelve checks
 model: claude-sonnet-5
 evaluation: all
 budget_usd: 5.0

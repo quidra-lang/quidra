@@ -2477,6 +2477,61 @@ def load_work_plan_templates(root: Path) -> dict[str, Any]:
     return data
 
 
+PRIMARY_EVALUATION_CONFIG_KEYS = {
+    "semantic_compression": "semantic_compression",
+    "llm_learnability": "llm_learnability",
+    "language_quality": "language_quality",
+    "ecosystem": None,
+    "llm_proficiency": "llm_proficiency",
+}
+
+
+def primary_config_projection_from_data(
+    config: dict[str, Any], evaluation: str
+) -> dict[str, Any]:
+    """Return only the Primary config visible to one evaluation.
+
+    Evaluation-local sections must not invalidate or perturb another evaluation's
+    paid prompt/cache. Shared runner/safety/sampling policy remains visible to all
+    evaluations, so a genuinely global policy change still invalidates them.
+    """
+    if evaluation not in PRIMARY_EVALUATION_CONFIG_KEYS:
+        raise BenchmarkError(f"unknown Primary evaluation for config projection: {evaluation}")
+    own_key = PRIMARY_EVALUATION_CONFIG_KEYS[evaluation]
+    local_keys = {
+        key for key in PRIMARY_EVALUATION_CONFIG_KEYS.values() if key is not None
+    }
+    return {
+        key: value
+        for key, value in config.items()
+        if key not in local_keys or key == own_key
+    }
+
+
+def primary_config_projection_data(root: Path, evaluation: str) -> dict[str, Any]:
+    return primary_config_projection_from_data(
+        json_load(root / "template" / "config" / "primary.json"), evaluation
+    )
+
+
+def primary_config_projection_text(root: Path, evaluation: str) -> str:
+    return json.dumps(
+        primary_config_projection_data(root, evaluation),
+        indent=2,
+        ensure_ascii=False,
+    ) + "\n"
+
+
+def primary_config_projection_sha256(root: Path, evaluation: str) -> str:
+    data = json.dumps(
+        primary_config_projection_data(root, evaluation),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return sha256_bytes(data)
+
+
 def derive_llm_call_budget(
     primary: dict[str, Any],
     languages: list[str],
@@ -2826,8 +2881,8 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     "assigned_languages": assigned_languages,
                     "dependencies": deps,
                     "input_hashes": {
-                        "primary_config": sha256_file(
-                            root / "template" / "config" / "primary.json"
+                        "primary_config": primary_config_projection_sha256(
+                            root, evaluation
                         ),
                         "benchmark_metadata": sha256_file(
                             root / "template" / BENCHMARK_METADATA_RELATIVE
@@ -6374,6 +6429,178 @@ def cache_cap_reuse_problem(
     return None
 
 
+def _prompt_store_manifest(
+    store_root: Path, prompt_sha256: str
+) -> dict[str, Any] | None:
+    path = store_root / "manifests" / "by-hash" / f"{prompt_sha256}.json"
+    if not path.is_file():
+        return None
+    data = json_load(path)
+    if data.get("schema_version") != 1 or data.get("prompt_sha256") != prompt_sha256:
+        return None
+    return data
+
+
+def _prompt_store_component_text(
+    store_root: Path, component_sha256: str
+) -> str | None:
+    for suffix in (".md", ".json", ".txt"):
+        path = store_root / "components" / "by-hash" / f"{component_sha256}{suffix}"
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    return None
+
+
+def _primary_config_from_prompt_store(
+    store_root: Path, prompt_sha256: str
+) -> dict[str, Any] | None:
+    manifest = _prompt_store_manifest(store_root, prompt_sha256)
+    if manifest is None:
+        return None
+    for component in manifest.get("components", []) or []:
+        if str(component.get("kind") or "") != "embedded:primary.json":
+            continue
+        text = _prompt_store_component_text(
+            store_root, str(component.get("sha256") or "")
+        )
+        if text is None:
+            return None
+        start = text.find("{")
+        if start < 0:
+            return None
+        try:
+            parsed = json.loads(text[start:])
+        except json.JSONDecodeError:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+    return None
+
+
+def _prompt_component_signature_without_primary(
+    components: Iterable[dict[str, Any]],
+) -> list[tuple[str, str]]:
+    return [
+        (str(component.get("kind") or ""), str(component.get("sha256") or ""))
+        for component in components
+        if str(component.get("kind") or "") != "embedded:primary.json"
+    ]
+
+
+def _cache_payload_without_primary_prompt(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    normalized = dict(payload)
+    normalized.pop("exact_task_packet_sha256", None)
+    hashes = dict(normalized.get("unit_input_hashes") or {})
+    hashes.pop("primary_config", None)
+    normalized["unit_input_hashes"] = hashes
+    return normalized
+
+
+def _legacy_primary_prompt_compatible(
+    root: Path,
+    record: dict[str, Any],
+    current_payload: dict[str, Any],
+    task: dict[str, Any],
+) -> bool:
+    """Allow one old paid record to cross the primary-config scoping migration.
+
+    This is deliberately narrow: every cache dependency except the full Primary
+    file hash and the resulting packet hash must already match; every non-Primary
+    prompt component must be byte-identical; and projecting the historical
+    Primary JSON onto this evaluation must equal the current projection.
+    """
+    old_payload = record.get("fingerprint_payload") or {}
+    if _cache_payload_without_primary_prompt(old_payload) != (
+        _cache_payload_without_primary_prompt(current_payload)
+    ):
+        return False
+    evaluation = str(current_payload.get("evaluation") or "")
+    old_prompt = str(old_payload.get("exact_task_packet_sha256") or "")
+    old_manifest = _prompt_store_manifest(
+        root / "template" / "prompts", old_prompt
+    )
+    if old_manifest is None:
+        return False
+    if _prompt_component_signature_without_primary(
+        old_manifest.get("components", []) or []
+    ) != _prompt_component_signature_without_primary(
+        task.get("prompt_components", []) or []
+    ):
+        return False
+    old_primary = _primary_config_from_prompt_store(
+        root / "template" / "prompts", old_prompt
+    )
+    if old_primary is None:
+        return False
+    return primary_config_projection_from_data(
+        old_primary, evaluation
+    ) == primary_config_projection_data(root, evaluation)
+
+
+def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
+    payload = record.get("fingerprint_payload")
+    if record.get("schema_version") != 1 or not isinstance(payload, dict):
+        return "schema/payload"
+    expected_fingerprint = sha256_bytes(
+        json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
+    )
+    if record.get("fingerprint") != expected_fingerprint:
+        return "fingerprint"
+    expected_result = sha256_bytes(
+        json.dumps(
+            record.get("result"), sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+    )
+    if record.get("result_sha256") != expected_result:
+        return "result"
+    return None
+
+
+def find_primary_projection_compatible_cache_record(
+    root: Path,
+    unit: dict[str, Any],
+    task: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    directory = (
+        root
+        / "cache"
+        / "v1"
+        / slug_id(str(unit.get("evaluation") or "unknown"))
+        / cache_scope(unit)
+    )
+    if not directory.is_dir():
+        return None, None, None
+    matches: list[tuple[Path, dict[str, Any]]] = []
+    for path in sorted(directory.glob("*.json")):
+        record = json_load(path)
+        payload = record.get("fingerprint_payload") or {}
+        if str(payload.get("work_unit_id") or "") != str(unit.get("id") or ""):
+            continue
+        if not _legacy_primary_prompt_compatible(root, record, current_payload, task):
+            continue
+        problem = _cache_record_self_integrity_problem(record)
+        if problem:
+            raise BenchmarkError(
+                f"{unit.get('id')}: compatible certified cache record failed "
+                f"self-integrity ({problem}): {path.name}"
+            )
+        matches.append((path, record))
+    if not matches:
+        return None, None, None
+    result_hashes = {str(record.get("result_sha256") or "") for _, record in matches}
+    if len(result_hashes) != 1:
+        return (
+            None,
+            None,
+            "multiple primary-projection-compatible records disagree on result",
+        )
+    return matches[-1][0], matches[-1][1], None
+
+
 def cache_fingerprint(root: Path, unit: dict[str, Any], task: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
     payload = cache_fingerprint_payload(root, unit, task)
     if payload is None:
@@ -6458,26 +6685,40 @@ def hydrate_certified_cache(
         fingerprint, payload = pair
         rel = cache_record_relative(unit, fingerprint)
         cache_path = root / "cache" / rel
-        if not cache_path.is_file():
-            status["misses"][uid] = {
-                "fingerprint": fingerprint,
-                "scope": cache_scope(unit),
-                "reason": "no certified record",
-            }
-            continue
-        record = json_load(cache_path)
-        if (
-            record.get("schema_version") != 1
-            or record.get("fingerprint") != fingerprint
-            or record.get("fingerprint_payload") != payload
-            or record.get("result_sha256")
-            != sha256_bytes(
-                json.dumps(
-                    record.get("result"), sort_keys=True, separators=(",", ":")
-                ).encode("utf-8")
+        compatibility_mode = None
+        source_fingerprint = fingerprint
+        source_rel = rel
+        if cache_path.is_file():
+            record = json_load(cache_path)
+            if (
+                _cache_record_self_integrity_problem(record)
+                or record.get("fingerprint") != fingerprint
+                or record.get("fingerprint_payload") != payload
+            ):
+                raise BenchmarkError(f"{uid}: certified cache record failed integrity checks")
+        else:
+            compatible_path, record, compatibility_problem = (
+                find_primary_projection_compatible_cache_record(
+                    root, unit, task, payload
+                )
             )
-        ):
-            raise BenchmarkError(f"{uid}: certified cache record failed integrity checks")
+            if compatibility_problem:
+                status["misses"][uid] = {
+                    "fingerprint": fingerprint,
+                    "scope": cache_scope(unit),
+                    "reason": compatibility_problem,
+                }
+                continue
+            if compatible_path is None or record is None:
+                status["misses"][uid] = {
+                    "fingerprint": fingerprint,
+                    "scope": cache_scope(unit),
+                    "reason": "no certified record",
+                }
+                continue
+            compatibility_mode = "primary-config-projection"
+            source_fingerprint = str(record.get("fingerprint") or "")
+            source_rel = compatible_path.relative_to(root / "cache")
         cap_problem = cache_cap_reuse_problem(root, record, unit)
         if cap_problem:
             status["hits"].pop(uid, None)
@@ -6503,9 +6744,17 @@ def hydrate_certified_cache(
             "schema_version": 1,
             "status": "HIT",
             "fingerprint": fingerprint,
-            "record": str(rel.as_posix()),
+            "record": str(source_rel.as_posix()),
             "certification": record.get("certification") or {},
             "fingerprint_payload": payload,
+            **(
+                {
+                    "compatibility_mode": compatibility_mode,
+                    "source_fingerprint": source_fingerprint,
+                }
+                if compatibility_mode
+                else {}
+            ),
         })
         validation_problem = None
         try:
@@ -6556,8 +6805,16 @@ def hydrate_certified_cache(
         status["hits"][uid] = {
             "fingerprint": fingerprint,
             "scope": cache_scope(unit),
-            "record": rel.as_posix(),
+            "record": source_rel.as_posix(),
             "assigned_languages": list(unit.get("assigned_languages", [])),
+            **(
+                {
+                    "compatibility_mode": compatibility_mode,
+                    "source_fingerprint": source_fingerprint,
+                }
+                if compatibility_mode
+                else {}
+            ),
         }
         status["misses"].pop(uid, None)
         hits += 1
@@ -6951,19 +7208,26 @@ def cmd_task_create(args: argparse.Namespace) -> int:
         eval_source = eval_path.read_text(encoding="utf-8")
         eval_content = extract_markdown_sections(eval_source, prompt_sections)
         eval_content = render_workspace_paths(eval_content, root)
-        config_content = render_workspace_paths(config_path.read_text(encoding="utf-8"), root)
+        config_content = render_workspace_paths(
+            primary_config_projection_text(root, args.evaluation), root
+        )
+        config_digest = primary_config_projection_sha256(root, args.evaluation)
         metadata_content = render_workspace_paths(
             metadata_path.read_text(encoding="utf-8"), root
         )
 
-        for name, source_path, content in (
-            ("worker_core.md", core_path, core_content),
-            (eval_path.name, eval_path, eval_content),
-            ("primary.json", config_path, config_content),
-            ("benchmark_metadata.json", metadata_path, metadata_content),
+        for name, source_path, content, selected_digest in (
+            ("worker_core.md", core_path, core_content, None),
+            (eval_path.name, eval_path, eval_content, None),
+            ("primary.json", config_path, config_content, config_digest),
+            ("benchmark_metadata.json", metadata_path, metadata_content, None),
         ):
-            digest = sha256_file(source_path)
-            embedded_inputs.append({"path": str(source_path), "sha256": digest})
+            digest = selected_digest or sha256_file(source_path)
+            embedded_inputs.append({
+                "path": str(source_path),
+                "sha256": digest,
+                **({"selection": args.evaluation} if name == "primary.json" else {}),
+            })
             embedded_sections.append((
                 name,
                 "\n\n---\n\n"
@@ -13009,7 +13273,6 @@ def cache_impact(source: Path) -> dict[str, Any]:
         }
         versions = found if len(found) == 2 else None
     unit_input_files = {
-        "primary_config": template / "config" / "primary.json",
         "benchmark_metadata": template / "config" / "benchmark_metadata.json",
     }
     pin_keys = {
@@ -13044,6 +13307,27 @@ def cache_impact(source: Path) -> dict[str, Any]:
             if name in unit_hashes and path.is_file() and sha256_file(path) != unit_hashes[name]:
                 changed.append(name)
         evaluation = str(payload.get("evaluation") or record.get("evaluation") or "")
+        if "primary_config" in unit_hashes:
+            current_primary = primary_config_projection_from_data(
+                json_load(template / "config" / "primary.json"), evaluation
+            )
+            current_primary_hash = sha256_bytes(
+                json.dumps(
+                    current_primary,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            )
+            if unit_hashes["primary_config"] != current_primary_hash:
+                historical = _primary_config_from_prompt_store(
+                    template / "prompts",
+                    str(payload.get("exact_task_packet_sha256") or ""),
+                )
+                if historical is None or primary_config_projection_from_data(
+                    historical, evaluation
+                ) != current_primary:
+                    changed.append("primary_config")
         spec = template / "methodology" / f"{evaluation}.md"
         if "evaluation_spec" in unit_hashes and spec.is_file() and sha256_file(spec) != unit_hashes["evaluation_spec"]:
             changed.append("evaluation_spec")

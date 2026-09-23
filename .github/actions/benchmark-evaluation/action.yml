@@ -24,13 +24,13 @@ inputs:
     default: "6"
 
 outputs:
-  cumulative-spend:
+  cumulative_spend:
     description: Estimated workflow spend through this shard
     value: ${{ steps.cost.outputs.cumulative_spend }}
-  evaluation-status:
+  evaluation_status:
     description: COMPLETE/PARTIAL/etc for this shard
     value: ${{ steps.status.outputs.evaluation_status }}
-  checkpoint-sha:
+  checkpoint_sha:
     description: Disposable benchmark branch head after cache checkpoint
     value: ${{ steps.checkpoint.outputs.checkpoint_sha }}
 

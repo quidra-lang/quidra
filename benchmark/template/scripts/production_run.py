@@ -619,6 +619,17 @@ def build_budget_plan(
         if cache_impact_path.is_file()
         else {"valid": 0, "invalid": []}
     )
+    partial_path = root / "results/partial_paid_checkpoint_status.json"
+    partial_status = (
+        json_load(partial_path)
+        if partial_path.is_file()
+        else {"imported_units": [], "restored_paid_calls": 0}
+    )
+    partial_by_unit = {
+        str(row.get("work_unit_id")): row
+        for row in (partial_status.get("imported_units", []) or [])
+        if row.get("work_unit_id")
+    }
 
     input_price = float(pricing["input_usd_per_million_tokens"])
     output_price = float(pricing["output_usd_per_million_tokens"])
@@ -655,6 +666,7 @@ def build_budget_plan(
         "deferred_cache_decision": [],
         "machine_only": [],
         "blocked": [],
+        "partial_paid_resume": [],
     }
     by_eval: dict[str, dict[str, Any]] = {}
     rows: list[dict[str, Any]] = []
@@ -744,7 +756,13 @@ def build_budget_plan(
                 output_tokens = min(planning_default, packet_output_ceiling)
             output_tokens = max(output_tokens, 1)
         elif worker_mode == "sandbox-agent":
-            scored_calls = max(0, int(unit.get("max_llm_calls", 0) or 0))
+            restored_paid = int(
+                (partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
+            )
+            scored_calls = max(
+                0,
+                int(unit.get("max_llm_calls", 0) or 0) - restored_paid,
+            )
             calls = max(1, scored_calls + orchestration_turn_reserve)
             output_tokens = max(
                 int(unit.get("max_output_tokens_per_call", 0) or 0),
@@ -775,6 +793,9 @@ def build_budget_plan(
         row = {
             **base_decision,
             "worker_mode": worker_mode,
+            "restored_paid_calls": int(
+                (partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
+            ),
             "calls_upper_bound": calls,
             "input_tokens_per_call": input_tokens,
             "output_tokens_per_call": output_tokens,
@@ -782,6 +803,11 @@ def build_budget_plan(
             "estimated_uncached_usd": round(upper, 6),
         }
         rows.append(row)
+        if uid in partial_by_unit:
+            decisions["partial_paid_resume"].append({
+                **row,
+                "checkpoint": partial_by_unit[uid],
+            })
 
         miss = cache_misses.get(uid)
         invalid = cache_invalidated.get(uid)
@@ -828,6 +854,10 @@ def build_budget_plan(
         "cache_misses": len(cache_misses),
         "cache_invalidated_units": len(cache_invalidated),
         "invalidated_cache_records": list(cache_impact.get("invalid", []) or []),
+        "partial_paid_restored_calls": int(
+            partial_status.get("restored_paid_calls", 0) or 0
+        ),
+        "partial_paid_resumed_units": sorted(partial_by_unit),
         "estimated_uncached_usd": round(total_upper, 6),
         "expected_paid_api_calls_upper_bound": expected_calls_upper,
         "safety_multiplier": safety_multiplier,
@@ -850,7 +880,9 @@ def build_budget_plan(
             "revalidated and cost zero. Pending leaves with a known invalidation "
             "state the exact reason; leaves whose fingerprint depends on unfinished "
             "upstream evidence are explicitly DEFERRED and conservatively priced. "
-            "Prompt-cache discounts can only reduce actual provider spend."
+            "Exact-fingerprint paid partial checkpoints reduce the remaining scored "
+            "trial-call envelope before pricing. Prompt-cache discounts can only "
+            "reduce actual provider spend further."
         ),
     }
 

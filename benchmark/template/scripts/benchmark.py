@@ -7819,9 +7819,17 @@ def _proficiency_lightgrad_oracle(test: dict[str, Any]) -> tuple[str, dict[str, 
     return stdin, {"floats": [y, g1, g2, g3], "ints": []}
 
 
+_PROFICIENCY_ORACLE_CASE_CACHE: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+
+
 def proficiency_trusted_oracle_cases(
     root: Path, workload_name: str
 ) -> list[dict[str, Any]]:
+    contract_sha = proficiency_workload_contract_sha256(root)
+    cache_key = (lexical_absolute(root).as_posix(), contract_sha, workload_name)
+    cached = _PROFICIENCY_ORACLE_CASE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     asset = proficiency_workload_contract(root)
     workload = asset["workloads"].get(workload_name)
     if not isinstance(workload, dict):
@@ -7839,14 +7847,26 @@ def proficiency_trusted_oracle_cases(
             stdin, expected = _proficiency_lightgrad_oracle(test)
         else:
             raise BenchmarkError(f"unsupported LLM Proficiency workload: {workload_name}")
+        expected_bytes = json.dumps(
+            {
+                "prefix": prefix,
+                "tolerance": tolerance,
+                "expected": expected,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
         cases.append({
             "id": str(test["id"]),
             "hidden": str(test["id"]) != "public",
             "stdin": stdin,
+            "input_sha256": sha256_bytes(stdin.encode("utf-8")),
             "prefix": prefix,
             "tolerance": tolerance,
             "expected": expected,
+            "expected_sha256": sha256_bytes(expected_bytes),
         })
+    _PROFICIENCY_ORACLE_CASE_CACHE[cache_key] = cases
     return cases
 
 
@@ -7914,6 +7934,7 @@ def verify_proficiency_completion(
             "language": language,
             "workload": workload_name,
             "source_sha256": sha256_bytes(source_text.encode("utf-8")),
+            "workload_contract_sha256": proficiency_workload_contract_sha256(root),
             "compile_or_parse": {
                 "label": "synthetic-ci",
                 "argv": [],
@@ -8010,20 +8031,11 @@ def verify_proficiency_completion(
                 problem = _proficiency_oracle_output_problem(
                     case, str(run_record.get("stdout") or "")
                 )
-            expected_bytes = json.dumps(
-                {
-                    "prefix": case["prefix"],
-                    "tolerance": case["tolerance"],
-                    "expected": case["expected"],
-                },
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
             case_rows.append({
                 "id": case["id"],
                 "hidden": bool(case["hidden"]),
-                "input_sha256": sha256_bytes(str(case["stdin"]).encode("utf-8")),
-                "expected_sha256": sha256_bytes(expected_bytes),
+                "input_sha256": case["input_sha256"],
+                "expected_sha256": case["expected_sha256"],
                 "run": run_record,
                 "passed": problem is None,
                 "problem": problem,

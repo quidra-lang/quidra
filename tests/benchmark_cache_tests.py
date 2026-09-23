@@ -75,6 +75,9 @@ def make_workspace(tmp: Path) -> Path:
         "evaluated": {
             "commit_sha": "0" * 40,
             "compiler_version": "synthetic",
+            "quidra_execution_identity": benchmark.json_load(
+                root / "template/config/cache_policy.json"
+            )["quidra_execution_identity"]["legacy_baseline"],
         },
         "created_at_utc": "2026-09-22T00:00:00+00:00",
     }
@@ -497,6 +500,10 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     assert record_path.is_file() and "mechanical-micro-measure" in rel.as_posix()
     record = benchmark.json_load(record_path)
     assert record["certification"]["mechanical"] is True
+    assert (
+        record["compatibility"]["quidra_execution_identity"]
+        == benchmark.current_quidra_execution_identity(root)
+    )
     assert "micro_raw.json" in record["certification"]["raw_evidence_sha256"]
     assert record["result"] == result
 
@@ -593,8 +600,76 @@ def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
         assert benchmark.cache_cap_reuse_problem(root, record, unit) is None
 
 
+def assert_quidra_execution_identity_reuse_guard() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        current = benchmark.current_quidra_execution_identity(root)
+        assert current is not None
+        record = {
+            "fingerprint_payload": {"assigned_languages": ["Quidra"]},
+            "compatibility": {"quidra_execution_identity": current},
+            "provenance": {"run_id": "2026-09-23-fce5cfa-gh16"},
+        }
+        assert benchmark.cache_quidra_execution_reuse_problem(root, record) is None
+
+        run = benchmark.json_load(root / "run.json")
+        changed = json.loads(json.dumps(current))
+        changed["git_objects"]["src"] = "f" * 40
+        changed["sha256"] = "e" * 64
+        run["evaluated"]["quidra_execution_identity"] = changed
+        benchmark.json_dump(root / "run.json", run)
+        problem = benchmark.cache_quidra_execution_reuse_problem(root, record)
+        assert problem is not None and "implementation changed" in problem, problem
+
+        run["evaluated"]["quidra_execution_identity"] = current
+        benchmark.json_dump(root / "run.json", run)
+        legacy = {
+            "fingerprint_payload": {"assigned_languages": ["Quidra"]},
+            "provenance": {"run_id": "2026-09-23-fce5cfa-gh16"},
+        }
+        assert benchmark.cache_quidra_execution_reuse_problem(root, legacy) is None
+        legacy["provenance"]["run_id"] = "2026-09-22-56f2c65-gh3"
+        problem = benchmark.cache_quidra_execution_reuse_problem(root, legacy)
+        assert problem is not None and "not verified" in problem, problem
+
+
+def assert_cached_validator_rejection_becomes_miss() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, task = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+        fingerprint = install_cache_record(root, unit, task)
+        rel = benchmark.cache_record_relative(unit, fingerprint)
+        path = root / "cache" / rel
+        record = benchmark.json_load(path)
+        record["result"]["requirements"] = {
+            "metric.documentation_quality": {"Python": 999.0}
+        }
+        raw = json.dumps(
+            record["result"], sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        record["result_sha256"] = benchmark.sha256_bytes(raw)
+        benchmark.json_dump(path, record)
+
+        assert benchmark.hydrate_certified_cache(root) == 0
+        ledger = benchmark.json_load(root / "work/root/ledger.json")
+        assert ledger["units"][unit["id"]]["status"] == "PENDING", ledger
+        agent = root / "work/agents" / unit["assigned_agent_id"]
+        assert not (agent / "result.json").exists()
+        assert not (agent / "cache_receipt.json").exists()
+        status = benchmark.json_load(root / "results/cache_status.json")
+        assert "rejected by current validator" in status["misses"][unit["id"]]["reason"]
+
+        install_cache_record(root, unit, task)
+        assert benchmark.hydrate_certified_cache(root) == 1
+        status = benchmark.json_load(root / "results/cache_status.json")
+        assert unit["id"] in status["hits"] and unit["id"] not in status["misses"]
+
+
 def main() -> None:
     assert_accepted_trial_start_marks_the_scored_boundary()
+    assert_quidra_execution_identity_reuse_guard()
+    assert_cached_validator_rejection_becomes_miss()
     assert_proficiency_cache_requires_exact_primary_trial_set()
     with tempfile.TemporaryDirectory() as mechanical_td:
         # Its own workspace: the test freezes a manifest of one mechanical unit.

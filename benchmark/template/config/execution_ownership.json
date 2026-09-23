@@ -42,6 +42,7 @@
     "language_quality": {
       "runner_command_requirements": [
         "coverage.all_10_languages",
+        "gate.language_quality_design_rubrics_frozen",
         "gate.quidra_programs_current",
         "metric.native_execution_performance",
         "metric.long_running_performance",

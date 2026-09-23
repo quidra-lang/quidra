@@ -178,7 +178,7 @@ jobs:
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: ${{ needs.prepare.outputs.evaluation }}
-          handoff-name: benchmark-handoff-scoped
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-scoped
           run-id: ${{ needs.prepare.outputs.run_id }}
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
@@ -204,7 +204,7 @@ jobs:
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: semantic_compression
-          handoff-name: benchmark-handoff-semantic-compression
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-semantic-compression
           run-id: ${{ needs.prepare.outputs.run_id }}
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
@@ -229,8 +229,8 @@ jobs:
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: llm_learnability
-          previous-handoff: benchmark-handoff-semantic-compression
-          handoff-name: benchmark-handoff-llm-learnability
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-semantic-compression
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-llm-learnability
           run-id: ${{ needs.prepare.outputs.run_id }}
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
@@ -254,8 +254,8 @@ jobs:
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: language_quality
-          previous-handoff: benchmark-handoff-llm-learnability
-          handoff-name: benchmark-handoff-language-quality
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-llm-learnability
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-language-quality
           run-id: ${{ needs.prepare.outputs.run_id }}
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
@@ -279,8 +279,8 @@ jobs:
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: ecosystem
-          previous-handoff: benchmark-handoff-language-quality
-          handoff-name: benchmark-handoff-ecosystem
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-language-quality
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-ecosystem
           run-id: ${{ needs.prepare.outputs.run_id }}
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
@@ -304,8 +304,8 @@ jobs:
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: llm_proficiency
-          previous-handoff: benchmark-handoff-ecosystem
-          handoff-name: benchmark-handoff-llm-proficiency
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-ecosystem
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-llm-proficiency
           run-id: ${{ needs.prepare.outputs.run_id }}
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
@@ -333,7 +333,7 @@ jobs:
       - name: Download final Primary handoff
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-handoff-llm-proficiency
+          name: benchmark-${{ needs.prepare.outputs.run_id }}-llm-proficiency
           path: ${{ runner.temp }}/benchmark-final-handoff
 
       - name: Restore trusted workspace guard

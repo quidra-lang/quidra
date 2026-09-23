@@ -137,6 +137,8 @@ benchmark.py post-run --source-repo /path/to/trusted/quidra-checkout
 `post-run` is a trusted outer-runner operation after the scored sandbox work is over.
 After the scored sandbox has exited, the trusted outer runner imports only compact retained run artifacts into `benchmark/<run-id>/` in the clean isolated `benchmark` checkout, verifies every copied file by SHA-256, and only then deletes its host-side staging directory. The checkout is never exposed to leaf workers. After the workflow finishes, the operator reconciles those benchmark-generated artifacts into the then-current `develop` branch and deletes the disposable branch only after that reconciliation succeeds.
 
+Before Semantic Compression aggregation, cohort support adjudication is the sole authority for FULL/PARTIAL/NONE on its declared probes: the runner carries the complete decision metadata (P-letter or N-reason, citation and justification) into the blinded comparability packet and removes superseded shard support explanations. A failed comparability audit may trigger a bounded repair only for predeclared support-adjudication probes named by the audit; metric shards and certified cache hits are never reset. The sample is then regenerated and re-audited. An undeclared or exhausted repair still blocks scoring rather than weakening the gate.
+
 ## 5. LLMs only where judgment is required
 
 The runner owns planning, dependency release, retries, state transitions, validation dispatch, repeatable measurement, score aggregation, ranking, consistency checks and finalization.

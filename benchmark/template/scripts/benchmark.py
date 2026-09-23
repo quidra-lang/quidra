@@ -2708,12 +2708,29 @@ annotations, not on the frozen matrix template, so the runner has collected
 them for you from the completed metric shards. Each sampled probe carries one
 entry per language under an opaque label; the labels are a per-run permutation,
 so you cannot tell which language authored an entry, which is the blinding the
-methodology requires. Judge the entries only against the frozen matrix: a
-disagreement is annotation depth, row interpretation, or asymmetric treatment,
-never a language preference. Name every disagreement you find, with its probe
-ID and the labels involved, and adjudicate it against the frozen matrix. Pass
-the gate when the sampled annotations are mutually comparable, and fail it,
-with the disagreements as evidence, when they are not."""
+methodology requires.
+
+For a probe that carries a nested `support_adjudication` object, that object is
+the sole authoritative support record for FULL/PARTIAL/NONE, P-letter or
+N-reason, citation and justification. The runner deliberately removes older
+support-level explanations from metric shards before building this packet.
+Do not resurrect or compare superseded shard support rationales. The remaining
+metric fields and verbatim fragment are still valid evidence for annotation
+depth, row interpretation and non-support semantic measurements.
+
+Judge the entries only against the frozen matrix and the binding
+support-consistency configuration embedded in this packet. A disagreement is
+annotation depth, row interpretation, or asymmetric treatment, never a language
+preference. A difference in support level is not itself a disagreement when the
+authoritative adjudications state a rubric-grounded distinguishing fact.
+
+Name every unresolved disagreement you find, with its probe ID and opaque labels.
+If the gate fails, `evidence.gate_result.affected_pairs_requiring_revalidation`
+MUST be a JSON array of objects carrying `probe_id` and `label`; this lets the
+runner re-adjudicate only the affected predeclared probes and regenerate this
+sample instead of blocking the entire run immediately. Pass the gate when the
+sampled annotations are mutually comparable."""
+
 
 
 def comparability_sample_probes(root: Path) -> list[dict[str, Any]]:
@@ -2876,7 +2893,12 @@ def comparability_blinding(run_id: str, languages: list[str]) -> dict[str, str]:
     return {language: chr(ord("A") + index) for index, language in enumerate(order)}
 
 
-SC_SUPPORT_FIELD_HINTS = ("support", "awarded", "points")
+SC_SUPPORT_FIELD_HINTS = (
+    "support", "awarded", "points", "p_letter", "letters", "n_reason",
+    "justification", "rationale", "citation", "basis", "note",
+)
+SC_P_LETTERS = {"P-a", "P-b", "P-c", "P-d", "P-e"}
+SC_N_REASONS = {"N-1", "N-2", "N-3", "N-4"}
 
 
 def sc_support_is_level(value: Any) -> str | None:
@@ -2887,14 +2909,7 @@ def sc_support_is_level(value: Any) -> str | None:
 
 
 def sc_owner_support_levels(row: dict[str, Any], fields: list[str]) -> set[str]:
-    """Every level the owning shard stated for one probe, however it nested it.
-
-    `probe_annotation_fields` names a collected value after the evidence key it
-    came from, so the owner's level arrives either as a bare `support` field or
-    inside whatever mapping the shard happened to record it under. Both are the
-    same statement, so read the field wherever it sits rather than only at the
-    top.
-    """
+    """Every level the owning shard stated for one probe, however it nested it."""
     found: set[str] = set()
 
     def visit(node: Any, key: str, depth: int) -> None:
@@ -2916,14 +2931,7 @@ def sc_owner_support_levels(row: dict[str, Any], fields: list[str]) -> set[str]:
 
 
 def sc_adjudicated_level(value: Any) -> str | None:
-    """The level an adjudication states for one language, however it wraps it.
-
-    A worker asked to adjudicate and justify writes the justification beside the
-    level - `{"support": "FULL", "points_awarded": 2, "basis": "..."}` - which is
-    the same shape the metric shards already use and which the owner reader
-    already tolerates. Accepting only a bare string cost a run: five attempts on
-    one probe were rejected for answering correctly in the obvious form.
-    """
+    """The level an adjudication states for one language, however it wraps it."""
     level = sc_support_is_level(value)
     if level is not None:
         return level
@@ -2934,24 +2942,138 @@ def sc_adjudicated_level(value: Any) -> str | None:
     return None
 
 
+def sc_string_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value.strip()] if value.strip() else []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return []
+
+
+def sc_adjudication_annotation(
+    result: dict[str, Any], requirement_id: str, language: str
+) -> dict[str, Any] | None:
+    """Normalize one cohort adjudication into the sole support record.
+
+    Earlier runs copied only FULL/PARTIAL/NONE into the comparability sample and
+    left the old shard rationale beside it. That let the final audit reject a
+    corrected P-b/N-1 decision because it was still reading the superseded
+    explanation. The normalized record carries the whole decision instead:
+    level, rubric code, citation and justification.
+    """
+    requirement = (result.get("requirements") or {}).get(requirement_id)
+    if not isinstance(requirement, dict) or language not in requirement:
+        return None
+    raw = requirement[language]
+    level = sc_adjudicated_level(raw)
+    if level is None:
+        return None
+
+    merged: dict[str, Any] = {}
+    per_language = ((result.get("evidence") or {}).get("per_language") or {})
+    evidence_row = per_language.get(language) if isinstance(per_language, dict) else None
+    if isinstance(evidence_row, dict):
+        merged.update(evidence_row)
+    if isinstance(raw, dict):
+        merged.update(raw)
+
+    letters: list[str] = []
+    for key in ("p_letters", "applicable_letters", "letters", "p_letter"):
+        for item in sc_string_list(merged.get(key)):
+            normalized = item.strip()
+            if re.fullmatch(r"P-[a-eA-E]", normalized):
+                normalized = "P-" + normalized[-1].lower()
+            if normalized and normalized not in letters:
+                letters.append(normalized)
+
+    n_reason = str(merged.get("n_reason") or "").strip() or None
+    citation = ""
+    for key in ("citation", "documentation_citation", "doc_citation"):
+        candidate = str(merged.get(key) or "").strip()
+        if candidate:
+            citation = candidate
+            break
+    justification = ""
+    for key in ("justification", "rationale", "basis", "reason"):
+        candidate = str(merged.get(key) or "").strip()
+        if candidate:
+            justification = candidate
+            break
+    if not justification:
+        justification = citation
+
+    factor = {"FULL": 1.0, "PARTIAL": 0.5, "NONE": 0.0}[level]
+    annotation: dict[str, Any] = {
+        "support": level,
+        "support_factor": factor,
+        "p_letters": letters,
+        "n_reason": n_reason,
+        "citation": citation,
+        "justification": justification,
+        "source": "cohort_support_adjudication",
+    }
+    for key in ("rung_used", "mechanism", "condition"):
+        if key in merged:
+            annotation[key] = clip_annotation_text(merged[key])
+    return annotation
+
+
+def sc_adjudication_problems(annotation: dict[str, Any] | None) -> list[str]:
+    if annotation is None:
+        return ["missing normalized adjudication"]
+    problems: list[str] = []
+    level = str(annotation.get("support") or "")
+    letters = list(annotation.get("p_letters") or [])
+    n_reason = str(annotation.get("n_reason") or "").strip()
+    citation = str(annotation.get("citation") or "").strip()
+    justification = str(annotation.get("justification") or "").strip()
+
+    unknown_letters = [letter for letter in letters if letter not in SC_P_LETTERS]
+    if unknown_letters:
+        problems.append("unknown PARTIAL rubric code(s): " + ", ".join(unknown_letters))
+    if level == "PARTIAL":
+        if not letters:
+            problems.append("PARTIAL requires at least one P-a..P-e rubric code")
+        if n_reason:
+            problems.append("PARTIAL may not carry an N-reason")
+    elif level == "NONE":
+        if n_reason not in SC_N_REASONS:
+            problems.append("NONE requires one of N-1, N-2, N-3 or N-4")
+        if letters:
+            problems.append("NONE may not carry P-letters")
+    elif level == "FULL":
+        if letters:
+            problems.append("FULL may not carry P-letters")
+        if n_reason:
+            problems.append("FULL may not carry an N-reason")
+    else:
+        problems.append("support must be FULL, PARTIAL or NONE")
+
+    if not citation:
+        problems.append("adjudication requires a per-language documentation citation")
+    if not justification:
+        problems.append("adjudication requires a per-language justification")
+    return problems
+
+
+def sc_support_annotation_key(key: str) -> bool:
+    lowered = str(key).lower()
+    return any(hint in lowered for hint in SC_SUPPORT_FIELD_HINTS)
+
+
 def sc_reconcile_support(
     by_language: dict[str, dict[str, dict[str, Any]]],
     owner_rows: dict[str, dict[str, dict[str, Any]]],
     owner: dict[str, Any],
-    adjudicated: dict[str, dict[str, str]] | None = None,
+    adjudicated: dict[str, dict[str, dict[str, Any]]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Give every (language, probe) one support level, taken from its owner.
+    """Give every (language, probe) one authoritative support annotation.
 
-    Each metric shard annotated the support level of every probe it touched and
-    nothing reconciled them, so one language could carry several levels for one
-    probe under different field names - `support`, `per_probe_support`,
-    `per_probe_support_factors` - and the first blinded comparability audit
-    correctly refused to certify annotations that did not state one determinate
-    level. A shard sees one metric and one language; reconciling across shards
-    is the runner's job, exactly as it is for the map onto the 0-100 scale.
-
-    Mutates `by_language` in place and returns what it replaced, so the
-    reconciliation is recorded rather than hidden.
+    Metric shards remain the source for A-D measurements. Capability support is
+    different: when a cohort adjudicator exists, its whole normalized record is
+    authoritative. Superseded shard support rationales are removed before the
+    blinded comparability packet is built, so the audit cannot accidentally
+    compare an old explanation against a corrected level.
     """
     fields = [str(name) for name in (owner.get("fields") or ["support"])]
     levels = {
@@ -2962,41 +3084,43 @@ def sc_reconcile_support(
     replaced: list[dict[str, Any]] = []
     for language in sorted(by_language):
         for probe_id, row in sorted(by_language[language].items()):
-            settled = (adjudicated.get(probe_id) or {}).get(language)
-            if settled:
-                candidates = {settled}
+            canonical = (adjudicated.get(probe_id) or {}).get(language)
+            if canonical:
+                candidates = {str(canonical["support"])}
             else:
                 owner_row = (owner_rows.get(language) or {}).get(probe_id) or {}
                 candidates = sc_owner_support_levels(owner_row, fields)
+
             dropped = {
-                key: value
-                for key, value in row.items()
-                if any(hint in str(key).lower() for hint in SC_SUPPORT_FIELD_HINTS)
+                key: value for key, value in row.items()
+                if sc_support_annotation_key(str(key))
             }
-            level = candidates.pop() if len(candidates) == 1 else None
             for key in dropped:
                 row.pop(key, None)
+
+            level = candidates.pop() if len(candidates) == 1 else None
             if level is None:
                 row["support"] = "UNRECONCILED"
                 row["support_note"] = (
-                    "The owning Capability Coverage annotation did not state one "
-                    "determinate level for this probe. Judge it as unstated."
+                    "No cohort adjudication exists and the owning Capability "
+                    "Coverage annotation did not state one determinate level."
                 )
             else:
-                factor = levels.get(level, 0.0)
                 row["support"] = level
-                row["support_factor"] = factor
-            if dropped or level is None:
-                replaced.append(
-                    {
-                        "language": language,
-                        "probe_id": probe_id,
-                        "reconciled_to": row["support"],
-                        "replaced_fields": {
-                            key: value for key, value in sorted(dropped.items())
-                        },
-                    }
-                )
+                row["support_factor"] = levels.get(level, 0.0)
+                if canonical:
+                    row["support_adjudication"] = clip_annotation_text(canonical, 1200)
+
+            if dropped or canonical or level is None:
+                replaced.append({
+                    "language": language,
+                    "probe_id": probe_id,
+                    "reconciled_to": row["support"],
+                    "authoritative_adjudication": bool(canonical),
+                    "replaced_fields": {
+                        key: value for key, value in sorted(dropped.items())
+                    },
+                })
     return replaced
 
 
@@ -3016,22 +3140,7 @@ def support_adjudication_probe(requirement_ids: list[str]) -> str | None:
 def build_support_adjudication_input(
     root: Path, unit: dict[str, Any], manifest: dict[str, Any], probe_id: str
 ) -> Path:
-    """Put one probe's ten annotations in front of a single adjudicator.
-
-    Ten single-language shards each assign a support level for the same probe
-    with no sight of the other nine, so nothing holds the frozen rubric to the
-    same standard across the cohort. The first blinded comparability audit to
-    read the annotations found exactly that: one language scored down for using
-    a heavier mechanism than its own documented idiom, another scored NONE for a
-    substitution it was given credit for on a neighbouring probe, two
-    same-runtime languages split over an identical toolchain facility. This is
-    the unit that can see all ten at once, so it is the one that can apply the
-    rubric evenly.
-
-    The adjudicator is deliberately NOT blinded: judging whether a fragment is
-    the form a competent author would write requires knowing the language. The
-    blinding belongs to the audit that reads the result afterwards.
-    """
+    """Put one probe's ten annotations in front of a single adjudicator."""
     units = {str(item.get("id")): item for item in manifest.get("work_units", [])}
     by_language: dict[str, dict[str, Any]] = {}
     for dependency in unit.get("dependencies", []):
@@ -3048,10 +3157,10 @@ def build_support_adjudication_input(
         if not result_path.is_file():
             continue
         collected = probe_annotation_fields(json_load(result_path), {probe_id})
-        fields = collected.get(probe_id) or {}
-        if fields:
+        fields_for_probe = collected.get(probe_id) or {}
+        if fields_for_probe:
             by_language.setdefault(str(languages[0]), {}).update(
-                clip_annotation_text(fields)
+                clip_annotation_text(fields_for_probe)
             )
     probe = next(
         (
@@ -3065,14 +3174,16 @@ def build_support_adjudication_input(
         "schema_version": 1,
         "probe_id": probe_id,
         "task": (
-            "Assign the support level for this one probe in every language "
-            "below, applying the frozen support rubric identically across them. "
-            "Judge each fragment as the form a competent author of that language "
-            "would write for the frozen recipe: a language is not scored down "
-            "for using a heavier mechanism when its own documentation gives a "
-            "direct one, and it is not scored up for a substitution that a "
-            "neighbouring probe refuses. Award points by the frozen "
-            "award_formula from the level you assign."
+            "Assign the support level for this one probe in every language, "
+            "applying the frozen support rubric and template/config/"
+            "support_consistency.json identically across the cohort. Standard "
+            "runtime/library wrappers shipped with the frozen toolchain are not "
+            "third-party merely because they are wrappers. If such a standard "
+            "mechanism delivers some but not all numbered sub-requirements, use "
+            "PARTIAL/P-a rather than NONE solely for lack of a native primitive. "
+            "Use the same mechanism classification consistently across probes. "
+            "Return for every language: support, p_letters, n_reason, citation "
+            "and justification."
         ),
         "frozen_probe": probe,
         "annotation_count": len(by_language),
@@ -3081,14 +3192,9 @@ def build_support_adjudication_input(
         },
     }
     if not by_language:
-        # The shards recorded nothing per-probe for this one. That cannot happen
-        # in a scored run, whose dependencies are the COMPLETE metric shards,
-        # and it is the normal state of a structural rehearsal against synthetic
-        # results. Say so in the packet rather than failing the run over it.
         payload["note"] = (
             "No per-probe annotation was found for this probe in any language. "
-            "There is nothing to adjudicate: return the requirement with an "
-            "empty mapping."
+            "There is nothing to adjudicate."
         )
     destination = require_under(
         root / "work" / "audit" / "semantic-compression"
@@ -3100,32 +3206,51 @@ def build_support_adjudication_input(
     return destination
 
 
-def sc_adjudicated_levels(root: Path) -> dict[str, dict[str, str]]:
-    """Every support level an adjudication unit has settled, by probe.
-
-    Read from the completed results rather than the manifest so a partial run -
-    one probe adjudicated, the rest not - still contributes what it has.
-    """
-    levels: dict[str, dict[str, str]] = {}
+def sc_adjudicated_annotations(
+    root: Path,
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Every complete cohort adjudication, normalized by probe and language."""
+    annotations: dict[str, dict[str, dict[str, Any]]] = {}
     agents = root / "work" / "agents"
     if not agents.is_dir():
-        return levels
+        return annotations
     for result_path in sorted(agents.glob("*/result.json")):
         try:
             result = json_load(result_path)
         except (OSError, json.JSONDecodeError):
             continue
-        for rid, value in (result.get("requirements") or {}).items():
+        requirements = result.get("requirements") or {}
+        for rid, value in requirements.items():
             if not str(rid).startswith(SUPPORT_ADJUDICATION_PREFIX):
                 continue
-            probe = support_adjudication_probe([rid])
+            probe = support_adjudication_probe([str(rid)])
             if probe is None or not isinstance(value, dict):
                 continue
-            for language, level in value.items():
-                found = sc_adjudicated_level(level)
-                if found:
-                    levels.setdefault(probe, {})[str(language)] = found
-    return levels
+            for language in value:
+                annotation = sc_adjudication_annotation(
+                    result, str(rid), str(language)
+                )
+                if annotation is None:
+                    continue
+                problems = sc_adjudication_problems(annotation)
+                if problems:
+                    raise BenchmarkError(
+                        f"{rid}: {language}: invalid cohort adjudication: "
+                        + "; ".join(problems)
+                    )
+                annotations.setdefault(probe, {})[str(language)] = annotation
+    return annotations
+
+
+def sc_adjudicated_levels(root: Path) -> dict[str, dict[str, str]]:
+    """Compatibility view of the authoritative adjudications: levels only."""
+    return {
+        probe: {
+            language: str(annotation["support"])
+            for language, annotation in per_language.items()
+        }
+        for probe, per_language in sc_adjudicated_annotations(root).items()
+    }
 
 
 def build_comparability_sample(
@@ -3180,9 +3305,10 @@ def build_comparability_sample(
             "comparability audit sample has no completed annotations to review"
         )
 
+    adjudicated = sc_adjudicated_annotations(root)
     reconciled = (
         sc_reconcile_support(
-            by_language, owner_rows, support_owner, sc_adjudicated_levels(root)
+            by_language, owner_rows, support_owner, adjudicated
         )
         if support_owner_id
         else []
@@ -3230,12 +3356,14 @@ def build_comparability_sample(
             "replaced_field_names": sorted(
                 {name for row in reconciled for name in row["replaced_fields"]}
             ),
-            "adjudicated_probes": sorted(sc_adjudicated_levels(root)),
+            "adjudicated_probes": sorted(adjudicated),
             "adjudication_note": (
-                "For the probes listed above, the level was assigned by a unit "
-                "that saw all ten languages at once and applied the frozen "
-                "rubric across them, because a single-language shard cannot. "
-                "Judge those levels as the cohort-wide application of the rubric."
+                "For the probes listed above, the whole support annotation - "
+                "level, P-letter or N-reason, citation and justification - was "
+                "assigned by a unit that saw all ten languages at once. The "
+                "runner removed superseded shard support explanations before "
+                "building this sample. Judge support only from the nested "
+                "support_adjudication object."
             ),
             "full_record": (
                 "work/audit/semantic-compression/support_reconciliation.json, "
@@ -5187,11 +5315,13 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                         f"got {sorted(value)}"
                     )
                 for language in languages:
-                    if sc_adjudicated_level(value[language]) is None:
+                    annotation = sc_adjudication_annotation(
+                        result, rid, language
+                    )
+                    problems = sc_adjudication_problems(annotation)
+                    if problems:
                         raise BenchmarkError(
-                            f"{rid}: {language} must state FULL, PARTIAL or NONE, "
-                            "either directly or under a support/level field; "
-                            f"got {value[language]!r}"
+                            f"{rid}: {language}: " + "; ".join(problems)
                         )
             else:
                 raise BenchmarkError(f"unsupported requirement result type: {rid}")
@@ -5560,6 +5690,132 @@ def trial_unit_problems(
     return infrastructure, problems
 
 
+def comparability_revalidation_probes(result: dict[str, Any]) -> list[str]:
+    evidence = result.get("evidence") or {}
+    gate = evidence.get("gate_result") or {}
+    rows = gate.get("affected_pairs_requiring_revalidation")
+    if rows is None:
+        rows = evidence.get("affected_pairs_requiring_revalidation")
+    if not isinstance(rows, list):
+        return []
+    probes: list[str] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        probe = str(row.get("probe_id") or "").upper().strip()
+        if re.fullmatch(r"F\d{2}\.P\d+", probe) and probe not in probes:
+            probes.append(probe)
+    return probes
+
+
+def comparability_repair_detail(result: dict[str, Any]) -> str:
+    evidence = result.get("evidence") or {}
+    gate = evidence.get("gate_result") or {}
+    reason = str(gate.get("reason") or "").strip()
+    if not reason:
+        reason = str(evidence.get("method") or "comparability audit requested revalidation")
+    return " ".join(reason.split())[:3000]
+
+
+def schedule_comparability_repair(
+    root: Path, unit: dict[str, Any], state: dict[str, Any]
+) -> bool:
+    """Re-adjudicate only affected predeclared probes, then rebuild the audit.
+
+    The manifest stays frozen. A repair is possible only when every affected
+    probe already owns a declared cohort-adjudication unit. Completed metric
+    shards and certified cache hits are never reset.
+    """
+    result_path = (
+        root / "work" / "agents" / str(unit["assigned_agent_id"]) / "result.json"
+    )
+    if not result_path.is_file():
+        return False
+    result = json_load(result_path)
+    probes = comparability_revalidation_probes(result)
+    if not probes:
+        return False
+
+    attempts = int(state.get("attempts", 0) or 0)
+    max_attempts = int(state.get("max_attempts", 3) or 3)
+    if attempts >= max_attempts:
+        return False
+
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    units = {str(item["id"]): item for item in manifest.get("work_units", [])}
+    ledger_path = root / "work" / "root" / "ledger.json"
+    ledger = json_load(ledger_path)
+    repair_units: list[dict[str, Any]] = []
+    for probe in probes:
+        uid = "sc-support-adjudication--" + probe.lower().replace(".", "-")
+        support_unit = units.get(uid)
+        support_state = (ledger.get("units") or {}).get(uid)
+        if support_unit is None or support_state is None:
+            return False
+        if support_state.get("status") != "COMPLETE":
+            return False
+        if int(support_state.get("attempts", 0) or 0) >= int(
+            support_state.get("max_attempts", 3) or 3
+        ):
+            return False
+        repair_units.append(support_unit)
+
+    detail = comparability_repair_detail(result)
+    for support_unit in repair_units:
+        support_state = ledger["units"][str(support_unit["id"])]
+        archive_attempt(
+            root, support_unit, int(support_state.get("attempts", 0) or 0),
+            "comparability-revalidation", reset=True,
+            detail=(
+                f"Comparability requested cohort revalidation for "
+                f"{support_adjudication_probe(support_unit.get('requirement_ids', []))}: "
+                f"{detail}"
+            ),
+        )
+
+    archive_attempt(
+        root, unit, attempts, "comparability-triggered-repair",
+        reset=False, detail=detail,
+    )
+    comparability_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
+    if comparability_dir.exists():
+        shutil.rmtree(comparability_dir)
+
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
+    with ledger_lock(root):
+        locked = json_load(ledger_path)
+        if locked.get("manifest_sha256") != sha256_file(
+            root / "work" / "root" / "manifest.json"
+        ):
+            raise BenchmarkError("manifest changed during comparability repair")
+        for support_unit in repair_units:
+            uid = str(support_unit["id"])
+            current = locked["units"][uid]
+            if current.get("status") != "COMPLETE":
+                raise BenchmarkError(
+                    f"{uid}: state changed while scheduling comparability repair"
+                )
+            current["status"] = "PENDING"
+            current["validation_result"] = None
+            current["blocker"] = None
+            current["blocker_class"] = None
+            current["heartbeat_at_utc"] = None
+            current["updated_at_utc"] = now
+        json_dump(ledger_path, locked)
+
+    cmd_ledger_update(argparse.Namespace(
+        workspace=str(root), id=str(unit["id"]), status="PENDING",
+        evidence=[], validation_result="FAIL", blocker=None, blocker_class=None,
+    ))
+    print(json.dumps({
+        "ok": False,
+        "comparability_repair_scheduled": True,
+        "probes": probes,
+        "support_units": [str(item["id"]) for item in repair_units],
+    }, indent=2))
+    return True
+
+
 def cmd_task_finish(args: argparse.Namespace) -> int:
     root = workspace(args)
     unit = manifest_unit_by_id(root, args.id)
@@ -5615,6 +5871,11 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     if rc == 0:
         failed_gates = failed_gate_requirements(root, unit)
         if failed_gates:
+            if (
+                set(failed_gates) == {COMPARABILITY_GATE}
+                and schedule_comparability_repair(root, unit, state)
+            ):
+                return 2
             ns = argparse.Namespace(
                 workspace=str(root), id=args.id, status="BLOCKED",
                 evidence=unit.get("evidence_paths", []), validation_result="PASS",

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "purpose": "Frozen run-local rules for cohort support adjudication and comparability. These rules do not rewrite metric-shard measurements; they make support classification and its evidence mechanically consistent.",
+  "record_contract": {
+    "required_per_language": [
+      "support",
+      "p_letters",
+      "n_reason",
+      "citation",
+      "justification"
+    ],
+    "support": [
+      "FULL",
+      "PARTIAL",
+      "NONE"
+    ],
+    "partial_codes": [
+      "P-a",
+      "P-b",
+      "P-c",
+      "P-d",
+      "P-e"
+    ],
+    "none_codes": [
+      "N-1",
+      "N-2",
+      "N-3",
+      "N-4"
+    ]
+  },
+  "rules": [
+    {
+      "id": "standard-library-mechanisms-are-standard",
+      "rule": "A wrapper, scalar type, foreign-function helper, or other mechanism that is documented in the language's normal standard runtime/library and ships with the frozen toolchain is not third-party merely because it is a wrapper. If it delivers some but not every numbered sub-requirement, classify it PARTIAL under P-a when applicable rather than NONE solely because the language lacks a native primitive."
+    },
+    {
+      "id": "same-mechanism-same-rubric",
+      "rule": "When the same documented mechanism is used on multiple probes, classify that mechanism under the same rubric logic. Probe-specific numbered requirements may still produce different levels, but the adjudication must state the concrete numbered requirement that distinguishes them."
+    },
+    {
+      "id": "ffi-toolchain-boundary",
+      "rule": "For FFI, distinguish a flag/mode or automatic compiler invocation that ships inside the frozen toolchain from a separate build system, external binding generator, third-party package, hand-written glue artifact, or toolchain outside the frozen environment. The former may be FULL or P-b depending on the exact frozen recipe; the latter is NONE under the applicable N-reason. State the distinguishing frozen-recipe fact explicitly."
+    },
+    {
+      "id": "observation-target-not-support",
+      "rule": "Do not change FULL/PARTIAL/NONE for determinacy, locality, elegance, or hidden semantics that the frozen probe marks as an observation target. Those belong to the separate Semantic Compression quality metrics."
+    }
+  ],
+  "cross_probe_checks": [
+    {
+      "probes": [
+        "F08.P1",
+        "F10.P1"
+      ],
+      "rule": "Fixed-width numeric wrapper/substitution mechanisms must be classified consistently under standard-library-mechanisms-are-standard and same-mechanism-same-rubric."
+    }
+  ]
+}

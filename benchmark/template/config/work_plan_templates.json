@@ -102,9 +102,9 @@
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
-            "#### A. Semantic Density \u2014 20% of quality score",
-            "#### B. Semantic Determinacy \u2014 25% of quality score",
-            "#### C. Semantic Locality \u2014 20% of quality score"
+            "#### A. Semantic Density — 20% of quality score",
+            "#### B. Semantic Determinacy — 25% of quality score",
+            "#### C. Semantic Locality — 20% of quality score"
           ],
           "read_paths": [
             "repo/docs",
@@ -130,9 +130,9 @@
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
-            "#### A. Semantic Density \u2014 20% of quality score",
-            "#### B. Semantic Determinacy \u2014 25% of quality score",
-            "#### C. Semantic Locality \u2014 20% of quality score"
+            "#### A. Semantic Density — 20% of quality score",
+            "#### B. Semantic Determinacy — 25% of quality score",
+            "#### C. Semantic Locality — 20% of quality score"
           ],
           "read_paths": [
             "repo/docs",
@@ -158,9 +158,9 @@
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
-            "#### A. Semantic Density \u2014 20% of quality score",
-            "#### B. Semantic Determinacy \u2014 25% of quality score",
-            "#### C. Semantic Locality \u2014 20% of quality score"
+            "#### A. Semantic Density — 20% of quality score",
+            "#### B. Semantic Determinacy — 25% of quality score",
+            "#### C. Semantic Locality — 20% of quality score"
           ],
           "read_paths": [
             "repo/docs",
@@ -185,8 +185,8 @@
             "sc-coverage"
           ],
           "prompt_sections": [
-            "#### D. Hidden Semantic Cost \u2014 20% of quality score",
-            "#### E. Capability Efficiency \u2014 15% of quality score",
+            "#### D. Hidden Semantic Cost — 20% of quality score",
+            "#### E. Capability Efficiency — 15% of quality score",
             "### 6.1.5 Capability Coverage",
             "# 20. Semantic Regularity Evidence for Semantic Compression"
           ],
@@ -213,8 +213,8 @@
             "sc-coverage"
           ],
           "prompt_sections": [
-            "#### D. Hidden Semantic Cost \u2014 20% of quality score",
-            "#### E. Capability Efficiency \u2014 15% of quality score",
+            "#### D. Hidden Semantic Cost — 20% of quality score",
+            "#### E. Capability Efficiency — 15% of quality score",
             "### 6.1.5 Capability Coverage",
             "# 20. Semantic Regularity Evidence for Semantic Compression"
           ],
@@ -241,8 +241,8 @@
             "sc-coverage"
           ],
           "prompt_sections": [
-            "#### D. Hidden Semantic Cost \u2014 20% of quality score",
-            "#### E. Capability Efficiency \u2014 15% of quality score",
+            "#### D. Hidden Semantic Cost — 20% of quality score",
+            "#### E. Capability Efficiency — 15% of quality score",
             "### 6.1.5 Capability Coverage",
             "# 20. Semantic Regularity Evidence for Semantic Compression"
           ],
@@ -272,13 +272,14 @@
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
-            "#### D. Hidden Semantic Cost \u2014 20% of quality score"
+            "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
           "read_paths": [
-            "template/methodology-assets/semantic_compression"
+            "template/methodology-assets/semantic_compression",
+            "template/config/support_consistency.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign the support level for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f04-p1\", whose value maps every one of the ten evaluated language names to that language's level. A level is the string FULL, PARTIAL or NONE, either on its own or under a \"support\" field of an object that also carries your reasoning. Put long reasoning in \"evidence\", not in the requirement value, and keep the whole response valid JSON: a response that runs long and breaks its own JSON is rejected before anyone reads it.",
+          "goal_hint": "Assign the support level for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric and support_consistency.json identically across the cohort. The per-language metric shards are evidence, not the final support authority.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f04-p1\". Its value maps every evaluated language to a compact object with exactly the decision metadata needed downstream: {\"support\":\"FULL|PARTIAL|NONE\",\"p_letters\":[],\"n_reason\":null,\"citation\":\"...\",\"justification\":\"...\"}. PARTIAL must carry at least one P-a..P-e and no N-reason. NONE must carry one N-1..N-4 and no P-letter. FULL carries neither. Every language must have a documentation citation and concise justification. Do not return a bare level string. Keep the whole response valid JSON and concise enough not to truncate.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first"
         },
@@ -298,13 +299,41 @@
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
-            "#### D. Hidden Semantic Cost \u2014 20% of quality score"
+            "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
           "read_paths": [
-            "template/methodology-assets/semantic_compression"
+            "template/methodology-assets/semantic_compression",
+            "template/config/support_consistency.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign the support level for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f08-p1\", whose value maps every one of the ten evaluated language names to that language's level. A level is the string FULL, PARTIAL or NONE, either on its own or under a \"support\" field of an object that also carries your reasoning. Put long reasoning in \"evidence\", not in the requirement value, and keep the whole response valid JSON: a response that runs long and breaks its own JSON is rejected before anyone reads it.",
+          "goal_hint": "Assign the support level for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric and support_consistency.json identically across the cohort. The per-language metric shards are evidence, not the final support authority.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f08-p1\". Its value maps every evaluated language to a compact object with exactly the decision metadata needed downstream: {\"support\":\"FULL|PARTIAL|NONE\",\"p_letters\":[],\"n_reason\":null,\"citation\":\"...\",\"justification\":\"...\"}. PARTIAL must carry at least one P-a..P-e and no N-reason. NONE must carry one N-1..N-4 and no P-letter. FULL carries neither. Every language must have a documentation citation and concise justification. Do not return a bare level string. Keep the whole response valid JSON and concise enough not to truncate.",
+          "worker_mode": "packet-only",
+          "packet_layout": "shared-inputs-first"
+        },
+        {
+          "id": "sc-support-adjudication--f10-p1",
+          "phase": "measurement",
+          "requirement_ids": [
+            "annotation.support_adjudication--f10-p1"
+          ],
+          "dependencies": [
+            "sc-metrics-local--part-1",
+            "sc-metrics-local--part-3",
+            "sc-metrics-local--part-2",
+            "sc-metrics-hidden-coverage--part-1",
+            "sc-metrics-hidden-coverage--part-3",
+            "sc-metrics-hidden-coverage--part-2"
+          ],
+          "prompt_sections": [
+            "### 6.1.5 Capability Coverage",
+            "#### D. Hidden Semantic Cost — 20% of quality score"
+          ],
+          "read_paths": [
+            "template/methodology-assets/semantic_compression",
+            "template/config/support_consistency.json"
+          ],
+          "network_allowed": false,
+          "goal_hint": "Assign the support level for frozen probe F10.P1 in all ten languages at once, applying the frozen support rubric and support_consistency.json identically across the cohort. The per-language metric shards are evidence, not the final support authority.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f10-p1\". Its value maps every evaluated language to a compact object with exactly the decision metadata needed downstream: {\"support\":\"FULL|PARTIAL|NONE\",\"p_letters\":[],\"n_reason\":null,\"citation\":\"...\",\"justification\":\"...\"}. PARTIAL must carry at least one P-a..P-e and no N-reason. NONE must carry one N-1..N-4 and no P-letter. FULL carries neither. Every language must have a documentation citation and concise justification. Do not return a bare level string. Keep the whole response valid JSON and concise enough not to truncate.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first"
         },
@@ -324,13 +353,14 @@
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
-            "#### D. Hidden Semantic Cost \u2014 20% of quality score"
+            "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
           "read_paths": [
-            "template/methodology-assets/semantic_compression"
+            "template/methodology-assets/semantic_compression",
+            "template/config/support_consistency.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign the support level for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f20-p1\", whose value maps every one of the ten evaluated language names to that language's level. A level is the string FULL, PARTIAL or NONE, either on its own or under a \"support\" field of an object that also carries your reasoning. Put long reasoning in \"evidence\", not in the requirement value, and keep the whole response valid JSON: a response that runs long and breaks its own JSON is rejected before anyone reads it.",
+          "goal_hint": "Assign the support level for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric and support_consistency.json identically across the cohort. The per-language metric shards are evidence, not the final support authority.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f20-p1\". Its value maps every evaluated language to a compact object with exactly the decision metadata needed downstream: {\"support\":\"FULL|PARTIAL|NONE\",\"p_letters\":[],\"n_reason\":null,\"citation\":\"...\",\"justification\":\"...\"}. PARTIAL must carry at least one P-a..P-e and no N-reason. NONE must carry one N-1..N-4 and no P-letter. FULL carries neither. Every language must have a documentation citation and concise justification. Do not return a bare level string. Keep the whole response valid JSON and concise enough not to truncate.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first"
         },
@@ -349,7 +379,8 @@
             "sc-metrics-hidden-coverage--part-3",
             "sc-support-adjudication--f04-p1",
             "sc-support-adjudication--f08-p1",
-            "sc-support-adjudication--f20-p1"
+            "sc-support-adjudication--f20-p1",
+            "sc-support-adjudication--f10-p1"
           ],
           "prompt_sections": [
             "### 6.1.1A Mandatory semantic-site matrix",
@@ -357,11 +388,13 @@
           ],
           "read_paths": [
             "repo/docs",
-            "template/methodology-assets/semantic_compression"
+            "template/methodology-assets/semantic_compression",
+            "template/config/support_consistency.json"
           ],
           "network_allowed": false,
           "worker_mode": "packet-only",
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "goal": "Audit the blinded Semantic Compression sample for cross-language comparability after cohort support adjudication. Treat each nested support_adjudication record as the sole support authority. If unresolved disagreements remain, return gate.comparability_audit=false and list every affected probe/opaque-label pair under evidence.gate_result.affected_pairs_requiring_revalidation so the runner can perform one bounded targeted re-adjudication cycle."
         }
       ]
     },
@@ -395,8 +428,8 @@
             "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I1. Keyword Anonymization \u2014 20%",
-            "### I2. Vocabulary Anonymization \u2014 20%",
+            "### I1. Keyword Anonymization — 20%",
+            "### I2. Vocabulary Anonymization — 20%",
             "## 10.6 Scoring"
           ],
           "read_paths": [
@@ -420,8 +453,8 @@
             "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I3. Structural Surface Perturbation \u2014 15%",
-            "### I4. Novel-rule Generalization \u2014 20%",
+            "### I3. Structural Surface Perturbation — 15%",
+            "### I4. Novel-rule Generalization — 20%",
             "## 10.6 Scoring"
           ],
           "read_paths": [
@@ -445,8 +478,8 @@
             "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I5. Held-out Rule Composition \u2014 15%",
-            "### I6. Prior-conflict Resistance \u2014 10%",
+            "### I5. Held-out Rule Composition — 15%",
+            "### I6. Prior-conflict Resistance — 10%",
             "## 10.6 Scoring"
           ],
           "read_paths": [

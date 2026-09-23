@@ -13106,6 +13106,9 @@ def compact_run_files(
         "template_tree_sha256": run.get("template_tree_sha256"),
         "cache_tree_sha256_at_start": run.get("cache_tree_sha256"),
         "inference_identity": run.get("inference_identity"),
+        "quidra_execution_identity": (
+            (run.get("evaluated") or {}).get("quidra_execution_identity")
+        ),
         "toolchains": {
             language: row.get("canonical")
             for language, row in (toolchains.get("toolchains") or {}).items()

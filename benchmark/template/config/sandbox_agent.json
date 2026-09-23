@@ -48,5 +48,6 @@
     "run",
     "final"
   ],
-  "note": "Read access is limited to the Task Packet's declared read paths. Writes and subprocess working directories are limited to /quidra-benchmark/work/agents/<agent-id>/. Subprocesses always run with shell=False, a sanitized environment and an argv[0] drawn from this allowlist, from an allowed absolute prefix inside the workspace, or an executable the worker built inside its own directory (a relative program path resolves there; symlinks are refused). These limits are enforced in code by scripts/sandbox_agent.py, not by prompt instructions."
+  "note": "Read access is limited to the Task Packet's declared read paths. write_file is limited to /quidra-benchmark/work/agents/<agent-id>/ and protects runtime-owned files. Subprocesses run with shell=False, a sanitized per-worker HOME/TMPDIR and an argv[0] drawn from the allowlist, an allowed absolute prefix, or a worker-built executable. In production every subprocess file syscall is traced; any /quidra-benchmark access outside the declared read roots/worker directory is a fatal attempt-level policy violation, and trials from that contaminated attempt are not resumed. The inference gateway separately binds each task to its live worker PID, so subprocesses cannot spend API budget through the shared socket.",
+  "subprocess_filesystem_audit": "strace-v1"
 }

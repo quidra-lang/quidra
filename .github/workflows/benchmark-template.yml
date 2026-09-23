@@ -6,6 +6,7 @@ on:
     paths:
       - "benchmark/master_prompt.md"
       - "benchmark/README.md"
+      - "benchmark/.run-production"
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"
@@ -19,6 +20,7 @@ on:
     paths:
       - "benchmark/master_prompt.md"
       - "benchmark/README.md"
+      - "benchmark/.run-production"
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"
@@ -41,6 +43,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Reject paid-run marker in source history
+        run: |
+          test ! -e benchmark/.run-production || {
+            echo "::error::benchmark/.run-production must exist only on the disposable benchmark branch"
+            exit 1
+          }
 
       - name: Parse and verify benchmark workflow structure
         run: |

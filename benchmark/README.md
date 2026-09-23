@@ -11,8 +11,9 @@ The normal full-run lifecycle is:
 1. The user asks to start the benchmark.
 2. Read this file before touching the repository.
 3. Confirm the preconditions below.
-4. Create **benchmark** from the exact **develop** commit to evaluate, change
-   benchmark/.run-production, commit that request on **benchmark**, and push it.
+4. Create **benchmark** from the exact **develop** commit to evaluate, create
+   benchmark/.run-production only on **benchmark**, commit that request there,
+   and push it. The request marker must never exist on **develop**.
 5. GitHub Actions runs **benchmark-production** on **benchmark**. A single
    provider smoke runs first, then a full request appears as five separate
    top-level GitHub Actions jobs: **Semantic Compression → LLM Learnability →
@@ -32,13 +33,13 @@ The normal full-run lifecycle is:
    **COMPLETE**. An incomplete attempt never creates benchmark/<run-id>/; its
    diagnostic handoff/workspace evidence remains in Actions artifacts and its
    valid completed work remains reusable through benchmark/cache/.
-8. Reconcile **benchmark** into the then-current **develop**:
-   - if **develop** has not moved since **benchmark** forked, fast-forward
-     **develop** to **benchmark**;
-   - if **develop** has moved, copy only benchmark-generated artifacts into the
-     current **develop**, preserving every unrelated **develop** change.
-9. Only after the result is safely present on **develop**, delete the remote and
-   local **benchmark** branch. The benchmark is then finished.
+8. Reconcile only benchmark-generated artifacts into the then-current
+   **develop**. Never merge or fast-forward the disposable **benchmark** branch
+   itself: it contains the paid-run request marker and workflow durability
+   commits that are not source history.
+9. Verify that benchmark/.run-production is absent on **develop**. Only after the
+   useful cache and any formal result are safely present there, delete the remote
+   and local **benchmark** branch. The benchmark is then finished.
 
 Never leave a completed run stranded only on **benchmark**, and never delete
 **benchmark** before its result has been reconciled.
@@ -65,6 +66,10 @@ Never overwrite or force-push it just to start a new run.
 ~~~sh
 git checkout develop
 git pull --ff-only origin develop
+test ! -e benchmark/.run-production || {
+  echo "stale benchmark/.run-production must not live on develop"
+  exit 1
+}
 gh run list --commit "$(git rev-parse HEAD)" --limit 20
 ~~~
 
@@ -108,8 +113,9 @@ git fetch origin develop --prune
 git checkout -B benchmark origin/develop
 ~~~
 
-Edit only the request fields below the comment header in
-benchmark/.run-production, then commit and push **benchmark**.
+Create benchmark/.run-production on the disposable branch, then commit and push
+**benchmark**. The file is deliberately absent from **develop** so creating the
+temporary branch alone can never carry a stale paid-run request forward.
 
 | Field | Full run | One evaluation | Rehearsal of named units |
 | --- | --- | --- | --- |
@@ -126,8 +132,9 @@ git commit -m "Request benchmark run"
 git push -u origin benchmark
 ~~~
 
-Only a push to **benchmark** that changes benchmark/.run-production starts the
-paid production workflow. A push to **develop** cannot start it.
+Only a push to **benchmark** that creates or changes benchmark/.run-production
+starts the paid production workflow. A push to **develop** cannot start it, and
+the marker must never be reconciled back to **develop**.
 
 Do not modify, rebase, merge into, or force-push **benchmark** while the run is
 in flight. The production workflow itself is the only writer allowed during
@@ -166,47 +173,26 @@ the remote **benchmark** branch are durability copies, not a new source snapshot
 
 ## Reconciling after the workflow finishes
 
-Fetch both branches and compute the fork point.
+Always reconcile artifacts selectively. This rule is the same whether or not
+**develop** moved during the run. The disposable branch contains
+benchmark/.run-production and workflow checkpoint commits, so merging or
+fast-forwarding the whole branch would turn a one-shot paid-run request into
+source history.
+
+Fetch both branches and compute the fork point, then start from current
+**develop**.
 
 ~~~sh
 git fetch origin develop benchmark --prune
 base="$(git merge-base origin/develop origin/benchmark)"
-develop_head="$(git rev-parse origin/develop)"
-~~~
 
-### If develop did not move
-
-If develop_head equals base, the benchmark branch is a strict continuation of
-the evaluated **develop**. Fast-forward it as-is.
-
-~~~sh
-test "$develop_head" = "$base"
-git checkout develop
-git reset --hard origin/develop
-git merge --ff-only origin/benchmark
-git push origin develop
-~~~
-
-This keeps the request commit, cache checkpoint and final result commit together
-with the exact source snapshot they measured.
-
-### If develop moved during the benchmark
-
-Do not merge the whole branch. Transfer only files generated by the benchmark:
-new or changed files under benchmark/cache/ and, for a publishable complete
-run, benchmark/template/prompts/ plus the dated benchmark/<run-id>/ result
-directory. Do not transfer request marker changes or source/template code from
-the temporary branch. An incomplete attempt normally contributes cache only.
-
-The following copies only artifact paths changed by the benchmark branch and
-leaves unrelated current-develop files untouched.
-
-~~~sh
 git checkout develop
 git reset --hard origin/develop
 
 tmp="$(mktemp)"
-git diff --name-only "$base"..origin/benchmark -- benchmark   | grep -E '^benchmark/(cache/|template/prompts/|20[0-9]{2}-[0-9]{2}-[0-9]{2}-[^/]+/)'   > "$tmp"
+git diff --name-only "$base"..origin/benchmark -- benchmark \
+  | grep -E '^benchmark/(cache/|template/prompts/|20[0-9]{2}-[0-9]{2}-[0-9]{2}-[^/]+/)' \
+  > "$tmp"
 
 test -s "$tmp" || {
   echo "no benchmark-generated artifacts found; do not delete benchmark"
@@ -222,6 +208,10 @@ while IFS= read -r path; do
 done < "$tmp"
 
 git add -f benchmark/cache benchmark/template/prompts benchmark/20??-??-??-* 2>/dev/null || true
+test ! -e benchmark/.run-production || {
+  echo "refusing to import the paid-run request marker into develop"
+  exit 1
+}
 git diff --cached --quiet && {
   echo "nothing staged; do not delete benchmark"
   exit 1
@@ -232,9 +222,10 @@ git push origin develop
 rm -f "$tmp"
 ~~~
 
-If the selective import conflicts semantically with newer benchmark cache or
-prompt material on **develop**, resolve that deliberately before pushing. Do not
-replace unrelated files merely to make the import easy.
+This preserves current **develop** source/template changes, imports only reusable
+cache/prompts and a publishable dated result, and deliberately excludes the
+request marker. If the selective import conflicts semantically with newer cache
+or prompt material on **develop**, resolve that deliberately before pushing.
 
 ## Deleting the temporary branch
 
@@ -244,6 +235,10 @@ verifying the imported run exists on origin/develop.
 ~~~sh
 git fetch origin develop
 # Inspect the expected benchmark/<run-id>/import_manifest.json on origin/develop.
+git show origin/develop:benchmark/.run-production >/dev/null 2>&1 && {
+  echo "request marker leaked into develop; do not delete benchmark"
+  exit 1
+} || true
 git push origin --delete benchmark
 git branch -D benchmark 2>/dev/null || true
 ~~~

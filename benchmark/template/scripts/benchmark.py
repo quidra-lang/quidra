@@ -2502,11 +2502,24 @@ def primary_config_projection_from_data(
     local_keys = {
         key for key in PRIMARY_EVALUATION_CONFIG_KEYS.values() if key is not None
     }
-    return {
+    projected = {
         key: value
         for key, value in config.items()
         if key not in local_keys or key == own_key
     }
+
+    # This legacy Language Quality flag described the pre-certified-cache era.
+    # It is orchestration documentation, not a scientific condition, and must
+    # not make an otherwise identical paid measurement cold.  Keep it out of
+    # the evaluation-visible projection so old prompts carrying the flag and
+    # current prompts after its correction remain projection-compatible.
+    if own_key == "language_quality":
+        local = projected.get("language_quality")
+        if isinstance(local, dict):
+            local = dict(local)
+            local.pop("reuse_never_includes_measurements", None)
+            projected["language_quality"] = local
+    return projected
 
 
 def primary_config_projection_data(root: Path, evaluation: str) -> dict[str, Any]:
@@ -13975,13 +13988,23 @@ def cache_impact(source: Path) -> dict[str, Any]:
 
 def cmd_cache_impact(args: argparse.Namespace) -> int:
     source = Path(args.source_repo).resolve()
-    if not (source / "benchmark" / "cache" / "v1").is_dir():
-        raise BenchmarkError(f"source repository has no certified cache: {source}")
+    if not source.is_dir():
+        raise BenchmarkError(f"source repository does not exist: {source}")
+    # An empty/missing v1 directory is a valid first-run state, not a benchmark
+    # failure.  Report zero reusable records so preflight can still produce an
+    # execution plan before the first paid request.
     summary = cache_impact(source)
     by_eval: dict[str, int] = {}
     for entry in summary["invalid"]:
         by_eval[entry["evaluation"]] = by_eval.get(entry["evaluation"], 0) + 1
     summary["invalid_by_evaluation"] = by_eval
+    output = getattr(args, "output", None)
+    if output:
+        destination = Path(output)
+        if not destination.is_absolute():
+            destination = source / destination
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        json_dump(destination, summary)
     print(json.dumps(summary, indent=2))
     return 0 if not summary["invalid"] else 3
 
@@ -15878,6 +15901,10 @@ def build_parser() -> argparse.ArgumentParser:
              "epochs and Quidra versions would no longer match (exit 3 when any)",
     )
     impact.add_argument("--source-repo", required=True)
+    impact.add_argument(
+        "--output",
+        help="optional JSON path for persisting the impact report before paid work",
+    )
     impact.set_defaults(func=cmd_cache_impact)
 
     report = sub.add_parser(

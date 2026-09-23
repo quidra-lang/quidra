@@ -14,7 +14,7 @@ on:
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
       - ".github/actions/benchmark-primary/**"
-      - ".github/actions/benchmark-evaluation/**"
+      - ".github/actions/benchmark-primary/**"
   pull_request:
     paths:
       - "benchmark/master_prompt.md"
@@ -27,7 +27,7 @@ on:
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
       - ".github/actions/benchmark-primary/**"
-      - ".github/actions/benchmark-evaluation/**"
+      - ".github/actions/benchmark-primary/**"
 
 jobs:
   validate:
@@ -53,7 +53,6 @@ jobs:
           python -m py_compile benchmark/template/scripts/sandbox_launcher.py
           python -m py_compile benchmark/template/scripts/synthetic_run.py
           python -m py_compile benchmark/template/scripts/production_run.py
-          python -m py_compile benchmark/template/scripts/ci_cache_handoff.py
           python -m py_compile benchmark/template/runtime/verify_toolchains.py
           bash -n benchmark/template/runtime/install_toolchains.sh
           python benchmark/template/scripts/check_metadata.py
@@ -420,63 +419,6 @@ jobs:
               ) == 2
           finally:
               micro.wait_for_host_window = original_wait
-          PY
-
-      - name: Exercise split-job cache handoff helper
-        run: |
-          python - <<'PY'
-          from argparse import Namespace
-          from pathlib import Path
-          import importlib.util
-          import json
-          import tempfile
-
-          spec = importlib.util.spec_from_file_location(
-              "ci_cache_handoff", "benchmark/template/scripts/ci_cache_handoff.py"
-          )
-          handoff = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(handoff)
-
-          with tempfile.TemporaryDirectory() as td:
-              base = Path(td)
-              incoming = base / "incoming"
-              target = base / "target"
-              incoming.mkdir()
-              target.mkdir()
-              (incoming / "v1").mkdir()
-              (incoming / "v1" / "a.json").write_text('{"a":1}\n')
-              summary = handoff.merge_tree(incoming, target)
-              assert summary == {"copied": 1, "identical": 0}, summary
-              summary = handoff.merge_tree(incoming, target)
-              assert summary == {"copied": 0, "identical": 1}, summary
-
-              (incoming / "v1" / "a.json").write_text('{"a":2}\n')
-              try:
-                  handoff.merge_tree(incoming, target)
-              except handoff.benchmark.BenchmarkError:
-                  pass
-              else:
-                  raise AssertionError("different bytes at one cache key must fail")
-
-              workspace = base / "workspace"
-              source_cache = base / "bundle"
-              (workspace / "cache").mkdir(parents=True)
-              (workspace / "results").mkdir(parents=True)
-              source_cache.mkdir()
-              (source_cache / "record.json").write_text('{"schema_version":1}\n')
-              (workspace / "run.json").write_text(json.dumps({
-                  "schema_version": 1,
-                  "cache_tree_sha256": handoff.benchmark.sha256_tree(workspace / "cache"),
-              }) + "\n")
-              rc = handoff.cmd_workspace_import(Namespace(
-                  workspace=str(workspace), cache=str(source_cache)
-              ))
-              assert rc == 0
-              run = handoff.benchmark.json_load(workspace / "run.json")
-              assert run["cache_tree_sha256"] == handoff.benchmark.sha256_tree(
-                  workspace / "cache"
-              )
-              assert (workspace / "cache" / "record.json").is_file()
           PY
 
       - name: Verify self-contained template bootstrap

@@ -535,9 +535,9 @@ runs:
           --source-repo "$GITHUB_WORKSPACE" \
           | tee "$RUNNER_TEMP/cache-checkpoint.json"
 
-        # Certified results remain content-addressed under benchmark/cache. The
-        # run-specific checkpoint stores only trusted orchestration state needed
-        # to reconstruct the same run if an Actions artifact disappears.
+        # Certified results and their exact revalidation prompt dependencies
+        # remain content-addressed. The run-specific checkpoint stores only
+        # trusted orchestration state needed to reconstruct the same run.
         checkpoint_dir="benchmark/checkpoints/$RUN_ID"
         mkdir -p "$checkpoint_dir"
         cp "$RUNNER_TEMP/benchmark-budget-state.json" "$checkpoint_dir/budget-state.json"
@@ -563,23 +563,25 @@ runs:
         PY
 
         tar -czf "$RUNNER_TEMP/updated-cache.tgz" benchmark/cache
+        tar -czf "$RUNNER_TEMP/updated-prompts.tgz" benchmark/template/prompts
         tar -czf "$RUNNER_TEMP/updated-checkpoint.tgz" "$checkpoint_dir"
         git reset --hard
         git fetch origin benchmark
         unexpected="$(git diff --name-only "$EVALUATED_SHA"..origin/benchmark \
-          | grep -Ev "^benchmark/cache/|^benchmark/checkpoints/$RUN_ID/" || true)"
+          | grep -Ev "^benchmark/cache/|^benchmark/template/prompts/|^benchmark/checkpoints/$RUN_ID/" || true)"
         if [ -n "$unexpected" ]; then
           echo "::error::benchmark branch moved outside certified cache/resume state during the run:"
           echo "$unexpected"
           exit 1
         fi
         git checkout -B benchmark origin/benchmark
-        rm -rf benchmark/cache "$checkpoint_dir"
+        rm -rf benchmark/cache benchmark/template/prompts "$checkpoint_dir"
         tar -xzf "$RUNNER_TEMP/updated-cache.tgz"
+        tar -xzf "$RUNNER_TEMP/updated-prompts.tgz"
         tar -xzf "$RUNNER_TEMP/updated-checkpoint.tgz"
-        git add -f benchmark/cache "$checkpoint_dir"
+        git add -f benchmark/cache benchmark/template/prompts "$checkpoint_dir"
         if git diff --cached --quiet; then
-          echo "No new certified cache or resume-state records."
+          echo "No new certified cache, prompt dependency, or resume-state records."
           exit 0
         fi
         git -c user.name="github-actions[bot]" \

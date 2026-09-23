@@ -158,6 +158,7 @@ jobs:
               root / "validators" / "micro" / "check_micro.py",
               root / "methodology-assets" / "semantic_compression" / "capability_universe.json",
               root / "methodology-assets" / "semantic_compression" / "semantic_site_matrix.json",
+              root / "methodology-assets" / "llm_proficiency" / "workloads.json",
           ]
           missing = [str(path) for path in required if not path.exists()]
           assert not missing, missing

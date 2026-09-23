@@ -507,6 +507,21 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     assert "micro_raw.json" in record["certification"]["raw_evidence_sha256"]
     assert record["result"] == result
 
+    # A verified legacy record keeps its historical fingerprint/result but is
+    # ratcheted forward with the current execution identity at checkpoint.
+    legacy_record = dict(record)
+    legacy_record.pop("compatibility", None)
+    benchmark.json_dump(record_path, legacy_record)
+    upgraded = benchmark.promote_certified_cache(source, root)
+    assert upgraded["promoted"] == 0 and upgraded["replaced"] == 0, upgraded
+    assert upgraded["upgraded"] == 1, upgraded
+    record = benchmark.json_load(record_path)
+    assert (
+        record["compatibility"]["quidra_execution_identity"]
+        == benchmark.current_quidra_execution_identity(root)
+    )
+    assert benchmark.promote_certified_cache(source, root)["upgraded"] == 0
+
     # A later run with the same inputs hydrates the record instead of measuring.
     shutil.rmtree(result_path.parent)
     freeze_manifest(root, unit)

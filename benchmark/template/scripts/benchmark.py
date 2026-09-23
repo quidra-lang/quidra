@@ -10202,6 +10202,16 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     if require_primary and not status_path.is_file():
         return {"promoted": 0, "replaced": 0, "reused": 0, "records": []}
 
+    # Preserve expensive language-scoped SC checkpoints after a failed audit,
+    # but certify cohort adjudications/gate verdicts only from COMPLETE SC.
+    def unit_requires_complete_primary(unit: dict[str, Any]) -> bool:
+        if require_primary:
+            return True
+        if str(unit.get("evaluation") or "") != "semantic_compression":
+            return False
+        requirement_ids = [str(rid) for rid in (unit.get("requirement_ids") or [])]
+        return support_adjudication_probe(requirement_ids) is not None or COMPARABILITY_GATE in requirement_ids
+
     manifest = json_load(manifest_path)
     ledger = json_load(ledger_path)
     unresolved_sc_probes = unresolved_semantic_comparability_probes(root, manifest)
@@ -10230,7 +10240,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             })
             continue
         if (
-            require_primary
+            unit_requires_complete_primary(unit)
             and (primary.get(unit.get("evaluation")) or {}).get("status") != "COMPLETE"
         ):
             continue

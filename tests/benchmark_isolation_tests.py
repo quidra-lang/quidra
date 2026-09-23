@@ -2742,6 +2742,7 @@ def test_proficiency_prompt_variants_and_runtime_metrics() -> None:
             )
 
         trials = {}
+        trusted_base = root / "work/root/proficiency-verification/test-agent"
         for trial_id, cell in manifest.items():
             variant = cell["prompt_variant"]
             passes = variant != "contract-first"
@@ -2753,20 +2754,42 @@ def test_proficiency_prompt_variants_and_runtime_metrics() -> None:
                     "id": case["id"],
                     "hidden": bool(case["hidden"]),
                     "passed": passes,
+                    "run": {
+                        "exit_code": 0,
+                        "stdout": "ok" if passes else "wrong",
+                        "stderr": "",
+                    },
                 }
                 for case in oracle_cases
             ]
+            completion = "source"
+            completion_sha = benchmark.sha256_bytes(completion.encode("utf-8"))
+            trusted = {
+                "schema_version": 2,
+                "trial_id": trial_id,
+                "language": "Python",
+                "workload": cell["workload"],
+                "source_sha256": completion_sha,
+                "workload_contract_sha256": (
+                    benchmark.proficiency_workload_contract_sha256(root)
+                ),
+                "compile_parse_ok": True,
+                "test_passed": passes,
+                "oracle_test_count": len(rows),
+                "oracle_passed_count": len(rows) if passes else 0,
+                "oracle_tests": rows,
+            }
+            verify_path = (
+                trusted_base / trial_id / "call_01" / "verification.json"
+            )
+            benchmark.json_dump(verify_path, trusted)
             trials[trial_id] = {
                 "calls": [{
-                    "completion": "source",
+                    "completion": completion,
+                    "completion_sha256": completion_sha,
                     "incomplete": None,
-                    "verification": {
-                        "compile_parse_ok": True,
-                        "test_passed": passes,
-                        "oracle_test_count": len(rows),
-                        "oracle_passed_count": len(rows) if passes else 0,
-                        "oracle_tests": rows,
-                    },
+                    "verification": benchmark.proficiency_verification_summary(trusted),
+                    "verification_path": verify_path.relative_to(root).as_posix(),
                 }]
             }
         metrics = benchmark.proficiency_runtime_metrics(
@@ -2774,17 +2797,34 @@ def test_proficiency_prompt_variants_and_runtime_metrics() -> None:
         )
         check(metrics is not None, "runtime-owned Proficiency metrics were not computed")
         if metrics is not None:
+            expected = 200.0 / 3.0
             check(
                 abs(metrics["metric.prompt_robustness"] - 0.0) < 1e-9,
                 f"worst-variant Prompt Robustness is wrong: {metrics}",
             )
             check(
-                abs(metrics["metric.unseen_case_generalization"] - (200.0 / 3.0)) < 1e-6,
+                abs(metrics["metric.unseen_case_generalization"] - expected) < 1e-6,
                 f"hidden-only Unseen-case Generalization is wrong: {metrics}",
             )
             check(
-                abs(metrics["metric.correct_at_1"] - (200.0 / 3.0)) < 1e-6,
+                abs(metrics["metric.correct_at_1"] - expected) < 1e-6,
                 f"Correct@1 did not use the variant trial set: {metrics}",
+            )
+            check(
+                abs(metrics["metric.repair_success_rate"] - 0.0) < 1e-9,
+                f"Repair Success was not derived from the failed first attempts: {metrics}",
+            )
+            check(
+                abs(metrics["metric.repair_efficiency"] - expected) < 1e-6,
+                f"Repair Efficiency did not preserve first-pass trials: {metrics}",
+            )
+            check(
+                abs(metrics["metric.diagnosis_efficiency"] - 0.0) < 1e-9,
+                f"Diagnosis Efficiency should be zero without a successful first repair: {metrics}",
+            )
+            check(
+                abs(metrics["metric.silent_bug_resistance"] - expected) < 1e-6,
+                f"Silent Bug Resistance did not detect exit-0 wrong outputs: {metrics}",
             )
 
 

@@ -86,7 +86,7 @@ python3 benchmark/template/scripts/benchmark.py cache-impact --source-repo .
 
 This reports certified records already known to be invalid from the current
 checkout: configuration, methodology, readable inputs, toolchain pins, declared
-cache epoch, mechanical scripts, and Quidra version identity. It does **not**
+cache epoch, mechanical scripts, Quidra declared version, and the target execution identity. It does **not**
 guess an exact Task Packet hash when that packet depends on a new upstream result
 that does not exist yet. During a run, deterministic preparation and cache
 hydration resolve each fingerprint before the corresponding paid unit is

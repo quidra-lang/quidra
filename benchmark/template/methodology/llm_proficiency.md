@@ -146,18 +146,20 @@ All normalized LLM scores must follow:
 The following formulas are frozen before measurement and are applied identically to
 all languages:
 
-- **Repair Success Rate**: among trials whose initial completion fails the full
-  trusted oracle, the percentage that reaches a full-oracle pass on a later
-  repair completion. If no trial needs repair, the score is 100.
-- **Repair Efficiency**: per trial, first-attempt success scores 100. If the first
-  full-oracle success occurs after repair number `k`, with `R` the fixed
-  `max_repair_turns`, score `100 * (1 - k/(R+1))`; an unrepaired failure
-  scores 0. Report the arithmetic mean across the fixed Primary trial set.
-- **Diagnosis Efficiency**: among trials whose initial completion fails, the
-  percentage that passes the full oracle on the **first** repair. If no trial
-  needs repair, the score is 100. Because repair feedback is runtime-owned, this
-  measures whether the model can act on the first trusted diagnostic rather than
-  whether an orchestration worker can coach it.
+- **Repair Success Rate**: among trials whose initial completion fails the
+  compile/public repair gate, the percentage that reaches that same public gate
+  on a later repair completion. Hidden oracle cases are score-only and never
+  create a repair opportunity. If no trial needs repair, the score is 100.
+- **Repair Efficiency**: per trial, passing the compile/public repair gate on the
+  first attempt scores 100. If the first public-gate success occurs after repair
+  number `k`, with `R` the fixed `max_repair_turns`, score
+  `100 * (1 - k/(R+1))`; an unrepaired public-gate failure scores 0. Report the
+  arithmetic mean across the fixed Primary trial set.
+- **Diagnosis Efficiency**: among trials whose initial completion fails the
+  compile/public repair gate, the percentage that passes that gate on the
+  **first** repair. If no trial needs repair, the score is 100. Because repair
+  feedback is runtime-owned, this measures whether the model can act on the first
+  trusted public diagnostic rather than whether an orchestration worker can coach it.
 - **Silent Bug Resistance**: among first completions that compile/parse and
   execute oracle cases, a silent-bug trial is one where at least one oracle run
   exits 0 but its output disagrees with the trusted oracle. Resistance is

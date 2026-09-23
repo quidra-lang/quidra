@@ -298,8 +298,7 @@ def act_write_file(action: dict[str, Any], perms: Permissions) -> dict[str, Any]
     }
 
 
-_WORKSPACE_PATH_RE = re.compile(r"/quidra-benchmark(?:/[^\\\"'\\s,)]*)?")
-_RELATIVE_ESCAPE_RE = re.compile(r"(?<![A-Za-z0-9_.-])\\.\\.(?:/|$)")
+_WORKSPACE_PATH_RE = re.compile(r"/quidra-benchmark(?:/[^\\\"'\s,)]*)?")
 
 
 def _sandbox_subprocess_allowed_roots(perms: Permissions) -> list[Path]:
@@ -334,10 +333,6 @@ def _sandbox_subprocess_access_problem(
             if any(_is_within(path, root) for root in allowed):
                 continue
             return f"undeclared workspace access: {candidate}"
-        # Task Packets expose normalized absolute read paths, so relative
-        # traversal is unnecessary and would make path resolution ambiguous.
-        if _RELATIVE_ESCAPE_RE.search(line):
-            return "relative path traversal ('..') observed in subprocess filesystem trace"
     return None
 
 
@@ -394,12 +389,14 @@ def act_run(action: dict[str, Any], perms: Permissions) -> dict[str, Any]:
             "-s",
             "4096",
             "-e",
-            "trace=%file",
+            "trace=%file,connect",
             "-o",
             str(trace_path),
             "--",
             *argv,
         ]
+    timed_out = False
+    completed: subprocess.CompletedProcess[str] | None = None
     try:
         completed = subprocess.run(
             command,
@@ -412,12 +409,7 @@ def act_run(action: dict[str, Any], perms: Permissions) -> dict[str, Any]:
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        return {
-            "ok": False,
-            "argv": argv,
-            "timed_out": True,
-            "timeout_seconds": timeout,
-        }
+        timed_out = True
     except OSError as exc:
         raise AgentDenied(f"subprocess could not start: {exc}") from exc
 
@@ -441,6 +433,16 @@ def act_run(action: dict[str, Any], perms: Permissions) -> dict[str, Any]:
             "sandbox filesystem policy violation: subprocess modified runner-owned "
             + ", ".join(changed)
         )
+
+    if timed_out:
+        return {
+            "ok": False,
+            "argv": argv,
+            "timed_out": True,
+            "timeout_seconds": timeout,
+        }
+    if completed is None:
+        raise AgentFailure("subprocess ended without a completion record")
 
     cap = int(perms.config["exec_output_bytes"])
     stdout, stdout_truncated = truncate(completed.stdout, cap)

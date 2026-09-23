@@ -276,12 +276,14 @@
           ],
           "read_paths": [
             "template/methodology-assets/semantic_compression",
-            "template/config/support_consistency.json"
+            "template/config/support_consistency.json",
+            "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
           "goal_hint": "Assign the support level for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric and support_consistency.json identically across the cohort. The per-language metric shards are evidence, not the final support authority.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f04-p1\". Its value maps every evaluated language to a compact object with exactly the decision metadata needed downstream: {\"support\":\"FULL|PARTIAL|NONE\",\"p_letters\":[],\"n_reason\":null,\"citation\":\"...\",\"justification\":\"...\"}. PARTIAL must carry at least one P-a..P-e and no N-reason. NONE must carry one N-1..N-4 and no P-letter. FULL carries neither. Every language must have a documentation citation and concise justification. Do not return a bare level string. Keep the whole response valid JSON and concise enough not to truncate.",
           "worker_mode": "packet-only",
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "goal": "Assign one authoritative support record for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
         },
         {
           "id": "sc-support-adjudication--f08-p1",
@@ -303,12 +305,14 @@
           ],
           "read_paths": [
             "template/methodology-assets/semantic_compression",
-            "template/config/support_consistency.json"
+            "template/config/support_consistency.json",
+            "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
           "goal_hint": "Assign the support level for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric and support_consistency.json identically across the cohort. The per-language metric shards are evidence, not the final support authority.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f08-p1\". Its value maps every evaluated language to a compact object with exactly the decision metadata needed downstream: {\"support\":\"FULL|PARTIAL|NONE\",\"p_letters\":[],\"n_reason\":null,\"citation\":\"...\",\"justification\":\"...\"}. PARTIAL must carry at least one P-a..P-e and no N-reason. NONE must carry one N-1..N-4 and no P-letter. FULL carries neither. Every language must have a documentation citation and concise justification. Do not return a bare level string. Keep the whole response valid JSON and concise enough not to truncate.",
           "worker_mode": "packet-only",
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "goal": "Assign one authoritative support record for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
         },
         {
           "id": "sc-support-adjudication--f10-p1",
@@ -330,12 +334,14 @@
           ],
           "read_paths": [
             "template/methodology-assets/semantic_compression",
-            "template/config/support_consistency.json"
+            "template/config/support_consistency.json",
+            "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
           "goal_hint": "Assign the support level for frozen probe F10.P1 in all ten languages at once, applying the frozen support rubric and support_consistency.json identically across the cohort. The per-language metric shards are evidence, not the final support authority.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f10-p1\". Its value maps every evaluated language to a compact object with exactly the decision metadata needed downstream: {\"support\":\"FULL|PARTIAL|NONE\",\"p_letters\":[],\"n_reason\":null,\"citation\":\"...\",\"justification\":\"...\"}. PARTIAL must carry at least one P-a..P-e and no N-reason. NONE must carry one N-1..N-4 and no P-letter. FULL carries neither. Every language must have a documentation citation and concise justification. Do not return a bare level string. Keep the whole response valid JSON and concise enough not to truncate.",
           "worker_mode": "packet-only",
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "goal": "Assign one authoritative support record for frozen probe F10.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
         },
         {
           "id": "sc-support-adjudication--f20-p1",
@@ -357,12 +363,14 @@
           ],
           "read_paths": [
             "template/methodology-assets/semantic_compression",
-            "template/config/support_consistency.json"
+            "template/config/support_consistency.json",
+            "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
           "goal_hint": "Assign the support level for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric and support_consistency.json identically across the cohort. The per-language metric shards are evidence, not the final support authority.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f20-p1\". Its value maps every evaluated language to a compact object with exactly the decision metadata needed downstream: {\"support\":\"FULL|PARTIAL|NONE\",\"p_letters\":[],\"n_reason\":null,\"citation\":\"...\",\"justification\":\"...\"}. PARTIAL must carry at least one P-a..P-e and no N-reason. NONE must carry one N-1..N-4 and no P-letter. FULL carries neither. Every language must have a documentation citation and concise justification. Do not return a bare level string. Keep the whole response valid JSON and concise enough not to truncate.",
           "worker_mode": "packet-only",
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "goal": "Assign one authoritative support record for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
         },
         {
           "id": "sc-comparability",
@@ -389,12 +397,14 @@
           "read_paths": [
             "repo/docs",
             "template/methodology-assets/semantic_compression",
-            "template/config/support_consistency.json"
+            "template/config/support_consistency.json",
+            "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
-          "goal": "Audit the blinded Semantic Compression sample for cross-language comparability after cohort support adjudication. Treat each nested support_adjudication record as the sole support authority. If unresolved disagreements remain, return gate.comparability_audit=false and list every affected probe/opaque-label pair under evidence.gate_result.affected_pairs_requiring_revalidation so the runner can perform one bounded targeted re-adjudication cycle."
+          "goal": "Audit the blinded Semantic Compression sample for cross-language comparability after cohort support adjudication. Treat each nested support_adjudication record as the sole support authority. If unresolved disagreements remain, return gate.comparability_audit=false and list every affected probe/opaque-label pair under evidence.gate_result.affected_pairs_requiring_revalidation so the runner can perform one bounded targeted re-adjudication cycle.",
+          "max_attempts": 3
         }
       ]
     },

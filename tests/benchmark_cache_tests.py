@@ -755,6 +755,9 @@ def assert_ecosystem_runner_owned_scoring() -> None:
                     cid: f"verified evidence for {cid}" for cid in component_ids
                 },
                 "sources": ["https://example.invalid/evidence"],
+                "candidate_universe": "frozen test candidate universe",
+                "selection_rule": rubric["selection_rule"],
+                "retrieval_route": "provider-brokered web search",
                 "snapshot_date": "2026-09-23",
                 "limitations": "",
             }

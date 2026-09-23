@@ -1498,6 +1498,18 @@ def test_frozen_configuration_agrees_with_the_implementation() -> None:
         "prompt caching is off; every sandbox-agent turn would re-buy its whole prefix",
     )
     check(
+        gateway["prompt_caching"].get("ttl") == "1h",
+        "benchmark prompt caching must survive long Semantic Compression turns",
+    )
+    for model, pricing in gateway["anthropic_pricing"].items():
+        check(
+            abs(
+                float(pricing["cache_write_usd_per_million_tokens"])
+                - 2.0 * float(pricing["input_usd_per_million_tokens"])
+            ) < 1e-12,
+            f"1h cache writes for {model} are not priced at the provider's 2x input rate",
+        )
+    check(
         "purpose" not in gateway["forbidden_request_fields"]
         and "effort" in gateway["forbidden_request_fields"],
         "purpose must be a permitted label while effort itself stays refused",

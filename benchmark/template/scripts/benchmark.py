@@ -3504,6 +3504,29 @@ def build_support_adjudication_input(
          if str(entry.get("probe_id")) == probe_id),
         None,
     )
+    universe_path = (
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "capability_universe.json"
+    )
+    universe = json_load(universe_path)
+    probe_contracts = {
+        str(entry.get("probe_id")): entry
+        for entry in (universe.get("probes") or [])
+        if str(entry.get("probe_id")) in sampled
+    }
+    if probe_id not in probe_contracts:
+        raise BenchmarkError(
+            f"support adjudication probe {probe_id} is missing from capability universe"
+        )
+    frozen_support_contract = {
+        "authoring_rules": universe.get("authoring_rules") or {},
+        "support_rubric": universe.get("support_rubric") or {},
+        "na_policy": universe.get("na_policy") or {},
+        "toolchain_binding": universe.get("toolchain_binding") or {},
+        "sampled_probe_contracts": {
+            pid: probe_contracts[pid] for pid in sorted(probe_contracts)
+        },
+    }
     policy_path = root / COMPARABILITY_POLICY_RELATIVE
     policy = json_load(policy_path) if policy_path.is_file() else {}
     payload = {
@@ -3530,6 +3553,7 @@ def build_support_adjudication_input(
             "citation": "documentation/evidence relied on",
         },
         "frozen_probe": probe,
+        "frozen_support_contract": frozen_support_contract,
         "comparability_policy": policy,
         "mechanical_verification": mechanical_verification,
         "frozen_toolchains": frozen_toolchains,

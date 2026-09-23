@@ -7393,11 +7393,18 @@ def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
 
 
 def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | None:
-    """Unambiguous Proficiency metrics recomputed from runtime-owned evidence."""
+    """Metrics whose meaning is fully decidable from runtime-owned evidence.
+
+    Correctness is deliberately NOT derived from the workload program's own
+    PASS line. The current Primary workloads use fixed toy cases, so a malicious
+    completion could hard-code that line. The run result remains trusted audit
+    evidence, while semantic correctness/specification compliance stay separate
+    until the workload contract has an external hidden-input oracle.
+    """
     trials = ((trace.get("trials") or {}).get("trials") or {})
     if not isinstance(trials, dict) or not trials:
         return None
-    generation = compiled = correct1 = correctn = 0
+    generation = compiled = 0
     for summary in trials.values():
         calls = (summary or {}).get("calls") or []
         if not calls:
@@ -7414,20 +7421,10 @@ def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | Non
             return None
         if first_verification.get("compile_parse_ok") is True:
             compiled += 1
-        if first_verification.get("test_passed") is True:
-            correct1 += 1
-        if any(
-            isinstance(call.get("verification"), dict)
-            and call["verification"].get("test_passed") is True
-            for call in calls
-        ):
-            correctn += 1
     denominator = float(len(trials))
     return {
         "metric.generation_success_rate": 100.0 * generation / denominator,
         "metric.compile_parse_success_rate": 100.0 * compiled / denominator,
-        "metric.correct_at_1": 100.0 * correct1 / denominator,
-        "metric.correct_at_n": 100.0 * correctn / denominator,
     }
 
 

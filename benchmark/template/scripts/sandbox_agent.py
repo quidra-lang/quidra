@@ -349,9 +349,20 @@ class Trials:
                  config: dict[str, Any], client: InferenceGatewayClient,
                  max_output_tokens: int) -> None:
         self.client = client
+        self.root = root
         self.agent_id = agent_id
         self.agent_dir = root / "work" / "agents" / agent_id
         self.evaluation = str(task.get("evaluation") or "")
+        assigned_languages = [
+            str(value) for value in (task.get("assigned_languages") or [])
+        ]
+        self.proficiency_language: str | None = None
+        if self.evaluation == "llm_proficiency":
+            if len(assigned_languages) != 1:
+                raise AgentFailure(
+                    "LLM Proficiency runtime requires exactly one assigned language"
+                )
+            self.proficiency_language = assigned_languages[0]
         self.network_allowed = bool(task.get("network_allowed"))
         self.max_output_tokens = max_output_tokens
         self.budget = 0
@@ -461,7 +472,19 @@ class Trials:
         }
 
     def _start_one(self, trial_id: str, prompt: Any) -> dict[str, Any]:
-        if not isinstance(prompt, str) or not prompt.strip():
+        if self.evaluation == "llm_proficiency":
+            if self.proficiency_language is None:
+                raise AgentFailure("LLM Proficiency target language is unavailable")
+            frozen = benchmark.proficiency_expected_prompt(
+                self.root, self.proficiency_language, trial_id
+            )
+            if prompt not in (None, "", frozen):
+                raise AgentDenied(
+                    f"trial {trial_id!r} initial prompt is runtime-owned; "
+                    "omit prompt instead of supplying a custom task"
+                )
+            prompt = frozen
+        elif not isinstance(prompt, str) or not prompt.strip():
             raise AgentDenied(f"trial {trial_id!r} needs a non-empty prompt string")
         session = {"messages": [{"role": "user", "content": prompt}], "records": []}
         self.sessions[trial_id] = session
@@ -575,6 +598,13 @@ class Trials:
             "max_batch": self.max_batch,
             "records_dir": "trials/",
             "required_trial_ids": self.required_trial_ids,
+            "proficiency_prompt_set_sha256": (
+                benchmark.proficiency_primary_prompt_set_sha256(
+                    self.root, self.proficiency_language
+                )
+                if self.proficiency_language is not None
+                else None
+            ),
             "missing_required_trial_ids": sorted(
                 self.required_trial_id_set - set(self.sessions)
             ),
@@ -663,9 +693,14 @@ used); a batch larger than the remaining budget is denied before any call.
         if str(task.get("evaluation") or "") == "llm_proficiency":
             required = "\n".join(f"- {trial_id}" for trial_id in trials.required_trial_ids)
             trial_block += f"""
-For LLM Proficiency, the Primary allocation is enforced by the runtime. Start
-every ID below exactly once before finalizing; any other trial ID is rejected
-before it can spend a scored call:
+For LLM Proficiency, both the Primary allocation and every initial scored
+prompt are enforced by the trusted runtime. Start every ID below exactly once
+before finalizing; any other trial ID is rejected before it can spend a scored
+call. Do NOT author an initial prompt. Use
+`{"action":"trial_start","trial_id":"<id>"}` (or batch entries containing only
+`trial_id`). The runtime inserts the frozen workload/scenario prompt. A custom
+prompt is rejected before inference. Repair messages remain yours and must
+contain the real compiler/test diagnostics from that trial.
 
 {required}
 """

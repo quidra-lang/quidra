@@ -1,0 +1,295 @@
+{
+  "agent_id": "worker-sc-metrics-local--part-3--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "metric.semantic_determinacy": {
+      "basis": "all-fragments (Python-only shard). Probes for which Python has no fragment (support level NONE) are excluded from the B_i list per the interaction_with_quality_metrics rule (NONE fragments do not enter A-D); they are listed separately below with the N-reason citation.",
+      "caveats": [
+        "Values above are this worker's own probe-by-probe analysis produced without executing a reference implementation; they should be reconciled against any sibling Quidra/pilot-language annotation before final aggregation per the common_basis_rule.",
+        "3 of 44 probes are NONE for Python (no fragment) and are excluded from this raw B_i list; they still count against Python's Capability Coverage (metric handled by a different requirement ID), consistent with na_policy NA-2.",
+        "The normalization formula (100 * 2^(-mean_log2_B)) is this worker's frozen choice for a bounded, monotonic 0-100 mapping; it must be applied identically to every other language's mean_log2_B for cross-language comparability, per common_basis_rule and safety.preserve_frozen_case_universe."
+      ],
+      "computation": "mean_log2_B_i = 3.58496 / 41 = 0.08744; normalized_score = 100 * 2^(-0.08744) = 94.12",
+      "excluded_probes_NONE": [
+        {
+          "probe_id": "F04.P1",
+          "reason": "N-1: Python ints are immutable value objects; no documented mechanism lets two names in one scope denote and write the same scalar storage (no pointers/refs/inout for plain int locals). Rebinding a name never affects another name bound to the same prior int object."
+        },
+        {
+          "probe_id": "F05.P2",
+          "reason": "N-1/rubric note: Python has no reference/inout/pointer form letting a callee write a caller's scalar int local; the rubric explicitly disallows a mutable-container wrapper as a substitute for FULL, and no other standard mechanism exists."
+        },
+        {
+          "probe_id": "F20.P2",
+          "reason": "N-1: CPython under the frozen `python3 FILE.py` recipe produces no compiled artifact with an exported, unmangled C-ABI symbol; `nm` field = 'no compiled artifact under the frozen recipe'."
+        }
+      ],
+      "final_score_Python": 94.12,
+      "mean_log2_B_i": 0.08744,
+      "methodology_ref": "semantic_compression.md 6.1.3.B \u2014 mean(log2(B_i)) over fixed probes; lower branching is better.",
+      "n_fragments_measured": 41,
+      "n_probes_total": 44,
+      "normalization_rule_used": "score = 100 * 2^(-mean_log2_B). Monotonically decreasing in mean(log2(B_i)); mean_log2_B=0 (fully determinate on every probe) maps to 100. This transform is a fixed, language-neutral rule intended to be applied identically by every language shard so scores stay comparable; it is recorded here for audit and must be reused unmodified for other languages.",
+      "per_probe_B_i": [
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "n=7 is a literal; type (int) and rebindability of the name are fully spec-determined, no ambiguity.",
+          "probe_id": "F01.P1"
+        },
+        {
+          "B_i": 2,
+          "log2_B_i": 1.0,
+          "note": "Python has no true constant construct; `counter = 0` and `LIMIT = 100` are syntactically identical simple assignments, so which one is 'immutable by convention' is not locally determinate from the two declarations alone.",
+          "probe_id": "F01.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Both branches assign an int literal before use; definite assignment is locally verifiable, no separate uninitialized-declare form exists in Python.",
+          "probe_id": "F02.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "bytearray(16) is spec-guaranteed zero-filled (Python provides no genuinely uninitialized buffer); substituted fragment is fully determinate.",
+          "probe_id": "F02.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "x += 1 on unbounded Python int: no overflow, single deterministic outcome.",
+          "probe_id": "F03.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "xs[1] = 42 on a list is always an in-place element mutation by spec.",
+          "probe_id": "F03.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "window = xs is always a reference alias in Python (assignment never copies); spec-determinate despite lacking a read-only guarantee (that gap is scored under Hidden Cost / Coverage, not here).",
+          "probe_id": "F04.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`is` vs `==` is a hard language distinction; identity test is unambiguous.",
+          "probe_id": "F04.P3"
+        },
+        {
+          "B_i": 3,
+          "log2_B_i": 1.58496,
+          "note": "Bare f(x): Python's uniform call-by-object-reference rules out 'callee cannot observe x' and 'a copy was made' outright, but read-only vs in-place mutation vs alias retention beyond the call remain undecidable without consulting f; 3 of the 6 listed outcomes survive.",
+          "probe_id": "F05.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Closure capturing k and map(neg, xs) is fully local, deterministic Python closure semantics.",
+          "probe_id": "F05.P3"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Elements are ints (immutable); aliasing vs copying the returned element is not materially distinguishable.",
+          "probe_id": "F06.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Tuple return (a//b, a%b) is Python's single standard multi-value mechanism.",
+          "probe_id": "F06.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "a*b+c: fixed precedence, unbounded int, no ambiguity.",
+          "probe_id": "F07.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "//, %, and / are individually fully spec-defined (floor division, sign-follows-divisor remainder, true division to float).",
+          "probe_id": "F07.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Python ints never overflow; single deterministic outcome (arbitrary-precision growth).",
+          "probe_id": "F08.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Explicit b==0 guard (rung ii, since no stdlib checked-division exists) is fully deterministic.",
+          "probe_id": "F08.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "str.__eq__ is spec-defined content equality, not identity.",
+          "probe_id": "F09.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Whichever of sorted()/list.sort() R10 selects has fully documented in-place-vs-new-list behavior.",
+          "probe_id": "F09.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "ctypes.c_int32(big).value is a deterministic, documented wraparound conversion.",
+          "probe_id": "F10.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "int+float promotion to float is a fixed Python arithmetic rule.",
+          "probe_id": "F10.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "xs[i] out-of-range deterministically raises IndexError.",
+          "probe_id": "F11.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "List slicing always copies by language spec; no ambiguity.",
+          "probe_id": "F11.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "o = None then conditional fallback; None is the explicit, unambiguous absent sentinel at this site.",
+          "probe_id": "F12.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Substituted explicit conditional (Python has no Optional-map operator) is fully explicit.",
+          "probe_id": "F12.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "int(s) raising ValueError and propagating on an unhandled path is Python's uniform exception model.",
+          "probe_id": "F13.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "try/except ValueError with fallback is fully explicit and deterministic.",
+          "probe_id": "F13.P2"
+        },
+        {
+          "B_i": 2,
+          "log2_B_i": 1.0,
+          "note": "Python enforces no sealed/closed alternative sets; a Union-typed class hierarchy could in principle be extended, so 'closed' vs 'open' is not locally decidable from the declaration alone.",
+          "probe_id": "F14.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "match without a wildcard arm has one deterministic behavior on non-match (falls through, no exception) under Python's documented match-statement semantics.",
+          "probe_id": "F14.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Dispatch is always dynamic single-mechanism (duck typing / MRO); no alternative interpretation.",
+          "probe_id": "F14.P3"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Python functions are implicitly parametric; no generic-declaration ambiguity.",
+          "probe_id": "F15.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "No declared constraint exists; misuse deterministically surfaces at call time via TypeError under Python's fixed duck-typing model.",
+          "probe_id": "F15.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Heterogeneous list + dynamic dispatch is Python's single, uniform mechanism.",
+          "probe_id": "F15.P3"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "sum(xs) over an int list is fully spec-defined.",
+          "probe_id": "F16.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "dict iteration order is insertion order (guaranteed since 3.7) and .get(key, default) is deterministic.",
+          "probe_id": "F16.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "with-statement guarantees __exit__/close on every exit path, including exceptions; fully deterministic.",
+          "probe_id": "F17.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Using an explicit scoped construct (with-block invoking a documented close(), not relying on __del__) yields deterministic, single-interpretation cleanup timing.",
+          "probe_id": "F17.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "print is a builtin requiring no import; single deterministic form.",
+          "probe_id": "F18.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "A leading underscore is a documented convention, not enforcement; the resulting accessibility fact is itself a single deterministic Python-spec fact, not an open branch.",
+          "probe_id": "F18.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "asyncio.gather over two coroutines has fully documented cooperative single-thread join semantics.",
+          "probe_id": "F19.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Cooperative single-threaded asyncio execution with no await inside the increment is documented to make the read-modify-write atomic; deterministic.",
+          "probe_id": "F19.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "ctypes.CDLL(...).abs(...) FFI call has fully documented, deterministic marshaling behavior.",
+          "probe_id": "F20.P1"
+        }
+      ],
+      "sum_log2_B_i": 3.58496
+    }
+  },
+  "requirement_ids": [
+    "metric.semantic_determinacy"
+  ],
+  "requirements": {
+    "metric.semantic_determinacy": {
+      "Python": 94.12
+    }
+  },
+  "work_unit_id": "sc-metrics-local--part-3--python"
+}

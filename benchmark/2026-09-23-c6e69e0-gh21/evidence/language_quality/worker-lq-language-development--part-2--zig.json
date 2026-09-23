@@ -1,0 +1,47 @@
+{
+  "agent_id": "worker-lq-language-development--part-2--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "metric.diagnostics": {
+      "method": "Compiled a representative program derived from ADV-01_C.zig with zig 0.16.0 build/run and captured raw compiler diagnostics.",
+      "observations": [
+        "Compile-time diagnostics for @intCast catch narrowing/overflow at compile time for comptime-known values, with precise file:line:column, a caret-annotated excerpt, and message naming both the offending value and target type.",
+        "Error output includes a 'referenced by' inlining/call trace aiding localization through generic/inlined call chains.",
+        "Runtime safety builds (Debug/ReleaseSafe) produce panics with backtrace and source location for detectable UB (integer overflow, bounds, null unwrap), relevant to the ADV-01..ADV-26 adversarial UB corpus.",
+        "Weaknesses: comptime error chains can cascade/verbose for generic instantiation failures; evolving stdlib API surface (e.g. std.Io.Threaded, std.process.Init.Minimal) across compiler versions produces version-specific diagnostic noise."
+      ],
+      "raw_command": "zig run test1.zig",
+      "raw_output": "test1.zig:10:29: error: type 'i32' cannot represent integer value '9223372036854775807' const b: i32 = @intCast(a); referenced-by trace through std.start callMain/callMainWithArgs/posixCallMainAndExit",
+      "raw_scale": "0-100, 100 = best diagnostics",
+      "score_rationale": "78/100: precise source-located compile-time diagnostics catching semantic errors, plus strong runtime safety-check panics with backtraces, offset by verbosity in generic/comptime error chains and version-to-version API churn.",
+      "toolchain": "zig 0.16.0"
+    },
+    "metric.functionality_expressiveness": {
+      "method": "Inspection of assigned Zig adversarial (ADV-01..26) and micro (mb00..mb11) programs under /quidra-benchmark/template/programs/zig, plus compiler probes with zig 0.16.0.",
+      "observations": [
+        "Zig uses comptime generics (comptime parameters, anytype) instead of traits/interfaces; no operator overloading; no exceptions -- error unions with try/catch give explicit but verbose control flow for generic abstraction relative to Rust traits or Kotlin/Swift protocols.",
+        "No stable first-class async/await in this build; micro workloads use std.Io.Threaded abstraction instead, reducing concurrency expressiveness relative to Go goroutines or async/await languages.",
+        "Comptime metaprogramming allows generic containers/algorithms without runtime cost, a distinctive expressiveness strength observed across micro workloads.",
+        "Manual allocator-passing memory management gives fine control but is more verbose than GC languages for common data structure workloads.",
+        "Switch expressions and error unions provide reasonable but not maximal expressiveness compared to pattern matching in Rust/Kotlin."
+      ],
+      "raw_scale": "0-100, 100 = most expressive",
+      "score_rationale": "58/100: strong comptime/generic metaprogramming and explicit systems control balanced against absence of traits/interfaces, operator overloading, exceptions, and mature async relative to comparison languages."
+    }
+  },
+  "requirement_ids": [
+    "metric.diagnostics",
+    "metric.functionality_expressiveness"
+  ],
+  "requirements": {
+    "metric.diagnostics": {
+      "Zig": 78
+    },
+    "metric.functionality_expressiveness": {
+      "Zig": 58
+    }
+  },
+  "work_unit_id": "lq-language-development--part-2--zig"
+}

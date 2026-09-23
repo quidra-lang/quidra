@@ -1,0 +1,167 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-1--swift",
+  "assigned_languages": [
+    "Swift"
+  ],
+  "evidence": {
+    "limitations": "Package/index counts and compatibility-build throughput are third-party-reported proxies with no independent audit performed by this worker; they are used only as declared, consistently-collected evidence alongside qualitative protocol/tooling facts, not as a standalone score.",
+    "metric.core_tooling_availability_quality": {
+      "components": {
+        "build_system_20": {
+          "citations": [
+            {
+              "quote": "The Swift extension provides some built-in tasks that you can use to build via Swift Package Manager.",
+              "source": "https://code.visualstudio.com/docs/languages/swift"
+            }
+          ],
+          "rationale": "SwiftPM's swift build/test commands are the standard, first-party build driver and are also what editor integrations (e.g. VS Code) invoke directly.",
+          "score": 20
+        },
+        "debugger_profiler_18": {
+          "citations": [
+            {
+              "quote": "The Swift extension relies on the LLDB DAP extension to enable debugging support.",
+              "source": "https://code.visualstudio.com/docs/languages/swift"
+            },
+            {
+              "quote": "ships as a standalone binary with 82 tools spanning builds, tests, simulator control, LLDB debugging, and UI automation",
+              "source": "https://codex.danielvaughan.com/2026/05/24/codex-cli-swift-swiftui-development-xcode-mcp-servers-agent-skills-workflows/"
+            }
+          ],
+          "rationale": "LLDB is the official, toolchain-bundled debugger; VS Code's Swift extension relies on the LLDB DAP extension for full debugging support, and agentic/CLI tooling (e.g. XcodeBuildMCP) now wraps builds, tests, simulator control and LLDB debugging in one product. Profiling remains comparatively Apple-platform-centric (Instruments) versus fully uniform cross-platform profiler support.",
+          "score": 18
+        },
+        "formatter_linter_18": {
+          "citations": [
+            {
+              "quote": "Swift 6 (included with Xcode 16) and above include swift-format in the toolchain.",
+              "source": "https://github.com/nikivdev/swift-format"
+            },
+            {
+              "quote": "Swift Packages now support build tool plugins, as defined in SE-0303 and SE-0325",
+              "source": "https://github.com/realm/SwiftLint/issues/3840"
+            }
+          ],
+          "rationale": "swift-format is official and, since Swift 6 (Xcode 16), ships inside the toolchain itself; SwiftLint (community, but near-universal in practice) has first-class SwiftPM build-tool-plugin support standardized via SE-0303/SE-0325, letting linting run automatically at build time.",
+          "score": 18
+        },
+        "language_server_18": {
+          "citations": [
+            {
+              "quote": "Prior to Swift 6.1 you must perform a swift build command on your project either on the command line or using a task in VS Code before language features can be used.",
+              "source": "https://code.visualstudio.com/docs/languages/swift"
+            },
+            {
+              "quote": "Any errors that occur during a build appear in the editor as diagnostics alongside those provided by SourceKit-LSP.",
+              "source": "https://code.visualstudio.com/docs/languages/swift"
+            }
+          ],
+          "rationale": "sourcekit-lsp is the official, editor-agnostic LSP backing the VS Code Swift extension and other editors' diagnostics; a build/index step is required for full functionality on older Swift versions.",
+          "score": 18
+        },
+        "toolchain_availability_20": {
+          "citations": [
+            {
+              "quote": "integration tests verify the end-to-end functionality of the distributed toolchain, ensuring that components like swiftc, swift build, lldb, and core libraries (Foundation, XCTest) work together",
+              "source": "https://deepwiki.com/swiftlang/swift-integration-tests"
+            }
+          ],
+          "rationale": "Swift ships a single official toolchain distribution validated end-to-end (compiler, package manager, syntax tooling, LSP, debugger) via the project's own integration test suite.",
+          "score": 20
+        }
+      },
+      "rubric": "0-100 = sum of five equally-weighted 20-point components: (1) official compiler/toolchain availability & install path, (2) official build system, (3) official/standard language server (LSP), (4) official formatter/linter tooling, (5) official/integrated debugger & profiler tooling. Same five components and weights are frozen for every language shard.",
+      "score": 90
+    },
+    "metric.package_dependency_management_quality": {
+      "components": {
+        "ecosystem_index_activity_15": {
+          "citations": [
+            {
+              "quote": "Earlier this year, Swift Package Index reached a milestone of over 10,000 Swift packages indexed.",
+              "source": "https://swiftpackageindex.com/blog/swift-package-index-joins-apple"
+            },
+            {
+              "quote": "Swift Package Index has grown alongside the Swift project's multi-platform expansion, extending its compatibility testing to encompass Linux, Android, and WebAssembly.",
+              "source": "https://www.swift.org/blog/swift-package-index-update/"
+            },
+            {
+              "quote": "The platform runs 350,000+ automated compatibility builds per month across iOS, macOS, watchOS, tvOS, and Linux",
+              "source": "https://byteiota.com/apple-acquires-swift-package-index-what-devs-must-know/"
+            }
+          ],
+          "rationale": "The Swift Package Index (recently brought under Apple) is a mature, actively-maintained de facto discovery/compatibility layer indexing over 10,000 packages and running large-scale automated cross-platform compatibility builds, but it functions as a search/metadata index layered on top of Git-hosted packages rather than a native package-manager-integrated registry, so discovery and installation still route through raw repository URLs.",
+          "score": 15
+        },
+        "lockfile_23": {
+          "citations": [
+            {
+              "quote": "Always commit the Package.resolved file for applications.",
+              "source": "https://oneuptime.com/blog/post/2026-02-02-swift-package-manager/view"
+            },
+            {
+              "quote": "This file provides a snapshot of the current dependency graph, locking down: Exact version numbers of each package.",
+              "source": "https://medium.com/@emadrazo/building-with-confidence-how-package-resolved-ensures-swift-build-stability-dbbf0bbf1445"
+            },
+            {
+              "quote": "I have drafted up a pitch proposal for SwiftPM to overhaul the behaviour of various CLI commands to treat the Package.resolved as a proper lock file.",
+              "source": "https://forums.swift.org/t/pitch-swiftpm-treating-package-resolved-as-a-lock-file/68475"
+            }
+          ],
+          "rationale": "Package.resolved pins exact versions, revisions, and transitive dependencies and committing it is the documented best practice for reproducible builds, though the community has an open pitch to formally treat it as a strict lock file rather than a resolution snapshot that can be silently regenerated.",
+          "score": 23
+        },
+        "manifest_resolver_25": {
+          "citations": [
+            {
+              "quote": "Swift Package Manager (SPM) is Apple's official tool for managing Swift code distribution.",
+              "source": "https://oneuptime.com/blog/post/2026-02-02-swift-package-manager/view"
+            },
+            {
+              "quote": "The Package.swift file defines your package structure and dependencies.",
+              "source": "https://oneuptime.com/blog/post/2026-02-02-swift-package-manager/view"
+            }
+          ],
+          "rationale": "Package.swift plus the SwiftPM resolver is the official, mandatory dependency-management path, integrated with both the CLI and Xcode.",
+          "score": 25
+        },
+        "registry_protocol_15": {
+          "citations": [
+            {
+              "quote": "the absence of a single, centralized public registry for Swift packages, akin to npm for JavaScript or Maven Central for Java",
+              "source": "https://jfrog.com/blog/swiftpm-cocoapods-enterprise-development-apple-platforms/"
+            },
+            {
+              "quote": "the vast majority of Swift packages continue to be hosted directly on Git platforms like GitHub, GitLab, and Bitbucket",
+              "source": "https://jfrog.com/blog/swiftpm-cocoapods-enterprise-development-apple-platforms/"
+            },
+            {
+              "quote": "SwiftPM supports downloading dependencies from any package registry that implements SE-0292",
+              "source": "https://github.com/swiftlang/swift-package-manager/blob/main/Documentation/PackageRegistry/PackageRegistryUsage.md"
+            }
+          ],
+          "rationale": "SE-0292 defines a standardized HTTP registry protocol supported by SwiftPM, but Swift lacks a single centralized default public registry analogous to npm/crates.io/Maven Central; the large majority of packages are still resolved directly from Git repository URLs, and self-hosted registries (e.g. JFrog Artifactory) are mainly an enterprise pattern.",
+          "score": 15
+        }
+      },
+      "rubric": "0-100 = sum of four equally-weighted 25-point components: (1) official manifest+resolver tool, (2) lockfile/reproducible-resolution mechanism, (3) standardized registry protocol/discovery mechanism, (4) ecosystem-index activity/scale evidence (packages indexed, compatibility-testing throughput) collected consistently across languages. Same four components and weights are frozen for every language shard.",
+      "score": 78
+    },
+    "predeclared_sampling_note": "Evidence sources selected: (a) official Swift/Apple project documentation and forums (swift.org, forums.swift.org, github.com/swiftlang), (b) primary editor-integration docs (code.visualstudio.com Swift page), (c) the single canonical third-party-turned-first-party package index (Swift Package Index) as the declared ecosystem-scale proxy, consistently the analog cell every other language shard should use for its own canonical index (e.g. PyPI/crates.io/npm equivalents). Retrieval route: general web search, snapshot 2026-09-22, same two-query-per-metric depth used across searches.",
+    "scope": "This shard evaluates only the Swift language for the two assigned Toolchain/Developer Ecosystem Maturity metrics. Rubric is frozen and intended to be applied unchanged to all 10 languages by the corresponding shards.",
+    "snapshot_date": "2026-09-22"
+  },
+  "requirement_ids": [
+    "metric.core_tooling_availability_quality",
+    "metric.package_dependency_management_quality"
+  ],
+  "requirements": {
+    "metric.core_tooling_availability_quality": {
+      "Swift": 90
+    },
+    "metric.package_dependency_management_quality": {
+      "Swift": 78
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-1--swift"
+}

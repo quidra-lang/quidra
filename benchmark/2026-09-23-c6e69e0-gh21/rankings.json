@@ -1,0 +1,215 @@
+{
+  "rankings": {
+    "ecosystem": [
+      {
+        "language": "Java",
+        "rank": 1,
+        "score": 95.55
+      },
+      {
+        "language": "Python",
+        "rank": 2,
+        "score": 94.85
+      },
+      {
+        "language": "Go",
+        "rank": 3,
+        "score": 94.5
+      },
+      {
+        "language": "TypeScript",
+        "rank": 4,
+        "score": 92.35
+      },
+      {
+        "language": "Rust",
+        "rank": 5,
+        "score": 92.1
+      },
+      {
+        "language": "C++",
+        "rank": 6,
+        "score": 91.35
+      },
+      {
+        "language": "Kotlin",
+        "rank": 7,
+        "score": 91.1
+      },
+      {
+        "language": "Swift",
+        "rank": 8,
+        "score": 82.35
+      },
+      {
+        "language": "Zig",
+        "rank": 9,
+        "score": 55.6
+      },
+      {
+        "language": "Quidra",
+        "rank": 10,
+        "score": 34.0
+      }
+    ],
+    "language_quality": [
+      {
+        "language": "Rust",
+        "rank": 1,
+        "score": 71.02
+      },
+      {
+        "language": "Go",
+        "rank": 2,
+        "score": 66.22
+      },
+      {
+        "language": "Zig",
+        "rank": 3,
+        "score": 64.54
+      },
+      {
+        "language": "Python",
+        "rank": 4,
+        "score": 63.65
+      },
+      {
+        "language": "Quidra",
+        "rank": 5,
+        "score": 61.79
+      },
+      {
+        "language": "Swift",
+        "rank": 6,
+        "score": 59.14
+      },
+      {
+        "language": "Java",
+        "rank": 7,
+        "score": 58.98
+      },
+      {
+        "language": "Kotlin",
+        "rank": 8,
+        "score": 56.14
+      },
+      {
+        "language": "C++",
+        "rank": 9,
+        "score": 54.66
+      },
+      {
+        "language": "TypeScript",
+        "rank": 10,
+        "score": 46.13
+      }
+    ],
+    "llm_learnability": [
+      {
+        "language": "Swift",
+        "rank": 1,
+        "score": 100.0
+      },
+      {
+        "language": "TypeScript",
+        "rank": 2,
+        "score": 99.1
+      },
+      {
+        "language": "Rust",
+        "rank": 3,
+        "score": 98.4
+      },
+      {
+        "language": "Python",
+        "rank": 4,
+        "score": 98.02
+      },
+      {
+        "language": "Java",
+        "rank": 5,
+        "score": 97.8
+      },
+      {
+        "language": "Kotlin",
+        "rank": 6,
+        "score": 97.6
+      },
+      {
+        "language": "C++",
+        "rank": 7,
+        "score": 97.5
+      },
+      {
+        "language": "Go",
+        "rank": 8,
+        "score": 91.58
+      },
+      {
+        "language": "Zig",
+        "rank": 9,
+        "score": 81.67
+      },
+      {
+        "language": "Quidra",
+        "rank": 10,
+        "score": 74.7
+      }
+    ],
+    "llm_proficiency": [
+      {
+        "language": "Swift",
+        "rank": 1,
+        "score": 98.22
+      },
+      {
+        "language": "Python",
+        "rank": 2,
+        "score": 96.81
+      },
+      {
+        "language": "TypeScript",
+        "rank": 3,
+        "score": 96.69
+      },
+      {
+        "language": "Java",
+        "rank": 4,
+        "score": 95.37
+      },
+      {
+        "language": "C++",
+        "rank": 5,
+        "score": 93.19
+      },
+      {
+        "language": "Go",
+        "rank": 6,
+        "score": 92.79
+      },
+      {
+        "language": "Kotlin",
+        "rank": 7,
+        "score": 92.74
+      },
+      {
+        "language": "Zig",
+        "rank": 8,
+        "score": 90.01
+      },
+      {
+        "language": "Rust",
+        "rank": 9,
+        "score": 88.27
+      },
+      {
+        "language": "Quidra",
+        "rank": 10,
+        "score": 4.95
+      }
+    ],
+    "semantic_compression": null
+  },
+  "run_id": "2026-09-23-c6e69e0-gh21",
+  "schema_version": 1
+}

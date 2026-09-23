@@ -1,0 +1,54 @@
+{
+  "agent_id": "worker-lq-language-development--part-1--c",
+  "assigned_languages": [
+    "C++"
+  ],
+  "evidence": {
+    "code_efficiency_conciseness": {
+      "observations": [
+        "Idiomatic modern C++ (RAII wrapper class Lcg, const-correct locals, range-for, std::vector/std::string) keeps per-operation code compact and free of manual memory-management boilerplate.",
+        "C++ requires ceremony largely absent in higher-level or newer languages: explicit multiple header includes, manual struct definitions for simple aggregate returns (struct Result), explicit static_cast for every narrowing/reinterpret conversion, manual argv/strcmp mode dispatch, and verbose printf/iostream formatting compared to built-in string interpolation available in Python/Rust/Kotlin/Swift/TypeScript.",
+        "Manual index arithmetic and explicit casts for byte/char handling add lines relative to languages with native slicing or built-in byte types; no algebraic/result types reduce expressiveness for error handling relative to Rust/Swift/Kotlin."
+      ],
+      "representative_metrics": {
+        "avg_micro_file_bytes_estimate": 3003,
+        "mb04_cpp_bytes": 3008,
+        "mb08_cpp_bytes": 4656,
+        "note": "This shard only has read access to C++ sources, so score reflects documented intrinsic C++ verbosity characteristics (explicit includes, manual casts, no native string interpolation, no built-in option/result types) applied via the same rubric used across the language set."
+      }
+    },
+    "comparability_gate": {
+      "idiomatic_practices_used": true,
+      "no_intentional_deoptimization": true,
+      "same_algorithm_same_workload": true
+    },
+    "files_examined": [
+      "template/programs/cpp/micro/mb04.cpp",
+      "template/programs/cpp/micro/mb08.cpp",
+      "template/programs/cpp/micro (directory listing, mb00-mb11)",
+      "template/programs/cpp/adversarial (directory listing, ADV-01..ADV-26)"
+    ],
+    "methodology": "Static inspection of the reusable comparison C++ programs under template/programs/cpp/micro and template/programs/cpp/adversarial. These are idiomatic, production-reasonable C++17 implementations (RAII classes, const-correctness, std::vector, std::string, constexpr, namespaces for internal linkage) rather than intentionally weakened code, per language_quality.md fairness rules. Scores are normalized 0-100 relative to the fixed 10-language set, reflecting C++'s intrinsic language-level tradeoffs versus higher-level and newer languages, excluding toolchain/library maturity considerations which belong to Ecosystem.",
+    "readability": {
+      "observations": [
+        "Sample programs are well formatted, consistently named, and commented with clear rationale (e.g., the volatile anti-elimination sink in mb04.cpp documents compiler-observable behavior precisely).",
+        "Const-correctness and clear variable naming (s1..s4, cnt_ab, cnt_w) aid comprehension.",
+        "Readability is reduced relative to higher-level languages by mandatory explicit casts (including reinterpret_cast) for byte/char handling, C-style printf mixed with C++ streams, manual modular arithmetic for the LCG generator requiring the reader to track integer overflow semantics, and header/namespace boilerplate preceding the actual logic.",
+        "Absence of native pattern matching or algebraic data types keeps control flow explicit but sometimes verbose (e.g., manual string comparison for mode dispatch instead of a match/switch-on-string construct)."
+      ]
+    }
+  },
+  "requirement_ids": [
+    "metric.code_efficiency_conciseness",
+    "metric.readability"
+  ],
+  "requirements": {
+    "metric.code_efficiency_conciseness": {
+      "C++": 62
+    },
+    "metric.readability": {
+      "C++": 68
+    }
+  },
+  "work_unit_id": "lq-language-development--part-1--c"
+}

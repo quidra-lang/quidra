@@ -1,0 +1,55 @@
+{
+  "agent_id": "worker-ecosystem-external--part-2--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "predeclared_sampling": {
+      "candidate_universe": "Official Quidra organization surface (github.com/quidra-lang: quidra core repo, dnn package, vision package, playground repo) plus an independent-tool search across VS Code Marketplace / GitHub for any non-quidra-lang-authored Quidra tooling, plus a general web search for company/production adoption evidence.",
+      "examination_depth": "Top organic results per query, first-page depth only, consistent with the depth budget used for other assigned languages in this shard.",
+      "retrieval_routes": [
+        "web_search: 'Quidra programming language'",
+        "web_search: '\"Quidra\" language quidra-lang github'",
+        "web_search: 'Quidra language VS Code extension syntax highlighting'",
+        "web_search: '\"Quidra\" language production case study company adopts'",
+        "web_search: 'quidra-lang github repositories list'"
+      ],
+      "selection_rule": "Language-neutral rule: identify the single canonical upstream source (official org/repo) for the language, then search for (a) any tool, plugin, or package NOT published under that same org/maintainer surface, and (b) any independently reported production deployment, case study, or hiring signal. This rule is applied identically in spirit to every language in the benchmark's language set (official-vs-third-party provenance, and independent adoption evidence), even though Quidra's specific repo names are unique to it.",
+      "snapshot_time": "2026-09-23"
+    },
+    "production_adoption_deployment_evidence": {
+      "conclusion": "No evidence of any production deployment, external company adoption, or real-world usage of Quidra was found. Given the language's release history begins only days before this snapshot, this outcome is expected and consistent with the language having no discoverable production footprint yet. Score reflects the rubric-defined low/absent-evidence floor rather than a genuine N/A, since production-adoption evidence is a capability this metric intentionally probes.",
+      "raw_observations": [
+        "Quidra's own README/release history shows the language reaching only v0.1.0-v0.3.1, first tagged 2026-09-16 and most recently 2026-09-20, i.e. released within the week preceding this evaluation snapshot (2026-09-23).",
+        "Targeted searches for production case studies, company adoption, or deployment evidence ('\"Quidra\" language production case study company adopts') returned no relevant results tied to quidra-lang; unrelated hits included an unrelated academic case-study corpus and the pre-existing proprietary 'Quill' language used inside the Quintiq supply-chain platform, which is a different language entirely.",
+        "The repository itself documents only internal/first-party consumers: the official 'dnn' and 'vision' packages maintained by the same organization for compatibility testing of the compiler, not independent production usage.",
+        "No job postings, no third-party blog posts describing deployed Quidra software, and no case studies were located."
+      ]
+    },
+    "scoring_normalization_note": "0-100 scale, 100 = best/most third-party tooling or richest production adoption evidence found through the identical search protocol applied to every language in the assigned set. Quidra receives near-floor scores (2 and 0 respectively) because collected evidence shows an entirely first-party tooling surface and no discoverable production deployment signal, not because the metric was skipped.",
+    "third_party_tool_availability": {
+      "conclusion": "No third-party (non quidra-lang-authored) editor plugins, linters, formatters, build-system integrations, CI marketplace actions, or debuggers were found. All tooling identified is official/first-party. This is the rubric-defined near-absent case, not a genuine N/A, since third-party tooling is a capability the metric intentionally tests and Quidra is a real, evaluable (if extremely new) language with an accessible repository.",
+      "limitations_of_proxy": "Star/fork counts and search-result absence are weak proxies (a tool could exist without being indexed yet); however, the consistent first-party-only pattern across every discovered artifact (compiler, LSP mentioned only in official docs, playground, formatter, first-party packages) plus zero independent hits after multiple targeted queries is convergent evidence of essentially no third-party tool ecosystem.",
+      "raw_observations": [
+        "The canonical upstream is github.com/quidra-lang/quidra, described as a statically typed, native general-purpose programming language designed for both humans and language models, released at v0.1.0 through v0.3.1 between 2026-09-16 and 2026-09-20.",
+        "The only IDE-adjacent tool discovered is the official quidra-lang/playground, explicitly described as 'The official Quidra playground: the real Quidra compiler frontend, compiled to WebAssembly and running in your browser tab', built directly from the quidra-lang/quidra core checkout so 'the keyword list used for syntax highlighting is extracted from the Core checkout at build time, so it cannot drift from the compiler by hand.' This is first-party, not third-party.",
+        "A dedicated search for a VS Code extension or independent syntax highlighter for Quidra returned no quidra-lang-affiliated or community results; the only Quidra-adjacent hit was the unrelated 'Quil' language's community VS Code extension, confirming no discoverable third-party Quidra tooling exists.",
+        "The two package-ecosystem repositories found (quidra-lang/dnn, quidra-lang/vision) are first-party 'official' packages published under the same quidra-lang organization and installed via the language's own built-in package manager, not independent third-party tooling.",
+        "The core repo shows 0 stars / 0 forks at time of search, and all pull requests are authored by a single maintainer account plus AI co-authorship credits, with no external contributor or third-party integration activity visible."
+      ]
+    }
+  },
+  "requirement_ids": [
+    "metric.production_adoption_deployment_evidence",
+    "metric.third_party_tool_availability"
+  ],
+  "requirements": {
+    "metric.production_adoption_deployment_evidence": {
+      "Quidra": 0
+    },
+    "metric.third_party_tool_availability": {
+      "Quidra": 2
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-2--quidra"
+}

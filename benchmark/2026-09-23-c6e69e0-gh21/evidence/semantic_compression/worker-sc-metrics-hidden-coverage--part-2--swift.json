@@ -1,0 +1,305 @@
+{
+  "agent_id": "worker-sc-metrics-hidden-coverage--part-2--swift",
+  "assigned_languages": [
+    "Swift"
+  ],
+  "evidence": {
+    "metric.capability_coverage": {
+      "Swift": {
+        "C": 97.73,
+        "basis_note": "This capability_coverage measurement is taken against the full fixed 88-point denominator (spec 6.1.5 / na_policy NA-1..NA-6); it is independent of the common-basis vs all-fragments distinction used for metrics A-D.",
+        "denominator": 88,
+        "limitations": "Assessed from documented Swift language/stdlib behavior (Swift reference, standard library docs, and Swift Evolution proposals for async/await, actors, @_cdecl) under the frozen toolchain_binding.recipes; this packet-only worker could not mechanically execute the frozen build/run/nm commands (V1/V2/V5 evidence), so per-probe build transcripts are not attached here and must be reconciled against actual toolchain-scan evidence before final publication.",
+        "none_probes_summary": [],
+        "numerator": 86,
+        "partial_probes_summary": [
+          "F04.P1",
+          "F20.P2"
+        ],
+        "per_family_breakdown": {
+          "1. value and storage declaration": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "10. explicit and implicit type conversion": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "11. indexing and slicing": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "12. nullable / optional values": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "13. errors, failure values, exceptions, and propagation": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "14. alternatives / sum / variant types and dispatch over alternatives": {
+            "denominator": 6,
+            "numerator": 6
+          },
+          "15. generics / parametric polymorphism": {
+            "denominator": 6,
+            "numerator": 6
+          },
+          "16. collections and iteration": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "18. modules, imports, and dependency boundaries": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "19. concurrency / asynchronous execution where the language supports it": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "2. initialization and potentially uninitialized state": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "20. FFI / interoperability boundaries": {
+            "denominator": 4,
+            "numerator": 3
+          },
+          "3. mutation": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+            "denominator": 6,
+            "numerator": 5
+          },
+          "5. function calls and argument-passing semantics": {
+            "denominator": 6,
+            "numerator": 6
+          },
+          "6. return-value semantics": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "7. arithmetic operators": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+            "denominator": 4,
+            "numerator": 4
+          },
+          "9. equality, ordering, and comparison": {
+            "denominator": 4,
+            "numerator": 4
+          }
+        },
+        "per_probe_support": {
+          "F01.P1": {
+            "level": "FULL",
+            "note": "let n = 7; return n \u2014 immutable local binding is the canonical Swift form."
+          },
+          "F01.P2": {
+            "level": "FULL",
+            "note": "top-level/global var counter: Int64 = 0; let LIMIT: Int64 = 100 \u2014 global mutable var vs global immutable let, both standard."
+          },
+          "F02.P1": {
+            "level": "FULL",
+            "note": "var v: Int32; if cond { v = 5 } else { v = 9 }; return v \u2014 Swift's definite-initialization analysis accepts this on all-paths-assigned patterns."
+          },
+          "F02.P2": {
+            "level": "FULL",
+            "note": "UnsafeMutableBufferPointer<UInt8>.allocate(capacity: 16) yields genuinely uninitialized documented storage (first-class, opt-in unsafe stdlib API; F-6 permits documented unsafe facilities)."
+          },
+          "F03.P1": {
+            "level": "FULL",
+            "note": "x += 1 \u2014 in-place compound assignment, checked-mode traps on overflow per frozen recipe (-O, traps retained)."
+          },
+          "F03.P2": {
+            "level": "FULL",
+            "note": "xs[1] = 42 \u2014 Array subscript-assign mutates in place through the existing binding."
+          },
+          "F04.P1": {
+            "applicable_letters": [
+              "P-a",
+              "P-e"
+            ],
+            "level": "PARTIAL",
+            "note": "Swift has no free-standing writable-alias/reference local in the same block; the nearest documented mechanism is withUnsafeMutablePointer(to:) { port in port.pointee = 9 }, which substitutes a pointer for a reference and forces a closure-scope scaffold not requested by the canonical_task."
+          },
+          "F04.P2": {
+            "level": "FULL",
+            "note": "ArraySlice (xs[1...3] or a slicing view) shares storage with the original Array via copy-on-write without an eager copy; window[0]... reads without copying."
+          },
+          "F04.P3": {
+            "level": "FULL",
+            "note": "=== is Swift's standard reference-identity operator for class instances, distinct from ==."
+          },
+          "F05.P1": {
+            "level": "FULL",
+            "note": "f(x) \u2014 ordinary bare call syntax; Array has value semantics (COW) so no sigil is required or available at the call site."
+          },
+          "F05.P2": {
+            "level": "FULL",
+            "note": "func put(_ cell: inout Int32) { cell = 12 }; put(&cell) \u2014 inout is Swift's dedicated explicit writable-parameter-passing form."
+          },
+          "F05.P3": {
+            "level": "FULL",
+            "note": "let neg: (Int32) -> Int32 = { a in k - a }; let ys = xs.map(neg) \u2014 closures are first-class values capturing k, referenced by name at the map call site."
+          },
+          "F06.P1": {
+            "level": "FULL",
+            "note": "func mid(_ xs: [Int32]) -> Int32 { xs[1] }; let y = mid(xs); return y \u2014 returned Int32 is an independent value."
+          },
+          "F06.P2": {
+            "level": "FULL",
+            "note": "func divmod2(_ a: Int32, _ b: Int32) -> (Int32, Int32) { (a/b, a%b) }; let (q, r) = divmod2(a,b) \u2014 tuple is Swift's normal multiple-result mechanism."
+          },
+          "F07.P1": {
+            "level": "FULL",
+            "note": "let r = a * b + c \u2014 ordinary precedence, checked arithmetic per frozen recipe."
+          },
+          "F07.P2": {
+            "level": "FULL",
+            "note": "let q = a / b; let m = a % b; let d = Double(a) / Double(b) \u2014 Swift integer division truncates toward zero, % follows dividend sign, explicit Double() conversion required for real division."
+          },
+          "F08.P1": {
+            "level": "FULL",
+            "note": "let (o, overflowed) = m.addingReportingOverflow(1) \u2014 rung (i) checked reporting-overflow operation is standard library; substituting 0 on overflow."
+          },
+          "F08.P2": {
+            "level": "FULL",
+            "note": "let q = b == 0 ? 0 : a / b \u2014 rung (ii) explicit local guard, since Swift's stdlib has no optional-returning division; plain / traps on zero divisor (documented)."
+          },
+          "F09.P1": {
+            "level": "FULL",
+            "note": "let eq = s1 == s2 \u2014 String == compares Unicode canonical content equivalence, not identity, by documented default."
+          },
+          "F09.P2": {
+            "level": "FULL",
+            "note": "xs.sorted(by: >) explicitly supplies the descending comparator (a new array is produced, not an in-place reorder); let lt = a < b."
+          },
+          "F10.P1": {
+            "level": "FULL",
+            "note": "let small = Int32(exactly: big) ?? 0 \u2014 rung (i) failable initializer reports out-of-range as nil."
+          },
+          "F10.P2": {
+            "level": "FULL",
+            "note": "let sum = Double(i) + d \u2014 Swift requires an explicit widening conversion for mixed-type arithmetic; no implicit conversion exists."
+          },
+          "F11.P1": {
+            "level": "FULL",
+            "note": "let e = xs[i]; return e \u2014 ordinary Array subscript traps (fatalError) on out-of-range index, a documented behavior."
+          },
+          "F11.P2": {
+            "level": "FULL",
+            "note": "let part = xs[1..<4]; return part[1] \u2014 ArraySlice shares storage with xs (documented COW sharing) rather than eagerly copying."
+          },
+          "F12.P1": {
+            "level": "FULL",
+            "note": "var o: Int32? = nil; let n = o ?? 0 \u2014 Optional is a first-class type-level distinction; ?? is the standard nil-coalescing fallback form."
+          },
+          "F12.P2": {
+            "level": "FULL",
+            "note": "let h: (Int32) -> Int32 = { $0 + 1 }; let p = o.map(h); let result = p ?? 0 \u2014 Optional.map is the documented optional-preserving chaining operation, no explicit if/switch needed."
+          },
+          "F13.P1": {
+            "level": "FULL",
+            "note": "func parse_twice(_ s: String) throws -> Int32 { guard let v = Int32(s) else { throw ParseError.invalid }; return v * 2 } \u2014 throws in the declared signature and propagation via throw is Swift's normal, visible mechanism."
+          },
+          "F13.P2": {
+            "level": "FULL",
+            "note": "do { n = try parse(s) } catch { n = 0 } \u2014 do/catch is Swift's normal local-handling construct with a visible protected region."
+          },
+          "F14.P1": {
+            "level": "FULL",
+            "note": "enum Shape { case circle(r: Double); case rect(w: Double, h: Double) } \u2014 enum is a closed, exhaustively-checked sum type; language rules forbid adding a case from elsewhere."
+          },
+          "F14.P2": {
+            "level": "FULL",
+            "note": "switch s { case .circle(let r): ...; case .rect(let w, let h): ... } with no default \u2014 the Swift compiler statically requires exhaustive coverage of enum cases."
+          },
+          "F14.P3": {
+            "level": "FULL",
+            "note": "protocol Shape { func area() -> Double }; struct Circle/Rect in unit shapes, struct Tri: Shape in a separate unit dispatched through the Shape existential \u2014 protocol-based extensibility across units, scored under the frozen multi-unit recipe (toolchain_binding.multi_unit_recipes)."
+          },
+          "F15.P1": {
+            "level": "FULL",
+            "note": "func head<T>(_ xs: [T]) -> T { xs[0] } reused at Int32 and String \u2014 Swift generics preserve the T -> T static relationship (no type erasure to Any)."
+          },
+          "F15.P2": {
+            "level": "FULL",
+            "note": "func max_of<T: Comparable>(_ a: T, _ b: T) -> T { a > b ? a : b } \u2014 Comparable constraint is stated at the generic declaration and checked there."
+          },
+          "F15.P3": {
+            "level": "FULL",
+            "note": "protocol Named { func tag() -> String }; let items: [Named] = [A(), B()]; items[0].tag() \u2014 existential array dispatches to the concrete implementation at runtime without static knowledge of the concrete type."
+          },
+          "F16.P1": {
+            "level": "FULL",
+            "note": "let xs = [1, 2, 3]; let total = xs.reduce(0, +) \u2014 reduce is the standard-library summation form (fewer tokens than a manual for-loop)."
+          },
+          "F16.P2": {
+            "level": "FULL",
+            "note": "let mp = [\"a\": 1]; let total = mp.values.reduce(0, +); let miss = mp[\"b\"] ?? 0 \u2014 Dictionary iteration order is documented as unspecified; subscript lookup of an absent key yields nil, handled via ??."
+          },
+          "F17.P1": {
+            "level": "FULL",
+            "note": "func read_all() throws -> Int { let fh = try FileHandle(forReadingFrom: url); defer { fh.closeFile() }; let text = ...; return text.count } \u2014 defer runs on every exit path including the throwing path, and the release point is visible at the defer statement."
+          },
+          "F17.P2": {
+            "level": "FULL",
+            "note": "class Handle { let id: Int32; deinit { released += 1 } } \u2014 deinit is Swift's documented end-of-lifetime hook, run deterministically when ARC drops the last strong reference in the non-cyclic case exercised here."
+          },
+          "F18.P1": {
+            "level": "FULL",
+            "note": "print(\"x\") \u2014 Swift.print is available without any import in a normal Swift program; no declaration is required."
+          },
+          "F18.P2": {
+            "level": "FULL",
+            "note": "module util { public func pub_add(...) { ... secret() }; private func secret() -> Int32 { 1 } }; external call util.pub_add(2,3) \u2014 access control (public/private) and module boundaries are enforced by the compiler, scored under the frozen multi-unit recipe."
+          },
+          "F19.P1": {
+            "level": "FULL",
+            "note": "async let a = compute20(); async let b = compute22(); let sum = await a + await b \u2014 Swift structured concurrency (async/await, async let) is the standard shipped facility as of the frozen toolchain."
+          },
+          "F19.P2": {
+            "level": "FULL",
+            "note": "actor Counter { var count: Int64 = 0; func inc() { count += 1 } } incremented 1000 times each from two Tasks awaiting inc() \u2014 actor isolation is documented by Swift to serialize access and eliminate data races on the actor's state."
+          },
+          "F20.P1": {
+            "level": "FULL",
+            "note": "import Glibc/Darwin; let r = abs(Int32(-3)) \u2014 Swift's built-in C-interop module exposes libc functions directly with no third-party binding generator."
+          },
+          "F20.P2": {
+            "applicable_letters": [
+              "P-d"
+            ],
+            "level": "PARTIAL",
+            "note": "@_cdecl(\"add2\") func add2(_ a: Int32, _ b: Int32) -> Int32 { a + b } is the only mechanism Swift ships for a stable unmangled C-ABI export, but @_cdecl is an underscored, documented-as-unstable/internal compiler attribute rather than a fully public, non-experimental API."
+          }
+        },
+        "support_factor_levels": {
+          "FULL": 1,
+          "NONE": 0,
+          "PARTIAL": 0.5
+        }
+      },
+      "denominator_frozen": 88,
+      "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88"
+    }
+  },
+  "requirement_ids": [
+    "metric.capability_coverage"
+  ],
+  "requirements": {
+    "metric.capability_coverage": {
+      "Swift": 97.73
+    }
+  },
+  "work_unit_id": "sc-metrics-hidden-coverage--part-2--swift"
+}

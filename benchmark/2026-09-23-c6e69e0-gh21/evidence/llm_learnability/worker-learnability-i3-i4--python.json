@@ -1,0 +1,88 @@
+{
+  "agent_id": "worker-learnability-i3-i4--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "condition.i3_structural_surface_perturbation": {
+      "compile_parse_success_python": 1.0,
+      "correct_at_1_python": 1.0,
+      "description": "Two independently generated structural surface transformation sets (Set A, Set B) per llm_learnability.structural_surface_transformation_sets=2 in primary.json. Model given only the perturbed pseudo-syntax program plus grammar mapping; produced standard Python; scored by mechanical unit tests only.",
+      "max": 100,
+      "mean": 100,
+      "min": 100,
+      "normalization_note": "Score 100 reflects both frozen transformation sets passing full compile/parse+test-pass on the sole assigned language Python with fresh independent trial sessions and no repairs used.",
+      "seeds_reported": [
+        "setA",
+        "setB"
+      ],
+      "spec_file": "harness/i3_spec.md",
+      "stddev": 0,
+      "test_pass_rate_python": 1.0,
+      "trials": [
+        {
+          "completion_path": "trials/i3-setA-t1/completion_01.txt",
+          "result": "pass",
+          "set": "A",
+          "task": "clamp(x, lo, hi)",
+          "tests": [
+            "clamp(5,0,10)==5",
+            "clamp(-5,0,10)==0",
+            "clamp(15,0,10)==10"
+          ],
+          "trial_id": "i3-setA-t1"
+        },
+        {
+          "completion_path": "trials/i3-setB-t1/completion_01.txt",
+          "result": "pass",
+          "set": "B",
+          "task": "sum_evens(nums)",
+          "tests": [
+            "sum_evens([1,2,3,4,5,6])==12",
+            "sum_evens([])==0"
+          ],
+          "trial_id": "i3-setB-t1"
+        }
+      ]
+    },
+    "condition.i4_novel_rule_generalization": {
+      "correct_at_1_python": 1.0,
+      "description": "Synthetic Mutation-Marker overlay rule created only for this benchmark run (llm_learnability.novel_rule_generalization_trials_per_language=1), described only in harness/i4_spec.md, mechanically validated via AST scan before any semantic execution, and functionally inert once stripped.",
+      "max": 100,
+      "mean": 100,
+      "min": 100,
+      "seeds_reported": [
+        "rule1-trial1"
+      ],
+      "spec_file": "harness/i4_spec.md",
+      "specification_compliance_python": 1.0,
+      "stddev": 0,
+      "trials": [
+        {
+          "completion_path": "trials/i4-rule1-t1/completion_01.txt",
+          "functional_correctness": "accumulate(3,4)==7",
+          "marker_rule_satisfied": true,
+          "result": "pass",
+          "task": "accumulate(total, x)",
+          "trial_id": "i4-rule1-t1"
+        }
+      ],
+      "validator": "harness/validate_i4.py",
+      "validator_negative_control": "negative_control_passed=True i.e. unmarked reassigned param correctly rejected - confirmed by running harness/validate_i4.py",
+      "validator_positive_control": "positive_control_passed=True (accumulate(mut_total, x) with mut_total reassigned) - confirmed by running harness/validate_i4.py"
+    }
+  },
+  "requirement_ids": [
+    "condition.i3_structural_surface_perturbation",
+    "condition.i4_novel_rule_generalization"
+  ],
+  "requirements": {
+    "condition.i3_structural_surface_perturbation": {
+      "Python": 100
+    },
+    "condition.i4_novel_rule_generalization": {
+      "Python": 100
+    }
+  },
+  "work_unit_id": "learnability-i3-i4--python"
+}

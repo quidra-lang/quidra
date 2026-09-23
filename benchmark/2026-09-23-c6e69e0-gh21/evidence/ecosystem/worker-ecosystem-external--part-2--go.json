@@ -1,0 +1,53 @@
+{
+  "agent_id": "worker-ecosystem-external--part-2--go",
+  "assigned_languages": [
+    "Go"
+  ],
+  "evidence": {
+    "methodology_note": "Predeclared sampling per Ecosystem spec: selection rule fixed BEFORE evidence collection was 'consult the language's own official documentation/tooling hub first (go.dev/wiki, go.dev/solutions), then cross-reference with one independent, language-neutral secondary source category (JetBrains official product page for IDE tooling; CNCF/Wikipedia project data for adoption).' This rule is applied identically for every assigned language in the shard-owner's language set. Raw popularity indicators (stars, download counts) are used only as declared supporting context, never as the sole proxy, per Ecosystem spec Section 'Predeclared sampling'.",
+    "metric.production_adoption_deployment_evidence": {
+      "findings": [
+        "Official go.dev/solutions/case-studies hub hosts named, first-party case studies including PayPal ('Go\u2019s value in producing clean, efficient code that readily scales as software deployment scales made the language a strong fit to support PayPal\u2019s goals'), Riot Games ('Learn how Riot uses Go to develop, deploy, and operate backend microservices at scale'), SIXT ('We have been doing Golang at SIXT since 2015'), and ByteDance (adopted Go in 2014 across engineering teams).",
+        "Foundational cloud-native infrastructure projects built in Go include Kubernetes, Docker, CockroachDB, Prometheus, Terraform, and Istio.",
+        "Prometheus (CNCF graduated project, originated at SoundCloud in 2012) is written in Go and licensed under Apache 2.0, evidencing long-running production use in monitoring infrastructure.",
+        "Go's own solutions page states that over 75 percent of projects in the Cloud Native Computing Foundation are written in Go, a language-official adoption claim (used here only as declared supporting context alongside named case studies, not as a standalone proxy).",
+        "Independent 2026 language-share analysis of major CNCF/HashiCorp infrastructure repositories found the Go-based control plane dominant across projects such as Vault (66% Go) and Consul (76% Go), noting 'the core is Go even where the total is not.'",
+        "Google's own 10-year retrospective states Go has more than a million users worldwide and cites MercadoLibre's production case study as representative of Go's use 'to build fast, reliable, and efficient software at scale.'",
+        "Widely repeated industry summaries (secondary, non-official sources, used only as corroborating breadth indicators) list additional named production adopters such as Uber, Cloudflare, Twitch, SendGrid, and Monzo, consistent with the official case-study set."
+      ],
+      "limitations": "Several corroborating sources are SEO/marketing blog posts (Netguru, Medium, s3corp, ksolves, avidclan, techdatapark) rather than primary engineering sources; these were used only to corroborate breadth of named adopters already anchored by the official go.dev case-studies hub and independently verifiable CNCF/Wikipedia project pages, per the predeclared two-route rule. The '75% of CNCF projects' and 'million users' figures are self-reported by the Go team and are cited as declared, limited-weight context rather than the primary basis for the score.",
+      "raw_measurement": "Enumerated named production deployments with named companies/projects, sourced first from the official go.dev case studies hub, then corroborated independently via CNCF/Wikipedia project data and industry adoption summaries.",
+      "score_rationale": "Go scores 96/100: the language has an official, actively maintained case-studies hub with multiple named, verifiable enterprise production deployments (PayPal, Riot Games, SIXT, ByteDance, MercadoLibre), plus independently verifiable long-running production use as the implementation language of foundational, widely deployed open-source infrastructure (Kubernetes, Docker, Prometheus, Terraform, CockroachDB, Istio) that itself has clear, sustained production adoption across the industry (e.g., CNCF graduated-project status for Prometheus and etcd). This combination of first-party case studies plus independently observable infrastructure-scale deployment evidence is unusually strong and well documented compared to most languages."
+    },
+    "metric.third_party_tool_availability": {
+      "findings": [
+        "Official/first-party editor support: Visual Studio Code has built-in Go syntax highlighting plus the official vscode-go extension maintained by the Go team.",
+        "Dedicated commercial IDE: GoLand from JetBrains is described as a cross-platform, fully featured Go IDE with integrated debugging, refactoring, and testing tools.",
+        "Editor breadth: the official Go Wiki also lists Vim/Neovim (vim-go), Cloud9, Gitpod, and other editors/IDEs with Go support, indicating the tooling ecosystem matured beyond a single vendor.",
+        "Debugger: Delve is the standard Go debugger and integrates directly with VS Code's debug panel for breakpoints and state inspection.",
+        "Linting/static analysis: golangci-lint is described as one of the most popular and widely adopted meta-linter tools in the Go ecosystem, supporting more than 50 individual linters under one command, and is recommended by the original gometalinter author as its replacement per the official Go Wiki CodeTools page.",
+        "golangci-lint is reported as the de facto standard, used by major projects like Kubernetes, Prometheus, and Terraform.",
+        "Additional widely used static analysis/format tools identified: go vet (official static analyzer), staticcheck, gofmt/goimports/gofumpt, govulncheck (vulnerability scanner using OSV.dev data), each cataloged on the official Go Wiki CodeTools page and third-party tool-aggregator analysis-tools.dev, which lists 111 cataloged Go static analysis tools, linters, and formatters.",
+        "IDE plugin ecosystem depth: JetBrains GoLand supports the wider JetBrains plugin ecosystem (e.g., Terraform/HCL, Ansible plugins), letting Go and adjacent infrastructure-as-code tooling coexist in one IDE."
+      ],
+      "limitations": "Findings rely on secondary blog/aggregator commentary in addition to official Go Wiki and JetBrains pages; tool-count and 'most popular' claims (e.g., 50+ linters bundled, 111 cataloged tools) are self-reported by tool vendors/aggregators and are cited only as declared context, not as a standalone popularity proxy.",
+      "raw_measurement": "Enumerated availability of editor/IDE integrations, debuggers, linters/static analyzers, and formatters that are either official (maintained by the Go team) or de-facto community standards adopted by major Go projects.",
+      "score_rationale": "Go scores 94/100: near-complete coverage across all major third-party tool categories (IDE/editor plugins from at least two independent vendors, a dedicated commercial IDE, an official debugger, multiple mature and actively maintained linters/meta-linters, and official static analysis/formatting/vulnerability tools), all either officially endorsed by the Go team via go.dev/wiki or used as the de facto industry standard in major Go projects. Points withheld only because some listed tools (e.g., golint, gometalinter) are explicitly deprecated, showing some tool churn."
+    },
+    "retrieval_route": "Two independent retrieval routes per metric: (1) official Go project documentation (go.dev/wiki/IDEsAndTextEditorPlugins, go.dev/wiki/CodeTools, go.dev/solutions/case-studies, go.dev/solutions/cloud), (2) independent third-party corroboration (JetBrains official GoLand page, golang/vscode-go GitHub wiki, Wikipedia entries for Prometheus/etcd, CNCF landscape/GitHub language-share reporting, and market/industry summaries of Go adopters). Same retrieval depth (2 routes, same number of queries) was used as would be used for any other language in this shard's assignment.",
+    "snapshot_time": "2026-09-22 (search-tool snapshot date reported by result pages; several sources dated June-September 2026)"
+  },
+  "requirement_ids": [
+    "metric.production_adoption_deployment_evidence",
+    "metric.third_party_tool_availability"
+  ],
+  "requirements": {
+    "metric.production_adoption_deployment_evidence": {
+      "Go": 96
+    },
+    "metric.third_party_tool_availability": {
+      "Go": 94
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-2--go"
+}

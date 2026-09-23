@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-ecosystem-external--part-2--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "metric.production_adoption_deployment_evidence": {
+      "citations": [
+        {
+          "claim": "Python has a central role in how Instagram operates, powering the interactions of over a billion users daily",
+          "source_index": "11-4"
+        },
+        {
+          "claim": "The company's failover system, powered by Python, transfers traffic from one AWS region to another in just 7 minutes",
+          "source_index": "13-5"
+        },
+        {
+          "claim": "Spotify uses Python for its back-end services and for data analysis",
+          "source_index": "11-2"
+        },
+        {
+          "claim": "Engineers at Dropbox use Python for many reasons; the language's cross-platform support, ease of learning, and readability are its biggest strengths",
+          "source_index": "11-15"
+        },
+        {
+          "claim": "NASA is employing Python to put into practice a CAE/CAD/PDM depot and model administration system",
+          "source_index": "10-6"
+        },
+        {
+          "claim": "Python is the server-side language on 1.1% of sites where one can be identified, and just under one Python-serving site in eight has taken no upstream security patch since Python 2 end of life",
+          "source_index": "34-5,34-7"
+        },
+        {
+          "claim": "72 percent of respondents use Python for work, the rest being educational or hobbyist developers",
+          "source_index": "30-1"
+        },
+        {
+          "claim": "FastAPI jumped from 29% to 38% (a 30% increase) among Python web frameworks",
+          "source_index": "28-14"
+        }
+      ],
+      "normalization_rationale": "Python has abundant, independently verifiable production deployment evidence at extreme scale across multiple industry-leading companies and domains (social media, streaming, cloud storage, ride-hailing, aerospace), plus a large, work-majority professional survey population and growing production-web-framework adoption. The primary limitation noted in the source data itself is that Python's server-side web-hosting *market share* (per W3Techs) is a small single-digit percentage and includes a documented long tail of unpatched Python 2 deployments, which is why the score is 96/100 rather than a perfect score: overwhelming production evidence in application/backend/data domains, with a caveat on public web-hosting market share and legacy-version lag.",
+      "raw_measurements": [
+        "Independently documented, large-scale production use of Python exists at Instagram/Meta (backend serving over a billion daily users via Django), Netflix (data engineering, A/B testing, content delivery, and a failover system that shifts AWS-region traffic in minutes), Spotify (backend services and data pipelines, plus PyCon/EuroPython sponsorship), Dropbox (desktop client and backend architecture), Uber/Lyft/Pinterest (real-time location/routing and application-layer services), NASA (CAE/CAD/PDM infrastructure and the OpenMDAO framework), and Google/Amazon (recommendation engines and backend systems).",
+        "W3Techs' crawl-based measurement independently confirms Python is used as the identifiable server-side language on a measurable share of public websites, and separately flags that a meaningful fraction of Python-serving sites still run since-unsupported Python 2, illustrating both real production footprint and a documented maintenance-lag limitation of that data source.",
+        "The PSF/JetBrains Python Developers Survey 2024 (collected Oct-Nov 2024, filtered to 25,000+ verified respondents) reports that 72% of respondents use Python for work rather than education/hobby, and that FastAPI-based production web-service usage jumped from 29% to 38% year over year, indicating growing professional/production deployment rather than only hobbyist use."
+      ]
+    },
+    "metric.third_party_tool_availability": {
+      "citations": [
+        {
+          "claim": "Visual Studio Code (48 percent) has increased its popularity lead over PyCharm (25 percent) among Python developers surveyed",
+          "source_index": "29-7,29-8"
+        },
+        {
+          "claim": "Python tooling implemented in Rust (uv, Ruff, Polars) is one of the biggest current trends in Python, with uv hitting double-digit adoption in its first year",
+          "source_index": "5-1,5-2,5-3"
+        },
+        {
+          "claim": "GitHub Jupyter Notebook repository counts rose from 1.4 million in 2024 to 2.42 million in 2025, a 75% rise",
+          "source_index": "34-14"
+        },
+        {
+          "claim": "Python has a rich VS Code extension ecosystem including the official Python extension providing full development support",
+          "source_index": "3-16,3-17"
+        },
+        {
+          "claim": "PyCharm integrates debugging, refactoring, version control, and database tools tailored specifically to Python development",
+          "source_index": "3-7,3-8,3-9,3-10,3-11"
+        }
+      ],
+      "normalization_rationale": "Python exhibits essentially complete third-party tool coverage across every standard category (IDE, editor extension, linter/formatter, type-checker, package manager, debugger, profiler, test framework, CI/CD integration), with multiple competing, actively maintained options in most categories and a documented pattern of continued new-tool investment (uv/Ruff rapid adoption). This represents near-maximal ecosystem tool maturity, scored 97/100; the deduction reflects that a handful of niche/embedded or highly specialized tooling gaps still exist relative to a hypothetical perfect score.",
+      "raw_measurements": [
+        "Python has a dedicated flagship commercial IDE (PyCharm) plus first-class support in the dominant general-purpose editor; per JetBrains' own 2025 survey data, Visual Studio Code reached 48% usage share among Python developers versus PyCharm's 25%, both far above niche alternatives.",
+        "The official Python project maintains a language-native tool index (wiki.python.org IDE list) rather than leaving discoverability solely to third parties.",
+        "A new generation of Rust-implemented Python tooling (uv, Ruff, Polars) has been adopted rapidly, with uv reaching double-digit usage within its first year, showing active third-party investment in the ecosystem beyond legacy tools.",
+        "Multiple mature, independently maintained tool categories exist with de-facto standard entries: linting/formatting (Ruff, Black, Flake8), type checking (mypy, pyright), package/dependency management (pip, Poetry, uv, Conda/Anaconda), testing (pytest), debugging (pdb, debugpy, PyCharm/VS Code integrated debuggers), and notebooks/data tooling (Jupyter, with Jupyter Notebook repository counts up 75% year over year on GitHub in 2025 versus 2024)."
+      ]
+    },
+    "predeclared_sampling": {
+      "metric.production_adoption_deployment_evidence": {
+        "candidate_universe": "W3Techs server-side programming language usage statistics (w3techs.com); publicly documented engineering case studies for Instagram/Meta, Netflix, Spotify, Dropbox, Uber, Pinterest, NASA, Google",
+        "retrieval_route": "provider-brokered web search",
+        "selection_rule": "Fixed candidate universe of publicly documented major production deployments, selected before evidence collection by the language-neutral criterion 'independently, publicly documented by the company itself or by multiple independent case-study/engineering-blog sources', combined with one reproducible crawl-based market-share dataset (W3Techs) collected identically regardless of outcome.",
+        "snapshot_time": "2026-09-22"
+      },
+      "metric.third_party_tool_availability": {
+        "candidate_universe": "wiki.python.org/moin/IntegratedDevelopmentEnvironments (official Python-recommended IDE list); JetBrains State of Developer Ecosystem 2024 report; JetBrains/PSF Python Developers Survey 2024 (>25,000-30,000 respondents, Oct-Nov 2024 collection window)",
+        "retrieval_route": "provider-brokered web search",
+        "selection_rule": "Cross-check two independent, language-neutral external sources examined at identical depth for every language in this evaluation's shard set: (1) the language's own official documentation/wiki tool index where one exists, and (2) the JetBrains 'State of Developer Ecosystem 2024' / 'Python Developers Survey 2024' annual survey (independently run by a third party, not commissioned for this benchmark, applied the same way regardless of result). Categories examined at fixed depth for every language: primary IDE(s), general-purpose editor extension support, linter/formatter, type-checker, package manager, debugger, test framework, profiler, CI integration.",
+        "snapshot_time": "2026-09-22"
+      }
+    }
+  },
+  "requirement_ids": [
+    "metric.production_adoption_deployment_evidence",
+    "metric.third_party_tool_availability"
+  ],
+  "requirements": {
+    "metric.production_adoption_deployment_evidence": {
+      "Python": 96
+    },
+    "metric.third_party_tool_availability": {
+      "Python": 97
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-2--python"
+}

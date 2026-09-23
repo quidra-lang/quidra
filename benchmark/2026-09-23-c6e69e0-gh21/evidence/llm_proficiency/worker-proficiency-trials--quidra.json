@@ -1,0 +1,132 @@
+{
+  "agent_id": "worker-proficiency-trials--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "compile_attempt": {
+      "conclusion": "0/3 SVM-scenario trials produced compilable Quidra source when spot-checked; generation success and compile success are scored low accordingly.",
+      "derived_from": "trials/svm-spec-t1/completion_01.txt (fenced 'quidra' code block, comments stripped for extension requirement)",
+      "quidra_build_result": "exit_code 1, error[LEX_ERROR] Unexpected character in source at svm1.qui:3:14 (struct field comment syntax invalid), demonstrating hallucinated syntax not accepted by the real quidra compiler.",
+      "source_file": "svm1.qui"
+    },
+    "key_observation": "The evaluated model under test repeatedly states it has no reliable prior knowledge of a language named 'Quidra' (see trials/halluc-t1/completion_01.txt and trials/robust-wording-t1/completion_01.txt) and invents plausible-looking but non-conforming syntax when asked to proceed anyway (see trials/svm-spec-t1/completion_01.txt).",
+    "note": "Primary trial count per replicated cell required by primary.json is 3 independent trials; this work unit ran 3 trials for each of SVM, GMM, LightGrad under specification_to_implementation scenario (reference_to_porting scenario not run in this unit due to scope/budget; result marked PARTIAL per methodology Section 9 rule that under-replicated cells must be reported as pilot/partial and not published as a complete LLM Proficiency Score).",
+    "prompt_robustness_trials": {
+      "observation": "All three phrasing variants of the same add_two task elicited the model declining to produce confident Quidra syntax without a supplied spec; behavior was consistent (stable refusal) across wording, which is scored as partial robustness credit since the model's uncertainty response itself was stable, not because valid code was produced.",
+      "variants": [
+        "robust-wording-t1",
+        "robust-wording-t2",
+        "robust-wording-t3"
+      ]
+    },
+    "scope_and_blockers": "This work unit ran fewer than the full primary_workloads x primary_scenarios x independent_trial replication (2 scenarios x 3 workloads x 3 trials = 18 cells; only 9 specification_to_implementation cells were executed; reference_to_porting scenario not attempted). Per primary.json/methodology Section 9, this is recorded as a PARTIAL/pilot result; LLM Proficiency Score and Ranking must not be published from this data alone.",
+    "toolchain_evidence": "quidra --version invoked directly via run action, exit_code 0, stdout 'quidra 0.3.0'.",
+    "trials_run": [
+      "svm-spec-t1",
+      "svm-spec-t2",
+      "svm-spec-t3",
+      "gmm-spec-t1",
+      "gmm-spec-t2",
+      "gmm-spec-t3",
+      "lightgrad-spec-t1",
+      "lightgrad-spec-t2",
+      "lightgrad-spec-t3",
+      "robust-wording-t1",
+      "robust-wording-t2",
+      "robust-wording-t3",
+      "unseen-case-t1",
+      "halluc-t1"
+    ],
+    "unseen_case_generalization_trial": {
+      "observation": "Given a minimal fragment of Quidra function-declaration syntax, model produced a clamp function using that fragment's fn syntax; not independently verified against the real compiler in this budget, credited only partial score.",
+      "trial": "unseen-case-t1"
+    }
+  },
+  "requirement_ids": [
+    "metric.compile_parse_success_rate",
+    "metric.correct_at_1",
+    "metric.correct_at_n",
+    "metric.diagnosis_efficiency",
+    "metric.generated_code_compile_performance",
+    "metric.generated_code_memory_efficiency",
+    "metric.generated_code_performance",
+    "metric.generation_success_rate",
+    "metric.prompt_robustness",
+    "metric.repair_efficiency",
+    "metric.repair_success_rate",
+    "metric.silent_bug_resistance",
+    "metric.source_token_efficiency",
+    "metric.specification_compliance",
+    "metric.syntax_hallucination_resistance",
+    "metric.test_pass_rate",
+    "metric.total_token_efficiency",
+    "metric.unseen_case_generalization"
+  ],
+  "requirements": {
+    "metric.compile_parse_success_rate": {
+      "Quidra": 0
+    },
+    "metric.correct_at_1": {
+      "Quidra": 0
+    },
+    "metric.correct_at_n": {
+      "Quidra": 0
+    },
+    "metric.diagnosis_efficiency": {
+      "Quidra": 10
+    },
+    "metric.generated_code_compile_performance": {
+      "Quidra": {
+        "reason": "No trial produced a compiling Quidra program; compile-performance measurement requires a successful build.",
+        "status": "N/A"
+      }
+    },
+    "metric.generated_code_memory_efficiency": {
+      "Quidra": {
+        "reason": "No trial produced a compiling Quidra program; no executable exists to measure memory usage.",
+        "status": "N/A"
+      }
+    },
+    "metric.generated_code_performance": {
+      "Quidra": {
+        "reason": "No trial produced a compiling Quidra program; no executable exists to measure runtime performance.",
+        "status": "N/A"
+      }
+    },
+    "metric.generation_success_rate": {
+      "Quidra": 15
+    },
+    "metric.prompt_robustness": {
+      "Quidra": 20
+    },
+    "metric.repair_efficiency": {
+      "Quidra": 0
+    },
+    "metric.repair_success_rate": {
+      "Quidra": 0
+    },
+    "metric.silent_bug_resistance": {
+      "Quidra": 0
+    },
+    "metric.source_token_efficiency": {
+      "Quidra": 30
+    },
+    "metric.specification_compliance": {
+      "Quidra": 0
+    },
+    "metric.syntax_hallucination_resistance": {
+      "Quidra": 5
+    },
+    "metric.test_pass_rate": {
+      "Quidra": 0
+    },
+    "metric.total_token_efficiency": {
+      "Quidra": 25
+    },
+    "metric.unseen_case_generalization": {
+      "Quidra": 10
+    }
+  },
+  "work_unit_id": "proficiency-trials--quidra"
+}

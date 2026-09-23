@@ -1,0 +1,115 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-2--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "methodology_note": "Rubric below is defined to be applied unchanged to all 10 languages in this benchmark; this shard only executes and reports the Rust column. Sources are official docs, the language server's own project pages, VS Code docs, JetBrains product pages, and independent 2026 tooling guides/blog posts, sampled via general web search rather than a single vendor's marketing.",
+    "metric.debugger_profiler_support": {
+      "rubric": {
+        "conversion": "sum of dimension scores, 0-100, frozen before scoring; same dimensions and weighting apply to every language in the full evaluation",
+        "dimensions": [
+          {
+            "max_points": 30,
+            "name": "native debugger support & pretty-printer/type-formatter quality (GDB/LLDB/CDB, cross-platform)"
+          },
+          {
+            "max_points": 20,
+            "name": "IDE-integrated debugging (breakpoints, variable/watch inspection, visual debugger in mainstream editors/IDEs)"
+          },
+          {
+            "max_points": 15,
+            "name": "advanced debugging (expression evaluation, async/concurrent code, cross-version debugger compatibility)"
+          },
+          {
+            "max_points": 20,
+            "name": "profiler ecosystem breadth and maturity (CPU sampling, memory/heap, instrumentation, cross-platform coverage)"
+          },
+          {
+            "max_points": 15,
+            "name": "documented/official maturity commitment and known-gap severity (penalizes admitted first-party shortcomings)"
+          }
+        ]
+      },
+      "rust_breakdown": {
+        "advanced_debugging": 8,
+        "ide_integrated_debugging": 18,
+        "maturity_commitment_and_gaps": 8,
+        "native_debugger_support": 24,
+        "profiler_ecosystem": 18
+      },
+      "rust_score": 76,
+      "score_rationale": "Rust has solid, mainstream native-debugger coverage (GDB/LLDB with rustc DWARF info, rust-gdb/rust-lldb wrappers, a maintained LLDB fork) and good IDE integration (VS Code+CodeLLDB, RustRover's bundled visual debugger). The profiler ecosystem is mature and cross-platform (perf/cargo-flamegraph, samply, Valgrind/Cachegrind/Callgrind/DHAT, heaptrack, tokio-console for async). However, the Rust compiler team's own 2026 debugging survey explicitly states debugging remains one of the most-cited developer pain points, with named unresolved gaps in async debugging, expression evaluation, and cross-debugger/version consistency, which caps this below top-tier scores reserved for languages without such an official, current, first-party admission of unresolved gaps.",
+      "supporting_evidence": [
+        "Rust binaries are debuggable via both mainstream native debuggers through standard debug info: \"<cite index=\"15-17\">Both handle Rust binaries through rustc's DWARF debug info.</cite>\" and rust-specific wrapper scripts exist: \"<cite index=\"13-1\">LLDB rust-lldb path/to/executable # or GDB rust-gdb path/to/executable</cite>\"",
+        "LLDB has better native Rust type rendering than GDB out of the box: \"<cite index=\"12-2\">Both GDB and LLDB work well with Rust, though LLDB generally provides better Rust type formatting since Rust uses LLVM.</cite>\" with pretty-printing for standard types: \"<cite index=\"12-3,12-4\">Rust-specific LLDB enhancements include pretty-printing for standard library types. When you print a Vec<T> or String, LLDB shows readable output instead of raw memory layouts.</cite>\"",
+        "Rust project maintains its own debugger fork for language-specific fidelity: \"<cite index=\"14-16\">Rust project maintains a fork of LLDB with extended support for the language.</cite>\"",
+        "IDE integration is mainstream and multi-vendor: VS Code integration via CodeLLDB: \"<cite index=\"12-7\">VS Code with the rust-analyzer extension and CodeLLDB offers breakpoints, variable inspection, and watch expressions without leaving your editor.</cite>\" and a 2026 guide lists it as a required companion extension: \"<cite index=\"7-5\">Key extensions: rust-analyzer (required), CodeLLDB (debugging), crates (dependency management), Even Better TOML (Cargo.toml editing), Error Lens (inline errors).</cite>\"",
+        "RustRover provides a full visual debugger with automatic debugger selection per toolchain/OS: \"<cite index=\"10-9,10-10\">On Linux, you are free to choose between LLDB and GDB. Both debuggers are bundled, LLDB is enabled by default.</cite>\" and on Windows: \"<cite index=\"10-1,10-2\">If you are using Rust's MSVC toolchain, you can only debug code with LLDB. Starting with RustRover 2025.2, the Windows distribution bundles and enables LLDB-19 by default.</cite>\" A user testimonial on JetBrains' own page states: \"<cite index=\"42-6\">I particularly like that it makes debugging very accessible.</cite>\"",
+        "Rust's own compiler team publicly acknowledges debugger support is an unresolved pain point (2026 survey), which caps the score below top-tier: \"<cite index=\"16-2,16-3\">Various issues with debugging Rust code are often mentioned as one of the biggest challenges that annoy Rust developers. While it is definitely possible to debug Rust code today, there are situations where it does not work well enough, and the quality of debugging support also varies a lot across different debuggers and operating systems.</cite>\" and the team's own target checklist implies current gaps in exactly these areas: \"<cite index=\"16-4,16-5,16-6,16-7,16-8\">Support (several versions!) of different debuggers (such as GDB, LLDB or CDB) across multiple operating systems. Implement debugger visualizers that are able to produce quality presentation of most Rust types. Provide first-class support for debugging async code. Allow evaluating Rust expressions in the debugger.</cite>\" concluding \"<cite index=\"16-9\">Rust is not quite there yet, and it will take a lot of work to reach that level of debugger support.</cite>\"",
+        "Profiler ecosystem is broad and cross-platform: the official Rust Performance Book lists multiple maintained options: \"<cite index=\"21-4,21-5\">samply is a sampling profiler that produces profiles that can be viewed in the Firefox Profiler. It works on Mac, Linux, and Windows.</cite> <cite index=\"21-8,21-9,21-10\">Cachegrind & Callgrind give global, per-function, and per-source-line instruction counts and simulated cache and branch prediction data. They work on Linux and some other Unixes. DHAT is good for finding which parts of the code are causing a lot of allocations, and for giving insight into peak memory usage.</cite>\"",
+        "cargo-flamegraph is a de facto standard, one-command CPU profiler wrapper: \"<cite index=\"25-9,25-10,25-11\">The community convention is to use the cargo-flamegraph crate. It wraps the perf commands and handles the stackcollapse scripts for you. Running cargo flamegraph is the standard way to get a graph in seconds.</cite>\" and it is cross-platform: \"<cite index=\"21-2,21-3\">flamegraph is a Cargo command that uses perf/DTrace to profile your code and then displays the results in a flame graph. It works on Linux and all platforms that support DTrace (macOS, FreeBSD, NetBSD, and possibly Windows).</cite>\"",
+        "Memory profiling has dedicated first-party-adjacent tooling: \"<cite index=\"23-7,23-8\">Memory profiling in Rust has also evolved, with tools like heaptrack and DHAT (Dynamic Heap Allocation Tool) providing detailed insights into heap allocations. Heaptrack, available on Linux, tracks memory usage and helps identify allocation hotspots, while DHAT, part of Valgrind, offers dynamic heap profiling to detect memory leaks and allocation patterns.</cite>\" plus an async-specific diagnostic tool: \"<cite index=\"26-9\">Use tokio-console when debugging async applications that stall on channel backpressure or lock contention.</cite>\""
+      ]
+    },
+    "metric.ide_editor_support_quality": {
+      "rubric": {
+        "conversion": "sum of dimension scores, 0-100, frozen before scoring; same dimensions and same 4-way weighting apply to every language in the full evaluation",
+        "dimensions": [
+          {
+            "max_points": 30,
+            "name": "official/first-class language server (LSP) existence and maturity"
+          },
+          {
+            "max_points": 25,
+            "name": "breadth of supported editors (VS Code, JetBrains-family, Vim/Neovim, Emacs, Helix/Zed, etc.)"
+          },
+          {
+            "max_points": 25,
+            "name": "feature completeness (completion, go-to-def, inline diagnostics, refactoring, macro/codegen awareness, semantic highlighting)"
+          },
+          {
+            "max_points": 20,
+            "name": "maintenance cadence and organizational backing / dedicated commercial IDE availability"
+          }
+        ]
+      },
+      "rust_breakdown": {
+        "editor_breadth": 24,
+        "feature_completeness": 21,
+        "lsp_existence_and_maturity": 29,
+        "maintenance_and_dedicated_ide": 16
+      },
+      "rust_score": 90,
+      "score_rationale": "Rust has an official, org-backed, actively-maintained LSP (rust-analyzer) with broad multi-editor reach (VS Code, JetBrains via RustRover/IntelliJ plugin, Neovim, Emacs, Helix, Zed) plus a dedicated commercial full-IDE (RustRover) layering deep refactoring/navigation on top. This is close to best-in-class breadth and maturity; points are withheld only for acknowledged rough edges in macro-expansion tooling and general feature completeness relative to a hypothetical perfect score.",
+      "supporting_evidence": [
+        "rust-analyzer is described as an implementation of the Language Server Protocol: \"<cite index=\"2-1\">rust-analyzer is an implementation of Language Server Protocol for the Rust programming language.</cite>\" and <cite index=\"2-2\">it provides features like completion and goto definition for many code editors, including VS Code, Emacs and Vim.</cite>",
+        "rust-analyzer has multi-company backing: \"<cite index=\"2-5\">rust-analyzer is a free and open source project, developed by Ferrous Systems with support from multiple companies and individuals.</cite>\" <cite index=\"2-7\">The following companies contributed significantly towards rust-analyzer development: Ferrous Systems, Mozilla, Embark Studios, freiheit.com</cite>",
+        "rust-analyzer was formally adopted by the Rust project itself, superseding the earlier RLS implementation, per the rust-lang blog announcement of rust-analyzer joining rust-org (blog.rust-lang.org/2022/02/21/rust-analyzer-joins-rust-org).",
+        "Independent 2026 tooling roundups converge on the same recommendation set: \"<cite index=\"6-16,6-17\">Use Visual Studio Code when you want a zero-config experience that works out of the box for most projects.</cite> Install the rust-analyzer extension.\" and \"<cite index=\"6-26,6-27,6-28\">Use RustRover when you need deep IDE features like a visual debugger and database tools integrated into one package. It is a commercial IDE from JetBrains. It includes rust-analyzer but adds a GUI for debugging, refactoring, and project management.</cite>\"",
+        "A second independent 2026 guide reaches the same conclusion: \"<cite index=\"7-3,7-4\">Visual Studio Code with the rust-analyzer extension remains the most popular Rust IDE in 2026, and for good reason. The extension ecosystem is massive, setup takes about 60 seconds, and the Rust support is genuinely excellent.</cite>\" and \"<cite index=\"7-9,7-10\">RustRover is JetBrains' purpose-built IDE for Rust, and it's the most polished full-IDE experience available. Released in 2024, it's built on the IntelliJ platform and combines rust-analyzer with JetBrains' own indexing and analysis on top.</cite>\"",
+        "Editor breadth beyond VS Code/JetBrains is corroborated: \"<cite index=\"6-22,6-23\">Use Helix when you want a modal editor with built-in LSP support and no configuration files. It starts with rust-analyzer support out of the box.</cite>\" and Emacs support via lsp-mode's dedicated rust-analyzer integration page, plus Vim support via coc-rust-analyzer noted in the rust-lang blog announcement.",
+        "rust-analyzer shows an active, near-continuous release cadence: \"<cite index=\"31-1\">latest releases: nightly, 2026-09-07, 2026-08-31</cite>\" and a July 2026 changelog entry: \"<cite index=\"32-1\">rust-analyzer v0.3.2963 (2026-07-06) ships a batch of bug fixes including crash fixes in completions inside macro calls, extract_variable with unresolved macros, and several assist panics</cite>\"",
+        "A refactoring-tool research paper independently confirms rust-analyzer's role as the substrate for advanced IDE tooling: \"<cite index=\"29-9\">REM2.0 works on top of rust-analyzer as a persistent daemon, reusing its analysis infrastructure to provide low-latency extract-function refactorings with a VSCode front-end.</cite>\"",
+        "Known gap: macro-expansion display/debugging inside the IDE is acknowledged as weak by rust-analyzer's own issue tracker: \"<cite index=\"28-10,28-11\">Rust analyzer's expand macro recursively command is nice, however, it is also greatly flawed and provides little to no utility for debugging more complex macros. This issue is aimed at refactoring it and turning it into a useful tool.</cite>\" This limitation prevents a top score."
+      ]
+    },
+    "snapshot_date": "2026-09-22"
+  },
+  "requirement_ids": [
+    "metric.debugger_profiler_support",
+    "metric.ide_editor_support_quality"
+  ],
+  "requirements": {
+    "metric.debugger_profiler_support": {
+      "Rust": 76
+    },
+    "metric.ide_editor_support_quality": {
+      "Rust": 90
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-2--rust"
+}

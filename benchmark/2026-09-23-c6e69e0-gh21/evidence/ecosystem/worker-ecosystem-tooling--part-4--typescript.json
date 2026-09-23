@@ -1,0 +1,127 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-4--typescript",
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "evidence": {
+    "metric.installation_distribution_experience": {
+      "caveats": [
+        "Requires a Node.js runtime prerequisite before any TypeScript installation route works, which is an extra dependency step not present for some fully self-contained toolchains.",
+        "Global installs are explicitly discouraged by official docs in favor of project-local installs, meaning naive first-time global installs can drift from project-pinned versions if users don't follow best practice."
+      ],
+      "findings": [
+        {
+          "citation": "TypeScript is available as a package on the npm registry available as \"typescript\". You will need a copy of Node.js as an environment to run the package.",
+          "component": "Canonical entry point",
+          "note": "Official docs designate the npm registry package 'typescript' as the standard distribution artifact, with a single authoritative install page.",
+          "score": 22
+        },
+        {
+          "citation": "The NVM that Mac and Linux users love and use daily, wont work on Windows.",
+          "component": "Cross-platform coverage",
+          "note": "Works wherever Node.js runs; version managers exist for all three major OS families (nvm for macOS/Linux, nvm-windows/Volta for Windows), though Windows requires a separate, community-maintained tool rather than the same script.",
+          "score": 22
+        },
+        {
+          "citation": "For most project types, you can get TypeScript as a package in Nuget for your MSBuild projects, for example an ASP.NET Core app.",
+          "component": "Distribution channel breadth",
+          "note": "Primary channel is npm/yarn/pnpm; a secondary official channel exists via NuGet for MSBuild/Visual Studio projects, and editors (VS Code) bundle a built-in TypeScript language service version. OS-native package repositories often lag behind the latest compiler release, pushing users toward NodeSource or version managers for currency.",
+          "score": 20
+        },
+        {
+          "citation": "All of these dependency managers support lockfiles, ensuring that everyone on your team is using the same version of the language.",
+          "component": "Reproducibility/version pinning",
+          "note": "Official guidance recommends per-project devDependency installs rather than global installs, and all three common dependency managers support lockfiles ensuring team-wide version consistency.",
+          "score": 21
+        }
+      ],
+      "language": "TypeScript",
+      "raw_score_sum_of_components": 85,
+      "rubric": {
+        "components": [
+          "Canonical official installer/entry point clarity and documentation quality (0-25)",
+          "Cross-platform coverage (Windows/macOS/Linux) without heavy manual/OS-specific steps (0-25)",
+          "Breadth and reliability of distribution channels (language registry, OS/native package managers, IDE-bundled, secondary ecosystems like NuGet) (0-25)",
+          "Reproducibility / version pinning support (lockfiles, per-project isolated installs, avoidance of global-install drift) (0-25)"
+        ],
+        "description": "0-100 score, four equally-weighted 0-25 components, applied identically to all 10 languages by the assigned worker for each language shard."
+      },
+      "snapshot_date": "2026-09-22"
+    },
+    "metric.toolchain_stability_release_maturity": {
+      "caveats": [
+        "Non-semver versioning is a structural, long-standing characteristic (not a one-time event) that reduces the reliability of version numbers as a stability signal for all consumers, including enterprise adopters who build their own external support-window policies to compensate.",
+        "The ongoing Go-native compiler transition (TS 7.0 GA July 2026, full programmatic API deferred to 7.1) is a major, currently incomplete architectural change; it was scored as observable current evidence per the frozen rubric, not as a bonus/penalty for language age."
+      ],
+      "findings": [
+        {
+          "citation": "In general you can expect a release around every 3 months.",
+          "component": "Release process reproducibility",
+          "note": "TypeScript publishes an explicit, well-documented release pipeline with predictable timing for beta, RC, stable, and patch stages.",
+          "score": 23
+        },
+        {
+          "citation": "Betas are released about 4 weeks after the prior Stable release.",
+          "component": "Release process reproducibility (detail)",
+          "note": "Detailed staged cadence is documented precisely.",
+          "score": null
+        },
+        {
+          "citation": "In particular, there is no differentiation between major and minor versions, both of them are breaking.",
+          "component": "Versioning/support-policy clarity",
+          "note": "TypeScript deliberately does not follow semver: both major and minor releases can contain breaking changes, which weakens the signal value of version numbers for downstream consumers even though the cadence itself is predictable.",
+          "score": 15
+        },
+        {
+          "citation": "Breaking changes and features are \"front-loaded\" so that they can get ample testing in the beta and RC.",
+          "component": "Compatibility guarantees",
+          "note": "Breaking changes are intentionally front-loaded into the beta phase for early testing, showing process discipline, but this does not eliminate breaking changes at stable release boundaries; downstream projects (e.g. Backstage) build their own multi-month support-window policies on top of TypeScript's releases to manage this.",
+          "score": 18
+        },
+        {
+          "citation": "This port was done as faithfully as possible, writing new code while maintaining the structure and logic of the original codebase to keep results consistent and compatible between the two compilers.",
+          "component": "Compatibility guarantees (major transition)",
+          "note": "The current TypeScript 7.0 Go-native compiler is described by Microsoft as a faithful port preserving type-checking semantics, and ships with a compatibility package for existing tooling, indicating an engineered transition rather than an ad hoc break.",
+          "score": null
+        },
+        {
+          "citation": "TypeScript 7.0 reached general availability on July 8, 2026 \u2014 a native Go port of the compiler and language service that Microsoft characterizes as typically 8x to 12x faster on full builds.",
+          "component": "Maintenance cadence / stability commitments",
+          "note": "TypeScript reached general availability of a major, multi-year engineering effort (the Go-native compiler) on a stated timeline, shipped through the standard npm channel like any other release, evidencing sustained, well-resourced maintenance.",
+          "score": 22
+        },
+        {
+          "citation": "TypeScript 7.0 ships without a stable programmatic API \u2014 Microsoft expects TypeScript 7.1 to deliver a new, different one",
+          "component": "Maintenance cadence / stability commitments (current gap)",
+          "note": "As of the snapshot date, TypeScript 7.0 ships without a stable programmatic API (expected in 7.1), which has left parts of the tooling ecosystem (e.g. template type-checkers, typescript-eslint) unable to fully migrate yet, representing a live, in-progress stability gap rather than a historical one.",
+          "score": null
+        }
+      ],
+      "language": "TypeScript",
+      "raw_score_sum_of_components": 78,
+      "rubric": {
+        "components": [
+          "Release process reproducibility / documentation clarity (0-25)",
+          "Versioning and support-policy clarity, including whether version numbers reliably signal breaking vs. non-breaking changes (0-25)",
+          "Compatibility guarantees and breaking-change discipline across releases (0-25)",
+          "Maintenance/release cadence and documented stability commitments, including handling of major architecture transitions (0-25)"
+        ],
+        "description": "0-100 score, four equally-weighted 0-25 components based on frozen, currently observable evidence (release reproducibility, versioning/support policy, compatibility guarantees, maintenance cadence/documented stability commitments). Language age/first-release date used only as contextual metadata, not scored."
+      },
+      "snapshot_date": "2026-09-22"
+    }
+  },
+  "requirement_ids": [
+    "metric.installation_distribution_experience",
+    "metric.toolchain_stability_release_maturity"
+  ],
+  "requirements": {
+    "metric.installation_distribution_experience": {
+      "TypeScript": 85
+    },
+    "metric.toolchain_stability_release_maturity": {
+      "TypeScript": 78
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-4--typescript"
+}

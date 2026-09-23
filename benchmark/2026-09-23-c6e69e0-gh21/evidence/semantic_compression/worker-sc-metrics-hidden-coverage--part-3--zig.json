@@ -1,0 +1,603 @@
+{
+  "agent_id": "worker-sc-metrics-hidden-coverage--part-3--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "metric.capability_efficiency": {
+      "basis": "all-fragments (single-language shard; common-basis recomputation deferred to runner aggregation once all 10 language shards are merged)",
+      "blockers": [
+        "No live toolchain execution was available in this packet-only worker; all support levels, fragment shapes and complexity counts are derived from the Zig language reference and std library documentation rather than an executed build/run under the frozen recipe. This is recorded as an evidentiary limitation, not a fabricated pass: V1 (build/run match) evidence for these 44 Zig fragments still needs mechanical toolchain execution before the run's Semantic Compression status can be marked COMPLETE.",
+        "Cross-language normalization of Capability Efficiency to a true 0-100 comparability scale requires the other nine languages' raw_E figures, which are outside this shard's assignment; the provisional score above must be superseded at aggregation."
+      ],
+      "capability_points": {
+        "coverage_C_zig": 92.05,
+        "denominator_fixed": 88,
+        "supported_numerator": 81
+      },
+      "frozen_counting_rule": {
+        "categories": [
+          "syntax_forms: count of distinct syntactic constructs (keywords/operators/builtin calls/type forms) that must appear in the Zig fragment to express and correctly interpret the probe's canonical_task, counted once per distinct construct actually used in the measured_fragment.",
+          "context_dependent_rules: count of rules whose meaning at the site depends on surrounding context (target type, build/safety mode, comptime vs runtime, memory-ordering parameter, etc.) rather than being fixed by local syntax alone.",
+          "implicit_rules: count of behaviors that occur at the site without being written explicitly in the fragment (compiler-inserted bounds checks, monomorphization, implicit ABI assignment from `export`, duck-typed generic constraints not stated at declaration, hidden aliasing through pass-by-value structs containing pointers, etc.).",
+          "documented_exceptions: count of Zig-language-reference-documented special-case behaviors that deviate from the 'plain' rule for that construct (e.g. signed-overflow trap under -OReleaseSafe vs silent UB under -OReleaseFast; @rem sign-of-dividend vs @mod exception; safety-checked indexing UB)."
+        ],
+        "itemization_requirement": "Every probe's four sub-counts are itemized individually in probe_evidence[] below so the total is auditable and no category defaults to 0 by omission; a category with truly zero occurrences for that probe is recorded as 0 with the reasoning implicit in the fragment shape, never left blank.",
+        "unknown_vs_zero": "No category was recorded 'unknown' for Zig: the Zig language reference and std library documentation were available for every probe reasoned about here, so 0 always means 'no such rule applies', not 'undocumented'."
+      },
+      "language": "Zig",
+      "probe_evidence": [
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "const n: i32 = 7; return n; \u2014 literal 7 (comptime_int) coerces to i32 by context.",
+          "implicit_rules": 0,
+          "probe_id": "F01.P1",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "var counter: i64 = 0; const LIMIT: i64 = 100; \u2014 module-scope var default lifetime is program lifetime (implicit).",
+          "implicit_rules": 1,
+          "probe_id": "F01.P2",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 4
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 1,
+          "factor": 1,
+          "fragment_note": "var v: i32 = undefined; if/else assigns both arms; reading undefined before assignment is safety-checked UB (documented exception).",
+          "implicit_rules": 1,
+          "probe_id": "F02.P1",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 5
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "var buf: [16]u8 = undefined; genuinely uninitialized, not zero-filled.",
+          "implicit_rules": 1,
+          "probe_id": "F02.P2",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 1,
+          "factor": 1,
+          "fragment_note": "x += 1; overflow traps under -OReleaseSafe (frozen recipe), UB under fast mode (exception).",
+          "implicit_rules": 0,
+          "probe_id": "F03.P1",
+          "support": "FULL",
+          "syntax_forms": 1,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "xs.items[1] = 42; compiler-inserted bounds check is implicit.",
+          "implicit_rules": 1,
+          "probe_id": "F03.P2",
+          "support": "FULL",
+          "syntax_forms": 1,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "&slot pointer, port.* = 9, return slot.",
+          "implicit_rules": 0,
+          "probe_id": "F04.P1",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "window: []const i32 = xs.items[0..3]; slice is a non-owning fat pointer (implicit representation fact).",
+          "implicit_rules": 1,
+          "probe_id": "F04.P2",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 4
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "allocator.create(Foo) + try, ArrayList(*Foo) round-trip, pointer equality `first == second` is genuine identity test.",
+          "implicit_rules": 0,
+          "probe_id": "F04.P3",
+          "support": "FULL",
+          "syntax_forms": 4,
+          "total_units": 5
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "f(x) bare call; ArrayList passed by value still aliases underlying buffer through its internal pointer field (hidden aliasing).",
+          "implicit_rules": 1,
+          "probe_id": "F05.P1",
+          "support": "FULL",
+          "syntax_forms": 1,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "put(cell: *i32) { cell.* = 12; } called as put(&cell); fully explicit.",
+          "implicit_rules": 0,
+          "probe_id": "F05.P2",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 0,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 0,
+          "fragment_note": "No fragment written; Zig has no closure capture of outer-scope locals.",
+          "implicit_rules": 0,
+          "probe_id": "F05.P3",
+          "support": "NONE",
+          "syntax_forms": 0,
+          "total_units": 0
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "fn mid(xs) i32 { return xs[1]; } \u2014 i32 result is an independent value copy, unambiguous.",
+          "implicit_rules": 0,
+          "probe_id": "F06.P1",
+          "support": "FULL",
+          "syntax_forms": 4,
+          "total_units": 4
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "anonymous tuple return .{q,r}; destructuring `const q, const r = divmod2(a,b);` (Zig tuple destructuring).",
+          "implicit_rules": 0,
+          "probe_id": "F06.P2",
+          "support": "FULL",
+          "syntax_forms": 4,
+          "total_units": 5
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 1,
+          "factor": 1,
+          "fragment_note": "r = a*b+c; overflow trap behavior implicit per operand type, documented exception under fast mode.",
+          "implicit_rules": 1,
+          "probe_id": "F07.P1",
+          "support": "FULL",
+          "syntax_forms": 1,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 1,
+          "factor": 1,
+          "fragment_note": "@divTrunc, @rem, @floatFromInt x2; @rem sign-of-dividend vs @mod is a documented exception.",
+          "implicit_rules": 0,
+          "probe_id": "F07.P2",
+          "support": "FULL",
+          "syntax_forms": 4,
+          "total_units": 6
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.math.add(i32,m,1) catch 0 \u2014 rung(i) checked error-union op.",
+          "implicit_rules": 0,
+          "probe_id": "F08.P1",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.math.divTrunc(i32,a,b) catch 0 \u2014 rung(i) checked op.",
+          "implicit_rules": 0,
+          "probe_id": "F08.P2",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 2
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.mem.eql(u8,s1,s2) \u2014 explicit contents comparison.",
+          "implicit_rules": 0,
+          "probe_id": "F09.P1",
+          "support": "FULL",
+          "syntax_forms": 1,
+          "total_units": 1
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.mem.sort(i32,xs,{},std.sort.desc(i32)) in-place; a<b comparison.",
+          "implicit_rules": 0,
+          "probe_id": "F09.P2",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 4
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.math.cast(i32,big) orelse 0 \u2014 rung(i) optional-returning cast.",
+          "implicit_rules": 0,
+          "probe_id": "F10.P1",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 2
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "@as(f64,@floatFromInt(i)) + d \u2014 Zig forbids implicit int/float mixing, conversion fully explicit.",
+          "implicit_rules": 0,
+          "probe_id": "F10.P2",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 2
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 1,
+          "factor": 1,
+          "fragment_note": "xs[i] \u2014 compiler-inserted bounds check implicit; traps under ReleaseSafe (documented exception vs ReleaseFast UB).",
+          "implicit_rules": 1,
+          "probe_id": "F11.P1",
+          "support": "FULL",
+          "syntax_forms": 1,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "xs[1..4] slice shares storage with xs (implicit representation fact).",
+          "implicit_rules": 1,
+          "probe_id": "F11.P2",
+          "support": "FULL",
+          "syntax_forms": 1,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "?i32 optional type, null literal, orelse fallback.",
+          "implicit_rules": 0,
+          "probe_id": "F12.P1",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 1,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 0.5,
+          "fragment_note": "Substituted explicit `if (o) |v| h(v) else null` (P-a); no optional-map operator in std.",
+          "implicit_rules": 0,
+          "probe_id": "F12.P2",
+          "support": "PARTIAL",
+          "syntax_forms": 3,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "fn parse_twice(s) !i32 { const v = try std.fmt.parseInt(i32,s,10); return v*2; }",
+          "implicit_rules": 0,
+          "probe_id": "F13.P1",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.fmt.parseInt(i32,s,10) catch 0.",
+          "implicit_rules": 0,
+          "probe_id": "F13.P2",
+          "support": "FULL",
+          "syntax_forms": 1,
+          "total_units": 1
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "union(enum){Circle:struct{r:f64},Rect:struct{w:f64,h:f64}}; closed set.",
+          "implicit_rules": 0,
+          "probe_id": "F14.P1",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "switch(s){.Circle=>|c|...,.Rect=>|r|...} \u2014 exhaustiveness enforced implicitly by compiler.",
+          "implicit_rules": 1,
+          "probe_id": "F14.P2",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 3
+        },
+        {
+          "cap_pts": 1,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 0.5,
+          "fragment_note": "Manual vtable substitute: anyopaque ptr + fn-pointer field, @ptrCast to recover concrete type (unsafe, implicit trust).",
+          "implicit_rules": 1,
+          "probe_id": "F14.P3",
+          "support": "PARTIAL",
+          "syntax_forms": 5,
+          "total_units": 7
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "fn head(xs: anytype) @TypeOf(xs[0]) { return xs[0]; } \u2014 monomorphized per call site (implicit codegen).",
+          "implicit_rules": 1,
+          "probe_id": "F15.P1",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 5
+        },
+        {
+          "cap_pts": 1,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 0.5,
+          "fragment_note": "comptime T param with `>` used in body; constraint checked only at instantiation, not declared (P-c).",
+          "implicit_rules": 1,
+          "probe_id": "F15.P2",
+          "support": "PARTIAL",
+          "syntax_forms": 3,
+          "total_units": 5
+        },
+        {
+          "cap_pts": 1,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 0.5,
+          "fragment_note": "Same manual-vtable substitute as F14.P3 used to hold heterogeneous concrete types behind one abstract element type.",
+          "implicit_rules": 1,
+          "probe_id": "F15.P3",
+          "support": "PARTIAL",
+          "syntax_forms": 5,
+          "total_units": 7
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.ArrayList(i32) + appendSlice(try) + explicit for-loop sum (no generic fold in std for arbitrary iterables).",
+          "implicit_rules": 0,
+          "probe_id": "F16.P1",
+          "support": "FULL",
+          "syntax_forms": 5,
+          "total_units": 5
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.StringHashMap(i32): put/try, iterator()/while-next, get orelse; iteration order unspecified (documented); resize allocation implicit on put.",
+          "implicit_rules": 1,
+          "probe_id": "F16.P2",
+          "support": "FULL",
+          "syntax_forms": 6,
+          "total_units": 8
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "openFile/try, defer file.close(), readToEndAlloc/try, return len.",
+          "implicit_rules": 0,
+          "probe_id": "F17.P1",
+          "support": "FULL",
+          "syntax_forms": 4,
+          "total_units": 4
+        },
+        {
+          "cap_pts": 1,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 0.5,
+          "fragment_note": "defer h.deinit() manually invoked; no compiler-guaranteed automatic destructor (P-c).",
+          "implicit_rules": 0,
+          "probe_id": "F17.P2",
+          "support": "PARTIAL",
+          "syntax_forms": 4,
+          "total_units": 4
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "@import(\"std\"); std.debug.print(\"x\\n\",.{});",
+          "implicit_rules": 0,
+          "probe_id": "F18.P1",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 2
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "pub fn pub_add / private fn secret in util.zig; @import(\"util.zig\").pub_add(2,3) from outside.",
+          "implicit_rules": 0,
+          "probe_id": "F18.P2",
+          "support": "FULL",
+          "syntax_forms": 4,
+          "total_units": 4
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.Thread.spawn x2 (try), .join() x2, sum results \u2014 real OS-thread concurrency shipped in std.",
+          "implicit_rules": 0,
+          "probe_id": "F19.P1",
+          "support": "FULL",
+          "syntax_forms": 5,
+          "total_units": 5
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 1,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "std.atomic.Value(i64).fetchAdd(1,.monotonic) from two threads; memory-ordering argument is context-dependent.",
+          "implicit_rules": 0,
+          "probe_id": "F19.P2",
+          "support": "FULL",
+          "syntax_forms": 5,
+          "total_units": 6
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "@cImport(@cInclude(\"stdlib.h\")).abs(-3) \u2014 C ABI assumed implicitly by @cImport.",
+          "implicit_rules": 1,
+          "probe_id": "F20.P1",
+          "support": "FULL",
+          "syntax_forms": 3,
+          "total_units": 4
+        },
+        {
+          "cap_pts": 2,
+          "context_dependent_rules": 0,
+          "documented_exceptions": 0,
+          "factor": 1,
+          "fragment_note": "export fn add2(a:c_int,b:c_int) c_int {return a+b;} \u2014 export implies C ABI+unmangled symbol implicitly.",
+          "implicit_rules": 1,
+          "probe_id": "F20.P2",
+          "support": "FULL",
+          "syntax_forms": 2,
+          "total_units": 3
+        }
+      ],
+      "raw_calculation": {
+        "normalization_formula_used": "score = min(100, round(100 / raw_E)) \u2014 a self-consistent, monotonically-decreasing-in-E transform applied per language shard because this worker cannot see the other nine languages' raw_E values needed for a proper cross-language min-max normalization. THIS FIGURE IS PROVISIONAL: the runner must recompute the final 0-100 Capability Efficiency score for every language from the merged set of raw_E values once all language shards are aggregated, per spec 6.1.4.E and the interaction_with_quality_metrics basis-reporting requirement.",
+        "provisional_score_zig": 50,
+        "raw_E_units_per_supported_capability_point": 2.0,
+        "supported_capability_points_denominator_for_E": 81,
+        "total_semantic_complexity_units": 162
+      },
+      "support_summary": {
+        "FULL_count": 38,
+        "NONE_count": 1,
+        "NONE_probes": [
+          "F05.P3"
+        ],
+        "PARTIAL_count": 5,
+        "PARTIAL_probes": [
+          "F12.P2",
+          "F14.P3",
+          "F15.P2",
+          "F15.P3",
+          "F17.P2"
+        ],
+        "none_citations": {
+          "F05.P3": "Zig has no closure/lexical-capture value form: a `fn` literal cannot reference an outer-scope runtime local (Zig Language Reference, Functions: nested functions cannot access variables of the outer scope). No fragment written; the probe's own canonical_task requires capture of `k`, which is unavailable, and is one of the R9/NONE-eligible probes only via the general N-1 rule (no substitution is named for F05.P3)."
+        },
+        "partial_citations": {
+          "F12.P2": "P-c/P-a: Zig std library provides `orelse`/`.?` for optionals but no map/andThen-style optional-preserving chaining operation; the substitute uses an explicit `if (o) |v| ... else null` payload-capture conditional, which is the R9-permitted substitution the probe names.",
+          "F14.P3": "P-a: Zig unions/enums are closed at their declaration; there is no interface/protocol type for retroactive external conformance. Extensibility from a separate unit is approximated only via a hand-written vtable (struct of `*anyopaque` + function pointers), a weaker, more verbose standard idiom, not a native open-dispatch mechanism.",
+          "F15.P2": "P-c: Zig comptime generics (`comptime T: type`) use structural/duck-typed constraint checking performed only at instantiation; there is no declaration-site constraint syntax, so the documented guarantee the probe asks for (constraint stated at declaration) is unavailable.",
+          "F15.P3": "P-a: same vtable substitute as F14.P3 is required to hold two concrete types behind one abstract element type with runtime dispatch, since Zig has no interface type.",
+          "F17.P2": "P-c: Zig has no compiler-invoked destructor/drop; `deinit()` is a library convention that must be invoked manually, here via `defer h.deinit()`, which is a scoped-construct substitute the rubric explicitly permits, not a guaranteed automatic end-of-lifetime hook."
+        }
+      },
+      "toolchain_recipe_used": "zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN (frozen safety_mode_clause: checked overflow/bounds retained)."
+    }
+  },
+  "requirement_ids": [
+    "metric.capability_efficiency"
+  ],
+  "requirements": {
+    "metric.capability_efficiency": {
+      "Zig": 50
+    }
+  },
+  "work_unit_id": "sc-metrics-hidden-coverage--part-3--zig"
+}

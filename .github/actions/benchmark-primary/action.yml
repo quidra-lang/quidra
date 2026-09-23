@@ -118,7 +118,31 @@ runs:
         assert abs(float(state["limit_usd"]) - float(sys.argv[4])) < 1e-9
         PY
 
+    - name: Detect whether this Primary is already COMPLETE
+      id: scope
+      shell: bash
+      env:
+        EVALUATION: ${{ inputs.evaluation }}
+      run: |
+        value="$(python - "$EVALUATION" <<'PY'
+        import json, sys
+        from pathlib import Path
+        path = Path(".quidra-benchmark/results/primary_status.json")
+        if not path.is_file():
+            print("true")
+        else:
+            data = json.loads(path.read_text())
+            status = (data.get("evaluations", {}).get(sys.argv[1], {}) or {}).get("status")
+            print("false" if status == "COMPLETE" else "true")
+        PY
+        )"
+        echo "needs-run=$value" >> "$GITHUB_OUTPUT"
+        if [ "$value" = "false" ]; then
+          echo "::notice::${EVALUATION} is already COMPLETE; skipping image build and paid dispatch."
+        fi
+
     - name: Reclaim runner disk
+      if: ${{ steps.scope.outputs.needs-run == 'true' }}
       shell: bash
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
@@ -126,6 +150,7 @@ runs:
         df -h /
 
     - name: Build and verify the pinned ten-language image
+      if: ${{ steps.scope.outputs.needs-run == 'true' }}
       shell: bash
       env:
         BENCHMARK_IMAGE: quidra-benchmark/runtime:production
@@ -137,6 +162,7 @@ runs:
           --image "$BENCHMARK_IMAGE"
 
     - name: Deterministic preparation for this Primary
+      if: ${{ steps.scope.outputs.needs-run == 'true' }}
       shell: bash
       env:
         BENCHMARK_IMAGE: quidra-benchmark/runtime:production
@@ -150,6 +176,7 @@ runs:
              --evaluation "$EVALUATION"
 
     - name: Show current exact cache state before paid dispatch
+      if: ${{ steps.scope.outputs.needs-run == 'true' }}
       shell: bash
       env:
         EVALUATION: ${{ inputs.evaluation }}
@@ -194,6 +221,7 @@ runs:
         PY
 
     - name: Freeze this Primary's network policy and spend ceilings
+      if: ${{ steps.scope.outputs.needs-run == 'true' }}
       shell: bash
       env:
         EVALUATION: ${{ inputs.evaluation }}
@@ -209,6 +237,7 @@ runs:
           --evaluation "$EVALUATION" "${unit_args[@]}"
 
     - name: Prove remaining budget covers this unresolved Primary
+      if: ${{ steps.scope.outputs.needs-run == 'true' }}
       id: budget
       continue-on-error: true
       shell: bash
@@ -254,7 +283,7 @@ runs:
 
     - name: Run paid ${{ inputs.evaluation }} benchmark
       id: paid
-      if: ${{ steps.budget.outcome == 'success' }}
+      if: ${{ steps.scope.outputs.needs-run == 'true' && steps.budget.outcome == 'success' }}
       continue-on-error: true
       shell: bash
       env:
@@ -335,9 +364,15 @@ runs:
         report = json.loads(report_path.read_text()) if report_path.is_file() else {}
         cost = float(report.get("estimated_cost_usd", 0.0) or 0.0)
         state["spent_usd"] = float(state.get("spent_usd", 0.0)) + cost
-        state.setdefault("evaluations", {})[evaluation] = {
-            "estimated_cost_usd": cost,
-            "paid_inference_calls": int(report.get("paid_inference_calls", 0) or 0),
+        previous = state.setdefault("evaluations", {}).get(evaluation, {})
+        state["evaluations"][evaluation] = {
+            "estimated_cost_usd": round(
+                float(previous.get("estimated_cost_usd", 0.0) or 0.0) + cost, 6
+            ),
+            "paid_inference_calls": (
+                int(previous.get("paid_inference_calls", 0) or 0)
+                + int(report.get("paid_inference_calls", 0) or 0)
+            ),
         }
         state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
         print(json.dumps(state, indent=2, sort_keys=True))

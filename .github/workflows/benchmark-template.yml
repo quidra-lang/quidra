@@ -64,8 +64,12 @@ jobs:
             "language-quality" => ["prepare", "llm-learnability"],
             "ecosystem" => ["prepare", "language-quality"],
             "llm-proficiency" => ["prepare", "ecosystem"],
-            "recovery" => ["prepare", "llm-proficiency"],
-            "finalize" => ["prepare", "recovery"],
+            "recover-semantic-compression" => ["prepare", "llm-proficiency"],
+            "recover-llm-learnability" => ["prepare", "recover-semantic-compression"],
+            "recover-language-quality" => ["prepare", "recover-llm-learnability"],
+            "recover-ecosystem" => ["prepare", "recover-language-quality"],
+            "recover-llm-proficiency" => ["prepare", "recover-ecosystem"],
+            "finalize" => ["prepare", "recover-llm-proficiency"],
           }
           expected_needs.each do |name, expected|
             actual = Array(jobs.fetch(name)["needs"])
@@ -90,6 +94,11 @@ jobs:
             ["language-quality", "#{base}-llm-learnability", "#{base}-language-quality"],
             ["ecosystem", "#{base}-language-quality", "#{base}-ecosystem"],
             ["llm-proficiency", "#{base}-ecosystem", "#{base}-llm-proficiency"],
+            ["recover-semantic-compression", "#{base}-llm-proficiency", "#{base}-recovery-semantic-compression"],
+            ["recover-llm-learnability", "#{base}-recovery-semantic-compression", "#{base}-recovery-llm-learnability"],
+            ["recover-language-quality", "#{base}-recovery-llm-learnability", "#{base}-recovery-language-quality"],
+            ["recover-ecosystem", "#{base}-recovery-language-quality", "#{base}-recovery-ecosystem"],
+            ["recover-llm-proficiency", "#{base}-recovery-ecosystem", "#{base}-recovery-llm-proficiency"],
           ]
           chain.each do |name, previous, handoff|
             step = jobs.fetch(name).fetch("steps").find do |candidate|
@@ -99,24 +108,6 @@ jobs:
             inputs = step.fetch("with")
             raise "#{name}: handoff mismatch" unless inputs["handoff-name"] == handoff
             raise "#{name}: previous handoff mismatch" unless inputs["previous-handoff"] == previous
-          end
-
-          recovery_steps = jobs.fetch("recovery").fetch("steps").select do |candidate|
-            candidate["uses"] == "./.github/actions/benchmark-primary"
-          end
-          recovery_chain = [
-            ["semantic_compression", "#{base}-llm-proficiency", "#{base}-recovery-semantic-compression"],
-            ["llm_learnability", "#{base}-recovery-semantic-compression", "#{base}-recovery-llm-learnability"],
-            ["language_quality", "#{base}-recovery-llm-learnability", "#{base}-recovery-language-quality"],
-            ["ecosystem", "#{base}-recovery-language-quality", "#{base}-recovery-ecosystem"],
-            ["llm_proficiency", "#{base}-recovery-ecosystem", "#{base}-recovery-llm-proficiency"],
-          ]
-          raise "recovery step count drifted" unless recovery_steps.length == recovery_chain.length
-          recovery_steps.zip(recovery_chain).each do |step, (evaluation, previous, handoff)|
-            inputs = step.fetch("with")
-            raise "recovery evaluation mismatch" unless inputs["evaluation"] == evaluation
-            raise "recovery previous handoff mismatch" unless inputs["previous-handoff"] == previous
-            raise "recovery handoff mismatch" unless inputs["handoff-name"] == handoff
           end
 
 

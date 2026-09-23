@@ -452,8 +452,8 @@ jobs:
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
 
-  recovery:
-    name: recovery
+  recover-semantic-compression:
+    name: recover-semantic-compression
     needs: [prepare, llm-proficiency]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
@@ -466,9 +466,7 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
       - run: git checkout -B benchmark "$GITHUB_SHA"
-
       - name: Continue Semantic Compression if needed
-        id: recover-sc
         continue-on-error: true
         uses: ./.github/actions/benchmark-primary
         with:
@@ -479,10 +477,23 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          max-wall-seconds: "3000"
+          max-wall-seconds: "15000"
 
+  recover-llm-learnability:
+    name: recover-llm-learnability
+    needs: [prepare, recover-semantic-compression]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Continue LLM Learnability if needed
-        id: recover-learnability
         continue-on-error: true
         uses: ./.github/actions/benchmark-primary
         with:
@@ -493,10 +504,23 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          max-wall-seconds: "3000"
+          max-wall-seconds: "15000"
 
+  recover-language-quality:
+    name: recover-language-quality
+    needs: [prepare, recover-llm-learnability]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Continue Language Quality if needed
-        id: recover-language-quality
         continue-on-error: true
         uses: ./.github/actions/benchmark-primary
         with:
@@ -507,10 +531,23 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          max-wall-seconds: "3000"
+          max-wall-seconds: "15000"
 
+  recover-ecosystem:
+    name: recover-ecosystem
+    needs: [prepare, recover-language-quality]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Continue Ecosystem if needed
-        id: recover-ecosystem
         continue-on-error: true
         uses: ./.github/actions/benchmark-primary
         with:
@@ -521,10 +558,23 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          max-wall-seconds: "3000"
+          max-wall-seconds: "15000"
 
+  recover-llm-proficiency:
+    name: recover-llm-proficiency
+    needs: [prepare, recover-ecosystem]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Continue LLM Proficiency if needed
-        id: recover-proficiency
         continue-on-error: true
         uses: ./.github/actions/benchmark-primary
         with:
@@ -535,12 +585,11 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          max-wall-seconds: "3000"
-
+          max-wall-seconds: "15000"
 
   finalize:
     name: finalize
-    needs: [prepare, recovery]
+    needs: [prepare, recover-llm-proficiency]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360

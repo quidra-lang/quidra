@@ -40,8 +40,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: benchmark
+          # Freeze the exact commit that triggered this run. If benchmark moves
+          # while the job is queued, we must not silently evaluate the newer tip.
+          ref: ${{ github.sha }}
           fetch-depth: 0
+
+      - name: Attach the disposable branch to the frozen trigger commit
+        run: git checkout -B benchmark "$GITHUB_SHA"
 
       - uses: actions/setup-python@v5
         with:

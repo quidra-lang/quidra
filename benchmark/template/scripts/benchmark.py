@@ -364,6 +364,62 @@ def validate_host_workspace_sentinel(
         raise BenchmarkError("run.json does not name the canonical /quidra-benchmark root")
 
 
+def cmd_restore_workspace_guard(args: argparse.Namespace) -> int:
+    """Re-create the Git-private guard after a trusted CI workspace handoff.
+
+    GitHub-hosted jobs do not share .git, so the host sentinel created by init
+    cannot travel with the scored workspace. The workspace itself is handed
+    off as an artifact; this command proves that its run_id/evaluated commit
+    belong to the exact clean checkout before recreating the guard. It never
+    changes scored workspace contents.
+    """
+    source = Path(args.source_repo).resolve()
+    if not source.is_dir():
+        raise BenchmarkError(f"source repository does not exist: {source}")
+    root = host_workspace(source)
+    validate_host_workspace_path(root, source)
+    ensure_host_workspace_ignored(source)
+    run_path = root / "run.json"
+    if not run_path.is_file():
+        raise BenchmarkError("restored benchmark workspace is missing run.json")
+    run = json_load(run_path)
+    evaluated = str((run.get("evaluated") or {}).get("commit_sha") or "")
+    run_id = str(run.get("run_id") or "")
+    if not evaluated or not run_id:
+        raise BenchmarkError("restored benchmark workspace has incomplete identity")
+    expected = str(getattr(args, "expected_commit", "") or "").strip()
+    if expected and evaluated != expected:
+        raise BenchmarkError(
+            f"restored workspace evaluates {evaluated}, expected {expected}"
+        )
+    meta = git_metadata(source)
+    if meta["working_tree_status"] != "clean":
+        raise BenchmarkError("workspace guard restore requires a clean source checkout")
+    if meta["commit_sha"] != evaluated:
+        raise BenchmarkError(
+            "workspace guard restore requires checkout HEAD to equal the evaluated commit"
+        )
+    marker_path = host_sentinel_path(source)
+    if marker_path.exists():
+        marker = validate_host_workspace_guard(source)
+        if (
+            marker.get("run_id") == run_id
+            and marker.get("evaluated_commit_sha") == evaluated
+        ):
+            print(json.dumps({
+                "ok": True, "restored": False, "run_id": run_id,
+                "evaluated_commit_sha": evaluated,
+            }, indent=2))
+            return 0
+        raise BenchmarkError("a different host benchmark sentinel already exists")
+    write_host_workspace_sentinel(source, run_id, evaluated)
+    print(json.dumps({
+        "ok": True, "restored": True, "run_id": run_id,
+        "evaluated_commit_sha": evaluated,
+    }, indent=2))
+    return 0
+
+
 def delete_host_workspace(root: Path, source: Path) -> bool:
     validate_host_workspace_path(root, source)
     marker_path = host_sentinel_path(source)
@@ -9998,6 +10054,14 @@ def build_parser() -> argparse.ArgumentParser:
     fin = sub.add_parser("finalize", help="enforce score/blocker and privacy gates")
     fin.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     fin.set_defaults(func=cmd_finalize)
+
+    restore_guard = sub.add_parser(
+        "restore-workspace-guard",
+        help="re-create the trusted host sentinel after a CI workspace handoff",
+    )
+    restore_guard.add_argument("--source-repo", required=True)
+    restore_guard.add_argument("--expected-commit")
+    restore_guard.set_defaults(func=cmd_restore_workspace_guard)
 
     checkpoint = sub.add_parser(
         "checkpoint-cache",

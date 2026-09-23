@@ -14,23 +14,24 @@ The normal full-run lifecycle is:
 4. Create **benchmark** from the exact **develop** commit to evaluate, change
    benchmark/.run-production, commit that request on **benchmark**, and push it.
 5. GitHub Actions runs **benchmark-production** on **benchmark**. A single
-   provider smoke runs first, then a full request is split into five durable
-   evaluation jobs: **Language Quality → LLM Proficiency → LLM Learnability →
-   Ecosystem → Semantic Compression**. A scoped one-evaluation/rehearsal request
-   still uses the single scoped job.
+   provider smoke runs first, then a full request appears as five separate
+   top-level GitHub Actions jobs: **Semantic Compression → LLM Learnability →
+   Language Quality → Ecosystem → LLM Proficiency**, followed by a separate
+   **finalize** job. A scoped one-evaluation/rehearsal request still uses the
+   single scoped job.
 6. Do not write to **benchmark** while the workflow runs. **develop** may continue
    moving independently. The workflow itself may advance **benchmark** between
    evaluation jobs, but those commits contain only certified cache/prompt
    artifacts; every job still evaluates the exact original trigger SHA.
 7. Each evaluation job checkpoints every newly certified reusable unit before
-   the next job starts. Estimated API spend is carried forward, so the request's
-   budget is one workflow-wide soft guard rather than five independent budgets.
-   Only when all five Primary evaluations are **COMPLETE** does the final
-   Semantic Compression job reassemble the five evaluations from cache and
-   commit one formal compact result to **benchmark**. An incomplete attempt
-   never creates benchmark/<run-id>/; its diagnostic evidence remains in the
-   per-evaluation workflow artifacts and its valid completed work remains
-   reusable through the cache.
+   the next job starts and uploads a compressed workspace handoff for the next
+   top-level job. Estimated API spend is carried in that trusted handoff, so the
+   request's budget is one workflow-wide soft guard rather than five independent
+   budgets. The final **finalize** job receives the fifth handoff and publishes a
+   formal compact result only when all five Primary evaluations are
+   **COMPLETE**. An incomplete attempt never creates benchmark/<run-id>/; its
+   diagnostic handoff/workspace evidence remains in Actions artifacts and its
+   valid completed work remains reusable through benchmark/cache/.
 8. Reconcile **benchmark** into the then-current **develop**:
    - if **develop** has not moved since **benchmark** forked, fast-forward
      **develop** to **benchmark**;
@@ -128,13 +129,16 @@ benchmark snapshot.
 ## What the workflow writes
 
 For a full run, every evaluation job checks out the exact commit that triggered
-the workflow, attaches it locally as **benchmark**, and stages that immutable
-snapshot. Between jobs it imports only certified cache from the current remote
-**benchmark** branch into the isolated workspace; source code from later cache
-checkpoint commits is never treated as the evaluated snapshot.
+the workflow and attaches it locally as **benchmark**. The first Primary stages
+that immutable snapshot once; each later Primary restores the previous job's
+compressed **.quidra-benchmark** workspace handoff and recreates only the
+Git-private host guard. The scored workspace therefore advances across the five
+jobs without ever changing the evaluated source SHA. Cache checkpoint commits on
+the remote **benchmark** branch are durability copies, not a new source snapshot.
 
 - Validated cache is checkpointed into benchmark/cache and pushed to
-  **benchmark** after each of the five evaluation jobs. This makes a failure in
+  **benchmark** after each of the five evaluation jobs. The full scored workspace
+  is also handed to the next job as an Actions artifact. This makes a failure in
   job 3 resumable without losing paid work from jobs 1–2.
 - Only an all-five-Primary **COMPLETE** full run is imported under
   benchmark/<run-id>/. A PARTIAL/BLOCKED/NOT_EXECUTED attempt is not a formal
@@ -145,10 +149,12 @@ checkpoint commits is never treated as the evaluated snapshot.
 - The workflow never pushes benchmark output directly to **develop**.
 - If another writer unexpectedly moves **benchmark**, the workflow stops racing
   the branch and preserves the local result in the workflow artifact.
-- A full run keeps one provider-smoke artifact plus one diagnostic artifact per
-  evaluation, named benchmark-<run-id>-<evaluation>. If all five evaluations
-  complete, it additionally writes benchmark-<run-id> with the combined formal
-  result. A scoped request keeps the legacy single-run artifact shape.
+- A full run keeps one diagnostic handoff artifact per evaluation, named
+  benchmark-<run-id>-<evaluation>; each handoff carries the workspace, the
+  cumulative budget ledger and that evaluation's API-cost evidence. If all five
+  evaluations complete, **finalize** additionally writes benchmark-<run-id> with
+  the combined formal result. A scoped request writes
+  benchmark-<run-id>-scoped.
 
 ## Reconciling after the workflow finishes
 

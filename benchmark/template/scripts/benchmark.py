@@ -11436,16 +11436,22 @@ def requirement_evidence_sources(
         )
         if not requirement_ids:
             continue
-        records.append(
-            {
-                "work_unit_id": str(unit["id"]),
-                "agent_id": agent_id,
-                "assigned_languages": list(unit.get("assigned_languages") or []),
-                "requirement_ids": requirement_ids,
-                "requirements": result.get("requirements") or {},
-                "evidence": result.get("evidence"),
-            }
-        )
+        record = {
+            "work_unit_id": str(unit["id"]),
+            "agent_id": agent_id,
+            "assigned_languages": list(unit.get("assigned_languages") or []),
+            "requirement_ids": requirement_ids,
+            "requirements": result.get("requirements") or {},
+            "evidence": result.get("evidence"),
+        }
+        if evaluation == "llm_proficiency":
+            trusted_path = (
+                root / "work" / "agents" / agent_id
+                / "proficiency_runtime_verification.json"
+            )
+            if trusted_path.is_file():
+                record["trusted_runtime_verification"] = json_load(trusted_path)
+        records.append(record)
         for rid in requirement_ids:
             by_requirement[rid].append(
                 {

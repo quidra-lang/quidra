@@ -2079,6 +2079,33 @@ def execution_ownership_for(
     }
 
 
+def validate_requirement_execution_ownership(
+    uid: str,
+    requirement_ids: Iterable[str],
+    execution_kind: str,
+    ownership: dict[str, set[str] | tuple[str, ...]],
+) -> None:
+    """Refuse paying an LLM for runner work, or scripting a judgment metric."""
+    for rid in requirement_ids:
+        runner_owned = rid in ownership["runner"]
+        agent_owned = (
+            rid in ownership["agent"]
+            or any(
+                rid.startswith(prefix)
+                for prefix in ownership["agent_prefixes"]
+            )
+        )
+        if runner_owned and execution_kind != "command":
+            raise BenchmarkError(
+                f"{uid}: {rid} is runner-owned and may not be delegated to an LLM"
+            )
+        if agent_owned and execution_kind != "agent":
+            raise BenchmarkError(
+                f"{uid}: {rid} requires LLM judgment and may not be replaced "
+                "by a deterministic command without revising the frozen contract"
+            )
+
+
 def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -> dict[str, Any]:
     if evaluation not in PRIMARY_NAMES:
         raise BenchmarkError(f"unknown Primary evaluation: {evaluation}")
@@ -2164,24 +2191,9 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
         execution_kind = str(raw.get("execution_kind", "agent"))
         if execution_kind not in {"agent", "command"}:
             raise BenchmarkError(f"{uid}: execution_kind must be agent or command")
-        for rid in requirement_ids:
-            runner_owned = rid in ownership["runner"]
-            agent_owned = (
-                rid in ownership["agent"]
-                or any(
-                    rid.startswith(prefix)
-                    for prefix in ownership["agent_prefixes"]
-                )
-            )
-            if runner_owned and execution_kind != "command":
-                raise BenchmarkError(
-                    f"{uid}: {rid} is runner-owned and may not be delegated to an LLM"
-                )
-            if agent_owned and execution_kind != "agent":
-                raise BenchmarkError(
-                    f"{uid}: {rid} requires LLM judgment and may not be replaced "
-                    "by a deterministic command without revising the frozen contract"
-                )
+        validate_requirement_execution_ownership(
+            uid, requirement_ids, execution_kind, ownership
+        )
         if execution_kind == "agent":
             worker_mode = str(raw.get("worker_mode") or "packet-only")
             if worker_mode not in {"packet-only", "sandbox-agent"}:

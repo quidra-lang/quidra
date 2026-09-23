@@ -1135,7 +1135,130 @@ def assert_evaluation_scoped_primary_cache() -> None:
         assert receipt["compatibility_mode"] == "scoped-input-projection"
 
 
+
+def assert_corrupt_cache_is_leaf_local_and_explicit() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, task = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+        fingerprint = install_cache_record(root, unit, task)
+        record_path = root / "cache" / benchmark.cache_record_relative(
+            unit, fingerprint
+        )
+        record_path.write_text("{ definitely-not-json", encoding="utf-8")
+
+        # A single damaged paid record must invalidate only its leaf, never
+        # abort cache hydration for the whole benchmark.
+        hits = benchmark.hydrate_certified_cache(root)
+        assert hits == 0
+        ledger = benchmark.json_load(root / "work/root/ledger.json")
+        assert ledger["units"][unit["id"]]["status"] == "PENDING"
+        status = benchmark.json_load(root / "results/cache_status.json")
+        assert unit["id"] in status["misses"], status
+        assert unit["id"] in status["invalidated"], status
+        reason = status["invalidated"][unit["id"]]["reason"]
+        assert "corrupt" in reason or "unreadable" in reason, reason
+
+
+def assert_execution_plan_classifies_cache_decisions() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, task = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+
+        # Materialize the exact MISS before pricing, as production prepare does.
+        assert benchmark.hydrate_certified_cache(root) == 0
+        plan = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=100.0,
+            evaluation="ecosystem",
+            safety_multiplier=1.25,
+        )
+        new_ids = {
+            row["work_unit_id"]
+            for row in plan["execution_decisions"]["new_paid_execution"]
+        }
+        assert unit["id"] in new_ids, plan["execution_decisions"]
+        assert plan["expected_paid_api_calls_upper_bound"] > 0, plan
+        assert plan["cache_invalidated_units"] == 0, plan
+
+        # A real invalidation is classified separately from a first execution.
+        status = benchmark.json_load(root / "results/cache_status.json")
+        status["invalidated"] = {
+            unit["id"]: {
+                "fingerprint": "x" * 64,
+                "scope": "python",
+                "reason": "validator contract changed",
+            }
+        }
+        status["misses"][unit["id"]] = dict(status["invalidated"][unit["id"]])
+        benchmark.json_dump(root / "results/cache_status.json", status)
+        invalidated_plan = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=100.0,
+            evaluation="ecosystem",
+            safety_multiplier=1.25,
+        )
+        reevaluate_ids = {
+            row["work_unit_id"]
+            for row in invalidated_plan["execution_decisions"][
+                "paid_reevaluation_after_invalidation"
+            ]
+        }
+        assert unit["id"] in reevaluate_ids, invalidated_plan["execution_decisions"]
+
+
+def assert_packet_paid_response_commit_is_replayable() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, _ = create_cacheable_task(root)
+        agent_id = unit["assigned_agent_id"]
+        task_path = root / "work/agents" / agent_id / "task.json"
+        task = benchmark.json_load(task_path)
+        task["worker_mode"] = "packet-only"
+        benchmark.json_dump(task_path, task)
+
+        worker = {
+            "schema_version": 1,
+            "task_id": agent_id,
+            "files": [{
+                "path": "result.json",
+                "json": {
+                    "schema_version": 1,
+                    "evaluation": "ecosystem",
+                    "requirements": {
+                        "metric.documentation_quality": {"Python": 75.0}
+                    },
+                    "evidence": {"test": "paid reply persisted before validation"},
+                },
+            }],
+        }
+        provider_response = {
+            "content": json.dumps(worker),
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 10, "output_tokens": 20},
+            "decoding": {"temperature": 0},
+        }
+        paid = benchmark.persist_packet_paid_response(
+            task_path.parent, task, provider_response
+        )
+        assert paid.is_file(), paid
+        preserved = benchmark.json_load(paid)
+        assert preserved["response"] == provider_response
+
+        raw = json.dumps(worker, sort_keys=True).encode("utf-8")
+        first = benchmark.apply_worker_response(root, agent_id, raw)
+        second = benchmark.apply_worker_response(root, agent_id, raw)
+        assert first["response_sha256"] == second["response_sha256"]
+        assert (task_path.parent / "result.json").is_file()
+
+
 def main() -> None:
+    assert_corrupt_cache_is_leaf_local_and_explicit()
+    assert_execution_plan_classifies_cache_decisions()
+    assert_packet_paid_response_commit_is_replayable()
     assert_evaluation_scoped_primary_cache()
     assert_budget_plan_excludes_complete_units()
     assert_accepted_trial_start_marks_the_scored_boundary()

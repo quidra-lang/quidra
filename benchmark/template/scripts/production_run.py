@@ -836,7 +836,11 @@ def build_budget_plan(
                 "reason": "exact cache fingerprint waits for unresolved dependencies",
             })
 
-    recommended = total_upper * safety_multiplier + smoke_reserve_usd
+    # A fully cache-satisfied run has no provider path to prove and must not
+    # reserve or spend money on a smoke request. Smoke is a guard for actual
+    # paid dispatch, not a tax on deterministic cache replay.
+    effective_smoke_reserve = smoke_reserve_usd if expected_calls_upper > 0 else 0.0
+    recommended = total_upper * safety_multiplier + effective_smoke_reserve
     available = float(available_usd) if available_usd is not None else None
     sufficient = (
         not blockers
@@ -861,7 +865,8 @@ def build_budget_plan(
         "estimated_uncached_usd": round(total_upper, 6),
         "expected_paid_api_calls_upper_bound": expected_calls_upper,
         "safety_multiplier": safety_multiplier,
-        "smoke_reserve_usd": round(smoke_reserve_usd, 6),
+        "smoke_reserve_usd": round(effective_smoke_reserve, 6),
+        "provider_smoke_required": expected_calls_upper > 0,
         "recommended_budget_usd": round(recommended, 6),
         "available_usd": available,
         "sufficient": sufficient,

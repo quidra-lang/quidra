@@ -2913,6 +2913,25 @@ def sc_owner_support_levels(row: dict[str, Any], fields: list[str]) -> set[str]:
     return found
 
 
+def sc_adjudicated_level(value: Any) -> str | None:
+    """The level an adjudication states for one language, however it wraps it.
+
+    A worker asked to adjudicate and justify writes the justification beside the
+    level - `{"support": "FULL", "points_awarded": 2, "basis": "..."}` - which is
+    the same shape the metric shards already use and which the owner reader
+    already tolerates. Accepting only a bare string cost a run: five attempts on
+    one probe were rejected for answering correctly in the obvious form.
+    """
+    level = sc_support_is_level(value)
+    if level is not None:
+        return level
+    if isinstance(value, dict):
+        found = sc_owner_support_levels(value, ["support", "support_level", "level"])
+        if len(found) == 1:
+            return found.pop()
+    return None
+
+
 def sc_reconcile_support(
     by_language: dict[str, dict[str, dict[str, Any]]],
     owner_rows: dict[str, dict[str, dict[str, Any]]],
@@ -3101,9 +3120,7 @@ def sc_adjudicated_levels(root: Path) -> dict[str, dict[str, str]]:
             if probe is None or not isinstance(value, dict):
                 continue
             for language, level in value.items():
-                found = sc_support_is_level(level)
-                if found is None and isinstance(level, dict):
-                    found = sc_support_is_level(level.get("support"))
+                found = sc_adjudicated_level(level)
                 if found:
                     levels.setdefault(probe, {})[str(language)] = found
     return levels
@@ -5168,9 +5185,10 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                         f"got {sorted(value)}"
                     )
                 for language in languages:
-                    if sc_support_is_level(value[language]) is None:
+                    if sc_adjudicated_level(value[language]) is None:
                         raise BenchmarkError(
-                            f"{rid}: {language} must be FULL, PARTIAL or NONE; "
+                            f"{rid}: {language} must state FULL, PARTIAL or NONE, "
+                            "either directly or under a support/level field; "
                             f"got {value[language]!r}"
                         )
             else:

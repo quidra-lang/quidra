@@ -278,7 +278,7 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign the support level for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.",
+          "goal_hint": "Assign the support level for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f04-p1\", whose value maps every one of the ten evaluated language names to that language's level. A level is the string FULL, PARTIAL or NONE, either on its own or under a \"support\" field of an object that also carries your reasoning. Put long reasoning in \"evidence\", not in the requirement value, and keep the whole response valid JSON: a response that runs long and breaks its own JSON is rejected before anyone reads it.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first"
         },
@@ -304,7 +304,7 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign the support level for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.",
+          "goal_hint": "Assign the support level for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f08-p1\", whose value maps every one of the ten evaluated language names to that language's level. A level is the string FULL, PARTIAL or NONE, either on its own or under a \"support\" field of an object that also carries your reasoning. Put long reasoning in \"evidence\", not in the requirement value, and keep the whole response valid JSON: a response that runs long and breaks its own JSON is rejected before anyone reads it.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first"
         },
@@ -330,7 +330,7 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign the support level for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.",
+          "goal_hint": "Assign the support level for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.\n\nOutput contract. result.json carries exactly one requirement, \"annotation.support_adjudication--f20-p1\", whose value maps every one of the ten evaluated language names to that language's level. A level is the string FULL, PARTIAL or NONE, either on its own or under a \"support\" field of an object that also carries your reasoning. Put long reasoning in \"evidence\", not in the requirement value, and keep the whole response valid JSON: a response that runs long and breaks its own JSON is rejected before anyone reads it.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first"
         },

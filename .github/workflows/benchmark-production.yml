@@ -267,16 +267,35 @@ jobs:
               )
           PY
 
-      - name: Prove the provider path once after free gates pass
+      - name: Prove the provider path once only when paid dispatch remains
         id: smoke
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python benchmark/template/scripts/production_run.py provider-smoke \
-            --model "$BENCHMARK_MODEL" \
-            --budget-usd 0.50 \
-            --prefix-probe-text benchmark/template/methodology/common.md \
-            --output "$RUNNER_TEMP/provider-smoke.json"
+          needs_paid="$(python - "$RUNNER_TEMP/budget-plan.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          plan = json.loads(Path(sys.argv[1]).read_text())
+          print("true" if int(plan.get("expected_paid_api_calls_upper_bound", 0) or 0) > 0 else "false")
+          PY
+          )"
+          if [ "$needs_paid" = "true" ]; then
+            python benchmark/template/scripts/production_run.py provider-smoke \
+              --model "$BENCHMARK_MODEL" \
+              --budget-usd 0.50 \
+              --prefix-probe-text benchmark/template/methodology/common.md \
+              --output "$RUNNER_TEMP/provider-smoke.json"
+          else
+            cat > "$RUNNER_TEMP/provider-smoke.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "ok": true,
+            "skipped": true,
+            "reason": "all requested work is already satisfied without paid inference",
+            "spend": {"estimated_cost_usd": 0.0}
+          }
+          JSON
+          fi
           spend="$(python - <<'PY'
           import json, os
           from pathlib import Path

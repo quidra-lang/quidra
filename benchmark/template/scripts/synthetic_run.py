@@ -311,6 +311,25 @@ def unit_payload(
                 }
                 for language in languages
             }
+        elif (
+            unit.get("evaluation") == "llm_proficiency"
+            and requirement_id in {
+                "metric.generation_success_rate",
+                "metric.compile_parse_success_rate",
+                "metric.correct_at_1",
+                "metric.correct_at_n",
+            }
+        ):
+            # The fake provider deliberately returns a non-empty but invalid
+            # source string for every frozen Proficiency trial. Keep the
+            # synthetic result aligned with the trusted runtime verifier:
+            # generation succeeds, while compile/parse and correctness do not.
+            synthetic_score = (
+                100.0 if requirement_id == "metric.generation_success_rate" else 0.0
+            )
+            requirements[requirement_id] = {
+                language: synthetic_score for language in assigned
+            }
         else:
             requirements[requirement_id] = {
                 language: float(90 - languages.index(language)) for language in assigned

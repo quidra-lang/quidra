@@ -52,6 +52,7 @@ jobs:
           python -m json.tool benchmark/template/config/evaluation_requirements.json >/dev/null
           python -m json.tool benchmark/template/config/work_plan_templates.json >/dev/null
           python -m json.tool benchmark/template/config/aggregation.json >/dev/null
+          python -m json.tool benchmark/template/config/semantic_compression_comparability.json >/dev/null
           python -m json.tool benchmark/template/config/inference_gateway.json >/dev/null
           python -m json.tool benchmark/template/config/sandbox_agent.json >/dev/null
           python -m json.tool benchmark/template/config/cache_policy.json >/dev/null
@@ -189,6 +190,63 @@ jobs:
               "unix_home", "/Users/example/", Path("/Users/example/project/.quidra-benchmark")
           )
           assert len(master) < 20_000
+
+          # Semantic support adjudication must carry the whole canonical record,
+          # not only a level. Otherwise comparability falls back to stale shard
+          # prose and can reject a correction that was already made.
+          full = {
+              "level": "FULL", "fragment": "x()", "partial_reasons": [],
+              "none_reason": None, "justification": "all numbered requirements",
+              "citation": "frozen docs",
+          }
+          partial = {
+              "level": "PARTIAL", "fragment": "wrapper(x)", "partial_reasons": ["P-a"],
+              "none_reason": None, "justification": "standard substitution",
+              "citation": "standard library docs",
+          }
+          none = {
+              "level": "NONE", "fragment": None, "partial_reasons": [],
+              "none_reason": "N-2", "justification": "requires external build",
+              "citation": "frozen toolchain contract",
+          }
+          assert module.sc_adjudicated_record(full)["level"] == "FULL"
+          assert module.sc_adjudicated_record(partial)["partial_reasons"] == ["P-a"]
+          assert module.sc_adjudicated_record(none)["none_reason"] == "N-2"
+          assert module.sc_adjudicated_record({"level": "PARTIAL"}) is None
+
+          by_language = {"Python": {"F08.P1": {
+              "support": "NONE", "rationale": "stale", "fragment": "stale()"
+          }}}
+          owner_rows = {"Python": {"F08.P1": {"support": "NONE"}}}
+          owner = {
+              "fields": ["support"], "levels": {"FULL":1.0,"PARTIAL":0.5,"NONE":0.0}
+          }
+          module.sc_reconcile_support(
+              by_language, owner_rows, owner,
+              {"F08.P1": {"Python": partial}},
+          )
+          row = by_language["Python"]["F08.P1"]
+          assert row["support"] == "PARTIAL" and row["fragment"] == "wrapper(x)"
+          assert row["support_reason_codes"] == ["P-a"]
+          assert row["support_justification"] == "standard substitution"
+          assert "rationale" not in row
+
+          with tempfile.TemporaryDirectory() as repair_td:
+              repair_root = Path(repair_td)
+              (repair_root / "work/root").mkdir(parents=True)
+              module.json_dump(
+                  repair_root / module.COMPARABILITY_BLINDING_RELATIVE,
+                  {"schema_version":1,"labels":{"Python":"E"}},
+              )
+              result = {
+                  "evidence": {"repair_directives": [{
+                      "probe_id":"F08.P1","label":"E","record":partial
+                  }]}
+              }
+              assert module.persist_comparability_repairs(repair_root, result) == 1
+              assert module.persist_comparability_repairs(repair_root, result) == 0
+              repairs = module.sc_comparability_repairs(repair_root)
+              assert repairs["F08.P1"]["Python"]["level"] == "PARTIAL"
 
           lq = (root / "methodology" / "language_quality.md").read_text()
           assert "3 unscored warm-up runs" not in lq

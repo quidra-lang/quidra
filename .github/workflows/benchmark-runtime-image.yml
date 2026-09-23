@@ -145,7 +145,14 @@ jobs:
           )["toolchains"]
           assert observed["pins"] == pinned, (observed["pins"], pinned)
           assert observed["observed"], observed
-          print(json.dumps(observed["observed"], indent=2, sort_keys=True))
+          ffi = observed.get("semantic_ffi_smoke") or {}
+          assert set(ffi) == {"Python", "Go", "Java", "Kotlin"}, ffi
+          assert all(row.get("passed") is True for row in ffi.values()), ffi
+          assert all(row.get("frozen_recipe_extra_flags") == [] for row in ffi.values()), ffi
+          print(json.dumps({
+              "toolchains": observed["observed"],
+              "semantic_ffi_smoke": ffi,
+          }, indent=2, sort_keys=True))
           PY
 
       - name: Preflight passes inside the full image

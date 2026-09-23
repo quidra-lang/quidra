@@ -8383,8 +8383,8 @@ def proficiency_runtime_metrics(
     """Metrics mechanically decidable from runtime-owned trial/oracle evidence.
 
     Generalization uses first-attempt hidden cases, robustness uses the worst
-    frozen prompt variant, and repair metrics are derived from the exact call at
-    which the trusted full oracle first passes.
+    frozen prompt variant. Repair metrics use only the compile/public repair gate;
+    hidden oracle cases remain score-only and never create a repair opportunity.
     """
     trials = ((trace.get("trials") or {}).get("trials") or {})
     if not isinstance(trials, dict) or not trials:
@@ -8444,17 +8444,30 @@ def proficiency_runtime_metrics(
         if success_call is not None:
             correctn += 1
 
-        if first_ok:
+        first_public_ok = proficiency_public_repair_gate_passed(
+            first_verification
+        )
+        public_success_call = next(
+            (
+                index
+                for index, verification in enumerate(trusted_calls)
+                if proficiency_public_repair_gate_passed(verification)
+            ),
+            None,
+        )
+        if first_public_ok:
             repair_efficiency_total += 100.0
         else:
             initial_failures += 1
-            if success_call is not None and success_call > 0:
+            if public_success_call is not None and public_success_call > 0:
                 repaired_failures += 1
-                if success_call == 1:
+                if public_success_call == 1:
                     first_repair_successes += 1
                 repair_efficiency_total += (
-                    100.0 * (1.0 - success_call / float(max_repairs + 1))
-                    if max_repairs >= success_call
+                    100.0 * (
+                        1.0 - public_success_call / float(max_repairs + 1)
+                    )
+                    if max_repairs >= public_success_call
                     else 0.0
                 )
 

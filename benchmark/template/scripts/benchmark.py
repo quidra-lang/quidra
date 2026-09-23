@@ -7393,9 +7393,16 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
     config = gateway_config(root)
     sampling = sampling_config(root, str(meta.get("evaluation") or ""))
 
-    replayed = replay_packet_paid_response(
-        root, args.id, meta, sampling=sampling
-    )
+    # Replay is only for a paid response stranded before the current runner
+    # had a chance to judge it. Once a validator has rejected an attempt, the
+    # same bytes are known-bad under the current contract; repeating them would
+    # deadlock retries instead of asking the model to repair its answer.
+    feedback = previous_attempt_feedback(root, args.id)
+    replayed = None
+    if not feedback:
+        replayed = replay_packet_paid_response(
+            root, args.id, meta, sampling=sampling
+        )
     if replayed is not None:
         print(json.dumps({
             "ok": True,
@@ -7438,7 +7445,6 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
             {"role": "system", "content": system_text},
             {"role": "user", "content": packet},
         ]
-        feedback = previous_attempt_feedback(root, args.id)
         if feedback:
             messages.append({
                 "role": "user",

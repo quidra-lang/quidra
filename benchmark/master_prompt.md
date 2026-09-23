@@ -12,7 +12,7 @@ A new run may use only:
 - `benchmark/master_prompt.md`;
 - the current `benchmark/template/`;
 - the certified result cache under `benchmark/cache/`; and
-- exact-fingerprint private CI checkpoints of already-paid, incomplete leaf state.
+- exact-fingerprint content-addressed checkpoints of already-paid, incomplete leaf state under `benchmark/cache/partial-paid/` (with Actions cache as an optional speed mirror).
 
 Past run directories are outputs only. Final results are reusable only after fingerprint match and current-validator revalidation. Paid-partial checkpoints never certify a score.
 
@@ -163,7 +163,7 @@ Ledger state is authoritative. Work units use `PENDING`, `RUNNING`, `COMPLETE`, 
 
 A worker crash must not strand the run permanently. RUNNING work has a heartbeat lease. When stale, the runner returns it to PENDING and redispatches the same frozen Task Packet. After the frozen maximum attempts, it becomes an explicit infrastructure blocker instead of remaining silently stuck.
 
-Persist a paid response/trial before later parsing, validation or orchestration can fail. Handoffs and the private exact-fingerprint Actions checkpoint preserve incomplete paid state; mismatch/corruption rejects only that checkpoint.
+Persist a paid response/trial before later parsing, validation or orchestration can fail. Handoffs plus the exact-fingerprint content-addressed `benchmark/cache/partial-paid/` store preserve incomplete paid state across workflow runs; Actions cache is only a speed mirror. Mismatch/corruption rejects only that leaf checkpoint.
 
 COMPLETE requires evidence plus current-validator PASS. Diagnostic finalize records missing required leaves in `completeness_audit.json`; `post-run` requires `formal_complete=true`.
 
@@ -179,7 +179,7 @@ If those conditions are not met, the evaluation is PARTIAL/WITHDRAWN/NOT_EXECUTE
 
 ## 8. Template, certified cache and run summaries
 
-Four layers are separate: reusable **template**, revalidated **certified result cache**, non-scoring private **paid-partial checkpoint cache**, and the compact **formal run summary** under `benchmark/<run-id>/`. Only formally COMPLETE runs get a run summary.
+Four layers are separate: reusable **template**, revalidated **certified result cache**, non-scoring content-addressed **paid-partial checkpoint cache**, and the compact **formal run summary** under `benchmark/<run-id>/`. Only formally COMPLETE runs get a run summary.
 
 A certified measurement may be reused only when its fingerprint matches exactly. The fingerprint includes the exact Task Packet SHA-256, assigned language set, provider/model, frozen sampling state, relevant toolchain versions, validator/workload inputs, worker/network policy, runtime-toolchain manifest and cache epoch. A cache HIT is revalidated by the current runner before it becomes COMPLETE. A MISS executes normally; an eligible non-Quidra unit may be checkpointed independently once that unit is COMPLETE, its current validator is PASS, and any evaluation-specific cache certification succeeds. Overall Primary finalization is not required for that checkpoint.
 
@@ -201,7 +201,7 @@ Template maintenance happens before freeze or after the scored sandbox has exite
 
 Machine-readable results are the single source of truth. Markdown/CSV/charts are generated from them.
 
-Git retains a compact summary only for five-COMPLETE runs. Incomplete runs remain workflow evidence/cache recovery. Raw run evidence stays in workflow artifacts; paid-partial bytes may additionally live in the private Actions cache and are ignored on dependency mismatch. Reusable prompts and validated measurements are content-addressed/deduplicated.
+Git retains a compact summary only for five-COMPLETE runs. Incomplete runs remain workflow evidence/cache recovery. Raw run evidence stays in workflow artifacts; paid-partial prompts/responses/trial state are additionally checkpointed under `benchmark/cache/partial-paid/` and may be mirrored in Actions cache. They are ignored on dependency mismatch and never certify a score by themselves. Reusable prompts and validated measurements are content-addressed/deduplicated.
 
 Build products, the evaluated repository snapshot, temporary home and temporary files are never committed as run output. The gateway request audit remains trusted-side evidence. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
 

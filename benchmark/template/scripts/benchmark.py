@@ -3186,7 +3186,6 @@ SC_NONAUTHORITATIVE_METRIC_SUPPORT_KEYS = {
     "fragment", "selected_fragment", "source_fragment",
     "support", "support_level", "support_factor",
     "awarded", "awarded_points",
-    "level",
     "p_letter", "p_letters", "partial_reasons", "applicable_letters", "letters",
     "n_reason", "none_reason",
 }
@@ -3206,6 +3205,7 @@ def sc_metric_only_annotation(fields: dict[str, Any]) -> dict[str, Any]:
         lowered = str(key).lower()
         support_field = (
             lowered in SC_NONAUTHORITATIVE_METRIC_SUPPORT_KEYS
+            or (lowered == "level" and sc_support_is_level(value) is not None)
             or lowered.startswith("support_")
             or lowered.endswith("_support")
             or "p_letter" in lowered

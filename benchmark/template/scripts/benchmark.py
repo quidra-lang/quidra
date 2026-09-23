@@ -12557,6 +12557,20 @@ def semantic_cache_quarantine_reason(
     return None
 
 
+def cache_record_metadata_refresh_required(
+    existing: dict[str, Any], candidate: dict[str, Any]
+) -> bool:
+    """Whether same-result fresh measurement carries newer trust metadata."""
+    if existing.get("result_sha256") != candidate.get("result_sha256"):
+        return False
+    return (
+        (existing.get("compatibility") or {})
+        != (candidate.get("compatibility") or {})
+        or (existing.get("certification") or {})
+        != (candidate.get("certification") or {})
+    )
+
+
 def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -12703,51 +12717,39 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         if not destination.exists():
             destination.write_bytes(encoded)
             promoted += 1
-        elif json.loads(destination.read_text(encoding="utf-8")).get(
-            "result_sha256"
-        ) == record["result_sha256"]:
-            # A verified legacy Quidra record can keep the historical
-            # fingerprint/result while gaining the current trusted execution
-            # identity. Ratchet that metadata forward so later runs no longer
-            # depend on the one-time legacy migration baseline.
-            existing = json_load(destination)
-            existing_compatibility = existing.get("compatibility") or {}
-            if (
-                compatibility
-                and existing_compatibility.get("quidra_execution_identity")
-                != compatibility.get("quidra_execution_identity")
-            ):
-                merged = dict(existing_compatibility)
-                merged.update(compatibility)
-                existing["compatibility"] = merged
-                destination.write_text(
-                    json.dumps(existing, indent=2, sort_keys=True) + "\n",
-                    encoding="utf-8",
-                )
-                upgraded += 1
-        elif receipt_path.is_file():
-            # The unit was hydrated from this very record, so its result cannot
-            # legitimately differ from it. Report the mismatch and leave the
-            # stored record alone: one suspect record is no more a reason to
-            # keep a paid run out of the cache than one uncertifiable unit is.
-            skipped.append({
-                "work_unit_id": unit.get("id"),
-                "reason": (
-                    "hydrated result differs from the certified record it came "
-                    f"from: {fingerprint}"
-                ),
-            })
-            continue
         else:
-            # A record the run measured again although one already sat at this
-            # key: the reuse rules refused the stored one. A trial cut off by an
-            # older output cap is that case, and it is invisible to the key,
-            # because the cap is deliberately outside it. The fresh measurement
-            # is the one those rules accept, so it replaces the stale record.
-            # Keeping the old one would make this unit a collision, and a
-            # re-measurement, in every later run.
-            destination.write_bytes(encoded)
-            replaced += 1
+            existing_record = json.loads(destination.read_text(encoding="utf-8"))
+            same_result = (
+                existing_record.get("result_sha256") == record["result_sha256"]
+            )
+            if (
+                same_result
+                and not receipt_path.is_file()
+                and cache_record_metadata_refresh_required(existing_record, record)
+            ):
+                # Reuse was rejected and this unit was freshly measured. Even
+                # identical output must refresh execution identity/certification
+                # or the stale record would force the same MISS on every run.
+                destination.write_bytes(encoded)
+                replaced += 1
+            elif same_result:
+                pass
+            elif receipt_path.is_file():
+                # A hydrated result cannot legitimately differ from the record
+                # that produced it. Keep the stored record and report this unit.
+                skipped.append({
+                    "work_unit_id": unit.get("id"),
+                    "reason": (
+                        "hydrated result differs from the certified record it came "
+                        f"from: {fingerprint}"
+                    ),
+                })
+                continue
+            else:
+                # A fresh measurement supersedes the old record at the same
+                # historical fingerprint. Reuse policy is what forced rerun.
+                destination.write_bytes(encoded)
+                replaced += 1
         records.append({
             "work_unit_id": unit.get("id"),
             "fingerprint": fingerprint,

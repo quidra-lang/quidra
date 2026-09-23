@@ -36,9 +36,55 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Parse benchmark workflow YAML
+      - name: Parse and verify benchmark workflow structure
         run: |
-          ruby -e 'require "yaml"; YAML.load_file(".github/workflows/benchmark-production.yml"); YAML.load_file(".github/actions/benchmark-primary/action.yml")'
+          ruby - <<'RUBY'
+          require "yaml"
+          workflow = YAML.load_file(".github/workflows/benchmark-production.yml", aliases: true)
+          YAML.load_file(".github/actions/benchmark-primary/action.yml", aliases: true)
+          jobs = workflow.fetch("jobs")
+          expected_needs = {
+            "semantic-compression" => ["prepare"],
+            "llm-learnability" => ["prepare", "semantic-compression"],
+            "language-quality" => ["prepare", "llm-learnability"],
+            "ecosystem" => ["prepare", "language-quality"],
+            "llm-proficiency" => ["prepare", "ecosystem"],
+            "finalize" => [
+              "prepare", "semantic-compression", "llm-learnability",
+              "language-quality", "ecosystem", "llm-proficiency"
+            ],
+          }
+          expected_needs.each do |name, expected|
+            actual = Array(jobs.fetch(name)["needs"])
+            raise "#{name}: needs=#{actual.inspect}, expected=#{expected.inspect}" unless actual == expected
+          end
+
+          base = %q(benchmark-${{ needs.prepare.outputs.run_id }})
+          chain = [
+            ["semantic-compression", nil, "#{base}-semantic-compression"],
+            ["llm-learnability", "#{base}-semantic-compression", "#{base}-llm-learnability"],
+            ["language-quality", "#{base}-llm-learnability", "#{base}-language-quality"],
+            ["ecosystem", "#{base}-language-quality", "#{base}-ecosystem"],
+            ["llm-proficiency", "#{base}-ecosystem", "#{base}-llm-proficiency"],
+          ]
+          chain.each do |name, previous, handoff|
+            step = jobs.fetch(name).fetch("steps").find do |candidate|
+              candidate["uses"] == "./.github/actions/benchmark-primary"
+            end
+            raise "#{name}: benchmark-primary step missing" unless step
+            inputs = step.fetch("with")
+            raise "#{name}: handoff mismatch" unless inputs["handoff-name"] == handoff
+            if previous
+              raise "#{name}: previous handoff mismatch" unless inputs["previous-handoff"] == previous
+            else
+              raise "#{name}: unexpected previous handoff" if inputs.key?("previous-handoff")
+            end
+          end
+
+          readme = File.read("benchmark/README.md").gsub(/\s+/, " ")
+          order = "Semantic Compression → LLM Learnability → Language Quality → Ecosystem → LLM Proficiency"
+          raise "README five-Primary order drifted from workflow" unless readme.include?(order)
+          RUBY
 
       - name: Validate template and CLI
         run: |
@@ -417,6 +463,25 @@ jobs:
               ) == 2
           finally:
               micro.wait_for_host_window = original_wait
+          PY
+
+      - name: Report certified-cache impact without paid work
+        run: |
+          set +e
+          python benchmark/template/scripts/benchmark.py cache-impact \
+            --source-repo "$GITHUB_WORKSPACE" | tee "$RUNNER_TEMP/cache-impact.json"
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          summary = json.loads(Path(os.environ["RUNNER_TEMP"], "cache-impact.json").read_text())
+          print(json.dumps({
+              "valid": len(summary.get("valid", [])),
+              "invalid": len(summary.get("invalid", [])),
+              "invalid_by_evaluation": summary.get("invalid_by_evaluation", {}),
+          }, indent=2, sort_keys=True))
           PY
 
       - name: Verify self-contained template bootstrap
@@ -1374,6 +1439,10 @@ jobs:
               assert len(ev["scores"]) == 10, (name, ev)
 
           manifest = json.loads((root / "work/root/manifest.json").read_text())
+          gateway_cfg = json.loads((root / "template/config/inference_gateway.json").read_text())
+          primary_cfg = json.loads((root / "template/config/primary.json").read_text())
+          effort_overrides = gateway_cfg["anthropic_decoding"]["evaluation_effort"]
+          default_effort = primary_cfg["sampling"]["effort"]
           audit_units = [u for u in manifest["work_units"] if u.get("reuse_audit_for")]
           assert audit_units, "the currency audits never reached the manifest"
           mechanical = next(
@@ -1387,15 +1456,20 @@ jobs:
               if unit.get("execution_kind", "agent") != "agent":
                   continue
               agent = root / "work/agents" / unit["assigned_agent_id"]
+              expected_effort = effort_overrides.get(unit["evaluation"], default_effort)
               if unit.get("worker_mode") == "sandbox-agent":
                   trace = json.loads((agent / "agent_trace.json").read_text())
                   assert trace["stop_reason"] == "final", trace
                   assert trace["gateway"]["credential_less_client"] is True, trace
                   assert trace["gateway"]["host_tools_exposed"] is False, trace
+                  assert trace["sampling"]["effort"] == expected_effort, (unit["id"], trace["sampling"])
                   traces += 1
               else:
                   receipt = json.loads((agent / "worker_response.json").read_text())
                   assert receipt["inference"]["gateway"] == "quidra-inference-gateway-v1", receipt
+                  assert receipt["inference"]["sampling"]["effort"] == expected_effort, (
+                      unit["id"], receipt["inference"]["sampling"]
+                  )
                   receipts += 1
           assert traces and receipts, (traces, receipts)
 
@@ -1558,11 +1632,16 @@ jobs:
           python benchmark/template/scripts/synthetic_run.py \
             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
             --emit-fake-script "$RUNNER_TEMP/fake/script.json"
+          python benchmark/template/scripts/production_run.py policy \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --output "$RUNNER_TEMP/fake/task-policy.json"
 
           python benchmark/template/scripts/sandbox_launcher.py run \
             --source-repo "$GITHUB_WORKSPACE" \
             --image quidra-benchmark/runtime:ci-base \
             --provider fake --fake-script "$RUNNER_TEMP/fake/script.json" \
+            --network-policy disabled \
+            --task-policy "$RUNNER_TEMP/fake/task-policy.json" \
             --gateway-log-out "$RUNNER_TEMP/driver-audit.jsonl" \
             -- python3 /quidra-benchmark/template/scripts/production_run.py run \
                --workspace /quidra-benchmark --concurrency 3

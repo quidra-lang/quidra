@@ -752,7 +752,9 @@ def run_agent(args: argparse.Namespace) -> int:
         )
 
     config = load_runtime_config(root)
-    sampling = benchmark.sampling_config(root)
+    sampling = benchmark.sampling_config(
+        root, str(task.get("evaluation") or "")
+    )
     perms = Permissions(root, agent_dir, task, config)
     packet = benchmark.render_prompt_components(
         task["prompt_components"], task["prompt_sha256"]

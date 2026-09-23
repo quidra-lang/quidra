@@ -173,6 +173,39 @@ def synthetic_canonical_catalog(root: Path) -> dict[str, dict[str, Any]]:
     }
 
 
+def synthetic_coverage_score(
+    root: Path, catalog: dict[str, dict[str, Any]]
+) -> float:
+    """Derive Capability Coverage exactly as the real owner validator does."""
+    aggregation = json.loads(
+        (root / "template/config/aggregation.json").read_text(encoding="utf-8")
+    )
+    owner = (
+        aggregation.get("evaluations", {}).get("semantic_compression", {})
+        .get("support_level_owner") or {}
+    )
+    factors = {
+        str(name).upper(): float(value)
+        for name, value in (owner.get("levels") or {}).items()
+    }
+    matrix = json.loads(
+        (
+            root
+            / "template/methodology-assets/semantic_compression/semantic_site_matrix.json"
+        ).read_text(encoding="utf-8")
+    )
+    total = 0.0
+    awarded = 0.0
+    for probe in matrix.get("probes", []):
+        probe_id = str(probe["probe_id"])
+        points = float(probe.get("capability_denominator") or 0)
+        total += points
+        awarded += points * factors.get(str(catalog[probe_id]["level"]).upper(), 0.0)
+    if total <= 0:
+        raise RunError("synthetic canonical catalog has no capability denominator")
+    return round(100.0 * awarded / total, 6)
+
+
 def synthetic_catalog_digest(
     root: Path,
     unit: dict[str, Any],
@@ -261,7 +294,12 @@ def unit_payload(
             unit.get("evaluation") == "semantic_compression"
             and requirement_id == "metric.capability_coverage"
         ):
-            evidence["canonical_fragments"] = synthetic_canonical_catalog(root)
+            catalog = synthetic_canonical_catalog(root)
+            requirements[requirement_id] = {
+                language: synthetic_coverage_score(root, catalog)
+                for language in assigned
+            }
+            evidence["canonical_fragments"] = catalog
 
     digest = synthetic_catalog_digest(root, unit, units)
     if digest is not None:

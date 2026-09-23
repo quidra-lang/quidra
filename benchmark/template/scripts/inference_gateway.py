@@ -1000,9 +1000,10 @@ def validate_inference_request(
     else:
         ceiling = network_policy
     if requested_network and ceiling != "allowed":
+        scope = f"task {task_id!r}" if task_policy else "this run"
         raise PolicyError(
-            "network_allowed=true is refused: the trusted gateway policy for this run "
-            "is 'disabled', so no network-capable model tooling may be used"
+            "network_allowed=true is refused: the frozen network ceiling for "
+            f"{scope} is {ceiling!r}, so no network-capable model tooling may be used"
         )
 
     return {

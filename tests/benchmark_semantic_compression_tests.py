@@ -57,6 +57,21 @@ def assert_complete_support_record_contract() -> None:
     ) is None
 
 
+def assert_probe_alias_rows_are_recognized() -> None:
+    result = {
+        "evidence": {
+            "per_probe": [
+                {"probe": "F08.P1", "support": "PARTIAL", "p_letters": ["P-a"]},
+                {"probe_id": "F10.P1", "support": "FULL"},
+            ]
+        }
+    }
+    rows = benchmark.probe_annotation_fields(result, {"F08.P1", "F10.P1"})
+    assert rows["F08.P1"]["support"] == "PARTIAL", rows
+    assert rows["F08.P1"]["p_letters"] == ["P-a"], rows
+    assert rows["F10.P1"]["support"] == "FULL", rows
+
+
 def assert_adjudication_is_authoritative() -> None:
     by_language = {
         "Go": {
@@ -209,6 +224,7 @@ def assert_cohort_work_is_cacheable() -> None:
 
 def main() -> None:
     assert_complete_support_record_contract()
+    assert_probe_alias_rows_are_recognized()
     assert_adjudication_is_authoritative()
     assert_repair_loop_is_scoped_and_idempotent()
     assert_every_sampled_probe_has_a_cohort_adjudicator()

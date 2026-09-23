@@ -2938,10 +2938,13 @@ def probe_annotation_fields(
                     visit(value, key)
         elif isinstance(node, list):
             for item in node:
-                if isinstance(item, dict) and str(item.get("probe_id", "")) in rows:
-                    row = rows[str(item["probe_id"])]
+                probe_key = None
+                if isinstance(item, dict):
+                    probe_key = item.get("probe_id", item.get("probe"))
+                if probe_key is not None and str(probe_key) in rows:
+                    row = rows[str(probe_key)]
                     for key, value in item.items():
-                        if key != "probe_id":
+                        if key not in {"probe_id", "probe"}:
                             row[key] = value
                 else:
                     visit(item, name)
@@ -5335,7 +5338,7 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
     ).decode("utf-8")
 
     config = gateway_config(root)
-    sampling = sampling_config(root)
+    sampling = sampling_config(root, str(meta.get("evaluation") or ""))
     client_module = gateway_client_module()
     socket_path = args.socket or str(gateway_socket_path(root, config))
     client = client_module.InferenceGatewayClient(socket_path, timeout=float(args.timeout))

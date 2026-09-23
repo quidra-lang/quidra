@@ -706,6 +706,9 @@ jobs:
 
           # Missing toolchains become explicit infrastructure blockers for only
           # the affected execution-heavy Primaries; unrelated evaluations still advance.
+          # This is a fault-injection test: preserve the main synthetic ledger so
+          # the deliberate Zig outage cannot poison later Primary smoke checks.
+          cp "$TMP/work/root/ledger.json" "$TMP/work/root/ledger.before-toolchain-blocker.json"
           python - <<'PY'
           from pathlib import Path
           import json
@@ -732,6 +735,8 @@ jobs:
           assert ledger["units"]["sc-structure-gates--part-1a"]["status"] == "PENDING"
           assert ledger["units"]["ecosystem-gates--part-1"]["status"] == "PENDING"
           PY
+          mv "$TMP/work/root/ledger.before-toolchain-blocker.json" "$TMP/work/root/ledger.json"
+          rm -f "$TMP/results/toolchains.json" "$TMP/results/toolchain_blockers.json"
 
           # This fixture is exercising Semantic Compression only. Advancing the
           # whole manifest here would execute unrelated Language Quality command

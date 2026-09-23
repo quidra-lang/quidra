@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""Regression tests for Semantic Compression reconciliation and comparability."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+import tempfile
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location(
+    "benchmark_cli", ROOT / "benchmark/template/scripts/benchmark.py"
+)
+benchmark = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+SPEC.loader.exec_module(benchmark)
+
+
+def canonical(level: str, fragment: str | None, *, partial=None, none=None):
+    return {
+        "level": level,
+        "fragment": fragment,
+        "partial_reasons": list(partial or []),
+        "none_reason": none,
+        "justification": "frozen-rubric justification",
+        "citation": "frozen evidence citation",
+    }
+
+
+def make_root(td: str) -> Path:
+    root = Path(td)
+    (root / "work/root").mkdir(parents=True)
+    (root / "work/audit/semantic-compression").mkdir(parents=True)
+    # The tests exercise the real frozen matrix/policy without copying it.
+    (root / "template").symlink_to((ROOT / "benchmark/template").resolve(), target_is_directory=True)
+    return root
+
+
+def assert_complete_support_record_contract() -> None:
+    assert benchmark.sc_adjudicated_record("FULL") is None
+    assert benchmark.sc_adjudicated_record(
+        canonical("FULL", "let x = 1")
+    )["level"] == "FULL"
+    assert benchmark.sc_adjudicated_record(
+        canonical("PARTIAL", "ffi_call()", partial=["P-b"])
+    )["partial_reasons"] == ["P-b"]
+    assert benchmark.sc_adjudicated_record(
+        canonical("PARTIAL", "ffi_call()")
+    ) is None
+    assert benchmark.sc_adjudicated_record(
+        canonical("NONE", None, none="N-1")
+    )["none_reason"] == "N-1"
+    assert benchmark.sc_adjudicated_record(
+        canonical("NONE", "should-not-exist", none="N-1")
+    ) is None
+
+
+def assert_adjudication_is_authoritative() -> None:
+    by_language = {
+        "Go": {
+            "F20.P1": {
+                "support": "NONE",
+                "p_letter": "",
+                "justification": "stale single-language explanation",
+                "citation": "stale citation",
+                "fragment": "go_fragment",
+                "metric_only_fact": 7,
+            }
+        }
+    }
+    owner_rows = {"Go": {"F20.P1": {"support": "NONE"}}}
+    owner = {
+        "fields": ["support"],
+        "levels": {"FULL": 1.0, "PARTIAL": 0.5, "NONE": 0.0},
+    }
+    adjudicated = {
+        "F20.P1": {
+            "Go": canonical(
+                "PARTIAL", "go_fragment", partial=["P-b"]
+            )
+        }
+    }
+    replaced = benchmark.sc_reconcile_support(
+        by_language, owner_rows, owner, adjudicated
+    )
+    row = by_language["Go"]["F20.P1"]
+    assert row["support"] == "PARTIAL", row
+    assert row["support_factor"] == 0.5, row
+    assert row["support_reason_codes"] == ["P-b"], row
+    assert row["support_adjudication"]["partial_reasons"] == ["P-b"], row
+    assert row["fragment"] == "go_fragment", row
+    assert row["metric_only_fact"] == 7, row
+    assert "p_letter" not in row, row
+    assert row.get("justification") != "stale single-language explanation", row
+    assert replaced and replaced[0]["authoritative_adjudication"]["level"] == "PARTIAL"
+
+
+def assert_repair_loop_is_scoped_and_idempotent() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        benchmark.json_dump(
+            root / benchmark.COMPARABILITY_BLINDING_RELATIVE,
+            {"schema_version": 1, "labels": {"Go": "A"}},
+        )
+        benchmark.json_dump(
+            root / benchmark.COMPARABILITY_SAMPLE_RELATIVE,
+            {
+                "schema_version": 1,
+                "probes": [{
+                    "probe_id": "F20.P1",
+                    "annotations": [{
+                        "label": "A",
+                        "support": "PARTIAL",
+                        "fragment": "go_fragment",
+                    }],
+                }],
+            },
+        )
+        result = {
+            "schema_version": 1,
+            "evaluation": "semantic_compression",
+            "requirements": {benchmark.COMPARABILITY_GATE: False},
+            "evidence": {
+                "gate_result": {
+                    "affected_pairs_requiring_revalidation": [
+                        {"probe_id": "F20.P1", "label": "A"}
+                    ]
+                },
+                "repair_directives": [{
+                    "probe_id": "F20.P1",
+                    "label": "A",
+                    "record": canonical(
+                        "PARTIAL", "go_fragment", partial=["P-b"]
+                    ),
+                }],
+            },
+        }
+        assert benchmark.persist_comparability_repairs(root, result) == 1
+        assert benchmark.persist_comparability_repairs(root, result) == 0
+        repaired = benchmark.sc_comparability_repairs(root)
+        assert repaired["F20.P1"]["Go"]["partial_reasons"] == ["P-b"]
+
+        unsafe = json.loads(json.dumps(result))
+        unsafe["evidence"]["repair_directives"][0]["record"] = canonical(
+            "NONE", None, none="N-1"
+        )
+        try:
+            benchmark.validate_comparability_repair_directives(root, unsafe)
+        except benchmark.BenchmarkError as exc:
+            assert "NONE boundary" in str(exc)
+        else:
+            raise AssertionError("run-local repair must not cross the NONE boundary")
+
+
+def assert_every_sampled_probe_has_a_cohort_adjudicator() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        sampled = {
+            str(row["probe_id"]) for row in benchmark.comparability_sample_probes(root)
+        }
+    plan = json.loads(
+        (ROOT / "benchmark/template/config/work_plan_templates.json").read_text()
+    )
+    units = plan["evaluations"]["semantic_compression"]["units"]
+    supports = {
+        benchmark.support_adjudication_probe(unit.get("requirement_ids", [])): unit
+        for unit in units
+        if str(unit.get("id", "")).startswith("sc-support-adjudication--")
+    }
+    assert set(supports) == sampled, (sorted(supports), sorted(sampled))
+    for probe, unit in supports.items():
+        assert probe in unit["goal"], (probe, unit["goal"])
+        assert (
+            "template/config/semantic_compression_comparability.json"
+            in unit.get("read_paths", [])
+        ), probe
+    comparability = next(unit for unit in units if unit["id"] == "sc-comparability")
+    expected_dependencies = {
+        "sc-support-adjudication--" + probe.lower().replace(".", "-")
+        for probe in sampled
+    }
+    assert expected_dependencies <= set(comparability["dependencies"])
+
+
+def assert_cohort_work_is_cacheable() -> None:
+    support = {
+        "id": "sc-support-adjudication--f20-p1",
+        "execution_kind": "agent",
+        "result_kind": "requirements",
+        "phase": "measurement",
+        "requirement_ids": ["annotation.support_adjudication--f20-p1"],
+        "assigned_languages": [],
+    }
+    audit = {
+        "id": "sc-comparability",
+        "execution_kind": "agent",
+        "result_kind": "requirements",
+        "phase": "measurement",
+        "requirement_ids": [benchmark.COMPARABILITY_GATE],
+        "assigned_languages": [],
+    }
+    assert benchmark.cache_eligible_unit(ROOT, support)
+    assert benchmark.cache_scope(support) == "cohort-f20-p1"
+    assert benchmark.cache_eligible_unit(ROOT, audit)
+    assert benchmark.cache_scope(audit) == "comparability"
+
+
+def main() -> None:
+    assert_complete_support_record_contract()
+    assert_adjudication_is_authoritative()
+    assert_repair_loop_is_scoped_and_idempotent()
+    assert_every_sampled_probe_has_a_cohort_adjudicator()
+    assert_cohort_work_is_cacheable()
+    print("semantic compression reconciliation contract: ok")
+
+
+if __name__ == "__main__":
+    main()

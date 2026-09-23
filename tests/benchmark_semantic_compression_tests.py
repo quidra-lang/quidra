@@ -439,6 +439,7 @@ def assert_canonical_fragment_verification_runs_real_recipe() -> None:
                             "    n = 7\n"
                             "    return n\n\n"
                             "assert probe() == 7\n"
+                            "print(probe())\n"
                         )
                     },
                     "mode": "run",
@@ -451,6 +452,25 @@ def assert_canonical_fragment_verification_runs_real_recipe() -> None:
         )
         assert report["verified_probe_count"] == 1, report
         assert report["probes"]["F01.P1"]["runs"][0]["exit_code"] == 0, report
+        assert report["probes"]["F01.P1"]["expected_stdout"] == "7", report
+        assert report["probes"]["F01.P1"]["runs"][0]["stdout"].strip() == "7", report
+
+        wrong_stdout = json.loads(json.dumps(evidence))
+        wrong_stdout["canonical_verification"]["F01.P1"]["files"]["main.py"] = (
+            wrong_stdout["canonical_verification"]["F01.P1"]["files"]["main.py"]
+            .replace("print(probe())", "print(8)")
+        )
+        try:
+            benchmark.validate_canonical_fragment_verification(
+                root, "Python", catalog, wrong_stdout
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "observed stdout mismatch" in str(exc), exc
+        else:
+            raise AssertionError(
+                "a successful fixture with the wrong canonical result was accepted"
+            )
+
         audit = root / "work/audit/semantic-compression/canonical_verification_python.json"
         assert audit.is_file(), audit
 
@@ -554,6 +574,7 @@ def _write_semantic_owner_cohort(
         )
 
         verified = {}
+        stdout_oracles = benchmark.semantic_fixed_stdout_oracles(root)
         for probe_id, record in catalog.items():
             if str(record["level"]).upper() == "NONE":
                 continue
@@ -574,6 +595,7 @@ def _write_semantic_owner_cohort(
                 }
             else:
                 run_count = 20 if probe_id == "F19.P2" else 1
+                expected_stdout = stdout_oracles.get(probe_id)
                 verified[probe_id] = {
                     "mode": "run",
                     "run_count": run_count,
@@ -585,8 +607,21 @@ def _write_semantic_owner_cohort(
                         if language == "Python"
                         else {"argv": ["compiler", "source"], "exit_code": 0}
                     ),
+                    **(
+                        {"expected_stdout": expected_stdout}
+                        if expected_stdout is not None
+                        else {}
+                    ),
                     "runs": [
-                        {"argv": ["runtime", "program"], "exit_code": 0}
+                        {
+                            "argv": ["runtime", "program"],
+                            "exit_code": 0,
+                            **(
+                                {"stdout": expected_stdout + "\n"}
+                                if expected_stdout is not None
+                                else {}
+                            ),
+                        }
                         for _ in range(run_count)
                     ],
                 }

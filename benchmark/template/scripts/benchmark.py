@@ -12607,6 +12607,22 @@ def cache_record_metadata_refresh_required(
         != (candidate.get("certification") or {})
     )
 
+def cache_record_legacy_identity_upgrade_required(
+    existing: dict[str, Any], candidate: dict[str, Any]
+) -> bool:
+    """Classify a same-result legacy Quidra record ratchet, not remeasurement."""
+    if existing.get("result_sha256") != candidate.get("result_sha256"):
+        return False
+    old_compat = existing.get("compatibility") or {}
+    new_compat = candidate.get("compatibility") or {}
+    return (
+        "quidra_execution_identity" not in old_compat
+        and "quidra_execution_identity" in new_compat
+        and (existing.get("certification") or {})
+        == (candidate.get("certification") or {})
+    )
+
+
 
 def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
@@ -12764,11 +12780,17 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
                 and not receipt_path.is_file()
                 and cache_record_metadata_refresh_required(existing_record, record)
             ):
-                # Reuse was rejected and this unit was freshly measured. Even
-                # identical output must refresh execution identity/certification
-                # or the stale record would force the same MISS on every run.
+                # A verified identity-less legacy record can be ratcheted to
+                # the current explicit identity without changing its result or
+                # historical fingerprint. Other metadata changes came from a
+                # fresh remeasurement and count as replacements.
                 destination.write_bytes(encoded)
-                replaced += 1
+                if cache_record_legacy_identity_upgrade_required(
+                    existing_record, record
+                ):
+                    upgraded += 1
+                else:
+                    replaced += 1
             elif same_result:
                 pass
             elif receipt_path.is_file():

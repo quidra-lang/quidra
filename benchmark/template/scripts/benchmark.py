@@ -12599,6 +12599,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     skipped: list[dict[str, Any]] = []
     promoted = 0
     replaced = 0
+    upgraded = 0
     reused = 0
 
     for unit in manifest.get("work_units", []):
@@ -12705,7 +12706,25 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         elif json.loads(destination.read_text(encoding="utf-8")).get(
             "result_sha256"
         ) == record["result_sha256"]:
-            pass
+            # A verified legacy Quidra record can keep the historical
+            # fingerprint/result while gaining the current trusted execution
+            # identity. Ratchet that metadata forward so later runs no longer
+            # depend on the one-time legacy migration baseline.
+            existing = json_load(destination)
+            existing_compatibility = existing.get("compatibility") or {}
+            if (
+                compatibility
+                and existing_compatibility.get("quidra_execution_identity")
+                != compatibility.get("quidra_execution_identity")
+            ):
+                merged = dict(existing_compatibility)
+                merged.update(compatibility)
+                existing["compatibility"] = merged
+                destination.write_text(
+                    json.dumps(existing, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+                upgraded += 1
         elif receipt_path.is_file():
             # The unit was hydrated from this very record, so its result cannot
             # legitimately differ from it. Report the mismatch and leave the
@@ -12738,6 +12757,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     return {
         "promoted": promoted,
         "replaced": replaced,
+        "upgraded": upgraded,
         "reused": reused,
         "records": records,
         "skipped": skipped,

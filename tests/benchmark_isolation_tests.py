@@ -2465,6 +2465,55 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 f"hidden-oracle details leaked into the scored repair prompt: {repair}",
             )
 
+            # A generated program is untrusted and may try to exfiltrate hidden
+            # stdin through stdout/stderr. The worker can read trials/, so hidden
+            # run bytes must never be persisted there even when verification fails.
+            leaky_dir = agent_dir / "leaky-hidden-verification"
+            leaky = benchmark.verify_proficiency_completion(
+                root,
+                "Python",
+                trial_id,
+                (
+                    "import sys\n"
+                    "data = sys.stdin.read().strip()\n"
+                    "if data == '2 3 5':\n"
+                    "    print('LIGHTGRAD 82 113 48 2')\n"
+                    "else:\n"
+                    "    print(data)\n"
+                    "    print(data, file=sys.stderr)\n"
+                ),
+                leaky_dir,
+            )
+            hidden_rows = [
+                row for row in leaky["oracle_tests"] if row.get("hidden") is True
+            ]
+            check(
+                hidden_rows
+                and all(
+                    row["run"].get("output_redacted") is True
+                    and "stdout" not in row["run"]
+                    and "stderr" not in row["run"]
+                    and isinstance(row["run"].get("stdout_sha256"), str)
+                    and isinstance(row["run"].get("stderr_sha256"), str)
+                    for row in hidden_rows
+                ),
+                f"hidden runtime output remained worker-readable: {hidden_rows}",
+            )
+            check(
+                isinstance(leaky.get("run"), dict)
+                and leaky["run"].get("output_redacted") is True
+                and "stdout" not in leaky["run"]
+                and "stderr" not in leaky["run"],
+                f"representative hidden failure leaked runtime output: {leaky.get('run')}",
+            )
+            preserved_hidden = (leaky_dir / "verification.json").read_text()
+            check(
+                "1.5 -2 4" not in preserved_hidden
+                and "-1 0.5 -3" not in preserved_hidden
+                and "0.25 1.2 -0.75" not in preserved_hidden,
+                f"worker-readable verification persisted hidden stdin: {preserved_hidden}",
+            )
+
             extra_stdout = benchmark.verify_proficiency_completion(
                 root,
                 "Python",

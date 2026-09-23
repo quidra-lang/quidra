@@ -1,19 +1,18 @@
 # Request marker for the benchmark-production workflow.
 #
-# Changing this file and pushing to develop asks CI to run the full paid
-# benchmark against the develop snapshot at that push: pinned image build,
-# deterministic preparation with the offline fake provider, then all five
-# Primary evaluations through the credential-less gateway. The workflow's
-# soft spend guard is sized against the token envelope benchmark.py plan
-# reports for the frozen manifest.
+# Paid benchmarking never starts from develop. For a run, create the disposable
+# branch named benchmark from the exact develop snapshot to evaluate, change a
+# field below, commit that marker change on benchmark, and push benchmark.
+# benchmark-production is branch-filtered to benchmark and includes the live
+# provider smoke before the expensive work begins.
 #
-# Request one only after benchmark-smoke has passed on the same snapshot, and
-# do not push to develop again until the run has finished: the measurement
-# window is frozen from manifest-merge to finalize, and a moved develop turns
-# the result into a workflow artifact instead of a commit.
+# The workflow checkpoints certified cache and, for a complete full run, stores
+# the imported result on benchmark. It never writes benchmark results directly
+# to develop. After the workflow finishes, reconcile benchmark back into develop
+# exactly as benchmark/README.md specifies, then delete benchmark.
 #
 # Re-request by editing any line below.
-
+#
 requested_at_utc: 2026-09-23T10:34:57Z
 reason: re-request on 73ee438 after the c6e69e0 run finished with ecosystem, language_quality, llm_learnability and llm_proficiency COMPLETE and semantic_compression PARTIAL: sc-support-adjudication--f20-p1 failed its validator five times for returning each language's level under a support field beside the points and the reasoning, which blocked sc-comparability and the semantic_compression aggregate behind it; a5443d8 resolves the level from that shape and states the output contract in the unit's goal, so those three units are measured again, the 227 certified records still hydrate, and the 21 records cache-impact reports invalid (ecosystem 8, llm_proficiency 1, semantic_compression 12) are the rest of the paid scope
 model: claude-sonnet-5

@@ -853,6 +853,10 @@ jobs:
           import json
           root = Path(".benchmark-template-test")
           agent = "worker-sc-comparability"
+          labels = json.loads(
+              (root / "work/root/comparability_blinding.json").read_text()
+          )["labels"]
+          python_label = labels["Python"]
           payload = {
               "schema_version": 1,
               "evaluation": "semantic_compression",
@@ -862,12 +866,12 @@ jobs:
                       "pass": False,
                       "reason": "synthetic F10 support inconsistency",
                       "affected_pairs_requiring_revalidation": [
-                          {"probe_id": "F10.P1", "label": "E"}
+                          {"probe_id": "F10.P1", "label": python_label}
                       ],
                   },
                   "repair_directives": [{
                       "probe_id": "F10.P1",
-                      "label": "E",
+                      "label": python_label,
                       "record": {
                           "level": "PARTIAL",
                           "fragment": "synthetic_wrapper()",

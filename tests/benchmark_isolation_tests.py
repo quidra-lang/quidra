@@ -2541,25 +2541,67 @@ def test_proficiency_repair_feedback_is_runtime_owned() -> None:
     failed = {
         "compile_parse_ok": True,
         "test_passed": False,
-        "expected_exit_code": 0,
-        "expected_stdout": "SVM PASS",
         "compile_or_parse": {
             "label": "build", "argv": ["python3", "-m", "py_compile", "main.py"],
             "exit_code": 0, "stdout": "", "stderr": "",
         },
+        "oracle_test_count": 3,
+        "oracle_passed_count": 1,
+        "oracle_tests": [
+            {
+                "id": "public",
+                "hidden": False,
+                "passed": False,
+                "problem": "public output mismatch",
+                "run": {
+                    "label": "run:public",
+                    "argv": ["python3", "main.py"],
+                    "exit_code": 0,
+                    "stdout": "PUBLIC-WRONG\n",
+                    "stderr": "PUBLIC-DIAGNOSTIC\n",
+                },
+            },
+            {
+                "id": "hidden-secret-id",
+                "hidden": True,
+                "passed": False,
+                "problem": "HIDDEN-PROBLEM-SECRET",
+                "run": {
+                    "label": "run:hidden-secret-id",
+                    "argv": ["python3", "main.py"],
+                    "exit_code": 0,
+                    "stdout": "HIDDEN-STDOUT-SECRET\n",
+                    "stderr": "HIDDEN-STDERR-SECRET\n",
+                },
+            },
+        ],
         "run": {
-            "label": "run", "argv": ["python3", "main.py"],
-            "exit_code": 3, "stdout": "wrong\n", "stderr": "validation failed\n",
+            "label": "run:hidden-secret-id",
+            "argv": ["python3", "main.py"],
+            "exit_code": 0,
+            "stdout": "HIDDEN-REPRESENTATIVE-SECRET\n",
+            "stderr": "",
         },
     }
     first = benchmark.proficiency_repair_prompt(failed)
     second = benchmark.proficiency_repair_prompt(json.loads(json.dumps(failed)))
     check(first == second, "Proficiency repair feedback is not deterministic")
     check(
-        "SVM PASS" in first and "validation failed" in first
+        "PUBLIC-WRONG" in first
+        and "PUBLIC-DIAGNOSTIC" in first
+        and "hidden_case_failures" in first
         and "Return only one complete replacement source program" in first,
-        f"trusted repair prompt lost verifier facts: {first}",
+        f"trusted repair prompt lost safe verifier facts: {first}",
     )
+    for secret in (
+        "hidden-secret-id",
+        "HIDDEN-PROBLEM-SECRET",
+        "HIDDEN-STDOUT-SECRET",
+        "HIDDEN-STDERR-SECRET",
+        "HIDDEN-REPRESENTATIVE-SECRET",
+    ):
+        check(secret not in first, f"hidden oracle detail leaked into repair prompt: {secret}")
+
     passed = dict(failed, test_passed=True)
     try:
         benchmark.proficiency_repair_prompt(passed)
@@ -2578,7 +2620,6 @@ def test_proficiency_repair_feedback_is_runtime_owned() -> None:
         and "omit message instead of supplying custom guidance" in runtime,
         "sandbox runtime does not enforce verifier-only Proficiency repairs",
     )
-
 
 def test_proficiency_requires_the_complete_primary_trial_set() -> None:
     with tempfile.TemporaryDirectory() as td:

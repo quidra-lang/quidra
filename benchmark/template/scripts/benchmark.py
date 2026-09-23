@@ -7997,14 +7997,36 @@ def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
         "fences or explanation.\n"
     )
 
-def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | None:
-    """Metrics fully decidable from runtime-owned generation/build/hidden-oracle evidence."""
+def proficiency_runtime_metrics(
+    root: Path, trace: dict[str, Any]
+) -> dict[str, float] | None:
+    """Metrics decidable from runtime-owned generation/build/hidden-oracle evidence.
+
+    Unseen-case Generalization is the first completion's hidden-oracle case pass
+    rate. Prompt Robustness is the worst first-attempt full-oracle correctness
+    rate across the three predeclared equivalent prompt variants, so a stable
+    failure cannot earn a high robustness score.
+    """
     trials = ((trace.get("trials") or {}).get("trials") or {})
     if not isinstance(trials, dict) or not trials:
         return None
+    manifest = proficiency_trial_manifest(root)
+    if set(str(trial_id) for trial_id in trials) != set(manifest):
+        return None
+
+    cfg = json_load(root / "template" / "config" / "primary.json")["llm_proficiency"]
+    variants = [str(value) for value in (cfg.get("primary_prompt_variants") or [])]
+    if not variants:
+        return None
+    variant_success: dict[str, list[int]] = {
+        variant: [0, 0] for variant in variants
+    }
+
     generation = compiled = correct1 = correctn = 0
     oracle_passed = oracle_total = 0
-    for summary in trials.values():
+    hidden_passed = hidden_total = 0
+
+    for trial_id, summary in trials.items():
         calls = (summary or {}).get("calls") or []
         if not calls:
             return None
@@ -8020,7 +8042,9 @@ def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | Non
             return None
         if first_verification.get("compile_parse_ok") is True:
             compiled += 1
-        if first_verification.get("test_passed") is True:
+
+        first_ok = first_verification.get("test_passed") is True
+        if first_ok:
             correct1 += 1
         if any(
             isinstance(call, dict)
@@ -8029,6 +8053,37 @@ def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | Non
             for call in calls
         ):
             correctn += 1
+
+        cell = manifest.get(str(trial_id))
+        if cell is None:
+            return None
+        variant = str(cell.get("prompt_variant") or "")
+        if variant not in variant_success:
+            return None
+        variant_success[variant][1] += 1
+        if first_ok:
+            variant_success[variant][0] += 1
+
+        first_rows = first_verification.get("oracle_tests")
+        if not isinstance(first_rows, list):
+            return None
+        if first_rows:
+            for row in first_rows:
+                if not isinstance(row, dict):
+                    return None
+                if row.get("hidden") is True:
+                    hidden_total += 1
+                    if row.get("passed") is True:
+                        hidden_passed += 1
+        else:
+            # Synthetic CI executes no oracle cases. Preserve the real hidden
+            # denominator without claiming a synthetic pass.
+            workload = str(cell.get("workload") or "")
+            expected_cases = proficiency_trusted_oracle_cases(root, workload)
+            hidden_total += sum(
+                1 for row in expected_cases if row.get("hidden") is True
+            )
+
         for call in calls:
             verification = call.get("verification") if isinstance(call, dict) else None
             if not isinstance(verification, dict):
@@ -8042,15 +8097,26 @@ def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | Non
                 return None
             oracle_total += total
             oracle_passed += passed
+
     denominator = float(len(trials))
-    if oracle_total <= 0:
+    if oracle_total <= 0 or hidden_total <= 0:
         return None
+    if any(total <= 0 for _passed, total in variant_success.values()):
+        return None
+    prompt_robustness = min(
+        100.0 * passed / float(total)
+        for passed, total in variant_success.values()
+    )
     return {
         "metric.generation_success_rate": 100.0 * generation / denominator,
         "metric.compile_parse_success_rate": 100.0 * compiled / denominator,
         "metric.correct_at_1": 100.0 * correct1 / denominator,
         "metric.correct_at_n": 100.0 * correctn / denominator,
         "metric.test_pass_rate": 100.0 * oracle_passed / float(oracle_total),
+        "metric.prompt_robustness": prompt_robustness,
+        "metric.unseen_case_generalization": (
+            100.0 * hidden_passed / float(hidden_total)
+        ),
     }
 
 
@@ -8072,7 +8138,7 @@ def project_proficiency_runtime_metrics(
     """
     if str(unit.get("evaluation") or "") != "llm_proficiency":
         return None
-    computed = proficiency_runtime_metrics(trace)
+    computed = proficiency_runtime_metrics(root, trace)
     if computed is None:
         return None
     assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
@@ -8376,7 +8442,7 @@ def proficiency_runtime_verification_problems(
                     f"success or the frozen {max_repairs}-repair budget was exhausted"
                 )
 
-    computed = proficiency_runtime_metrics(trace)
+    computed = proficiency_runtime_metrics(root, trace)
     synthetic = any(
         isinstance(call.get("verification"), dict)
         and call["verification"].get("synthetic_ci") is True

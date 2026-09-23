@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "purpose": "Clarify the existing Semantic Compression support rubric for cohort adjudication and blinded comparability without changing the frozen capability universe or metric measurements.",
+  "authority": {
+    "precedence": [
+      "The frozen capability_universe support rubric remains authoritative.",
+      "A cohort support adjudication is authoritative for support level, selected fragment, reason code, justification and citation for its (probe, language) pair.",
+      "Metric-shard support prose is measurement evidence only after a cohort adjudication exists; it must not override or contradict that canonical record in the comparability packet.",
+      "A blinded comparability repair directive may replace a cohort support record only for the affected pair and must itself satisfy the same complete support-record contract."
+    ]
+  },
+  "complete_support_record": {
+    "fields": [
+      "level",
+      "fragment",
+      "partial_reasons",
+      "none_reason",
+      "justification",
+      "citation"
+    ],
+    "FULL": "fragment is required; partial_reasons is empty; none_reason is null.",
+    "PARTIAL": "fragment is required; partial_reasons contains one or more of P-a..P-e; none_reason is null.",
+    "NONE": "fragment is null; partial_reasons is empty; none_reason is exactly one of N-1..N-4.",
+    "common": "justification and citation are always required."
+  },
+  "consistency_rules": [
+    {
+      "id": "standard-library-substitution",
+      "rule": "When a documented standard-library/runtime mechanism delivers some but not all numbered requirements, classify it as PARTIAL under P-a rather than NONE merely because the language lacks the native surface form. Apply this identically across probes. If it delivers none of the numbered requirements, use NONE."
+    },
+    {
+      "id": "same-mechanism-cross-probe",
+      "rule": "The same documented mechanism must not receive different support classes across probes unless a specific numbered requirement materially distinguishes the cases. The adjudication must name that distinguishing requirement when it does."
+    },
+    {
+      "id": "built-in-bridge-vs-separate-native-unit",
+      "rule": "A built-in interoperability bridge that ships with the frozen language toolchain but needs a shipped mode/flag or host compiler precondition may be PARTIAL under P-b when the frozen rubric permits it. A mechanism requiring user-authored native glue, a separate native compilation unit/build system, an external generator, or a toolchain outside the frozen environment is NONE under N-2. These are distinct situations and must not be conflated."
+    },
+    {
+      "id": "observation-target-separation",
+      "rule": "Facts that belong only to an OBSERVATION TARGET never change FULL/PARTIAL/NONE; they are scored by the corresponding quality metrics."
+    },
+    {
+      "id": "no-post-hoc-ranking-use",
+      "rule": "Neither adjudication nor repair may inspect aggregate scores or rankings. They operate only on frozen requirements, fragments, documentation evidence and the predeclared comparability sample."
+    }
+  ],
+  "repair_loop": {
+    "maximum_comparability_attempts": 3,
+    "rule": "A failed blinded audit may emit pair-specific repair directives. The trusted runner applies only directives that satisfy the complete support-record contract, rebuilds the same predeclared blinded sample, and reruns the audit. If no directive changes the canonical records, or the attempt cap is reached, the gate remains failed."
+  }
+}

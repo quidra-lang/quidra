@@ -69,7 +69,12 @@ jobs:
             "recover-language-quality" => ["prepare", "recover-llm-learnability"],
             "recover-ecosystem" => ["prepare", "recover-language-quality"],
             "recover-llm-proficiency" => ["prepare", "recover-ecosystem"],
-            "finalize" => ["prepare", "recover-llm-proficiency"],
+            "recover2-semantic-compression" => ["prepare", "recover-llm-proficiency"],
+            "recover2-llm-learnability" => ["prepare", "recover2-semantic-compression"],
+            "recover2-language-quality" => ["prepare", "recover2-llm-learnability"],
+            "recover2-ecosystem" => ["prepare", "recover2-language-quality"],
+            "recover2-llm-proficiency" => ["prepare", "recover2-ecosystem"],
+            "finalize" => ["prepare", "recover2-llm-proficiency"],
           }
           expected_needs.each do |name, expected|
             actual = Array(jobs.fetch(name)["needs"])
@@ -99,6 +104,11 @@ jobs:
             ["recover-language-quality", "#{base}-recovery-llm-learnability", "#{base}-recovery-language-quality"],
             ["recover-ecosystem", "#{base}-recovery-language-quality", "#{base}-recovery-ecosystem"],
             ["recover-llm-proficiency", "#{base}-recovery-ecosystem", "#{base}-recovery-llm-proficiency"],
+            ["recover2-semantic-compression", "#{base}-recovery-llm-proficiency", "#{base}-recovery2-semantic-compression"],
+            ["recover2-llm-learnability", "#{base}-recovery2-semantic-compression", "#{base}-recovery2-llm-learnability"],
+            ["recover2-language-quality", "#{base}-recovery2-llm-learnability", "#{base}-recovery2-language-quality"],
+            ["recover2-ecosystem", "#{base}-recovery2-language-quality", "#{base}-recovery2-ecosystem"],
+            ["recover2-llm-proficiency", "#{base}-recovery2-ecosystem", "#{base}-recovery2-llm-proficiency"],
           ]
           chain.each do |name, previous, handoff|
             step = jobs.fetch(name).fetch("steps").find do |candidate|

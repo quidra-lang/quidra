@@ -8280,15 +8280,38 @@ def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
     )
 
 
+def proficiency_trusted_verification(
+    root: Path, call: dict[str, Any]
+) -> dict[str, Any]:
+    """Load runner-only oracle evidence and bind it to the sanitized trace row."""
+    visible = call.get("verification")
+    relative = call.get("verification_path")
+    if not isinstance(visible, dict):
+        raise BenchmarkError("Proficiency call has no sanitized verification summary")
+    if not isinstance(relative, str) or not relative:
+        raise BenchmarkError("Proficiency call has no trusted verification path")
+    trusted_root = root / "work" / "root" / "proficiency-verification"
+    path = require_under(root / relative, trusted_root)
+    if not path.is_file():
+        raise BenchmarkError(f"trusted Proficiency verification is missing: {relative}")
+    trusted = json_load(path)
+    if proficiency_verification_summary(trusted) != visible:
+        raise BenchmarkError(
+            "sanitized Proficiency verification disagrees with trusted evidence"
+        )
+    if trusted.get("source_sha256") != call.get("completion_sha256"):
+        raise BenchmarkError("trusted Proficiency verification source hash mismatch")
+    return trusted
+
+
 def proficiency_runtime_metrics(
     root: Path, trace: dict[str, Any]
 ) -> dict[str, float] | None:
-    """Metrics decidable from runtime-owned generation/build/hidden-oracle evidence.
+    """Metrics mechanically decidable from runtime-owned trial/oracle evidence.
 
-    Unseen-case Generalization is the first completion's hidden-oracle case pass
-    rate. Prompt Robustness is the worst first-attempt full-oracle correctness
-    rate across the three predeclared equivalent prompt variants, so a stable
-    failure cannot earn a high robustness score.
+    Generalization uses first-attempt hidden cases, robustness uses the worst
+    frozen prompt variant, and repair metrics are derived from the exact call at
+    which the trusted full oracle first passes.
     """
     trials = ((trace.get("trials") or {}).get("trials") or {})
     if not isinstance(trials, dict) or not trials:
@@ -8299,7 +8322,8 @@ def proficiency_runtime_metrics(
 
     cfg = json_load(root / "template" / "config" / "primary.json")["llm_proficiency"]
     variants = [str(value) for value in (cfg.get("primary_prompt_variants") or [])]
-    if not variants:
+    max_repairs = int(cfg.get("max_repair_turns", 0) or 0)
+    if not variants or max_repairs < 0:
         return None
     variant_success: dict[str, list[int]] = {
         variant: [0, 0] for variant in variants
@@ -8308,34 +8332,58 @@ def proficiency_runtime_metrics(
     generation = compiled = correct1 = correctn = 0
     oracle_passed = oracle_total = 0
     hidden_passed = hidden_total = 0
+    initial_failures = repaired_failures = first_repair_successes = 0
+    repair_efficiency_total = 0.0
+    silent_eligible = silent_bug_trials = 0
 
     for trial_id, summary in trials.items():
         calls = (summary or {}).get("calls") or []
         if not calls:
             return None
+        trusted_calls: list[dict[str, Any]] = []
+        for call in calls:
+            if not isinstance(call, dict):
+                return None
+            trusted_calls.append(proficiency_trusted_verification(root, call))
+
         first = calls[0]
+        first_verification = trusted_calls[0]
         if (
             isinstance(first.get("completion"), str)
             and first["completion"].strip()
             and first.get("incomplete") is None
         ):
             generation += 1
-        first_verification = first.get("verification")
-        if not isinstance(first_verification, dict):
-            return None
         if first_verification.get("compile_parse_ok") is True:
             compiled += 1
 
         first_ok = first_verification.get("test_passed") is True
         if first_ok:
             correct1 += 1
-        if any(
-            isinstance(call, dict)
-            and isinstance(call.get("verification"), dict)
-            and call["verification"].get("test_passed") is True
-            for call in calls
-        ):
+        success_call = next(
+            (
+                index
+                for index, verification in enumerate(trusted_calls)
+                if verification.get("test_passed") is True
+            ),
+            None,
+        )
+        if success_call is not None:
             correctn += 1
+
+        if first_ok:
+            repair_efficiency_total += 100.0
+        else:
+            initial_failures += 1
+            if success_call is not None and success_call > 0:
+                repaired_failures += 1
+                if success_call == 1:
+                    first_repair_successes += 1
+                repair_efficiency_total += (
+                    100.0 * (1.0 - success_call / float(max_repairs + 1))
+                    if max_repairs >= success_call
+                    else 0.0
+                )
 
         cell = manifest.get(str(trial_id))
         if cell is None:
@@ -8351,6 +8399,16 @@ def proficiency_runtime_metrics(
         if not isinstance(first_rows, list):
             return None
         if first_rows:
+            if first_verification.get("compile_parse_ok") is True:
+                silent_eligible += 1
+                if any(
+                    isinstance(row, dict)
+                    and row.get("passed") is not True
+                    and isinstance(row.get("run"), dict)
+                    and row["run"].get("exit_code") == 0
+                    for row in first_rows
+                ):
+                    silent_bug_trials += 1
             for row in first_rows:
                 if not isinstance(row, dict):
                     return None
@@ -8359,18 +8417,15 @@ def proficiency_runtime_metrics(
                     if row.get("passed") is True:
                         hidden_passed += 1
         else:
-            # Synthetic CI executes no oracle cases. Preserve the real hidden
-            # denominator without claiming a synthetic pass.
+            # Synthetic CI has no hidden execution. Keep the real denominator
+            # without manufacturing synthetic success.
             workload = str(cell.get("workload") or "")
             expected_cases = proficiency_trusted_oracle_cases(root, workload)
             hidden_total += sum(
                 1 for row in expected_cases if row.get("hidden") is True
             )
 
-        for call in calls:
-            verification = call.get("verification") if isinstance(call, dict) else None
-            if not isinstance(verification, dict):
-                return None
+        for verification in trusted_calls:
             try:
                 total = int(verification.get("oracle_test_count", 0) or 0)
                 passed = int(verification.get("oracle_passed_count", 0) or 0)
@@ -8390,12 +8445,31 @@ def proficiency_runtime_metrics(
         100.0 * passed / float(total)
         for passed, total in variant_success.values()
     )
+    repair_success = (
+        100.0 * repaired_failures / float(initial_failures)
+        if initial_failures
+        else 100.0
+    )
+    diagnosis_efficiency = (
+        100.0 * first_repair_successes / float(initial_failures)
+        if initial_failures
+        else 100.0
+    )
+    silent_resistance = (
+        100.0 * (silent_eligible - silent_bug_trials) / float(silent_eligible)
+        if silent_eligible
+        else 0.0
+    )
     return {
         "metric.generation_success_rate": 100.0 * generation / denominator,
         "metric.compile_parse_success_rate": 100.0 * compiled / denominator,
         "metric.correct_at_1": 100.0 * correct1 / denominator,
         "metric.correct_at_n": 100.0 * correctn / denominator,
         "metric.test_pass_rate": 100.0 * oracle_passed / float(oracle_total),
+        "metric.repair_success_rate": repair_success,
+        "metric.repair_efficiency": repair_efficiency_total / denominator,
+        "metric.diagnosis_efficiency": diagnosis_efficiency,
+        "metric.silent_bug_resistance": silent_resistance,
         "metric.prompt_robustness": prompt_robustness,
         "metric.unseen_case_generalization": (
             100.0 * hidden_passed / float(hidden_total)

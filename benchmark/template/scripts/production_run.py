@@ -564,6 +564,7 @@ def run_production(
 
 
 
+
 def build_budget_plan(
     root: Path,
     model: str,
@@ -574,12 +575,13 @@ def build_budget_plan(
     safety_multiplier: float = 1.25,
     smoke_reserve_usd: float = 0.0,
 ) -> dict[str, Any]:
-    """Conservative no-provider budget gate for the currently unresolved scope.
+    """Freeze a no-provider execution plan for the currently unresolved scope.
 
-    This intentionally prices fresh input and the full configured output/token
-    envelopes. Prompt-cache reads can only make the real run cheaper. COMPLETE
-    units cost zero, so certified result-cache hydration directly reduces the
-    estimate before any paid request is allowed.
+    Besides the conservative spend bound, this classifies each leaf as already
+    reused/revalidated, new paid execution, paid re-evaluation after explicit
+    invalidation, deferred until dependencies make its fingerprint knowable, or
+    machine-only. The plan is therefore an auditable answer to "what will be
+    reused and what can still cost money?" before scored inference starts.
     """
     benchmark.assert_template_integrity(root)
     manifest = json_load(root / "work" / "root" / "manifest.json")
@@ -601,6 +603,23 @@ def build_budget_plan(
             "budget plan names unknown work units: " + ", ".join(unknown)
         )
 
+    cache_status_path = root / "results/cache_status.json"
+    cache_status = (
+        json_load(cache_status_path)
+        if cache_status_path.is_file()
+        else {"hits": {}, "misses": {}, "invalidated": {}}
+    )
+    cache_hits = cache_status.get("hits", {}) or {}
+    cache_misses = cache_status.get("misses", {}) or {}
+    cache_invalidated = cache_status.get("invalidated", {}) or {}
+
+    cache_impact_path = root / "results/cache_impact.json"
+    cache_impact = (
+        json_load(cache_impact_path)
+        if cache_impact_path.is_file()
+        else {"valid": 0, "invalid": []}
+    )
+
     input_price = float(pricing["input_usd_per_million_tokens"])
     output_price = float(pricing["output_usd_per_million_tokens"])
     search_price = float(pricing.get("web_search_usd_per_request", 0.0) or 0.0)
@@ -619,21 +638,29 @@ def build_budget_plan(
         3, int(sandbox_cfg.get("max_turns", 3) or 3)
     )
 
-    # Rendered bytes are a stronger estimate than a generic planning number
-    # whenever deterministic preparation has already materialized the Task Packet.
     def task_tokens(unit: dict[str, Any]) -> int:
         agent_id = str(unit.get("assigned_agent_id") or "")
-        path = root / "work" / "agents" / agent_id / "task.json"
-        if not path.is_file():
+        task_path = root / "work" / "agents" / agent_id / "task.json"
+        if not task_path.is_file():
             return 0
-        task = json_load(path)
+        task = json_load(task_path)
         rendered = int(task.get("rendered_bytes", 0) or 0)
         return max(0, (rendered + 3) // 4)
 
+    decisions: dict[str, list[dict[str, Any]]] = {
+        "reused_and_revalidated": [],
+        "already_complete_not_from_cache": [],
+        "new_paid_execution": [],
+        "paid_reevaluation_after_invalidation": [],
+        "deferred_cache_decision": [],
+        "machine_only": [],
+        "blocked": [],
+    }
     by_eval: dict[str, dict[str, Any]] = {}
     rows: list[dict[str, Any]] = []
     blockers: list[dict[str, str]] = []
     total_upper = 0.0
+    expected_calls_upper = 0
     pending_agent_units = 0
     complete_units = 0
 
@@ -645,19 +672,39 @@ def build_budget_plan(
         ev = str(unit.get("evaluation") or "unknown")
         state = (ledger.get("units") or {}).get(uid, {}) or {}
         status = str(state.get("status") or "PENDING")
+        base_decision = {
+            "work_unit_id": uid,
+            "evaluation": ev,
+            "status": status,
+            "assigned_languages": list(unit.get("assigned_languages", []) or []),
+        }
         entry = by_eval.setdefault(
             ev,
             {
                 "complete_units": 0,
                 "pending_agent_units": 0,
                 "estimated_uncached_usd": 0.0,
+                "expected_paid_api_calls_upper_bound": 0,
                 "hard_blockers": [],
             },
         )
+
         if status == "COMPLETE":
             complete_units += 1
             entry["complete_units"] += 1
+            if uid in cache_hits:
+                decisions["reused_and_revalidated"].append({
+                    **base_decision,
+                    "cache": cache_hits[uid],
+                    "api_calls": 0,
+                })
+            else:
+                decisions["already_complete_not_from_cache"].append({
+                    **base_decision,
+                    "api_calls": 0,
+                })
             continue
+
         if status in {"BLOCKED", "INVALID"}:
             blocker = {
                 "work_unit_id": uid,
@@ -666,8 +713,15 @@ def build_budget_plan(
             }
             blockers.append(blocker)
             entry["hard_blockers"].append(blocker)
+            decisions["blocked"].append({**base_decision, **blocker, "api_calls": 0})
             continue
+
         if unit.get("execution_kind", "agent") != "agent":
+            decisions["machine_only"].append({
+                **base_decision,
+                "runner_action": unit.get("runner_action"),
+                "api_calls": 0,
+            })
             continue
 
         pending_agent_units += 1
@@ -682,11 +736,6 @@ def build_budget_plan(
             if declared_output > 0:
                 output_tokens = min(declared_output, packet_output_ceiling)
             else:
-                # max_tokens is a truncation guard, not an expected bill. Pricing
-                # every one-shot packet as if it consumed the full emergency
-                # ceiling makes a safe run look unaffordable. Keep the provider
-                # cap high for correctness, but estimate unresolved spend from a
-                # conservative per-evaluation generation envelope.
                 planning_default = {
                     "semantic_compression": 32768,
                     "ecosystem": 16384,
@@ -706,6 +755,7 @@ def build_budget_plan(
             raise ProductionRunError(
                 f"{uid}: unsupported worker mode in budget plan: {worker_mode!r}"
             )
+
         upper = calls * (
             input_tokens * input_price / 1_000_000.0
             + output_tokens * output_price / 1_000_000.0
@@ -716,21 +766,49 @@ def build_budget_plan(
             )
         )
         total_upper += upper
+        expected_calls_upper += calls
         entry["estimated_uncached_usd"] = round(
             float(entry["estimated_uncached_usd"]) + upper, 6
         )
-        rows.append(
-            {
-                "work_unit_id": uid,
-                "evaluation": ev,
-                "worker_mode": worker_mode,
-                "calls_upper_bound": calls,
-                "input_tokens_per_call": input_tokens,
-                "output_tokens_per_call": output_tokens,
-                "network_allowed": bool(unit.get("network_allowed")),
-                "estimated_uncached_usd": round(upper, 6),
-            }
-        )
+        entry["expected_paid_api_calls_upper_bound"] += calls
+
+        row = {
+            **base_decision,
+            "worker_mode": worker_mode,
+            "calls_upper_bound": calls,
+            "input_tokens_per_call": input_tokens,
+            "output_tokens_per_call": output_tokens,
+            "network_allowed": bool(unit.get("network_allowed")),
+            "estimated_uncached_usd": round(upper, 6),
+        }
+        rows.append(row)
+
+        miss = cache_misses.get(uid)
+        invalid = cache_invalidated.get(uid)
+        if invalid is not None:
+            decisions["paid_reevaluation_after_invalidation"].append({
+                **row,
+                "invalidation": invalid,
+            })
+        elif isinstance(miss, dict) and str(miss.get("reason") or "") == "no certified record":
+            decisions["new_paid_execution"].append({
+                **row,
+                "cache_miss": miss,
+            })
+        elif isinstance(miss, dict):
+            decisions["paid_reevaluation_after_invalidation"].append({
+                **row,
+                "invalidation": miss,
+            })
+        else:
+            # A downstream fingerprint can depend on an upstream output that
+            # does not exist yet. It is impossible to claim HIT/MISS honestly
+            # before that dependency finishes, so budget conservatively while
+            # recording that the cache decision is deferred rather than "new".
+            decisions["deferred_cache_decision"].append({
+                **row,
+                "reason": "exact cache fingerprint waits for unresolved dependencies",
+            })
 
     recommended = total_upper * safety_multiplier + smoke_reserve_usd
     available = float(available_usd) if available_usd is not None else None
@@ -738,22 +816,20 @@ def build_budget_plan(
         not blockers
         and (available is None or available + 1e-9 >= recommended)
     )
-    cache_status_path = root / "results/cache_status.json"
-    cache_status = (
-        json_load(cache_status_path)
-        if cache_status_path.is_file()
-        else {"hits": {}, "misses": {}}
-    )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "kind": "benchmark_execution_plan",
         "model": model,
         "evaluation": evaluation or "all",
         "selected_units": sorted(selected),
         "complete_units": complete_units,
         "pending_agent_units": pending_agent_units,
-        "cache_hits": len(cache_status.get("hits", {})),
-        "cache_misses": len(cache_status.get("misses", {})),
+        "cache_hits": len(cache_hits),
+        "cache_misses": len(cache_misses),
+        "cache_invalidated_units": len(cache_invalidated),
+        "invalidated_cache_records": list(cache_impact.get("invalid", []) or []),
         "estimated_uncached_usd": round(total_upper, 6),
+        "expected_paid_api_calls_upper_bound": expected_calls_upper,
         "safety_multiplier": safety_multiplier,
         "smoke_reserve_usd": round(smoke_reserve_usd, 6),
         "recommended_budget_usd": round(recommended, 6),
@@ -761,6 +837,7 @@ def build_budget_plan(
         "sufficient": sufficient,
         "hard_blockers": blockers,
         "by_evaluation": by_eval,
+        "execution_decisions": decisions,
         "units": sorted(
             rows,
             key=lambda row: (
@@ -769,10 +846,11 @@ def build_budget_plan(
             ),
         ),
         "note": (
-            "Conservative planning estimate. It prices unresolved calls as fresh "
-            "input and does not count provider prompt-cache discounts; certified "
-            "COMPLETE units are excluded entirely. Provider max_tokens remains a "
-            "separate truncation guard and is not treated as expected consumption."
+            "Frozen pre-paid execution plan. COMPLETE certified-cache hits are "
+            "revalidated and cost zero. Pending leaves with a known invalidation "
+            "state the exact reason; leaves whose fingerprint depends on unfinished "
+            "upstream evidence are explicitly DEFERRED and conservatively priced. "
+            "Prompt-cache discounts can only reduce actual provider spend."
         ),
     }
 
@@ -1156,6 +1234,106 @@ def build_cost_report(log_path: Path) -> dict[str, Any]:
     }
 
 
+
+def reconcile_execution_plan(
+    root: Path,
+    plan_path: Path,
+    actual_path: Path,
+    evaluation: str,
+) -> dict[str, Any]:
+    """Compare the frozen pre-paid plan with what the provider actually did."""
+    plan = json_load(plan_path)
+    actual = json_load(actual_path)
+    ledger = json_load(root / "work" / "root" / "ledger.json")
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    eval_ids = {
+        str(unit["id"])
+        for unit in manifest.get("work_units", [])
+        if str(unit.get("evaluation") or "") == evaluation
+    }
+
+    planned_calls = int(plan.get("expected_paid_api_calls_upper_bound", 0) or 0)
+    actual_calls = int(actual.get("paid_inference_calls", 0) or 0)
+    planned_cost = float(plan.get("estimated_uncached_usd", 0.0) or 0.0)
+    actual_cost = float(actual.get("estimated_cost_usd", 0.0) or 0.0)
+
+    retry_units = []
+    final_status_counts: dict[str, int] = {}
+    for uid in sorted(eval_ids):
+        state = (ledger.get("units", {}).get(uid) or {})
+        status = str(state.get("status") or "PENDING")
+        final_status_counts[status] = final_status_counts.get(status, 0) + 1
+        if int(state.get("attempts", 0) or 0) > 1:
+            retry_units.append({
+                "work_unit_id": uid,
+                "attempts": int(state.get("attempts", 0) or 0),
+            })
+
+    cache_status_path = root / "results/cache_status.json"
+    cache_status = (
+        json_load(cache_status_path)
+        if cache_status_path.is_file()
+        else {"hits": {}, "misses": {}, "invalidated": {}}
+    )
+    final_hits = sorted(
+        uid for uid in (cache_status.get("hits", {}) or {}) if uid in eval_ids
+    )
+
+    reasons: list[str] = []
+    if actual_calls < planned_calls:
+        reasons.append(
+            "actual calls are below the conservative upper bound because unused "
+            "repair/orchestration envelopes and dependency-unlocked cache hits are "
+            "not charged"
+        )
+    elif actual_calls > planned_calls:
+        reasons.append(
+            "actual calls exceeded the frozen upper-bound estimate; inspect retries "
+            "and gateway audit before accepting the run plan as accurate"
+        )
+    if retry_units:
+        reasons.append("one or more work units required runner retries")
+    errors = actual.get("gateway_errors") or {}
+    if any(int(v or 0) for v in errors.values()):
+        reasons.append("the provider/gateway audit recorded retryable or refused calls")
+    if not reasons:
+        reasons.append("actual dispatch matched the frozen plan without a material deviation")
+
+    return {
+        "schema_version": 1,
+        "kind": "benchmark_execution_actual_vs_plan",
+        "evaluation": evaluation,
+        "planned_paid_api_calls_upper_bound": planned_calls,
+        "actual_paid_api_calls": actual_calls,
+        "paid_api_call_delta_actual_minus_upper_bound": actual_calls - planned_calls,
+        "within_planned_call_upper_bound": actual_calls <= planned_calls,
+        "planned_uncached_usd_upper_estimate": round(planned_cost, 6),
+        "actual_estimated_cost_usd": round(actual_cost, 6),
+        "cost_delta_actual_minus_plan": round(actual_cost - planned_cost, 6),
+        "final_ledger_status_counts": final_status_counts,
+        "final_cache_hit_units": final_hits,
+        "retry_units": retry_units,
+        "gateway_errors": errors,
+        "difference_reasons": reasons,
+    }
+
+
+def cmd_reconcile_plan(args: argparse.Namespace) -> dict[str, Any]:
+    root = Path(args.workspace).resolve()
+    payload = reconcile_execution_plan(
+        root,
+        Path(args.plan).resolve(),
+        Path(args.actual).resolve(),
+        args.evaluation,
+    )
+    if args.output:
+        Path(args.output).write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    return payload
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1229,6 +1407,16 @@ def build_parser() -> argparse.ArgumentParser:
     cost.add_argument("--log", required=True)
     cost.add_argument("--output")
 
+    reconcile = sub.add_parser(
+        "reconcile-plan",
+        help="persist the difference between the frozen execution plan and actual paid calls",
+    )
+    reconcile.add_argument("--workspace", required=True)
+    reconcile.add_argument("--plan", required=True)
+    reconcile.add_argument("--actual", required=True)
+    reconcile.add_argument("--evaluation", required=True, choices=benchmark.PRIMARY_NAMES)
+    reconcile.add_argument("--output")
+
     return parser
 
 
@@ -1244,6 +1432,8 @@ def main() -> int:
         )
     elif args.command == "budget-plan":
         payload = cmd_budget_plan(args)
+    elif args.command == "reconcile-plan":
+        payload = cmd_reconcile_plan(args)
     elif args.command == "provider-smoke":
         payload = provider_smoke(
             args.model, Path(args.template).resolve(),

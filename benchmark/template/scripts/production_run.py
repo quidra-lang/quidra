@@ -661,11 +661,22 @@ def build_budget_plan(
         input_tokens = max(planned_input, rendered_input, 1)
         if worker_mode == "packet-only":
             calls = 1
-            output_tokens = max(
-                int(unit.get("max_output_tokens_per_call", 0) or 0),
-                packet_output_ceiling,
-                1,
-            )
+            declared_output = int(unit.get("max_output_tokens_per_call", 0) or 0)
+            if declared_output > 0:
+                output_tokens = min(declared_output, packet_output_ceiling)
+            else:
+                # max_tokens is a truncation guard, not an expected bill. Pricing
+                # every one-shot packet as if it consumed the full emergency
+                # ceiling makes a safe run look unaffordable. Keep the provider
+                # cap high for correctness, but estimate unresolved spend from a
+                # conservative per-evaluation generation envelope.
+                planning_default = {
+                    "semantic_compression": 32768,
+                    "ecosystem": 16384,
+                    "language_quality": 8192,
+                }.get(str(unit.get("evaluation") or ""), 16384)
+                output_tokens = min(planning_default, packet_output_ceiling)
+            output_tokens = max(output_tokens, 1)
         elif worker_mode == "sandbox-agent":
             scored_calls = max(0, int(unit.get("max_llm_calls", 0) or 0))
             calls = max(1, scored_calls + orchestration_turn_reserve)
@@ -741,9 +752,10 @@ def build_budget_plan(
             ),
         ),
         "note": (
-            "Conservative upper-envelope estimate. It prices unresolved calls as "
-            "fresh input and does not count provider prompt-cache discounts; certified "
-            "COMPLETE units are excluded entirely."
+            "Conservative planning estimate. It prices unresolved calls as fresh "
+            "input and does not count provider prompt-cache discounts; certified "
+            "COMPLETE units are excluded entirely. Provider max_tokens remains a "
+            "separate truncation guard and is not treated as expected consumption."
         ),
     }
 

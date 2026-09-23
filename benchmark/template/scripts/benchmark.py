@@ -4249,7 +4249,19 @@ def cache_eligible_unit(root: Path, unit: dict[str, Any]) -> bool:
         return False
     assigned = list(unit.get("assigned_languages", []) or [])
     if unit.get("result_kind", "requirements") == "requirements":
-        return unit.get("phase") == "measurement" and bool(assigned)
+        if unit.get("phase") != "measurement":
+            return False
+        requirement_ids = [str(rid) for rid in (unit.get("requirement_ids") or [])]
+        # Cohort support adjudication and the final blinded comparability gate
+        # have no assigned language because they intentionally see the whole
+        # fixed comparison set. Their Task Packets embed the exact completed
+        # annotations/sample, so a certified COMPLETE+PASS result is just as
+        # content-addressable as a language-scoped measurement.
+        if support_adjudication_probe(requirement_ids) is not None:
+            return True
+        if COMPARABILITY_GATE in requirement_ids:
+            return True
+        return bool(assigned)
     # A reuse audit judges one reusable artifact against the current toolchain.
     # Its inputs are the artifact's own git object and the toolchain of the
     # artifact's language, both of which the key carries, so its verdict is as
@@ -4332,6 +4344,12 @@ def cache_epoch(root: Path, evaluation: str) -> str:
 def cache_scope(unit: dict[str, Any]) -> str:
     if mechanical_unit(unit):
         return "mechanical-" + slug_id(str(unit.get("runner_action")))
+    requirement_ids = [str(rid) for rid in (unit.get("requirement_ids") or [])]
+    adjudication = support_adjudication_probe(requirement_ids)
+    if adjudication is not None:
+        return "cohort-" + slug_id(adjudication)
+    if COMPARABILITY_GATE in requirement_ids:
+        return "comparability"
     assigned = list(unit.get("assigned_languages", []) or [])
     if unit.get("result_kind") == "audit" and unit.get("reuse_audit_for"):
         return "audit-" + "-".join(slug_id(str(a)) for a in sorted(unit["reuse_audit_for"]))

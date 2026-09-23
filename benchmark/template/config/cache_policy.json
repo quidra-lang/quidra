@@ -40,8 +40,8 @@
     "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
     "semantic_compression": "2026-09-canonical-fragments-v5-r9-machine",
     "semantic_compression_note": "Semantic Compression v5 preserves the mechanically verified canonical-fragment and trusted-runtime contracts, and makes R9/P-a scope machine-enforced. P-a is accepted only for the structured probe allowlist, which the capability-universe gate verifies against both R9 and deterministic_tie_break.named_substitution. Earlier Semantic Compression records remain preserved but cannot hydrate a v5 run.",
-    "llm_proficiency": "2026-09-complete-primary-trials-v1",
-    "llm_proficiency_note": "LLM Proficiency v1 requires exactly the frozen Cartesian product of primary workloads and scenarios with the configured independent-trial replication count. Cache records must certify the exact Primary trial-set hash and count; older records remain preserved but cannot hydrate this epoch."
+    "llm_proficiency": "2026-09-complete-primary-trials-v2-pretrial-toolchain",
+    "llm_proficiency_note": "LLM Proficiency v2 requires exactly the frozen Cartesian product of primary workloads and scenarios with the configured independent-trial replication count, and a successful direct invocation of the assigned language toolchain before the first scored trial. Cache records certify the exact Primary trial-set hash/count and pre-trial toolchain evidence; earlier records remain preserved but cannot hydrate this epoch."
   },
   "promotion": {
     "require_complete_unit": true,

@@ -129,8 +129,9 @@ trusted Actions/gateway steps. The scored container remains credential-less and
 network-isolated.
 
 Before paid dispatch, deterministic preparation hydrates exact certified-cache
-hits, restores exact-fingerprint paid-but-incomplete leaf state from the private
-Actions cache, writes `results/cache_impact.json`, and freezes
+hits, restores exact-fingerprint paid leaf inference state from the durable
+`benchmark/cache/partial-paid/` store (with Actions cache as a speed mirror),
+writes `results/cache_impact.json`, and freezes
 `results/execution-plan-preflight.json`. The plan lists cache reuse,
 invalidation/re-evaluation, new paid work, dependency-deferred work, expected
 paid-call upper bounds and the conservative spend bound. Each Primary also keeps
@@ -143,9 +144,12 @@ ledger refuse dispatch beyond it. Token usage, web-search count and estimated
 cost are retained in a redacted audit log.
 
 COMPLETE+PASS leaves are checkpointed independently into the certified result
-cache. Paid responses/trials inside an incomplete leaf are checkpointed
-separately in the private Actions cache and can be restored in a later Actions
-run only when the complete dependency fingerprint and Task Packet hash match.
+cache. Paid responses/trials are checkpointed separately in the content-addressed
+`benchmark/cache/partial-paid/` store, optionally mirrored in Actions cache, and
+can be restored in a later run only when the complete dependency fingerprint and
+Task Packet hash match. This remains true after the leaf becomes COMPLETE, so a
+later current-validator re-evaluation can reuse already-paid model calls instead
+of repurchasing them.
 A diagnostic finalize records exact missing required leaves, but only
 `formal_complete=true` can be imported as a formal result. If `develop` moves
 during the isolated run, reconciliation never silently changes the evaluated
@@ -167,7 +171,7 @@ These Linux toolchain versions are not expected to equal the fingerprints record
 
 On macOS, `init` by itself is not sufficient. If no container, VM, namespace-equivalent mechanism or other trusted isolation layer can present the staging directory as `/quidra-benchmark`, scored work must not start. Do not substitute a symlink or forged attestation.
 
-After sandbox exit, the trusted outer runner uses `benchmark.py post-run --source-repo <checkout>` only when `finalization.json.formal_complete` is true. Diagnostic/partial finalization deliberately cannot be imported. If a run is abandoned, use `benchmark.py discard-workspace --source-repo <checkout>` instead of manual `rm -rf`; COMPLETE+PASS certified cache records and private paid-leaf checkpoints remain independently reusable.
+After sandbox exit, the trusted outer runner uses `benchmark.py post-run --source-repo <checkout>` only when `finalization.json.formal_complete` is true. Diagnostic/partial finalization deliberately cannot be imported. If a run is abandoned, use `benchmark.py discard-workspace --source-repo <checkout>` instead of manual `rm -rf`; COMPLETE+PASS certified cache records and exact-fingerprint paid-leaf inference checkpoints remain independently reusable.
 
 ## Files that key certified-cache records
 

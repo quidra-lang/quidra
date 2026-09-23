@@ -313,6 +313,10 @@ jobs:
                   ),
               )
               module.json_dump(
+                  repair_root / "template/config/benchmark_metadata.json",
+                  module.json_load(root / "config/benchmark_metadata.json"),
+              )
+              module.json_dump(
                   repair_root / module.COMPARABILITY_BLINDING_RELATIVE,
                   {"schema_version":1,"labels":{"Python":"E"}},
               )

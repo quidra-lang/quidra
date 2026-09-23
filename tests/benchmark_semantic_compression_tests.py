@@ -136,6 +136,7 @@ def assert_metric_annotations_do_not_carry_support_authority() -> None:
         "support_factor": 0.0,
         "p_letters": ["P-b"],
         "none_reason": "N-3",
+        "level": "HIGH",
         "note": "metric-specific explanation",
         "citation": "metric-specific citation",
         "semantic_fact_count": 4,
@@ -146,9 +147,12 @@ def assert_metric_annotations_do_not_carry_support_authority() -> None:
     assert "support_factor" not in cleaned, cleaned
     assert "p_letters" not in cleaned, cleaned
     assert "none_reason" not in cleaned, cleaned
+    assert cleaned["level"] == "HIGH", cleaned
     assert cleaned["note"] == "metric-specific explanation", cleaned
     assert cleaned["citation"] == "metric-specific citation", cleaned
     assert cleaned["semantic_fact_count"] == 4, cleaned
+    support_level = benchmark.sc_metric_only_annotation({"level": "FULL"})
+    assert "level" not in support_level, support_level
 
 
 def assert_f20_runtime_facts_contract() -> None:

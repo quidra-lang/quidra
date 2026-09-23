@@ -7178,6 +7178,209 @@ def proficiency_expected_prompt(root: Path, language: str, trial_id: str) -> str
     return "\n".join(sections).rstrip() + "\n"
 
 
+PROFICIENCY_SOURCE_FILES = {
+    "Quidra": "main.qui",
+    "Python": "main.py",
+    "C++": "main.cpp",
+    "Rust": "main.rs",
+    "Go": "main.go",
+    "Java": "Main.java",
+    "TypeScript": "main.ts",
+    "Kotlin": "main.kt",
+    "Swift": "main.swift",
+    "Zig": "main.zig",
+}
+
+
+def proficiency_verifier_commands(
+    root: Path, language: str
+) -> tuple[str, list[str] | None, list[str]]:
+    """Render the frozen single-file build/run recipe for Proficiency."""
+    source_name = PROFICIENCY_SOURCE_FILES.get(language)
+    if source_name is None:
+        raise BenchmarkError(f"unknown LLM Proficiency language: {language}")
+    environment = json_load(root / "template" / "environment" / "environment.json")
+    recipe = (environment.get("frozen_toolchain_recipes") or {}).get(language)
+    if not isinstance(recipe, dict) or not isinstance(recipe.get("run"), str):
+        raise BenchmarkError(f"LLM Proficiency has no frozen run recipe for {language}")
+    replacements = {
+        "FILE.qui": source_name,
+        "FILE.py": source_name,
+        "FILE.cpp": source_name,
+        "FILE.rs": source_name,
+        "FILE.go": source_name,
+        "FILE.java": source_name,
+        "FILE.ts": source_name,
+        "FILE.kt": source_name,
+        "FILE.swift": source_name,
+        "FILE.zig": source_name,
+        "FILE.jar": "program.jar",
+        "FILE.js": str(PurePosixPath(source_name).with_suffix(".js")),
+        "BIN": "program",
+        "OUT": "out",
+    }
+
+    def render(command: str) -> list[str]:
+        argv: list[str] = []
+        for raw in shlex.split(command):
+            value = raw
+            for key in sorted(replacements, key=len, reverse=True):
+                value = value.replace(key, replacements[key])
+            argv.append(value)
+        return argv
+
+    build = recipe.get("build")
+    return (
+        source_name,
+        render(build) if isinstance(build, str) and build.strip() else None,
+        render(str(recipe["run"])),
+    )
+
+
+def verify_proficiency_completion(
+    root: Path,
+    language: str,
+    trial_id: str,
+    source_text: str,
+    work_dir: Path,
+) -> dict[str, Any]:
+    """Compile/parse and run one generated Proficiency program mechanically."""
+    manifest = proficiency_trial_manifest(root)
+    cell = manifest.get(trial_id)
+    if cell is None:
+        raise BenchmarkError(f"unknown LLM Proficiency trial ID: {trial_id}")
+    asset = proficiency_workload_contract(root)
+    validation = asset["workloads"][cell["workload"]]["validation"]
+    expected_stdout = str(validation["success_stdout"])
+    expected_exit = int(validation.get("success_exit_code", 0))
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+    source_name, build_argv, run_argv = proficiency_verifier_commands(root, language)
+    source_path = work_dir / source_name
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_text(source_text, encoding="utf-8")
+    (work_dir / "out").mkdir(exist_ok=True)
+
+    def invoke(argv: list[str], label: str) -> dict[str, Any]:
+        try:
+            completed = subprocess.run(
+                argv,
+                cwd=work_dir,
+                env=sanitized_subprocess_env(root, work_dir),
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=120,
+            )
+            return {
+                "label": label,
+                "argv": argv,
+                "exit_code": int(completed.returncode),
+                "stdout": (completed.stdout or "")[:8000],
+                "stderr": (completed.stderr or "")[:8000],
+            }
+        except subprocess.TimeoutExpired as exc:
+            return {
+                "label": label,
+                "argv": argv,
+                "exit_code": None,
+                "stdout": str(exc.stdout or "")[:8000],
+                "stderr": str(exc.stderr or "")[:8000],
+                "error": "timeout",
+            }
+        except OSError as exc:
+            return {
+                "label": label,
+                "argv": argv,
+                "exit_code": None,
+                "stdout": "",
+                "stderr": str(exc)[:8000],
+                "error": type(exc).__name__,
+            }
+
+    if build_argv is None and language == "Python":
+        compile_record = invoke(["python3", "-m", "py_compile", source_name], "parse")
+    elif build_argv is not None:
+        compile_record = invoke(build_argv, "build")
+    else:
+        compile_record = {
+            "label": "no-build",
+            "argv": [],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+        }
+
+    compile_parse_ok = compile_record.get("exit_code") == 0
+    run_record: dict[str, Any] | None = None
+    if compile_parse_ok:
+        run_record = invoke(run_argv, "run")
+    observed_stdout = (
+        str((run_record or {}).get("stdout") or "").strip()
+        if run_record is not None
+        else ""
+    )
+    test_passed = bool(
+        run_record is not None
+        and run_record.get("exit_code") == expected_exit
+        and observed_stdout == expected_stdout
+    )
+    result = {
+        "schema_version": 1,
+        "trial_id": trial_id,
+        "language": language,
+        "source_sha256": sha256_bytes(source_text.encode("utf-8")),
+        "expected_exit_code": expected_exit,
+        "expected_stdout": expected_stdout,
+        "compile_or_parse": compile_record,
+        "compile_parse_ok": compile_parse_ok,
+        "run": run_record,
+        "test_passed": test_passed,
+    }
+    json_dump(work_dir / "verification.json", result)
+    return result
+
+
+def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | None:
+    """Unambiguous Proficiency metrics recomputed from runtime-owned evidence."""
+    trials = ((trace.get("trials") or {}).get("trials") or {})
+    if not isinstance(trials, dict) or not trials:
+        return None
+    generation = compiled = correct1 = correctn = 0
+    for summary in trials.values():
+        calls = (summary or {}).get("calls") or []
+        if not calls:
+            return None
+        first = calls[0]
+        if (
+            isinstance(first.get("completion"), str)
+            and first["completion"].strip()
+            and first.get("incomplete") is None
+        ):
+            generation += 1
+        first_verification = first.get("verification")
+        if not isinstance(first_verification, dict):
+            return None
+        if first_verification.get("compile_parse_ok") is True:
+            compiled += 1
+        if first_verification.get("test_passed") is True:
+            correct1 += 1
+        if any(
+            isinstance(call.get("verification"), dict)
+            and call["verification"].get("test_passed") is True
+            for call in calls
+        ):
+            correctn += 1
+    denominator = float(len(trials))
+    return {
+        "metric.generation_success_rate": 100.0 * generation / denominator,
+        "metric.compile_parse_success_rate": 100.0 * compiled / denominator,
+        "metric.correct_at_1": 100.0 * correct1 / denominator,
+        "metric.correct_at_n": 100.0 * correctn / denominator,
+    }
+
+
 def proficiency_primary_trial_set_sha256(root: Path) -> str:
     payload = json.dumps(
         proficiency_required_trial_ids(root),

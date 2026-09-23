@@ -1090,8 +1090,15 @@ def run_agent(args: argparse.Namespace) -> int:
         {"role": "user", "content": packet},
     ]
 
-    trace: list[dict[str, Any]] = []
-    denials: list[dict[str, Any]] = []
+    resume_path = agent_dir / "resume_trace.json"
+    resume_payload: dict[str, Any] = {}
+    if resume_path.is_file():
+        try:
+            resume_payload = benchmark.json_load(resume_path)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise AgentFailure(f"resume_trace.json is unreadable: {exc}") from exc
+    trace: list[dict[str, Any]] = list(resume_payload.get("trace", []) or [])
+    denials: list[dict[str, Any]] = list(resume_payload.get("denied_actions", []) or [])
     usage = {
         "input_tokens": 0,
         "cache_creation_input_tokens": 0,
@@ -1099,12 +1106,34 @@ def run_agent(args: argparse.Namespace) -> int:
         "output_tokens": 0,
         "calls": 0,
     }
+    for key in usage:
+        usage[key] = int((resume_payload.get("usage") or {}).get(key, 0) or 0)
+    turn_offset = max(
+        [int(row.get("turn", 0) or 0) for row in trace if isinstance(row, dict)] or [0]
+    )
+    partial_path = agent_dir / "agent_trace.partial.json"
+
+    def checkpoint_trace() -> None:
+        benchmark.json_dump(partial_path, {
+            "schema_version": 1,
+            "agent_id": args.id,
+            "worker_mode": "sandbox-agent",
+            "prompt_sha256": task["prompt_sha256"],
+            "denied_actions": denials,
+            "usage": usage,
+            "trials": trials.summary(),
+            "trace": trace,
+            "checkpointed_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        })
+
     protocol_errors = 0
     max_protocol_errors = int(config["max_consecutive_protocol_errors"])
     final_summary: str | None = None
     stop_reason = "max_turns_exhausted"
+    checkpoint_trace()
 
-    for turn in range(1, max_turns + 1):
+    for local_turn in range(1, max_turns + 1):
+        turn = turn_offset + local_turn
         try:
             response = client.complete(
                 messages,

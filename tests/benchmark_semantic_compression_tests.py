@@ -733,6 +733,13 @@ def assert_failed_comparability_quarantines_affected_probe() -> None:
         agent_dir = root / "work/agents/worker-sc-comparability"
         agent_dir.mkdir(parents=True)
         benchmark.json_dump(
+            root / benchmark.COMPARABILITY_BLINDING_RELATIVE,
+            {
+                "schema_version": 1,
+                "labels": {"Python": "A", "Go": "B"},
+            },
+        )
+        benchmark.json_dump(
             agent_dir / "result.json",
             {
                 "requirements": {"gate.comparability_audit": False},
@@ -743,13 +750,6 @@ def assert_failed_comparability_quarantines_affected_probe() -> None:
                         ]
                     }
                 },
-            },
-        )
-        benchmark.json_dump(
-            root / "work/root/comparability_blinding.json",
-            {
-                "schema_version": 1,
-                "labels": {"Python": "A", "Rust": "B"},
             },
         )
         manifest = {
@@ -764,9 +764,58 @@ def assert_failed_comparability_quarantines_affected_probe() -> None:
         assert benchmark.unresolved_semantic_comparability_probes(
             root, manifest
         ) == {"F20.P1"}
-        assert benchmark.unresolved_semantic_comparability_pairs(
-            root, manifest
-        ) == {("F20.P1", "Python")}
+        pairs = benchmark.unresolved_semantic_comparability_pairs(root, manifest)
+        assert pairs == {("F20.P1", "Python")}, pairs
+
+        adjudicator = {
+            "id": "sc-support-adjudication--f20-p1",
+            "evaluation": "semantic_compression",
+            "requirement_ids": ["annotation.support_adjudication--f20-p1"],
+            "assigned_languages": [],
+        }
+        python_metric = {
+            "id": "sc-metrics-local--part-1--python",
+            "evaluation": "semantic_compression",
+            "requirement_ids": ["metric.semantic_density"],
+            "assigned_languages": ["Python"],
+        }
+        go_metric = {
+            **python_metric,
+            "id": "sc-metrics-local--part-1--go",
+            "assigned_languages": ["Go"],
+        }
+        assert benchmark.semantic_cache_quarantine_reason(
+            adjudicator, {"F20.P1"}, pairs
+        )
+        assert benchmark.semantic_cache_quarantine_reason(
+            python_metric, {"F20.P1"}, pairs
+        )
+        assert benchmark.semantic_cache_quarantine_reason(
+            go_metric, {"F20.P1"}, pairs
+        ) is None
+
+        # If the blinded label map is missing/corrupt, fail safe: preserve the
+        # affected probe but quarantine every language rather than certifying
+        # a suspect shard whose label can no longer be resolved.
+        benchmark.json_dump(
+            agent_dir / "result.json",
+            {
+                "requirements": {"gate.comparability_audit": False},
+                "evidence": {
+                    "gate_result": {
+                        "affected_pairs_requiring_revalidation": [
+                            {"probe_id": "F20.P1", "label": "Z"}
+                        ]
+                    }
+                },
+            },
+        )
+        fallback = benchmark.unresolved_semantic_comparability_pairs(root, manifest)
+        assert {
+            language
+            for probe, language in fallback
+            if probe == "F20.P1"
+        } == set(benchmark.metadata_languages(root)), fallback
 
 
 def main() -> None:

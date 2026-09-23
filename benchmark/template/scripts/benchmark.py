@@ -14457,6 +14457,7 @@ def export_partial_paid_checkpoints(
     ledger = json_load(root / "work" / "root" / "ledger.json")
     exported: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
+    updated_unit_count = 0
 
     for unit in manifest.get("work_units", []):
         if evaluation is not None and unit.get("evaluation") != evaluation:
@@ -14594,6 +14595,7 @@ def export_partial_paid_checkpoints(
                 keep_existing = False
         if not keep_existing:
             json_dump(destination, record)
+            updated_unit_count += 1
         exported.append({
             "work_unit_id": uid,
             "fingerprint": fingerprint,
@@ -14612,6 +14614,7 @@ def export_partial_paid_checkpoints(
         "schema_version": 1,
         "exported_units": exported,
         "exported_unit_count": len(exported),
+        "updated_unit_count": updated_unit_count,
         "skipped": skipped,
     }
     json_dump(root / "results" / "partial_paid_checkpoint_export.json", result)

@@ -2682,6 +2682,279 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
 
 
 
+COMPARABILITY_GATE = "gate.comparability_audit"
+COMPARABILITY_SAMPLE_RELATIVE = "work/audit/semantic-compression/comparability_sample.json"
+COMPARABILITY_BLINDING_RELATIVE = "work/root/comparability_blinding.json"
+COMPARABILITY_TEXT_LIMIT = 300
+# Measured on the first full run: the audit's other inputs (the snapshot docs
+# and the frozen Semantic Compression assets) embed 707,897 of the 1,048,576
+# bytes a packet-only Task Packet may carry, and the sample of all twenty
+# families costs 237,000 of the remaining 340,679. The ceiling here is a sanity
+# bound on the sample itself; the packet's own limit still guards the total.
+COMPARABILITY_SAMPLE_BUDGET = 280_000
+
+COMPARABILITY_AUDIT_INSTRUCTIONS = """
+
+The blinded comparability sample for this audit is embedded as a task input.
+Methodology 6.1.1A requires the audit to run on the language-specific
+annotations, not on the frozen matrix template, so the runner has collected
+them for you from the completed metric shards. Each sampled probe carries one
+entry per language under an opaque label; the labels are a per-run permutation,
+so you cannot tell which language authored an entry, which is the blinding the
+methodology requires. Judge the entries only against the frozen matrix: a
+disagreement is annotation depth, row interpretation, or asymmetric treatment,
+never a language preference. Name every disagreement you find, with its probe
+ID and the labels involved, and adjudicate it against the frozen matrix. Pass
+the gate when the sampled annotations are mutually comparable, and fail it,
+with the disagreements as evidence, when they are not."""
+
+
+def comparability_sample_probes(root: Path) -> list[dict[str, Any]]:
+    """The predeclared audit sample: fixed by a rule, never by observed scores.
+
+    Methodology 6.1.1A wants at least 20% of the frozen probes and every
+    capability family. Taking the first frozen probe of each family satisfies
+    both from the matrix alone, so the sample is decided before any annotation
+    exists and cannot be steered by what the run measured.
+    """
+    matrix = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "semantic_site_matrix.json"
+    )
+    probes = list(matrix.get("probes") or [])
+    if not probes:
+        raise BenchmarkError("frozen semantic-site matrix declares no probes")
+    chosen: list[dict[str, Any]] = []
+    families: set[str] = set()
+    for probe in probes:
+        family = str(probe.get("family") or "")
+        if family and family not in families:
+            families.add(family)
+            chosen.append(probe)
+    minimum = -(-len(probes) // 5)
+    for probe in probes:
+        if len(chosen) >= minimum:
+            break
+        if probe not in chosen:
+            chosen.append(probe)
+    return chosen
+
+
+# Every pattern is replaced by the entry's own label, so one flat list serves
+# all ten languages: a pattern matching the "wrong" language's name still
+# redacts to the same token. Words that are also ordinary English - "go",
+# "swift", "rust" - are matched case-sensitively or only in compound forms, so
+# prose survives. Lower-case package roots (java.lang, kotlin.io) leaked in the
+# first full run and are why the alphabetic patterns are case-insensitive.
+COMPARABILITY_LANGUAGE_PATTERNS = (
+    r"(?i)\bjava\w*", r"(?i)\bkotlin\w*", r"(?i)\bpython\w*", r"(?i)\bcpython\b",
+    r"(?i)\bquidra\w*", r"(?i)\brust\w*", r"(?i)\bswiftc?\b", r"(?i)\btypescript\b",
+    r"(?i)\bjavascript\b", r"(?i)\becmascript\b", r"(?i)\bzig\w*",
+    r"(?i)\bgolang\b", r"(?i)\bgo(routine|fmt)\w*", r"(?i)\bclang\b",
+    r"(?i)\bcpp\b", r"(?i)\bpep\s*\d+", r"C\+\+", r"g\+\+", r"libstdc\+\+",
+    r"std::", r"\bGo\b", r"\bC\b", r"\bC\d\d\b", r"\bTS\b", r"\bJS\b",
+    r"\bNode(\.js)?\b", r"\bJVM\b", r"\bgcc\b", r"\bglibc\b", r"\bpip\b",
+    r"\bcargo\b", r"\bClippy\b",
+)
+
+
+def redact_language_identity(value: Any, label: str) -> Any:
+    """Replace language names in an annotation with the entry's label.
+
+    Blinding an annotation is worth nothing while its own notes say which
+    language wrote it, and the evidence names languages in its keys as well as
+    its prose. Code fragments are left verbatim - redacting inside them would
+    corrupt the thing being judged - so the sample says plainly that a fragment
+    can still betray its language and that the audit must be decided against
+    the frozen matrix either way.
+    """
+    if isinstance(value, str):
+        redacted = value
+        for pattern in COMPARABILITY_LANGUAGE_PATTERNS:
+            redacted = re.sub(pattern, f"<{label}>", redacted)
+        return redacted
+    if isinstance(value, dict):
+        return {
+            redact_language_identity(key, label): redact_language_identity(item, label)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_language_identity(item, label) for item in value]
+    return value
+
+
+def blind_annotation(fields: dict[str, Any], label: str) -> dict[str, Any]:
+    """Clip an annotation's prose and strip the language identity out of it."""
+    blinded: dict[str, Any] = {}
+    for key, value in fields.items():
+        clipped = clip_annotation_text(value)
+        name = redact_language_identity(key, label)
+        blinded[name] = (
+            clipped if "fragment" in key
+            else redact_language_identity(clipped, label)
+        )
+    return blinded
+
+
+def clip_annotation_text(value: Any, limit: int | None = None) -> Any:
+    """Keep an annotation's free text long enough to judge and short enough to embed."""
+    if limit is None:
+        limit = COMPARABILITY_TEXT_LIMIT
+    if isinstance(value, str):
+        return value if len(value) <= limit else value[:limit] + " ...[clipped]"
+    if isinstance(value, dict):
+        return {key: clip_annotation_text(item, limit) for key, item in value.items()}
+    if isinstance(value, list):
+        return [clip_annotation_text(item, limit) for item in value]
+    return value
+
+
+def probe_annotation_fields(
+    result: dict[str, Any], wanted: set[str]
+) -> dict[str, dict[str, Any]]:
+    """Collect every per-probe annotation a metric shard recorded, by probe ID.
+
+    The shards report per-probe evidence in whatever shape their metric needs -
+    a list of objects carrying `probe_id`, or a mapping keyed by probe ID - so
+    this reads both and names each value after the evidence key it came from.
+    """
+    rows: dict[str, dict[str, Any]] = {probe: {} for probe in wanted}
+
+    def visit(node: Any, name: str) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in rows:
+                    rows[key][name] = value
+                else:
+                    visit(value, key)
+        elif isinstance(node, list):
+            for item in node:
+                if isinstance(item, dict) and str(item.get("probe_id", "")) in rows:
+                    row = rows[str(item["probe_id"])]
+                    for key, value in item.items():
+                        if key != "probe_id":
+                            row[key] = value
+                else:
+                    visit(item, name)
+
+    visit(result.get("evidence") or {}, "evidence")
+    return rows
+
+
+def comparability_blinding(run_id: str, languages: list[str]) -> dict[str, str]:
+    """Label the languages so the reviewer cannot tell which one wrote an entry."""
+    order = sorted(
+        languages,
+        key=lambda language: sha256_bytes(f"{run_id}\0{language}".encode("utf-8")),
+    )
+    return {language: chr(ord("A") + index) for index, language in enumerate(order)}
+
+
+def build_comparability_sample(
+    root: Path, unit: dict[str, Any], manifest: dict[str, Any]
+) -> Path:
+    """Assemble the blinded cross-language sample the comparability audit judges.
+
+    A Task Packet is rendered when its unit's dependencies are COMPLETE, so the
+    annotations exist on the trusted side by the time this runs. Without this
+    the audit only ever saw the frozen matrix template, whose every site is
+    UNMEASURED, and it correctly refused to certify a sample that did not
+    exist.
+    """
+    units = {str(item.get("id")): item for item in manifest.get("work_units", [])}
+    probes = comparability_sample_probes(root)
+    wanted = {str(probe.get("probe_id")) for probe in probes}
+    by_language: dict[str, dict[str, dict[str, Any]]] = {}
+    for dependency in unit.get("dependencies", []):
+        source = units.get(str(dependency))
+        if source is None:
+            continue
+        languages = list(source.get("assigned_languages") or [])
+        if len(languages) != 1:
+            continue
+        result_path = (
+            root / "work" / "agents" / str(source.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if not result_path.is_file():
+            continue
+        collected = probe_annotation_fields(json_load(result_path), wanted)
+        annotations = by_language.setdefault(str(languages[0]), {})
+        for probe_id, fields in collected.items():
+            if fields:
+                annotations.setdefault(probe_id, {}).update(fields)
+    if not by_language:
+        raise BenchmarkError(
+            "comparability audit sample has no completed annotations to review"
+        )
+
+    labels = comparability_blinding(
+        str(json_load(root / "run.json").get("run_id")), sorted(by_language)
+    )
+    sample = {
+        "schema_version": 1,
+        "audit": "blinded cross-language comparability audit (methodology 6.1.1A)",
+        "blinded": True,
+        "blinding_note": (
+            "Entries are labelled by a per-run permutation and every language "
+            "name has been redacted from their prose. Code fragments are "
+            "verbatim, so a fragment's syntax may still reveal its language: "
+            "judge every entry against the frozen matrix, never against what "
+            "you believe the language to be."
+        ),
+        "sample_rule": (
+            "the first frozen probe of every capability family: "
+            f"{len(probes)} of {len(json_load(root / 'template' / 'methodology-assets' / 'semantic_compression' / 'semantic_site_matrix.json').get('probes') or [])} "
+            "frozen probes, covering every capability family"
+        ),
+        "entry_labels": sorted(labels.values()),
+        "probes": [
+            {
+                "probe_id": str(probe.get("probe_id")),
+                "family": probe.get("family"),
+                "capability_denominator": probe.get("capability_denominator"),
+                "unsupported_rule": probe.get("unsupported_rule"),
+                "frozen_sites": [
+                    site.get("semantic_fact") for site in (probe.get("sites") or [])
+                ],
+                "annotations": [
+                    {
+                        "label": labels[language],
+                        **blind_annotation(
+                            by_language[language].get(str(probe.get("probe_id")), {}),
+                            labels[language],
+                        ),
+                    }
+                    for language in sorted(
+                        by_language, key=lambda item: labels[item]
+                    )
+                ],
+            }
+            for probe in probes
+        ],
+    }
+    encoded = (
+        json.dumps(sample, separators=(",", ":"), sort_keys=True) + "\n"
+    ).encode("utf-8")
+    if len(encoded) > COMPARABILITY_SAMPLE_BUDGET:
+        raise BenchmarkError(
+            f"blinded comparability sample is {len(encoded)} bytes, over the "
+            f"{COMPARABILITY_SAMPLE_BUDGET} the Task Packet reserves for it"
+        )
+    destination = require_under(root / COMPARABILITY_SAMPLE_RELATIVE, root)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(encoded)
+    blinding = require_under(root / COMPARABILITY_BLINDING_RELATIVE, root)
+    blinding.parent.mkdir(parents=True, exist_ok=True)
+    blinding.write_text(
+        json.dumps(
+            {"schema_version": 1, "labels": labels}, indent=2, sort_keys=True
+        ) + "\n",
+        encoding="utf-8",
+    )
+    return destination
+
+
 def cmd_tasks_create(args: argparse.Namespace) -> int:
     root = workspace(args)
     assert_template_integrity(root)
@@ -2739,6 +3012,10 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
                 "\n\nFrozen Primary requirement IDs served by this work unit:\n- "
                 + "\n- ".join(requirement_ids)
             )
+        if COMPARABILITY_GATE in requirement_ids:
+            # Appended before the retry check so a re-dispatched audit compares
+            # equal to the packet it is retrying.
+            goal += COMPARABILITY_AUDIT_INSTRUCTIONS
         if agent_dir.exists() and any(agent_dir.iterdir()):
             task_path = agent_dir / "task.json"
             if task_path.is_file():
@@ -2768,13 +3045,16 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
                 continue
             skipped.append({"id": uid, "reason": "agent_directory_initialized_without_task"})
             continue
+        reads = list(unit.get("read_paths", []))
+        if COMPARABILITY_GATE in requirement_ids:
+            reads.append(str(build_comparability_sample(root, unit, manifest)))
         ns = argparse.Namespace(
             workspace=str(root),
             id=agent_id,
             parent=parent,
             evaluation=unit["evaluation"],
             goal=goal,
-            read=unit.get("read_paths", []),
+            read=reads,
             write=str(agent_dir),
             output=unit["evidence_paths"],
             validate=unit["validator_command"],
@@ -7279,7 +7559,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     status_path = root / "results" / "primary_status.json"
     policy_path = root / "template" / "config" / "cache_policy.json"
     if not (manifest_path.is_file() and ledger_path.is_file() and policy_path.is_file()):
-        return {"promoted": 0, "reused": 0, "records": []}
+        return {"promoted": 0, "replaced": 0, "reused": 0, "records": []}
 
     promotion_policy = cache_policy(root).get("promotion") or {}
     if promotion_policy.get("require_complete_unit") is not True:
@@ -7295,13 +7575,14 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         else {}
     )
     if require_primary and not status_path.is_file():
-        return {"promoted": 0, "reused": 0, "records": []}
+        return {"promoted": 0, "replaced": 0, "reused": 0, "records": []}
 
     manifest = json_load(manifest_path)
     ledger = json_load(ledger_path)
     records: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     promoted = 0
+    replaced = 0
     reused = 0
 
     for unit in manifest.get("work_units", []):
@@ -7381,25 +7662,49 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         destination = source / "benchmark" / "cache" / relative
         encoded = (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.exists():
-            existing = json.loads(destination.read_text(encoding="utf-8"))
-            if (
-                existing.get("fingerprint") != fingerprint
-                or existing.get("result_sha256") != record["result_sha256"]
-            ):
-                raise BenchmarkError(
-                    f"certified cache collision for {fingerprint}: {destination}"
-                )
-        else:
+        if not destination.exists():
             destination.write_bytes(encoded)
             promoted += 1
+        elif json.loads(destination.read_text(encoding="utf-8")).get(
+            "result_sha256"
+        ) == record["result_sha256"]:
+            pass
+        elif receipt_path.is_file():
+            # The unit was hydrated from this very record, so its result cannot
+            # legitimately differ from it. Report the mismatch and leave the
+            # stored record alone: one suspect record is no more a reason to
+            # keep a paid run out of the cache than one uncertifiable unit is.
+            skipped.append({
+                "work_unit_id": unit.get("id"),
+                "reason": (
+                    "hydrated result differs from the certified record it came "
+                    f"from: {fingerprint}"
+                ),
+            })
+            continue
+        else:
+            # A record the run measured again although one already sat at this
+            # key: the reuse rules refused the stored one. A trial cut off by an
+            # older output cap is that case, and it is invisible to the key,
+            # because the cap is deliberately outside it. The fresh measurement
+            # is the one those rules accept, so it replaces the stale record.
+            # Keeping the old one would make this unit a collision, and a
+            # re-measurement, in every later run.
+            destination.write_bytes(encoded)
+            replaced += 1
         records.append({
             "work_unit_id": unit.get("id"),
             "fingerprint": fingerprint,
             "path": str(relative.as_posix()),
             "assigned_languages": list(unit.get("assigned_languages", [])),
         })
-    return {"promoted": promoted, "reused": reused, "records": records, "skipped": skipped}
+    return {
+        "promoted": promoted,
+        "replaced": replaced,
+        "reused": reused,
+        "records": records,
+        "skipped": skipped,
+    }
 
 
 def cmd_cache_checkpoint(args: argparse.Namespace) -> int:

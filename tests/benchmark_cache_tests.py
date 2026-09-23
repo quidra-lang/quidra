@@ -736,6 +736,40 @@ def main() -> None:
         second_prompts = benchmark.promote_prompt_store(source, root)
         assert second_prompts == {"components": 0, "manifests": 0}, second_prompts
 
+        # A unit the run measured again although a record already sat at its
+        # key replaces that record. The scored cap is deliberately outside the
+        # key, so a trial cut off under an older cap re-measures to the same
+        # fingerprint with a different result; the first full benchmark run
+        # lost its entire checkpoint, and with it every record of a 40 USD
+        # measurement, because that case raised instead.
+        agent_dir = root / "work/agents" / unit["assigned_agent_id"]
+        receipt_path = agent_dir / "cache_receipt.json"
+        receipt_content = benchmark.json_load(receipt_path)
+        measured = benchmark.json_load(agent_dir / "result.json")
+        measured["evidence"] = {"certified": "measured again under the current cap"}
+        benchmark.json_dump(agent_dir / "result.json", measured)
+        receipt_path.unlink()
+        remeasured = benchmark.promote_certified_cache(source, root)
+        assert remeasured["replaced"] == 1, remeasured
+        assert remeasured["promoted"] == 0, remeasured
+        assert remeasured["skipped"] == [], remeasured
+        stored = benchmark.json_load(promoted_record)
+        assert stored["result"]["evidence"]["certified"].endswith("current cap")
+
+        # A unit the run hydrated cannot legitimately differ from the record it
+        # came from. Report that one and keep the stored record, but still
+        # checkpoint everything else the run paid for.
+        benchmark.json_dump(receipt_path, receipt_content)
+        measured["evidence"] = {"certified": "disagrees with its own cache hit"}
+        benchmark.json_dump(agent_dir / "result.json", measured)
+        mismatched = benchmark.promote_certified_cache(source, root)
+        assert mismatched["promoted"] == 0 and mismatched["replaced"] == 0, mismatched
+        assert len(mismatched["skipped"]) == 1, mismatched
+        assert "hydrated result differs" in mismatched["skipped"][0]["reason"]
+        assert benchmark.json_load(promoted_record)["result_sha256"] == (
+            stored["result_sha256"]
+        )
+
     print("certified benchmark cache contract: ok")
 
 

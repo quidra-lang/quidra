@@ -2076,6 +2076,110 @@ def test_cache_checkpoint_skips_units_it_cannot_certify() -> None:
         check(len(written) == 1, f"expected exactly one cache record on disk: {written}")
 
 
+def test_the_comparability_audit_reviews_blinded_annotations() -> None:
+    """The audit packet carries the run's own annotations, with the languages hidden.
+
+    The first full benchmark run dispatched this audit with nothing but the
+    frozen matrix template, whose every site is UNMEASURED, and the worker
+    correctly refused to certify a sample that did not exist. Semantic
+    Compression lost its ranking to that.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td).resolve()
+        root = make_workspace(tmp)
+        matrix = benchmark.json_load(
+            root / "template" / "methodology-assets" / "semantic_compression"
+            / "semantic_site_matrix.json"
+        )
+        probes = matrix["probes"]
+        languages = ["Go", "Quidra", "Rust"]
+
+        def shard(language: str) -> dict[str, Any]:
+            slug = language.lower()
+            return {
+                "id": f"sc-metrics-local--part-1--{slug}",
+                "evaluation": "semantic_compression",
+                "assigned_languages": [language],
+                "assigned_agent_id": f"worker-sc-metrics-local--part-1--{slug}",
+                "execution_kind": "agent", "result_kind": "requirements",
+                "phase": "measurement", "requirement_ids": ["metric.semantic_density"],
+                "input_hashes": {}, "validator_command": "true",
+                "worker_mode": "packet-only", "network_allowed": False,
+                "dependencies": [],
+            }
+
+        shards = [shard(language) for language in languages]
+        audit = {
+            "id": "sc-comparability", "evaluation": "semantic_compression",
+            "assigned_languages": [], "assigned_agent_id": "worker-sc-comparability",
+            "execution_kind": "agent", "result_kind": "requirements",
+            "phase": "measurement", "requirement_ids": ["gate.comparability_audit"],
+            "input_hashes": {}, "validator_command": "true",
+            "worker_mode": "packet-only", "network_allowed": False,
+            "dependencies": [unit["id"] for unit in shards],
+        }
+        manifest = {"schema_version": 1, "work_units": shards + [audit]}
+        for unit in shards:
+            language = unit["assigned_languages"][0]
+            agent_dir = root / "work" / "agents" / unit["assigned_agent_id"]
+            agent_dir.mkdir(parents=True, exist_ok=True)
+            benchmark.json_dump(agent_dir / "result.json", {
+                "schema_version": 1,
+                "evaluation": "semantic_compression",
+                "requirements": {"metric.semantic_density": 40.0},
+                "evidence": {"metric.semantic_density": {"per_probe": [
+                    {
+                        "probe_id": probe["probe_id"],
+                        "fragment": f"let n = 7 // {probe['probe_id']}",
+                        "explicit_local_facts": 4,
+                        "notes": f"{language} resolves this from the local form alone.",
+                    }
+                    for probe in probes
+                ]}},
+            })
+
+        sample_path = benchmark.build_comparability_sample(root, audit, manifest)
+        sample = json.loads(sample_path.read_text(encoding="utf-8"))
+        sampled = {probe["probe_id"] for probe in sample["probes"]}
+        check(
+            len(sampled) >= -(-len(probes) // 5),
+            f"the audit sample is under the 20% the methodology predeclares: {len(sampled)}",
+        )
+        check(
+            {probe["family"] for probe in sample["probes"]}
+            == {probe["family"] for probe in probes},
+            "the audit sample does not cover every capability family",
+        )
+        entries = [entry for probe in sample["probes"] for entry in probe["annotations"]]
+        check(
+            len(entries) == len(sampled) * len(languages),
+            f"every sampled probe must carry one entry per language: {len(entries)}",
+        )
+        check(
+            {entry["label"] for entry in entries} == {"A", "B", "C"},
+            "the entries are not labelled by an opaque per-run permutation",
+        )
+        check(
+            all(entry.get("explicit_local_facts") == 4 for entry in entries),
+            "the sample dropped the annotations it exists to show",
+        )
+        raw = sample_path.read_text(encoding="utf-8")
+        check(
+            not any(language in raw for language in languages),
+            "a language name survived into the blinded sample",
+        )
+        check(
+            "let n = 7" in raw,
+            "the authored fragments must reach the audit verbatim",
+        )
+        blinding = benchmark.json_load(root / "work" / "root" / "comparability_blinding.json")
+        check(
+            sorted(blinding["labels"]) == sorted(languages)
+            and sample_path.parent != (root / "work" / "root"),
+            "the unblinding map must stay on the trusted side, away from the sample",
+        )
+
+
 def test_worker_responses_may_carry_json_objects_and_broken_json_is_named() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td).resolve())

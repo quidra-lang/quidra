@@ -8102,14 +8102,30 @@ def proficiency_reference_self_test(root: Path) -> dict[str, Any]:
     }
 
 
-def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
-    """Deterministic verifier feedback without leaking hidden-oracle observations."""
+
+def proficiency_verification_summary(verification: dict[str, Any]) -> dict[str, Any]:
+    """Worker-readable projection that contains no hidden case identity/output."""
+    if not isinstance(verification, dict):
+        raise BenchmarkError("invalid Proficiency verification summary source")
+    return {
+        "schema_version": verification.get("schema_version"),
+        "trial_id": verification.get("trial_id"),
+        "language": verification.get("language"),
+        "workload": verification.get("workload"),
+        "source_sha256": verification.get("source_sha256"),
+        "workload_contract_sha256": verification.get("workload_contract_sha256"),
+        "compile_parse_ok": verification.get("compile_parse_ok"),
+        "test_passed": verification.get("test_passed"),
+        "oracle_test_count": verification.get("oracle_test_count"),
+        "oracle_passed_count": verification.get("oracle_passed_count"),
+        "synthetic_ci": verification.get("synthetic_ci") is True,
+    }
+
+
+def proficiency_model_visible_feedback(verification: dict[str, Any]) -> dict[str, Any]:
+    """Only diagnostics safe to send back to the scored model."""
     if not isinstance(verification, dict):
         raise BenchmarkError("LLM Proficiency repair requires trusted verification")
-    if verification.get("test_passed") is True:
-        raise BenchmarkError(
-            "LLM Proficiency success is terminal; a passing trial may not be repaired"
-        )
 
     def compact_process(value: Any) -> dict[str, Any] | None:
         if not isinstance(value, dict):
@@ -8124,42 +8140,47 @@ def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
         }
 
     public_failures: list[dict[str, Any]] = []
-    hidden_failure_count = 0
+    hidden_failures = 0
     for row in verification.get("oracle_tests") or []:
         if not isinstance(row, dict) or row.get("passed") is True:
             continue
         if row.get("hidden") is True:
-            hidden_failure_count += 1
+            hidden_failures += 1
             continue
         public_failures.append({
-            "id": row.get("id"),
             "problem": row.get("problem"),
             "run": compact_process(row.get("run")),
         })
-
-    feedback = {
+    return {
         "compile_parse_ok": verification.get("compile_parse_ok"),
         "test_passed": verification.get("test_passed"),
         "compile_or_parse": compact_process(verification.get("compile_or_parse")),
-        "public_case_failures": public_failures,
-        "hidden_case_failures": hidden_failure_count,
         "oracle_test_count": verification.get("oracle_test_count"),
         "oracle_passed_count": verification.get("oracle_passed_count"),
-        "note": (
-            "Hidden inputs, hidden case identities, expected answers, and hidden-run "
-            "stdout/stderr are intentionally withheld. Repair the implementation "
-            "against the original general contract."
-        ),
+        "public_failures": public_failures,
+        "hidden_failure_count": hidden_failures,
     }
+
+def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
+    """Deterministic verifier-only feedback for a Proficiency repair turn."""
+    if not isinstance(verification, dict):
+        raise BenchmarkError("LLM Proficiency repair requires trusted verification")
+    if verification.get("test_passed") is True:
+        raise BenchmarkError(
+            "LLM Proficiency success is terminal; a passing trial may not be repaired"
+        )
+    feedback = proficiency_model_visible_feedback(verification)
     return (
         "# Frozen LLM Proficiency Repair\n"
         "Your previous program did not pass the trusted verifier.\n"
-        "The JSON below contains verifier facts safe to reveal to the scored model. "
-        "Use it and the original frozen task to repair the program.\n"
+        "The JSON below contains verifier facts only. Hidden inputs, expected "
+        "answers, hidden case identities, and hidden-run output are withheld. "
+        "Use the feedback and the original frozen task to repair the program.\n"
         + json.dumps(feedback, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         + "\nReturn only one complete replacement source program, with no Markdown "
         "fences or explanation.\n"
     )
+
 
 def proficiency_runtime_metrics(
     root: Path, trace: dict[str, Any]

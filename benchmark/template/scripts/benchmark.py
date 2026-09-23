@@ -5783,6 +5783,11 @@ def cache_cap_reuse_problem(
                 "language toolchain successfully before its first scored trial; "
                 "it must be measured again"
             )
+        if certification.get("proficiency_runtime_verification") is not True:
+            return (
+                "the Proficiency record predates runtime-owned per-completion "
+                "compile/run verification; it must be measured again"
+            )
     current = int(unit.get("max_output_tokens_per_call", 0) or 0)
     if current <= 0:
         return None
@@ -7607,6 +7612,9 @@ def trial_unit_problems(
         problems.extend(_preserved_trial_problems(agent_dir, trace))
         if toolchain_evidence_required(root):
             problems.extend(trial_toolchain_evidence_problems(unit, trace))
+        problems.extend(
+            proficiency_runtime_verification_problems(root, unit, agent_dir, trace)
+        )
     return infrastructure, problems
 
 
@@ -9510,6 +9518,11 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
                     f"{uid}: cache record lacks pre-trial toolchain evidence certification"
                 )
                 continue
+            if certification.get("proficiency_runtime_verification") is not True:
+                problems.append(
+                    f"{uid}: cache record lacks per-completion runtime verification"
+                )
+                continue
             expected_trials = proficiency_primary_trial_set_sha256(root)
             if certification.get("proficiency_primary_trial_set_sha256") != expected_trials:
                 problems.append(
@@ -9566,6 +9579,12 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
                 f"{uid}: {p}"
                 for p in trial_toolchain_evidence_problems(trial_unit, trace)
             )
+        problems.extend(
+            f"{uid}: {p}"
+            for p in proficiency_runtime_verification_problems(
+                root, trial_unit, agent_dir, trace
+            )
+        )
     fixed = len(signatures) == 1 and not any("provider/model/sampling" in p for p in problems)
     preserved = not any(
         "preserv" in p or "trial records" in p or "hash mismatch" in p or "text mismatch" in p
@@ -10645,6 +10664,9 @@ def cache_certification_for_unit(
         problems.extend(_preserved_trial_problems(agent_dir, trace))
         if toolchain_evidence_required(root):
             problems.extend(trial_toolchain_evidence_problems(unit, trace))
+        problems.extend(
+            proficiency_runtime_verification_problems(root, unit, agent_dir, trace)
+        )
         if problems:
             raise BenchmarkError(
                 f"{unit['id']}: proficiency cache promotion failed integrity: "
@@ -10652,6 +10674,15 @@ def cache_certification_for_unit(
             )
         certification["proficiency_integrity"] = True
         certification["proficiency_toolchain_evidence"] = True
+        certification["proficiency_runtime_verification"] = True
+        runtime_audit = json_load(agent_dir / "proficiency_runtime_verification.json")
+        certification["proficiency_runtime_metrics_sha256"] = sha256_bytes(
+            json.dumps(
+                runtime_audit.get("runtime_metrics"),
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
         certification["proficiency_primary_trial_set_sha256"] = (
             proficiency_primary_trial_set_sha256(root)
         )

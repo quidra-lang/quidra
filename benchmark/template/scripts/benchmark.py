@@ -3147,6 +3147,40 @@ def sc_adjudicated_record(value: Any) -> dict[str, Any] | None:
     }
 
 
+def sc_p_a_allowed_probes(root: Path) -> set[str]:
+    """Machine-readable R9 scope for the P-a weaker-substitution reason."""
+    asset = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "capability_universe.json"
+    )
+    raw = (asset.get("support_rubric") or {}).get("partial_p_a_allowed_probe_ids")
+    if not isinstance(raw, list) or not raw or not all(isinstance(x, str) for x in raw):
+        raise BenchmarkError(
+            "capability_universe support_rubric must declare "
+            "partial_p_a_allowed_probe_ids"
+        )
+    allowed = {str(value) for value in raw}
+    if any(not re.fullmatch(r"F\d{2}\.P\d+", value) for value in allowed):
+        raise BenchmarkError("partial_p_a_allowed_probe_ids contains an invalid probe ID")
+    return allowed
+
+
+def validate_sc_record_for_probe(
+    root: Path, probe_id: str, record: dict[str, Any], *, context: str
+) -> dict[str, Any]:
+    """Enforce support rules that depend on the identity of the frozen probe."""
+    if (
+        record.get("level") == "PARTIAL"
+        and "P-a" in (record.get("partial_reasons") or [])
+        and probe_id not in sc_p_a_allowed_probes(root)
+    ):
+        raise BenchmarkError(
+            f"{context}: {probe_id} cannot cite P-a; R9 permits weaker "
+            "substitution only for the frozen partial_p_a_allowed_probe_ids"
+        )
+    return record
+
+
 def sc_reconcile_support(
     by_language: dict[str, dict[str, dict[str, Any]]],
     owner_rows: dict[str, dict[str, dict[str, Any]]],
@@ -3530,6 +3564,10 @@ def validate_comparability_repair_directives(
             raise BenchmarkError(
                 f"comparability repair for {probe_id}/{label} is not a complete support record"
             )
+        validate_sc_record_for_probe(
+            root, probe_id, record,
+            context=f"comparability repair {probe_id}/{label}",
+        )
         current = sample_rows.get((probe_id, label))
         if current is None:
             raise BenchmarkError(
@@ -3844,6 +3882,9 @@ def canonical_fragment_catalog(
             raise BenchmarkError(
                 f"canonical fragment {probe_id} must be a complete support record"
             )
+        validate_sc_record_for_probe(
+            root, probe_id, record, context=f"canonical fragment {probe_id}"
+        )
         normalized[probe_id] = record
     return normalized
 
@@ -3960,6 +4001,10 @@ def validate_support_adjudication_against_canonical_fragments(
         if adjudicated is None:
             # Shape errors are reported by the ordinary result validator.
             continue
+        validate_sc_record_for_probe(
+            root, probe_id, adjudicated,
+            context=f"{requirement_id}: {language}",
+        )
         canonical = canonical_owner_record_for_probe(root, language, probe_id)
         canonical_none = canonical["level"] == "NONE"
         adjudicated_none = adjudicated["level"] == "NONE"

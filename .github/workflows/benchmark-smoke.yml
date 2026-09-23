@@ -7,11 +7,11 @@ name: benchmark-smoke
 # whole manifest. This workflow is the check by itself, so the paid path can be
 # verified after a provider, model or decoding change without committing to a
 # run. Same marker convention as benchmark-production: pushing a change to
-# benchmark/.run-smoke is the request.
+# benchmark/.run-smoke on the disposable benchmark branch is the request.
 
 on:
   push:
-    branches: [develop]
+    branches: [benchmark]
     paths:
       - "benchmark/.run-smoke"
 

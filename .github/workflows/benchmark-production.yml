@@ -739,6 +739,7 @@ jobs:
           python-version: "3.12"
 
       - name: Download final Primary handoff
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-llm-proficiency
@@ -747,13 +748,51 @@ jobs:
       - name: Restore trusted workspace guard
         env:
           EVALUATED_SHA: ${{ needs.prepare.outputs.evaluated_sha }}
+          RUN_ID: ${{ needs.prepare.outputs.run_id }}
+          WHOLE_BUDGET: ${{ needs.prepare.outputs.budget_usd }}
         run: |
-          tar -xzf "$RUNNER_TEMP/benchmark-final-handoff/workspace.tgz" -C "$GITHUB_WORKSPACE"
-          cp "$RUNNER_TEMP/benchmark-final-handoff/budget-state.json" \
-            "$RUNNER_TEMP/benchmark-budget-state.json"
-          python benchmark/template/scripts/benchmark.py restore-workspace-guard \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --expected-commit "$EVALUATED_SHA"
+          set -euo pipefail
+          state="$RUNNER_TEMP/benchmark-budget-state.json"
+          if [ -f "$RUNNER_TEMP/benchmark-final-handoff/workspace.tgz" ] \
+             && [ -f "$RUNNER_TEMP/benchmark-final-handoff/budget-state.json" ]; then
+            tar -xzf "$RUNNER_TEMP/benchmark-final-handoff/workspace.tgz" -C "$GITHUB_WORKSPACE"
+            cp "$RUNNER_TEMP/benchmark-final-handoff/budget-state.json" "$state"
+            python benchmark/template/scripts/benchmark.py restore-workspace-guard \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --expected-commit "$EVALUATED_SHA"
+          else
+            echo "::warning::Final Actions handoff is unavailable; reconstructing from the evaluated snapshot plus certified cache."
+            python benchmark/template/scripts/benchmark.py init \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --sandbox-mode container \
+              --run-id "$RUN_ID" \
+              --provider anthropic-messages \
+              --model "$BENCHMARK_MODEL"
+
+            git fetch origin benchmark
+            recovery="$RUNNER_TEMP/benchmark-final-cache-recovery"
+            rm -rf "$recovery"
+            mkdir -p "$recovery"
+            git cat-file -e "origin/benchmark:benchmark/cache"
+            git archive --format=tar origin/benchmark benchmark/cache | tar -xf - -C "$recovery"
+            rm -rf .quidra-benchmark/cache
+            cp -a "$recovery/benchmark/cache" .quidra-benchmark/cache
+            python benchmark/template/scripts/benchmark.py refresh-cache-snapshot \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --expected-commit "$EVALUATED_SHA"
+
+            checkpoint="benchmark/checkpoints/$RUN_ID/budget-state.json"
+            git cat-file -e "origin/benchmark:$checkpoint"
+            git show "origin/benchmark:$checkpoint" > "$state"
+            touch "$RUNNER_TEMP/benchmark-final-rebuilt"
+          fi
+
+          python - "$state" "$WHOLE_BUDGET" <<'PY'
+          import json, sys
+          from pathlib import Path
+          state = json.loads(Path(sys.argv[1]).read_text())
+          assert abs(float(state["limit_usd"]) - float(sys.argv[2])) < 1e-9
+          PY
 
       - name: Reclaim runner disk
         run: |
@@ -777,6 +816,13 @@ jobs:
         env:
           BENCHMARK_IMAGE: quidra-benchmark/runtime:production
         run: |
+          if [ -f "$RUNNER_TEMP/benchmark-final-rebuilt" ]; then
+            python benchmark/template/scripts/sandbox_launcher.py run \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --image "$BENCHMARK_IMAGE" \
+              --provider fake \
+              -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+          fi
           python benchmark/template/scripts/sandbox_launcher.py run \
             --source-repo "$GITHUB_WORKSPACE" \
             --image "$BENCHMARK_IMAGE" \
@@ -809,6 +855,7 @@ jobs:
         continue-on-error: true
         env:
           EVALUATED_SHA: ${{ needs.prepare.outputs.evaluated_sha }}
+          RUN_ID: ${{ needs.prepare.outputs.run_id }}
         run: |
           set -euo pipefail
           if [ ! -f .quidra-benchmark/work/root/ledger.json ]; then exit 0; fi
@@ -816,25 +863,44 @@ jobs:
             --source-repo "$GITHUB_WORKSPACE" \
             | tee "$RUNNER_TEMP/cache-checkpoint.json"
 
+          checkpoint_dir="benchmark/checkpoints/$RUN_ID"
+          mkdir -p "$checkpoint_dir"
+          cp "$RUNNER_TEMP/benchmark-budget-state.json" "$checkpoint_dir/budget-state.json"
+          python - "$checkpoint_dir/resume.json" "$EVALUATED_SHA" <<'PY'
+          import json, sys
+          from pathlib import Path
+          path, sha = Path(sys.argv[1]), sys.argv[2]
+          status_path = Path(".quidra-benchmark/results/primary_status.json")
+          status = json.loads(status_path.read_text()) if status_path.is_file() else {}
+          path.write_text(json.dumps({
+              "schema_version": 1,
+              "evaluated_sha": sha,
+              "last_evaluation": "finalize",
+              "primary_status": status.get("evaluations", {}),
+          }, indent=2, sort_keys=True) + "\n")
+          PY
+
           tar -czf "$RUNNER_TEMP/updated-cache.tgz" benchmark/cache
+          tar -czf "$RUNNER_TEMP/updated-checkpoint.tgz" "$checkpoint_dir"
           git reset --hard
           git fetch origin benchmark
           unexpected="$(git diff --name-only "$EVALUATED_SHA"..origin/benchmark \
-            | grep -v '^benchmark/cache/' || true)"
+            | grep -Ev "^benchmark/cache/|^benchmark/checkpoints/$RUN_ID/" || true)"
           if [ -n "$unexpected" ]; then
-            echo "::error::benchmark branch moved outside certified cache:"
+            echo "::error::benchmark branch moved outside certified cache/resume state:"
             echo "$unexpected"
             exit 1
           fi
           git checkout -B benchmark origin/benchmark
-          rm -rf benchmark/cache
+          rm -rf benchmark/cache "$checkpoint_dir"
           tar -xzf "$RUNNER_TEMP/updated-cache.tgz"
-          git add -f benchmark/cache
+          tar -xzf "$RUNNER_TEMP/updated-checkpoint.tgz"
+          git add -f benchmark/cache "$checkpoint_dir"
           if ! git diff --cached --quiet; then
             short="$(git rev-parse --short=7 "$EVALUATED_SHA")"
             git -c user.name="github-actions[bot]" \
                 -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-                commit -m "Checkpoint complete benchmark cache for $short"
+                commit -m "Checkpoint complete benchmark state for $short"
             git push origin HEAD:benchmark
           fi
 
@@ -891,6 +957,7 @@ jobs:
             echo "::error::benchmark branch moved after final cache checkpoint."
             exit 1
           }
+          git rm -r --ignore-unmatch "benchmark/checkpoints/$RUN_ID"
           git add -f "benchmark/$RUN_ID" benchmark/cache benchmark/template/prompts
           python - <<'PY'
           import json, os, subprocess

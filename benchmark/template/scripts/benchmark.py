@@ -11061,6 +11061,15 @@ def cmd_aggregate_check(args: argparse.Namespace) -> int:
         )
         if ranking != expected_ranking:
             raise BenchmarkError("published ranking does not match runner recomputation")
+        if data.get("ranking_basis") != {
+            "precision_decimals": 2,
+            "tie_policy": "competition rank on published score",
+            "interpretation": (
+                "descriptive ranking of the frozen Primary sample; it does not "
+                "claim statistical superiority beyond the measured sample"
+            ),
+        }:
+            raise BenchmarkError("published ranking basis does not match runner policy")
         if data.get("score") != scores["Quidra"]:
             raise BenchmarkError("Primary score field must equal the Quidra language score")
     elif status == "WITHDRAWN":
@@ -11088,6 +11097,7 @@ def current_primary_status(root: Path) -> dict[str, Any]:
                 "score": data.get("score"),
                 "scores": data.get("scores"),
                 "ranking": data.get("ranking"),
+                "ranking_basis": data.get("ranking_basis"),
                 "blockers": data.get("blockers", []),
                 "blocker_class": data.get("blocker_class"),
             }
@@ -14510,6 +14520,7 @@ def compact_run_files(
                 "status": value.get("status"),
                 "score": value.get("score"),
                 "ranking": value.get("ranking"),
+                "ranking_basis": value.get("ranking_basis"),
                 "blockers": value.get("blockers", []),
             }
             for name, value in evaluations.items()
@@ -14532,6 +14543,10 @@ def compact_run_files(
         "run_id": run.get("run_id"),
         "rankings": {
             name: value.get("ranking")
+            for name, value in evaluations.items()
+        },
+        "ranking_basis": {
+            name: value.get("ranking_basis")
             for name, value in evaluations.items()
         },
     }

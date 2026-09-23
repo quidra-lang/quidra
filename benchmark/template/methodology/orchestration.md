@@ -56,7 +56,7 @@ Read paths remain narrow. A worker must not depend on the root conversation, sib
 
 Aggregation units use `template/config/aggregation.json` and validated requirement-level results from both leaf workers and runner-owned measurement commands. They are command units, not LLM workers.
 
-The runner calculates per-language evaluation scores and deterministic rankings. A COMPLETE evaluation without a ranking is invalid. A ranking is withheld only when scientific/integrity gates fail or required applicable work is incomplete/blocked.
+The runner calculates per-language evaluation scores and deterministic rankings. Ranking compares the two-decimal published score; equal published scores share competition rank, so hidden floating-point residue cannot create a visible ordering contradiction. This is a descriptive ordering of the frozen Primary sample, not an inferential claim of statistical superiority. A COMPLETE evaluation without a ranking is invalid. A ranking is withheld only when scientific/integrity gates fail or required applicable work is incomplete/blocked.
 
 No cross-evaluation overall score or ranking is allowed.
 

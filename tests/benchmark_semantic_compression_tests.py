@@ -900,6 +900,28 @@ def assert_premeasurement_gate_is_wired() -> None:
         assert "sc-premeasurement-validation" in unit["dependencies"], unit
 
 
+def assert_semantic_recipe_runner_matches_frozen_contract() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        problems = benchmark.semantic_verification_recipe_drift_problems(root)
+        assert problems == [], problems
+
+        original = benchmark._semantic_verification_recipe
+
+        def drifted(language, probe_id, entry, files):
+            build, run, artifact = original(language, probe_id, entry, files)
+            if language == "Go" and probe_id == "F01.P1":
+                build = list(build or []) + ["--drift"]
+            return build, run, artifact
+
+        benchmark._semantic_verification_recipe = drifted
+        try:
+            problems = benchmark.semantic_verification_recipe_drift_problems(root)
+        finally:
+            benchmark._semantic_verification_recipe = original
+        assert any("Go: single-unit build recipe drift" in row for row in problems), problems
+
+
 def assert_go_multi_unit_recipe_builds_one_main_package() -> None:
     build, run, artifact = benchmark._semantic_verification_recipe(
         "Go",
@@ -1132,6 +1154,7 @@ def main() -> None:
     assert_v3_survives_comparability_repair()
     assert_capability_efficiency_uses_final_support_denominator()
     assert_premeasurement_gate_is_wired()
+    assert_semantic_recipe_runner_matches_frozen_contract()
     assert_go_multi_unit_recipe_builds_one_main_package()
     print("semantic compression reconciliation contract: ok")
 

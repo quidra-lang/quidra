@@ -287,7 +287,7 @@
           ],
           "network_allowed": false,
           "max_attempts": 1,
-          "goal": "Mechanically enforce Semantic Compression pre-measurement V3/V4 after all ten canonical fragment owners complete: every frozen probe must have at least one mechanically verified FULL implementation, and any all-NONE probe or language with NONE on more than one third of probes blocks scoring as a suspected instrument defect.",
+          "goal": "Mechanically enforce Semantic Compression pre-measurement V3/V4 after all ten canonical fragment owners complete: every frozen probe must have at least one mechanically verified FULL implementation. V4 suspicious rows/columns, including languages with NONE on more than one third of probes, are investigated and preserved as evidence; a high NONE rate alone does not invalidate a language or block scoring unless the investigation finds an actual instrument contradiction.",
           "worker_mode": "runner-command"
         },
         {

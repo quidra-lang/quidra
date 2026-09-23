@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T07:36:00Z
-reason: full run of all five Primary evaluations on the develop snapshot, to stand as the benchmark's first published result with its score breakdown and worker evidence; all 227 work units hydrate from the certified cache and only sc-comparability is measured, so the soft guard stays at five dollars; smoke 0a3b6dc passed its twelve checks
+requested_at_utc: 2026-09-23T08:44:00Z
+reason: full run of all five Primary evaluations on the develop snapshot, to publish Semantic Compression alongside the four rankings the last run already settled; the comparability audit failed that run on three support disagreements, so this one measures the three adjudications 1635309 added and the audit that depends on them, with all 227 other work units hydrating from the certified cache; smoke e9a9f34 passed its twelve checks
 model: claude-sonnet-5
 evaluation: all
-budget_usd: 5.0
+budget_usd: 8.0

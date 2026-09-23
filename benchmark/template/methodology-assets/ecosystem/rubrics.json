@@ -30,7 +30,7 @@
     "runner_owned": true
   },
   "evidence_policy": {
-    "snapshot_basis": "Each scored record names one YYYY-MM-DD snapshot_date inside the declared Ecosystem cache-epoch month. Records may be reused within that frozen month; changing the declared Ecosystem epoch invalidates them.",
+    "snapshot_basis": "All scored records in this declared Ecosystem epoch use exactly evidence_policy.snapshot_date. Reuse remains valid while the rubric asset and declared epoch are unchanged; advance the epoch and snapshot_date together when fresher external evidence is required.",
     "activity_window_months": 24,
     "provider_search_budget_per_worker": 5,
     "source_priority": [
@@ -41,7 +41,8 @@
     ],
     "symmetry_rule": "Use the metric selection_rule, the same five components, the same level definitions, and the same maximum retrieval depth for every language.",
     "not_executed_rule": "Failure to obtain applicable evidence under the frozen retrieval budget is scored through the rubric; it is not N/A unless the metric is genuinely inapplicable under the benchmark's global N/A policy.",
-    "popularity_rule": "Raw package counts, stars, search-result counts or downloads may support one component but may not directly substitute for the metric score."
+    "popularity_rule": "Raw package counts, stars, search-result counts or downloads may support one component but may not directly substitute for the metric score.",
+    "snapshot_date": "2026-09-23"
   },
   "metrics": {
     "metric.third_party_library_availability_domain_coverage": {

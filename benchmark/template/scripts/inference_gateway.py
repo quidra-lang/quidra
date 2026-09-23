@@ -38,6 +38,7 @@ from pathlib import Path
 import re
 import socket
 import signal
+import struct
 import socketserver
 import subprocess
 import sys
@@ -1054,6 +1055,13 @@ class GatewayState:
         # refused its next request rather than draining the run-wide budget.
         self.task_budgets = dict(task_budgets or {})
         self.task_spend: dict[str, float] = {}
+        # Bind each scored task to the first live Unix-socket client process that
+        # uses it.  A sandbox worker may launch arbitrary compiler/interpreter
+        # subprocesses, but those children must never be able to open the shared
+        # inference socket and spend API budget outside the trusted runtime's
+        # trial/orchestration accounting.  A retry may rebind only after the
+        # previous worker process has exited.
+        self.task_client_pids: dict[str, int] = {}
         self.log_path = log_path
         self.max_requests = max_requests
         self.started_at = utc_now()
@@ -1068,6 +1076,39 @@ class GatewayState:
             "estimated_cost_usd": 0.0,
         }
         self.shutdown_event = threading.Event()
+
+    @staticmethod
+    def _pid_alive(pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            # Same-UID benchmark workers should be probeable.  Treat an
+            # unexpected permission boundary as alive/fail-closed.
+            return True
+        return True
+
+    def authorize_task_peer(self, task_id: str | None, peer_pid: int | None) -> None:
+        if not task_id:
+            return
+        if peer_pid is None:
+            raise PolicyError(
+                "this gateway cannot identify the Unix-socket peer process; "
+                "scored inference is disabled rather than accepting an unaccounted client"
+            )
+        with self.lock:
+            previous = self.task_client_pids.get(task_id)
+            if previous is None or previous == peer_pid:
+                self.task_client_pids[task_id] = peer_pid
+                return
+            if not self._pid_alive(previous):
+                self.task_client_pids[task_id] = peer_pid
+                return
+        raise PolicyError(
+            f"task {task_id!r} is already bound to live benchmark worker pid "
+            f"{previous}; refusing inference from child/unrelated pid {peer_pid}"
+        )
 
     def check_task_ceiling(self, task_id: str | None) -> None:
         if not task_id or task_id not in self.task_budgets:
@@ -1101,6 +1142,7 @@ class GatewayState:
             "network_policy": self.network_policy,
             "client_credentials_required": False,
             "credential_less_client": True,
+            "task_peer_pid_binding": hasattr(socket, "SO_PEERCRED"),
             "host_tools_exposed": False,
             # What the provider may enable on the trusted side, and what the
             # sandbox may ask for. The second list is empty by construction:
@@ -1153,6 +1195,13 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 request, config, state.network_policy, state.task_policy
             )
             request_id = validated["request_id"]
+            peer_pid = None
+            if hasattr(socket, "SO_PEERCRED"):
+                raw_peer = self.request.getsockopt(
+                    socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i")
+                )
+                peer_pid, _peer_uid, _peer_gid = struct.unpack("3i", raw_peer)
+            state.authorize_task_peer(validated["task_id"], peer_pid)
             state.check_task_ceiling(validated["task_id"])
             frozen_effort = state.task_effort.get(str(validated.get("task_id") or ""))
             if frozen_effort and validated.get("purpose", "scored") == "scored":
@@ -1198,6 +1247,7 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 "event": "inference",
                 "request_id": validated["request_id"],
                 "task_id": validated["task_id"],
+                "peer_pid": peer_pid,
                 "provider": describe.get("id"),
                 "network_allowed": validated["network_allowed"],
                 "purpose": validated["purpose"],

@@ -4293,6 +4293,42 @@ def _semantic_run_process(
     return record
 
 
+def semantic_fixed_stdout_oracles(root: Path) -> dict[str, str]:
+    """Frozen exact-output checks for probes with a language-neutral result."""
+    asset = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "capability_universe.json"
+    )
+    cfg = (asset.get("pre_measurement_validation") or {}).get(
+        "V1_fixed_stdout_oracles"
+    )
+    if not isinstance(cfg, dict) or not isinstance(cfg.get("by_probe"), dict):
+        raise BenchmarkError(
+            "capability_universe must declare V1_fixed_stdout_oracles.by_probe"
+        )
+    probes = {
+        str(probe.get("probe_id"))
+        for probe in (asset.get("probes") or [])
+        if probe.get("probe_id")
+    }
+    raw = cfg["by_probe"]
+    if not raw:
+        raise BenchmarkError("V1_fixed_stdout_oracles.by_probe may not be empty")
+    unknown = sorted(set(str(key) for key in raw) - probes)
+    if unknown:
+        raise BenchmarkError(
+            "V1_fixed_stdout_oracles names unknown probes: " + ", ".join(unknown)
+        )
+    out: dict[str, str] = {}
+    for probe_id, expected in raw.items():
+        if not isinstance(expected, str) or not expected or expected != expected.strip():
+            raise BenchmarkError(
+                f"V1 fixed stdout oracle must be a non-empty stripped string: {probe_id}"
+            )
+        out[str(probe_id)] = expected
+    return out
+
+
 F20_RUNTIME_FACTS_RELATIVE = Path("work/root/f20_runtime_facts.json")
 F20_RUNTIME_REQUIRED_LANGUAGES = ("Python", "Go", "Java", "Kotlin")
 
@@ -4472,6 +4508,7 @@ def validate_canonical_fragment_verification(
         "probes": {},
     }
     nm_self_test: dict[str, Any] | None = None
+    stdout_oracles = semantic_fixed_stdout_oracles(root)
 
     for probe_id in sorted(verification):
         row = verification[probe_id]
@@ -4529,15 +4566,25 @@ def validate_canonical_fragment_verification(
                 raise BenchmarkError(
                     f"{probe_id}: {language} frozen recipe has no runnable command"
                 )
+            expected_stdout = stdout_oracles.get(probe_id)
+            if expected_stdout is not None:
+                probe_report["expected_stdout"] = expected_stdout
             runs = []
             for index in range(row["run_count"]):
-                runs.append(_semantic_run_process(
+                run_record = _semantic_run_process(
                     root, probe_dir, run_argv,
                     label=(
                         f"{language} {probe_id} frozen run recipe"
                         + (f" #{index + 1}" if row["run_count"] > 1 else "")
                     ),
-                ))
+                )
+                observed_stdout = str(run_record.get("stdout") or "").strip()
+                if expected_stdout is not None and observed_stdout != expected_stdout:
+                    raise BenchmarkError(
+                        f"{language} {probe_id} observed stdout mismatch: "
+                        f"expected {expected_stdout!r}, got {observed_stdout!r}"
+                    )
+                runs.append(run_record)
             probe_report["runs"] = runs
         report["probes"][probe_id] = probe_report
 
@@ -8755,6 +8802,7 @@ def semantic_premeasurement_verification_summary(
             f"Semantic Compression V1 report coverage mismatch for {language}: "
             f"missing={sorted(expected-actual)}, extra={sorted(actual-expected)}"
         )
+    stdout_oracles = semantic_fixed_stdout_oracles(root)
 
     for probe_id in sorted(expected):
         row = probes.get(probe_id)
@@ -8822,6 +8870,12 @@ def semantic_premeasurement_verification_summary(
                     f"Semantic Compression V1 run evidence count mismatch: "
                     f"{language} {probe_id}"
                 )
+            expected_stdout = stdout_oracles.get(probe_id)
+            if expected_stdout is not None and row.get("expected_stdout") != expected_stdout:
+                raise BenchmarkError(
+                    f"Semantic Compression V1 stdout oracle drifted: "
+                    f"{language} {probe_id}"
+                )
             for run in runs:
                 if (
                     not isinstance(run, dict)
@@ -8831,6 +8885,14 @@ def semantic_premeasurement_verification_summary(
                 ):
                     raise BenchmarkError(
                         f"Semantic Compression V1 successful frozen run evidence is missing: "
+                        f"{language} {probe_id}"
+                    )
+                if (
+                    expected_stdout is not None
+                    and str(run.get("stdout") or "").strip() != expected_stdout
+                ):
+                    raise BenchmarkError(
+                        f"Semantic Compression V1 observed stdout mismatch: "
                         f"{language} {probe_id}"
                     )
 

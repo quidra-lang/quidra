@@ -7448,6 +7448,106 @@ def proficiency_trial_coverage_problems(
             )
     return problems
 
+def proficiency_runtime_verification_problems(
+    root: Path,
+    unit: dict[str, Any],
+    agent_dir: Path,
+    trace: dict[str, Any],
+) -> list[str]:
+    """Verify every Proficiency call mechanically and bind four basic metrics to it."""
+    trials = ((trace.get("trials") or {}).get("trials") or {})
+    problems: list[str] = []
+    per_trial: dict[str, Any] = {}
+    if not isinstance(trials, dict):
+        return ["Proficiency runtime verification has no trial object"]
+
+    for trial_id, summary in sorted(trials.items()):
+        calls = (summary or {}).get("calls") or []
+        trial_rows: list[dict[str, Any]] = []
+        for index, call in enumerate(calls, start=1):
+            if not isinstance(call, dict):
+                problems.append(f"{trial_id}: call {index} is not an object")
+                continue
+            verification = call.get("verification")
+            verification_path = call.get("verification_path")
+            if not isinstance(verification, dict):
+                problems.append(f"{trial_id}: call {index} has no trusted verification")
+                continue
+            if verification.get("trial_id") != trial_id:
+                problems.append(f"{trial_id}: call {index} verification trial ID mismatch")
+            if verification.get("source_sha256") != call.get("completion_sha256"):
+                problems.append(f"{trial_id}: call {index} verification source hash mismatch")
+            if not isinstance(verification_path, str) or not verification_path:
+                problems.append(f"{trial_id}: call {index} verification path is missing")
+            else:
+                try:
+                    path = require_under(agent_dir / verification_path, agent_dir)
+                except BenchmarkError as exc:
+                    problems.append(f"{trial_id}: call {index} invalid verification path: {exc}")
+                else:
+                    if not path.is_file():
+                        problems.append(f"{trial_id}: call {index} verification file is missing")
+                    else:
+                        try:
+                            preserved = json_load(path)
+                        except (OSError, json.JSONDecodeError) as exc:
+                            problems.append(
+                                f"{trial_id}: call {index} verification file is unreadable: {exc}"
+                            )
+                        else:
+                            if preserved != verification:
+                                problems.append(
+                                    f"{trial_id}: call {index} verification file disagrees with trace"
+                                )
+            trial_rows.append({
+                "call": index,
+                "completion_sha256": call.get("completion_sha256"),
+                "compile_parse_ok": verification.get("compile_parse_ok"),
+                "test_passed": verification.get("test_passed"),
+                "verification_path": verification_path,
+            })
+        per_trial[str(trial_id)] = trial_rows
+
+    computed = proficiency_runtime_metrics(trace)
+    if computed is None:
+        problems.append("runtime-owned Proficiency metrics could not be recomputed")
+    else:
+        result_path = agent_dir / "result.json"
+        if not result_path.is_file():
+            problems.append("result.json is missing for runtime metric comparison")
+        else:
+            result = json_load(result_path)
+            assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+            if len(assigned) != 1:
+                problems.append("runtime metric comparison requires exactly one language")
+            else:
+                language = assigned[0]
+                requirements = result.get("requirements") or {}
+                for metric, expected in computed.items():
+                    value = requirements.get(metric)
+                    if not isinstance(value, dict) or language not in value:
+                        problems.append(f"{metric}: worker result is missing {language}")
+                        continue
+                    actual = score_or_na(value[language])
+                    if actual is None or abs(float(actual) - expected) > 1e-6:
+                        problems.append(
+                            f"{metric}: worker reported {actual!r} for {language}, "
+                            f"runtime evidence requires {expected:.6f}"
+                        )
+
+    audit = {
+        "schema_version": 1,
+        "work_unit_id": str(unit.get("id") or ""),
+        "assigned_languages": list(unit.get("assigned_languages") or []),
+        "runtime_metrics": computed,
+        "trials": per_trial,
+        "passed": not problems,
+        "problems": problems,
+    }
+    json_dump(agent_dir / "proficiency_runtime_verification.json", audit)
+    return problems
+
+
 def is_trial_unit(unit: dict[str, Any]) -> bool:
     evaluation = str(unit.get("evaluation") or "")
     if unit.get("execution_kind", "agent") != "agent":

@@ -94,7 +94,7 @@
   "anthropic_pricing": {
     "claude-sonnet-5": {
       "input_usd_per_million_tokens": 2,
-      "cache_write_usd_per_million_tokens": 2.5,
+      "cache_write_usd_per_million_tokens": 4,
       "cache_read_usd_per_million_tokens": 0.2,
       "output_usd_per_million_tokens": 10,
       "web_search_usd_per_request": 0.01
@@ -102,8 +102,8 @@
   },
   "prompt_caching": {
     "enabled": true,
-    "ttl": "5m",
-    "note": "Trusted-side only and invisible to the sandbox. The adapter marks the system block and the last user block as cache breakpoints, so a sandbox-agent conversation re-reads its growing prefix at the cache-read rate instead of full price, and a server-side web-search loop re-reads the Task Packet the same way. Caching changes what a prefix costs, never what the model sees or produces. Usage reports cache_creation_input_tokens and cache_read_input_tokens separately and the cost estimate prices each at its own rate."
+    "ttl": "1h",
+    "note": "Trusted-side only and invisible to the sandbox. The adapter marks the stable system block and the last-user/shared-input prefix as explicit cache breakpoints. A one-hour TTL is used because Semantic Compression generations and sandbox-agent turns can exceed five minutes; a 5m entry could expire before sibling language requests or the next turn starts, reproducing the observed write-without-read behavior. The 1h write is priced at 2x base input and cache reads at the provider cache-read rate; with repeated benchmark prefixes it becomes cheaper after the documented reuse threshold. Caching changes what a prefix costs, never what the model sees or produces. Usage reports cache_creation_input_tokens and cache_read_input_tokens separately."
   },
   "anthropic_transport": {
     "streaming": true,

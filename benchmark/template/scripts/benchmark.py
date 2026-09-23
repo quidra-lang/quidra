@@ -11097,6 +11097,115 @@ def write_run_breakdown(staging: Path, root: Path) -> None:
         })
 
 
+def write_semantic_compression_audit_manifest(
+    staging: Path, root: Path
+) -> str | None:
+    """Retain the compact evidence needed to reconstruct the blinded SC audit.
+
+    The full blinded sample and agent traces stay in the 30-day workflow
+    artifact because committing them would duplicate large worker payloads.
+    The compact run import already retains every scored metric worker's
+    evidence.  This manifest adds what that score breakdown otherwise omits:
+    the final cohort support records (with fragment hashes rather than duplicate
+    source), the comparability verdict, the blinding map, and hashes of the
+    transient audit files.  Together those inputs let a future reader rebuild
+    and verify the exact sample without keeping the whole workspace in Git.
+    """
+    manifest_path = root / "work" / "root" / "manifest.json"
+    if not manifest_path.is_file():
+        return None
+
+    final_support: dict[str, dict[str, Any]] = {}
+    for probe_id, rows in sorted(sc_adjudicated_annotations(root).items()):
+        compact_rows: dict[str, Any] = {}
+        for language, record in sorted(rows.items()):
+            fragment = record.get("fragment")
+            compact = {
+                key: value
+                for key, value in record.items()
+                if key != "fragment"
+            }
+            compact["fragment_sha256"] = (
+                sha256_bytes(str(fragment).encode("utf-8"))
+                if fragment is not None
+                else None
+            )
+            compact_rows[language] = compact
+        final_support[probe_id] = compact_rows
+
+    manifest = json_load(manifest_path)
+    comparability: dict[str, Any] | None = None
+    for unit in manifest.get("work_units", []):
+        if COMPARABILITY_GATE not in (unit.get("requirement_ids") or []):
+            continue
+        result_path = (
+            root / "work" / "agents" / str(unit.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if result_path.is_file():
+            result = json_load(result_path)
+            evidence = result.get("evidence") or {}
+            comparability = {
+                "work_unit_id": str(unit.get("id") or ""),
+                "gate": (result.get("requirements") or {}).get(COMPARABILITY_GATE),
+                "gate_result": evidence.get("gate_result"),
+            }
+        break
+
+    transient_paths = {
+        "comparability_sample": root / COMPARABILITY_SAMPLE_RELATIVE,
+        "support_reconciliation": (
+            root / "work" / "audit" / "semantic-compression"
+            / "support_reconciliation.json"
+        ),
+        "comparability_blinding": root / COMPARABILITY_BLINDING_RELATIVE,
+        "comparability_repairs": root / COMPARABILITY_REPAIR_RELATIVE,
+        "f20_runtime_facts": root / F20_RUNTIME_FACTS_RELATIVE,
+    }
+    transient_hashes = {
+        name: {
+            "workspace_path": path.relative_to(root).as_posix(),
+            "sha256": sha256_file(path),
+        }
+        for name, path in transient_paths.items()
+        if path.is_file()
+    }
+    blinding = (
+        json_load(root / COMPARABILITY_BLINDING_RELATIVE)
+        if (root / COMPARABILITY_BLINDING_RELATIVE).is_file()
+        else None
+    )
+    repairs = sc_comparability_repairs(root)
+    repaired_pairs = [
+        {"probe_id": probe_id, "language": language}
+        for probe_id, rows in sorted(repairs.items())
+        for language in sorted(rows)
+    ]
+
+    payload = {
+        "schema_version": 1,
+        "purpose": (
+            "Compact reconstruction manifest for Semantic Compression "
+            "support reconciliation and blinded comparability audit."
+        ),
+        "reconstruction_note": (
+            "Scored metric worker evidence is retained under ../evidence/"
+            "semantic_compression/. Canonical fragments live there; "
+            "fragment_sha256 below avoids duplicating them. Rebuild the sample "
+            "with the frozen template and run_id, then verify the transient "
+            "hashes recorded here."
+        ),
+        "final_support_adjudications": final_support,
+        "comparability": comparability,
+        "repaired_pairs": repaired_pairs,
+        "blinding": blinding,
+        "transient_audit_sha256": transient_hashes,
+    }
+    destination = staging / "audit" / "semantic_compression.json"
+    json_dump(destination, payload)
+    return destination.relative_to(staging).as_posix()
+
+
 def compact_run_files(
     staging: Path,
     root: Path,
@@ -11182,6 +11291,10 @@ def compact_run_files(
     for name, payload in files.items():
         json_dump(staging / name, payload)
     write_run_breakdown(staging, root)
+    semantic_audit_path = write_semantic_compression_audit_manifest(staging, root)
+    if semantic_audit_path is not None:
+        summary["raw_evidence"]["semantic_compression_audit_manifest"] = semantic_audit_path
+        json_dump(staging / "summary.json", summary)
 
     hashes: dict[str, str] = {}
     for file in sorted(p for p in staging.rglob("*") if p.is_file()):

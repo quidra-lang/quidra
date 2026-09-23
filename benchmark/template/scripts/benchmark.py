@@ -167,10 +167,15 @@ RETAINED_RUN_PATHS = (
     "raw",
     "prompts",
     "work/agents",
+    "work/attempts",
+    "work/audit",
     "work/root/manifest.json",
     "work/root/ledger.json",
     "work/root/plans",
     "work/root/commands",
+    "work/root/proficiency-verification",
+    "work/root/comparability_blinding.json",
+    "work/root/f20_runtime_facts.json",
 )
 
 

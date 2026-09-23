@@ -1,16 +1,9 @@
 {
   "schema_version": 1,
-  "purpose": "Clarify the existing Semantic Compression support rubric for cohort adjudication and blinded comparability without changing the frozen capability universe or metric measurements.",
-  "authority": {
-    "precedence": [
-      "The frozen capability_universe support rubric remains authoritative.",
-      "A cohort support adjudication is authoritative for support level, selected fragment, reason code, justification and citation for its (probe, language) pair.",
-      "Metric-shard support prose is measurement evidence only after a cohort adjudication exists; it must not override or contradict that canonical record in the comparability packet.",
-      "A blinded comparability repair directive may replace a cohort support record only for the affected pair and must itself satisfy the same complete support-record contract."
-    ]
-  },
-  "complete_support_record": {
-    "fields": [
+  "purpose": "Frozen, language-neutral rules for reconciling Semantic Compression support annotations before the blinded comparability audit.",
+  "authoritative_support_record": {
+    "rule": "When a cohort adjudication or comparability repair exists for a sampled (probe, language) pair, that complete record is the sole support source for the comparability sample. Stale support-level prose from single-language metric shards is discarded rather than treated as a second vote.",
+    "required_fields": [
       "level",
       "fragment",
       "partial_reasons",
@@ -18,35 +11,51 @@
       "justification",
       "citation"
     ],
-    "FULL": "fragment is required; partial_reasons is empty; none_reason is null.",
-    "PARTIAL": "fragment is required; partial_reasons contains one or more of P-a..P-e; none_reason is null.",
-    "NONE": "fragment is null; partial_reasons is empty; none_reason is exactly one of N-1..N-4.",
-    "common": "justification and citation are always required."
+    "full": {
+      "fragment": "required exact selected fragment",
+      "partial_reasons": [],
+      "none_reason": null
+    },
+    "partial": {
+      "fragment": "required exact selected fragment",
+      "partial_reasons": "one or more of P-a, P-b, P-c, P-d, P-e",
+      "none_reason": null
+    },
+    "none": {
+      "fragment": null,
+      "partial_reasons": [],
+      "none_reason": "exactly one of N-1, N-2, N-3, N-4"
+    }
   },
-  "consistency_rules": [
+  "symmetry_rules": [
     {
-      "id": "standard-library-substitution",
-      "rule": "When a documented standard-library/runtime mechanism delivers some but not all numbered requirements, classify it as PARTIAL under P-a rather than NONE merely because the language lacks the native surface form. Apply this identically across probes. If it delivers none of the numbered requirements, use NONE."
+      "id": "standard-library-is-standard",
+      "rule": "A documented module or facility shipped in the frozen language distribution is not disqualified merely because it is a library wrapper rather than syntax. Whether it earns FULL, PARTIAL or NONE is decided only by the numbered canonical_task sub-requirements and the frozen support rubric."
     },
     {
-      "id": "same-mechanism-cross-probe",
-      "rule": "The same documented mechanism must not receive different support classes across probes unless a specific numbered requirement materially distinguishes the cases. The adjudication must name that distinguishing requirement when it does."
+      "id": "same-mechanism-same-threshold",
+      "rule": "If the same documented standard mechanism is credited as delivering at least one numbered sub-requirement on one sampled probe, another sampled probe may classify it as NONE only when that probe's numbered requirements make the mechanism deliver none of them. The justification must name that observable distinction."
     },
     {
-      "id": "built-in-bridge-vs-separate-native-unit",
-      "rule": "A built-in interoperability bridge that ships with the frozen language toolchain but needs a shipped mode/flag or host compiler precondition may be PARTIAL under P-b when the frozen rubric permits it. A mechanism requiring user-authored native glue, a separate native compilation unit/build system, an external generator, or a toolchain outside the frozen environment is NONE under N-2. These are distinct situations and must not be conflated."
+      "id": "partial-reason-is-mandatory",
+      "rule": "Every PARTIAL record must name the applicable frozen P-letter(s). A PARTIAL without a P-letter is incomplete evidence, not a comparable annotation."
     },
     {
-      "id": "observation-target-separation",
-      "rule": "Facts that belong only to an OBSERVATION TARGET never change FULL/PARTIAL/NONE; they are scored by the corresponding quality metrics."
+      "id": "none-reason-is-mandatory",
+      "rule": "Every NONE record must name one frozen N-reason and cite the language rule or observed build/run evidence that makes the capability unavailable."
     },
     {
-      "id": "no-post-hoc-ranking-use",
-      "rule": "Neither adjudication nor repair may inspect aggregate scores or rankings. They operate only on frozen requirements, fragments, documentation evidence and the predeclared comparability sample."
+      "id": "observation-target-is-not-support",
+      "rule": "Determinacy, locality and other OBSERVATION TARGET text never changes FULL/PARTIAL/NONE. Those facts belong to their own Semantic Compression metrics."
+    },
+    {
+      "id": "ffi-built-in-vs-external",
+      "rule": "For FFI probes, distinguish a language/toolchain's documented built-in interoperability facility from a third-party package, binding generator or separate build system. A built-in facility that misses a numbered requirement may be PARTIAL with the matching P-letter; absence of any built-in facility satisfying a numbered requirement is NONE with the matching N-reason."
     }
   ],
   "repair_loop": {
-    "maximum_comparability_attempts": 3,
-    "rule": "A failed blinded audit may emit pair-specific repair directives. The trusted runner applies only directives that satisfy the complete support-record contract, rebuilds the same predeclared blinded sample, and reruns the audit. If no directive changes the canonical records, or the attempt cap is reached, the gate remains failed."
+    "max_comparability_attempts": 3,
+    "rule": "A failed blinded comparability audit may propose complete support-record repairs for only the disputed sampled pairs. The runner applies changed repairs, rebuilds the blinded sample and reruns the same audit. If no directive changes the canonical record, the gate remains failed and no further paid retry is made.",
+    "anti_gaming": "Repairs are limited to the predeclared sampled annotations and frozen rubric; rankings and aggregate scores are unavailable to the repair decision."
   }
 }

@@ -8060,7 +8060,7 @@ def verify_proficiency_completion(
 
 
 def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
-    """Deterministic verifier-only feedback for a Proficiency repair turn."""
+    """Deterministic verifier feedback without leaking hidden-oracle observations."""
     if not isinstance(verification, dict):
         raise BenchmarkError("LLM Proficiency repair requires trusted verification")
     if verification.get("test_passed") is True:
@@ -8080,34 +8080,43 @@ def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
             "error": value.get("error"),
         }
 
-    failures = []
+    public_failures: list[dict[str, Any]] = []
+    hidden_failure_count = 0
     for row in verification.get("oracle_tests") or []:
-        if isinstance(row, dict) and row.get("passed") is not True:
-            failures.append({
-                "id": row.get("id"),
-                "hidden": bool(row.get("hidden")),
-                "problem": row.get("problem"),
-            })
+        if not isinstance(row, dict) or row.get("passed") is True:
+            continue
+        if row.get("hidden") is True:
+            hidden_failure_count += 1
+            continue
+        public_failures.append({
+            "id": row.get("id"),
+            "problem": row.get("problem"),
+            "run": compact_process(row.get("run")),
+        })
+
     feedback = {
         "compile_parse_ok": verification.get("compile_parse_ok"),
         "test_passed": verification.get("test_passed"),
         "compile_or_parse": compact_process(verification.get("compile_or_parse")),
-        "representative_run": compact_process(verification.get("run")),
+        "public_case_failures": public_failures,
+        "hidden_case_failures": hidden_failure_count,
         "oracle_test_count": verification.get("oracle_test_count"),
         "oracle_passed_count": verification.get("oracle_passed_count"),
-        "oracle_failures": failures,
+        "note": (
+            "Hidden inputs, hidden case identities, expected answers, and hidden-run "
+            "stdout/stderr are intentionally withheld. Repair the implementation "
+            "against the original general contract."
+        ),
     }
     return (
         "# Frozen LLM Proficiency Repair\n"
         "Your previous program did not pass the trusted verifier.\n"
-        "The JSON below contains verifier facts only; hidden inputs and expected "
-        "answers are intentionally withheld. Use it and the original frozen task "
-        "to repair the program.\n"
+        "The JSON below contains verifier facts safe to reveal to the scored model. "
+        "Use it and the original frozen task to repair the program.\n"
         + json.dumps(feedback, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         + "\nReturn only one complete replacement source program, with no Markdown "
         "fences or explanation.\n"
     )
-
 
 def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | None:
     """Metrics fully decidable from runtime-owned generation/build/hidden-oracle evidence."""

@@ -497,7 +497,8 @@ class Trials:
             verification_view = {
                 "compile_parse_ok": verification.get("compile_parse_ok"),
                 "test_passed": verification.get("test_passed"),
-                "expected_stdout": verification.get("expected_stdout"),
+                "oracle_passed_count": verification.get("oracle_passed_count"),
+                "oracle_test_count": verification.get("oracle_test_count"),
                 "diagnostic": diagnostic,
                 "path": verification_path,
             }
@@ -648,6 +649,31 @@ class Trials:
             )
         return self._resume_one(trial_id, action.get("message"))
 
+    def unfinished_proficiency_trial_ids(self) -> list[str]:
+        """Started Primary trials that still need a trusted repair turn."""
+        if self.evaluation != "llm_proficiency":
+            return []
+        unfinished: list[str] = []
+        for trial_id in self.required_trial_ids:
+            session = self.sessions.get(trial_id)
+            if session is None:
+                continue
+            records = session.get("records") or []
+            if not records:
+                unfinished.append(trial_id)
+                continue
+            last = records[-1] if isinstance(records[-1], dict) else {}
+            verification = last.get("verification")
+            if (
+                isinstance(verification, dict)
+                and verification.get("test_passed") is True
+            ):
+                continue
+            repairs_used = max(0, len(records) - 1)
+            if repairs_used < self.max_repairs:
+                unfinished.append(trial_id)
+        return unfinished
+
     def summary(self) -> dict[str, Any]:
         return {
             "budget": self.budget,
@@ -666,6 +692,7 @@ class Trials:
             "missing_required_trial_ids": sorted(
                 self.required_trial_id_set - set(self.sessions)
             ),
+            "unfinished_proficiency_trial_ids": self.unfinished_proficiency_trial_ids(),
             "trials": {
                 trial_id: {"calls": session["records"], "repairs": len(session["records"]) - 1}
                 for trial_id, session in self.sessions.items()
@@ -761,14 +788,16 @@ call. Do NOT author an initial prompt. Use
 prompt is rejected before inference.
 
 After every initial or repair completion, the runtime writes the returned source,
-performs the target language's frozen compile/parse step, runs the frozen recipe,
-and records the expected-output check. The observation includes a compact
-verification object and a path to the complete trusted record; do not repeat
-those commands merely to establish compile/run success. Repair feedback is also
-runtime-owned: omit the message field on trial_continue. The runtime sends only
-the trusted verifier's compile/run facts plus the frozen replacement-source
-instruction. Custom repair guidance is rejected before inference, and a trial
-that already passed cannot be repaired.
+performs the target language's frozen compile/parse step, then executes every
+public/hidden external-oracle case for the frozen workload. The observation
+includes only compact pass counts/diagnostics and a path to the complete trusted
+record; hidden inputs and expected answers are never placed in model-visible
+feedback. Do not repeat those commands merely to establish correctness. Repair
+feedback is runtime-owned: omit the message field on trial_continue. The runtime
+sends verifier facts plus the frozen replacement-source instruction. Custom
+repair guidance is rejected, a passing trial cannot be repaired, and a failing
+trial must continue until it passes or its frozen repair budget is exhausted
+before finalization is accepted.
 
 {required}
 """
@@ -1043,7 +1072,8 @@ def run_agent(args: argparse.Namespace) -> int:
                 missing_trials = sorted(
                     trials.required_trial_id_set - set(trials.sessions)
                 )
-                if missing_now or missing_trials:
+                unfinished_trials = trials.unfinished_proficiency_trial_ids()
+                if missing_now or missing_trials or unfinished_trials:
                     protocol_errors += 1
                     turn_protocol_error = True
                     reasons = []
@@ -1055,6 +1085,11 @@ def run_agent(args: argparse.Namespace) -> int:
                         reasons.append(
                             "required Primary trials are still missing: "
                             + ", ".join(missing_trials)
+                        )
+                    if unfinished_trials:
+                        reasons.append(
+                            "failed Proficiency trials still have frozen repair budget: "
+                            + ", ".join(unfinished_trials)
                         )
                     observation = {
                         "ok": False,

@@ -5721,6 +5721,12 @@ def cache_cap_reuse_problem(
                 f"Primary trial allocation ({expected_count} frozen trials); "
                 "it must be measured again"
             )
+        if certification.get("proficiency_toolchain_evidence") is not True:
+            return (
+                "the Proficiency record is not certified to have run the assigned "
+                "language toolchain successfully before its first scored trial; "
+                "it must be measured again"
+            )
     current = int(unit.get("max_output_tokens_per_call", 0) or 0)
     if current <= 0:
         return None
@@ -6896,19 +6902,23 @@ def _validation_detail(agent_dir: Path, limit: int = 1500) -> str:
     return (text or "validator failed without a message")[-limit:]
 
 
-def learnability_toolchain_evidence_problems(
+def trial_toolchain_evidence_problems(
     unit: dict[str, Any], trace: dict[str, Any]
 ) -> list[str]:
-    """Require a real, successful toolchain invocation per assigned language.
+    """Require the assigned toolchain to succeed before the first scored trial.
 
-    The runtime lets a learnability agent start trials only after it attests
-    fixtures_compile_and_run=true. In the first paid run the Rust agents, whose
-    rustc could not run at all, attested it anyway and scored trials with a
-    string matcher; nothing downstream noticed. The trace records every `run`
-    with its exit code, so the attestation is checkable.
+    This applies to both Learnability and Proficiency. A score may not claim
+    compile/run success when the language toolchain never ran, and a token
+    version probe performed after scored trials cannot retroactively validate
+    those trials. Only successful direct toolchain invocations before the first
+    accepted trial_start count.
     """
     problems: list[str] = []
     actions = list(trace.get("trace", []))
+    boundary = first_accepted_trial_index(actions)
+    if boundary is None:
+        return ["no scored trial_start was accepted by the runtime"]
+    actions = actions[:boundary]
     for language in unit.get("assigned_languages", []) or []:
         programs = LANGUAGE_TOOLCHAIN_PROGRAMS.get(str(language))
         if not programs:
@@ -6928,9 +6938,14 @@ def learnability_toolchain_evidence_problems(
         if not seen_success:
             problems.append(
                 f"no successful {language} toolchain invocation ({', '.join(programs)}) "
-                "appears in the agent trace, so fixtures_compile_and_run is unsupported"
+                "appears before the first scored trial_start"
             )
     return problems
+
+
+# Compatibility name retained for existing callers while the same contract is
+# now enforced for both scored trial evaluations.
+learnability_toolchain_evidence_problems = trial_toolchain_evidence_problems
 
 
 def toolchain_evidence_required(root: Path) -> bool:
@@ -7063,6 +7078,8 @@ def trial_unit_problems(
         root = agent_dir.parent.parent.parent
         problems.extend(proficiency_trial_coverage_problems(root, trace))
         problems.extend(_preserved_trial_problems(agent_dir, trace))
+        if toolchain_evidence_required(root):
+            problems.extend(trial_toolchain_evidence_problems(unit, trace))
     return infrastructure, problems
 
 
@@ -8872,6 +8889,11 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
             if certification.get("proficiency_integrity") is not True:
                 problems.append(f"{uid}: cache record lacks proficiency integrity certification")
                 continue
+            if certification.get("proficiency_toolchain_evidence") is not True:
+                problems.append(
+                    f"{uid}: cache record lacks pre-trial toolchain evidence certification"
+                )
+                continue
             expected_trials = proficiency_primary_trial_set_sha256(root)
             if certification.get("proficiency_primary_trial_set_sha256") != expected_trials:
                 problems.append(
@@ -8907,6 +8929,11 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
             for p in proficiency_trial_coverage_problems(root, trace)
         )
         problems.extend(f"{uid}: {p}" for p in _preserved_trial_problems(agent_dir, trace))
+        if toolchain_evidence_required(root):
+            problems.extend(
+                f"{uid}: {p}"
+                for p in trial_toolchain_evidence_problems(trial_unit, trace)
+            )
     fixed = len(signatures) == 1 and not any("provider/model/sampling" in p for p in problems)
     preserved = not any(
         "preserv" in p or "trial records" in p or "hash mismatch" in p or "text mismatch" in p
@@ -9984,12 +10011,15 @@ def cache_certification_for_unit(
             problems.append("host tool surface was exposed")
         problems.extend(proficiency_trial_coverage_problems(root, trace))
         problems.extend(_preserved_trial_problems(agent_dir, trace))
+        if toolchain_evidence_required(root):
+            problems.extend(trial_toolchain_evidence_problems(unit, trace))
         if problems:
             raise BenchmarkError(
                 f"{unit['id']}: proficiency cache promotion failed integrity: "
                 + "; ".join(problems)
             )
         certification["proficiency_integrity"] = True
+        certification["proficiency_toolchain_evidence"] = True
         certification["proficiency_primary_trial_set_sha256"] = (
             proficiency_primary_trial_set_sha256(root)
         )

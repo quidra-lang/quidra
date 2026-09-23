@@ -1,0 +1,14 @@
+{
+  "evaluated_commit_sha": "d0bdd27acd4be557fcfecd75ebf95566b538de16",
+  "imported_into_develop_commit": "d0bdd27acd4be557fcfecd75ebf95566b538de16",
+  "retained_file_count": 4,
+  "retained_files_sha256": {
+    "cache_usage.json": "445fe19f7fd4ee1600f49fb72512f828d221839e1baba2b4a6c4938a5b54ceeb",
+    "provenance.json": "839b67a098e598a07d142b3dbf1465bc08673598094daede6f884043c84c7bf4",
+    "rankings.json": "016be40a0e6131949ad7ac354c30f5f61d485252924203fe34dca84e92297726",
+    "summary.json": "c9636b5eb3a68dac68171f4998cb8cd9b7405db59e4ce8f7c4d2c818b8d706e5"
+  },
+  "retention_policy": "compact-summary-only",
+  "run_id": "2026-09-23-d0bdd27-gh17",
+  "schema_version": 1
+}

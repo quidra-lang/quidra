@@ -14,7 +14,6 @@ on:
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
       - ".github/actions/benchmark-primary/**"
-      - ".github/actions/benchmark-primary/**"
   pull_request:
     paths:
       - "benchmark/master_prompt.md"
@@ -26,7 +25,6 @@ on:
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
-      - ".github/actions/benchmark-primary/**"
       - ".github/actions/benchmark-primary/**"
 
 jobs:

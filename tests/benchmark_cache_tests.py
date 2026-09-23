@@ -1423,7 +1423,56 @@ def assert_optional_units_do_not_enter_required_resume_set() -> None:
         ]
 
 
+
+def assert_certified_checkpoint_promotes_prompt_dependencies() -> None:
+    """A partial run must preserve prompt bytes needed to reuse paid cache later."""
+    with tempfile.TemporaryDirectory() as td:
+        base = Path(td)
+        root = make_workspace(base)
+        unit, task = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+
+        promotion = {"records": [{"work_unit_id": unit["id"]}]}
+        prompt_hashes = benchmark.cache_record_prompt_hashes(root, promotion)
+        assert prompt_hashes == {task["prompt_sha256"]}, prompt_hashes
+
+        # A non-selected malformed manifest proves checkpoint promotion is scoped
+        # to certified records rather than copying every generated prompt.
+        benchmark.json_dump(
+            root / "prompts/manifests/ignored.json",
+            {
+                "schema_version": 1,
+                "prompt_sha256": "f" * 64,
+                "components": [{"kind": "ignored", "sha256": "not-a-digest"}],
+            },
+        )
+        source = base / "source"
+        (source / "benchmark/template/prompts").mkdir(parents=True)
+        summary = benchmark.promote_prompt_store(
+            source, root, prompt_hashes=prompt_hashes
+        )
+        assert summary["manifests"] == 1, summary
+
+        stored = (
+            source / "benchmark/template/prompts/manifests/by-hash"
+            / f"{task['prompt_sha256']}.json"
+        )
+        assert stored.is_file(), stored
+        manifest = benchmark.json_load(stored)
+        for component in manifest["components"]:
+            digest = component["sha256"]
+            assert (
+                source / "benchmark/template/prompts/components/by-hash"
+                / f"{digest}.md"
+            ).is_file(), digest
+        assert not (
+            source / "benchmark/template/prompts/manifests/by-hash"
+            / f"{'f' * 64}.json"
+        ).exists()
+
+
 def main() -> None:
+    assert_certified_checkpoint_promotes_prompt_dependencies()
     assert_partial_paid_checkpoint_roundtrip()
     assert_optional_units_do_not_enter_required_resume_set()
     assert_corrupt_cache_is_leaf_local_and_explicit()

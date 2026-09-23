@@ -8367,7 +8367,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 ) or []
             )
             r9_text = str(
-                (asset.get("authoring_rules") or {}).get(
+                (asset.get("authoring_rules_for_probe_fragments") or {}).get(
                     "R9_no_probe_substitution", ""
                 )
             )

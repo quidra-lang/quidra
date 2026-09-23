@@ -394,6 +394,9 @@ class Trials:
         # of observations one turn at a time, and an auditor reads the record
         # without going through the trace.
         self.records_dir = root / "work" / "agents" / agent_id / "trials"
+        self.trusted_verification_dir = (
+            root / "work" / "root" / "proficiency-verification" / agent_id
+        )
 
     @staticmethod
     def _valid_id(value: Any) -> str:
@@ -445,7 +448,9 @@ class Trials:
         if self.evaluation == "llm_proficiency":
             if self.proficiency_language is None:
                 raise AgentFailure("LLM Proficiency target language is unavailable")
-            verify_dir = trial_dir / "verification" / f"call_{call:02d}"
+            verify_dir = (
+                self.trusted_verification_dir / trial_id / f"call_{call:02d}"
+            )
             try:
                 verification = benchmark.verify_proficiency_completion(
                     self.root,
@@ -460,8 +465,14 @@ class Trials:
                 ) from exc
             verification_path = (
                 verify_dir / "verification.json"
-            ).relative_to(agent_dir).as_posix()
+            ).relative_to(self.root).as_posix()
+            session.setdefault("trusted_verifications", []).append(verification)
 
+        verification_summary = (
+            benchmark.proficiency_verification_summary(verification)
+            if isinstance(verification, dict)
+            else None
+        )
         session["records"].append({
             "call": call,
             "prompt": prompt_text,
@@ -473,7 +484,7 @@ class Trials:
             "stop_reason": response.get("stop_reason"),
             "incomplete": incomplete,
             "usage": response.get("usage", {}),
-            "verification": verification,
+            "verification": verification_summary,
             "verification_path": verification_path,
         })
         benchmark.json_dump(trial_dir / "session.json", {
@@ -484,24 +495,9 @@ class Trials:
         session["messages"].append({"role": "assistant", "content": completion})
         verification_view = None
         if isinstance(verification, dict):
-            diagnostic_source = (
-                verification.get("compile_or_parse")
-                if verification.get("compile_parse_ok") is not True
-                else verification.get("run")
-            ) or {}
-            diagnostic = str(
-                diagnostic_source.get("stderr")
-                or diagnostic_source.get("stdout")
-                or ""
-            )[:2000]
-            verification_view = {
-                "compile_parse_ok": verification.get("compile_parse_ok"),
-                "test_passed": verification.get("test_passed"),
-                "oracle_passed_count": verification.get("oracle_passed_count"),
-                "oracle_test_count": verification.get("oracle_test_count"),
-                "diagnostic": diagnostic,
-                "path": verification_path,
-            }
+            verification_view = benchmark.proficiency_model_visible_feedback(
+                verification
+            )
         return {
             "ok": incomplete is None,
             "trial_id": trial_id,
@@ -532,7 +528,11 @@ class Trials:
             prompt = frozen
         elif not isinstance(prompt, str) or not prompt.strip():
             raise AgentDenied(f"trial {trial_id!r} needs a non-empty prompt string")
-        session = {"messages": [{"role": "user", "content": prompt}], "records": []}
+        session = {
+            "messages": [{"role": "user", "content": prompt}],
+            "records": [],
+            "trusted_verifications": [],
+        }
         self.sessions[trial_id] = session
         return self._call(trial_id, session)
 
@@ -550,10 +550,11 @@ class Trials:
                     f"trial {trial_id!r} repair feedback is runtime-owned; "
                     "omit message instead of supplying custom guidance"
                 )
-            previous = session["records"][-1] if session["records"] else {}
+            trusted = session.get("trusted_verifications") or []
+            previous_verification = trusted[-1] if trusted else None
             try:
                 message = benchmark.proficiency_repair_prompt(
-                    previous.get("verification")
+                    previous_verification
                 )
             except benchmark.BenchmarkError as exc:
                 raise AgentDenied(str(exc)) from exc
@@ -790,9 +791,11 @@ prompt is rejected before inference.
 After every initial or repair completion, the runtime writes the returned source,
 performs the target language's frozen compile/parse step, then executes every
 public/hidden external-oracle case for the frozen workload. The observation
-includes only compact pass counts/diagnostics and a path to the complete trusted
-record; hidden inputs and expected answers are never placed in model-visible
-feedback. Do not repeat those commands merely to establish correctness. Repair
+includes only compact pass counts and safe diagnostics. Full oracle evidence is
+retained in a trusted runner-only path outside your readable roots; hidden inputs,
+expected answers, hidden case identities, and hidden-run output are never placed
+in model-visible feedback. Do not repeat those commands merely to establish
+correctness. Repair
 feedback is runtime-owned: omit the message field on trial_continue. The runtime
 sends verifier facts plus the frozen replacement-source instruction. Custom
 repair guidance is rejected, a passing trial cannot be repaired, and a failing

@@ -3250,6 +3250,21 @@ def validate_comparability_repair_directives(
     valid_labels: set[str] = set()
     if blinding_path.is_file():
         valid_labels = set((json_load(blinding_path).get("labels") or {}).values())
+    valid_probes = {
+        str(probe.get("probe_id")) for probe in comparability_sample_probes(root)
+    }
+    affected_pairs: set[tuple[str, str]] = set()
+    evidence_gate = (evidence.get("gate_result") or {})
+    affected_rows = evidence_gate.get("affected_pairs_requiring_revalidation")
+    if affected_rows is None:
+        affected_rows = evidence.get("affected_pairs_requiring_revalidation")
+    if isinstance(affected_rows, list):
+        for row in affected_rows:
+            if isinstance(row, dict):
+                affected_pairs.add((
+                    str(row.get("probe_id") or "").upper().strip(),
+                    str(row.get("label") or "").strip(),
+                ))
     normalized: list[dict[str, Any]] = []
     for item in raw:
         if not isinstance(item, dict):
@@ -3259,8 +3274,16 @@ def validate_comparability_repair_directives(
         record = sc_adjudicated_record(item.get("record"))
         if not re.fullmatch(r"F\d\d\.P\d+", probe_id):
             raise BenchmarkError(f"invalid comparability repair probe_id: {probe_id!r}")
+        if probe_id not in valid_probes:
+            raise BenchmarkError(
+                f"comparability repair targets non-sampled probe: {probe_id!r}"
+            )
         if valid_labels and label not in valid_labels:
             raise BenchmarkError(f"unknown comparability repair label: {label!r}")
+        if affected_pairs and (probe_id, label) not in affected_pairs:
+            raise BenchmarkError(
+                f"comparability repair {probe_id}/{label} was not declared affected"
+            )
         if record is None:
             raise BenchmarkError(
                 f"comparability repair for {probe_id}/{label} is not a complete support record"

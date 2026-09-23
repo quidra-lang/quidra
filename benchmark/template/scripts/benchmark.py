@@ -3578,6 +3578,10 @@ def persist_comparability_repairs(root: Path, result: dict[str, Any]) -> int:
         language = by_label.get(directive["label"])
         if not language:
             raise BenchmarkError(f"cannot resolve blinded label {directive['label']!r}")
+        if directive["probe_id"] == "F20.P1":
+            validate_f20_record_against_runtime_baseline(
+                root, language, directive["record"]
+            )
         key = (directive["probe_id"], language)
         row = {
             "probe_id": directive["probe_id"],

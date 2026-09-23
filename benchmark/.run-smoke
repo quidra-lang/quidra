@@ -6,6 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T05:56:00Z
-reason: request-shape proof on the snapshot the next paid run will evaluate (0a37282); the full run follows only if all twelve checks pass
+requested_at_utc: 2026-09-23T07:34:00Z
+reason: request-shape proof on b7279dd, the snapshot the next full run will evaluate; cache-impact reports 227 records still valid and 21 invalid, so that run measures those again
 model: claude-sonnet-5

@@ -2533,6 +2533,43 @@ def primary_config_projection_sha256(root: Path, evaluation: str) -> str:
     return sha256_bytes(data)
 
 
+def evaluation_spec_projection_text(
+    root: Path, evaluation: str, selectors: list[str]
+) -> str:
+    path = root / "template" / "methodology" / EVALUATION_SPEC_FILES[evaluation]
+    return extract_markdown_sections(path.read_text(encoding="utf-8"), selectors)
+
+
+def evaluation_spec_projection_sha256(
+    root: Path, evaluation: str, selectors: list[str]
+) -> str:
+    return sha256_bytes(
+        evaluation_spec_projection_text(root, evaluation, selectors).encode("utf-8")
+    )
+
+
+def assigned_requirements_projection_text(
+    evaluation: str, requirement_ids: list[str]
+) -> str:
+    return json.dumps(
+        {
+            "schema_version": 1,
+            "evaluation": evaluation,
+            "assigned": requirement_ids,
+        },
+        indent=2,
+        sort_keys=True,
+    ) + "\n"
+
+
+def assigned_requirements_projection_sha256(
+    evaluation: str, requirement_ids: list[str]
+) -> str:
+    return sha256_bytes(
+        assigned_requirements_projection_text(evaluation, requirement_ids).encode("utf-8")
+    )
+
+
 def derive_llm_call_budget(
     primary: dict[str, Any],
     languages: list[str],
@@ -2668,6 +2705,24 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
             agent_id = f"worker-{uid}"
             audit_ids.append(uid)
             audit_artifact_by_unit[uid] = artifact
+            language = str(artifact.get("language") or "")
+            status_row = next(
+                (
+                    row for row in (reuse_status.get("artifacts") or [])
+                    if str(row.get("id") or "") == artifact_id
+                ),
+                {},
+            )
+            audit_input = plan_root / "reuse-audit-inputs" / f"{slug_id(artifact_id)}.json"
+            json_dump(audit_input, {
+                "schema_version": 1,
+                "artifact_id": artifact_id,
+                "language": language or None,
+                "validated_toolchain": status_row.get("validated_toolchain"),
+                "validated_canonical": status_row.get("validated_canonical"),
+                "current_canonical": status_row.get("current_canonical"),
+                "reason": status_row.get("reason"),
+            })
             units.append({
                 "id": uid,
                 "evaluation": evaluation,
@@ -2677,15 +2732,20 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                 "result_kind": "audit",
                 "goal": (
                     f"Audit reusable artifact {artifact_id} against the current toolchain/capability "
-                    "contract. Confirm whether the source/harness remains semantically valid; do not "
-                    "reuse old measurements."
+                    "contract. The attached audit input is the authoritative old/current toolchain "
+                    "comparison. Confirm whether the source/harness remains semantically valid; do "
+                    "not reuse old measurements."
                 ),
                 "assigned_agent_id": agent_id,
+                "assigned_languages": [language] if language else [],
                 "dependencies": [],
                 "input_hashes": {"artifact_git_object": artifact.get("content_git_object_sha1")},
                 "reuse_audit_for": [artifact_id],
                 "requirement_ids": [],
-                "read_paths": [str(root / "template" / str(artifact["content_destination"]))],
+                "read_paths": [
+                    str(root / "template" / str(artifact["content_destination"])),
+                    str(audit_input),
+                ],
                 "evidence_paths": [str(root / "work" / "agents" / agent_id / "result.json")],
                 "validator_command": (
                     f"python3 {root / 'template' / 'scripts' / 'benchmark.py'} "
@@ -2694,9 +2754,9 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                 "network_allowed": True,
                 "prompt_sections": [],
                 "max_attempts": default_max_attempts,
-                "max_llm_calls": 0,
-                "estimated_input_tokens_per_call": 0,
-                "max_output_tokens_per_call": 0,
+                "max_llm_calls": 1,
+                "estimated_input_tokens_per_call": 4096,
+                "max_output_tokens_per_call": 4096,
             })
 
         regular_ids: list[str] = []
@@ -2888,9 +2948,10 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                         "benchmark_metadata": sha256_file(
                             root / "template" / BENCHMARK_METADATA_RELATIVE
                         ),
-                        "evaluation_spec": sha256_file(
-                            root / "template" / "methodology"
-                            / EVALUATION_SPEC_FILES[evaluation]
+                        "evaluation_spec_sections": evaluation_spec_projection_sha256(
+                            root,
+                            evaluation,
+                            list(raw.get("prompt_sections", [])),
                         ),
                     },
                     "reuse_audit_for": [],
@@ -6477,23 +6538,74 @@ def _primary_config_from_prompt_store(
     return None
 
 
-def _prompt_component_signature_without_primary(
-    components: Iterable[dict[str, Any]],
+def _scoped_prompt_component_kinds(evaluation: str) -> set[str]:
+    return {
+        "embedded:primary.json",
+        f"embedded:{EVALUATION_SPEC_FILES[evaluation]}",
+        "embedded:assigned_requirements.json",
+    }
+
+
+def _prompt_component_signature_without_scoped(
+    components: Iterable[dict[str, Any]], evaluation: str
 ) -> list[tuple[str, str]]:
+    scoped = _scoped_prompt_component_kinds(evaluation)
     return [
         (str(component.get("kind") or ""), str(component.get("sha256") or ""))
         for component in components
-        if str(component.get("kind") or "") != "embedded:primary.json"
+        if str(component.get("kind") or "") not in scoped
     ]
 
 
-def _cache_payload_without_primary_prompt(
+def _embedded_component_body(text: str) -> str | None:
+    marker = "Source SHA-256:"
+    start = text.find(marker)
+    if start < 0:
+        return None
+    body = text.find("\n\n", start)
+    if body < 0:
+        return None
+    return text[body + 2:]
+
+
+def _stored_prompt_component_body(
+    store_root: Path, prompt_sha256: str, kind: str
+) -> str | None:
+    manifest = _prompt_store_manifest(store_root, prompt_sha256)
+    if manifest is None:
+        return None
+    for component in manifest.get("components", []) or []:
+        if str(component.get("kind") or "") != kind:
+            continue
+        text = _prompt_store_component_text(
+            store_root, str(component.get("sha256") or "")
+        )
+        return _embedded_component_body(text) if text is not None else None
+    return None
+
+
+def _task_prompt_component_body(task: dict[str, Any], kind: str) -> str | None:
+    for component in task.get("prompt_components", []) or []:
+        if str(component.get("kind") or "") != kind:
+            continue
+        path = Path(str(component.get("path") or ""))
+        if not path.is_file():
+            return None
+        return _embedded_component_body(path.read_text(encoding="utf-8"))
+    return None
+
+
+def _cache_payload_without_scoped_prompt(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     normalized = dict(payload)
     normalized.pop("exact_task_packet_sha256", None)
     hashes = dict(normalized.get("unit_input_hashes") or {})
-    hashes.pop("primary_config", None)
+    # Old records used the whole files. Current records use only the selected
+    # evaluation section and Primary projection. Exact scoped component bodies
+    # are compared below before any paid record is accepted.
+    for key in ("primary_config", "evaluation_spec", "evaluation_spec_sections"):
+        hashes.pop(key, None)
     normalized["unit_input_hashes"] = hashes
     return normalized
 
@@ -6504,39 +6616,44 @@ def _legacy_primary_prompt_compatible(
     current_payload: dict[str, Any],
     task: dict[str, Any],
 ) -> bool:
-    """Allow one old paid record to cross the primary-config scoping migration.
+    """Allow old paid records to cross safe scoped-prompt cache migrations.
 
-    This is deliberately narrow: every cache dependency except the full Primary
-    file hash and the resulting packet hash must already match; every non-Primary
-    prompt component must be byte-identical; and projecting the historical
-    Primary JSON onto this evaluation must equal the current projection.
+    All non-scoped dependencies must match exactly. The old Primary file is
+    projected to this evaluation, while the selected methodology and assigned
+    requirement component bodies must be byte-identical. This rescues paid work
+    from unrelated edits without accepting a semantically changed Task Packet.
     """
+    evaluation = str(current_payload.get("evaluation") or "")
     old_payload = record.get("fingerprint_payload") or {}
-    if _cache_payload_without_primary_prompt(old_payload) != (
-        _cache_payload_without_primary_prompt(current_payload)
+    if _cache_payload_without_scoped_prompt(old_payload) != (
+        _cache_payload_without_scoped_prompt(current_payload)
     ):
         return False
-    evaluation = str(current_payload.get("evaluation") or "")
     old_prompt = str(old_payload.get("exact_task_packet_sha256") or "")
-    old_manifest = _prompt_store_manifest(
-        root / "template" / "prompts", old_prompt
-    )
+    store_root = root / "template" / "prompts"
+    old_manifest = _prompt_store_manifest(store_root, old_prompt)
     if old_manifest is None:
         return False
-    if _prompt_component_signature_without_primary(
-        old_manifest.get("components", []) or []
-    ) != _prompt_component_signature_without_primary(
-        task.get("prompt_components", []) or []
+    if _prompt_component_signature_without_scoped(
+        old_manifest.get("components", []) or [], evaluation
+    ) != _prompt_component_signature_without_scoped(
+        task.get("prompt_components", []) or [], evaluation
     ):
         return False
-    old_primary = _primary_config_from_prompt_store(
-        root / "template" / "prompts", old_prompt
-    )
-    if old_primary is None:
-        return False
-    return primary_config_projection_from_data(
+    old_primary = _primary_config_from_prompt_store(store_root, old_prompt)
+    if old_primary is None or primary_config_projection_from_data(
         old_primary, evaluation
-    ) == primary_config_projection_data(root, evaluation)
+    ) != primary_config_projection_data(root, evaluation):
+        return False
+    for kind in (
+        f"embedded:{EVALUATION_SPEC_FILES[evaluation]}",
+        "embedded:assigned_requirements.json",
+    ):
+        old_body = _stored_prompt_component_body(store_root, old_prompt, kind)
+        current_body = _task_prompt_component_body(task, kind)
+        if old_body is None or current_body is None or old_body != current_body:
+            return False
+    return True
 
 
 def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
@@ -6717,7 +6834,7 @@ def hydrate_certified_cache(
                     "reason": "no certified record",
                 }
                 continue
-            compatibility_mode = "primary-config-projection"
+            compatibility_mode = "scoped-input-projection"
             source_fingerprint = str(record.get("fingerprint") or "")
             source_rel = compatible_path.relative_to(root / "cache")
         cap_problem = cache_cap_reuse_problem(root, record, unit)
@@ -7207,8 +7324,9 @@ def cmd_task_create(args: argparse.Namespace) -> int:
 
         core_content = render_workspace_paths(core_path.read_text(encoding="utf-8"), root)
         eval_source = eval_path.read_text(encoding="utf-8")
-        eval_content = extract_markdown_sections(eval_source, prompt_sections)
-        eval_content = render_workspace_paths(eval_content, root)
+        eval_projection = extract_markdown_sections(eval_source, prompt_sections)
+        eval_content = render_workspace_paths(eval_projection, root)
+        eval_digest = sha256_bytes(eval_projection.encode("utf-8"))
         config_content = render_workspace_paths(
             primary_config_projection_text(root, args.evaluation), root
         )
@@ -7219,7 +7337,7 @@ def cmd_task_create(args: argparse.Namespace) -> int:
 
         for name, source_path, content, selected_digest in (
             ("worker_core.md", core_path, core_content, None),
-            (eval_path.name, eval_path, eval_content, None),
+            (eval_path.name, eval_path, eval_content, eval_digest),
             ("primary.json", config_path, config_content, config_digest),
             ("benchmark_metadata.json", metadata_path, metadata_content, None),
         ):
@@ -7246,11 +7364,12 @@ def cmd_task_create(args: argparse.Namespace) -> int:
             raise BenchmarkError(
                 f"Task Packet names unknown requirement IDs: {', '.join(unknown)}"
             )
-        requirements_source_sha = sha256_file(requirements_path)
-        requirements_content = json.dumps(
-            {"schema_version": 1, "evaluation": args.evaluation, "assigned": requirement_ids},
-            indent=2, sort_keys=True,
-        ) + "\n"
+        requirements_content = assigned_requirements_projection_text(
+            args.evaluation, requirement_ids
+        )
+        requirements_source_sha = assigned_requirements_projection_sha256(
+            args.evaluation, requirement_ids
+        )
         embedded_inputs.append({
             "path": str(requirements_path),
             "sha256": requirements_source_sha,
@@ -13364,9 +13483,10 @@ def cache_impact(source: Path) -> dict[str, Any]:
                     historical, evaluation
                 ) != current_primary:
                     changed.append("primary_config")
-        spec = template / "methodology" / f"{evaluation}.md"
-        if "evaluation_spec" in unit_hashes and spec.is_file() and sha256_file(spec) != unit_hashes["evaluation_spec"]:
-            changed.append("evaluation_spec")
+        # The methodology dependency is now scoped to the sections embedded in
+        # each Task Packet. Legacy whole-file hashes are intentionally not treated
+        # as invalid here: hydrate_certified_cache compares the stored selected
+        # component body before accepting one of those records.
         for language, recorded_pins in (payload.get("runtime_toolchain_pins") or {}).items():
             current = {key: pins.get(key) for key in pin_keys.get(language, [])}
             if recorded_pins and current != recorded_pins:
@@ -13416,8 +13536,9 @@ def cache_impact(source: Path) -> dict[str, Any]:
         "schema_version": 1,
         "valid": valid,
         "invalid": invalid,
-        "note": "exact_task_packet_sha256 is not recomputed here; a prompt-component "
-                "change shows up in the synthetic run, not in this report",
+        "note": "exact_task_packet_sha256 is not recomputed here; scoped methodology "
+                "or assigned-requirement prompt changes show up in the synthetic run, "
+                "while legacy scoped records are revalidated during cache hydration",
     }
 
 

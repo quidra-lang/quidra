@@ -28,8 +28,8 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
           artifact_id="$(gh api \
-            "/repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
-            --jq '[.artifacts[] | select(.expired == false and (.name | startswith("quidra-benchmark-paid-state-")))] | sort_by(.created_at) | last | .id // empty')"
+            "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=quidra-benchmark-paid-state&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty')"
           if [ -z "$artifact_id" ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "No paid-call artifact exists yet; nothing to refresh."
@@ -47,7 +47,7 @@ jobs:
         if: ${{ steps.restore.outputs.found == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: quidra-benchmark-paid-state-keepalive-${{ github.run_id }}
+          name: quidra-benchmark-paid-state
           path: ${{ runner.temp }}/benchmark-paid-state
           if-no-files-found: error
           retention-days: 90

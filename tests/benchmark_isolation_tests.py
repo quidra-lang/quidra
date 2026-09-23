@@ -2398,6 +2398,47 @@ def test_trial_units_need_real_trials_and_a_working_toolchain() -> None:
         )
 
 
+def test_proficiency_toolchain_evidence_precedes_scored_trials() -> None:
+    unit = {
+        "id": "proficiency-trials--zig",
+        "evaluation": "llm_proficiency",
+        "assigned_languages": ["Zig"],
+        "requirement_ids": ["metric.correct_at_1"],
+        "execution_kind": "agent",
+    }
+
+    def run_entry(program: str, exit_code: int) -> dict[str, Any]:
+        return {
+            "action": "run",
+            "observation": {
+                "argv": [f"/usr/bin/{program}", "main.zig"],
+                "exit_code": exit_code,
+                "ok": exit_code == 0,
+            },
+        }
+
+    accepted_trial = {"action": "trial_start", "observation": {"ok": True}}
+    clean = {"trace": [run_entry("zig", 0), accepted_trial]}
+    check(
+        benchmark.trial_toolchain_evidence_problems(unit, clean) == [],
+        "a successful pre-trial Zig invocation was rejected",
+    )
+
+    late = {"trace": [accepted_trial, run_entry("zig", 0)]}
+    problems = benchmark.trial_toolchain_evidence_problems(unit, late)
+    check(
+        any("before the first scored trial_start" in problem for problem in problems),
+        f"a post-trial toolchain probe was incorrectly accepted: {problems}",
+    )
+
+    failed = {"trace": [run_entry("zig", 1), accepted_trial]}
+    problems = benchmark.trial_toolchain_evidence_problems(unit, failed)
+    check(
+        any("no successful Zig toolchain invocation" in problem for problem in problems),
+        f"a failed Zig invocation was incorrectly accepted: {problems}",
+    )
+
+
 def test_proficiency_requires_the_complete_primary_trial_set() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td).resolve())

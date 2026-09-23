@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T01:31:03Z
-reason: Rehearsal 6 of proficiency-trials--kotlin: the Kotlin proficiency path (trial cap 16384, Kotlin toolchain evidence) has never run against the live model; preparation is scoped to llm_proficiency; guard 1.0 USD
+requested_at_utc: 2026-09-23T02:27:48Z
+reason: Rehearsal 7 of learnability-i1-i2--quidra: the Quidra learnability agent (24 action turns, snapshot compiler in the sandbox) never ran live after the protocol fixes because rehearsal 3 was cancelled at the job deadline; preparation is scoped to llm_learnability; guard 1.0 USD
 model: claude-sonnet-5
 budget_usd: 1.0
-units: proficiency-trials--kotlin
+units: learnability-i1-i2--quidra

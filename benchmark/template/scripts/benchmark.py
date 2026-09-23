@@ -6045,6 +6045,80 @@ def sc_normalize(raw: dict[str, float], direction: str) -> dict[str, float]:
     }
 
 
+def sc_coverage_from_support(
+    root: Path, config: dict[str, Any], languages: list[str]
+) -> dict[str, float] | None:
+    """Capability Coverage as the frozen award_formula makes it: from the levels.
+
+    A shard computes its own coverage from the levels it assigned, so once a
+    support adjudication settles a level across the cohort the published
+    coverage and the levels the comparability audit judged are two statements
+    that can disagree. Deriving coverage from the levels keeps them one.
+
+    This invents nothing: on the run it was written against it reproduced every
+    shard's own reported coverage to the cent for all ten languages. Returns
+    None - leaving the reported values alone - unless every frozen probe has a
+    determinate level in every language, because a coverage computed from a
+    partial ledger would be worse than the one the shards reported.
+    """
+    owner = config.get("support_level_owner") or {}
+    rule = config.get("coverage_from_support") or {}
+    owner_id = str(owner.get("requirement_id") or "")
+    if not owner_id or not rule:
+        return None
+    fields = [str(name) for name in (owner.get("fields") or ["support"])]
+    factors = {
+        str(name).upper(): float(value)
+        for name, value in (owner.get("levels") or {}).items()
+    }
+    matrix = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "semantic_site_matrix.json"
+    )
+    probes = {
+        str(probe["probe_id"]): float(probe.get("capability_denominator") or 0)
+        for probe in (matrix.get("probes") or [])
+    }
+    if not probes:
+        return None
+    adjudicated = sc_adjudicated_levels(root)
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    coverage: dict[str, float] = {}
+    for unit in manifest.get("work_units", []):
+        if owner_id not in (unit.get("requirement_ids") or []):
+            continue
+        assigned = list(unit.get("assigned_languages") or [])
+        if len(assigned) != 1:
+            continue
+        language = str(assigned[0])
+        result_path = (
+            root / "work" / "agents" / str(unit.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if not result_path.is_file():
+            return None
+        rows = probe_annotation_fields(json_load(result_path), set(probes))
+        awarded = 0.0
+        total = 0.0
+        for probe_id, points in probes.items():
+            settled = (adjudicated.get(probe_id) or {}).get(language)
+            if settled:
+                level = settled
+            else:
+                found = sc_owner_support_levels(rows.get(probe_id) or {}, fields)
+                if len(found) != 1:
+                    return None
+                level = found.pop()
+            total += points
+            awarded += points * factors.get(level, 0.0)
+        if total <= 0:
+            return None
+        coverage[language] = 100.0 * awarded / total
+    if sorted(coverage) != sorted(languages):
+        return None
+    return coverage
+
+
 def sc_recomputed_requirements(
     root: Path, config: dict[str, Any], req: dict[str, Any], languages: list[str]
 ) -> dict[str, Any]:
@@ -6064,6 +6138,22 @@ def sc_recomputed_requirements(
         return req
     recomputed = dict(req)
     audit: dict[str, Any] = {}
+    coverage = sc_coverage_from_support(root, config, languages)
+    if coverage is not None:
+        metric = str(config["coverage_metric"])
+        reported = req.get(metric) or {}
+        audit[metric] = {
+            "derived_from": "support levels via the frozen award_formula",
+            "reported": {
+                language: reported.get(language) for language in sorted(coverage)
+            },
+            "derived": {
+                language: round(value, 2) for language, value in sorted(coverage.items())
+            },
+        }
+        recomputed[metric] = {
+            language: round(value, 2) for language, value in coverage.items()
+        }
     for metric, rule in spec["metrics"].items():
         scores = sc_normalize(raw[metric], rule["direction"])
         recomputed[metric] = scores

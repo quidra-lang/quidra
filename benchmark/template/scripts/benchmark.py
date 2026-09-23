@@ -7314,6 +7314,15 @@ def apply_ecosystem_runner_scores(
             or not all(isinstance(src, str) and src.strip() for src in sources)
         ):
             raise BenchmarkError(f"{rid}: sources must be a non-empty string array")
+        candidate_universe = row.get("candidate_universe")
+        if not isinstance(candidate_universe, str) or not candidate_universe.strip():
+            raise BenchmarkError(f"{rid}: candidate_universe must be non-empty")
+        if row.get("selection_rule") != rubric["selection_rule"]:
+            raise BenchmarkError(f"{rid}: selection_rule differs from frozen rubric")
+        if row.get("retrieval_route") != "provider-brokered web search":
+            raise BenchmarkError(
+                f"{rid}: retrieval_route must be provider-brokered web search"
+            )
         snapshot_date = row.get("snapshot_date")
         if not isinstance(snapshot_date, str) or not re.fullmatch(
             r"\d{4}-\d{2}-\d{2}", snapshot_date

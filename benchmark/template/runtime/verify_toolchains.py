@@ -16,11 +16,13 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
 
 MANIFEST = Path(__file__).resolve().parent / "toolchains.json"
+F20_FIXTURES = Path(__file__).resolve().parent / "f20_interop_fixtures.json"
 OBSERVED = Path("/opt/quidra-benchmark/toolchains-observed.json")
 
 # Each entry: language -> (argv, pin key, regex capturing the comparable version)
@@ -76,125 +78,91 @@ def run_process(argv: list[str], cwd: Path) -> dict[str, object]:
     }
 
 
+def render_f20_recipe(recipe: str, source: Path, work: Path) -> list[str]:
+    replacements = {
+        "FILE.py": source.name,
+        "FILE.go": source.name,
+        "FILE.java": source.name,
+        "FILE.kt": source.name,
+        "FILE.jar": "program.jar",
+        "./BIN": "./program",
+        "BIN": "program",
+        "OUT": "out",
+    }
+    argv: list[str] = []
+    for token in shlex.split(recipe):
+        rendered = token
+        for key in sorted(replacements, key=len, reverse=True):
+            rendered = rendered.replace(key, replacements[key])
+        argv.append(rendered)
+    return argv
+
+
 def semantic_ffi_smoke() -> tuple[dict[str, dict[str, object]], list[str]]:
-    """Prove disputed F20.P1 mechanisms in the exact pinned Linux image.
-
-    These are positive capability observations, not substitutes for every
-    language's canonical fragment.  They exist to prevent a packet-only worker
-    from inventing claims such as "cgo needs an extra flag" or "JDK FFM is
-    preview-only" when the frozen recipe itself can demonstrate otherwise.
-    """
-    cases: dict[str, dict[str, object]] = {
-        "Python": {
-            "mechanism": "standard-library ctypes",
-            "filename": "ffi.py",
-            "source": """import ctypes
-libc = ctypes.CDLL(None)
-abs_fn = libc.abs
-abs_fn.argtypes = [ctypes.c_int]
-abs_fn.restype = ctypes.c_int
-value: int = int(abs_fn(ctypes.c_int(-3)))
-print(value)
-""",
-            "build": None,
-            "run": ["python3", "ffi.py"],
-        },
-        "Go": {
-            "mechanism": "cgo shipped with the Go toolchain",
-            "filename": "ffi.go",
-            "source": """package main
-/*
-#include <stdlib.h>
-*/
-import "C"
-import "fmt"
-
-func main() {
-    var value int32 = int32(C.abs(C.int(-3)))
-    fmt.Println(value)
-}
-""",
-            "build": ["go", "build", "-o", "ffi-go", "ffi.go"],
-            "run": ["./ffi-go"],
-        },
-        "Java": {
-            "mechanism": "java.lang.foreign FFM API",
-            "filename": "Main.java",
-            "source": """import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.Linker;
-import java.lang.foreign.ValueLayout;
-import java.lang.invoke.MethodHandle;
-
-public class Main {
-    public static void main(String[] args) throws Throwable {
-        Linker linker = Linker.nativeLinker();
-        MethodHandle abs = linker.downcallHandle(
-            linker.defaultLookup().find("abs").orElseThrow(),
-            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT)
-        );
-        int value = (int) abs.invokeWithArguments(-3);
-        System.out.println(value);
-    }
-}
-""",
-            "build": ["javac", "-d", "java-out", "Main.java"],
-            "run": ["java", "-cp", "java-out", "Main"],
-        },
-        "Kotlin": {
-            "mechanism": "Kotlin/JVM calling the JDK java.lang.foreign FFM API",
-            "filename": "ffi.kt",
-            "source": """import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.Linker
-import java.lang.foreign.ValueLayout
-
-fun main() {
-    val linker = Linker.nativeLinker()
-    val abs = linker.downcallHandle(
-        linker.defaultLookup().find("abs").orElseThrow(),
-        FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT)
-    )
-    val value = abs.invokeWithArguments(-3) as Int
-    println(value)
-}
-""",
-            "build": ["kotlinc", "ffi.kt", "-include-runtime", "-d", "ffi.jar"],
-            "run": ["java", "-jar", "ffi.jar"],
-        },
-    }
+    """Execute the frozen F20.P1 fixture contract in the pinned Linux image."""
+    fixtures = json.loads(F20_FIXTURES.read_text(encoding="utf-8"))
+    if fixtures.get("schema_version") != 1 or fixtures.get("probe_id") != "F20.P1":
+        raise SystemExit("invalid F20.P1 runtime fixture contract")
+    cases = fixtures.get("languages") or {}
+    expected_languages = {"Python", "Go", "Java", "Kotlin"}
+    if set(cases) != expected_languages:
+        raise SystemExit(
+            "F20.P1 runtime fixtures must cover exactly "
+            + ", ".join(sorted(expected_languages))
+        )
 
     observed: dict[str, dict[str, object]] = {}
     problems: list[str] = []
     with tempfile.TemporaryDirectory(prefix="quidra-f20-") as raw:
         base = Path(raw)
-        for language, case in cases.items():
+        for language in sorted(cases):
+            case = cases[language]
+            if not isinstance(case, dict):
+                problems.append(f"{language}: F20.P1 fixture is not an object")
+                continue
             work = base / language.lower()
             work.mkdir()
-            (work / str(case["filename"])).write_text(
-                str(case["source"]), encoding="utf-8"
-            )
-            build_argv = case["build"]
+            source = work / str(case.get("filename") or "")
+            if not source.name or source.parent != work:
+                problems.append(f"{language}: invalid F20.P1 fixture filename")
+                continue
+            source.write_text(str(case.get("source") or ""), encoding="utf-8")
+            (work / "out").mkdir(exist_ok=True)
+
+            build_recipe = case.get("build")
             build = None
-            if isinstance(build_argv, list):
-                build = run_process([str(value) for value in build_argv], work)
+            if build_recipe is not None:
+                build = run_process(
+                    render_f20_recipe(str(build_recipe), source, work),
+                    work,
+                )
             build_ok = build is None or int(build["exit_code"]) == 0
+            run_recipe = str(case.get("run") or "")
             run = (
-                run_process([str(value) for value in case["run"]], work)
-                if build_ok
+                run_process(render_f20_recipe(run_recipe, source, work), work)
+                if build_ok and run_recipe
                 else {
-                    "argv": case["run"],
+                    "argv": [],
                     "exit_code": None,
                     "stdout": "",
-                    "stderr": "not run because the frozen-recipe build failed",
+                    "stderr": (
+                        "not run because the frozen-recipe build failed"
+                        if not build_ok
+                        else "fixture has no run recipe"
+                    ),
                 }
             )
             passed = (
                 build_ok
+                and run.get("exit_code") is not None
                 and int(run["exit_code"]) == 0
                 and str(run["stdout"]).strip() == "3"
             )
             observed[language] = {
                 "probe_id": "F20.P1",
-                "mechanism": case["mechanism"],
+                "mechanism": case.get("mechanism"),
+                "frozen_recipe_build": build_recipe,
+                "frozen_recipe_run": run_recipe,
                 "frozen_recipe_extra_flags": [],
                 "build": build,
                 "run": run,

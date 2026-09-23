@@ -10146,6 +10146,38 @@ def unresolved_semantic_comparability_pairs(
     return set()
 
 
+def semantic_cache_quarantine_reason(
+    unit: dict[str, Any],
+    unresolved_probes: set[str],
+    unresolved_pairs: set[tuple[str, str]],
+) -> str | None:
+    """Why one SC unit from a failed comparability run must not be certified."""
+    if unit.get("evaluation") != "semantic_compression":
+        return None
+    adjudicated_probe = support_adjudication_probe(
+        [str(value) for value in (unit.get("requirement_ids") or [])]
+    )
+    if adjudicated_probe in unresolved_probes:
+        return (
+            "final comparability audit requires this probe to be revalidated; "
+            "its support adjudication is not cache-certified"
+        )
+    affected_languages = {language for _, language in unresolved_pairs}
+    assigned = list(unit.get("assigned_languages") or [])
+    if (
+        len(assigned) == 1
+        and str(assigned[0]) in affected_languages
+        and str(unit.get("id") or "").startswith("sc-metrics-")
+    ):
+        return (
+            "final comparability audit affects "
+            f"{assigned[0]}; its Semantic Compression metric shards are "
+            "quarantined so the canonical fragment/support measurement is "
+            "revalidated before reuse"
+        )
+    return None
+
+
 def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -10174,7 +10206,6 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     ledger = json_load(ledger_path)
     unresolved_sc_probes = unresolved_semantic_comparability_probes(root, manifest)
     unresolved_sc_pairs = unresolved_semantic_comparability_pairs(root, manifest)
-    unresolved_sc_languages = {language for _, language in unresolved_sc_pairs}
     records: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     promoted = 0
@@ -10189,39 +10220,15 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             continue
         if state.get("validation_result") != "PASS":
             continue
-        adjudicated_probe = support_adjudication_probe(
-            [str(value) for value in (unit.get("requirement_ids") or [])]
+        quarantine_reason = semantic_cache_quarantine_reason(
+            unit, unresolved_sc_probes, unresolved_sc_pairs
         )
-        if unit.get("evaluation") == "semantic_compression":
-            if adjudicated_probe in unresolved_sc_probes:
-                skipped.append({
-                    "work_unit_id": unit.get("id"),
-                    "reason": (
-                        "final comparability audit requires this probe to be "
-                        "revalidated; its support adjudication is not cache-certified"
-                    ),
-                })
-                continue
-            assigned = list(unit.get("assigned_languages") or [])
-            affected_language = (
-                str(assigned[0])
-                if len(assigned) == 1 and str(assigned[0]) in unresolved_sc_languages
-                else None
-            )
-            if (
-                affected_language is not None
-                and str(unit.get("id") or "").startswith("sc-metrics-")
-            ):
-                skipped.append({
-                    "work_unit_id": unit.get("id"),
-                    "reason": (
-                        "final comparability audit affects "
-                        f"{affected_language}; its Semantic Compression metric "
-                        "shards are quarantined so the canonical fragment/support "
-                        "measurement is revalidated before reuse"
-                    ),
-                })
-                continue
+        if quarantine_reason:
+            skipped.append({
+                "work_unit_id": unit.get("id"),
+                "reason": quarantine_reason,
+            })
+            continue
         if (
             require_primary
             and (primary.get(unit.get("evaluation")) or {}).get("status") != "COMPLETE"

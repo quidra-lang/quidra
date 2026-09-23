@@ -104,6 +104,10 @@ def write_policy(
 
     tasks: dict[str, str] = {}
     budgets: dict[str, float] = {}
+    efforts: dict[str, str] = {}
+    evaluation_effort = dict(
+        (gateway.get("anthropic_decoding") or {}).get("evaluation_effort") or {}
+    )
     skipped_complete: list[str] = []
     selected = set(units or [])
     for unit in manifest.get("work_units", []):
@@ -126,6 +130,11 @@ def write_policy(
         if agent_id in tasks and tasks[agent_id] != policy:
             raise ProductionRunError(f"conflicting network policy for {agent_id}")
         tasks[agent_id] = policy
+        # An evaluation's frozen depth override, pinned per task so the gateway
+        # applies it without the sandbox naming it.
+        depth = evaluation_effort.get(str(unit.get("evaluation") or ""))
+        if depth:
+            efforts[agent_id] = str(depth)
         # A per-task soft ceiling the gateway enforces: the unit's planned token
         # envelope at frozen prices, with headroom for the agent's own turns,
         # never below the floor. Its job is to stop one runaway unit from
@@ -142,6 +151,7 @@ def write_policy(
         "schema_version": 1,
         "manifest_sha256": benchmark.sha256_file(manifest_path),
         "tasks": tasks,
+        "efforts": efforts,
         "cache": {
             "hit_count": len(cache_status.get("hits", {})),
             "miss_count": len(cache_status.get("misses", {})),

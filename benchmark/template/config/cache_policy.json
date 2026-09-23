@@ -26,7 +26,7 @@
     "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated."
   },
   "epochs": {
-    "semantic_compression": "stable",
+    "semantic_compression": "declared",
     "llm_learnability": "stable",
     "language_quality": "stable",
     "llm_proficiency": "stable",
@@ -37,7 +37,9 @@
     "ecosystem": "2026-09",
     "note": "Set by a person, like a toolchain pin. Ecosystem measures external packages, tools and public knowledge, which change even when a language version does not; rather than expiring every ecosystem record at each calendar month, the operator changes this value when the outside world should be measured again. Records carry the value in their key, so changing it makes every ecosystem record a MISS. 2026-09 keeps the records certified in September 2026 valid.",
     "mechanical": "2026-09",
-    "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key."
+    "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
+    "semantic_compression": "2026-09-medium",
+    "semantic_compression_note": "Semantic Compression packets are decoded at the depth inference_gateway.json's evaluation_effort pins (medium since rehearsal 4, when high effort spent the whole output cap reasoning). The eleven records certified at high effort are retired by this value so every Semantic Compression score comes from one depth, which section 6.2 of the methodology requires across languages."
   },
   "promotion": {
     "require_complete_unit": true,

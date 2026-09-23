@@ -15,7 +15,11 @@ neither has changed, so a run in which a comparison language failed no longer
 discards Quidra's own completed measurements.
 Ecosystem evidence uses a declared epoch (`declared_epochs.ecosystem` in the cache
 policy) because external ecosystem facts change without a language version change;
-the operator changes that value when they should be measured again.
+the operator changes that value when they should be measured again. Semantic
+Compression uses one too (`declared_epochs.semantic_compression`): its packets are
+decoded at the depth `inference_gateway.json` pins for that evaluation, and the
+epoch retired the records certified before that depth was lowered, so every score
+in the evaluation comes from one depth.
 
 The three Language Quality mechanical units are certified as well: the micro
 suite (`lq-micro-mechanical`), the adversarial case set (`lq-adversarial-mechanical`)

@@ -125,6 +125,10 @@
     "orchestration_effort": "low",
     "note": "Claude Sonnet 5 removed temperature/top_p/top_k and rejects them with HTTP 400, and runs adaptive thinking when the thinking parameter is omitted. The adapter therefore sends no sampling parameters and pins depth with output_config.effort. `effort` applies to every scored request (trial completions and packet-only workers), is identical for every language, and leaves thinking at the provider default exactly as primary.json's sampling section records. `orchestration_effort` and `orchestration_thinking` apply only to sandbox-agent action turns, which are never scored: adaptive thinking is billed inside max_tokens, and at high effort the first action turn of a unit regularly spent its entire output cap on reasoning; even at low effort roughly one action turn in twelve ended with all of its output inside the thinking block and no text, which the runtime counts as a protocol error and a lost turn. Action turns therefore run with thinking disabled. `empty_completion_retries` is how many times the adapter re-sends an identical request whose completion ended normally with no text at all before handing that empty answer to the sandbox. The sandbox selects a purpose label only; every depth is frozen here and recorded per request in the audit log.",
     "orchestration_thinking": "disabled",
-    "empty_completion_retries": 1
+    "empty_completion_retries": 1,
+    "evaluation_effort": {
+      "semantic_compression": "medium"
+    },
+    "evaluation_effort_note": "A frozen depth for every scored request of one evaluation, applied by the trusted side per task through the frozen policy (production_run.py policy writes it, the gateway reads it; the sandbox still cannot choose). Semantic Compression packets carry the whole frozen site matrix, about 180k tokens, and at high effort the model spent the entire 65,536-token output cap reasoning before writing a score: rehearsal 4 produced 1,183 characters of answer. The depth is identical for every language within the evaluation, which is what section 6.2 requires, and it is recorded in every Semantic Compression cache record's frozen_sampling and in the audit log."
   }
 }

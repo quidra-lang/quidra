@@ -401,6 +401,17 @@ def assert_readiness_audits_are_cacheable(root: Path, task: dict) -> None:
     assert payload["toolchains"] == {"Python": "3.14.5"} and payload["result_kind"] == "audit"
     assert payload["reuse_audit_for"] == ["micro-python"]
     assert benchmark.cache_scope(audit) == "audit-micro-python"
+    # Semantic Compression records carry the evaluation's frozen depth; every
+    # other evaluation's frozen_sampling is the run-wide declaration unchanged.
+    sc_unit = dict(audit, id="sc-probe--python", evaluation="semantic_compression",
+                   phase="measurement", result_kind="requirements", assigned_languages=["Python"],
+                   reuse_audit_for=[], requirement_ids=["metric.semantic_density"])
+    sc_payload = benchmark.cache_fingerprint(root, sc_unit, task)[1]
+    assert sc_payload["frozen_sampling"]["effort"] == "medium", sc_payload["frozen_sampling"]
+    assert sc_payload["frozen_sampling"]["effort_source"] == "evaluation_effort"
+    assert sc_payload["cache_epoch"] == "2026-09-medium"
+    assert payload["frozen_sampling"] == benchmark.sampling_config(root)
+    assert "effort_source" not in payload["frozen_sampling"]
     changed = dict(audit, input_hashes={"artifact_git_object": "b" * 40})
     assert benchmark.cache_fingerprint(root, changed, task)[0] != fingerprint, (
         "a changed artifact must change the audit's key"
@@ -609,7 +620,8 @@ def main() -> None:
         # key carries the declared value, so records survive a month boundary
         # and miss only when the operator changes the value.
         assert benchmark.cache_epoch(root, "ecosystem") == "2026-09"
-        assert benchmark.cache_epoch(root, "semantic_compression") == "stable"
+        assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-medium"
+        assert benchmark.cache_epoch(root, "llm_learnability") == "stable"
         policy_path = root / "template/config/cache_policy.json"
         policy_bytes = policy_path.read_bytes()
         policy = benchmark.json_load(policy_path)

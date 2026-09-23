@@ -11,3 +11,6 @@
 __pycache__/
 *.pyc
 /.quidra-benchmark/
+
+# Local synthetic benchmark workspace written by the end-to-end rehearsal script.
+.benchmark-template-e2e/

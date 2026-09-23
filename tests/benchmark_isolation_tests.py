@@ -1883,6 +1883,38 @@ def _validated_request(**overrides: Any) -> dict[str, Any]:
     return request
 
 
+def test_a_frozen_task_depth_replaces_the_run_wide_effort() -> None:
+    """The trusted side may pin one task's scored depth below the run-wide one.
+
+    Semantic Compression packets carry about 180k tokens of frozen matrix, and
+    at high effort the model spent its whole 65,536-token cap reasoning before
+    writing a score. The frozen policy now names a depth per task; the adapter
+    sends it as output_config.effort, and the sandbox still cannot set it.
+    """
+    provider = _anthropic_provider()
+    http = _ScriptedHTTP([
+        {"content": [{"type": "text", "text": "ready"}], "stop_reason": "end_turn",
+         "usage": {"input_tokens": 10, "output_tokens": 3}},
+        {"content": [{"type": "text", "text": "ready"}], "stop_reason": "end_turn",
+         "usage": {"input_tokens": 10, "output_tokens": 3}},
+    ])
+    provider._open = http
+    provider.complete(_validated_request(frozen_effort="medium"))
+    provider.complete(_validated_request())
+    check(
+        http.payloads[0]["output_config"] == {"effort": "medium"}
+        and http.payloads[1]["output_config"] == {"effort": provider.effort_for("scored")},
+        f"the frozen task depth was not sent: {[p.get('output_config') for p in http.payloads]}",
+    )
+    validated = inference_gateway.validate_inference_request(
+        {"schema_version": 1, "kind": "inference.request", "request_id": "x", "task_id": "t",
+         "messages": [{"role": "user", "content": "x"}], "frozen_effort": "low"},
+        json.loads((TEMPLATE / "config" / "inference_gateway.json").read_text(encoding="utf-8")),
+        "disabled", {},
+    )
+    check("frozen_effort" not in validated, "a sandbox-supplied frozen_effort survived validation")
+
+
 def test_provider_recovers_empty_completions_and_refused_tool_calls() -> None:
     """The three provider-side accidents of the first paid run, each handled once.
 
@@ -2682,6 +2714,22 @@ def test_a_rehearsal_dispatches_only_its_named_units_and_stops_when_they_are_ter
         check(
             sorted(policy["tasks"]) == ["worker-eco-a", "worker-eco-b"] and "units" not in policy,
             f"the full policy changed: {policy['tasks']}",
+        )
+        # An evaluation's frozen depth override is pinned per task in the policy.
+        work_units.append({
+            "id": "sc-a", "evaluation": "semantic_compression", "execution_kind": "agent",
+            "assigned_agent_id": "worker-sc-a", "network_allowed": False,
+            "max_llm_calls": 1, "estimated_input_tokens_per_call": 1000,
+            "max_output_tokens_per_call": 1000,
+        })
+        benchmark.json_dump(root / "work" / "root" / "manifest.json",
+                            {"schema_version": 1, "work_units": work_units})
+        policy = production_run.write_policy(
+            root, root / "results" / "task-policy.json", model="claude-sonnet-5",
+        )
+        check(
+            policy["efforts"] == {"worker-sc-a": "medium"},
+            f"the Semantic Compression depth was not frozen per task: {policy.get('efforts')}",
         )
 
 

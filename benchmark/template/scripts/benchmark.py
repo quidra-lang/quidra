@@ -2128,6 +2128,7 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
             "max_attempts": max_attempts,
             "result_kind": result_kind,
             "assigned_languages": assigned_languages,
+            "packet_layout": str(raw.get("packet_layout") or "task-first"),
             "runner_action": runner_action,
         })
     missing_requirements = sorted(allowed_requirement_ids - covered_non_aggregation)
@@ -2599,6 +2600,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     "evidence_paths": evidence_paths,
                     "validator_command": validator_command,
                     "network_allowed": bool(raw.get("network_allowed", False)),
+                    "packet_layout": str(raw.get("packet_layout") or "task-first"),
                     "prompt_sections": list(raw.get("prompt_sections", [])),
                     "max_attempts": int(
                         raw.get("max_attempts", default_max_attempts)
@@ -2886,6 +2888,7 @@ def cmd_manifest_merge(args: argparse.Namespace) -> int:
                 "prompt_sections": prompt_sections,
                 "max_attempts": max_attempts,
                 "result_kind": result_kind,
+                "packet_layout": str(raw.get("packet_layout") or "task-first"),
                 "assigned_languages": list(raw.get("assigned_languages", [])),
                 "runner_action": raw.get("runner_action"),
             }
@@ -3252,8 +3255,13 @@ def extract_markdown_sections(content: str, selectors: list[str]) -> str:
 
 
 
-def sampling_config(root: Path) -> dict[str, Any]:
+def sampling_config(root: Path, evaluation: str | None = None) -> dict[str, Any]:
     """Frozen declaration of how scored requests are decoded.
+
+    With an evaluation, the depth that evaluation's frozen override in the
+    gateway config pins for its scored requests replaces the run-wide one;
+    without one, the run-wide declaration is returned unchanged, so records of
+    evaluations without an override keep the key they always had.
 
     The evaluated model family removed temperature, top_p and top_k and rejects a
     request carrying one, so there is no fixed sampling value to set. What the
@@ -3285,12 +3293,22 @@ def sampling_config(root: Path) -> dict[str, Any]:
         raise BenchmarkError(
             f"frozen orchestration effort is not a known level: {orchestration}"
         )
-    return {
+    declared = {
         "sampling_parameters": "omitted",
         "decoding_state": "provider-controlled",
         "effort": str(effort),
         "orchestration_effort": str(orchestration),
     }
+    if evaluation:
+        override = (
+            (gateway_config(root).get("anthropic_decoding") or {}).get("evaluation_effort") or {}
+        ).get(evaluation)
+        if override:
+            if override not in levels:
+                raise BenchmarkError(f"frozen effort override for {evaluation} is not a known level: {override}")
+            declared["effort"] = str(override)
+            declared["effort_source"] = "evaluation_effort"
+    return declared
 
 
 
@@ -3551,7 +3569,7 @@ def cache_fingerprint_payload(
         "exact_task_packet_sha256": task.get("prompt_sha256"),
         "provider": None if mechanical else provider,
         "model": None if mechanical else model,
-        "frozen_sampling": None if mechanical else sampling_config(root),
+        "frozen_sampling": None if mechanical else sampling_config(root, str(unit.get("evaluation") or "")),
         "toolchains": selected_toolchains,
         "unit_input_hashes": unit.get("input_hashes") or {},
         "readable_input_content_hashes": cache_read_input_hashes(root, task),

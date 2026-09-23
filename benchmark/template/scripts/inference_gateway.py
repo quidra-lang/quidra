@@ -757,7 +757,9 @@ class AnthropicMessagesProvider(Provider):
             if m["role"] in {"user", "assistant"}
         ]
         purpose = request.get("purpose")
-        effort = self.effort_for(purpose)
+        # The frozen policy may pin a task's scored depth below the run-wide
+        # one; the trusted handler sets it, never the sandbox.
+        effort = request.get("frozen_effort") or self.effort_for(purpose)
         cache_marker = {"type": "ephemeral"}
         caching = bool(self.caching.get("enabled"))
         if caching and str(self.caching.get("ttl", "5m")) == "1h":
@@ -1029,11 +1031,15 @@ class GatewayState:
         log_path: Path | None,
         max_requests: int | None,
         task_budgets: dict[str, float] | None = None,
+        task_effort: dict[str, str] | None = None,
     ) -> None:
         self.config = config
         self.provider = provider
         self.network_policy = network_policy
         self.task_policy = task_policy
+        # Per-task frozen decoding depth (an evaluation's override), applied
+        # to scored requests after validation so the sandbox cannot set it.
+        self.task_effort = dict(task_effort or {})
         # Per-task soft ceilings from the frozen policy, enforced here so they
         # hold for every provider. A unit that keeps spending past its plan is
         # refused its next request rather than draining the run-wide budget.
@@ -1139,6 +1145,9 @@ class GatewayHandler(socketserver.StreamRequestHandler):
             )
             request_id = validated["request_id"]
             state.check_task_ceiling(validated["task_id"])
+            frozen_effort = state.task_effort.get(str(validated.get("task_id") or ""))
+            if frozen_effort and validated.get("purpose", "scored") == "scored":
+                validated["frozen_effort"] = frozen_effort
             started = time.perf_counter()
             result = state.provider.complete(validated)
             elapsed = time.perf_counter() - started
@@ -1297,6 +1306,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     task_policy: dict[str, str] = {}
     task_budgets: dict[str, float] = {}
+    task_effort: dict[str, str] = {}
     if args.task_policy:
         raw = json.loads(Path(args.task_policy).read_text(encoding="utf-8"))
         if raw.get("schema_version") != 1:
@@ -1315,6 +1325,12 @@ def cmd_serve(args: argparse.Namespace) -> int:
             if value <= 0:
                 raise GatewayError(f"spend ceiling for {task_id} must be positive")
             task_budgets[task_id] = value
+        for task_id, effort in (raw.get("efforts") or {}).items():
+            if task_id not in task_policy:
+                raise GatewayError(f"frozen effort names a task the policy does not: {task_id}")
+            if effort not in ("low", "medium", "high", "xhigh", "max"):
+                raise GatewayError(f"frozen effort for {task_id} is not a known level: {effort}")
+            task_effort[task_id] = str(effort)
 
     state = GatewayState(
         config=config,
@@ -1324,6 +1340,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
         log_path=Path(args.log).resolve() if args.log else None,
         max_requests=int(args.max_requests) if args.max_requests else None,
         task_budgets=task_budgets,
+        task_effort=task_effort,
     )
 
     prepare_socket_path(socket_path)

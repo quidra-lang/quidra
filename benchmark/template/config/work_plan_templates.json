@@ -305,10 +305,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -332,10 +329,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -359,10 +353,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -386,11 +377,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json",
-            "work/root/f20_runtime_facts.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -414,10 +401,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -441,10 +425,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -468,10 +449,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -495,10 +473,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -522,10 +497,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -549,10 +521,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -576,10 +545,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -603,10 +569,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -630,10 +593,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -657,10 +617,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -684,10 +641,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -711,10 +665,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -738,10 +689,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -765,10 +713,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -792,10 +737,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
@@ -819,10 +761,7 @@
             "### 6.1.5 Capability Coverage",
             "#### D. Hidden Semantic Cost — 20% of quality score"
           ],
-          "read_paths": [
-            "template/methodology-assets/semantic_compression",
-            "template/config/semantic_compression_comparability.json"
-          ],
+          "read_paths": [],
           "network_allowed": false,
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",

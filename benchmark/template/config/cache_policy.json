@@ -29,7 +29,7 @@
     "semantic_compression": "declared",
     "llm_learnability": "stable",
     "language_quality": "stable",
-    "llm_proficiency": "stable",
+    "llm_proficiency": "declared",
     "ecosystem": "declared",
     "mechanical": "declared"
   },
@@ -39,7 +39,9 @@
     "mechanical": "2026-09",
     "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
     "semantic_compression": "2026-09-canonical-fragments-v3-verified",
-    "semantic_compression_note": "Semantic Compression v3 preserves the v2 one-canonical-fragment contract and additionally requires every FULL/PARTIAL canonical fragment to pass the frozen build/run recipe in the trusted runner before downstream A/B/C/D/E measurement. F19.P2 is replayed 20 times and F20.P2 is checked with nm after mandatory positive/negative validator controls. Earlier Semantic Compression records remain preserved but cannot hydrate a v3 run."
+    "semantic_compression_note": "Semantic Compression v3 preserves the v2 one-canonical-fragment contract and additionally requires every FULL/PARTIAL canonical fragment to pass the frozen build/run recipe in the trusted runner before downstream A/B/C/D/E measurement. F19.P2 is replayed 20 times and F20.P2 is checked with nm after mandatory positive/negative validator controls. Earlier Semantic Compression records remain preserved but cannot hydrate a v3 run.",
+    "llm_proficiency": "2026-09-complete-primary-trials-v2",
+    "llm_proficiency_note": "LLM Proficiency v2 requires the exact predeclared workload × scenario × replication Primary trial set before a shard can complete or enter certified cache. Earlier records may contain fewer or differently named fresh sessions, so only llm_proficiency is re-keyed; other Primary caches remain reusable."
   },
   "promotion": {
     "require_complete_unit": true,

@@ -387,9 +387,12 @@ jobs:
             tar -czf "$RUNNER_TEMP/workspace-evidence.tgz" \
               --ignore-failed-read \
               -C .quidra-benchmark \
-              run.json results raw prompts work/agents work/attempts \
+              run.json results raw prompts work/agents work/attempts work/audit \
               work/root/manifest.json work/root/ledger.json \
-              work/root/plans work/root/commands 2>/dev/null || true
+              work/root/plans work/root/commands \
+              work/root/proficiency-verification \
+              work/root/comparability_blinding.json \
+              work/root/f20_runtime_facts.json 2>/dev/null || true
           fi
 
       - name: Final certified-cache checkpoint

@@ -396,8 +396,10 @@ def run_capture(cmd: list[str], cwd: Path) -> str:
 
 def git_metadata(source: Path) -> dict[str, str]:
     branch = run_capture(["git", "rev-parse", "--abbrev-ref", "HEAD"], source)
-    if branch != "develop":
-        raise BenchmarkError(f"benchmark target must be develop, got {branch!r}")
+    if branch not in {"develop", "benchmark"}:
+        raise BenchmarkError(
+            f"benchmark target must be develop or the isolated benchmark branch, got {branch!r}"
+        )
     sha = run_capture(["git", "rev-parse", "HEAD"], source)
     short_sha = run_capture(["git", "rev-parse", "--short", "HEAD"], source)
     subject = run_capture(["git", "show", "-s", "--format=%s", "HEAD"], source)

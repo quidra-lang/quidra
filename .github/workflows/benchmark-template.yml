@@ -112,6 +112,7 @@ jobs:
           python -m json.tool benchmark/template/config/benchmark_metadata.json >/dev/null
           python -m json.tool benchmark/template/config/primary.json >/dev/null
           python -m json.tool benchmark/template/config/evaluation_requirements.json >/dev/null
+          python -m json.tool benchmark/template/config/execution_ownership.json >/dev/null
           python -m json.tool benchmark/template/config/work_plan_templates.json >/dev/null
           python -m json.tool benchmark/template/config/aggregation.json >/dev/null
           python -m json.tool benchmark/template/config/semantic_compression_comparability.json >/dev/null
@@ -152,6 +153,7 @@ jobs:
               root / "methodology" / "llm_proficiency.md",
               root / "config" / "aggregation.json",
               root / "config" / "work_plan_templates.json",
+              root / "config" / "execution_ownership.json",
               root / "config" / "quidra_representation_schema.json",
               root / "config" / "semantic_compression_comparability.json",
               root / "programs" / "python" / "micro" / "mb01.py",
@@ -164,6 +166,33 @@ jobs:
           ]
           missing = [str(path) for path in required if not path.exists()]
           assert not missing, missing
+
+          requirements = json.loads(
+              (root / "config" / "evaluation_requirements.json").read_text()
+          )["evaluations"]
+          ownership = json.loads(
+              (root / "config" / "execution_ownership.json").read_text()
+          )["evaluations"]
+          assert set(requirements) == set(module.PRIMARY_NAMES), requirements
+          assert set(ownership) == set(module.PRIMARY_NAMES), ownership
+          for evaluation in module.PRIMARY_NAMES:
+              required_ids = set(requirements[evaluation]["required"])
+              row = ownership[evaluation]
+              runner = set(row.get("runner_command_requirements", []))
+              agent = set(row.get("agent_requirements", []))
+              prefixes = tuple(row.get("agent_requirement_prefixes", []))
+              assert not (runner & agent), (evaluation, runner & agent)
+              missing_ownership = sorted(
+                  rid for rid in required_ids
+                  if rid not in runner
+                  and rid not in agent
+                  and not any(rid.startswith(prefix) for prefix in prefixes)
+              )
+              assert not missing_ownership, (
+                  "execution ownership does not cover required IDs",
+                  evaluation,
+                  missing_ownership,
+              )
 
           catalog = json.loads((root / "reuse" / "catalog.json").read_text())
           module.validate_reuse_catalog(catalog)

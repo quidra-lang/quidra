@@ -916,10 +916,10 @@ jobs:
                   values["Python"] = {
                       "level": "PARTIAL",
                       "fragment": "synthetic_wrapper()",
-                      "partial_reasons": ["P-a"],
+                      "partial_reasons": ["P-c"],
                       "none_reason": None,
-                      "citation": "Synthetic standard-library wrapper citation.",
-                      "justification": "Synthetic standard wrapper satisfies some but not all numbered requirements.",
+                      "citation": "Synthetic guarantee documentation citation.",
+                      "justification": "Synthetic standard mechanism leaves a named guarantee undocumented.",
                   }
               payload = {
                   "schema_version": 1,
@@ -980,10 +980,10 @@ jobs:
                       "record": {
                           "level": "PARTIAL",
                           "fragment": "synthetic_wrapper()",
-                          "partial_reasons": ["P-a"],
+                          "partial_reasons": ["P-c"],
                           "none_reason": None,
-                          "justification": "Synthetic repaired support record.",
-                          "citation": "Synthetic standard-library wrapper citation."
+                          "justification": "Synthetic repaired support record with an undocumented guarantee.",
+                          "citation": "Synthetic guarantee documentation citation."
                       }
                   }]
               },

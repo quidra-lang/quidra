@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T10:02:00Z
-reason: re-request of the run cancelled on 98b25aa, which reached 245 of 247 units COMPLETE and was stopped 76 seconds into sc-comparability, with the semantic_compression aggregate still pending behind it; its checkpoint certified no new records, so the three support adjudications are measured again rather than hydrated; the 227 certified records still hydrate and the 21 records cache-impact reports invalid are still the rest of the paid scope
+requested_at_utc: 2026-09-23T10:34:57Z
+reason: re-request on 73ee438 after the c6e69e0 run finished with ecosystem, language_quality, llm_learnability and llm_proficiency COMPLETE and semantic_compression PARTIAL: sc-support-adjudication--f20-p1 failed its validator five times for returning each language's level under a support field beside the points and the reasoning, which blocked sc-comparability and the semantic_compression aggregate behind it; a5443d8 resolves the level from that shape and states the output contract in the unit's goal, so those three units are measured again, the 227 certified records still hydrate, and the 21 records cache-impact reports invalid (ecosystem 8, llm_proficiency 1, semantic_compression 12) are the rest of the paid scope
 model: claude-sonnet-5
 evaluation: all
 budget_usd: 8.0

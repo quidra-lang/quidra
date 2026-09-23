@@ -655,6 +655,26 @@ def assert_quidra_execution_identity_reuse_guard() -> None:
         assert problem is not None and "not verified" in problem, problem
 
 
+        # Same scored bytes do not make stale execution identity/certification
+        # safe to keep after a fresh remeasurement.
+        existing = {
+            "result_sha256": "a" * 64,
+            "compatibility": {"quidra_execution_identity": current},
+            "certification": {"validator_pass": True, "epoch": 1},
+        }
+        refreshed_identity = json.loads(json.dumps(current))
+        refreshed_identity["sha256"] = "b" * 64
+        candidate = {
+            "result_sha256": "a" * 64,
+            "compatibility": {"quidra_execution_identity": refreshed_identity},
+            "certification": {"validator_pass": True, "epoch": 2},
+        }
+        assert benchmark.cache_record_metadata_refresh_required(existing, candidate)
+        assert not benchmark.cache_record_metadata_refresh_required(existing, existing)
+        assert not benchmark.cache_record_metadata_refresh_required(
+            existing, dict(candidate, result_sha256="c" * 64)
+        )
+
 def assert_cached_validator_rejection_becomes_miss() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))

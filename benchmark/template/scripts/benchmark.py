@@ -14776,6 +14776,14 @@ def build_parser() -> argparse.ArgumentParser:
     restore_guard.add_argument("--expected-commit")
     restore_guard.set_defaults(func=cmd_restore_workspace_guard)
 
+    refresh_cache = sub.add_parser(
+        "refresh-cache-snapshot",
+        help="bind a newly initialized recovery workspace to a newer certified cache snapshot",
+    )
+    refresh_cache.add_argument("--source-repo", required=True)
+    refresh_cache.add_argument("--expected-commit")
+    refresh_cache.set_defaults(func=cmd_refresh_cache_snapshot)
+
     checkpoint = sub.add_parser(
         "checkpoint-cache",
         help="promote COMPLETE+PASS eligible units from an unfinished host staging run",

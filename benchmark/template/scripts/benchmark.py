@@ -425,6 +425,56 @@ def cmd_restore_workspace_guard(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_refresh_cache_snapshot(args: argparse.Namespace) -> int:
+    """Accept a newer certified-cache snapshot before any recovered work starts.
+
+    CI recovery may have to rebuild a workspace when an Actions handoff artifact
+    is missing. The remote benchmark branch can already contain certified
+    records checkpointed by the previous job. The trusted host copies only
+    benchmark/cache into the newly initialized workspace, then this command
+    updates run.json so ordinary integrity checks bind the run to that exact
+    recovered snapshot. Once a manifest/ledger exists, changing the cache
+    snapshot is forbidden.
+    """
+    source = Path(args.source_repo).resolve()
+    if not source.is_dir():
+        raise BenchmarkError(f"source repository does not exist: {source}")
+    root = host_workspace(source)
+    validate_host_workspace_path(root, source)
+    run_path = root / "run.json"
+    if not run_path.is_file():
+        raise BenchmarkError("cache snapshot refresh requires an initialized workspace")
+    run = json_load(run_path)
+    validate_host_workspace_sentinel(root, source, run)
+    expected = str(getattr(args, "expected_commit", "") or "").strip()
+    evaluated = str((run.get("evaluated") or {}).get("commit_sha") or "")
+    if expected and evaluated != expected:
+        raise BenchmarkError(
+            f"cache snapshot refresh evaluates {evaluated}, expected {expected}"
+        )
+    if (root / "work" / "root" / "manifest.json").exists() or (
+        root / "work" / "root" / "ledger.json"
+    ).exists():
+        raise BenchmarkError(
+            "certified cache snapshot may be refreshed only before manifest freeze"
+        )
+    cache = root / "cache"
+    if not cache.is_dir():
+        raise BenchmarkError("recovered workspace has no certified cache directory")
+    previous = str(run.get("cache_tree_sha256") or "")
+    current = sha256_tree(cache)
+    run["cache_tree_sha256"] = current
+    json_dump(run_path, run)
+    print(json.dumps({
+        "ok": True,
+        "updated": previous != current,
+        "previous_cache_tree_sha256": previous,
+        "cache_tree_sha256": current,
+        "evaluated_commit_sha": evaluated,
+    }, indent=2))
+    return 0
+
+
 def delete_host_workspace(root: Path, source: Path) -> bool:
     validate_host_workspace_path(root, source)
     marker_path = host_sentinel_path(source)

@@ -138,28 +138,6 @@ jobs:
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
 
-      - name: Prove the provider request shape once
-        id: smoke
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          python benchmark/template/scripts/production_run.py provider-smoke \
-            --model "$BENCHMARK_MODEL" \
-            --budget-usd 0.50 \
-            --output "$RUNNER_TEMP/provider-smoke.json"
-          spend="$(python - <<'PY'
-          import json, os
-          from pathlib import Path
-          report = json.loads(Path(os.environ["RUNNER_TEMP"], "provider-smoke.json").read_text())
-          assert report["ok"], report.get("failed_checks")
-          spent = float(report["spend"]["estimated_cost_usd"])
-          assert spent < 0.10, f"provider smoke unexpectedly spent {spent} USD"
-          print(f"{spent:.6f}")
-          PY
-          )"
-          echo "spend=$spend" >> "$GITHUB_OUTPUT"
-          echo "provider smoke spend: $$spend"
-
   scoped-run:
     name: scoped-run
     needs: prepare
@@ -183,7 +161,6 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          initial-spend-usd: ${{ needs.prepare.outputs.smoke_spend }}
           units: ${{ needs.prepare.outputs.units }}
 
   semantic-compression:
@@ -191,6 +168,9 @@ jobs:
     needs: prepare
     if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
+    outputs:
+      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
+      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -201,6 +181,7 @@ jobs:
           fetch-depth: 0
       - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Run Semantic Compression
+        id: primary
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: semantic_compression
@@ -209,13 +190,15 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          initial-spend-usd: ${{ needs.prepare.outputs.smoke_spend }}
 
   llm-learnability:
     name: llm-learnability
     needs: [prepare, semantic-compression]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
+    outputs:
+      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
+      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -226,6 +209,7 @@ jobs:
           fetch-depth: 0
       - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Run LLM Learnability
+        id: primary
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: llm_learnability
@@ -235,12 +219,17 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          fallback-spent-usd: ${{ needs.semantic-compression.outputs.cumulative-spend-usd }}
+          fallback-smoke-passed: ${{ needs.semantic-compression.outputs.provider-smoke-passed }}
 
   language-quality:
     name: language-quality
     needs: [prepare, llm-learnability]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
+    outputs:
+      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
+      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -251,6 +240,7 @@ jobs:
           fetch-depth: 0
       - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Run Language Quality
+        id: primary
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: language_quality
@@ -260,12 +250,17 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          fallback-spent-usd: ${{ needs.llm-learnability.outputs.cumulative-spend-usd }}
+          fallback-smoke-passed: ${{ needs.llm-learnability.outputs.provider-smoke-passed }}
 
   ecosystem:
     name: ecosystem
     needs: [prepare, language-quality]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
+    outputs:
+      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
+      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -276,6 +271,7 @@ jobs:
           fetch-depth: 0
       - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Run Ecosystem
+        id: primary
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: ecosystem
@@ -285,12 +281,17 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          fallback-spent-usd: ${{ needs.language-quality.outputs.cumulative-spend-usd }}
+          fallback-smoke-passed: ${{ needs.language-quality.outputs.provider-smoke-passed }}
 
   llm-proficiency:
     name: llm-proficiency
     needs: [prepare, ecosystem]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
+    outputs:
+      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
+      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -301,6 +302,7 @@ jobs:
           fetch-depth: 0
       - run: git checkout -B benchmark "$GITHUB_SHA"
       - name: Run LLM Proficiency
+        id: primary
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: llm_proficiency
@@ -310,6 +312,8 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          fallback-spent-usd: ${{ needs.ecosystem.outputs.cumulative-spend-usd }}
+          fallback-smoke-passed: ${{ needs.ecosystem.outputs.provider-smoke-passed }}
 
   finalize:
     name: finalize

@@ -714,6 +714,48 @@ def assert_quidra_execution_identity_reuse_guard() -> None:
             existing, dict(candidate, result_sha256="c" * 64)
         )
 
+def assert_recovery_cache_snapshot_refresh_is_pre_manifest_only() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        source = Path(td) / "source"
+        source.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=source, check=True)
+        (source / ".gitignore").write_text("/.quidra-benchmark/\n", encoding="utf-8")
+
+        root = source / ".quidra-benchmark"
+        (root / "cache").mkdir(parents=True)
+        (root / "work/root").mkdir(parents=True)
+        evaluated = "a" * 40
+        benchmark.json_dump(root / "run.json", {
+            "schema_version": 1,
+            "run_id": "recovery-contract",
+            "workspace_root": "/quidra-benchmark",
+            "evaluated": {"commit_sha": evaluated},
+            "cache_tree_sha256": benchmark.sha256_tree(root / "cache"),
+        })
+        benchmark.write_host_workspace_sentinel(
+            source, "recovery-contract", evaluated
+        )
+
+        (root / "cache" / "new-certified-record.json").write_text(
+            '{"ok":true}\n', encoding="utf-8"
+        )
+        assert benchmark.cmd_refresh_cache_snapshot(argparse.Namespace(
+            source_repo=str(source), expected_commit=evaluated
+        )) == 0
+        run = benchmark.json_load(root / "run.json")
+        assert run["cache_tree_sha256"] == benchmark.sha256_tree(root / "cache")
+
+        benchmark.json_dump(root / "work/root/manifest.json", {"schema_version": 1})
+        try:
+            benchmark.cmd_refresh_cache_snapshot(argparse.Namespace(
+                source_repo=str(source), expected_commit=evaluated
+            ))
+        except benchmark.BenchmarkError as exc:
+            assert "before manifest freeze" in str(exc), exc
+        else:
+            raise AssertionError("cache snapshot refresh was allowed after manifest freeze")
+
+
 def assert_cached_validator_rejection_becomes_miss() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))

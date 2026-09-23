@@ -7294,6 +7294,16 @@ def ecosystem_rubric_asset(root: Path) -> dict[str, Any]:
         r"\d{4}-\d{2}-\d{2}", snapshot_date
     ):
         raise BenchmarkError("Ecosystem snapshot_date must be YYYY-MM-DD")
+    ecosystem_epoch = cache_epoch(root, "ecosystem")
+    epoch_month = ecosystem_epoch[:7]
+    if (
+        re.fullmatch(r"\d{4}-\d{2}", epoch_month)
+        and not snapshot_date.startswith(epoch_month + "-")
+    ):
+        raise BenchmarkError(
+            f"Ecosystem snapshot date {snapshot_date} is outside the declared "
+            f"epoch month {epoch_month}; advance both together"
+        )
     if int(policy.get("activity_window_months", 0) or 0) <= 0:
         raise BenchmarkError("Ecosystem activity window must be positive")
     frozen_search_budget = int(

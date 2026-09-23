@@ -2333,10 +2333,38 @@ def test_semantic_compression_metrics_are_recomputed_from_the_evidence() -> None
         )["evaluations"]["semantic_compression"]
         languages = benchmark.metadata_languages(root)
         probes = [f"F{index:02d}.P1" for index in range(1, 21)]
+        matrix = benchmark.json_load(
+            root / "template" / "methodology-assets" / "semantic_compression"
+            / "semantic_site_matrix.json"
+        )
+        support_probes = [str(probe["probe_id"]) for probe in matrix["probes"]]
+        support_owner_id = config["support_level_owner"]["requirement_id"]
 
         def write_shards(invented: dict[str, float]) -> None:
             units = []
             for position, language in enumerate(languages):
+                owner_uid = f"sc-capability-coverage--{language.lower()}"
+                owner_agent = f"worker-{owner_uid}"
+                units.append({
+                    "id": owner_uid, "evaluation": "semantic_compression",
+                    "assigned_languages": [language], "assigned_agent_id": owner_agent,
+                    "execution_kind": "agent", "result_kind": "requirements",
+                    "phase": "measurement", "requirement_ids": [support_owner_id],
+                    "input_hashes": {}, "validator_command": "true",
+                    "worker_mode": "packet-only", "network_allowed": False,
+                    "dependencies": [],
+                })
+                owner_dir = root / "work" / "agents" / owner_agent
+                owner_dir.mkdir(parents=True, exist_ok=True)
+                benchmark.json_dump(owner_dir / "result.json", {
+                    "schema_version": 1, "evaluation": "semantic_compression",
+                    "requirements": {support_owner_id: {language: 100.0}},
+                    "evidence": {support_owner_id: {"per_probe": [
+                        {"probe_id": probe_id, "support": "FULL"}
+                        for probe_id in support_probes
+                    ]}},
+                })
+
                 sites, tokens = 4 + position, 40
                 for metric in config["recompute_from_evidence"]["metrics"]:
                     uid = f"sc-{metric.rsplit('.', 1)[-1]}--{language.lower()}"
@@ -2351,7 +2379,9 @@ def test_semantic_compression_metrics_are_recomputed_from_the_evidence() -> None
                         "dependencies": [],
                     })
                     if metric == "metric.capability_efficiency":
-                        evidence = {"raw_E": {"value": 1.0 + position / 10}}
+                        evidence = {
+                            "total_semantic_complexity_units": 1.0 + position / 10
+                        }
                     else:
                         field = {
                             "metric.semantic_density": "explicit_local_facts",
@@ -2470,6 +2500,37 @@ def test_the_comparability_audit_reviews_blinded_annotations() -> None:
                 ]}},
             })
 
+        # The current contract gives sampled support one authoritative
+        # cohort-level record. Metric shards keep their own measurement fields
+        # under metric_annotations, while the canonical fragment/support record
+        # is projected into the blinded entry by the runner.
+        for probe in benchmark.comparability_sample_probes(root):
+            probe_id = str(probe["probe_id"])
+            rid = (
+                benchmark.SUPPORT_ADJUDICATION_PREFIX
+                + probe_id.lower().replace(".", "-")
+            )
+            agent_dir = (
+                root / "work" / "agents"
+                / f"worker-test-adjudication-{probe_id.lower().replace('.', '-')}"
+            )
+            agent_dir.mkdir(parents=True, exist_ok=True)
+            benchmark.json_dump(agent_dir / "result.json", {
+                "schema_version": 1,
+                "evaluation": "semantic_compression",
+                "requirements": {rid: {
+                    language: {
+                        "level": "FULL",
+                        "fragment": f"let n = 7 // {probe_id}",
+                        "partial_reasons": [],
+                        "none_reason": None,
+                        "justification": "synthetic cohort-consistent support record",
+                        "citation": "synthetic frozen evidence",
+                    }
+                    for language in languages
+                }},
+            })
+
         sample_path = benchmark.build_comparability_sample(root, audit, manifest)
         sample = json.loads(sample_path.read_text(encoding="utf-8"))
         sampled = {probe["probe_id"] for probe in sample["probes"]}
@@ -2492,7 +2553,14 @@ def test_the_comparability_audit_reviews_blinded_annotations() -> None:
             "the entries are not labelled by an opaque per-run permutation",
         )
         check(
-            all(entry.get("explicit_local_facts") == 4 for entry in entries),
+            all(
+                any(
+                    annotation.get("explicit_local_facts") == 4
+                    for annotation in (entry.get("metric_annotations") or {}).values()
+                    if isinstance(annotation, dict)
+                )
+                for entry in entries
+            ),
             "the sample dropped the annotations it exists to show",
         )
         raw = sample_path.read_text(encoding="utf-8")
@@ -3457,7 +3525,12 @@ def test_sandbox_agent_batches_actions_and_recovers_from_truncation_and_early_fi
         second = by_turn.get(2, [])
         check(
             len(second) == 1 and second[0].get("action") == "final"
-            and "expected outputs" in str(second[0].get("protocol_error")),
+            and (
+                "expected outputs" in str(second[0].get("protocol_error"))
+                or "expected outputs" in str(
+                    (second[0].get("observation") or {}).get("protocol_error")
+                )
+            ),
             f"an early final was not refused: {second}",
         )
         third = by_turn.get(3, [])

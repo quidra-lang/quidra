@@ -964,7 +964,43 @@ def assert_ecosystem_runner_owned_scoring() -> None:
         gateway_path.write_bytes(gateway_bytes)
 
 
+
+def assert_budget_plan_excludes_complete_units() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, task = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+        plan = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=100.0,
+            evaluation="ecosystem",
+            safety_multiplier=1.25,
+        )
+        assert plan["pending_agent_units"] == 1, plan
+        assert plan["estimated_uncached_usd"] > 0, plan
+        assert plan["sufficient"] is True, plan
+
+        ledger_path = root / "work/root/ledger.json"
+        ledger = benchmark.json_load(ledger_path)
+        ledger["units"][unit["id"]]["status"] = "COMPLETE"
+        ledger["units"][unit["id"]]["validation_result"] = "PASS"
+        benchmark.json_dump(ledger_path, ledger)
+        cached = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=0.0,
+            evaluation="ecosystem",
+            safety_multiplier=1.25,
+        )
+        assert cached["pending_agent_units"] == 0, cached
+        assert cached["estimated_uncached_usd"] == 0, cached
+        assert cached["recommended_budget_usd"] == 0, cached
+        assert cached["sufficient"] is True, cached
+
+
 def main() -> None:
+    assert_budget_plan_excludes_complete_units()
     assert_accepted_trial_start_marks_the_scored_boundary()
     assert_language_quality_design_runner_owned_scoring()
     assert_ecosystem_runner_owned_scoring()

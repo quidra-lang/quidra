@@ -64,20 +64,28 @@ jobs:
             "language-quality" => ["prepare", "llm-learnability"],
             "ecosystem" => ["prepare", "language-quality"],
             "llm-proficiency" => ["prepare", "ecosystem"],
-            "finalize" => [
-              "prepare", "semantic-compression", "llm-learnability",
-              "language-quality", "ecosystem", "llm-proficiency"
-            ],
+            "recovery" => ["prepare", "llm-proficiency"],
+            "finalize" => ["prepare", "recovery"],
           }
           expected_needs.each do |name, expected|
             actual = Array(jobs.fetch(name)["needs"])
             raise "#{name}: needs=#{actual.inspect}, expected=#{expected.inspect}" unless actual == expected
           end
 
+          action = YAML.load_file(".github/actions/benchmark-primary/action.yml", aliases: true)
+          allowed_inputs = action.fetch("inputs").keys
+          jobs.each do |job_name, job|
+            Array(job["steps"]).each do |step|
+              next unless step["uses"] == "./.github/actions/benchmark-primary"
+              unexpected = step.fetch("with", {}).keys - allowed_inputs
+              raise "#{job_name}: unknown benchmark-primary inputs #{unexpected.inspect}" unless unexpected.empty?
+            end
+          end
+
           expression = "$" + "{{ needs.prepare.outputs.run_id }}"
           base = "benchmark-" + expression
           chain = [
-            ["semantic-compression", nil, "#{base}-semantic-compression"],
+            ["semantic-compression", "#{base}-prepared", "#{base}-semantic-compression"],
             ["llm-learnability", "#{base}-semantic-compression", "#{base}-llm-learnability"],
             ["language-quality", "#{base}-llm-learnability", "#{base}-language-quality"],
             ["ecosystem", "#{base}-language-quality", "#{base}-ecosystem"],
@@ -90,12 +98,27 @@ jobs:
             raise "#{name}: benchmark-primary step missing" unless step
             inputs = step.fetch("with")
             raise "#{name}: handoff mismatch" unless inputs["handoff-name"] == handoff
-            if previous
-              raise "#{name}: previous handoff mismatch" unless inputs["previous-handoff"] == previous
-            else
-              raise "#{name}: unexpected previous handoff" if inputs.key?("previous-handoff")
-            end
+            raise "#{name}: previous handoff mismatch" unless inputs["previous-handoff"] == previous
           end
+
+          recovery_steps = jobs.fetch("recovery").fetch("steps").select do |candidate|
+            candidate["uses"] == "./.github/actions/benchmark-primary"
+          end
+          recovery_chain = [
+            ["semantic_compression", "#{base}-llm-proficiency", "#{base}-recovery-semantic-compression"],
+            ["llm_learnability", "#{base}-recovery-semantic-compression", "#{base}-recovery-llm-learnability"],
+            ["language_quality", "#{base}-recovery-llm-learnability", "#{base}-recovery-language-quality"],
+            ["ecosystem", "#{base}-recovery-language-quality", "#{base}-recovery-ecosystem"],
+            ["llm_proficiency", "#{base}-recovery-ecosystem", "#{base}-recovery-llm-proficiency"],
+          ]
+          raise "recovery step count drifted" unless recovery_steps.length == recovery_chain.length
+          recovery_steps.zip(recovery_chain).each do |step, (evaluation, previous, handoff)|
+            inputs = step.fetch("with")
+            raise "recovery evaluation mismatch" unless inputs["evaluation"] == evaluation
+            raise "recovery previous handoff mismatch" unless inputs["previous-handoff"] == previous
+            raise "recovery handoff mismatch" unless inputs["handoff-name"] == handoff
+          end
+
 
           readme = File.read("benchmark/README.md").gsub(/\s+/, " ")
           order = "Semantic Compression → LLM Learnability → Language Quality → Ecosystem → LLM Proficiency"
@@ -113,6 +136,7 @@ jobs:
           python -m py_compile benchmark/template/scripts/sandbox_launcher.py
           python -m py_compile benchmark/template/scripts/synthetic_run.py
           python -m py_compile benchmark/template/scripts/production_run.py
+          python benchmark/template/scripts/production_run.py budget-plan --help >/dev/null
           python -m py_compile benchmark/template/runtime/verify_toolchains.py
           bash -n benchmark/template/runtime/install_toolchains.sh
           python benchmark/template/scripts/check_metadata.py

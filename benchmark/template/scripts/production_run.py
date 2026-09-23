@@ -547,6 +547,226 @@ def run_production(
     return payload
 
 
+
+def build_budget_plan(
+    root: Path,
+    model: str,
+    *,
+    available_usd: float | None = None,
+    evaluation: str | None = None,
+    selected: set[str] | None = None,
+    safety_multiplier: float = 1.25,
+    smoke_reserve_usd: float = 0.0,
+) -> dict[str, Any]:
+    """Conservative no-provider budget gate for the currently unresolved scope.
+
+    This intentionally prices fresh input and the full configured output/token
+    envelopes. Prompt-cache reads can only make the real run cheaper. COMPLETE
+    units cost zero, so certified result-cache hydration directly reduces the
+    estimate before any paid request is allowed.
+    """
+    benchmark.assert_template_integrity(root)
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    ledger = json_load(root / "work" / "root" / "ledger.json")
+    gateway = benchmark.gateway_config(root)
+    pricing = (gateway.get("anthropic_pricing") or {}).get(model)
+    if not isinstance(pricing, dict):
+        raise ProductionRunError(f"no frozen pricing is configured for {model!r}")
+    if safety_multiplier < 1.0:
+        raise ProductionRunError("budget safety multiplier must be at least 1.0")
+    if smoke_reserve_usd < 0:
+        raise ProductionRunError("smoke reserve may not be negative")
+
+    units = {str(unit["id"]): unit for unit in manifest.get("work_units", [])}
+    selected = set(selected or set())
+    unknown = sorted(selected - set(units))
+    if unknown:
+        raise ProductionRunError(
+            "budget plan names unknown work units: " + ", ".join(unknown)
+        )
+
+    input_price = float(pricing["input_usd_per_million_tokens"])
+    output_price = float(pricing["output_usd_per_million_tokens"])
+    search_price = float(pricing.get("web_search_usd_per_request", 0.0) or 0.0)
+    search_uses = int(
+        (gateway.get("anthropic_web_search") or {}).get(
+            "max_uses_per_request", 0
+        ) or 0
+    )
+    packet_output_ceiling = int(gateway.get("max_output_tokens_ceiling", 0) or 0)
+    sandbox_cfg = benchmark.json_load(root / "template/config/sandbox_agent.json")
+    orchestration_output = int(
+        sandbox_cfg.get("orchestration_max_output_tokens", 0) or 0
+    )
+    orchestration_turn_reserve = min(
+        3, int(sandbox_cfg.get("max_turns", 3) or 3)
+    )
+
+    # Rendered bytes are a stronger estimate than a generic planning number
+    # whenever deterministic preparation has already materialized the Task Packet.
+    def task_tokens(unit: dict[str, Any]) -> int:
+        agent_id = str(unit.get("assigned_agent_id") or "")
+        path = root / "work" / "agents" / agent_id / "task.json"
+        if not path.is_file():
+            return 0
+        task = json_load(path)
+        rendered = int(task.get("rendered_bytes", 0) or 0)
+        return max(0, (rendered + 3) // 4)
+
+    by_eval: dict[str, dict[str, Any]] = {}
+    rows: list[dict[str, Any]] = []
+    blockers: list[dict[str, str]] = []
+    total_upper = 0.0
+    pending_agent_units = 0
+    complete_units = 0
+
+    for uid, unit in units.items():
+        if evaluation is not None and unit.get("evaluation") != evaluation:
+            continue
+        if selected and uid not in selected:
+            continue
+        ev = str(unit.get("evaluation") or "unknown")
+        state = (ledger.get("units") or {}).get(uid, {}) or {}
+        status = str(state.get("status") or "PENDING")
+        entry = by_eval.setdefault(
+            ev,
+            {
+                "complete_units": 0,
+                "pending_agent_units": 0,
+                "estimated_uncached_usd": 0.0,
+                "hard_blockers": [],
+            },
+        )
+        if status == "COMPLETE":
+            complete_units += 1
+            entry["complete_units"] += 1
+            continue
+        if status in {"BLOCKED", "INVALID"}:
+            blocker = {
+                "work_unit_id": uid,
+                "status": status,
+                "reason": str(state.get("blocker") or "terminal unresolved work unit"),
+            }
+            blockers.append(blocker)
+            entry["hard_blockers"].append(blocker)
+            continue
+        if unit.get("execution_kind", "agent") != "agent":
+            continue
+
+        pending_agent_units += 1
+        entry["pending_agent_units"] += 1
+        worker_mode = str(unit.get("worker_mode") or "packet-only")
+        planned_input = int(unit.get("estimated_input_tokens_per_call", 0) or 0)
+        rendered_input = task_tokens(unit)
+        input_tokens = max(planned_input, rendered_input, 1)
+        if worker_mode == "packet-only":
+            calls = 1
+            output_tokens = max(
+                int(unit.get("max_output_tokens_per_call", 0) or 0),
+                packet_output_ceiling,
+                1,
+            )
+        elif worker_mode == "sandbox-agent":
+            scored_calls = max(0, int(unit.get("max_llm_calls", 0) or 0))
+            calls = max(1, scored_calls + orchestration_turn_reserve)
+            output_tokens = max(
+                int(unit.get("max_output_tokens_per_call", 0) or 0),
+                orchestration_output,
+                1,
+            )
+        else:
+            raise ProductionRunError(
+                f"{uid}: unsupported worker mode in budget plan: {worker_mode!r}"
+            )
+        upper = calls * (
+            input_tokens * input_price / 1_000_000.0
+            + output_tokens * output_price / 1_000_000.0
+            + (
+                search_uses * search_price
+                if bool(unit.get("network_allowed"))
+                else 0.0
+            )
+        )
+        total_upper += upper
+        entry["estimated_uncached_usd"] = round(
+            float(entry["estimated_uncached_usd"]) + upper, 6
+        )
+        rows.append(
+            {
+                "work_unit_id": uid,
+                "evaluation": ev,
+                "worker_mode": worker_mode,
+                "calls_upper_bound": calls,
+                "input_tokens_per_call": input_tokens,
+                "output_tokens_per_call": output_tokens,
+                "network_allowed": bool(unit.get("network_allowed")),
+                "estimated_uncached_usd": round(upper, 6),
+            }
+        )
+
+    recommended = total_upper * safety_multiplier + smoke_reserve_usd
+    available = float(available_usd) if available_usd is not None else None
+    sufficient = (
+        not blockers
+        and (available is None or available + 1e-9 >= recommended)
+    )
+    cache_status_path = root / "results/cache_status.json"
+    cache_status = (
+        json_load(cache_status_path)
+        if cache_status_path.is_file()
+        else {"hits": {}, "misses": {}}
+    )
+    return {
+        "schema_version": 1,
+        "model": model,
+        "evaluation": evaluation or "all",
+        "selected_units": sorted(selected),
+        "complete_units": complete_units,
+        "pending_agent_units": pending_agent_units,
+        "cache_hits": len(cache_status.get("hits", {})),
+        "cache_misses": len(cache_status.get("misses", {})),
+        "estimated_uncached_usd": round(total_upper, 6),
+        "safety_multiplier": safety_multiplier,
+        "smoke_reserve_usd": round(smoke_reserve_usd, 6),
+        "recommended_budget_usd": round(recommended, 6),
+        "available_usd": available,
+        "sufficient": sufficient,
+        "hard_blockers": blockers,
+        "by_evaluation": by_eval,
+        "units": sorted(
+            rows,
+            key=lambda row: (
+                -float(row["estimated_uncached_usd"]),
+                str(row["work_unit_id"]),
+            ),
+        ),
+        "note": (
+            "Conservative upper-envelope estimate. It prices unresolved calls as "
+            "fresh input and does not count provider prompt-cache discounts; certified "
+            "COMPLETE units are excluded entirely."
+        ),
+    }
+
+
+def cmd_budget_plan(args: argparse.Namespace) -> dict[str, Any]:
+    selected = set(args.units or [])
+    payload = build_budget_plan(
+        Path(args.workspace).resolve(),
+        args.model,
+        available_usd=args.available_usd,
+        evaluation=args.evaluation,
+        selected=selected,
+        safety_multiplier=float(args.safety_multiplier),
+        smoke_reserve_usd=float(args.smoke_reserve_usd),
+    )
+    if args.output:
+        Path(args.output).write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    return payload
+
+
 def provider_smoke(
     model: str, template: Path, budget_usd: float, timeout: float,
     prefix_probe: Path | None = None,
@@ -948,6 +1168,19 @@ def build_parser() -> argparse.ArgumentParser:
              "worker process and at most one provider request at a time)",
     )
 
+    budget = sub.add_parser(
+        "budget-plan",
+        help="estimate unresolved paid work conservatively without calling a provider",
+    )
+    budget.add_argument("--workspace", required=True)
+    budget.add_argument("--model", required=True)
+    budget.add_argument("--evaluation", choices=benchmark.PRIMARY_NAMES)
+    budget.add_argument("--unit", action="append", dest="units", default=None)
+    budget.add_argument("--available-usd", type=float)
+    budget.add_argument("--safety-multiplier", type=float, default=1.25)
+    budget.add_argument("--smoke-reserve-usd", type=float, default=0.0)
+    budget.add_argument("--output")
+
     smoke = sub.add_parser(
         "provider-smoke",
         help="spend a few cents proving the paid request shape works before the run",
@@ -980,6 +1213,8 @@ def main() -> int:
             args.evaluation,
             args.units,
         )
+    elif args.command == "budget-plan":
+        payload = cmd_budget_plan(args)
     elif args.command == "provider-smoke":
         payload = provider_smoke(
             args.model, Path(args.template).resolve(),

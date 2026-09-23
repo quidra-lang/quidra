@@ -138,6 +138,164 @@ jobs:
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
 
+
+      - name: Reclaim runner disk for free preflight
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Build and verify the pinned ten-language image for free preflight
+        env:
+          BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+        run: |
+          python benchmark/template/runtime/check_pins.py
+          python benchmark/template/scripts/sandbox_launcher.py build-image \
+            --target toolchains --image "$BENCHMARK_IMAGE"
+          python benchmark/template/scripts/sandbox_launcher.py doctor \
+            --image "$BENCHMARK_IMAGE"
+
+      - name: Materialize and hydrate every cache decision available before payment
+        env:
+          BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+          RUN_ID: ${{ steps.contract.outputs.run_id }}
+          EVALUATED_SHA: ${{ steps.contract.outputs.evaluated_sha }}
+          MODE: ${{ steps.contract.outputs.mode }}
+          EVALUATION: ${{ steps.contract.outputs.evaluation }}
+        run: |
+          set -euo pipefail
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --sandbox-mode container \
+            --run-id "$RUN_ID" \
+            --provider anthropic-messages \
+            --model "$BENCHMARK_MODEL"
+          args=()
+          if [ "$MODE" = "scoped" ]; then args+=(--evaluation "$EVALUATION"); fi
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare "${args[@]}"
+
+      - name: Report free cache hydration before paid inference
+        env:
+          MODE: ${{ steps.contract.outputs.mode }}
+          EVALUATION: ${{ steps.contract.outputs.evaluation }}
+          UNITS: ${{ steps.contract.outputs.units }}
+        run: |
+          python - "$MODE" "$EVALUATION" "$UNITS" <<'PY'
+          import json, sys
+          from pathlib import Path
+          mode, requested_eval, raw_units = sys.argv[1:]
+          selected = set(raw_units.split())
+          root = Path(".quidra-benchmark")
+          manifest = json.loads((root / "work/root/manifest.json").read_text())
+          ledger = json.loads((root / "work/root/ledger.json").read_text())
+          cache_path = root / "results/cache_status.json"
+          cache = json.loads(cache_path.read_text()) if cache_path.is_file() else {"hits": {}, "misses": {}}
+          report = {}
+          for unit in manifest.get("work_units", []):
+              uid = str(unit["id"])
+              ev = str(unit.get("evaluation"))
+              if mode == "scoped" and ev != requested_eval:
+                  continue
+              if selected and uid not in selected:
+                  continue
+              row = report.setdefault(ev, {"complete": 0, "pending": 0, "blocked": 0, "cache_hits": 0, "cache_misses": 0})
+              status = str((ledger.get("units", {}).get(uid) or {}).get("status", "PENDING"))
+              if status == "COMPLETE": row["complete"] += 1
+              elif status in {"BLOCKED", "INVALID"}: row["blocked"] += 1
+              else: row["pending"] += 1
+              if uid in cache.get("hits", {}): row["cache_hits"] += 1
+              if uid in cache.get("misses", {}): row["cache_misses"] += 1
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Refuse to start paid inference unless the whole requested scope is funded
+        env:
+          MODE: ${{ steps.contract.outputs.mode }}
+          EVALUATION: ${{ steps.contract.outputs.evaluation }}
+          UNITS: ${{ steps.contract.outputs.units }}
+          BUDGET: ${{ steps.contract.outputs.budget_usd }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "$MODE" = "scoped" ]; then args+=(--evaluation "$EVALUATION"); fi
+          for unit in $UNITS; do args+=(--unit "$unit"); done
+          python benchmark/template/scripts/production_run.py budget-plan \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --model "$BENCHMARK_MODEL" \
+            --available-usd "$BUDGET" \
+            --safety-multiplier 1.25 \
+            --smoke-reserve-usd 0.10 \
+            --output "$RUNNER_TEMP/budget-plan.json" \
+            "${args[@]}"
+          python - "$RUNNER_TEMP/budget-plan.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          plan = json.loads(Path(sys.argv[1]).read_text())
+          print(json.dumps(plan, indent=2, sort_keys=True))
+          if plan.get("hard_blockers"):
+              raise SystemExit("free preflight found terminal blockers; no API money was spent")
+          if not plan.get("sufficient"):
+              raise SystemExit(
+                  f"budget {plan.get('available_usd')} is below conservative recommendation "
+                  f"{plan.get('recommended_budget_usd')}; no API money was spent"
+              )
+          PY
+
+      - name: Prove the provider path once after free gates pass
+        id: smoke
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python benchmark/template/scripts/production_run.py provider-smoke \
+            --model "$BENCHMARK_MODEL" \
+            --budget-usd 0.50 \
+            --output "$RUNNER_TEMP/provider-smoke.json"
+          spend="$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(os.environ["RUNNER_TEMP"], "provider-smoke.json").read_text())
+          assert report["ok"], report.get("failed_checks")
+          spent = float(report["spend"]["estimated_cost_usd"])
+          assert spent < 0.10, f"provider smoke unexpectedly spent {spent} USD"
+          print(f"{spent:.6f}")
+          PY
+          )"
+          echo "spend=$spend" >> "$GITHUB_OUTPUT"
+
+      - name: Package the free prepared workspace
+        env:
+          BUDGET: ${{ steps.contract.outputs.budget_usd }}
+          SMOKE_SPEND: ${{ steps.smoke.outputs.spend }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/benchmark-prepared"
+          tar -czf "$RUNNER_TEMP/benchmark-prepared/workspace.tgz" .quidra-benchmark
+          python - "$RUNNER_TEMP/benchmark-prepared/budget-state.json" "$BUDGET" "$SMOKE_SPEND" <<'PY'
+          import json, sys
+          from pathlib import Path
+          path, limit, spent = Path(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3])
+          path.write_text(json.dumps({
+              "schema_version": 1,
+              "limit_usd": limit,
+              "spent_usd": spent,
+              "evaluations": {},
+          }, indent=2, sort_keys=True) + "\n")
+          PY
+          cp "$RUNNER_TEMP/budget-plan.json" "$RUNNER_TEMP/benchmark-prepared/budget-plan.json"
+          cp "$RUNNER_TEMP/provider-smoke.json" "$RUNNER_TEMP/benchmark-prepared/provider-smoke.json"
+
+      - name: Upload free prepared workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ steps.contract.outputs.run_id }}-prepared
+          path: ${{ runner.temp }}/benchmark-prepared
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
+
   scoped-run:
     name: scoped-run
     needs: prepare
@@ -156,6 +314,7 @@ jobs:
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: ${{ needs.prepare.outputs.evaluation }}
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-prepared
           handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-scoped
           run-id: ${{ needs.prepare.outputs.run_id }}
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
@@ -168,9 +327,6 @@ jobs:
     needs: prepare
     if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
-    outputs:
-      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
-      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -185,6 +341,7 @@ jobs:
         uses: ./.github/actions/benchmark-primary
         with:
           evaluation: semantic_compression
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-prepared
           handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-semantic-compression
           run-id: ${{ needs.prepare.outputs.run_id }}
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
@@ -196,9 +353,6 @@ jobs:
     needs: [prepare, semantic-compression]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
-    outputs:
-      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
-      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -219,17 +373,12 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          fallback-spent-usd: ${{ needs.semantic-compression.outputs.cumulative-spend-usd }}
-          fallback-smoke-passed: ${{ needs.semantic-compression.outputs.provider-smoke-passed }}
 
   language-quality:
     name: language-quality
     needs: [prepare, llm-learnability]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
-    outputs:
-      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
-      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -250,17 +399,12 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          fallback-spent-usd: ${{ needs.llm-learnability.outputs.cumulative-spend-usd }}
-          fallback-smoke-passed: ${{ needs.llm-learnability.outputs.provider-smoke-passed }}
 
   ecosystem:
     name: ecosystem
     needs: [prepare, language-quality]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
-    outputs:
-      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
-      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -281,17 +425,12 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          fallback-spent-usd: ${{ needs.language-quality.outputs.cumulative-spend-usd }}
-          fallback-smoke-passed: ${{ needs.language-quality.outputs.provider-smoke-passed }}
 
   llm-proficiency:
     name: llm-proficiency
     needs: [prepare, ecosystem]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
-    outputs:
-      cumulative-spend-usd: ${{ steps.primary.outputs.cumulative-spend-usd }}
-      provider-smoke-passed: ${{ steps.primary.outputs.provider-smoke-passed }}
     timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -312,12 +451,96 @@ jobs:
           evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
           model: ${{ env.BENCHMARK_MODEL }}
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
-          fallback-spent-usd: ${{ needs.ecosystem.outputs.cumulative-spend-usd }}
-          fallback-smoke-passed: ${{ needs.ecosystem.outputs.provider-smoke-passed }}
+
+  recovery:
+    name: recovery
+    needs: [prepare, llm-proficiency]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+
+      - name: Continue Semantic Compression if needed
+        id: recover-sc
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: semantic_compression
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-llm-proficiency
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-semantic-compression
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "3000"
+
+      - name: Continue LLM Learnability if needed
+        id: recover-learnability
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: llm_learnability
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-semantic-compression
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-llm-learnability
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "3000"
+
+      - name: Continue Language Quality if needed
+        id: recover-language-quality
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: language_quality
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-llm-learnability
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-language-quality
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "3000"
+
+      - name: Continue Ecosystem if needed
+        id: recover-ecosystem
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ecosystem
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-language-quality
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-ecosystem
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "3000"
+
+      - name: Continue LLM Proficiency if needed
+        id: recover-proficiency
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: llm_proficiency
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-ecosystem
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-llm-proficiency
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "3000"
+
 
   finalize:
     name: finalize
-    needs: [prepare, semantic-compression, llm-learnability, language-quality, ecosystem, llm-proficiency]
+    needs: [prepare, recovery]
     if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -337,7 +560,7 @@ jobs:
       - name: Download final Primary handoff
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-${{ needs.prepare.outputs.run_id }}-llm-proficiency
+          name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-llm-proficiency
           path: ${{ runner.temp }}/benchmark-final-handoff
 
       - name: Restore trusted workspace guard

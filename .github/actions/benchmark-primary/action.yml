@@ -32,6 +32,10 @@ inputs:
     description: Maximum in-flight workers inside this evaluation.
     required: false
     default: "6"
+  max-wall-seconds:
+    description: Wall-clock slice before checkpointing for an automatic continuation job.
+    required: false
+    default: "15000"
   units:
     description: Optional whitespace-separated work-unit ids for a paid rehearsal.
     required: false
@@ -44,6 +48,9 @@ outputs:
   evaluation-status:
     description: COMPLETE/PARTIAL/unknown after this evaluation.
     value: ${{ steps.status.outputs.value }}
+  continuation-needed:
+    description: Whether the paid slice checkpointed cleanly for another job.
+    value: ${{ steps.paid.outputs.continuation-needed }}
 
 runs:
   using: composite
@@ -201,30 +208,49 @@ runs:
           --output "$RUNNER_TEMP/task-policy.json" \
           --evaluation "$EVALUATION" "${unit_args[@]}"
 
-    - name: Compute remaining whole-run budget
+    - name: Prove remaining budget covers this unresolved Primary
       id: budget
       continue-on-error: true
       shell: bash
       env:
         WHOLE_BUDGET: ${{ inputs.budget-usd }}
+        MODEL: ${{ inputs.model }}
+        EVALUATION: ${{ inputs.evaluation }}
+        UNITS: ${{ inputs.units }}
       run: |
         set -euo pipefail
         remaining="$(python - "$RUNNER_TEMP/benchmark-budget-state.json" "$WHOLE_BUDGET" <<'PY'
         import json, sys
         from pathlib import Path
         state = json.loads(Path(sys.argv[1]).read_text())
-        limit = float(sys.argv[2])
-        spent = float(state.get("spent_usd", 0.0))
-        remaining = limit - spent
+        remaining = float(sys.argv[2]) - float(state.get("spent_usd", 0.0))
         if remaining <= 0:
-            raise SystemExit(
-                f"whole-run benchmark budget exhausted: spent={spent:.4f}, limit={limit:.4f}"
-            )
+            raise SystemExit("whole-run benchmark budget is already exhausted")
         print(f"{remaining:.6f}")
         PY
         )"
+        unit_args=()
+        for unit in $UNITS; do unit_args+=(--unit "$unit"); done
+        python benchmark/template/scripts/production_run.py budget-plan \
+          --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+          --model "$MODEL" \
+          --available-usd "$remaining" \
+          --evaluation "$EVALUATION" \
+          --output "$RUNNER_TEMP/budget-plan.json" \
+          "${unit_args[@]}"
+        python - "$RUNNER_TEMP/budget-plan.json" <<'PY'
+        import json, sys
+        from pathlib import Path
+        plan = json.loads(Path(sys.argv[1]).read_text())
+        print(json.dumps(plan, indent=2, sort_keys=True))
+        if plan.get("hard_blockers"):
+            raise SystemExit("unresolved terminal blockers exist; refusing paid redispatch")
+        if not plan.get("sufficient"):
+            raise SystemExit(
+                "configured whole-run budget is below the conservative remaining-work estimate"
+            )
+        PY
         echo "remaining=$remaining" >> "$GITHUB_OUTPUT"
-        echo "remaining whole-run budget: $remaining"
 
     - name: Run paid ${{ inputs.evaluation }} benchmark
       id: paid
@@ -240,9 +266,13 @@ runs:
         CONCURRENCY: ${{ inputs.concurrency }}
         UNITS: ${{ inputs.units }}
       run: |
+        set -euo pipefail
+        echo "continuation-needed=false" >> "$GITHUB_OUTPUT"
         unit_args=()
         for unit in $UNITS; do unit_args+=(--unit "$unit"); done
         : > "$RUNNER_TEMP/gateway-audit.jsonl"
+        rm -f .quidra-benchmark/results/production_checkpoint.json
+        set +e
         python benchmark/template/scripts/sandbox_launcher.py run \
           --source-repo "$GITHUB_WORKSPACE" \
           --image "$BENCHMARK_IMAGE" \
@@ -254,10 +284,32 @@ runs:
           --gateway-log-out "$RUNNER_TEMP/gateway-audit.jsonl" \
           -- python3 /quidra-benchmark/template/scripts/production_run.py run \
              --workspace /quidra-benchmark \
-             --max-wall-seconds 18900 \
+             --max-wall-seconds "${{ inputs.max-wall-seconds }}" \
              --concurrency "$CONCURRENCY" \
              --evaluation "$EVALUATION" \
              "${unit_args[@]}"
+        rc=$?
+        set -e
+        if [ "$rc" -eq 0 ]; then
+          exit 0
+        fi
+        if python - <<'PY'
+        import json
+        from pathlib import Path
+        path = Path(".quidra-benchmark/results/production_checkpoint.json")
+        if not path.is_file():
+            raise SystemExit(1)
+        checkpoint = json.loads(path.read_text())
+        if checkpoint.get("reason") != "wall-clock-checkpoint":
+            raise SystemExit(1)
+        print(json.dumps(checkpoint, indent=2, sort_keys=True))
+        PY
+        then
+          echo "continuation-needed=true" >> "$GITHUB_OUTPUT"
+          echo "::notice::Primary reached its planned wall-clock slice; the workspace is preserved for automatic continuation."
+          exit 0
+        fi
+        exit "$rc"
 
     - name: Record this Primary's API usage
       if: ${{ always() }}

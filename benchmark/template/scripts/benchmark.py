@@ -7160,6 +7160,186 @@ def score_or_na(value: Any) -> float | None:
     raise BenchmarkError(f"invalid normalized score value: {value!r}")
 
 
+def ecosystem_rubric_asset(root: Path) -> dict[str, Any]:
+    """Load and structurally validate the frozen runner-owned Ecosystem rubric."""
+    path = (
+        root / "template" / "methodology-assets" / "ecosystem" / "rubrics.json"
+    )
+    if not path.is_file():
+        raise BenchmarkError("frozen Ecosystem rubric asset is missing")
+    data = json_load(path)
+    if data.get("schema_version") != 1 or data.get("frozen") is not True:
+        raise BenchmarkError("Ecosystem rubric asset must be frozen schema_version 1")
+
+    _, required = load_evaluation_requirements(root, "ecosystem")
+    expected_metrics = {rid for rid in required if rid.startswith("metric.")}
+    metrics = data.get("metrics")
+    if not isinstance(metrics, dict) or set(metrics) != expected_metrics:
+        raise BenchmarkError(
+            "Ecosystem rubric metrics must exactly match evaluation requirements"
+        )
+
+    scoring = data.get("scoring")
+    if not isinstance(scoring, dict) or scoring.get("runner_owned") is not True:
+        raise BenchmarkError("Ecosystem scoring must be runner-owned")
+    levels = scoring.get("allowed_levels")
+    points = scoring.get("level_points")
+    if levels != [0, 1, 2, 3, 4] or not isinstance(points, dict):
+        raise BenchmarkError("Ecosystem rubric must freeze levels 0..4")
+    expected_points = {"0": 0, "1": 5, "2": 10, "3": 15, "4": 20}
+    if points != expected_points:
+        raise BenchmarkError("Ecosystem level-to-points mapping must be 0/5/10/15/20")
+    if int(scoring.get("component_count_per_metric", 0) or 0) != 5:
+        raise BenchmarkError("Ecosystem metrics must have exactly five components")
+    if int(scoring.get("component_weight_points", 0) or 0) != 20:
+        raise BenchmarkError("Ecosystem components must carry 20 points each")
+
+    rubric_ids: set[str] = set()
+    for rid, row in metrics.items():
+        if not isinstance(row, dict):
+            raise BenchmarkError(f"{rid}: Ecosystem rubric row must be an object")
+        rubric_id = row.get("rubric_id")
+        if not isinstance(rubric_id, str) or not rubric_id:
+            raise BenchmarkError(f"{rid}: Ecosystem rubric_id is missing")
+        if rubric_id in rubric_ids:
+            raise BenchmarkError(f"{rid}: duplicate Ecosystem rubric_id {rubric_id}")
+        rubric_ids.add(rubric_id)
+        if not isinstance(row.get("selection_rule"), str) or not row["selection_rule"].strip():
+            raise BenchmarkError(f"{rid}: Ecosystem selection_rule is missing")
+        components = row.get("components")
+        if not isinstance(components, list) or len(components) != 5:
+            raise BenchmarkError(f"{rid}: Ecosystem rubric needs five components")
+        component_ids: list[str] = []
+        for component in components:
+            if not isinstance(component, dict):
+                raise BenchmarkError(f"{rid}: Ecosystem component must be an object")
+            cid = component.get("id")
+            criterion = component.get("criterion")
+            weight = component.get("weight_points")
+            if not isinstance(cid, str) or not cid:
+                raise BenchmarkError(f"{rid}: Ecosystem component id is missing")
+            if not isinstance(criterion, str) or not criterion.strip():
+                raise BenchmarkError(f"{rid}/{cid}: criterion is missing")
+            if weight != 20:
+                raise BenchmarkError(f"{rid}/{cid}: weight_points must be 20")
+            component_ids.append(cid)
+        if len(set(component_ids)) != 5:
+            raise BenchmarkError(f"{rid}: Ecosystem component IDs must be unique")
+
+    policy = data.get("evidence_policy")
+    if not isinstance(policy, dict):
+        raise BenchmarkError("Ecosystem evidence_policy is missing")
+    required_policy = {
+        "snapshot_basis", "activity_window_months",
+        "provider_search_budget_per_worker", "source_priority",
+        "symmetry_rule", "not_executed_rule", "popularity_rule",
+    }
+    if not required_policy <= set(policy):
+        missing = sorted(required_policy - set(policy))
+        raise BenchmarkError(
+            "Ecosystem evidence_policy is incomplete: " + ", ".join(missing)
+        )
+    if int(policy.get("activity_window_months", 0) or 0) <= 0:
+        raise BenchmarkError("Ecosystem activity window must be positive")
+    if int(policy.get("provider_search_budget_per_worker", 0) or 0) != 5:
+        raise BenchmarkError(
+            "Ecosystem provider search budget must match the frozen five-use gateway"
+        )
+    if not isinstance(policy.get("source_priority"), list) or not policy["source_priority"]:
+        raise BenchmarkError("Ecosystem source priority must be non-empty")
+    return data
+
+
+def apply_ecosystem_runner_scores(
+    root: Path, task: dict[str, Any], result: dict[str, Any]
+) -> None:
+    """Validate LLM evidence and replace Ecosystem scores with runner arithmetic."""
+    if task.get("evaluation") != "ecosystem":
+        return
+    requirement_ids = [
+        str(rid) for rid in (task.get("requirement_ids") or [])
+        if str(rid).startswith("metric.")
+    ]
+    if not requirement_ids:
+        return
+    assigned = list(task.get("assigned_languages") or [])
+    if len(assigned) != 1:
+        raise BenchmarkError(
+            "Ecosystem metric workers must currently be one-language evidence shards"
+        )
+    language = str(assigned[0])
+    asset = ecosystem_rubric_asset(root)
+    points = asset["scoring"]["level_points"]
+    evidence = result.get("evidence")
+    if not isinstance(evidence, dict):
+        raise BenchmarkError("Ecosystem result requires evidence object")
+
+    computed: dict[str, dict[str, float]] = {}
+    runner_detail: dict[str, Any] = {}
+    for rid in requirement_ids:
+        row = evidence.get(rid)
+        if not isinstance(row, dict):
+            raise BenchmarkError(f"{rid}: Ecosystem evidence object is missing")
+        rubric = asset["metrics"][rid]
+        if row.get("rubric_id") != rubric["rubric_id"]:
+            raise BenchmarkError(
+                f"{rid}: rubric_id must equal frozen {rubric['rubric_id']}"
+            )
+        component_ids = [str(c["id"]) for c in rubric["components"]]
+        levels = row.get("component_levels")
+        findings = row.get("component_findings")
+        if not isinstance(levels, dict) or set(levels) != set(component_ids):
+            raise BenchmarkError(
+                f"{rid}: component_levels must exactly match frozen component IDs"
+            )
+        if not isinstance(findings, dict) or set(findings) != set(component_ids):
+            raise BenchmarkError(
+                f"{rid}: component_findings must exactly match frozen component IDs"
+            )
+        score = 0
+        normalized_levels: dict[str, int] = {}
+        for cid in component_ids:
+            level = levels[cid]
+            if isinstance(level, bool) or not isinstance(level, int) or level not in {0,1,2,3,4}:
+                raise BenchmarkError(f"{rid}/{cid}: component level must be integer 0..4")
+            finding = findings[cid]
+            if not isinstance(finding, str) or not finding.strip():
+                raise BenchmarkError(f"{rid}/{cid}: component finding is empty")
+            normalized_levels[cid] = level
+            score += int(points[str(level)])
+        sources = row.get("sources")
+        if (
+            not isinstance(sources, list)
+            or not sources
+            or not all(isinstance(src, str) and src.strip() for src in sources)
+        ):
+            raise BenchmarkError(f"{rid}: sources must be a non-empty string array")
+        snapshot_date = row.get("snapshot_date")
+        if not isinstance(snapshot_date, str) or not re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}", snapshot_date
+        ):
+            raise BenchmarkError(f"{rid}: snapshot_date must be YYYY-MM-DD")
+        limitations = row.get("limitations")
+        if not isinstance(limitations, str):
+            raise BenchmarkError(f"{rid}: limitations must be a string")
+        row["runner_score_0_100"] = score
+        row["component_levels"] = normalized_levels
+        computed[rid] = {language: float(score)}
+        runner_detail[rid] = {
+            "rubric_id": rubric["rubric_id"],
+            "component_levels": normalized_levels,
+            "score_0_100": score,
+        }
+
+    # Worker arithmetic is deliberately non-authoritative.
+    result["requirements"] = computed
+    evidence["runner_scoring"] = {
+        "rubric_set_id": asset.get("rubric_set_id"),
+        "language": language,
+        "metrics": runner_detail,
+    }
+
+
 def cmd_result_check(args: argparse.Namespace) -> int:
     root = workspace(args)
     agent_dir = require_under(root / "work" / "agents" / args.id, root)
@@ -7178,6 +7358,11 @@ def cmd_result_check(args: argparse.Namespace) -> int:
         raise BenchmarkError("result.json schema_version must be 1")
     if result.get("evaluation") != task.get("evaluation"):
         raise BenchmarkError("result.json evaluation mismatch")
+
+    apply_ecosystem_runner_scores(root, task, result)
+    if task.get("evaluation") == "ecosystem":
+        # Persist only the trusted runner-computed score projection.
+        json_dump(result_path, result)
 
     requirement_ids = list(task.get("requirement_ids", []))
     if not requirement_ids:
@@ -10552,28 +10737,34 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 "matrix_negative_self_tests": self_tests,
             })
         elif rid in {"gate.objective_rubrics_frozen", "gate.evidence_window_frozen"}:
-            methodology = (
-                root / "template" / "methodology" / "ecosystem.md"
-            ).read_text(encoding="utf-8")
-            rubric_markers = (
-                "define and freeze an objective rubric or proxy before scoring any language",
-                "thresholds, and 0–100 conversion must be applied unchanged to all 10 languages",
-                "Do not alter these category weights after measurements begin",
-            )
-            window_markers = (
-                "### Predeclared sampling",
-                "freeze a **named target or deterministic external selection rule before evidence collection**",
-                "Record the full candidate universe or query needed to reproduce the selection",
-                "Use the same number of retrieval routes and the same examination depth for every language",
-            )
+            rubric_problems: list[str] = []
+            asset: dict[str, Any] = {}
+            try:
+                asset = ecosystem_rubric_asset(root)
+            except BenchmarkError as exc:
+                rubric_problems.append(str(exc))
             if rid == "gate.objective_rubrics_frozen":
-                missing = [x for x in rubric_markers if x not in methodology]
+                ok = (
+                    not rubric_problems
+                    and asset.get("frozen") is True
+                    and bool(asset.get("rubric_set_id"))
+                    and len(asset.get("metrics") or {}) == 15
+                )
             else:
-                missing = [x for x in window_markers if x not in methodology]
-            requirements[rid] = not missing and fixed_10
+                policy = asset.get("evidence_policy") or {}
+                ok = (
+                    not rubric_problems
+                    and int(policy.get("activity_window_months", 0) or 0) > 0
+                    and int(policy.get("provider_search_budget_per_worker", 0) or 0) == 5
+                    and bool(policy.get("symmetry_rule"))
+                )
+            requirements[rid] = bool(ok and fixed_10)
             evidence.update({
-                f"{rid}.missing_policy_markers": missing,
+                f"{rid}.rubric_set_id": asset.get("rubric_set_id"),
+                f"{rid}.rubric_metric_count": len(asset.get("metrics") or {}),
+                f"{rid}.problems": rubric_problems,
                 f"{rid}.fixed_language_set": fixed_10,
+                f"{rid}.evidence_policy": asset.get("evidence_policy") if asset else None,
             })
         elif rid == "coverage.all_frozen_probes":
             asset = json_load(

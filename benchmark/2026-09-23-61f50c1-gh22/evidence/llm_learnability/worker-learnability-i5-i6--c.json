@@ -1,0 +1,55 @@
+{
+  "agent_id": "worker-learnability-i5-i6--c",
+  "assigned_languages": [
+    "C++"
+  ],
+  "evidence": {
+    "condition.i5_held_out_rule_composition": {
+      "description": "Single fresh-session trial (i5-t1) asked the model to implement three independently-specified token-rewrite rules (A: ADD-FOLD, B: DUP-ELIM, C: NEG-SWAP) taught only via isolated single-rule examples, then evaluate three HELD-OUT combined inputs exercising A+C, B+C, and A+B+C respectively. These combinations were not present in any example shown to the model and were fixed before observing results.",
+      "metrics": {
+        "compile_parse_success": 1.0,
+        "correct_at_1": 1.0,
+        "specification_compliance": 1.0,
+        "test_pass_rate": 1.0,
+        "unseen_case_generalization": 1.0
+      },
+      "raw_evidence": [
+        "Extracted C++ source from trials/i5-t1/completion_01.txt into i5_prog.cpp; compiled with g++ -std=c++17 -O2, exit 0 (see run action).",
+        "Executed i5_prog on the three held-out combined inputs via run_i5.py: outputs were 'PUSH 7 SWAP PUSH 10', 'PUSH 1 SWAP PUSH 2', 'PUSH 7 SWAP'.",
+        "These match the model's own claimed Test1/Test2/Test3 outputs in its completion, and independently verified by mechanical re-execution (not merely trusting the model's stated answer) to be the correct application of rules A (fold PUSH 3 PUSH 4 ADD -> PUSH 7), B (eliminate DUP POP), and C (NEG SWAP -> SWAP) in the three untaught combinations A+C, B+C, A+B+C.",
+        "Score of 96/100 reflects full correctness on the composed weighted metric bundle (compile/parse, correct@1, test pass rate, spec compliance, unseen-case generalization all satisfied); minor deduction reflects single-trial sample size (only 1 held-out-composition trial per language per frozen primary sampling counts) rather than any observed defect."
+      ],
+      "trial_id": "i5-t1"
+    },
+    "condition.i6_prior_conflict_resistance": {
+      "description": "Single fresh-session trial (i6-t1) supplied a reversible counterfactual lexical mapping in which familiar arithmetic/comparison keywords ('plus','minus','big','small') were assigned meanings that conflict with their ordinary English roles (plus=subtraction, minus=addition, big=less-than, small=greater-than), stated unambiguously in the spec. The model had to implement and evaluate expressions following the stated mapping rather than prior lexical expectations.",
+      "metrics": {
+        "compile_parse_success": 1.0,
+        "correct_at_1": 1.0,
+        "hallucination_resistance": 1.0,
+        "specification_compliance": 1.0,
+        "test_pass_rate": 1.0
+      },
+      "raw_evidence": [
+        "Extracted C++ source from trials/i6-t1/completion_01.txt into i6_prog.cpp; compiled with g++ -std=c++17 -O2, exit 0 (see run action).",
+        "Executed i6_prog on all four test inputs via run_i6.py: outputs were '7', '13', 'true', 'true' for '10 plus 3', '10 minus 3', '5 big 9', '9 small 5' respectively.",
+        "Mechanically verified correct per the STATED (prior-conflicting) mapping: 10 plus 3 = 10-3=7 (plus=subtraction); 10 minus 3 = 10+3=13 (minus=addition); 5 big 9 = (5<9)=true (big=less-than); 9 small 5 = (9>5)=true (small=greater-than). The model did not fall back to the ordinary English meaning of plus/minus/big/small at any point in source or output.",
+        "Score of 97/100 reflects full correctness on the weighted metric bundle for this condition; minor deduction reflects single-trial sample size per frozen primary sampling counts (prior_conflict_resistance_trials_per_language=1) rather than any observed defect."
+      ],
+      "trial_id": "i6-t1"
+    }
+  },
+  "requirement_ids": [
+    "condition.i5_held_out_rule_composition",
+    "condition.i6_prior_conflict_resistance"
+  ],
+  "requirements": {
+    "condition.i5_held_out_rule_composition": {
+      "C++": 96
+    },
+    "condition.i6_prior_conflict_resistance": {
+      "C++": 97
+    }
+  },
+  "work_unit_id": "learnability-i5-i6--c"
+}

@@ -1,0 +1,73 @@
+{
+  "agent_id": "worker-ecosystem-external--part-3--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "metric.community_public_knowledge_availability": {
+      "candidate_universe_examined": [
+        "rust-lang.org/community (official community index page)",
+        "doc.rust-lang.org/book and github.com/rust-lang/book (official book, 'The Rust Programming Language')",
+        "users.rust-lang.org (official Users Forum, Discourse)",
+        "internals.rust-lang.org (official Internals Forum)",
+        "this-week-in-rust.org (community newsletter)",
+        "Stack Overflow 'rust' tag",
+        "reddit.com/r/rust (unofficial but rust-lang.org-linked subreddit)",
+        "Rust Zulip chat server"
+      ],
+      "findings": [
+        {
+          "channel": "Official community hub",
+          "citation": "<cite index=\"15-1,15-3,15-4,15-5\">The Rust Users Forum is a place for Rust users to communicate about anything and everything related to Rust and The Rust Internals Forum is a place for discussion about the development of Rust itself, with general chatter happening on several chat platforms including the Rust Zulip server.</cite>"
+        },
+        {
+          "channel": "Official learn resources / help pointer to Stack Overflow",
+          "citation": "<cite index=\"18-6,18-7,18-8\">The most important community resources for those new to Rust include an IRC channel that loves answering questions at any depth and the Users Forum, and users may also find help on the question and answer site, Stack Overflow.</cite>"
+        },
+        {
+          "channel": "Official book (canonical single-language learning artifact, mirrors what other languages have as an equivalent official resource)",
+          "citation": "<cite index=\"30-1,30-2,30-3\">The HTML format of the book is available online and offline with installations of Rust made with rustup, several community translations are also available, and the text is available in paperback and ebook format from No Starch Press.</cite>"
+        },
+        {
+          "channel": "Official book authorship/community depth",
+          "citation": "<cite index=\"36-3,36-4\">The book is the official book on Rust, an open-source, community-developed systems programming language, written by two members of the Rust core team with feedback and contributions from 42 members of the community.</cite>"
+        },
+        {
+          "channel": "Recurring community news digest",
+          "citation": "<cite index=\"46-1,46-4,46-5\">This Week in Rust is a weekly newsletter summarizing the progress and community activity of the Rust programming language, published continuously since 2014, and distributed via an email list sponsored by the Rust Foundation.</cite>"
+        },
+        {
+          "channel": "Editorial rigor of the newsletter (signal of sustained, curated public knowledge rather than noise)",
+          "citation": "<cite index=\"46-8,46-9\">There is no automated content ingestion; every item in a published issue passes through human editors.</cite>"
+        },
+        {
+          "channel": "Stack Overflow-derived sentiment/coverage proxy (used only as one declared, non-standalone indicator)",
+          "citation": "<cite index=\"9-1,9-3\">Rust improved on its top spot yet again in the Most Loved Language category with an increase in love of 5.8% from 73.1% in the 2017 Survey to 78.9% in the 2018 Survey, and Rust also jumped 2 places in the ranking from 10th to 8th.</cite>"
+        },
+        {
+          "channel": "In-person / regional community reach",
+          "citation": "<cite index=\"15-12,15-13\">There are more than 90 Meetups and several conferences worldwide in over 35 countries, and Rustaceans meet periodically in Rust User Groups.</cite>"
+        },
+        {
+          "channel": "Third-party discussion forum listing corroboration",
+          "citation": "<cite index=\"14-6,14-7\">The subreddit r/rust is a place for all things related to the Rust programming language, an open-source systems language that emphasizes performance, reliability, and productivity, and Rust Lang Org (users.rust-lang.org) is an online community for general discussion of The Rust Programming Language.</cite>"
+        }
+      ],
+      "limitations_of_raw_popularity_indicators": "Follower/subscriber counts and Stack Overflow tag counts sourced from third-party aggregator sites (e.g. feedspot, saashub) were cross-checked but not used as a standalone score input; several general web-search results for 'r/rust subscribers' returned unrelated subreddits (the Steam game 'Rust', r/bald, r/wallstreetbets, etc.) due to name collision with the Steam survival game, and those irrelevant results were excluded from evidence rather than used to inflate or deflate the score. Numeric star/subscriber/download counts were not obtained cleanly within the 5-search budget for this shard and are therefore not asserted as point figures; the qualitative, multi-channel evidence above (official book, official multi-venue community page, weekly human-edited newsletter running continuously since 2014, official forums, Stack Overflow 'Most Loved' recognition, 90+ meetups across 35+ countries) is used instead, consistent with the rule that raw popularity counts must not be the sole proxy.",
+      "predeclared_sampling_rule": "For each assigned language, examine the same four externally observable, language-neutral channels via the same retrieval route (targeted web search): (1) official language-maintained learning resource(s) linked from the language's own site; (2) presence/volume on Stack Overflow, used only as one declared proxy among several, never standalone; (3) official/community real-time discussion venues (forums/chat) linked from the language's own community page; (4) a recurring, independently verifiable community-run news digest. Same examination depth (one search pass per channel) applied for every language in the assigned set. Selection targets (official community page URL, official book URL, official forum URLs, canonical newsletter) are the language's own officially-linked artifacts, not retrieval-order accidents.",
+      "rationale_for_score": "Rust exhibits very high community/public-knowledge availability across every examined channel: an official, actively maintained, community-translated book and adjacent official 'bookshelf' (Rust by Example, Rustlings, Cargo Book, rustc Book, Rust Reference, etc.) per rust-lang.org's own book index; two dedicated official Discourse forums (Users, Internals) plus an official Zulip chat; a continuously published, human-edited weekly newsletter running for over a decade; strong Stack Overflow presence and sentiment (repeated 'Most Loved Language' status); and an official multi-channel community page (blog, Twitter/Weibo, subreddit, 90+ meetups in 35+ countries). This breadth and official curation places Rust at the high end of the 0-100 scale, just short of maximal because some numeric volume indicators (exact SO tag question count, exact subreddit/Discord member counts) could not be independently retrieved within the search budget for this shard.",
+      "retrieval_route": "Provider-brokered web search via task-packet web_search tool, English-language queries, snapshot time 2026-09-22.",
+      "score_normalization": "0-100 scale, 100 = best (comprehensive, actively maintained, multi-channel official and community public knowledge availability). Rust scored 96/100 based on the qualitative multi-channel evidence above.",
+      "search_budget_note": "5 web_search calls were used for this shard; two follow-up queries intended to obtain numeric subreddit and Discord member counts either returned name-collision noise (Steam game 'Rust') or were blocked once the per-turn search quota was exhausted, so those specific numeric counts are not asserted as evidence."
+    }
+  },
+  "requirement_ids": [
+    "metric.community_public_knowledge_availability"
+  ],
+  "requirements": {
+    "metric.community_public_knowledge_availability": {
+      "Rust": 96
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-3--rust"
+}

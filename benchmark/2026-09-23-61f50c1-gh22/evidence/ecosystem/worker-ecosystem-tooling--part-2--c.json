@@ -1,0 +1,66 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-2--c",
+  "assigned_languages": [
+    "C++"
+  ],
+  "evidence": {
+    "metric.debugger_profiler_support": {
+      "C++_findings": [
+        "Multiple mature, independently maintained interactive debuggers exist: GDB, LLDB (LLVM project, cross-platform on Linux/macOS/Windows), and the Visual Studio debugger.",
+        "Visual Studio 2026 continues active debugger investment: debugger stability fixes across 18.7-18.10, expanded 'Attach to Process' support for Podman containers alongside Docker, and a new AI-assisted 'Debugger Agent' workflow that instruments apps with tracepoints and conditional breakpoints.",
+        "Valgrind, a full instrumentation-framework suite (Memcheck, Cachegrind, Massif, Helgrind, DRD), remains actively maintained with a stable release in April 2026.",
+        "The profiler ecosystem spans CPU sampling (Linux perf, Intel VTune, AMD tools/Omnitrace), memory/heap profiling (Valgrind Massif, Heaptrack, Dr. Memory), cache/branch profiling (Cachegrind, perf), concurrency/race detection (Helgrind, DRD), and Windows-native profiling (Visual Studio Profiler with CPU/memory/thread views and flame graphs).",
+        "Visual Studio's built-in Performance Profiler provides CPU Usage, memory, and other analyzers directly from Debug > Performance Profiler, fully IDE-integrated.",
+        "Intel VTune provides deep CPU/GPU/memory/threading analysis and can be used standalone or IDE-integrated; AMD's uProf/Omnitrace tooling extends similar capability including causal profiling."
+      ],
+      "citations_used": [
+        "devblogs.microsoft.com/cppblog Visual Studio 2026 release notes (debugger stability, Podman attach, Debugger Agent)",
+        "en.wikipedia.org/wiki/Valgrind (stable release date, suite scope)",
+        "gist.github.com/MangaD C++ profilers overview (perf/Valgrind/VTune/AMD/Tracy landscape)",
+        "friendlyuser.github.io C++ debugging/profiling guide (LLDB, VS debugger, gprof, perf, VTune descriptions)",
+        "softwarepatternslexicon.com / app.studyraid.com profiling-tools guides (Valgrind, Visual Studio Profiler, VTune usage)",
+        "kdab.com C/C++ profiling tools article (Heaptrack vs Valgrind Massif)"
+      ],
+      "observation_window": "tooling releases and documentation current as of September 2026",
+      "rubric": "0-100 proxy scored from four equally-weighted factors, applied identically across all languages by the parent ecosystem evaluation: (1) existence and maturity of at least one interactive source-level debugger with breakpoints, watches, call-stack inspection and remote/attach support; (2) breadth of the profiler ecosystem (CPU sampling, memory/heap, cache, concurrency/race detection) with more than one independently maintained tool; (3) IDE integration of debugging/profiling workflows; (4) evidence of active maintenance / recent releases within the last 12 months. Score = weighted average normalized to 0-100, with 100 reserved for a language having multiple mature, independently maintained debuggers and a full spectrum of profiler categories (CPU, memory, cache, concurrency) actively maintained and IDE-integrated.",
+      "score_rationale": "C++ has one of the deepest and longest-established debugger/profiler ecosystems of any language: at least three independently maintained full debuggers (GDB, LLDB, Visual Studio debugger) with active 2026 releases, plus a profiler ecosystem covering every major category (CPU sampling, memory/heap, cache, concurrency) from multiple vendors (open-source Valgrind/perf/Heaptrack, commercial Intel VTune, AMD uProf/Omnitrace, Visual Studio Profiler), all IDE-integrated and under active maintenance as of the snapshot date. This places C++ at the top band of the rubric; the score falls short of 100 only because some tools (Valgrind) carry well-documented high runtime overhead (10-100x slowdown) that constrains their production applicability, a real and consistently-scored limitation rather than absent capability.",
+      "snapshot_date": "2026-09-22"
+    },
+    "metric.ide_editor_support_quality": {
+      "C++_findings": [
+        "clangd is a standard, LLVM-maintained language server usable across many editors via a common protocol.",
+        "vscode-clangd and node-clangd repos show active commit history within the last two weeks of the snapshot date, and clangd itself is under continuous LLVM development.",
+        "clangd delivers deep semantic features: precise-type-aware completion, hover, go-to-definition, cross-references, inlay hints, clang-tidy diagnostics, missing-#include insertion, and clang-format-based formatting.",
+        "JetBrains CLion runs two parallel language engines (a built-in engine plus a Clangd-based engine) giving broad C++11-C++20(partial) semantic support, refactoring, navigation and inspections.",
+        "Visual Studio 2026 (18.x line) continues heavy C++-specific investment: IntelliSense improvements, a deeper semantic index for faster navigation, hundreds of C++-specific bug fixes per update wave, and new project/Git tooling integrated into the C++ workflow.",
+        "Independent industry surveys/guides describe the market as dominated by three major, independently maintained C++ tooling stacks -- Visual Studio, CLion, and VS Code (with clangd) -- alongside further options such as Qt Creator, Eclipse CDT, Xcode and Code::Blocks.",
+        "Known friction/limitations recorded for symmetry: clangd requires a compile_commands.json / explicit build-flag setup to work correctly, and CLion's semantic engine can incur long indexing times on very large codebases."
+      ],
+      "citations_used": [
+        "clangd.llvm.org and github.com/clangd (server activity, LSP description)",
+        "github.com/clangd/vscode-clangd and github.com/HighCommander4/vscode-clangd (feature depth)",
+        "jetbrains.com/help/clion (dual-engine architecture, C++ standard coverage)",
+        "devblogs.microsoft.com/cppblog (Visual Studio 2026 C++-specific update content)",
+        "infoworld.com / blog.jetbrains.com C++ ecosystem articles (three-way IDE market description)",
+        "nutrient.io C++ IDE blog (CLion indexing-time caveat)"
+      ],
+      "observation_window": "tooling releases and documentation current as of September 2026",
+      "rubric": "0-100 proxy scored from five equally-weighted factors, applied identically across all languages by the parent ecosystem evaluation: (1) existence and maturity of a first-party or de-facto-standard Language Server Protocol implementation usable across multiple editors; (2) number and maturity of independent, actively maintained full-featured IDEs from different vendors offering deep semantic support (not just syntax highlighting); (3) depth of editor features actually delivered (context-aware completion, cross-file navigation/find-references, inline diagnostics tied to the real compiler, refactoring, formatting, inlay hints); (4) cross-platform availability of the tooling stack (Windows/macOS/Linux); (5) evidence of active maintenance / recent releases within the last 12 months. Score = weighted average of the five factors normalized to 0-100, with 100 reserved for a language having >=3 independently maintained, actively updated, deep-semantic IDE/editor options plus a standard cross-editor LSP.",
+      "score_rationale": "C++ has an unusually deep, multi-vendor, actively-maintained IDE/editor stack: a standard cross-editor LSP (clangd) plus at least three independently engineered full-featured IDE products (Visual Studio, CLion, VS Code+clangd) each shipping deep semantic features and receiving updates within the snapshot window, plus several additional cross-platform options (Qt Creator, Eclipse CDT, Xcode). This meets the top band of the rubric; the score is not a perfect 100 because setup friction (compile_commands.json requirement for clangd) and known large-codebase indexing slowness are documented, real-world frictions rather than absent capability.",
+      "snapshot_date": "2026-09-22"
+    }
+  },
+  "requirement_ids": [
+    "metric.debugger_profiler_support",
+    "metric.ide_editor_support_quality"
+  ],
+  "requirements": {
+    "metric.debugger_profiler_support": {
+      "C++": 95
+    },
+    "metric.ide_editor_support_quality": {
+      "C++": 92
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-2--c"
+}

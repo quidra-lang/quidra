@@ -1,0 +1,63 @@
+{
+  "agent_id": "worker-learnability-i3-i4--typescript",
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "evidence": {
+    "condition.i3_structural_surface_perturbation": {
+      "description": "Two independently generated transformation sets (Set A seed=101: statement terminator, function keyword, argument separator perturbed; Set B seed=202: block markers, declaration separator, return keyword perturbed) applied with equal transformation budget (3 substitutions each) per llm_learnability.structural_surface_transformation_sets=2. Model under test (fresh session per trial) was given only the pseudo-grammar description and had to translate to real TypeScript.",
+      "score_basis": "Both primary transformation sets produced compiling, semantically faithful TypeScript translations on first attempt (Correct@1=1.0, Compile Success=1.0 across both sets); condition score normalized to 100 on the 0-100 scale using the weighted metric definitions in section 10.6 (Compile/Parse Success, Correct@1, Test Pass Rate all satisfied for both sets; no repairs needed so Repair metrics are vacuously satisfied).",
+      "trials": [
+        {
+          "compile_check": "tsc --ignoreConfig --strict --noEmit verify/i3a.ts exit_code=0",
+          "correct_at_1": true,
+          "semantics_preserved": true,
+          "trial_id": "i3-setA-t1"
+        },
+        {
+          "compile_check": "tsc --ignoreConfig --strict --noEmit verify/i3b.ts exit_code=0",
+          "correct_at_1": true,
+          "semantics_preserved": true,
+          "trial_id": "i3-setB-t1"
+        }
+      ]
+    },
+    "condition.i4_novel_rule_generalization": {
+      "description": "Synthetic overlay rule NR-1 (seed=7), defined only in learnability_reference_pack.md and never part of real TypeScript: functions returning number must be prefixed qz_ iff they contain an internal mutable let. Rule mechanically validated via scripts/check_nr1.py, and removal of the prefix leaves semantics unchanged (per llm_learnability.novel_rule_generalization_trials_per_language=1).",
+      "score_basis": "Model correctly inferred and applied the novel NR-1 naming rule to both the mutable-state function (added qz_ prefix) and the pure/const-only function (withheld qz_ prefix) on the first attempt, with code compiling under tsc --strict; condition score normalized to 100 on the 0-100 scale (Compile/Parse Success=1.0, Correct@1=1.0, Specification Compliance=1.0 for the single primary trial per language).",
+      "trials": [
+        {
+          "compile_check": "tsc --ignoreConfig --strict --noEmit verify/i4.ts exit_code=0",
+          "correct_at_1": true,
+          "mechanical_rule_check": "scripts/check_nr1.py verify/i4.ts -> qz_runningTotal:(has_let=True,has_prefix=True,ok=True), average:(has_let=False,has_prefix=False,ok=True)",
+          "rule_applied_correctly_to_both_functions": true,
+          "trial_id": "i4-nr1-t1"
+        }
+      ]
+    },
+    "note": "Primary counts used: structural_surface_transformation_sets=2 (i3), novel_rule_generalization_trials_per_language=1 (i4), matching primary.json llm_learnability frozen configuration. Assigned language TypeScript only; no other language keys present per assigned_requirements.json.",
+    "preflight_and_leakage": {
+      "learnability_leakage_file": "learnability_leakage.json",
+      "learnability_preflight_file": "learnability_preflight.json",
+      "toolchain_evidence": [
+        "run node -e \"console.log('node-ok')\" exit_code=0",
+        "run tsc --version exit_code=0 (Version 7.0.2)"
+      ]
+    },
+    "raw_trial_artifacts": "trials/i3-setA-t1/, trials/i3-setB-t1/, trials/i4-nr1-t1/ (prompt_01.txt, completion_01.txt, session.json each)",
+    "reference_pack": "learnability_reference_pack.md"
+  },
+  "requirement_ids": [
+    "condition.i3_structural_surface_perturbation",
+    "condition.i4_novel_rule_generalization"
+  ],
+  "requirements": {
+    "condition.i3_structural_surface_perturbation": {
+      "TypeScript": 100
+    },
+    "condition.i4_novel_rule_generalization": {
+      "TypeScript": 100
+    }
+  },
+  "work_unit_id": "learnability-i3-i4--typescript"
+}

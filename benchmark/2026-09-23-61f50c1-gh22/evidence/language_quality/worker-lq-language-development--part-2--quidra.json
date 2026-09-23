@@ -1,0 +1,107 @@
+{
+  "agent_id": "worker-lq-language-development--part-2--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "metric.diagnostics": {
+      "catalogue_size": "~100 distinct stable diagnostic codes documented (AMBIGUOUS_NUMERIC_LITERAL .. WRITE_CAPABILITY) each with meaning and typical correction guidance, plus a separate catalogue of coded runtime failure codes (INDEX_BOUNDS, UNINITIALIZED, INTEGER_OVERFLOW, DIVISION_BY_ZERO, etc.) with a stable text shape 'Quidra runtime error[CODE] at LINE:COLUMN: message'.",
+      "limitations_observed": [
+        "no evidence in the docs of fix-it/auto-patch suggestions embedded in the diagnostic JSON itself (though a separate patch-schema.md exists for structural source patches, it is a distinct mechanism, not inline quick-fixes attached to each diagnostic)",
+        "no evidence of related-diagnostic chains (e.g. 'note:' secondary spans) in the sampled JSON output; only a single flat diagnostics list was observed in probes"
+      ],
+      "live_probe_results": [
+        {
+          "assessment": "Static detection of a runtime-shaped error at compile time with precise span.",
+          "input": "int x = 5 / 0",
+          "observed": {
+            "code": "DIVIDE_BY_ZERO",
+            "message": "Integer division by zero is known at compile time.",
+            "span": "1:13-1:14"
+          }
+        },
+        {
+          "assessment": "Actionable correction embedded directly in the message, not just a category label.",
+          "input": "Box<int>.value passed through string(i) (invalid API use)",
+          "observed": {
+            "code": "ARGUMENT_MISMATCH",
+            "message": "string is not a constructor; use string.repeat(value, n) for repetition.",
+            "span": "9:29-9:38"
+          }
+        },
+        {
+          "assessment": "Precise type name and exact member name included, minimal noise.",
+          "input": "int i method .to_string() (does not exist)",
+          "observed": {
+            "code": "UNKNOWN_MEMBER",
+            "message": "Type 'int' has no method 'to_string'.",
+            "span": "9:29-9:42"
+          }
+        },
+        {
+          "assessment": "Human-readable CLI format mirrors the JSON structured code/span/message contract 1:1, so tooling and humans see the same stable identity for a failure.",
+          "input": "quidra run expr_test.qui (uncorrected)",
+          "observed": "stderr: expr_test.qui:9:29: error[ARGUMENT_MISMATCH] string is not a constructor; use string.repeat(value, n) for repetition.\n1 error(s) generated."
+        }
+      ],
+      "machine_readable_interface": "'quidra check program.qui --json' emits {ok, truncated, diagnostics:[{code, message, file, span:{start,end line/column}}]}; --max-errors N controls the emission limit (default 20) and JSON reports truncation.",
+      "method": "Direct inspection of docs/spec/diagnostics.md (stable code catalogue) plus live compiler runs of quidra 0.3.0 via 'quidra check FILE --json' and 'quidra run FILE' on constructed failing programs.",
+      "normalization": "0-100 scale, 100 = best-in-class diagnostics among evaluated languages (e.g. Rust-level). 88 reflects a mature, coded, spanned, machine-readable diagnostic system with unified compile/runtime failure taxonomy, scored slightly below top-tier established compilers only for unconfirmed absence of secondary/related-span notes and inline fix-it suggestions in the sampled JSON.",
+      "strengths": [
+        "stable, versioned diagnostic codes decoupled from wording (contract explicitly documented: 'message wording may become more specific without changing the code')",
+        "every diagnostic carries a source span (line/column start/end)",
+        "machine-readable JSON diagnostics interface built into the compiler CLI, not a third-party add-on",
+        "deterministic, coded runtime safety failures (status 101) with the same code+span discipline extended into runtime, unifying compile-time and runtime diagnosability",
+        "conservative error recovery (invalid type propagation) documented to avoid cascading spurious diagnostics from one root cause",
+        "explicit control over diagnostic volume via --max-errors with truncation reporting in JSON"
+      ]
+    },
+    "metric.functionality_expressiveness": {
+      "comparative_note": "Union types, exhaustiveness checking, per-field flow-sensitive initialization tracking across interprocedural summaries, and a restricted ABI-safe FFI surface are language-level design choices comparable in ambition to Rust/Kotlin sum types and Rust's FFI safety subset; scored below top established languages only where advanced generic metaprogramming (e.g. higher-kinded types, trait objects, reflection) is absent from the current spec.",
+      "features_confirmed_present": [
+        "generic classes with constrained type parameters (numeric/integer/floating/ordered/equatable constraints)",
+        "first-class tagged unions (T | U) with flattening/canonicalization and none/error alternatives",
+        "exhaustive structural match over union alternatives (MATCH_EXHAUSTIVE enforced)",
+        "algebraic-ish enums with typed payloads",
+        "arbitrary precision numeric types (bigint, bigreal) alongside fixed-width int8..uint64/float32/float64",
+        "tensor and neural built-in types with shape patterns and static shape checking (TENSOR_SHAPE)",
+        "error as a first-class typed value plus try-propagation (TRY_CONTEXT) instead of exceptions",
+        "definite-initialization / uninitialized-field flow analysis integrated into the type system (per-field summaries across constructors/returns)",
+        "const/writable reference contracts with path-local const and explicit authority rules (WRITE_CAPABILITY)",
+        "FFI/extern declarations with a restricted, explicit ABI-safe subset (FFI_TYPE, FFI_CALLBACK_TYPE, FFI_REFERENCE codes)",
+        "CLI declaration block sugar (cli decl with argument/option/flag sources)",
+        "structured bin (packed bit) type distinct from byte arrays, with explicit bit-level operations",
+        "default parameters, named arguments, arity/order rules enforced by ARGUMENT_MISMATCH/DUPLICATE_ARGUMENT",
+        "module/import system with cycle detection (IMPORT_CYCLE) and package version/ABI compatibility checks (PACKAGE_COMPATIBILITY)",
+        "REPL with session-safety guard against replaying nondeterministic effects (REPL_REPLAY_UNSAFE)"
+      ],
+      "limitations_observed": [
+        "no operator overloading or user-defined implicit conversions found in the spec",
+        "no trait objects / dynamic dispatch across unrelated types beyond union match",
+        "generic constraints are a fixed closed set (numeric/integer/floating/ordered/equatable), not user-extensible interfaces"
+      ],
+      "live_probe_examples": [
+        {
+          "description": "Generic class Box<T> with constructor, tagged union parameter (int | string), exhaustive match, method call chain compiled/checked with quidra 0.3.0.",
+          "file": "expr_test.qui",
+          "observed_behavior": "Compiler accepted generics, unions and match; correctly rejected an incorrect stdlib call (string(i)) with a specific, actionable ARGUMENT_MISMATCH diagnostic suggesting string.repeat, demonstrating both expressiveness (generics/unions/match are first-class, not bolted on) and integrated diagnostics."
+        }
+      ],
+      "method": "Feature survey against docs/spec/language.md and docs/spec/grammar.ebnf, cross-checked against the built quidra 0.3.0 compiler ('quidra check --json') for accepted/rejected syntax.",
+      "normalization": "0-100 scale, 100 = maximally expressive among evaluated languages; 78 reflects strong modern feature set (unions, exhaustive match, generics, tensors/neural built-ins, structured FFI) offset by absence of user-defined traits/interfaces and operator overloading."
+    }
+  },
+  "requirement_ids": [
+    "metric.diagnostics",
+    "metric.functionality_expressiveness"
+  ],
+  "requirements": {
+    "metric.diagnostics": {
+      "Quidra": 88
+    },
+    "metric.functionality_expressiveness": {
+      "Quidra": 78
+    }
+  },
+  "work_unit_id": "lq-language-development--part-2--quidra"
+}

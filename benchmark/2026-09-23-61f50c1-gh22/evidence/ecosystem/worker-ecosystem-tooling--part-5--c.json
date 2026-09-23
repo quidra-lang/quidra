@@ -1,0 +1,60 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-5--c",
+  "assigned_languages": [
+    "C++"
+  ],
+  "evidence": {
+    "metric.external_integration_coverage": {
+      "limitations": "Domain list is a fixed, declared sample of common production-integration needs, not exhaustive; it does not capture integration depth/feature-completeness beyond an official-vs-community-vs-absent tier, and several domains rely on stable, well-established facts not independently re-searched this pass to conserve the shared query budget across the two assigned metrics.",
+      "per_domain_findings_for_C++": {
+        "AWS SDK": "Verified via AWS's own C++ code-library documentation, which shows a full official AWS SDK for C++ Lambda client workflow (Aws::Lambda::LambdaClient, CreateFunctionRequest, etc.), confirming an official, actively documented AWS SDK for C++.",
+        "HTTP client/server framework": "Boost.Beast (part of the Boost C++ Libraries) and other widely used libraries (e.g. cpp-httplib) provide mature, actively maintained HTTP client/server support for C++; common-knowledge baseline, not separately re-verified by search this pass; scored 10/10.",
+        "Kafka": "librdkafka (Confluent-maintained C/C++ client) is the de-facto official-grade Kafka client for C++, widely used and wrapped by C++-idiomatic layers (e.g. cppkafka); common-knowledge baseline, not separately re-verified by search this pass; scored 10/10.",
+        "Kubernetes client": "No official first-party C++ Kubernetes client library is documented (Kubernetes' officially listed client libraries are for languages such as Go, Python, Java, .NET, JavaScript); C++ Kubernetes interaction in practice is typically done via gRPC/REST calls to custom services rather than a maintained official k8s C++ client SDK, so this domain is scored as community/indirect-only: 5/10.",
+        "ML framework native API": "LibTorch (PyTorch's official C++ frontend) and TensorFlow's official C++ API provide first-party native ML integration for C++; common-knowledge baseline, not separately re-verified by search this pass; scored 10/10.",
+        "MongoDB": "Verified: the mongodb/mongo-cxx-driver GitHub repository is MongoDB's own actively maintained driver, with the releases/stable branch corresponding to 'the driver version which we currently recommend for use in production', and MongoDB's own docs site provides official C++ driver installation/get-started guides.",
+        "OpenTelemetry": "Verified: OpenTelemetry is a CNCF graduated project, and its C++ client (open-telemetry/opentelemetry-cpp) is an official OpenTelemetry-org repository; a v1.0 stable release already implemented the tracing API/SDK with exporters to Jaeger, Zipkin, and OTLP (HTTP/gRPC), and current C++ docs describe ongoing API/SDK capabilities. Scored 10/10.",
+        "PostgreSQL (libpqxx)": "libpqxx is the long-standing official C++ client library for PostgreSQL, distributed alongside the PostgreSQL project; common-knowledge baseline, not separately re-verified by search this pass; scored 10/10.",
+        "Protocol Buffers": "Protobuf's canonical/reference implementation and code generator are C++-based (well-established, not separately re-verified by search this pass); scored 10/10.",
+        "gRPC": "Verified: the grpc/grpc repository states gRPC libraries in multiple languages are written on top of a shared C++ core library (src/core), and ships an official C++ quickstart/tutorial (grpc::CreateChannel, Service interfaces) directly from the gRPC project \u2014 C++ is the reference implementation, scored 10/10."
+      },
+      "rubric": "Frozen proxy: a fixed universe of 10 external-integration domains representative of common production integration needs. Each domain scored 10 points if C++ has an official/vendor-maintained or de-facto-standard, actively maintained client/binding, 5 points if only a community-maintained (non-official) option exists, 0 if no maintained option exists. Domains: (1) Major public-cloud SDK (AWS), (2) gRPC, (3) Protocol Buffers, (4) Relational-DB driver (PostgreSQL), (5) NoSQL DB driver (MongoDB), (6) Distributed messaging (Kafka), (7) HTTP client/server framework, (8) Container-orchestration API client (Kubernetes), (9) Observability/telemetry (OpenTelemetry), (10) ML framework native API. Same 10-domain rubric and same per-domain evidence depth is intended to be applied identically to every language shard.",
+      "score_derivation": "9 domains scored 10/10 (AWS SDK, gRPC, Protobuf, PostgreSQL, MongoDB, Kafka, HTTP framework, OpenTelemetry, ML framework) + 1 domain (Kubernetes client) scored 5/10 due to lack of an official first-party C++ client = 95/100.",
+      "snapshot_date": "2026-09-22"
+    },
+    "metric.implemented_platform_coverage": {
+      "limitations": "Binary per-category scoring does not capture depth/quality differences within a supported platform (e.g. tier-1 CI-tested vs best-effort community support); this is a coarse breadth proxy, not a quality proxy. Some categories were confirmed via search this pass, others rely on stable, well-established toolchain facts not independently re-searched to conserve the shared query budget.",
+      "per_category_findings_for_C++": {
+        "Android (NDK)": "Verified: the Android NDK is a cross-compiling toolchain for C/C++ producing native ARM or x86 code for Android, and uses the Clang compiler.",
+        "BSD/Unix variants": "GCC/Clang packages are standard in FreeBSD/OpenBSD/NetBSD base systems and ports trees for C++; common-knowledge baseline, not separately re-verified by search in this pass.",
+        "Embedded/bare-metal": "GCC-based bare-metal cross toolchains (e.g. arm-none-eabi-gcc, AVR-GCC) and Clang/LLVM embedded targets are long-standing, widely deployed C++ toolchains for microcontroller firmware; common-knowledge baseline, not separately re-verified by search in this pass.",
+        "Linux x86_64 / ARM64": "GCC and Clang are the reference C++ toolchains for Linux on both x86_64 and ARM64; treated as common knowledge baseline, not separately re-verified by search in this pass.",
+        "Serverless (AWS Lambda custom runtime)": "Verified: AWS provides an official open-source C++ implementation of the Lambda runtime (awslabs/aws-lambda-cpp), described as a C++ implementation of the AWS Lambda runtime, and AWS Lambda's Runtime API shipped with a C++ runtime environment available from the initial 2018 announcement.",
+        "WebAssembly": "Verified: Emscripten compiles C and C++ to WebAssembly using LLVM and Binaryen, with output able to run on the Web, in Node.js, and in wasm runtimes.",
+        "Windows x86_64": "MSVC (Visual Studio) plus Clang/MinGW provide first-party Windows C++ toolchains; common-knowledge baseline.",
+        "iOS": "Apple's Xcode/Clang toolchain (used for macOS above) is the same toolchain used to build iOS C++ binaries; common-knowledge baseline, consistent with the Android/Clang and macOS/Xcode evidence already retrieved.",
+        "macOS (x86_64/ARM64)": "Apple ships Clang via Xcode as the primary macOS/iOS C++ toolchain; common-knowledge baseline."
+      },
+      "rubric": "Frozen proxy: a fixed universe of 10 platform-target categories, each scored 10 points (binary) if a mainstream, actively-maintained toolchain/SDK produces production-grade artifacts for that target. Categories: (1) Linux x86_64, (2) Linux ARM64, (3) Windows x86_64, (4) macOS (x86_64 and ARM64), (5) Android (mobile, via NDK), (6) iOS (mobile, via Xcode/Clang), (7) WebAssembly (browser/edge/server), (8) Embedded/bare-metal microcontrollers (no OS), (9) Major cloud serverless functions (custom runtime), (10) BSD/Unix variants. Same 10-category rubric and same evidence-collection depth (one authoritative source per category) is intended to be applied identically to every language shard. Score = 10 x (number of categories with demonstrated production-grade support).",
+      "score_derivation": "All 10 fixed categories show production-grade C++ toolchain support (several directly re-verified this pass: Android NDK/Clang, Emscripten/WebAssembly, AWS Lambda C++ custom runtime; remaining categories rest on long-standing, uncontested toolchain facts about GCC/Clang/MSVC/Xcode). Score = 10 x 10 = 100.",
+      "snapshot_date": "2026-09-22"
+    },
+    "sampling_notes": {
+      "reproducibility": "Selection rule for both metrics' domain/category universes was declared before evidence collection in this shard: platform categories were chosen to span desktop/server, mobile, web, embedded, and serverless deployment surfaces; integration domains were chosen to span cloud, RPC/serialization, relational DB, NoSQL DB, messaging, HTTP, container orchestration, observability, and ML \u2014 all language-neutral criteria independent of any benchmark outcome.",
+      "search_budget_used": "5 of 5 web_search calls consumed on targeted verification of: AWS Lambda C++ runtime, OpenTelemetry C++ SDK/CNCF status, MongoDB C++ driver official status, gRPC C++ core status, Emscripten/Android NDK WebAssembly toolchains."
+    }
+  },
+  "requirement_ids": [
+    "metric.external_integration_coverage",
+    "metric.implemented_platform_coverage"
+  ],
+  "requirements": {
+    "metric.external_integration_coverage": {
+      "C++": 95
+    },
+    "metric.implemented_platform_coverage": {
+      "C++": 100
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-5--c"
+}

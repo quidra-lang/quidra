@@ -1,0 +1,50 @@
+{
+  "agent_id": "worker-lq-language-development--part-4--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "metric.concurrency": {
+      "language": "Python",
+      "normalization_rationale": "Below midpoint due to lack of true CPU-bound thread parallelism and no compile-time race safety; credited for solid native async model and primitives.",
+      "observations": [
+        "GIL prevents true multi-threaded CPU parallelism in CPython.",
+        "multiprocessing gives real parallelism but with serialization overhead.",
+        "asyncio provides native async/await cooperative concurrency, well designed for I/O-bound work.",
+        "No type-system-level data-race safety (unlike Rust).",
+        "Rich stdlib concurrency primitives (Lock, Queue, concurrent.futures) comparable to Java util.concurrent.",
+        "Structured concurrency (asyncio.TaskGroup, 3.11+) is a genuine recent improvement.",
+        "Free-threaded/no-GIL mode (PEP 703) exists but not yet default/mature."
+      ],
+      "raw_score": 40,
+      "scale": "0-100, 100 best"
+    },
+    "metric.ffi_interoperability_design": {
+      "language": "Python",
+      "normalization_rationale": "Above midpoint for strong native in-language FFI mechanisms; below top tier due to marshaling overhead, ABI instability, and GIL friction.",
+      "observations": [
+        "CPython C-API is a first-class in-language FFI mechanism.",
+        "ctypes in stdlib allows calling shared libraries without writing C glue.",
+        "Buffer protocol (PEP 3118) enables zero-copy interop with native code.",
+        "Boxed PyObject model requires marshaling overhead vs native-ABI languages (Rust/Zig/C++).",
+        "Historically unstable binary ABI across CPython minor versions.",
+        "GIL requires explicit acquire/release around native calls for concurrency."
+      ],
+      "raw_score": 62,
+      "scale": "0-100, 100 best"
+    }
+  },
+  "requirement_ids": [
+    "metric.concurrency",
+    "metric.ffi_interoperability_design"
+  ],
+  "requirements": {
+    "metric.concurrency": {
+      "Python": 40
+    },
+    "metric.ffi_interoperability_design": {
+      "Python": 62
+    }
+  },
+  "work_unit_id": "lq-language-development--part-4--python"
+}

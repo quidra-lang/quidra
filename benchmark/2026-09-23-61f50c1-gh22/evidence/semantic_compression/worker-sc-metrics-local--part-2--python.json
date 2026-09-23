@@ -1,0 +1,212 @@
+{
+  "agent_id": "worker-sc-metrics-local--part-2--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "metric.semantic_locality": {
+      "aggregate": {
+        "mean_lookups_per_probe": 0.5349,
+        "normalized_score": 65.15,
+        "scored_probe_count": 43,
+        "sum_lookups": 23
+      },
+      "basis_note": "This is a single-language shard (Python only), computed on the all-Python-fragments basis (43 of 44 probes scored, F20.P2 excluded as NONE/N-1). Per capability_universe.json interaction_with_quality_metrics, the runner is responsible for merging all ten language shards and republishing the figure additionally on the cross-language common basis (probes where all ten languages have a fragment, FULL or PARTIAL) once every language shard is available; this shard cannot determine that common basis on its own and does not claim to.",
+      "caveat": "Lookup counts above are produced by expert language-neutral annotation against the frozen semantic_site_matrix.json rows and capability_universe.json canonical_task text for Python, following the R5/R9/R10 authoring rules; they are not mechanically extracted from compiled/run fragments in this packet-only worker context. No probe was dropped, reweighted, or substituted outside the named R9 exceptions.",
+      "excluded_probes": [
+        {
+          "probe_id": "F20.P2",
+          "reason": "NONE / N-1: Python's frozen recipe (`python3 FILE.py`) produces no compiled artifact, so the frozen `nm`-based symbol-export verification cannot be performed; per capability_universe.json support_rubric this is recorded as NONE with justification, not N/A, and is excluded from Semantic Density/Determinacy/Locality/Hidden-Cost per the interaction_with_quality_metrics common-basis rule (no fragment exists to measure)."
+        }
+      ],
+      "language": "Python",
+      "methodology_basis": "semantic_compression.md section C: 'Measure how much non-local context must be inspected to determine the semantic facts of each probe. Record the number of required external semantic lookups or declaration-graph hops ... Lower lookup cost is better.'",
+      "normalization_formula": "score = 100 / (1 + mean_lookups_per_scored_probe). Lower raw lookup cost -> higher (better) normalized score, 100 is the theoretical ceiling for zero-lookup fragments. This is a locally documented monotonic normalization chosen because the frozen methodology specifies the direction (lower is better) and a 0-100 scale but does not freeze a specific formula; it is recorded here for audit and must be applied identically to every language shard.",
+      "raw_lookup_counts_per_probe": {
+        "F01.P1": {
+          "lookups": 0,
+          "note": "n is declared and produced entirely within the measured fragment; no external declaration is consulted."
+        },
+        "F01.P2": {
+          "lookups": 0,
+          "note": "Both `counter` and `LIMIT` are declared within the measured fragment itself."
+        },
+        "F02.P1": {
+          "lookups": 1,
+          "note": "`cond` is an already-declared boolean given as context outside the fragment; resolving the branch's control-flow fact requires one hop to `cond`'s declaration."
+        },
+        "F02.P2": {
+          "lookups": 0,
+          "note": "Substituted PARTIAL fragment (bytearray(16), default-initialized) is fully local; Python has no genuinely-uninitialized-buffer primitive."
+        },
+        "F03.P1": {
+          "lookups": 1,
+          "note": "`x` is an already-declared mutable local given as context; one hop to its declaration is needed to confirm mutability/type."
+        },
+        "F03.P2": {
+          "lookups": 1,
+          "note": "`xs` is already-declared context; one hop needed to confirm it is the same growable sequence object."
+        },
+        "F04.P1": {
+          "lookups": 0,
+          "note": "PARTIAL under P-a (mutable one-element list used as a writable-alias box); slot/port both declared inside the fragment."
+        },
+        "F04.P2": {
+          "lookups": 1,
+          "note": "`xs` is already-declared context; one hop needed to determine whether `window = xs` copies or aliases (Python: aliases, no copy)."
+        },
+        "F04.P3": {
+          "lookups": 0,
+          "note": "Class, `first`, `second`, and `same` are all constructed inside the measured fragment."
+        },
+        "F05.P1": {
+          "lookups": 1,
+          "note": "Fixed by probe design: `f`'s declaration is explicitly excluded from the fragment and is counted as one non-local lookup for metric C in every language (capability_universe.json F05.P1 measured_fragment note)."
+        },
+        "F05.P2": {
+          "lookups": 0,
+          "note": "For this probe `put`'s full declaration and body are inside the measured fragment boundary; `cell` is also declared locally."
+        },
+        "F05.P3": {
+          "lookups": 2,
+          "note": "`xs` and `k` are already-declared context locals used by the closure and the map call; two hops needed to confirm their types/values."
+        },
+        "F06.P1": {
+          "lookups": 0,
+          "note": "`mid`'s full declaration, the call site, and the binding of `y` are all inside the measured fragment per the probe's own measured_fragment definition."
+        },
+        "F06.P2": {
+          "lookups": 0,
+          "note": "`divmod2`'s declaration, the call, and the binding are all inside the fragment."
+        },
+        "F07.P1": {
+          "lookups": 1,
+          "note": "`a`, `b`, `c` are already-declared, already-initialized context; one hop (as a class of variable-declaration lookup) is needed to resolve their runtime type for the overflow/representation facts, since Python is dynamically typed and no local annotation is present."
+        },
+        "F07.P2": {
+          "lookups": 1,
+          "note": "`a`, `b` are already-declared context; one hop needed for the same reason as F07.P1."
+        },
+        "F08.P1": {
+          "lookups": 0,
+          "note": "`m` is declared and bound entirely within the fragment; Python ints do not overflow so no external numeric-limit lookup is required."
+        },
+        "F08.P2": {
+          "lookups": 1,
+          "note": "`a`, `b` are already-declared context; one hop needed to confirm their type is integer (division-by-zero behavior itself is a fixed language fact needing no lookup, but resolving type_and_representation does)."
+        },
+        "F09.P1": {
+          "lookups": 1,
+          "note": "`s1`, `s2` are already-declared context strings; one hop needed to confirm their declared type/possible subclassing before asserting no dynamic dispatch of `==` occurs."
+        },
+        "F09.P2": {
+          "lookups": 1,
+          "note": "`xs`, `a`, `b` are already-declared context; one hop (grouped as one variable-declaration lookup class) needed to resolve mutability/type facts."
+        },
+        "F10.P1": {
+          "lookups": 1,
+          "note": "`big` is already-declared context; one hop needed to confirm its 64-bit signed type before the narrowing conversion's behavior is fully determinate."
+        },
+        "F10.P2": {
+          "lookups": 1,
+          "note": "`i`, `d` are already-declared context; one hop needed to resolve their static/runtime types for the mixed-arithmetic conversion fact."
+        },
+        "F11.P1": {
+          "lookups": 1,
+          "note": "`xs`, `i` are already-declared context; one hop needed to resolve `i`'s runtime type/value range before the out-of-range behavior is fully locally determinate."
+        },
+        "F11.P2": {
+          "lookups": 1,
+          "note": "`xs` is already-declared context; one hop needed to know whether Python's slice on this particular sequence type copies (list) or is a view (memoryview) since the fragment reuses a given object."
+        },
+        "F12.P1": {
+          "lookups": 0,
+          "note": "`o` and `n` are constructed and bound entirely within the fragment (Python typically substitutes `None` for the absent case; PARTIAL under P-a)."
+        },
+        "F12.P2": {
+          "lookups": 1,
+          "note": "`o` is given as already-declared context from F12.P1; one hop needed to resolve its possibly-absent type before the chaining/mapping fact is determinate."
+        },
+        "F13.P1": {
+          "lookups": 0,
+          "note": "`parse_twice`'s complete declaration and body, including its parameter `s`, are inside the measured fragment."
+        },
+        "F13.P2": {
+          "lookups": 1,
+          "note": "`s` is an already-declared text-string local given as context; one hop needed to confirm its type before the fallible conversion's failure mode is determinate."
+        },
+        "F14.P1": {
+          "lookups": 0,
+          "note": "`Shape`, `Circle`, `Rect`, and `s` are all declared within the fragment (Python substitutes an open class hierarchy for a closed sum type; PARTIAL under P-a)."
+        },
+        "F14.P2": {
+          "lookups": 1,
+          "note": "The probe explicitly reuses the `Shape` type and local `s` declared in F14.P1's fragment; one hop to that prior type declaration is required to resolve the alternative_value_cases and dispatch facts."
+        },
+        "F14.P3": {
+          "lookups": 2,
+          "note": "The separate unit's `Tri` implementation must be resolved via (1) an imported-definition hop back to the `shapes` unit's abstract operation and (2) a hop to confirm `Tri` genuinely implements it, per the frozen multi-unit recipe."
+        },
+        "F15.P1": {
+          "lookups": 0,
+          "note": "`head`'s declaration and both call sites are entirely within the fragment (Python substitutes an unconstrained/duck-typed function for a true parametric one; PARTIAL under P-a)."
+        },
+        "F15.P2": {
+          "lookups": 0,
+          "note": "`max_of`'s declaration and its single call site are entirely within the fragment; Python has no declaration-site constraint mechanism, so misuse is only diagnosed at the call (PARTIAL under P-a), but no external lookup is needed to read the fragment itself."
+        },
+        "F15.P3": {
+          "lookups": 0,
+          "note": "`Named`, `A`, `B`, `items`, and the dispatching call are all declared within the fragment."
+        },
+        "F16.P1": {
+          "lookups": 0,
+          "note": "`xs` and `total` are both constructed and bound within the fragment."
+        },
+        "F16.P2": {
+          "lookups": 0,
+          "note": "`mp`, `total`, and `miss` are all constructed and bound within the fragment."
+        },
+        "F17.P1": {
+          "lookups": 0,
+          "note": "`read_all`'s complete declaration and body (using a `with open(...)` block) are entirely within the fragment."
+        },
+        "F17.P2": {
+          "lookups": 1,
+          "note": "`released` is an already-declared module-level counter given as context; one hop needed to confirm it is the same shared storage incremented by `Handle.__del__` (PARTIAL under P-c: CPython's refcount-driven `__del__` timing is documented as implementation-defined, not a normative guarantee)."
+        },
+        "F18.P1": {
+          "lookups": 0,
+          "note": "`print` is a Python builtin requiring no import declaration; the single output statement is fully local."
+        },
+        "F18.P2": {
+          "lookups": 1,
+          "note": "The external call site must resolve `util.pub_add` through one imported-definition hop to the separate `util` module (frozen multi-unit recipe); `secret`'s privacy is enforced only by convention in Python (PARTIAL under P-a)."
+        },
+        "F19.P1": {
+          "lookups": 0,
+          "note": "Both concurrent units, their join, and the combining production are expressed entirely within the fragment using `asyncio.gather`."
+        },
+        "F19.P2": {
+          "lookups": 0,
+          "note": "The shared counter, both increment loops, the `threading.Lock` synchronization, the join, and the final production are all within the fragment."
+        },
+        "F20.P1": {
+          "lookups": 0,
+          "note": "The `ctypes.CDLL(None).abs` foreign declaration, the call, and the binding/production are all within the fragment; no external code-declaration lookup is required (linking against the platform C library is a runtime/linker fact, not a declaration-graph hop in the fixed lookup list)."
+        }
+      },
+      "scored_probe_count": 43,
+      "unit_of_count": "one lookup per distinct externally-given declaration (variable declaration, callee signature, type declaration, imported definition, or global configuration) that a fact within the measured_fragment genuinely depends on, per capability_universe.json authoring rule R5. Lookups that are optional/for extra detail are not counted, per the matrix's exclusion_criterion."
+    }
+  },
+  "requirement_ids": [
+    "metric.semantic_locality"
+  ],
+  "requirements": {
+    "metric.semantic_locality": {
+      "Python": 65.15
+    }
+  },
+  "work_unit_id": "sc-metrics-local--part-2--python"
+}

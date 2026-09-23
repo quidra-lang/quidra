@@ -1,0 +1,44 @@
+{
+  "agent_id": "worker-lq-language-development--part-2--swift",
+  "assigned_languages": [
+    "Swift"
+  ],
+  "evidence": {
+    "metric.diagnostics": {
+      "method": "Compiled adversarial malformed-source samples (e.g. ADV-22b.swift, containing `1@#$` after a valid integer literal) with swiftc and captured raw stderr diagnostics.",
+      "observations": [
+        "swiftc emits precise line:column source locations, renders the offending source line inline with a caret-style underline pointing at the exact token, and gives a human-readable description of the syntactic expectation violated.",
+        "On genuinely malformed input the compiler produces several cascaded diagnostics for the same root cause (each subsequent token misparsed), which is common in recursive-descent/error-recovery parsers; the first diagnostic is however precise and actionable.",
+        "Runtime diagnostics for adversarial overflow programs (ADV-01 family: Int64->Int32 narrowing of Int64.max) trap with a fatal error identifying 'Fatal error: Int32(_:) failed: the given Int64 is not representable in the target type' including source file/line when built in debug mode -- giving strong runtime diagnosability for undefined/unsafe conversions instead of silent corruption.",
+        "Swift diagnostics are on par with modern LLVM-based diagnostics (similar quality to clang/rustc): source-anchored, colorized in a TTY, and generally single-cause-per-message with occasional cascades on complex expression-level syntax errors.",
+        "No warnings-as-errors distinctions or lint-level suggestions (\"did you mean\") were exercised in this sample set beyond the backtick suggestion for the invalid '$' identifier, which itself demonstrates targeted, actionable fix-it style guidance."
+      ],
+      "raw_compiler_output_sample": "test22b.swift:3:17: error: consecutive statements on a line must be separated by ';'\n1 | import Foundation\n2 | print(\"ADV-START\"); fflush(stdout)\n3 | let v: Int64 = 1@#$\n  |                 `- error: consecutive statements on a line must be separated by ';'\n... (additional cascaded errors: 'expected an attribute name', \"'$' is not an identifier; use backticks to escape it\", \"no macro named '$'\")",
+      "score_rationale": "82/100: precise source-anchored errors with fix-it-style suggestions and strong safe-trap runtime diagnostics for undefined behavior (integer overflow), slightly below the very best (Rust's borrow-checker-grade contextual diagnostics) due to occasional cascaded/duplicate errors on some malformed inputs."
+    },
+    "metric.functionality_expressiveness": {
+      "method": "Inspected reusable comparison programs under template/programs/swift/micro and adversarial, examined idiomatic feature usage, and compiled representative samples with swiftc to confirm language-level capability.",
+      "observations": [
+        "mb10.swift demonstrates a broad, idiomatic feature set in a single 150-line workload: value-type structs with mutating methods (Lcg), optionals and optional binding (guard let, if let), tuple returns, ArraySlice<UInt8> generic slicing without copies, closures used with ContinuousClock().measure, do/try/catch structured error handling, String interpolation, enums-as-sum-type-free error propagation via Never-returning fail(), and CommandLine.arguments for process args.",
+        "Foundation (FileHandle, FileManager, Data) is used as standard-library-adjacent tooling providing buffered byte-level I/O APIs (read(upToCount:), write(contentsOf:)) directly, requiring no external dependency to reach C-like performance-oriented I/O -- indicating strong native expressiveness for systems-level tasks without dropping to unsafe code.",
+        "Adversarial programs (ADV-01..26) show Swift's integer-overflow semantics are explicit and safe by default: converting Int64 to Int32 with Int32(a) traps on overflow rather than silently truncating, forcing developers to use Int32(truncatingIfNeeded:) or Int32(exactly:) for defined behavior -- a deliberate safety-oriented expressiveness trade columns for other languages allowing silent wraparound.",
+        "Swift's protocol-oriented generics, extensions, algebraic-ish enums with associated values, first-class optionals, and structured concurrency (async/await, actors) are established idioms not required by these workloads but available in the language and are part of its expressive core.",
+        "Weaknesses versus top-tier expressiveness peers: lacks true algebraic data types with exhaustive pattern-matching guarantees as rich as Rust's enum matching in some edge cases, and Foundation's cross-platform behavior (especially on Linux) has historically had gaps versus Apple platforms, slightly limiting some standard-library expressiveness portability (this portability gap is captured separately under Ecosystem, not scored here)."
+      ],
+      "score_rationale": "84/100: modern, safe-by-default, expressive systems + application language with strong value semantics, optionals, protocol-oriented generics, structured error handling and concurrency; scored just below languages with more mature ADT/pattern-matching guarantees (e.g. Rust) but above less expressive systems languages."
+    }
+  },
+  "requirement_ids": [
+    "metric.diagnostics",
+    "metric.functionality_expressiveness"
+  ],
+  "requirements": {
+    "metric.diagnostics": {
+      "Swift": 82
+    },
+    "metric.functionality_expressiveness": {
+      "Swift": 84
+    }
+  },
+  "work_unit_id": "lq-language-development--part-2--swift"
+}

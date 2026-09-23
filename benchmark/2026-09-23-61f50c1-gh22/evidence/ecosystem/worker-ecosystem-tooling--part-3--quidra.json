@@ -1,0 +1,224 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-3--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "metric.build_test_integration": {
+      "frozen_rubric": {
+        "criteria": [
+          {
+            "id": "canonical_build_system",
+            "max_points": 15,
+            "test": "Is there one canonical, documented build system with a single source of truth for project metadata, usable identically across supported platforms?"
+          },
+          {
+            "id": "categorized_automated_test_suite",
+            "max_points": 20,
+            "test": "Does the project run an automated test harness (e.g. ctest) integrated into the build, covering multiple explicit test categories (parser/checker, runtime smoke, stdlib/module, packaging, CLI/REPL, metadata)?"
+          },
+          {
+            "id": "multi_os_ci",
+            "max_points": 15,
+            "test": "Does CI build and test on at least Linux, macOS, and Windows?"
+          },
+          {
+            "id": "multi_compiler_ci",
+            "max_points": 10,
+            "test": "Does CI validate against more than one compiler toolchain?"
+          },
+          {
+            "id": "quality_gate_builds",
+            "max_points": 15,
+            "test": "Does CI run sanitizer and warnings-as-errors builds in addition to plain release builds?"
+          },
+          {
+            "id": "release_gated_by_ci",
+            "max_points": 15,
+            "test": "Is tagging/publishing a release mechanically gated on green CI rather than a manual/ad-hoc step, with immutable tags?"
+          },
+          {
+            "id": "ecosystem_compatibility_ci",
+            "max_points": 10,
+            "test": "Is downstream/first-party package compatibility continuously tested against core changes (cross-repo integration testing)?"
+          }
+        ],
+        "description": "Objective proxy rubric applied identically to every language in this Ecosystem category. Score = sum of sub-scores (0-100)."
+      },
+      "limitations": "No direct access to live CI run logs or coverage numbers was available in this packet; scoring relies on the project's own frozen release/build documentation cross-checked against externally observable release and PR history for the same repository.",
+      "quidra_score_breakdown": {
+        "canonical_build_system": 15,
+        "categorized_automated_test_suite": 19,
+        "ecosystem_compatibility_ci": 8,
+        "multi_compiler_ci": 10,
+        "multi_os_ci": 15,
+        "normalization_note": "A small deduction (-6) is applied because evidence is observational (repository docs, PR/release descriptions and CI-matrix summaries) rather than a fully reproduced live CI log inspection, and because the project is a young pre-1.0 codebase with only two tagged releases observed.",
+        "normalized_score": 91,
+        "quality_gate_builds": 15,
+        "raw_sum": 97,
+        "release_gated_by_ci": 15
+      },
+      "raw_evidence": [
+        {
+          "note": "Canonical build/release workflow doc. project.toml is declared the single source of truth for build/version metadata, regenerated via a checked sync script.",
+          "quote": "python3 scripts/sync_metadata.py --check",
+          "source": "/quidra-benchmark/repo/docs/development.md"
+        },
+        {
+          "note": "Explicit enumerated release-gating checklist covering compilers, platforms, sanitizers, and multiple test categories.",
+          "quote": "GCC and Clang release builds",
+          "source": "/quidra-benchmark/repo/docs/development.md"
+        },
+        {
+          "note": "Release automation is described as mechanical: the tagging workflow runs only on push to main and refuses to run twice for the same version.",
+          "quote": "the workflow aborts when the tag is already there",
+          "source": "/quidra-benchmark/repo/docs/development.md"
+        },
+        {
+          "note": "README build/test invocation using CMake + ctest, matching docs.",
+          "quote": "ctest --test-dir build --output-on-failure",
+          "source": "https://github.com/quidra-lang/quidra (web search)"
+        },
+        {
+          "note": "An actual release PR description confirms the CI matrix that gated the v0.2.0 release.",
+          "quote": "passed the repository CI matrix, including GCC/Clang, sanitizers, macOS, Windows, packaging",
+          "source": "https://github.com/quidra-lang/quidra/pull/3 (web search)"
+        },
+        {
+          "note": "Release was created by an automated github-actions bot with a verified signature, consistent with the documented tag-on-push-to-main automation.",
+          "quote": "github-actions released this",
+          "source": "https://github.com/quidra-lang/quidra/releases/tag/v0.2.0 (web search)"
+        },
+        {
+          "note": "Cross-repository compatibility CI: first-party packages are continuously tested against core changes before landing.",
+          "quote": "core changes cannot silently break first-party packages",
+          "source": "https://github.com/quidra-lang/quidra/pull/4 (web search)"
+        },
+        {
+          "note": "First-party libraries have their own release procedure and CI pinned to the immutable released core tag, evidencing an actual multi-repo release chain rather than only a described one.",
+          "quote": "switches CI to the immutable Quidra v0.2.0 tag",
+          "source": "https://github.com/quidra-lang/vision/pull/3 and https://github.com/quidra-lang/dnn/pull/2 (web search)"
+        },
+        {
+          "note": "quidra lock --check is documented as the non-writing CI form for lockfile integrity checks, integrating package/dependency correctness into automated pipelines.",
+          "quote": "quidra lock FILE.qui --check is the non-writing CI form",
+          "source": "/quidra-benchmark/repo/docs/packages.md"
+        }
+      ]
+    },
+    "metric.documentation_quality": {
+      "frozen_rubric": {
+        "criteria": [
+          {
+            "id": "dev_workflow_docs",
+            "max_points": 15,
+            "test": "Is there a canonical, operational (not merely descriptive) development/release/versioning workflow document?"
+          },
+          {
+            "id": "formal_spec_completeness",
+            "max_points": 25,
+            "test": "Does the language have a complete formal/semantic specification, including a machine-checkable grammar?"
+          },
+          {
+            "id": "diagnostics_reference",
+            "max_points": 15,
+            "test": "Is there a complete, stable, coded reference of compiler diagnostics/runtime failures with correction guidance?"
+          },
+          {
+            "id": "stdlib_api_reference",
+            "max_points": 15,
+            "test": "Are standard-library namespaces/APIs documented with contracts, not just examples?"
+          },
+          {
+            "id": "tooling_and_machine_readable_docs",
+            "max_points": 15,
+            "test": "Is there dedicated documentation for LLM/automation consumption and machine-discoverable schemas (patch/grammar/describe)?"
+          },
+          {
+            "id": "process_and_packaging_docs",
+            "max_points": 15,
+            "test": "Are packaging, distribution, and contribution/process concerns documented separately from the language spec?"
+          }
+        ],
+        "description": "Objective proxy rubric applied identically to every language in this Ecosystem category. Score = sum of sub-scores (0-100)."
+      },
+      "limitations": "Evidence is drawn from the frozen docs/ directory embedded in this task plus externally observable repository artifacts (README, PRs, releases); no independent readability/clarity NLP scoring was performed, consistent with the proxy-based rubric used here.",
+      "quidra_score_breakdown": {
+        "dev_workflow_docs": 15,
+        "diagnostics_reference": 15,
+        "formal_spec_completeness": 23,
+        "normalization_note": "A deduction (-6) reflects that documentation is concentrated in in-repo markdown/spec files rather than a generated, versioned public docs site, and that some cross-file restatement risk is only partially mitigated (README examples had to be corrected to match contracts, per observed PRs).",
+        "normalized_score": 90,
+        "process_and_packaging_docs": 14,
+        "raw_sum": 96,
+        "stdlib_api_reference": 14,
+        "tooling_and_machine_readable_docs": 15
+      },
+      "raw_evidence": [
+        {
+          "note": "Development/release doc is explicitly operational rather than descriptive, single authority for the release procedure.",
+          "quote": "the single authority for the release procedure",
+          "source": "/quidra-benchmark/repo/docs/development.md"
+        },
+        {
+          "note": "A complete EBNF grammar file exists as part of the formal specification, covering program structure, types, statements and lexical constraints.",
+          "source": "/quidra-benchmark/repo/docs/spec/grammar.ebnf"
+        },
+        {
+          "note": "Exhaustive language semantics reference covering types, arrays, bin, classes, references, generics, enums, tensors, neural values, and standard namespaces in one document.",
+          "source": "/quidra-benchmark/repo/docs/spec/language.md"
+        },
+        {
+          "note": "A large stable table mapping every diagnostic code to meaning and typical correction, plus a documented runtime-failure format.",
+          "quote": "Codes are contracts for the category of failure",
+          "source": "/quidra-benchmark/repo/docs/spec/diagnostics.md"
+        },
+        {
+          "note": "A dedicated, enumerated (60+ rule) guide specifically for LLM/automated code generation, separate from the human-facing spec.",
+          "source": "/quidra-benchmark/repo/docs/spec/llm-guide.md"
+        },
+        {
+          "note": "A versioned, machine-readable structural patch schema is documented, with a compiler command to fetch the authoritative JSON Schema directly.",
+          "quote": "quidra describe patch-schema",
+          "source": "/quidra-benchmark/repo/docs/spec/patch-schema.md"
+        },
+        {
+          "note": "Package management, manifest fields, lockfile format and release-identity rules are documented in a dedicated file separate from the language spec.",
+          "source": "/quidra-benchmark/repo/docs/packages.md"
+        },
+        {
+          "note": "Project process tooling (automated issue triage) is documented, including its security boundary and label set.",
+          "source": "/quidra-benchmark/repo/docs/issue-ai-triage.md"
+        },
+        {
+          "note": "README documents `quidra describe llm`/`quidra describe grammar`-style machine discovery commands and structured tooling surface consistent with the in-repo docs.",
+          "quote": "LLM-friendliness is not only surface syntax",
+          "source": "https://github.com/quidra-lang/quidra (web search)"
+        },
+        {
+          "note": "Evidence that documentation is actively kept in sync with implementation contracts via dedicated docs-alignment PRs rather than left stale.",
+          "quote": "Align image and DNN documentation with current contracts",
+          "source": "https://github.com/quidra-lang/quidra/pull/5 (web search)"
+        },
+        {
+          "note": "Metadata single-source-of-truth is verified by a dedicated test that also checks documentation prose for drift.",
+          "quote": "fails if the version appears anywhere it would be a second definition",
+          "source": "/quidra-benchmark/repo/docs/development.md"
+        }
+      ]
+    }
+  },
+  "requirement_ids": [
+    "metric.build_test_integration",
+    "metric.documentation_quality"
+  ],
+  "requirements": {
+    "metric.build_test_integration": {
+      "Quidra": 91
+    },
+    "metric.documentation_quality": {
+      "Quidra": 90
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-3--quidra"
+}

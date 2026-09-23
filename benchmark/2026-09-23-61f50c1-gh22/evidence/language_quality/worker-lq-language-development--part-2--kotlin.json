@@ -1,0 +1,50 @@
+{
+  "agent_id": "worker-lq-language-development--part-2--kotlin",
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "evidence": {
+    "metric.diagnostics": {
+      "method": "Compiled a deliberately corrupted adversarial program (ADV-22b.kt, containing malformed token sequence 'prin@#$tln(...)') with kotlinc 2.3.21 and captured raw compiler diagnostics.",
+      "observations": [
+        "Compiler reports precise file:line:column locations for each syntax error and includes a source-line caret/underline pointing at the offending token, matching modern compiler diagnostic UX (similar to rustc/clang style).",
+        "Errors are descriptive ('Expecting an element', 'Unexpected tokens') and actionable, though it does not suggest an automatic fix (e.g. no 'did you mean println?' style suggestion) since the corruption changes the identifier entirely.",
+        "Kotlin/IntelliJ tooling (not exercised here due to sandbox constraints) additionally provides real-time inline diagnostics, quick-fixes, and null-safety warnings at edit time; only the batch kotlinc CLI diagnostics were captured in this sandboxed evidence run.",
+        "Runtime diagnostics: Kotlin surfaces JVM exceptions (NullPointerException, ClassCastException, ArithmeticException) with stack traces including originating file/line via the JVM, but does not include Kotlin-specific static safety guarantees at runtime beyond what the JVM offers (e.g., Kotlin null-safety is a compile-time-only guarantee, not enforced by the runtime type system, so unsafe interop with Java can still produce NPEs)."
+      ],
+      "raw_compiler_output": "adv22b.kt:5:10: error: syntax error: Expecting an element.\n    prin@#$tln(\"OBS=V:\" + v)\n         ^\nadv22b.kt:5:11: error: syntax error: Unexpected tokens (use ';' to separate expressions on the same line).\n    prin@#$tln(\"OBS=V:\" + v)\n          ^^^^^^^^^^^^^^^^^^\n",
+      "score_basis": "Scored 82/100: clear, precise compiler diagnostics with location and caret info, good for CLI batch compilation; lacks compiler-suggested auto-fixes and Kotlin null-safety is not runtime-enforced against Java interop boundaries, slightly below top-tier diagnostics (e.g. Rust's suggestion-rich borrow/type errors)."
+    },
+    "metric.functionality_expressiveness": {
+      "limitations": [
+        "No native pattern-matching on positional data beyond destructuring declarations (component1/component2); less expressive than Rust/Scala full pattern matching with guards on nested structures.",
+        "Generics use type erasure (JVM), limiting reified generic expressiveness without inline reified fun workarounds."
+      ],
+      "method": "Qualitative review of Kotlin adversarial/micro corpus programs plus language feature survey.",
+      "observations": [
+        "Kotlin supports null-safety types, data classes, sealed classes, extension functions, coroutines, higher-order functions, lambdas with trailing-lambda syntax, smart casts, and operator overloading, giving high expressiveness for common algorithmic and data-processing tasks.",
+        "Interop with the full Java standard library and JVM ecosystem provides broad functional coverage (collections, generics with variance, reflection) without needing external native libraries.",
+        "Numeric semantics are explicit (Int/Long/Double are distinct, no implicit narrowing) as observed in ADV-01_C.kt (explicit a.toInt() narrowing conversion required); this makes intent explicit but requires slightly more boilerplate than dynamically-typed languages for numeric conversions.",
+        "Sealed classes + when expressions give exhaustive pattern-matching comparable to algebraic data types, though without full deep destructuring pattern matching such as Rust's match on nested enums.",
+        "Coroutines (structured concurrency) are a first-class, idiomatic expressiveness feature exceeding raw thread/callback based languages."
+      ],
+      "score_basis": "Scored 88/100: strong modern expressiveness (null safety, coroutines, extension functions, data/sealed classes) offset by JVM generic erasure and less powerful pattern matching than some peers."
+    },
+    "toolchain": {
+      "kotlinc_version": "kotlinc-jvm 2.3.21 (JRE 26.0.1+8)"
+    }
+  },
+  "requirement_ids": [
+    "metric.diagnostics",
+    "metric.functionality_expressiveness"
+  ],
+  "requirements": {
+    "metric.diagnostics": {
+      "Kotlin": 82
+    },
+    "metric.functionality_expressiveness": {
+      "Kotlin": 88
+    }
+  },
+  "work_unit_id": "lq-language-development--part-2--kotlin"
+}

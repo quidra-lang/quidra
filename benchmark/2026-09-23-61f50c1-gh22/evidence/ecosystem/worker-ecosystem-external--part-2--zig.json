@@ -1,0 +1,121 @@
+{
+  "agent_id": "worker-ecosystem-external--part-2--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "metric.production_adoption_deployment_evidence": {
+      "candidate_universe": "Community-maintained 'zig-companies' / 'zig-companies-and-organizations' GitHub lists referenced from Ziggit forum; Zig Software Foundation sponsorship/blog posts; Uber engineering blog; Bun engineering blog; independent 2026 Zig-vs-Rust comparative analyses.",
+      "language": "Zig",
+      "limitations": "Adoption evidence relies partly on company engineering blogs and foundation sponsorship disclosures, which are self-reported by adopters or the foundation rather than independently audited; job-posting counts are a rough proxy and were not used as the sole basis for the score.",
+      "predeclared_sampling_rule": "Identify production users via (a) company engineering blogs describing in-production usage, (b) the language foundation's own funding/sponsorship disclosures naming production adopters, and (c) independent third-party comparative analyses published in 2026, applying the same retrieval depth (three route types) used for every other assigned language.",
+      "raw_findings": [
+        {
+          "adopter": "TigerBeetle (financial/accounting database)",
+          "finding": "TigerBeetle is built entirely in Zig for a distributed, deterministic financial ledger, deployed in production clusters of six replicas across multiple cloud providers; TigerBeetle and Synadia jointly pledged $512,000 to the Zig Software Foundation.",
+          "quote": "Two years later, I chose Zig over C or Rust for TigerBeetle.",
+          "source": "https://tigerbeetle.com/blog/2025-10-25-synadia-and-tigerbeetle-pledge-512k-to-the-zig-software-foundation/ ; https://docs.tigerbeetle.com/single-page/"
+        },
+        {
+          "adopter": "Uber (infrastructure cross-compilation toolchain)",
+          "finding": "Uber built a hermetic C/C++ cross-compilation toolchain (zig cc, later open-sourced as hermetic_cc_toolchain) that by January 2023 was used for production code compiling both x86_64 and arm64 server architectures inside Uber's Go/Bazel monorepo.",
+          "quote": "A C++ toolchain for both server architectures (x86_64 and arm64) that we use for production code",
+          "source": "https://www.uber.com/en-IN/blog/bootstrapping-ubers-infrastructure-on-arm64-with-zig/ ; https://github.com/uber/hermetic_cc_toolchain"
+        },
+        {
+          "adopter": "Bun (JavaScript runtime)",
+          "finding": "Bun's original implementation was written in Zig by its creator and grew to a CLI with over 22 million monthly downloads with first-party support from Vercel, Railway and DigitalOcean; as of 2026 Bun's team has begun rewriting portions of the runtime from Zig to Rust, so Zig's role in this flagship production user is now partial/declining rather than exclusive.",
+          "quote": "Zig made Bun possible.",
+          "source": "https://bun.com/blog/bun-in-rust ; https://tech-insider.org/zig-vs-rust-2026/"
+        },
+        {
+          "adopter": "Ghostty (terminal emulator)",
+          "finding": "Ghostty is cited alongside TigerBeetle as a real, continuing production Zig deployment in 2026 comparative analyses.",
+          "quote": "Ghostty\u2019s continued production use",
+          "source": "https://tech-insider.org/zig-vs-rust-2026/"
+        },
+        {
+          "adopter": "Overall market-signal",
+          "finding": "Independent 2026 analysis characterizes Zig's production footprint as small but genuine, concentrated in a handful of named companies (Bun, TigerBeetle, a few embedded-systems firms and startups) with total global active Zig job postings likely under 50, versus thousands for an established competitor language.",
+          "quote": "The total global count of active Zig job postings at any time is likely under 50.",
+          "source": "https://rustify.rs/articles/rust-vs-zig-2026"
+        },
+        {
+          "adopter": "Community-tracked adopter list",
+          "finding": "A community-maintained, continuously updated GitHub list specifically catalogs companies and non-profit organizations reporting production Zig usage, indicating organized community tracking of adoption beyond the few headline names.",
+          "quote": "List of commercial companies and non-profit organizations using Zig in production",
+          "source": "https://github.com/rofrol/zig-companies-and-organizations ; https://ziggit.dev/t/list-of-companies-using-zig-in-production/4084"
+        }
+      ],
+      "retrieval_route": "web_search snapshot queries against ziggit.dev, github.com, tigerbeetle.com, uber.com, bun.com, and independent analysis sites (rustify.rs, tech-insider.org)",
+      "snapshot_time": "2026-09-22",
+      "synthesis": "Zig has real, independently documented production deployments, including one high-profile financial-infrastructure database (TigerBeetle) built entirely in Zig, a large tech company (Uber) using a Zig-based toolchain for production cross-compilation, and a widely-used developer tool (Bun) whose original production implementation was written in Zig. However, the language remains pre-1.0, the roster of named production adopters is short and repeatedly cites the same few examples, the job market signal is very small (well under 50 active postings estimated globally), and its most famous adopter (Bun) is in 2026 partially migrating away from Zig toward Rust. This constitutes credible but narrow and somewhat fragile production adoption evidence relative to mainstream, 1.0-stable competitor languages."
+    },
+    "metric.third_party_tool_availability": {
+      "candidate_universe": "ziglang.org/learn/tools/ page; VS Code Marketplace search 'zig'; JetBrains Marketplace search 'zig'; zigtools/zls GitHub repo; Zed docs languages/zig page; emacs-lsp lsp-mode zig page",
+      "language": "Zig",
+      "limitations": "Popularity/marketplace-listing counts were used only descriptively (which extensions exist and what they support), not as a standalone numeric popularity proxy, per methodology constraints on raw popularity indicators.",
+      "predeclared_sampling_rule": "Check (a) the official language tooling page linked from ziglang.org, (b) the top editor-marketplace extension for each of the four most widely used general-purpose editors/IDE families (VS Code Marketplace, JetBrains Marketplace, Zed built-in docs, Emacs lsp-mode package index), and (c) the canonical language-server repository referenced by the official docs, applying the same four-route depth used for every other assigned language in this evaluation.",
+      "raw_findings": [
+        {
+          "finding": "ZLS (Zig Language Server) is the official-adjacent, actively maintained LSP implementation from the zigtools org, providing completions, hover, goto-definition, references, rename, formatting via zig fmt, semantic highlighting, inlay hints and code actions.",
+          "quote": "ZLS is a non-official implementation of the Language Server Protocol for Zig in Zig.",
+          "source": "https://github.com/zigtools/zls/ ; https://zigtools.org/",
+          "tool_category": "Language server (editor-agnostic)"
+        },
+        {
+          "finding": "An official VS Code extension published by the ziglang org (ziglang.vscode-zig) provides syntax highlighting, formatting, ZLS integration, install/version management, and run/debug for programs and tests; it is mirrored on Open VSX for VSCodium users.",
+          "quote": "install and manage Zig version",
+          "source": "https://marketplace.visualstudio.com/items?itemName=ziglang.vscode-zig ; https://codeberg.org/ziglang/vscode-zig",
+          "tool_category": "VS Code"
+        },
+        {
+          "finding": "ZigBrains is a community-maintained JetBrains plugin using ZLS for coding assistance and exposing native debugger settings; native debugging is verified to work in a documented subset of JetBrains IDEs, using the C++ toolchain/debugger in CLion, while Community-edition IDEs lack the proprietary native-debug module needed to debug Zig.",
+          "quote": "Debugging Zig code is supported in any native debugging capable IDE.",
+          "source": "https://plugins.jetbrains.com/plugin/22456-zigbrains ; https://github.com/Falsepattern/Zigbrains",
+          "tool_category": "JetBrains IDEs (IntelliJ/CLion)"
+        },
+        {
+          "finding": "Zed ships first-party Zig language support through a dedicated extension.",
+          "quote": "Zig support is available through the Zig extension.",
+          "source": "https://zed.dev/docs/languages/zig",
+          "tool_category": "Zed editor"
+        },
+        {
+          "finding": "lsp-mode documents a dedicated Zig integration (lsp-zig) that wires the ZLS binary into Emacs, including build-on-save and cache-path configuration.",
+          "quote": "For more information about the LSP server, check zls.",
+          "source": "https://emacs-lsp.github.io/lsp-mode/page/lsp-zig/",
+          "tool_category": "Emacs"
+        },
+        {
+          "finding": "Formatting is delivered by the built-in `zig fmt` command and ZLS wraps it directly for editors, so there is a single canonical formatter but no large ecosystem of independent third-party linters comparable to mature mainstream languages.",
+          "quote": "Formatting using zig fmt",
+          "source": "https://ziglang.org/learn/tools/ ; https://github.com/zigtools/zls/",
+          "tool_category": "Formatter / linter"
+        },
+        {
+          "finding": "Zig relies on general-purpose native debuggers (GDB/LLDB) and IDE-native debugging back-ends (e.g. CLion's bundled debugger via ZigBrains) rather than a Zig-specific debugger; the JetBrains plugin explicitly reuses the C++ toolchain's debugger.",
+          "quote": "the plugin uses the C++ Toolchains for sourcing the debugger",
+          "source": "https://plugins.jetbrains.com/plugin/22456-zigbrains",
+          "tool_category": "Debugger"
+        }
+      ],
+      "retrieval_route": "web_search snapshot queries against ziglang.org, marketplace.visualstudio.com, plugins.jetbrains.com, github.com/zigtools, zed.dev, emacs-lsp.github.io",
+      "snapshot_time": "2026-09-22",
+      "synthesis": "Zig has broad, actively-maintained coverage across the major general-purpose editors (VS Code official extension, JetBrains via ZigBrains, Zed, Emacs, plus community Vim/Sublime/Neovim integrations not itemized above) built on a single well-supported official-adjacent language server (ZLS) that covers core IDE features and delegates formatting to the canonical `zig fmt`. Coverage is materially thinner outside editor tooling: there is no Zig-specific debugger (debugging borrows GDB/LLDB or an IDE's native/C++ debugger backend), no broad ecosystem of independent static-analysis or linting tools beyond `zig fmt`/ZLS diagnostics, and pre-1.0 language churn (e.g. the 2026 package-manager overhaul) periodically breaks third-party tool compatibility. This yields solidly middling third-party tool availability: real and usable for day-to-day development, but shallower and less specialized than ecosystems built around a 1.0-stable, decade-plus mainstream language."
+    }
+  },
+  "requirement_ids": [
+    "metric.production_adoption_deployment_evidence",
+    "metric.third_party_tool_availability"
+  ],
+  "requirements": {
+    "metric.production_adoption_deployment_evidence": {
+      "Zig": 40
+    },
+    "metric.third_party_tool_availability": {
+      "Zig": 55
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-2--zig"
+}

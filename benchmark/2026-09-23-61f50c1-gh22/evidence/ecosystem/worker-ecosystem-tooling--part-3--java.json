@@ -1,0 +1,80 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-3--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "metric.build_test_integration": {
+      "raw_findings": {
+        "build_tools": "Java has two dominant, independently-maintained, mature build tools (Maven and Gradle) plus legacy/edge options (Ant, Bazel, sbt) that JUnit explicitly documents integration for.",
+        "ci_integration": "CI systems such as Jenkins have first-party plugins for both JUnit reporting and JaCoCo coverage publishing, and Gradle's own remote Build Cache and Build Scans are enabled for reuse of CI task outputs by default in major Java open-source projects such as JUnit 5 itself.",
+        "citation_build_scan": "The remote Build Cache is enabled by default for everyone so that local builds can reuse task outputs from previous CI builds.",
+        "citation_build_tools": "First-class support for the JUnit Platform also exists in popular IDEs (see IntelliJ IDEA, Eclipse, NetBeans, and Visual Studio Code) and build tools (see Gradle, Maven, Ant, Bazel, and sbt).",
+        "citation_ci_jacoco_jenkins": "JaCoCo can be added to Jenkins, GitHub Actions, GitLab CI, or other CI/CD tools to enforce test coverage rules.",
+        "citation_ci_jenkins": "JUnit tests can also be run and reported on by continuous integration systems like Jenkins.",
+        "citation_coverage_gradle": "The JaCoCo plugin provides code coverage metrics for Java code via integration with JaCoCo.",
+        "citation_coverage_gradle_task": "If the Java plugin is also applied to your project, a new task named jacocoTestReport is created.",
+        "citation_coverage_verification": "jacocoTestCoverageVerification \u2014 JacocoCoverageVerification \u00b7 Verifies code coverage metrics based on specified rules for the test task.",
+        "citation_jacoco_dominance": "JaCoCo is currently the most actively maintained and sophisticated code coverage measurement tool for the Java ecosystem.",
+        "citation_maven_lifecycle": "The tests can then be run from Maven Projects > junit5-maven-consumer > Lifecycle > Test.",
+        "citation_test_convention": "By default, build tools look for source code in src/main/java and tests in src/test/java.",
+        "citation_test_framework": "Gradle 4.6 or higher versions support JUnit 5 so that you don't have to configure it by yourself.",
+        "coverage_integration": "JaCoCo, the de facto Java coverage tool, ships official first-party Gradle and Maven plugins that hook directly into the test task/goal and can enforce coverage thresholds as a build-breaking verification step.",
+        "test_framework_native_integration": "JUnit 5 (JUnit Platform/Jupiter/Vintage) is the de facto standard test framework and both major build tools run it natively via a lifecycle test phase/task."
+      },
+      "rubric": "Frozen 0-100 proxy rubric, 20 pts each, applied identically to all 10 languages: (a) mature standard/de-facto build tool(s) with first-class dependency management; (b) native test-runner support wired into the build tool's lifecycle without bespoke glue; (c) breadth of independent build tools that support the same canonical test framework out of the box; (d) coverage/reporting tool integration maturity into the build graph; (e) CI ecosystem integration (official actions/plugins, build-scan/cache tooling).",
+      "score_breakdown": {
+        "breadth_of_supported_build_tools_20": 19,
+        "ci_ecosystem_integration_20": 18,
+        "coverage_reporting_integration_20": 19,
+        "native_test_runner_integration_20": 20,
+        "rationale": "Java loses a small number of points only because two build ecosystems (Maven XML vs Gradle Groovy/Kotlin DSL) create some duplicated tooling/config surface, and coverage/CI integration, while mature, still requires third-party plugins (JaCoCo, Jenkins JaCoCo plugin) rather than being bundled in the JDK itself.",
+        "standard_build_tools_20": 20,
+        "total": 96
+      },
+      "snapshot_note": "Evidence collected via web search, snapshot September 22, 2026, using official tool documentation and widely-used technical guides as sources for Java's toolchain state."
+    },
+    "metric.documentation_quality": {
+      "raw_findings": {
+        "api_reference": "Oracle publishes per-version Java SE API documentation and a central 'Get Started' documentation hub covering Java SE, JavaFX, and related technologies.",
+        "citation_devjava_currency": "Java has come a long ways since Java 8.",
+        "citation_devjava_freshness_signal": "JEP targeted to JDK 28: 401: Value Objects (Preview) Dan Smith on September 20, 2026",
+        "citation_devjava_modern_topic": "How to model your immutable data with records to make your code simpler and more readable.",
+        "citation_docs_hub": "Oracle Java SE Embedded and JDK for ARM documentation \u00b7 Java Card technology provides a secure environment for applications that run on smart cards and other devices with very limited memory and processing capabilities.",
+        "citation_docs_site": "Visit the Java Platform Standard Edition Technical Documentation site for information on new features and enhancements, Java Tutorials, Developer Guides, API documentation, and much more.",
+        "citation_javadoc_definition": "Javadoc (also capitalized as JavaDoc or javadoc) is an API documentation generator for the Java programming language.",
+        "citation_javadoc_markdown": "From Java 23 onwards, Javadoc supports the Markdown standard CommonMark on comment lines that st",
+        "citation_javadoc_tool_behavior": "The javadoc command parses the declarations and documentation comments in a set of Java source files and produces a corresponding set of HTML pages that describe (by default) the public and protected classes",
+        "citation_tutorial_redirect": "See Dev.java for updated tutorials taking advantage of the latest releases.",
+        "citation_tutorial_staleness": "The Java Tutorials have been written for JDK 8.",
+        "doc_generation_tooling": "Javadoc is a first-party API documentation generator bundled with the JDK that produces HTML from doc comments in source code, and has been continuously extended (e.g., CommonMark Markdown support from Java 23).",
+        "specification": "Java has an official, versioned Java Language Specification hosted by Oracle (docs.oracle.com/javase/specs) that is updated per major JDK release.",
+        "tutorials_currency_caveat": "The classic 'Java Tutorials' trail set (docs.oracle.com/javase/tutorial) is explicitly frozen at JDK 8 content and directs readers elsewhere for anything newer, which is a documented currency gap in the legacy tutorial property, though Oracle/OpenJDK now maintain a separate actively-updated learning site (dev.java) covering modern language features."
+      },
+      "rubric": "Frozen 0-100 proxy rubric, 20 pts each, applied identically to all 10 languages: (a) official versioned language/platform specification; (b) official comprehensive standard-library/API reference; (c) official tutorials/learning guides maintained by the language steward; (d) first-party in-source doc-comment generation tooling integrated into the toolchain; (e) currency/maintenance of official docs across current releases.",
+      "score_breakdown": {
+        "currency_maintenance_20": 15,
+        "first_party_doc_generation_tooling_20": 20,
+        "official_api_reference_20": 20,
+        "official_specification_20": 20,
+        "official_tutorials_guides_20": 15,
+        "rationale": "Java scores at or near the ceiling for specification rigor, API reference completeness, and first-party Javadoc tooling (bundled in the JDK, actively enhanced, e.g. Markdown doc-comment support). Points are deducted because Oracle's flagship 'Java Tutorials' property is explicitly stuck at JDK 8 content and self-admittedly outdated, with the more current material fragmented onto a separate dev.java site; this split/legacy-content issue is a real, currently observable documentation-quality gap rather than a purely historical one.",
+        "total": 90
+      },
+      "snapshot_note": "Evidence collected via web search, snapshot September 22, 2026, from Oracle/OpenJDK official documentation properties and Wikipedia's Javadoc article for tool-history context."
+    }
+  },
+  "requirement_ids": [
+    "metric.build_test_integration",
+    "metric.documentation_quality"
+  ],
+  "requirements": {
+    "metric.build_test_integration": {
+      "Java": 96
+    },
+    "metric.documentation_quality": {
+      "Java": 90
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-3--java"
+}

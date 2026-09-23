@@ -1,0 +1,56 @@
+{
+  "agent_id": "worker-lq-language-development--part-3--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "metric.dependency_simplicity": {
+      "blockers": [],
+      "raw_observations": [
+        "Source packages only; single main.qui entrypoint",
+        "No install scripts executed on package install",
+        "Exact release tags only, never floating branches",
+        "Conjunctive SemVer range operators: eq, lt, lte, gt, gte",
+        "Closed manifest key set; unknown key is a compile-time error",
+        "Lockfile v3 records distribution name, import name, version, and SHA-256 content hash",
+        "ABI/IR/package-schema/lockfile-schema versions independently declared in project.toml compat block",
+        "Minimal external tool dependency: git for source installs; curl and tar only for optional platform assets"
+      ],
+      "source_citations": [
+        "repo/docs/packages.md",
+        "repo/docs/development.md"
+      ],
+      "summary": "Quidra dependency model is simple at the language level: packages are plain source packages with a single main.qui entrypoint and an optional flat-key quidra.package manifest. Dependency resolution uses conjunctive SemVer ranges against exact immutable release tags only; no floating or branch dependencies are ever installed. No package install script is executed. Optional platform assets never participate in dependency resolution or execute behavior; the installer inspects archives and rejects traversal/symlink/protected-file overwrite attempts. Distribution name, import name, display name, and repository are cleanly separated identities so a package cannot silently redefine reserved language surface. quidra.lock v3 records distribution name, import name, version, and a SHA-256 content hash per transitive package, giving reproducible, verifiable builds; a non-mutating --check mode supports CI. Remote installs require only git; optional platform assets additionally require curl and tar, a minimal external tool footprint. The manifest key set is closed, so an unknown key is a compile error rather than being silently ignored, and forward compatibility is handled by an optional companion project.toml rather than by loosening the core schema. ABI/IR/package-schema/lockfile-schema versions are declared independently in project.toml and are enforced by exact match where compatibility is strict (ABI) rather than derived from the compiler release version."
+    },
+    "metric.portability_design_platform_neutrality": {
+      "blockers": [],
+      "raw_observations": [
+        "Frontend and native-lowering phase separation: language semantics belong to the frontend, LLVM is an implementation target",
+        "Typed IR documented as seam supporting future backend work beyond the current LLVM and Clang pipeline",
+        "Backend transformations must not recover missing semantic facts from source spellings, LLVM pointer shapes, or control-flow layout",
+        "Tensor device placement modeled as explicit metadata separate from dtype and shape types",
+        "ABI/IR/package-schema/lockfile-schema versions declared independently in project.toml compat block, decoupled from compiler release version",
+        "project.toml declared single source of truth for supported operating systems, targets, and toolchain minimums",
+        "Release checks require GCC and Clang release builds plus Linux, macOS, and Windows CI"
+      ],
+      "source_citations": [
+        "repo/docs/spec/architecture.md",
+        "repo/docs/development.md"
+      ],
+      "summary": "Quidra language design is platform-neutral at the semantic layer while using LLVM as one concrete implementation backend. The architecture spec states language semantics belong to the frontend and LLVM is an implementation target, with typed IR documented as the seam separating semantic checks from native representation and supporting future backend work. Backend transformations may not recover missing semantic facts by guessing from source spellings, LLVM pointer shapes, or incidental control-flow layout, so the checked language contract (definite initialization, storage effects, reference and const semantics, exhaustive matching, numeric conversion rules) is defined independent of any specific OS or CPU target. Tensor device placement (CPU vs GPU) is modeled as explicit runtime and compiler metadata orthogonal to dtype and shape types rather than baked per-platform into the type system. Format versions for ABI, IR, package schema, and lockfile schema are independently declared in project.toml, keeping the runtime contract explicit and decoupled from any single compiler release or target. project.toml is documented as the single source of truth for supported operating systems, targets, and toolchain minimums, centralizing platform declarations instead of scattering per-platform special casing through the language grammar. Required release checks include GCC and Clang builds plus Linux, macOS, and Windows CI, evidencing a design intended to be neutral across OS and compiler-toolchain choice rather than tied to one native platform."
+    }
+  },
+  "requirement_ids": [
+    "metric.dependency_simplicity",
+    "metric.portability_design_platform_neutrality"
+  ],
+  "requirements": {
+    "metric.dependency_simplicity": {
+      "Quidra": 88
+    },
+    "metric.portability_design_platform_neutrality": {
+      "Quidra": 85
+    }
+  },
+  "work_unit_id": "lq-language-development--part-3--quidra"
+}

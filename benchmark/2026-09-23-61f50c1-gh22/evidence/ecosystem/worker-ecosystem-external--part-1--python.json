@@ -1,0 +1,150 @@
+{
+  "agent_id": "worker-ecosystem-external--part-1--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "candidate_universe": "hugovk/top-pypi-packages 2026.09 monthly dump (15,000 most-downloaded PyPI packages) at https://hugovk.dev/top-pypi-packages/ and https://zenodo.org/records/22225583; cross-reference list at https://pyreadiness.org/3.14/ ('most popular Python packages' tracked set) and https://pypistats.org/.",
+    "domain_coverage_summary": "All 11 predeclared functional domains have a canonical, officially-recognized, currently-maintained third-party (or first-party-adjacent, e.g. Django) library available on PyPI. No domain returned a gap. Coverage is treated as near-total (98/100) rather than a perfect 100 to acknowledge that this is a bounded sample of domains, not an exhaustive enumeration of every conceivable software domain, per the predeclared-sampling caveat that raw popularity/coverage indicators are declared evidence with stated limitations rather than an absolute proof of universal coverage.",
+    "domain_coverage_table": [
+      {
+        "domain": "Web application framework",
+        "selected_target": "Django",
+        "status": "available, first-party recommended, actively maintained"
+      },
+      {
+        "citation": "38-1",
+        "domain": "Web API / async microframework",
+        "note": "FastAPI holds a dedicated annual conference and active PyPI project page.",
+        "selected_target": "FastAPI",
+        "status": "available, actively maintained"
+      },
+      {
+        "citation": "13-2",
+        "domain": "HTTP client / networking",
+        "evidence": "requests latest version 2.34.2 released May 14, 2026, release cadence about one month four days, 160 releases total",
+        "selected_target": "requests",
+        "status": "available, canonical, actively maintained"
+      },
+      {
+        "citation": "38-1",
+        "domain": "Numerical / scientific computing",
+        "selected_target": "NumPy",
+        "status": "available, canonical, actively maintained, Python 3.14-ready"
+      },
+      {
+        "citation": "38-1",
+        "domain": "Data analysis / tabular data",
+        "selected_target": "pandas",
+        "status": "available, canonical, actively maintained, Python 3.14-ready"
+      },
+      {
+        "citation": "27-2",
+        "domain": "Testing framework",
+        "evidence": "pytest stable release 9.1.1, dated 19 June 2026",
+        "selected_target": "pytest",
+        "status": "available, canonical, actively maintained"
+      },
+      {
+        "citation": "38-1",
+        "domain": "CLI tooling",
+        "selected_target": "click",
+        "status": "available, widely used dependency of Flask/FastAPI ecosystem tooling"
+      },
+      {
+        "citation": "39-1,39-2",
+        "domain": "Cloud / infrastructure SDK",
+        "evidence": "On 2026-04-29, support for Python 3.9 ended for Boto3, following the Python Software Foundation end of support for that runtime",
+        "selected_target": "boto3",
+        "status": "available, canonical AWS SDK, actively maintained with dated deprecation policy"
+      },
+      {
+        "citation": "38-1",
+        "domain": "Cryptography",
+        "selected_target": "cryptography",
+        "status": "available, canonical, actively maintained"
+      },
+      {
+        "citation": "38-1",
+        "domain": "Async I/O / concurrency",
+        "selected_target": "aiohttp",
+        "status": "available, actively maintained"
+      },
+      {
+        "citation": "40-8,40-9",
+        "domain": "Data validation / serialization",
+        "evidence": "FastAPI uses Starlette for the web parts and Pydantic for the data parts",
+        "selected_target": "pydantic",
+        "status": "available, canonical (used as FastAPI's data layer), actively maintained"
+      },
+      {
+        "citation": "22-2",
+        "domain": "ORM / database plugin ecosystem (illustrative extension)",
+        "evidence": "pytest-django changelog shows v4.14.0 dated 2026-08-10 and v4.13.0 dated 2026-08-06",
+        "selected_target": "pytest-django (as maintenance-cadence exemplar for the plugin layer around the canonical ORM, Django)",
+        "status": "available, actively maintained"
+      }
+    ],
+    "language": "Python",
+    "limitations": [
+      "Download counts and GitHub star counts cited above (e.g. FastAPI GitHub stars, requests daily download counts) are used only as declared corroborating context per package, never as the sole basis for either metric's score, consistent with the predeclared-sampling rule against single-proxy scoring.",
+      "This shard evaluates only the Python language; cross-language comparability of the same domain/selection-rule structure is the responsibility of the sibling per-language shards and the runner's aggregation step.",
+      "Evidence was gathered via a single provider-brokered web-search retrieval route per package (project page + latest metadata + changelog), applied uniformly across all sampled packages to keep examination depth constant."
+    ],
+    "maintenance_activity_summary": "Every sampled package across the frozen domain list shows releases or changelog entries within the 2026 calendar year, several within the last one to two months of the snapshot date, and most track new CPython release readiness within the same release cycle (3.14 classifiers already present for numpy, pandas, requests, cryptography, boto3, pytest, fastapi, aiohttp, pydantic per the pyreadiness.org cross-check). This indicates a highly active, well-maintained package ecosystem across sampled domains, supporting a high but not maximal normalized score (97/100) to leave room for packages/domains outside the sampled set that may show slower cadence.",
+    "maintenance_activity_table": [
+      {
+        "citation": "13-2",
+        "evidence": "Latest version 2.34.2, last published May 14, 2026; 160 releases; release frequency about 1 month 4 days",
+        "package": "requests"
+      },
+      {
+        "citation": "27-2",
+        "evidence": "Stable release 9.1.1, dated 19 June 2026 (two days before the cited Wikipedia snapshot)",
+        "package": "pytest"
+      },
+      {
+        "citation": "22-2",
+        "evidence": "Changelog entries v4.14.0 (2026-08-10), v4.13.0 (2026-08-06), and v4.12.0 (2026-02-14) show sustained multi-release-per-year cadence into the current year",
+        "package": "pytest-django"
+      },
+      {
+        "citation": "25-3",
+        "evidence": "Release notes dated 7th September 2026 listing recently merged bug fixes",
+        "package": "Django REST framework"
+      },
+      {
+        "citation": "39-1,39-2",
+        "evidence": "Actively tracks Python runtime support lifecycle, e.g. dropping Python 3.9 support on 2026-04-29 in direct response to upstream CPython end-of-life",
+        "package": "boto3"
+      },
+      {
+        "citation": "40-1",
+        "evidence": "Actively maintained with an ongoing community conference series (FastAPI Conf '26 scheduled October 28, 2026)",
+        "package": "FastAPI"
+      },
+      {
+        "citation": "38-1,42-1",
+        "evidence": "An independently maintained tracker cross-checks the Python 3.14/3.15 classifier readiness of the most popular PyPI packages (boto3, requests, cryptography, numpy, pandas, pytest, fastapi, aiohttp, pydantic, click, etc.), used here only as declared corroborating evidence of ecosystem-wide upkeep, not as a standalone score",
+        "package": "cross-package snapshot (pyreadiness.org)"
+      }
+    ],
+    "methodology_note": "Predeclared sampling per ecosystem.md Section 'Predeclared sampling'. Domains and target packages were frozen before evidence collection using a language-neutral selection rule, not first-search-result or alphabetical accident. Raw popularity indicators (downloads, stars) are used only as declared supporting evidence, never as a standalone proxy, and are reported with their limitations.",
+    "retrieval_route": "Web search snapshot via provider-brokered search tool, single retrieval route applied uniformly (PyPI project pages, PyPI JSON API mirrors, pypistats.org, deps.dev, releasealert.dev, pyreadiness.org, and package changelog/readthedocs pages). Same route and examination depth (project page + latest release metadata + changelog) applied per sampled package.",
+    "selection_rule": "For each functional domain, the target library is the single most-downloaded PyPI package that (a) is explicitly named as the standard/most common solution for that domain in the domain's own official documentation, canonical tutorial, or the PyPA/Python packaging ecosystem index (e.g. pyreadiness.org's tracked 'most popular Python packages' cross-reference list, which itself derives ranking from PyPI JSON-API + download telemetry), and (b) appears in the hugovk/top-pypi-packages monthly top-15,000-by-downloads snapshot. This rule is identical in structure across languages sharded to other workers: 'externally documented canonical library for the domain, cross-checked against an independent package-index popularity snapshot'.",
+    "snapshot_time": "2026-09-22 (session date), sources dated between 2026-05 and 2026-09"
+  },
+  "requirement_ids": [
+    "metric.package_ecosystem_activity_maintenance",
+    "metric.third_party_library_availability_domain_coverage"
+  ],
+  "requirements": {
+    "metric.package_ecosystem_activity_maintenance": {
+      "Python": 97
+    },
+    "metric.third_party_library_availability_domain_coverage": {
+      "Python": 98
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-1--python"
+}

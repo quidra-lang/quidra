@@ -1,0 +1,46 @@
+{
+  "agent_id": "worker-lq-language-development--part-3--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "metric.dependency_simplicity": {
+      "language": "Zig",
+      "normalization_rule": "0-100 scale, 100 = no external toolchain/runtime/package-manager dependency required for a standard idiomatic build; scored by counting distinct external tools/runtimes needed for a representative build+run cycle.",
+      "raw_observations": [
+        "Zig ships a single self-contained toolchain (zig binary) bundling compiler, linker, bundled libc (musl/mingw/wasi-libc), and package manager (build.zig.zon) - no separate build system or package manager binary required.",
+        "Standard library is dependency-free for most programs; no system libc required by default on many targets.",
+        "build.zig is Zig code executed by the same compiler, eliminating a second build-DSL dependency (unlike CMake+Make or npm+webpack stacks).",
+        "Cross-compilation and dependency fetching are integrated in-tree via the same zig executable.",
+        "FFI-linked native libraries still reintroduce systems-level dependency management similar to C/C++, which is reflected as a minor deduction."
+      ],
+      "score_basis": "Single compiler binary provides compiler+linker+build system+package manager+cross-compilation; no external runtime needed for standard builds. Score 92 reflects near-minimal dependency footprint with minor deduction for FFI scenarios."
+    },
+    "metric.portability_design_platform_neutrality": {
+      "language": "Zig",
+      "normalization_rule": "0-100 scale, 100 = language design imposes no platform-specific runtime assumption and provides first-class compile-time target abstraction/cross-compilation without extra tooling.",
+      "raw_observations": [
+        "Zig's language design centers on cross-compilation as a first-class built-in feature: any zig install can target any supported triple without a separate cross toolchain.",
+        "std.builtin.Target and comptime target queries allow clean compile-time OS/arch branching without preprocessor macros.",
+        "Zig bundles libc implementations (musl, mingw-w64, wasi-libc) enabling static, portable binaries across Linux/Windows/macOS/WASI/freestanding from one host.",
+        "No mandatory GC runtime or OS-specific runtime service is baked into the language, allowing freestanding/embedded/WASI targeting directly - stronger neutrality than JVM-bound languages or Go's baked-in scheduler.",
+        "Explicit allocator passing avoids implicit OS-specific heap/thread assumptions, reinforcing platform-neutral core design.",
+        "Ecosystem breadth of currently supported/tested platforms is excluded here per methodology; this evaluates only architectural/design neutrality."
+      ],
+      "score_basis": "Explicit-allocator, no-hidden-runtime, built-in cross-compilation, and comptime target-conditional design yield a high score of 90; minor deduction because some std library paths still assume POSIX-like semantics."
+    }
+  },
+  "requirement_ids": [
+    "metric.dependency_simplicity",
+    "metric.portability_design_platform_neutrality"
+  ],
+  "requirements": {
+    "metric.dependency_simplicity": {
+      "Zig": 92
+    },
+    "metric.portability_design_platform_neutrality": {
+      "Zig": 90
+    }
+  },
+  "work_unit_id": "lq-language-development--part-3--zig"
+}

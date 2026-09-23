@@ -352,7 +352,7 @@ def assert_scored_cap_governs_reuse(root: Path, unit: dict, task: dict) -> None:
     )
     again = benchmark.annotate_cache_cap_evidence(source, evidence)
     assert again["annotated"] == [] and again["skipped"][0]["reason"] == "already annotated"
-    assert "cut off" in str(problem(annotated, trial_unit))
+    assert "cut off" in str(problem(root, annotated, trial_unit))
 
 
 def assert_accepted_trial_start_marks_the_scored_boundary() -> None:
@@ -409,7 +409,7 @@ def assert_readiness_audits_are_cacheable(root: Path, task: dict) -> None:
     sc_payload = benchmark.cache_fingerprint(root, sc_unit, task)[1]
     assert sc_payload["frozen_sampling"]["effort"] == "medium", sc_payload["frozen_sampling"]
     assert sc_payload["frozen_sampling"]["effort_source"] == "evaluation_effort"
-    assert sc_payload["cache_epoch"] == "2026-09-canonical-fragments-v2"
+    assert sc_payload["cache_epoch"] == "2026-09-canonical-fragments-v4-r9-verified"
     assert payload["frozen_sampling"] == benchmark.sampling_config(root)
     assert "effort_source" not in payload["frozen_sampling"]
     changed = dict(audit, input_hashes={"artifact_git_object": "b" * 40})

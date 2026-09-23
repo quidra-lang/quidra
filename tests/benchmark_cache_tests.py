@@ -1372,6 +1372,22 @@ def assert_partial_paid_checkpoint_roundtrip() -> None:
         again = benchmark.export_partial_paid_checkpoints(root, store)
         assert again["updated_unit_count"] == 0, again
 
+        # Raw paid calls remain durable after the leaf itself becomes COMPLETE.
+        # The certified result cache owns the validated result; this separate
+        # exact-fingerprint store lets a later validator/grader revision replay
+        # the paid calls without buying the same model inference again.
+        ledger_path = root / "work/root/ledger.json"
+        ledger = benchmark.json_load(ledger_path)
+        ledger["units"][unit["id"]]["status"] = "COMPLETE"
+        ledger["units"][unit["id"]]["validation_result"] = "PASS"
+        benchmark.json_dump(ledger_path, ledger)
+        complete_store = base / "paid-state-complete"
+        complete_export = benchmark.export_partial_paid_checkpoints(
+            root, complete_store
+        )
+        assert complete_export["updated_unit_count"] == 1, complete_export
+        assert complete_export["exported_units"][0]["paid_call_count"] == 1
+
         plan = production.build_budget_plan(
             root,
             "claude-sonnet-5",

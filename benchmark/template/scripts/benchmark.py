@@ -2453,9 +2453,10 @@ def runner_max_attempts(root: Path) -> int:
     """The default attempt limit of a work unit.
 
     The runtime configuration (sandbox_agent.json) wins over primary.json's
-    runner section: primary.json is embedded in every Task Packet and hashed
-    into every certified-cache key, so the limit is raised where it re-keys
-    nothing. A unit that declares its own max_attempts keeps it.
+    runner section. Primary Task Packets now embed an evaluation-scoped Primary
+    projection, but this attempt limit is still runtime-only policy and belongs
+    outside the scored cache dependency set. A unit that declares its own
+    max_attempts keeps it.
     """
     runtime_path = root / "template" / "config" / "sandbox_agent.json"
     if runtime_path.is_file():

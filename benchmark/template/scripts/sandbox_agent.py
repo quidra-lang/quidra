@@ -106,7 +106,7 @@ class Permissions:
         self.read_roots.append(self.agent_dir)
         self.reserved_names = {
             "task.json", "validation.json", "worker_response.json", "agent_trace.json",
-            "agent_trace.partial.json", "resume_trace.json",
+            "agent_trace.partial.json", "resume_trace.json", "trial_call_journal.json",
         }
         self.total_written = 0
 
@@ -395,13 +395,43 @@ class Trials:
         # of observations one turn at a time, and an auditor reads the record
         # without going through the trace.
         self.records_dir = root / "work" / "agents" / agent_id / "trials"
+        self.call_journal_path = self.agent_dir / "trial_call_journal.json"
         self.trusted_verification_dir = (
             root / "work" / "root" / "proficiency-verification" / agent_id
         )
         self._restore_sessions()
 
     def _resumed_call_counts(self) -> dict[str, int]:
-        """Accepted scored calls represented by the immutable prior audit trace."""
+        """Accepted scored calls from the finest trusted runtime checkpoint.
+
+        New runs journal each provider call atomically after its verbatim session
+        record (and, for Proficiency, trusted verification) reaches disk. Older
+        attempts have only the action-level audit trace, which remains a safe
+        fallback. The journal therefore improves resume granularity without
+        invalidating or weakening any previously certified result.
+        """
+        if self.call_journal_path.is_file():
+            try:
+                journal = benchmark.json_load(self.call_journal_path)
+            except (OSError, json.JSONDecodeError) as exc:
+                raise AgentFailure(f"trial_call_journal.json is unreadable: {exc}") from exc
+            if journal.get("schema_version") != 1:
+                raise AgentFailure("trial_call_journal.json has unsupported schema_version")
+            counts: dict[str, int] = {}
+            for row in journal.get("calls", []) or []:
+                if not isinstance(row, dict):
+                    raise AgentFailure("trial_call_journal.json contains a non-object call")
+                trial_id = self._valid_id(row.get("trial_id"))
+                call = int(row.get("call", 0) or 0)
+                expected = counts.get(trial_id, 0) + 1
+                if call != expected:
+                    raise AgentFailure(
+                        f"trial call journal is non-sequential for {trial_id!r}: "
+                        f"got call {call}, expected {expected}"
+                    )
+                counts[trial_id] = call
+            return counts
+
         path = self.agent_dir / "resume_trace.json"
         if not path.is_file():
             return {}
@@ -424,6 +454,38 @@ class Trials:
                 if isinstance(trial_id, str) and trial_id:
                     counts[trial_id] = counts.get(trial_id, 0) + 1
         return counts
+
+    def _checkpoint_call(self, trial_id: str, record: dict[str, Any]) -> None:
+        """Atomically attest one persisted paid call before control returns."""
+        payload = {"schema_version": 1, "calls": []}
+        if self.call_journal_path.is_file():
+            try:
+                payload = benchmark.json_load(self.call_journal_path)
+            except (OSError, json.JSONDecodeError) as exc:
+                raise AgentFailure(f"trial_call_journal.json is unreadable: {exc}") from exc
+            if payload.get("schema_version") != 1 or not isinstance(payload.get("calls"), list):
+                raise AgentFailure("trial_call_journal.json is malformed")
+        calls = list(payload["calls"])
+        call = int(record.get("call", 0) or 0)
+        previous = sum(1 for row in calls if row.get("trial_id") == trial_id)
+        if call != previous + 1:
+            raise AgentFailure(
+                f"refusing non-sequential journal checkpoint for {trial_id!r}: "
+                f"call {call} after {previous} recorded call(s)"
+            )
+        calls.append({
+            "trial_id": trial_id,
+            "call": call,
+            "action": "trial_start" if call == 1 else "trial_continue",
+            "prompt_sha256": record.get("prompt_sha256"),
+            "completion_sha256": record.get("completion_sha256"),
+            "verification": record.get("verification"),
+            "verification_path": record.get("verification_path"),
+        })
+        benchmark.json_dump(self.call_journal_path, {
+            "schema_version": 1,
+            "calls": calls,
+        })
 
     def _restore_sessions(self) -> None:
         """Restore paid calls only when runtime records and the prior trace agree."""
@@ -613,6 +675,10 @@ class Trials:
             "trial_id": trial_id,
             "calls": session["records"],
         })
+        # This is the paid-call commit point. If the worker or a later member of
+        # a batch dies after here, the next attempt can prove and restore exactly
+        # this call instead of purchasing it again.
+        self._checkpoint_call(trial_id, session["records"][-1])
         session["messages"].append({"role": "assistant", "content": completion})
         verification_view = None
         if isinstance(verification, dict):

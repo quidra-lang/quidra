@@ -53,15 +53,15 @@ validator rejects is treated as a cache MISS: only that staged cached output is
 discarded and the unit executes normally. Integrity corruption of the cache record
 itself remains fatal.
 
-An eligible non-Quidra measurement record is certifiable as soon as that unit is
-COMPLETE with its frozen validator recorded as PASS; the surrounding Primary
+An eligible measurement record is certifiable as soon as that unit is COMPLETE
+with its frozen validator recorded as PASS; Quidra records additionally carry the
+trusted compiler/runtime execution identity. The surrounding Primary
 evaluation does not have to be complete. The trusted host may checkpoint those
 records after the scored sandbox exits even when the paid run stopped early.
 This makes retries incremental rather than cold restarts. The sandbox keeps the
 cache snapshot from run start, so it cannot observe records produced by itself.
 
 Production requests may also be evaluation-scoped. When `benchmark/.run-production`
-contains `evaluation: <primary_id>`, only that Primary is dispatched. Its validated
-non-Quidra units are checkpointed here without requiring a global finalize; a later
+contains `evaluation: <primary_id>`, only that Primary is dispatched. Its validated units are checkpointed here without requiring a global finalize; a later
 full run can hydrate them and pay only for cache misses. Quidra work is reused too when its declared versions, exact Task Packet, and trusted compiler/runtime execution identity remain compatible.
 Use `evaluation: all` (or omit the field) for a normal full benchmark.

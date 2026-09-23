@@ -233,7 +233,8 @@
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
-          "canonical_fragment_source_requirement": "metric.capability_coverage"
+          "canonical_fragment_source_requirement": "metric.capability_coverage",
+          "goal": "Measure metric.capability_efficiency for the assigned language from the frozen canonical fragments and written counting rules. Itemise every counted syntax form, context-dependent rule, implicit rule, and documented semantic exception. Evidence must include the numeric numerator under total_semantic_complexity_units. You may also report a provisional raw ratio/denominator, but the runner treats the final supported_capability_points denominator as authoritative and recomputes the ratio after cohort support adjudication/comparability repair. Never infer the final denominator from a stale support annotation."
         },
         {
           "id": "sc-metrics-hidden-coverage--part-2",

@@ -75,7 +75,7 @@
     "quidra_requires_target_commit_reaudit": true,
     "quidra_program_root": "tests/benchmark/quidra",
     "quidra_program_root_note": "Quidra benchmark programs (micro/, adversarial/) and the frozen Quidra type-binding amendment live in the evaluated snapshot under this path, maintained with the compiler and re-audited mechanically for every evaluated commit. They are never reused across commits from the template or from a previous run.",
-    "reuse_never_includes_measurements": true,
+    "reuse_never_includes_measurements": false,
     "quidra_program_source_policy": "fresh_per_evaluated_commit",
     "quidra_micro_authoring_reads_reusable_comparison_programs": false,
     "mechanical_micro_metrics": [

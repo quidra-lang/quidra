@@ -18,7 +18,118 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  benchmark:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      mode: ${{ steps.parse.outputs.mode }}
+      model: ${{ steps.parse.outputs.model }}
+      total_budget_usd: ${{ steps.parse.outputs.total_budget_usd }}
+      run_id: ${{ steps.parse.outputs.run_id }}
+      smoke_spend: ${{ steps.smoke_total.outputs.smoke_spend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Parse the explicit paid request
+        id: parse
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B benchmark "$GITHUB_SHA"
+
+          evaluation="$(sed -n 's/^evaluation:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | xargs)"
+          [ -n "$evaluation" ] || evaluation="all"
+          case "$evaluation" in
+            all|semantic_compression|llm_learnability|language_quality|ecosystem|llm_proficiency) ;;
+            *) echo "::error::Invalid benchmark evaluation: $evaluation"; exit 1 ;;
+          esac
+
+          units="$(sed -n 's/^units:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | tr ',' ' ' | xargs)"
+          model="$(sed -n 's/^model:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | xargs)"
+          [ -n "$model" ] || model="claude-sonnet-5"
+          case "$model" in
+            *[!A-Za-z0-9._:-]*) echo "::error::Invalid benchmark model: $model"; exit 1 ;;
+          esac
+
+          budget="$(sed -n 's/^budget_usd:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | xargs)"
+          [ -n "$budget" ] || budget="100.0"
+          python - "$budget" <<'PY'
+          import sys
+          value = float(sys.argv[1])
+          if not 0 < value <= 150.0:
+              raise SystemExit("::error::budget_usd must be within (0, 150]")
+          PY
+
+          mode="scoped"
+          if [ "$evaluation" = "all" ] && [ -z "$units" ]; then
+            mode="full"
+          fi
+
+          short_sha="$(git rev-parse --short=7 "$GITHUB_SHA")"
+          run_id="$(date -u +%F)-${short_sha}-gh${GITHUB_RUN_NUMBER}"
+          {
+            echo "mode=$mode"
+            echo "model=$model"
+            echo "total_budget_usd=$budget"
+            echo "run_id=$run_id"
+          } >> "$GITHUB_OUTPUT"
+          echo "benchmark mode: $mode; request scope: $evaluation; run id: $run_id"
+
+      - name: Prove the provider request once for a five-way full run
+        id: smoke
+        if: steps.parse.outputs.mode == 'full'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ANTHROPIC_API_KEY" || {
+            echo "::error::Repository secret ANTHROPIC_API_KEY is not configured."
+            exit 1
+          }
+          python benchmark/template/scripts/production_run.py provider-smoke \
+            --model "${{ steps.parse.outputs.model }}" \
+            --budget-usd 0.50 \
+            --output "$RUNNER_TEMP/provider-smoke.json"
+          spent="$(python - "$RUNNER_TEMP/provider-smoke.json" <<'PY'
+          import json, sys
+          report = json.load(open(sys.argv[1]))
+          assert report["ok"], report.get("failed_checks")
+          spent = float(report["spend"]["estimated_cost_usd"])
+          assert spent < 0.10, f"provider smoke unexpectedly spent {spent} USD"
+          print(f"{spent:.6f}")
+          PY
+          )"
+          echo "spend=$spent" >> "$GITHUB_OUTPUT"
+
+      - name: Normalize pre-shard spend
+        id: smoke_total
+        if: always()
+        shell: bash
+        run: |
+          value="${{ steps.smoke.outputs.spend }}"
+          [ -n "$value" ] || value="0.0"
+          echo "smoke_spend=$value" >> "$GITHUB_OUTPUT"
+
+      - name: Preserve provider smoke
+        if: steps.parse.outputs.mode == 'full'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ steps.parse.outputs.run_id }}-provider-smoke
+          if-no-files-found: error
+          retention-days: 30
+          path: ${{ runner.temp }}/provider-smoke.json
+
+  scoped:
+    needs: scope
+    if: ${{ needs.scope.outputs.mode == 'scoped' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
@@ -415,3 +526,320 @@ jobs:
             ${{ runner.temp }}/provider-smoke.json
             ${{ runner.temp }}/task-policy.json
             ${{ runner.temp }}/cache-checkpoint.json
+
+  language_quality:
+    needs: scope
+    if: ${{ needs.scope.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    outputs:
+      cumulative_spend: ${{ steps.shard.outputs.cumulative_spend }}
+      evaluation_status: ${{ steps.shard.outputs.evaluation_status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - id: shard
+        uses: ./.github/actions/benchmark-evaluation
+        with:
+          evaluation: language_quality
+          run-id: ${{ needs.scope.outputs.run_id }}
+          total-budget-usd: ${{ needs.scope.outputs.total_budget_usd }}
+          prior-spend-usd: ${{ needs.scope.outputs.smoke_spend }}
+          model: ${{ needs.scope.outputs.model }}
+
+  llm_proficiency:
+    needs: [scope, language_quality]
+    if: ${{ needs.scope.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    outputs:
+      cumulative_spend: ${{ steps.shard.outputs.cumulative_spend }}
+      evaluation_status: ${{ steps.shard.outputs.evaluation_status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - id: shard
+        uses: ./.github/actions/benchmark-evaluation
+        with:
+          evaluation: llm_proficiency
+          run-id: ${{ needs.scope.outputs.run_id }}
+          total-budget-usd: ${{ needs.scope.outputs.total_budget_usd }}
+          prior-spend-usd: ${{ needs.language_quality.outputs.cumulative_spend }}
+          model: ${{ needs.scope.outputs.model }}
+
+  llm_learnability:
+    needs: [scope, llm_proficiency]
+    if: ${{ needs.scope.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    outputs:
+      cumulative_spend: ${{ steps.shard.outputs.cumulative_spend }}
+      evaluation_status: ${{ steps.shard.outputs.evaluation_status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - id: shard
+        uses: ./.github/actions/benchmark-evaluation
+        with:
+          evaluation: llm_learnability
+          run-id: ${{ needs.scope.outputs.run_id }}
+          total-budget-usd: ${{ needs.scope.outputs.total_budget_usd }}
+          prior-spend-usd: ${{ needs.llm_proficiency.outputs.cumulative_spend }}
+          model: ${{ needs.scope.outputs.model }}
+
+  ecosystem:
+    needs: [scope, llm_learnability]
+    if: ${{ needs.scope.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    outputs:
+      cumulative_spend: ${{ steps.shard.outputs.cumulative_spend }}
+      evaluation_status: ${{ steps.shard.outputs.evaluation_status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - id: shard
+        uses: ./.github/actions/benchmark-evaluation
+        with:
+          evaluation: ecosystem
+          run-id: ${{ needs.scope.outputs.run_id }}
+          total-budget-usd: ${{ needs.scope.outputs.total_budget_usd }}
+          prior-spend-usd: ${{ needs.llm_learnability.outputs.cumulative_spend }}
+          model: ${{ needs.scope.outputs.model }}
+
+  semantic_compression:
+    needs: [scope, language_quality, llm_proficiency, llm_learnability, ecosystem]
+    if: ${{ needs.scope.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    outputs:
+      cumulative_spend: ${{ steps.shard.outputs.cumulative_spend }}
+      evaluation_status: ${{ steps.shard.outputs.evaluation_status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - id: shard
+        uses: ./.github/actions/benchmark-evaluation
+        with:
+          evaluation: semantic_compression
+          run-id: ${{ needs.scope.outputs.run_id }}
+          total-budget-usd: ${{ needs.scope.outputs.total_budget_usd }}
+          prior-spend-usd: ${{ needs.ecosystem.outputs.cumulative_spend }}
+          model: ${{ needs.scope.outputs.model }}
+
+      - name: Decide whether all five Primary shards are complete
+        id: publish
+        if: always()
+        shell: bash
+        env:
+          LANGUAGE_QUALITY_STATUS: ${{ needs.language_quality.outputs.evaluation_status }}
+          LLM_PROFICIENCY_STATUS: ${{ needs.llm_proficiency.outputs.evaluation_status }}
+          LLM_LEARNABILITY_STATUS: ${{ needs.llm_learnability.outputs.evaluation_status }}
+          ECOSYSTEM_STATUS: ${{ needs.ecosystem.outputs.evaluation_status }}
+          SEMANTIC_COMPRESSION_STATUS: ${{ steps.shard.outputs.evaluation_status }}
+        run: |
+          set -euo pipefail
+          publish=1
+          for pair in \
+            "language_quality:$LANGUAGE_QUALITY_STATUS" \
+            "llm_proficiency:$LLM_PROFICIENCY_STATUS" \
+            "llm_learnability:$LLM_LEARNABILITY_STATUS" \
+            "ecosystem:$ECOSYSTEM_STATUS" \
+            "semantic_compression:$SEMANTIC_COMPRESSION_STATUS"
+          do
+            name="${pair%%:*}"
+            status="${pair#*:}"
+            echo "$name => $status"
+            if [ "$status" != "COMPLETE" ]; then
+              publish=0
+            fi
+          done
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          if [ "$publish" = "0" ]; then
+            echo "At least one Primary shard is incomplete; cache remains checkpointed, but no formal benchmark result will be created."
+          fi
+
+      - name: Reassemble all five evaluations from certified cache
+        if: steps.publish.outputs.publish == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B benchmark "$GITHUB_SHA"
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          python benchmark/template/scripts/production_run.py policy \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --model "$BENCHMARK_MODEL" \
+            --output "$RUNNER_TEMP/final-task-policy.json"
+          python - "$RUNNER_TEMP/final-task-policy.json" <<'PY'
+          import json, sys
+          policy = json.load(open(sys.argv[1]))
+          paid = int((policy.get("cache") or {}).get("paid_task_count", 0))
+          if paid:
+              raise SystemExit(
+                  f"::error::final assembly would require {paid} paid task(s); "
+                  "a supposedly COMPLETE shard was not durably cacheable"
+              )
+          PY
+
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py finalize
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path(".quidra-benchmark/results/primary_status.json").read_text())
+          expected = {
+              "semantic_compression", "llm_learnability", "language_quality",
+              "ecosystem", "llm_proficiency",
+          }
+          bad = {
+              name: (status.get("evaluations", {}).get(name) or {}).get("status")
+              for name in sorted(expected)
+              if (status.get("evaluations", {}).get(name) or {}).get("status") != "COMPLETE"
+          }
+          if bad:
+              raise SystemExit(f"::error::final assembly is not COMPLETE: {bad}")
+          PY
+
+      - name: Snapshot final all-five workspace
+        if: steps.publish.outputs.publish == '1'
+        shell: bash
+        run: |
+          tar -czf "$RUNNER_TEMP/final-workspace-evidence.tgz" \
+            --ignore-failed-read \
+            -C .quidra-benchmark \
+            run.json results raw prompts work/agents work/attempts \
+            work/root/manifest.json work/root/ledger.json \
+            work/root/plans work/root/commands 2>/dev/null || true
+
+      - name: Checkpoint the complete combined cache
+        id: final_checkpoint
+        if: steps.publish.outputs.publish == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B benchmark "$GITHUB_SHA"
+          python benchmark/template/scripts/benchmark.py checkpoint-cache \
+            --source-repo "$GITHUB_WORKSPACE" \
+            | tee "$RUNNER_TEMP/final-cache-checkpoint.json"
+
+          COMPLETE_CACHE="$RUNNER_TEMP/complete-certified-cache"
+          rm -rf "$COMPLETE_CACHE"
+          mkdir -p "$COMPLETE_CACHE"
+          cp -a benchmark/cache/. "$COMPLETE_CACHE/"
+
+          git fetch origin benchmark
+          remote_head="$(git rev-parse origin/benchmark)"
+          git merge-base --is-ancestor "$GITHUB_SHA" "$remote_head" || {
+            echo "::error::remote benchmark is no longer descended from the frozen trigger SHA"
+            exit 1
+          }
+          bad="$(git diff --name-only "$GITHUB_SHA"..origin/benchmark \
+            | grep -Ev '^benchmark/(cache/|template/prompts/)' || true)"
+          if [ -n "$bad" ]; then
+            echo "::error::benchmark moved in non-artifact paths during the run:"
+            printf '%s\n' "$bad"
+            exit 1
+          fi
+
+          git reset --hard "$remote_head"
+          python benchmark/template/scripts/ci_cache_handoff.py merge \
+            --incoming "$COMPLETE_CACHE" \
+            --target benchmark/cache
+          git add -f benchmark/cache
+          if ! git diff --cached --quiet; then
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -m "Checkpoint complete benchmark cache for ${GITHUB_SHA:0:7}"
+            git push origin HEAD:benchmark
+          fi
+          echo "checkpoint_head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Import the complete formal run
+        if: steps.publish.outputs.publish == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin benchmark
+          test "$(git rev-parse origin/benchmark)" = "$(git rev-parse HEAD)" || {
+            echo "::error::benchmark moved after the complete cache checkpoint"
+            exit 1
+          }
+          python benchmark/template/scripts/benchmark.py post-run \
+            --source-repo "$GITHUB_WORKSPACE"
+          test -f "benchmark/${{ needs.scope.outputs.run_id }}/import_manifest.json"
+
+      - name: Push the only formal result of the run
+        if: steps.publish.outputs.publish == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="${{ needs.scope.outputs.run_id }}"
+          git fetch origin benchmark
+          test "$(git rev-parse origin/benchmark)" = "$(git rev-parse HEAD)" || {
+            echo "::error::benchmark moved before formal result publication"
+            exit 1
+          }
+          git add -f "benchmark/$run_id" benchmark/cache benchmark/template/prompts
+          python - "$run_id" <<'PY'
+          import json, subprocess, sys
+          run_id = sys.argv[1]
+          manifest = json.load(open(f"benchmark/{run_id}/import_manifest.json"))
+          listed = set(manifest.get("retained_files_sha256", {}))
+          staged = set(
+              p[len(f"benchmark/{run_id}/"):]
+              for p in subprocess.check_output(
+                  ["git", "ls-files", "--cached", f"benchmark/{run_id}"], text=True
+              ).split()
+          )
+          missing = sorted(listed - staged)
+          assert not missing, f"retained files not staged: {missing[:10]}"
+          PY
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Add complete benchmark result for ${GITHUB_SHA:0:7}"
+          git push origin HEAD:benchmark
+
+      - name: Preserve complete formal result
+        if: steps.publish.outputs.publish == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ needs.scope.outputs.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/final-workspace-evidence.tgz
+            ${{ runner.temp }}/final-task-policy.json
+            ${{ runner.temp }}/final-cache-checkpoint.json
+            benchmark/${{ needs.scope.outputs.run_id }}
+            benchmark/cache
+            benchmark/template/prompts

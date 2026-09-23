@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T18:38:35Z
-reason: Rehearsal of learnability-i1-i2--quidra on 8eecf57, the first paid Quidra unit under Quidra 0.3.0 / language 0.2 (constructors, scan, void | error output, math-only names, dnn.mode); the unit's cache record is keyed by the new version so it must miss; guard 1.0 USD
+requested_at_utc: 2026-09-23T00:51:20Z
+reason: Rehearsal of sc-metrics-local--part-1--go on c0252bf: the first single-metric Semantic Compression packet in the shared-inputs-first layout run end to end against the live model; the rehearsal prepares only semantic_compression, so the certified mechanical measurements are not repeated; guard 1.0 USD
 model: claude-sonnet-5
 budget_usd: 1.0
-units: learnability-i1-i2--quidra
+units: sc-metrics-local--part-1--go

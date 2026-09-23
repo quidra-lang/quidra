@@ -1209,7 +1209,7 @@
           "network_allowed": true,
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, and limitations. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
+          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, limitations, candidate_universe, selection_rule (exact frozen string), and retrieval_route='provider-brokered web search'. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
         },
         {
           "id": "ecosystem-external--part-2",
@@ -1233,7 +1233,7 @@
           "network_allowed": true,
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, and limitations. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
+          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, limitations, candidate_universe, selection_rule (exact frozen string), and retrieval_route='provider-brokered web search'. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
         },
         {
           "id": "ecosystem-external--part-3",
@@ -1256,7 +1256,7 @@
           "network_allowed": true,
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, and limitations. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
+          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, limitations, candidate_universe, selection_rule (exact frozen string), and retrieval_route='provider-brokered web search'. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
         },
         {
           "id": "ecosystem-tooling--part-1",
@@ -1280,7 +1280,7 @@
           "network_allowed": true,
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, and limitations. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
+          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, limitations, candidate_universe, selection_rule (exact frozen string), and retrieval_route='provider-brokered web search'. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
         },
         {
           "id": "ecosystem-tooling--part-2",
@@ -1304,7 +1304,7 @@
           "network_allowed": true,
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, and limitations. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
+          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, limitations, candidate_universe, selection_rule (exact frozen string), and retrieval_route='provider-brokered web search'. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
         },
         {
           "id": "ecosystem-tooling--part-3",
@@ -1328,7 +1328,7 @@
           "network_allowed": true,
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, and limitations. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
+          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, limitations, candidate_universe, selection_rule (exact frozen string), and retrieval_route='provider-brokered web search'. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
         },
         {
           "id": "ecosystem-tooling--part-4",
@@ -1352,7 +1352,7 @@
           "network_allowed": true,
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, and limitations. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
+          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, limitations, candidate_universe, selection_rule (exact frozen string), and retrieval_route='provider-brokered web search'. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
         },
         {
           "id": "ecosystem-tooling--part-5",
@@ -1376,7 +1376,7 @@
           "network_allowed": true,
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, and limitations. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
+          "goal": "Evaluate only the assigned language for the assigned Ecosystem metric(s). Use the frozen rubric asset exactly: do not invent or alter criteria, weights, selection rules, evidence window, or normalized scores. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five fixed component IDs, integer 0..4), component_findings (same IDs, non-empty evidence summaries), sources (non-empty source identifiers/URLs), snapshot_date, limitations, candidate_universe, selection_rule (exact frozen string), and retrieval_route='provider-brokered web search'. The trusted runner computes requirements[metric_id][language] mechanically from component_levels; any worker-supplied normalized score is ignored."
         }
       ]
     },

@@ -130,7 +130,7 @@ network-isolated.
 
 Before paid dispatch, deterministic preparation hydrates exact certified-cache
 hits, restores exact-fingerprint paid leaf inference state from the private durable
-`quidra-benchmark-paid-state-*` Actions artifact (with Actions cache as a speed mirror),
+`quidra-benchmark-paid-state` Actions artifact (with Actions cache as a speed mirror),
 writes `results/cache_impact.json`, and freezes
 `results/execution-plan-preflight.json`. The plan lists cache reuse,
 invalidation/re-evaluation, new paid work, dependency-deferred work, expected

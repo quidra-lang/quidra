@@ -1181,6 +1181,11 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                     )
                 served = state.counters["inference"]
             describe = state.provider.describe()
+            effective_decoding = (
+                str(frozen_effort)
+                if frozen_effort
+                else result.get("effort", describe.get("effort"))
+            )
             state.log({
                 "event": "inference",
                 "request_id": validated["request_id"],
@@ -1188,7 +1193,7 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 "provider": describe.get("id"),
                 "network_allowed": validated["network_allowed"],
                 "purpose": validated["purpose"],
-                "decoding": result.get("effort", describe.get("effort")),
+                "decoding": effective_decoding,
                 "sampling_parameters": "omitted",
                 "stop_reason": result.get("stop_reason", "end_turn"),
                 "continuations": int(result.get("continuations", 0) or 0),
@@ -1207,6 +1212,7 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 "task_id": validated["task_id"],
                 "content": content,
                 "stop_reason": result.get("stop_reason", "end_turn"),
+                "decoding": effective_decoding,
                 "usage": {
                     "input_tokens": int(usage.get("input_tokens", 0) or 0),
                     "cache_creation_input_tokens": int(

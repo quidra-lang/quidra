@@ -756,6 +756,10 @@ def test_packet_only_end_to_end_through_the_gateway() -> None:
         agent_dir = create_task(root, agent_id, "packet-only")
 
         task = json.loads((agent_dir / "task.json").read_text(encoding="utf-8"))
+        task["evaluation"] = "semantic_compression"
+        (agent_dir / "task.json").write_text(
+            json.dumps(task, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
         packet = benchmark.render_prompt_components(
             task["prompt_components"], task["prompt_sha256"]
         ).decode("utf-8")
@@ -780,7 +784,12 @@ def test_packet_only_end_to_end_through_the_gateway() -> None:
             "default": "```json\n" + json.dumps(worker_response) + "\n```",
         }
 
-        with Gateway(root / "gateway", script=script) as gw:
+        task_policy = {
+            "schema_version": 1,
+            "tasks": {agent_id: "disabled"},
+            "efforts": {agent_id: "medium"},
+        }
+        with Gateway(root / "gateway", script=script, task_policy=task_policy) as gw:
             completed = subprocess.run(
                 [
                     sys.executable, str(SCRIPTS / "benchmark.py"), "task-infer",
@@ -812,6 +821,15 @@ def test_packet_only_end_to_end_through_the_gateway() -> None:
         check(
             receipt["inference"]["network_allowed"] is False,
             "a network-disabled packet recorded network access",
+        )
+        check(
+            receipt["inference"]["sampling"]["effort"] == "medium"
+            and receipt["inference"]["sampling"]["effort_source"] == "evaluation_effort",
+            f"the receipt did not record the evaluation-specific frozen depth: {receipt}",
+        )
+        check(
+            receipt["inference"]["effective_decoding"] == "medium",
+            f"the receipt did not record the gateway's effective decoding depth: {receipt}",
         )
 
 

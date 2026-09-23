@@ -479,7 +479,7 @@ jobs:
           from pathlib import Path
           summary = json.loads(Path(os.environ["RUNNER_TEMP"], "cache-impact.json").read_text())
           print(json.dumps({
-              "valid": len(summary.get("valid", [])),
+              "valid": int(summary.get("valid", 0) or 0),
               "invalid": len(summary.get("invalid", [])),
               "invalid_by_evaluation": summary.get("invalid_by_evaluation", {}),
           }, indent=2, sort_keys=True))

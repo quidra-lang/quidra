@@ -5411,6 +5411,7 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
             "provider": health.get("provider", {}).get("id"),
             "network_allowed": bool(meta.get("network_allowed")),
             "sampling": sampling,
+            "effective_decoding": response.get("decoding"),
             "usage": response.get("usage", {}),
             "completion_sha256": sha256_bytes(completion.encode("utf-8")),
         },

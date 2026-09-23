@@ -78,13 +78,21 @@ successful run is sufficient.
 gh run list --workflow benchmark-production --limit 5
 ~~~
 
-4. Check cache impact before paying for anything.
+4. Check the known structural cache impact before paying for anything.
 
 ~~~sh
 python3 benchmark/template/scripts/benchmark.py cache-impact --source-repo .
 ~~~
 
-Records invalid for the current tree are measured again and paid for; see
+This reports certified records already known to be invalid from the current
+checkout: configuration, methodology, readable inputs, toolchain pins, declared
+cache epoch, mechanical scripts, and Quidra version identity. It does **not**
+guess an exact Task Packet hash when that packet depends on a new upstream result
+that does not exist yet. During a run, deterministic preparation and cache
+hydration resolve each fingerprint before the corresponding paid unit is
+dispatched, and each Primary job prints the then-known exact HIT/MISS state.
+Therefore a downstream packet whose bytes depend on a newly produced uncached
+result cannot have its final cache decision before that dependency exists. See
 cache/README.md for the cache keys.
 
 The standalone benchmark-smoke workflow remains available for diagnostics, but

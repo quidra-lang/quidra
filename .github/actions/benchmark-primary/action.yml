@@ -142,6 +142,50 @@ runs:
           -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare \
              --evaluation "$EVALUATION"
 
+    - name: Show current exact cache state before paid dispatch
+      shell: bash
+      env:
+        EVALUATION: ${{ inputs.evaluation }}
+      run: |
+        python - "$EVALUATION" <<'PY'
+        import json, sys
+        from pathlib import Path
+
+        root = Path(".quidra-benchmark")
+        status_path = root / "results/cache_status.json"
+        status = (
+            json.loads(status_path.read_text())
+            if status_path.is_file()
+            else {"hits": {}, "misses": {}}
+        )
+        manifest = json.loads((root / "work/root/manifest.json").read_text())
+        evaluation_by_id = {
+            str(unit["id"]): unit.get("evaluation")
+            for unit in manifest.get("work_units", [])
+        }
+        evaluation = sys.argv[1]
+        hits = sorted(
+            uid for uid in status.get("hits", {})
+            if evaluation_by_id.get(uid) == evaluation
+        )
+        misses = sorted(
+            uid for uid in status.get("misses", {})
+            if evaluation_by_id.get(uid) == evaluation
+        )
+        print(json.dumps({
+            "evaluation": evaluation,
+            "known_hits": len(hits),
+            "known_misses": len(misses),
+            "hit_units": hits,
+            "miss_units": misses,
+            "note": (
+                "Exact for units whose fingerprints are materializable now. "
+                "Downstream packet keys depending on new uncached results are "
+                "resolved only after those dependencies exist."
+            ),
+        }, indent=2))
+        PY
+
     - name: Freeze this Primary's network policy and spend ceilings
       shell: bash
       env:

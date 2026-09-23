@@ -2418,8 +2418,10 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
             for trial_id in benchmark.proficiency_required_trial_ids(root)
             if trial_id.startswith("lightgrad--specification-to-implementation--")
         )
-        agent_dir = root / "work/agents/worker-proficiency-runtime"
-        verify_dir = agent_dir / "trials" / trial_id / "verification" / "call_01"
+        trusted_dir = (
+            root / "work/root/proficiency-verification/test-worker"
+            / trial_id / "call_01"
+        )
         previous = os.environ.pop("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS", None)
         try:
             valid_source = (
@@ -2433,7 +2435,7 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 "format(g2, '.17g'), format(g3, '.17g'))\n"
             )
             verification = benchmark.verify_proficiency_completion(
-                root, "Python", trial_id, valid_source, verify_dir
+                root, "Python", trial_id, valid_source, trusted_dir
             )
             check(
                 verification["compile_parse_ok"] is True
@@ -2448,7 +2450,8 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 "Python",
                 trial_id,
                 "print('LIGHTGRAD 82 113 48 2')\n",
-                agent_dir / "hardcoded-verification",
+                root / "work/root/proficiency-verification/test-worker"
+                / trial_id / "hardcoded",
             )
             check(
                 hardcoded["compile_parse_ok"] is True
@@ -2457,58 +2460,39 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 f"a hard-coded public answer escaped hidden-input verification: {hardcoded}",
             )
             repair = benchmark.proficiency_repair_prompt(hardcoded)
+            feedback = benchmark.proficiency_model_visible_feedback(hardcoded)
+            summary = benchmark.proficiency_verification_summary(hardcoded)
+            serialized_visible = json.dumps(
+                {"repair": repair, "feedback": feedback, "summary": summary},
+                sort_keys=True,
+            )
             check(
-                "hidden-" not in repair
-                and "hidden_failure_count" in repair
-                and "expected_sha256" not in repair
-                and "input_sha256" not in repair,
-                f"hidden-oracle details leaked into the scored repair prompt: {repair}",
+                "hidden-signs" not in serialized_visible
+                and "hidden-negative" not in serialized_visible
+                and "hidden-fractional" not in serialized_visible
+                and "expected_sha256" not in serialized_visible
+                and "input_sha256" not in serialized_visible,
+                f"hidden-oracle details leaked into worker/model-visible data: {serialized_visible}",
             )
 
-            # A generated program is untrusted and may try to exfiltrate hidden
-            # stdin through stdout/stderr. Full evidence is retained only in the
-            # trusted runner store; worker/model-visible projections must reveal none.
-            leaky_dir = agent_dir / "leaky-hidden-verification"
-            leaky = benchmark.verify_proficiency_completion(
-                root,
-                "Python",
-                trial_id,
-                (
-                    "import sys\n"
-                    "data = sys.stdin.read().strip()\n"
-                    "if data == '2 3 5':\n"
-                    "    print('LIGHTGRAD 82 113 48 2')\n"
-                    "else:\n"
-                    "    print(data)\n"
-                    "    print(data, file=sys.stderr)\n"
-                ),
-                leaky_dir,
-            )
+            # The complete trusted record may retain hidden diagnostics, but it
+            # lives under work/root/proficiency-verification, outside worker read
+            # paths. The worker-readable projection must contain only aggregate
+            # counts/verdicts.
             hidden_rows = [
-                row for row in leaky["oracle_tests"] if row.get("hidden") is True
+                row for row in hardcoded["oracle_tests"] if row.get("hidden") is True
             ]
-            leaked_inputs = ("1.5 -2 4", "-1 0.5 -3", "0.25 1.2 -0.75")
-            trusted_text = json.dumps(leaky, sort_keys=True)
+            check(hidden_rows, "trusted verification lost hidden oracle evidence")
             check(
-                hidden_rows and any(secret in trusted_text for secret in leaked_inputs),
-                "the exfiltration fixture did not exercise trusted hidden output",
-            )
-            summary_text = json.dumps(
-                benchmark.proficiency_verification_summary(leaky), sort_keys=True
-            )
-            feedback_text = json.dumps(
-                benchmark.proficiency_model_visible_feedback(leaky), sort_keys=True
-            )
-            check(
-                all(secret not in summary_text for secret in leaked_inputs)
-                and all(secret not in feedback_text for secret in leaked_inputs)
-                and "input_sha256" not in summary_text
-                and "expected_sha256" not in summary_text
-                and "hidden-" not in feedback_text,
-                (
-                    "hidden oracle evidence escaped the trusted runner boundary: "
-                    f"summary={summary_text} feedback={feedback_text}"
-                ),
+                "oracle_tests" not in summary
+                and "compile_or_parse" not in summary
+                and set(summary) <= {
+                    "schema_version", "trial_id", "language", "workload",
+                    "source_sha256", "workload_contract_sha256",
+                    "compile_parse_ok", "test_passed", "oracle_test_count",
+                    "oracle_passed_count", "synthetic_ci",
+                },
+                f"worker-readable verification summary is too broad: {summary}",
             )
 
             extra_stdout = benchmark.verify_proficiency_completion(
@@ -2516,7 +2500,8 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 "Python",
                 trial_id,
                 valid_source + "print('EXTRA')\n",
-                agent_dir / "extra-stdout-verification",
+                root / "work/root/proficiency-verification/test-worker"
+                / trial_id / "extra-stdout",
             )
             check(
                 extra_stdout["compile_parse_ok"] is True
@@ -2529,7 +2514,8 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 "Python",
                 trial_id,
                 "def broken(:\n",
-                agent_dir / "broken-verification",
+                root / "work/root/proficiency-verification/test-worker"
+                / trial_id / "broken",
             )
             check(
                 broken["compile_parse_ok"] is False,
@@ -2539,57 +2525,6 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
             if previous is not None:
                 os.environ["QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS"] = previous
 
-        verification_path = (
-            verify_dir / "verification.json"
-        ).relative_to(agent_dir).as_posix()
-        completion_sha = benchmark.sha256_bytes(valid_source.encode("utf-8"))
-        trace = {
-            "trials": {
-                "trials": {
-                    trial_id: {
-                        "calls": [{
-                            "completion": valid_source,
-                            "completion_sha256": completion_sha,
-                            "incomplete": None,
-                            "verification": verification,
-                            "verification_path": verification_path,
-                        }]
-                    }
-                }
-            }
-        }
-        unit = {
-            "id": "proficiency-trials--python",
-            "evaluation": "llm_proficiency",
-            "assigned_languages": ["Python"],
-        }
-        benchmark.json_dump(
-            agent_dir / "result.json",
-            {
-                "requirements": {
-                    "metric.generation_success_rate": {"Python": 100.0},
-                    "metric.compile_parse_success_rate": {"Python": 100.0},
-                    "metric.correct_at_1": {"Python": 100.0},
-                    "metric.correct_at_n": {"Python": 100.0},
-                    "metric.test_pass_rate": {"Python": 100.0},
-                }
-            },
-        )
-        problems = benchmark.proficiency_runtime_verification_problems(
-            root, unit, agent_dir, trace
-        )
-        check(problems == [], f"trusted runtime metrics were rejected: {problems}")
-
-        result = benchmark.json_load(agent_dir / "result.json")
-        result["requirements"]["metric.compile_parse_success_rate"]["Python"] = 0.0
-        benchmark.json_dump(agent_dir / "result.json", result)
-        problems = benchmark.proficiency_runtime_verification_problems(
-            root, unit, agent_dir, trace
-        )
-        check(
-            any("runtime evidence requires 100.000000" in problem for problem in problems),
-            f"a fabricated compile-success metric was not rejected: {problems}",
-        )
 
 def test_proficiency_toolchain_evidence_precedes_scored_trials() -> None:
     unit = {

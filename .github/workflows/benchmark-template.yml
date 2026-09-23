@@ -725,7 +725,7 @@ jobs:
 
           # Owner completion releases the five metric consumers. Their task
           # packets must contain and attest the exact canonical catalog SHA.
-          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation semantic_compression
           grep -q '"agent_id": "worker-sc-metrics-local--part-1--quidra"' "$TMP/results/dispatch_queue.json"
           python benchmark/template/scripts/benchmark.py task-render \
             --workspace "$TMP" --id worker-sc-metrics-local--part-1--quidra \
@@ -787,7 +787,7 @@ jobs:
               python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
             done
           done
-          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation semantic_compression
 
           python - <<'PY'
           from pathlib import Path
@@ -843,7 +843,7 @@ jobs:
             python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT" < "$TMP/raw/$AGENT.response.json"
             python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
           done
-          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation semantic_compression
 
           # First make comparability fail on one blinded pair. The runner must
           # apply the complete pair-specific repair, rebuild comparability only,
@@ -902,7 +902,7 @@ jobs:
 
           # Direct pair repair preserves all support and metric units; rebuild
           # only the comparability packet from the validated repair record.
-          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation semantic_compression
 
           python - <<'PY'
           from pathlib import Path
@@ -925,7 +925,7 @@ jobs:
           python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id sc-comparability
           python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id worker-sc-comparability < "$TMP/raw/worker-sc-comparability.response.json"
           python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id sc-comparability
-          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation semantic_compression
 
           python - <<'PY'
           from pathlib import Path

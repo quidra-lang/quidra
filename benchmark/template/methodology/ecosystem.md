@@ -72,7 +72,7 @@ Keep mixed concepts split from Language Quality:
 
 Do **not** move these maturity, availability, adoption or network-effect factors back into Language Quality merely because some of them are first-party. Whether a capability is first-party or third-party is not the boundary; whether it primarily measures intrinsic language/implementation quality or accumulated surrounding maturity is.
 
-For each Ecosystem metric, define and freeze an objective rubric or proxy before scoring any language. The same evidence sources, snapshot date or observation window, query rules, thresholds, and 0–100 conversion must be applied unchanged to all 10 languages.
+For each Ecosystem metric, use the objective rubric/proxy already frozen in `template/methodology-assets/ecosystem/rubrics.json` before any language is scored. The same component universe, evidence selection rule, snapshot/observation-window policy, evidence-level thresholds, and 0–100 conversion are applied unchanged to all 10 languages by the trusted runner.
 
 For **Toolchain Stability / Release Maturity**, language age, first-release date, and elapsed years are contextual metadata only. They must not be a threshold, direct score, or automatic penalty/bonus. Score frozen, currently observable evidence such as release reproducibility, versioning/support policy, compatibility guarantees, supported artifact availability, maintenance/release cadence, and documented stability commitments, using the same rubric for all languages.
 
@@ -91,7 +91,10 @@ For every assigned metric, a language worker returns semantic evidence only:
 - `component_findings`: exactly the same five IDs, each with a concise evidence-based finding;
 - `sources`: non-empty source identifiers or URLs supporting the findings;
 - `snapshot_date`: the evidence snapshot date;
-- `limitations`: known evidence limitations.
+- `limitations`: known evidence limitations;
+- `candidate_universe`: the language-specific candidate universe selected under the frozen rule before scoring;
+- `selection_rule`: the exact frozen metric selection-rule string;
+- `retrieval_route`: `provider-brokered web search`.
 
 The trusted runner validates this structure and mechanically computes the 0–100 metric score from the frozen level-to-points mapping. A worker-supplied normalized score is not authoritative and is overwritten. Therefore the LLM performs the part that requires semantic judgment—finding and classifying evidence—while the runner owns rubric identity, component universe, weights, arithmetic, score range, and cross-language consistency.
 

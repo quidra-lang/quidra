@@ -5614,7 +5614,7 @@ def trial_cap_evidence(unit: dict[str, Any], trace: dict[str, Any]) -> dict[str,
 
 
 def cache_cap_reuse_problem(
-    record: dict[str, Any], unit: dict[str, Any]
+    root: Path, record: dict[str, Any], unit: dict[str, Any]
 ) -> str | None:
     """Why a certified trial record cannot stand in for a run at the current cap.
 
@@ -5624,12 +5624,24 @@ def cache_cap_reuse_problem(
     evidence is not reusable until `cache-annotate-caps` has read the run's
     agent traces and written it in.
     """
-    if str(unit.get("evaluation") or "") not in TRIAL_EVALUATIONS:
+    evaluation = str(unit.get("evaluation") or "")
+    if evaluation not in TRIAL_EVALUATIONS:
         return None
+    certification = record.get("certification") or {}
+    if evaluation == "llm_proficiency":
+        expected_hash = proficiency_primary_trial_set_sha256(root)
+        expected_count = len(proficiency_required_trial_ids(root))
+        recorded_hash = certification.get("proficiency_primary_trial_set_sha256")
+        recorded_count = certification.get("proficiency_primary_trial_count")
+        if recorded_hash != expected_hash or recorded_count != expected_count:
+            return (
+                "the Proficiency record predates or disagrees with the exact "
+                f"Primary trial allocation ({expected_count} frozen trials); "
+                "it must be measured again"
+            )
     current = int(unit.get("max_output_tokens_per_call", 0) or 0)
     if current <= 0:
         return None
-    certification = record.get("certification") or {}
     required = ("scored_output_cap", "cap_truncated_trial_calls", "max_trial_output_tokens")
     if any(key not in certification for key in required):
         return (
@@ -5758,7 +5770,7 @@ def hydrate_certified_cache(
             )
         ):
             raise BenchmarkError(f"{uid}: certified cache record failed integrity checks")
-        cap_problem = cache_cap_reuse_problem(record, unit)
+        cap_problem = cache_cap_reuse_problem(root, record, unit)
         if cap_problem:
             status["misses"][uid] = {
                 "fingerprint": fingerprint,

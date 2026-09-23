@@ -124,10 +124,9 @@ Long-running workers periodically call:
 benchmark.py heartbeat --id <work-unit-id>
 ```
 
-Repeat `advance` until all five evaluations are terminal. Finalization may
-record explicit blockers for diagnostics and cache checkpointing, but a formal
-repository result is publishable only when **all five evaluations are COMPLETE**.
-Then run:
+Repeat `advance` until all five evaluations are terminal. Blocked runs may
+finalize for diagnostics/cache recovery, but only five-COMPLETE runs are
+publishable. Then run:
 
 ```bash
 benchmark.py ledger-reconcile
@@ -138,16 +137,12 @@ benchmark.py post-run --source-repo /path/to/trusted/quidra-checkout
 ```
 
 `post-run` is a trusted outer-runner operation after the scored sandbox work is over.
-After the scored sandbox has exited, the trusted outer runner first checkpoints
-every eligible COMPLETE+PASS unit into the certified cache. It imports compact
-run artifacts into `benchmark/<run-id>/` only when all five Primary evaluations
-are COMPLETE; a partial/blocked attempt is diagnostic evidence, not a published
-run. Its full workspace remains in the workflow artifact while its certified
-cache survives for the next attempt. For a publishable run, the import is
-verified by SHA-256 before host staging is deleted. The checkout is never
-exposed to leaf workers. After the workflow finishes, the operator reconciles
-benchmark-generated artifacts into the then-current `develop` branch and
-deletes the disposable branch only after that reconciliation succeeds.
+After sandbox exit, the trusted outer runner checkpoints every eligible
+COMPLETE+PASS unit. Only a five-COMPLETE run is imported to
+`benchmark/<run-id>/`; blocked/partial attempts live only in workflow evidence
+plus certified cache. A published import is SHA-256 verified. The checkout is
+never exposed to leaves. Reconcile generated artifacts into current `develop`
+before deleting the disposable branch.
 
 ## 5. LLMs only where judgment is required
 
@@ -185,10 +180,9 @@ The benchmark has three deliberately separate layers:
 
 1. **Template** — reusable prompts, prompt components, source, harnesses, fixtures, validators, workloads and methodology under `benchmark/template/`.
 2. **Certified cache** — validated comparison-language measurement results under `benchmark/cache/`, keyed by a complete benchmark-input fingerprint.
-3. **Run summary** — created only for an all-five-Primary COMPLETE run; it
-contains compact run identity, Primary scores/rankings, cache provenance and
-overview under `benchmark/<run-id>/`. Incomplete attempts never occupy this
-published namespace.
+3. **Run summary** — only for a five-COMPLETE run: compact identity,
+scores/rankings, cache provenance and overview under `benchmark/<run-id>/`.
+Incomplete attempts never occupy this namespace.
 
 A certified measurement may be reused only when its fingerprint matches exactly. The fingerprint includes the exact Task Packet SHA-256, assigned language set, provider/model, frozen sampling state, relevant toolchain versions, validator/workload inputs, worker/network policy, runtime-toolchain manifest and cache epoch. A cache HIT is revalidated by the current runner before it becomes COMPLETE. A MISS executes normally; an eligible non-Quidra unit may be checkpointed independently once that unit is COMPLETE, its current validator is PASS, and any evaluation-specific cache certification succeeds. Overall Primary finalization is not required for that checkpoint.
 
@@ -210,15 +204,11 @@ Template maintenance happens before freeze or after the scored sandbox has exite
 
 Machine-readable results are the single source of truth. Markdown/CSV/charts are generated from them.
 
-Git retains a compact run summary only for an all-five-Primary COMPLETE run:
-run identity, Primary scores/rankings, cache HIT/MISS provenance and hashes
-needed to reproduce the decision. Incomplete-attempt blockers remain in the
-workflow evidence artifact rather than becoming a dated published run. Raw prompts, completions, worker directories, traces, plans, ledgers and command evidence remain in the workflow evidence artifact for the frozen retention window instead of being committed once per run. Reusable prompt bytes are deduplicated in the content-addressed template prompt store, and reusable validated comparison measurements are deduplicated in the certified cache.
+Git retains a compact summary only for five-COMPLETE runs. Incomplete blockers
+stay in workflow evidence rather than becoming dated published runs. Raw prompts, completions, worker directories, traces, plans, ledgers and command evidence remain in the workflow evidence artifact for the frozen retention window instead of being committed once per run. Reusable prompt bytes are deduplicated in the content-addressed template prompt store, and reusable validated comparison measurements are deduplicated in the certified cache.
 
 Build products, the evaluated repository snapshot, temporary home and temporary files are never committed as run output. The gateway request audit remains trusted-side evidence. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
 
-A publishable successful run has all five Primary evaluations COMPLETE, has a
-runner-generated ranking for every one of them, and passes
-reconciliation/privacy/finalization gates. A terminal run with blockers is
-useful for diagnostics and certified-cache recovery, but it is not published as
-a benchmark/<run-id>/ result.
+A publishable run has five COMPLETE Primary evaluations, runner-generated
+rankings, and passing reconciliation/privacy/finalization gates. Blocked runs
+remain diagnostic/cache-recovery attempts, not `benchmark/<run-id>/` results.

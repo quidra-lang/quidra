@@ -2852,6 +2852,105 @@ def comparability_blinding(run_id: str, languages: list[str]) -> dict[str, str]:
     return {language: chr(ord("A") + index) for index, language in enumerate(order)}
 
 
+SC_SUPPORT_FIELD_HINTS = ("support", "awarded", "points")
+
+
+def sc_support_is_level(value: Any) -> str | None:
+    """The FULL/PARTIAL/NONE level a field holds, if it holds one plainly."""
+    if isinstance(value, str) and value.strip().upper() in ("FULL", "PARTIAL", "NONE"):
+        return value.strip().upper()
+    return None
+
+
+def sc_owner_support_levels(row: dict[str, Any], fields: list[str]) -> set[str]:
+    """Every level the owning shard stated for one probe, however it nested it.
+
+    `probe_annotation_fields` names a collected value after the evidence key it
+    came from, so the owner's level arrives either as a bare `support` field or
+    inside whatever mapping the shard happened to record it under. Both are the
+    same statement, so read the field wherever it sits rather than only at the
+    top.
+    """
+    found: set[str] = set()
+
+    def visit(node: Any, key: str, depth: int) -> None:
+        if depth > 4:
+            return
+        if isinstance(node, dict):
+            for name, value in node.items():
+                visit(value, str(name), depth + 1)
+        elif isinstance(node, list):
+            for item in node:
+                visit(item, key, depth + 1)
+        elif any(key == name or key.endswith("_" + name) for name in fields):
+            level = sc_support_is_level(node)
+            if level:
+                found.add(level)
+
+    visit(row, "", 0)
+    return found
+
+
+def sc_reconcile_support(
+    by_language: dict[str, dict[str, dict[str, Any]]],
+    owner_rows: dict[str, dict[str, dict[str, Any]]],
+    owner: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Give every (language, probe) one support level, taken from its owner.
+
+    Each metric shard annotated the support level of every probe it touched and
+    nothing reconciled them, so one language could carry several levels for one
+    probe under different field names - `support`, `per_probe_support`,
+    `per_probe_support_factors` - and the first blinded comparability audit
+    correctly refused to certify annotations that did not state one determinate
+    level. A shard sees one metric and one language; reconciling across shards
+    is the runner's job, exactly as it is for the map onto the 0-100 scale.
+
+    Mutates `by_language` in place and returns what it replaced, so the
+    reconciliation is recorded rather than hidden.
+    """
+    fields = [str(name) for name in (owner.get("fields") or ["support"])]
+    levels = {
+        str(name).upper(): float(factor)
+        for name, factor in (owner.get("levels") or {}).items()
+    }
+    replaced: list[dict[str, Any]] = []
+    for language in sorted(by_language):
+        for probe_id, row in sorted(by_language[language].items()):
+            owner_row = (owner_rows.get(language) or {}).get(probe_id) or {}
+            candidates = sc_owner_support_levels(owner_row, fields)
+            dropped = {
+                key: value
+                for key, value in row.items()
+                if any(hint in str(key).lower() for hint in SC_SUPPORT_FIELD_HINTS)
+            }
+            level = candidates.pop() if len(candidates) == 1 else None
+            for key in dropped:
+                row.pop(key, None)
+            if level is None:
+                row["support"] = "UNRECONCILED"
+                row["support_note"] = (
+                    "The owning Capability Coverage annotation did not state one "
+                    "determinate level for this probe. Judge it as unstated."
+                )
+            else:
+                factor = levels.get(level, 0.0)
+                row["support"] = level
+                row["support_factor"] = factor
+            if dropped or level is None:
+                replaced.append(
+                    {
+                        "language": language,
+                        "probe_id": probe_id,
+                        "reconciled_to": row["support"],
+                        "replaced_fields": {
+                            key: value for key, value in sorted(dropped.items())
+                        },
+                    }
+                )
+    return replaced
+
+
 def build_comparability_sample(
     root: Path, unit: dict[str, Any], manifest: dict[str, Any]
 ) -> Path:
@@ -2866,6 +2965,15 @@ def build_comparability_sample(
     units = {str(item.get("id")): item for item in manifest.get("work_units", [])}
     probes = comparability_sample_probes(root)
     wanted = {str(probe.get("probe_id")) for probe in probes}
+    support_owner = (
+        json_load(root / "template" / "config" / "aggregation.json")
+        .get("evaluations", {})
+        .get("semantic_compression", {})
+        .get("support_level_owner")
+        or {}
+    )
+    support_owner_id = str(support_owner.get("requirement_id") or "")
+    owner_rows: dict[str, dict[str, dict[str, Any]]] = {}
     by_language: dict[str, dict[str, dict[str, Any]]] = {}
     for dependency in unit.get("dependencies", []):
         source = units.get(str(dependency))
@@ -2885,11 +2993,21 @@ def build_comparability_sample(
         for probe_id, fields in collected.items():
             if fields:
                 annotations.setdefault(probe_id, {}).update(fields)
+        if support_owner_id in (source.get("requirement_ids") or []):
+            owned = owner_rows.setdefault(str(languages[0]), {})
+            for probe_id, fields in collected.items():
+                if fields:
+                    owned.setdefault(probe_id, {}).update(fields)
     if not by_language:
         raise BenchmarkError(
             "comparability audit sample has no completed annotations to review"
         )
 
+    reconciled = (
+        sc_reconcile_support(by_language, owner_rows, support_owner)
+        if support_owner_id
+        else []
+    )
     labels = comparability_blinding(
         str(json_load(root / "run.json").get("run_id")), sorted(by_language)
     )
@@ -2910,6 +3028,34 @@ def build_comparability_sample(
             "frozen probes, covering every capability family"
         ),
         "entry_labels": sorted(labels.values()),
+        "support_reconciliation": {
+            "owner_requirement_id": support_owner_id,
+            "why": support_owner.get("why"),
+            "note": (
+                "Each entry's `support` and `support_factor` were set by the "
+                "runner from the owning Capability Coverage annotation, because "
+                "a shard sees one metric and one language and cannot reconcile "
+                "across the others. Do not re-adjudicate a support level as a "
+                "cross-entry disagreement; judge annotation depth, row "
+                "interpretation and asymmetric treatment as the methodology "
+                "directs. An entry whose owner stated no determinate level "
+                "carries `support: UNRECONCILED` and is unstated, not "
+                "comparable."
+            ),
+            "reconciled_entries": sorted(
+                {
+                    (labels[row["language"]], row["probe_id"], row["reconciled_to"])
+                    for row in reconciled
+                }
+            ),
+            "replaced_field_names": sorted(
+                {name for row in reconciled for name in row["replaced_fields"]}
+            ),
+            "full_record": (
+                "work/audit/semantic-compression/support_reconciliation.json, "
+                "kept with the run's evidence rather than in this packet"
+            ),
+        },
         "probes": [
             {
                 "probe_id": str(probe.get("probe_id")),
@@ -2946,6 +3092,19 @@ def build_comparability_sample(
     destination = require_under(root / COMPARABILITY_SAMPLE_RELATIVE, root)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(encoded)
+    if support_owner_id:
+        # Every annotation the runner replaced, with the values it replaced and
+        # the language it belongs to: too large for the auditor's packet, and
+        # the whole point of reconciling in the open rather than silently.
+        json_dump(
+            destination.parent / "support_reconciliation.json",
+            {
+                "schema_version": 1,
+                "owner_requirement_id": support_owner_id,
+                "why": support_owner.get("why"),
+                "replacements": reconciled,
+            },
+        )
     blinding = require_under(root / COMPARABILITY_BLINDING_RELATIVE, root)
     blinding.parent.mkdir(parents=True, exist_ok=True)
     blinding.write_text(
@@ -8241,7 +8400,11 @@ def evaluation_breakdown(
                     value = 2.0 * quality * coverage / (quality + coverage)
             else:
                 value = None
-        except BenchmarkError:
+        except (BenchmarkError, KeyError, TypeError, ZeroDivisionError):
+            # The recomputation is a check on the published score, not a second
+            # source of it: an incomplete requirement set (a blocked evaluation,
+            # a language a shard never covered) means this evaluation has no
+            # reconstruction to report, never a failed import.
             value = None
         if value is not None:
             recomputed[language] = float(value)

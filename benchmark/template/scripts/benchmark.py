@@ -3330,6 +3330,17 @@ def build_support_adjudication_input(
         if (evidence := sc_probe_mechanical_verification(root, language, probe_id))
         is not None
     }
+    frozen_toolchains: dict[str, Any] = {}
+    toolchains_path = root / "results" / "toolchains.json"
+    if toolchains_path.is_file():
+        scanned = (json_load(toolchains_path).get("toolchains") or {})
+        for language in sorted(by_language):
+            row = scanned.get(language)
+            if isinstance(row, dict):
+                frozen_toolchains[language] = {
+                    "canonical": row.get("canonical"),
+                    "commands": row.get("commands"),
+                }
     probe = next(
         (entry for entry in comparability_sample_probes(root)
          if str(entry.get("probe_id")) == probe_id),
@@ -3346,8 +3357,9 @@ def build_support_adjudication_input(
             "symmetrically. Use the cross-probe context to avoid classifying the "
             "same standard mechanism differently unless numbered requirements "
             "materially distinguish the probes. mechanical_verification is trusted "
-            "runner evidence from the pinned runtime using the exact frozen recipe; "
-            "when present, do not contradict its build/run facts or invent a P-b "
+            "runner evidence from the pinned runtime using the exact frozen recipe, "
+            "and frozen_toolchains records the installed versions seen by this run. "
+            "When present, do not contradict those build/run facts or invent a P-b "
             "flag requirement that its argv does not contain. Return objects, never "
             "bare levels."
         ),
@@ -3362,6 +3374,7 @@ def build_support_adjudication_input(
         "frozen_probe": probe,
         "comparability_policy": policy,
         "mechanical_verification": mechanical_verification,
+        "frozen_toolchains": frozen_toolchains,
         "annotation_count": len(by_language),
         "annotations": {language: by_language[language] for language in sorted(by_language)},
         "cross_probe_support_context": {

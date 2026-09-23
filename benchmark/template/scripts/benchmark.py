@@ -1096,11 +1096,14 @@ def cmd_toolchain_scan(args: argparse.Namespace) -> int:
                 "runtime image toolchain observation record is unreadable: "
                 f"{exc}"
             ) from exc
+    semantic_ffi_smoke = runtime_image_record.get("semantic_ffi_smoke", {})
+    if lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
+        semantic_ffi_smoke = run_f20_runtime_baselines(root)
     payload = {
         "schema_version": 1,
         "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "toolchains": results,
-        "semantic_ffi_smoke": runtime_image_record.get("semantic_ffi_smoke", {}),
+        "semantic_ffi_smoke": semantic_ffi_smoke,
         "runtime_image": runtime_image_record.get("image"),
         "missing": missing,
         "ok": not missing,
@@ -2784,8 +2787,10 @@ annotations against the frozen matrix. Entries use opaque per-run labels.
 
 When an entry carries `support_adjudication`, that object is the sole
 authoritative support record for FULL/PARTIAL/NONE, the selected fragment,
-P-letter or N-reason, justification and citation. Superseded support prose from
-metric shards has been removed by the runner. Do not resurrect it.
+P-letter or N-reason, justification and citation. Metric evidence is grouped
+under `metric_annotations` by the exact source work-unit ID. Never splice a
+fragment, note, rationale or other field from one source into another source's
+annotation, and never treat shard support prose as a second vote.
 
 If the sample is mutually comparable, return gate.comparability_audit=true.
 If it is not, return false and identify every affected pair under
@@ -2954,6 +2959,23 @@ def merge_annotation_fields_strict(
                 )
             continue
         target[key] = value
+
+
+def sc_add_annotation_source(
+    target: dict[str, Any], source_id: str, fields: dict[str, Any]
+) -> None:
+    """Preserve one shard as one annotation instead of splicing shard fields."""
+    sources = target.setdefault("metric_annotations", {})
+    if not isinstance(sources, dict):
+        raise BenchmarkError("Semantic Compression metric_annotations must be an object")
+    clipped = clip_annotation_text(fields)
+    previous = sources.get(source_id)
+    if previous is not None and previous != clipped:
+        raise BenchmarkError(
+            f"Semantic Compression source {source_id!r} changed while one audit "
+            "packet was being assembled"
+        )
+    sources[source_id] = clipped
 
 
 def probe_annotation_fields(
@@ -3232,10 +3254,10 @@ def build_support_adjudication_input(
         collected = probe_annotation_fields(result, {probe_id})
         fields = collected.get(probe_id) or {}
         if fields:
-            merge_annotation_fields_strict(
+            sc_add_annotation_source(
                 by_language.setdefault(language, {}),
-                clip_annotation_text(fields),
-                context=f"{probe_id}/{language} from {source.get('id')}",
+                str(source.get("id") or dependency),
+                fields,
             )
         if support_owner_id in (source.get("requirement_ids") or []):
             context = probe_annotation_fields(result, sampled)
@@ -3276,6 +3298,11 @@ def build_support_adjudication_input(
         "cross_probe_support_context": {
             language: cross_probe[language] for language in sorted(cross_probe)
         },
+        "trusted_runtime_baselines": (
+            f20_runtime_baseline_data(root)
+            if probe_id == "F20.P1"
+            else None
+        ),
     }
     destination = require_under(
         root / "work" / "audit" / "semantic-compression"
@@ -3519,12 +3546,10 @@ def build_comparability_sample(
         annotations = by_language.setdefault(str(languages[0]), {})
         for probe_id, fields in collected.items():
             if fields:
-                merge_annotation_fields_strict(
+                sc_add_annotation_source(
                     annotations.setdefault(probe_id, {}),
+                    str(source.get("id") or dependency),
                     fields,
-                    context=(
-                        f"{languages[0]}/{probe_id} from {source.get('id')}"
-                    ),
                 )
         if support_owner_id in (source.get("requirement_ids") or []):
             owned = owner_rows.setdefault(str(languages[0]), {})
@@ -3829,6 +3854,10 @@ def validate_support_adjudication_against_canonical_fragments(
                     "fragment; adjudication may only refine FULL/PARTIAL and its "
                     "reasoning on the existing fragment"
                 )
+        if probe_id == "F20.P1":
+            validate_f20_record_against_runtime_baseline(
+                root, language, adjudicated
+            )
 
 
 
@@ -4085,6 +4114,127 @@ def _semantic_run_process(
     return record
 
 
+F20_RUNTIME_FIXTURES_RELATIVE = Path("template/runtime/f20_interop_fixtures.json")
+
+
+def _render_f20_runtime_recipe(
+    recipe: str, source: Path, work: Path
+) -> list[str]:
+    replacements = {
+        "FILE.py": str(source),
+        "FILE.go": str(source),
+        "FILE.java": str(source),
+        "FILE.kt": str(source),
+        "FILE.jar": str(work / "program.jar"),
+        "./BIN": str(work / "program"),
+        "BIN": str(work / "program"),
+        "OUT": str(work / "out"),
+    }
+    argv: list[str] = []
+    for token in shlex.split(recipe):
+        rendered = token
+        for key in sorted(replacements, key=len, reverse=True):
+            rendered = rendered.replace(key, replacements[key])
+        argv.append(rendered)
+    return argv
+
+
+def run_f20_runtime_baselines(root: Path) -> dict[str, Any]:
+    """Verify selected F20.P1 mechanisms under the exact frozen recipes."""
+    fixtures = json_load(root / F20_RUNTIME_FIXTURES_RELATIVE)
+    if fixtures.get("schema_version") != 1 or fixtures.get("probe_id") != "F20.P1":
+        raise BenchmarkError("invalid F20 runtime baseline fixture contract")
+    environment = json_load(root / "template" / "environment" / "environment.json")
+    frozen = environment.get("frozen_toolchain_recipes") or {}
+    work_root = root / "work" / "root" / "commands" / "f20-runtime-baselines"
+    shutil.rmtree(work_root, ignore_errors=True)
+    work_root.mkdir(parents=True, exist_ok=True)
+    report: dict[str, Any] = {
+        "schema_version": 1,
+        "probe_id": "F20.P1",
+        "passed": False,
+        "languages": {},
+    }
+    for language, fixture in sorted((fixtures.get("languages") or {}).items()):
+        recipe = frozen.get(language) or {}
+        if fixture.get("build") != recipe.get("build") or fixture.get("run") != recipe.get("run"):
+            raise BenchmarkError(
+                f"F20 baseline recipe drift for {language}: fixture must equal frozen recipe"
+            )
+        work = work_root / slug_id(language)
+        work.mkdir(parents=True, exist_ok=True)
+        (work / "out").mkdir(exist_ok=True)
+        source = work / str(fixture["filename"])
+        source.write_text(str(fixture["source"]), encoding="utf-8")
+        evidence: dict[str, Any] = {
+            "recipe_build": fixture.get("build"),
+            "recipe_run": fixture.get("run"),
+        }
+        if fixture.get("build"):
+            build_argv = _render_f20_runtime_recipe(
+                str(fixture["build"]), source, work
+            )
+            evidence["build"] = _semantic_run_process(
+                root, work, build_argv, label=f"{language} F20.P1 baseline build"
+            )
+        run_argv = _render_f20_runtime_recipe(str(fixture["run"]), source, work)
+        evidence["run"] = _semantic_run_process(
+            root, work, run_argv, label=f"{language} F20.P1 baseline run"
+        )
+        stdout = str(evidence["run"].get("stdout") or "").strip()
+        if stdout != "3":
+            raise BenchmarkError(
+                f"{language} F20.P1 baseline produced {stdout!r}, expected '3'"
+            )
+        evidence["verified_without_extra_flags"] = True
+        evidence["observed_stdout"] = "3"
+        report["languages"][language] = evidence
+    report["passed"] = True
+    return report
+
+
+def f20_runtime_baseline_data(root: Path) -> dict[str, Any] | None:
+    path = root / "results" / "toolchains.json"
+    if not path.is_file():
+        return None
+    data = (json_load(path).get("semantic_ffi_smoke") or {})
+    if not data:
+        return None
+    if data.get("probe_id") != "F20.P1" or data.get("passed") is not True:
+        raise BenchmarkError("F20 runtime baseline evidence is incomplete or failed")
+    return data
+
+
+def validate_f20_record_against_runtime_baseline(
+    root: Path, language: str, record: dict[str, Any]
+) -> None:
+    fixtures = json_load(root / F20_RUNTIME_FIXTURES_RELATIVE)
+    verified_languages = set((fixtures.get("languages") or {}).keys())
+    if language not in verified_languages:
+        return
+    data = f20_runtime_baseline_data(root)
+    if data is None:
+        if lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
+            raise BenchmarkError(
+                f"F20.P1: trusted runtime baseline evidence is missing for {language}"
+            )
+        return
+    if language not in (data.get("languages") or {}):
+        raise BenchmarkError(
+            f"F20.P1: trusted runtime baseline omitted configured language {language}"
+        )
+    if record["level"] == "NONE":
+        raise BenchmarkError(
+            f"F20.P1: {language} cannot be NONE: the pinned runtime baseline "
+            "delivers the numbered task under the exact frozen recipe"
+        )
+    if "P-b" in record["partial_reasons"]:
+        raise BenchmarkError(
+            f"F20.P1: {language} cannot cite P-b: the pinned runtime baseline "
+            "uses no compiler/runtime flag beyond the frozen recipe"
+        )
+
+
 def _semantic_nm_has_add2(output: str) -> bool:
     for line in output.splitlines():
         fields = line.split()
@@ -4255,6 +4405,10 @@ def validate_canonical_fragment_owner_result(
         raise BenchmarkError("canonical fragment owner must be language-sharded")
     language = str(assigned[0])
     catalog = canonical_fragment_catalog(root, result)
+    if not bool((result.get("evidence") or {}).get("synthetic")):
+        validate_f20_record_against_runtime_baseline(
+            root, language, catalog["F20.P1"]
+        )
     validate_canonical_fragment_verification(
         root, language, catalog, result.get("evidence") or {}
     )

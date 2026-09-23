@@ -15,6 +15,7 @@ on:
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
+      - ".github/workflows/benchmark-paid-state-keepalive.yml"
       - ".github/actions/benchmark-primary/**"
   pull_request:
     paths:
@@ -56,6 +57,7 @@ jobs:
           ruby - <<'RUBY'
           require "yaml"
           workflow = YAML.load_file(".github/workflows/benchmark-production.yml", aliases: true)
+          YAML.load_file(".github/workflows/benchmark-paid-state-keepalive.yml", aliases: true)
           YAML.load_file(".github/actions/benchmark-primary/action.yml", aliases: true)
           jobs = workflow.fetch("jobs")
           expected_needs = {

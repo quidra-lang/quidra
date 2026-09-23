@@ -1255,7 +1255,120 @@ def assert_packet_paid_response_commit_is_replayable() -> None:
         assert (task_path.parent / "result.json").is_file()
 
 
+
+def assert_partial_paid_checkpoint_roundtrip() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        base = Path(td)
+        root = make_workspace(base)
+        unit, task = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+        agent_id = unit["assigned_agent_id"]
+        agent_dir = root / "work/agents" / agent_id
+        trial_dir = agent_dir / "trials/case-t1"
+        trial_dir.mkdir(parents=True)
+        prompt = "write a tiny program"
+        completion = "print('paid once')"
+        (trial_dir / "prompt_01.txt").write_text(prompt, encoding="utf-8")
+        (trial_dir / "completion_01.txt").write_text(completion, encoding="utf-8")
+        benchmark.json_dump(
+            trial_dir / "session.json",
+            {
+                "schema_version": 1,
+                "trial_id": "case-t1",
+                "calls": [{
+                    "prompt": prompt,
+                    "prompt_sha256": benchmark.sha256_bytes(prompt.encode()),
+                    "completion_sha256": benchmark.sha256_bytes(completion.encode()),
+                    "prompt_path": "trials/case-t1/prompt_01.txt",
+                    "completion_path": "trials/case-t1/completion_01.txt",
+                    "verification": None,
+                    "verification_path": None,
+                }],
+            },
+        )
+        benchmark.json_dump(
+            agent_dir / "trial_call_journal.json",
+            {
+                "schema_version": 1,
+                "calls": [{
+                    "trial_id": "case-t1",
+                    "call": 1,
+                    "action": "trial_start",
+                    "prompt_sha256": benchmark.sha256_bytes(prompt.encode()),
+                    "completion_sha256": benchmark.sha256_bytes(completion.encode()),
+                    "verification": None,
+                    "verification_path": None,
+                }],
+            },
+        )
+        benchmark.json_dump(
+            agent_dir / "agent_trace.partial.json",
+            {
+                "schema_version": 1,
+                "agent_id": agent_id,
+                "worker_mode": "sandbox-agent",
+                "prompt_sha256": task["prompt_sha256"],
+                "trace": [{
+                    "turn": 1,
+                    "action": "trial_start",
+                    "observation": {"ok": True, "trial_id": "case-t1", "call": 1},
+                }],
+            },
+        )
+
+        store = base / "paid-state"
+        exported = benchmark.export_partial_paid_checkpoints(root, store)
+        assert exported["updated_unit_count"] == 1, exported
+        assert exported["exported_units"][0]["paid_call_count"] == 1
+
+        shutil.rmtree(agent_dir / "trials")
+        (agent_dir / "trial_call_journal.json").unlink()
+        (agent_dir / "agent_trace.partial.json").unlink()
+
+        restored = benchmark.import_partial_paid_checkpoints(root, store)
+        assert restored["imported_unit_count"] == 1, restored
+        assert restored["restored_paid_calls"] == 1, restored
+        assert (trial_dir / "completion_01.txt").read_text() == completion
+        assert (agent_dir / "trial_call_journal.json").is_file()
+        assert (agent_dir / "resume_trace.json").is_file()
+
+        # Re-exporting identical state must not generate a new cache save.
+        again = benchmark.export_partial_paid_checkpoints(root, store)
+        assert again["updated_unit_count"] == 0, again
+
+        plan = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=100.0,
+            evaluation="ecosystem",
+            safety_multiplier=1.25,
+        )
+        # The unit declares one scored call. Restoring that paid call leaves
+        # only the bounded orchestration envelope, not another scored trial.
+        assert plan["partial_paid_restored_calls"] == 1, plan
+        assert unit["id"] in plan["partial_paid_resumed_units"], plan
+
+
+def assert_optional_units_do_not_enter_required_resume_set() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, _ = create_cacheable_task(root)
+        unit["required_for_complete"] = False
+        freeze_manifest(root, unit)
+        benchmark.json_dump(
+            root / "results/primary_status.json",
+            {"schema_version": 1, "evaluations": {}},
+        )
+        audit = benchmark.build_completeness_audit(root)
+        assert audit["required_incomplete_units"] == [], audit
+        assert [row["work_unit_id"] for row in audit["optional_incomplete_units"]] == [
+            unit["id"]
+        ]
+
+
 def main() -> None:
+    assert_partial_paid_checkpoint_roundtrip()
+    assert_optional_units_do_not_enter_required_resume_set()
     assert_corrupt_cache_is_leaf_local_and_explicit()
     assert_execution_plan_classifies_cache_decisions()
     assert_packet_paid_response_commit_is_replayable()

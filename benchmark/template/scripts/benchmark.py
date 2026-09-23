@@ -7260,6 +7260,34 @@ def verify_proficiency_completion(
     expected_exit = int(validation.get("success_exit_code", 0))
 
     work_dir.mkdir(parents=True, exist_ok=True)
+    synthetic_allowed = (
+        lexical_absolute(root) != lexical_absolute(CANONICAL_WORKSPACE)
+        and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
+    )
+    if synthetic_allowed:
+        result = {
+            "schema_version": 1,
+            "trial_id": trial_id,
+            "language": language,
+            "source_sha256": sha256_bytes(source_text.encode("utf-8")),
+            "expected_exit_code": expected_exit,
+            "expected_stdout": expected_stdout,
+            "compile_or_parse": {
+                "label": "synthetic-ci",
+                "argv": [],
+                "exit_code": 0,
+                "stdout": "",
+                "stderr": "",
+            },
+            "compile_parse_ok": True,
+            "run": None,
+            "test_passed": False,
+            "synthetic_ci": True,
+        }
+        json_dump(work_dir / "verification.json", result)
+        return result
+
+    work_dir.mkdir(parents=True, exist_ok=True)
     source_name, build_argv, run_argv = proficiency_verifier_commands(root, language)
     source_path = work_dir / source_name
     source_path.parent.mkdir(parents=True, exist_ok=True)
@@ -7556,8 +7584,20 @@ def proficiency_runtime_verification_problems(
         per_trial[str(trial_id)] = trial_rows
 
     computed = proficiency_runtime_metrics(trace)
+    synthetic = any(
+        isinstance(call.get("verification"), dict)
+        and call["verification"].get("synthetic_ci") is True
+        for summary in trials.values()
+        for call in ((summary or {}).get("calls") or [])
+        if isinstance(call, dict)
+    )
     if computed is None:
         problems.append("runtime-owned Proficiency metrics could not be recomputed")
+    elif synthetic and (
+        lexical_absolute(root) != lexical_absolute(CANONICAL_WORKSPACE)
+        and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
+    ):
+        pass
     else:
         result_path = agent_dir / "result.json"
         if not result_path.is_file():
@@ -7587,6 +7627,7 @@ def proficiency_runtime_verification_problems(
         "work_unit_id": str(unit.get("id") or ""),
         "assigned_languages": list(unit.get("assigned_languages") or []),
         "runtime_metrics": computed,
+        "synthetic_ci": synthetic,
         "trials": per_trial,
         "passed": not problems,
         "problems": problems,

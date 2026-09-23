@@ -2410,6 +2410,92 @@ def test_trial_units_need_real_trials_and_a_working_toolchain() -> None:
         )
 
 
+def test_proficiency_runtime_verifier_executes_generated_python() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td).resolve())
+        trial_id = next(
+            trial_id
+            for trial_id in benchmark.proficiency_required_trial_ids(root)
+            if trial_id.startswith("gmm--specification-to-implementation--")
+        )
+        agent_dir = root / "work/agents/worker-proficiency-runtime"
+        verify_dir = agent_dir / "trials" / trial_id / "verification" / "call_01"
+        previous = os.environ.pop("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS", None)
+        try:
+            valid_source = 'print("GMM PASS")\n'
+            verification = benchmark.verify_proficiency_completion(
+                root, "Python", trial_id, valid_source, verify_dir
+            )
+            check(
+                verification["compile_parse_ok"] is True
+                and verification["test_passed"] is True,
+                f"trusted Python verifier rejected an executable fixture: {verification}",
+            )
+            broken = benchmark.verify_proficiency_completion(
+                root,
+                "Python",
+                trial_id,
+                "def broken(:\n",
+                agent_dir / "broken-verification",
+            )
+            check(
+                broken["compile_parse_ok"] is False,
+                f"trusted Python verifier accepted invalid syntax: {broken}",
+            )
+        finally:
+            if previous is not None:
+                os.environ["QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS"] = previous
+
+        verification_path = (
+            verify_dir / "verification.json"
+        ).relative_to(agent_dir).as_posix()
+        completion_sha = benchmark.sha256_bytes(valid_source.encode("utf-8"))
+        trace = {
+            "trials": {
+                "trials": {
+                    trial_id: {
+                        "calls": [{
+                            "completion": valid_source,
+                            "completion_sha256": completion_sha,
+                            "incomplete": None,
+                            "verification": verification,
+                            "verification_path": verification_path,
+                        }]
+                    }
+                }
+            }
+        }
+        unit = {
+            "id": "proficiency-trials--python",
+            "evaluation": "llm_proficiency",
+            "assigned_languages": ["Python"],
+        }
+        benchmark.json_dump(
+            agent_dir / "result.json",
+            {
+                "requirements": {
+                    "metric.generation_success_rate": {"Python": 100.0},
+                    "metric.compile_parse_success_rate": {"Python": 100.0},
+                }
+            },
+        )
+        problems = benchmark.proficiency_runtime_verification_problems(
+            root, unit, agent_dir, trace
+        )
+        check(problems == [], f"trusted runtime metrics were rejected: {problems}")
+
+        result = benchmark.json_load(agent_dir / "result.json")
+        result["requirements"]["metric.compile_parse_success_rate"]["Python"] = 0.0
+        benchmark.json_dump(agent_dir / "result.json", result)
+        problems = benchmark.proficiency_runtime_verification_problems(
+            root, unit, agent_dir, trace
+        )
+        check(
+            any("runtime evidence requires 100.000000" in problem for problem in problems),
+            f"a fabricated compile-success metric was not rejected: {problems}",
+        )
+
+
 def test_proficiency_toolchain_evidence_precedes_scored_trials() -> None:
     unit = {
         "id": "proficiency-trials--zig",

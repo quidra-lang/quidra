@@ -1345,6 +1345,12 @@ jobs:
           REPO="$MOVED_REPO"
           RUN="$REPO/.quidra-benchmark"
 
+          # Production post-run executes on the isolated benchmark branch.
+          # Exercise that exact provenance path rather than only develop.
+          git -C "$REPO" checkout -b benchmark
+          POST_RUN_SOURCE_COMMIT="$(git -C "$REPO" rev-parse HEAD)"
+          export POST_RUN_SOURCE_COMMIT
+
           python benchmark/template/scripts/benchmark.py post-run \
             --source-repo "$REPO"
 
@@ -1356,6 +1362,18 @@ jobs:
           test -f "$OUT/cache_usage.json"
           test -f "$OUT/provenance.json"
           test -f "$OUT/import_manifest.json"
+          export OUT
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          manifest = json.loads(
+              (Path(os.environ["OUT"]) / "import_manifest.json").read_text()
+          )
+          assert manifest["schema_version"] == 2, manifest
+          assert manifest["post_run_source_branch"] == "benchmark", manifest
+          assert manifest["post_run_source_commit"] == os.environ["POST_RUN_SOURCE_COMMIT"], manifest
+          assert "imported_into_develop_commit" not in manifest, manifest
+          PY
           test ! -e "$OUT/raw"
           test ! -e "$OUT/prompts"
           test ! -e "$OUT/work"

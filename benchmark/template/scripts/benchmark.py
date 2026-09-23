@@ -13620,10 +13620,16 @@ def cmd_post_run(args: argparse.Namespace) -> int:
         staging, root, run, cache_promotion, prompt_promotion
     )
     import_manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": run_id,
         "evaluated_commit_sha": run.get("evaluated", {}).get("commit_sha"),
-        "imported_into_develop_commit": meta["commit_sha"],
+        # post-run materializes the compact result in the checkout it was
+        # invoked from. Production runs do that on the isolated benchmark
+        # branch; reconciliation into the then-current develop happens later
+        # under the documented branch-lifecycle procedure. Do not claim a
+        # develop commit here before that reconciliation has actually happened.
+        "post_run_source_branch": meta["branch"],
+        "post_run_source_commit": meta["commit_sha"],
         "retained_file_count": len(expected_hashes),
         "retained_files_sha256": expected_hashes,
         "retention_policy": "compact-summary-only",

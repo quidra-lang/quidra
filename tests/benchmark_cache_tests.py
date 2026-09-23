@@ -286,17 +286,17 @@ def assert_scored_cap_governs_reuse(root: Path, unit: dict, task: dict) -> None:
         "cap_truncated_trial_calls": 0, "max_trial_output_tokens": 20000,
     }}
     legacy = {"certification": {"learnability_integrity": True}}
-    assert problem(fitted, trial_unit) is None, "a trial that never met its cap was refused"
-    assert problem(cut_off, same_cap) is None, "the same cap is the same experiment"
-    assert "cut off" in str(problem(cut_off, trial_unit)), "a truncated trial was reused"
-    assert "above the current cap" in str(problem(oversized, trial_unit)), (
+    assert problem(root, fitted, trial_unit) is None, "a trial that never met its cap was refused"
+    assert problem(root, cut_off, same_cap) is None, "the same cap is the same experiment"
+    assert "cut off" in str(problem(root, cut_off, trial_unit)), "a truncated trial was reused"
+    assert "above the current cap" in str(problem(root, oversized, trial_unit)), (
         "a completion larger than the current cap was reused"
     )
-    assert "cache-annotate-caps" in str(problem(legacy, trial_unit)), (
+    assert "cache-annotate-caps" in str(problem(root, legacy, trial_unit)), (
         "a record without evidence was reused"
     )
-    assert problem(legacy, unit) is None, "a packet-only record was held to trial evidence"
-    assert problem(legacy, {**trial_unit, "max_output_tokens_per_call": 0}) is None
+    assert problem(root, legacy, unit) is None, "a packet-only record was held to trial evidence"
+    assert problem(root, legacy, {**trial_unit, "max_output_tokens_per_call": 0}) is None
 
     # Annotation reads the run's retained traces and writes the evidence into
     # exactly the records that run promoted, without touching their results.
@@ -674,8 +674,8 @@ def main() -> None:
         # key carries the declared value, so records survive a month boundary
         # and miss only when the operator changes the value.
         assert benchmark.cache_epoch(root, "ecosystem") == "2026-09"
-        assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-canonical-fragments-v2"
-        assert benchmark.cache_epoch(root, "llm_learnability") == "stable"
+        assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-canonical-fragments-v4-r9-verified"
+        assert benchmark.cache_epoch(root, "llm_learnability") == "stable"\n        assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-complete-primary-trials-v1"
         policy_path = root / "template/config/cache_policy.json"
         policy_bytes = policy_path.read_bytes()
         policy = benchmark.json_load(policy_path)

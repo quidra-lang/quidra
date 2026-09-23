@@ -820,8 +820,11 @@ def assert_v3_survives_support_adjudication() -> None:
         languages, probe_ids = _write_semantic_owner_cohort(root)
         probe_id = probe_ids[0]
         value = {
+            # Use a probe-valid PARTIAL reason so this test reaches the V3
+            # cohort invariant it is meant to exercise. P-a is intentionally
+            # restricted by R9 and F01.P1 is outside that allowlist.
             language: canonical(
-                "PARTIAL", "verified_fragment()", partial=["P-a"]
+                "PARTIAL", "verified_fragment()", partial=["P-c"]
             )
             for language in languages
         }

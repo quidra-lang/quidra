@@ -409,7 +409,7 @@ def assert_readiness_audits_are_cacheable(root: Path, task: dict) -> None:
     sc_payload = benchmark.cache_fingerprint(root, sc_unit, task)[1]
     assert sc_payload["frozen_sampling"]["effort"] == "medium", sc_payload["frozen_sampling"]
     assert sc_payload["frozen_sampling"]["effort_source"] == "evaluation_effort"
-    assert sc_payload["cache_epoch"] == "2026-09-canonical-fragments-v5-r9-machine"
+    assert sc_payload["cache_epoch"] == "2026-09-canonical-fragments-v6-fixed-stdout"
     assert payload["frozen_sampling"] == benchmark.sampling_config(root)
     assert "effort_source" not in payload["frozen_sampling"]
     changed = dict(audit, input_hashes={"artifact_git_object": "b" * 40})
@@ -686,7 +686,7 @@ def main() -> None:
         # key carries the declared value, so records survive a month boundary
         # and miss only when the operator changes the value.
         assert benchmark.cache_epoch(root, "ecosystem") == "2026-09"
-        assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-canonical-fragments-v5-r9-machine"
+        assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-canonical-fragments-v6-fixed-stdout"
         assert benchmark.cache_epoch(root, "llm_learnability") == "stable"
         assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-runtime-verified-trials-v3"
         policy_path = root / "template/config/cache_policy.json"

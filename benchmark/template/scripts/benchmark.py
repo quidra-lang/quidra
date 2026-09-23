@@ -5144,6 +5144,29 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                     )
                 for language in expected_languages:
                     score_or_na(value[language])
+            elif rid.startswith(SUPPORT_ADJUDICATION_PREFIX):
+                # One probe, every language, one level each: the whole point of
+                # the unit is that it answers for the cohort, so it may not be
+                # language-sharded and may not answer for only some of them.
+                if assigned_languages:
+                    raise BenchmarkError(
+                        f"{rid}: a support adjudication may not be language-sharded"
+                    )
+                if not isinstance(value, dict):
+                    raise BenchmarkError(
+                        f"{rid}: support adjudication must map every language to a level"
+                    )
+                if set(value) != set(languages):
+                    raise BenchmarkError(
+                        f"{rid}: expected languages {sorted(languages)}; "
+                        f"got {sorted(value)}"
+                    )
+                for language in languages:
+                    if sc_support_is_level(value[language]) is None:
+                        raise BenchmarkError(
+                            f"{rid}: {language} must be FULL, PARTIAL or NONE; "
+                            f"got {value[language]!r}"
+                        )
             else:
                 raise BenchmarkError(f"unsupported requirement result type: {rid}")
 

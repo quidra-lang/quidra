@@ -138,8 +138,8 @@ def create_cacheable_task(root: Path) -> tuple[dict, dict]:
         "assigned_languages": ["Python"],
         "dependencies": [],
         "input_hashes": {
-            "primary_config": benchmark.sha256_file(
-                root / "template/config/primary.json"
+            "primary_config": benchmark.primary_config_projection_sha256(
+                root, "ecosystem"
             ),
             "benchmark_metadata": benchmark.sha256_file(
                 root / "template/config/benchmark_metadata.json"
@@ -999,7 +999,144 @@ def assert_budget_plan_excludes_complete_units() -> None:
         assert cached["sufficient"] is True, cached
 
 
+
+def assert_evaluation_scoped_primary_cache() -> None:
+    """Unrelated Primary settings neither re-key nor reprompt another evaluation.
+
+    Historical full-primary packets are accepted only through the narrow
+    projection migration: every non-primary prompt component and every other
+    cache dependency must still match.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        primary_path = root / "template/config/primary.json"
+        original_primary = primary_path.read_bytes()
+
+        ecosystem_before = benchmark.primary_config_projection_sha256(
+            root, "ecosystem"
+        )
+        proficiency_before = benchmark.primary_config_projection_sha256(
+            root, "llm_proficiency"
+        )
+        primary = benchmark.json_load(primary_path)
+        primary["llm_proficiency"]["primary_prompt_variants"].append(
+            "cache-scope-regression"
+        )
+        benchmark.json_dump(primary_path, primary)
+        assert benchmark.primary_config_projection_sha256(
+            root, "ecosystem"
+        ) == ecosystem_before, (
+            "a Proficiency-only setting re-keyed Ecosystem"
+        )
+        assert benchmark.primary_config_projection_sha256(
+            root, "llm_proficiency"
+        ) != proficiency_before, (
+            "a Proficiency setting failed to re-key Proficiency"
+        )
+        primary_path.write_bytes(original_primary)
+
+        unit, task = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+        current = benchmark.cache_fingerprint(root, unit, task)
+        assert current is not None
+        current_fingerprint, current_payload = current
+
+        # Seed a synthetic pre-migration record whose packet embedded the whole
+        # primary.json.  Its semantic Ecosystem projection is identical.
+        full_primary_text = primary_path.read_text(encoding="utf-8")
+        full_primary_sha = benchmark.sha256_file(primary_path)
+        legacy_section = (
+            "\n\n---\n\n"
+            "## Embedded input: primary.json\n"
+            f"Source SHA-256: `{full_primary_sha}`\n\n"
+            + full_primary_text
+        )
+        legacy_component = benchmark.store_prompt_component(
+            root, legacy_section, "embedded:primary.json"
+        )
+        template_component = (
+            root
+            / "template/prompts/components/by-hash"
+            / f"{legacy_component['sha256']}.md"
+        )
+        template_component.parent.mkdir(parents=True, exist_ok=True)
+        template_component.write_bytes(Path(legacy_component["path"]).read_bytes())
+
+        legacy_components = [
+            legacy_component
+            if component.get("kind") == "embedded:primary.json"
+            else component
+            for component in task["prompt_components"]
+        ]
+        legacy_rendered = b"".join(
+            Path(component["path"]).read_bytes()
+            for component in legacy_components
+        )
+        legacy_prompt_sha = benchmark.sha256_bytes(legacy_rendered)
+        legacy_manifest = {
+            "schema_version": 1,
+            "prompt_sha256": legacy_prompt_sha,
+            "rendered_bytes": len(legacy_rendered),
+            "components": [
+                {
+                    "kind": component["kind"],
+                    "sha256": component["sha256"],
+                    "bytes": component["bytes"],
+                }
+                for component in legacy_components
+            ],
+        }
+        benchmark.json_dump(
+            root
+            / "template/prompts/manifests/by-hash"
+            / f"{legacy_prompt_sha}.json",
+            legacy_manifest,
+        )
+
+        installed = install_cache_record(root, unit, task)
+        assert installed == current_fingerprint
+        current_record_path = (
+            root / "cache" / benchmark.cache_record_relative(unit, current_fingerprint)
+        )
+        record = benchmark.json_load(current_record_path)
+        current_record_path.unlink()
+
+        legacy_payload = dict(current_payload)
+        legacy_hashes = dict(legacy_payload["unit_input_hashes"])
+        legacy_hashes["primary_config"] = full_primary_sha
+        legacy_payload["unit_input_hashes"] = legacy_hashes
+        legacy_payload["exact_task_packet_sha256"] = legacy_prompt_sha
+        legacy_fingerprint = benchmark.sha256_bytes(
+            json.dumps(
+                legacy_payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        )
+        record["fingerprint"] = legacy_fingerprint
+        record["fingerprint_payload"] = legacy_payload
+        record["provenance"]["prompt_sha256"] = legacy_prompt_sha
+        legacy_record_path = (
+            root / "cache" / benchmark.cache_record_relative(unit, legacy_fingerprint)
+        )
+        benchmark.json_dump(legacy_record_path, record)
+        run = benchmark.json_load(root / "run.json")
+        run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
+        benchmark.json_dump(root / "run.json", run)
+
+        hits = benchmark.hydrate_certified_cache(root)
+        assert hits == 1, "the compatible already-paid record was not reused"
+        receipt = benchmark.json_load(
+            root / "work/agents" / unit["assigned_agent_id"] / "cache_receipt.json"
+        )
+        assert receipt["fingerprint"] == current_fingerprint
+        assert receipt["source_fingerprint"] == legacy_fingerprint
+        assert receipt["compatibility_mode"] == "primary-config-projection"
+
+
 def main() -> None:
+    assert_evaluation_scoped_primary_cache()
     assert_budget_plan_excludes_complete_units()
     assert_accepted_trial_start_marks_the_scored_boundary()
     assert_language_quality_design_runner_owned_scoring()

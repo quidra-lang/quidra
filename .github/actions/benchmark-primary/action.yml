@@ -1,0 +1,337 @@
+name: Run one Primary benchmark evaluation
+description: Run one of the five Primary evaluations and hand the frozen workspace to the next GitHub Actions job.
+
+inputs:
+  evaluation:
+    description: Primary evaluation name.
+    required: true
+  previous-handoff:
+    description: Artifact name carrying the previous job's workspace; empty for the first Primary.
+    required: false
+    default: ""
+  handoff-name:
+    description: Artifact name to publish for the next job.
+    required: true
+  run-id:
+    description: Frozen benchmark run id.
+    required: true
+  evaluated-sha:
+    description: Exact source commit being evaluated.
+    required: true
+  model:
+    description: Scored provider model.
+    required: true
+  budget-usd:
+    description: Whole-run soft budget.
+    required: true
+  initial-spend-usd:
+    description: Spend already consumed before the first Primary (provider smoke).
+    required: false
+    default: "0"
+  concurrency:
+    description: Maximum in-flight workers inside this evaluation.
+    required: false
+    default: "6"
+
+outputs:
+  handoff-ready:
+    description: Whether a workspace handoff artifact was produced.
+    value: ${{ steps.package.outputs.ready }}
+  evaluation-status:
+    description: COMPLETE/PARTIAL/unknown after this evaluation.
+    value: ${{ steps.status.outputs.value }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Download previous Primary handoff
+      if: ${{ inputs.previous-handoff != '' }}
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.previous-handoff }}
+        path: ${{ runner.temp }}/benchmark-previous
+
+    - name: Restore or create the frozen workspace
+      shell: bash
+      env:
+        PREVIOUS_HANDOFF: ${{ inputs.previous-handoff }}
+        RUN_ID: ${{ inputs.run-id }}
+        EVALUATED_SHA: ${{ inputs.evaluated-sha }}
+        MODEL: ${{ inputs.model }}
+        WHOLE_BUDGET: ${{ inputs.budget-usd }}
+        INITIAL_SPEND: ${{ inputs.initial-spend-usd }}
+      run: |
+        set -euo pipefail
+        state="$RUNNER_TEMP/benchmark-budget-state.json"
+        if [ -n "$PREVIOUS_HANDOFF" ]; then
+          test -f "$RUNNER_TEMP/benchmark-previous/workspace.tgz"
+          test -f "$RUNNER_TEMP/benchmark-previous/budget-state.json"
+          tar -xzf "$RUNNER_TEMP/benchmark-previous/workspace.tgz" -C "$GITHUB_WORKSPACE"
+          cp "$RUNNER_TEMP/benchmark-previous/budget-state.json" "$state"
+          python benchmark/template/scripts/benchmark.py restore-workspace-guard \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --expected-commit "$EVALUATED_SHA"
+        else
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --sandbox-mode container \
+            --run-id "$RUN_ID" \
+            --provider anthropic-messages \
+            --model "$MODEL"
+          python - "$state" "$WHOLE_BUDGET" "$INITIAL_SPEND" <<'PY'
+        import json, sys
+        from pathlib import Path
+        path, limit, spent = Path(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3])
+        path.write_text(json.dumps({
+            "schema_version": 1,
+            "limit_usd": limit,
+            "spent_usd": spent,
+            "evaluations": {},
+        }, indent=2, sort_keys=True) + "\n")
+        PY
+        fi
+
+        python - "$state" "$RUN_ID" "$EVALUATED_SHA" "$WHOLE_BUDGET" <<'PY'
+        import json, sys
+        from pathlib import Path
+        state = json.loads(Path(sys.argv[1]).read_text())
+        run = json.loads(Path(".quidra-benchmark/run.json").read_text())
+        assert run["run_id"] == sys.argv[2], (run["run_id"], sys.argv[2])
+        assert run["evaluated"]["commit_sha"] == sys.argv[3], (
+            run["evaluated"]["commit_sha"], sys.argv[3]
+        )
+        assert abs(float(state["limit_usd"]) - float(sys.argv[4])) < 1e-9
+        PY
+
+    - name: Reclaim runner disk
+      shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+          /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+        df -h /
+
+    - name: Build and verify the pinned ten-language image
+      shell: bash
+      env:
+        BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+      run: |
+        python benchmark/template/runtime/check_pins.py
+        python benchmark/template/scripts/sandbox_launcher.py build-image \
+          --target toolchains --image "$BENCHMARK_IMAGE"
+        python benchmark/template/scripts/sandbox_launcher.py doctor \
+          --image "$BENCHMARK_IMAGE"
+
+    - name: Deterministic preparation for this Primary
+      shell: bash
+      env:
+        BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+        EVALUATION: ${{ inputs.evaluation }}
+      run: |
+        python benchmark/template/scripts/sandbox_launcher.py run \
+          --source-repo "$GITHUB_WORKSPACE" \
+          --image "$BENCHMARK_IMAGE" \
+          --provider fake \
+          -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare \
+             --evaluation "$EVALUATION"
+
+    - name: Freeze this Primary's network policy and spend ceilings
+      shell: bash
+      env:
+        EVALUATION: ${{ inputs.evaluation }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        python benchmark/template/scripts/production_run.py policy \
+          --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+          --model "$MODEL" \
+          --output "$RUNNER_TEMP/task-policy.json" \
+          --evaluation "$EVALUATION"
+
+    - name: Compute remaining whole-run budget
+      id: budget
+      continue-on-error: true
+      shell: bash
+      env:
+        WHOLE_BUDGET: ${{ inputs.budget-usd }}
+      run: |
+        set -euo pipefail
+        remaining="$(python - "$RUNNER_TEMP/benchmark-budget-state.json" "$WHOLE_BUDGET" <<'PY'
+        import json, sys
+        from pathlib import Path
+        state = json.loads(Path(sys.argv[1]).read_text())
+        limit = float(sys.argv[2])
+        spent = float(state.get("spent_usd", 0.0))
+        remaining = limit - spent
+        if remaining <= 0:
+            raise SystemExit(
+                f"whole-run benchmark budget exhausted: spent={spent:.4f}, limit={limit:.4f}"
+            )
+        print(f"{remaining:.6f}")
+        PY
+        )"
+        echo "remaining=$remaining" >> "$GITHUB_OUTPUT"
+        echo "remaining whole-run budget: $$remaining"
+
+    - name: Run paid ${{ inputs.evaluation }} benchmark
+      id: paid
+      if: ${{ steps.budget.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ env.ANTHROPIC_API_KEY }}
+        BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+        MODEL: ${{ inputs.model }}
+        EVALUATION: ${{ inputs.evaluation }}
+        REMAINING_BUDGET: ${{ steps.budget.outputs.remaining }}
+        CONCURRENCY: ${{ inputs.concurrency }}
+      run: |
+        : > "$RUNNER_TEMP/gateway-audit.jsonl"
+        python benchmark/template/scripts/sandbox_launcher.py run \
+          --source-repo "$GITHUB_WORKSPACE" \
+          --image "$BENCHMARK_IMAGE" \
+          --provider anthropic-messages \
+          --model "$MODEL" \
+          --budget-usd "$REMAINING_BUDGET" \
+          --network-policy disabled \
+          --task-policy "$RUNNER_TEMP/task-policy.json" \
+          --gateway-log-out "$RUNNER_TEMP/gateway-audit.jsonl" \
+          -- python3 /quidra-benchmark/template/scripts/production_run.py run \
+             --workspace /quidra-benchmark \
+             --max-wall-seconds 18900 \
+             --concurrency "$CONCURRENCY" \
+             --evaluation "$EVALUATION"
+
+    - name: Record this Primary's API usage
+      if: ${{ always() }}
+      shell: bash
+      run: |
+        touch "$RUNNER_TEMP/gateway-audit.jsonl"
+        python benchmark/template/scripts/production_run.py cost-report \
+          --log "$RUNNER_TEMP/gateway-audit.jsonl" \
+          --output "$RUNNER_TEMP/api-cost.json"
+        cat "$RUNNER_TEMP/api-cost.json"
+
+    - name: Update whole-run budget ledger
+      if: ${{ always() }}
+      shell: bash
+      env:
+        EVALUATION: ${{ inputs.evaluation }}
+      run: |
+        python - "$RUNNER_TEMP/benchmark-budget-state.json" "$RUNNER_TEMP/api-cost.json" "$EVALUATION" <<'PY'
+        import json, sys
+        from pathlib import Path
+        state_path, report_path, evaluation = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+        state = json.loads(state_path.read_text())
+        report = json.loads(report_path.read_text()) if report_path.is_file() else {}
+        cost = float(report.get("estimated_cost_usd", 0.0) or 0.0)
+        state["spent_usd"] = float(state.get("spent_usd", 0.0)) + cost
+        state.setdefault("evaluations", {})[evaluation] = {
+            "estimated_cost_usd": cost,
+            "paid_inference_calls": int(report.get("paid_inference_calls", 0) or 0),
+        }
+        state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
+        print(json.dumps(state, indent=2, sort_keys=True))
+        PY
+
+    - name: Checkpoint every newly certified unit
+      if: ${{ always() }}
+      id: checkpoint
+      continue-on-error: true
+      shell: bash
+      env:
+        EVALUATED_SHA: ${{ inputs.evaluated-sha }}
+      run: |
+        set -euo pipefail
+        if [ ! -f .quidra-benchmark/work/root/ledger.json ]; then
+          echo "No frozen ledger; nothing to checkpoint."
+          exit 0
+        fi
+
+        python benchmark/template/scripts/benchmark.py checkpoint-cache \
+          --source-repo "$GITHUB_WORKSPACE" \
+          | tee "$RUNNER_TEMP/cache-checkpoint.json"
+
+        tar -czf "$RUNNER_TEMP/updated-cache.tgz" benchmark/cache
+        git reset --hard
+        git fetch origin benchmark
+        unexpected="$(git diff --name-only "$EVALUATED_SHA"..origin/benchmark \
+          | grep -v '^benchmark/cache/' || true)"
+        if [ -n "$unexpected" ]; then
+          echo "::error::benchmark branch moved outside certified cache during the run:"
+          echo "$unexpected"
+          exit 1
+        fi
+        git checkout -B benchmark origin/benchmark
+        rm -rf benchmark/cache
+        tar -xzf "$RUNNER_TEMP/updated-cache.tgz"
+        git add -f benchmark/cache
+        if git diff --cached --quiet; then
+          echo "No new certified cache records."
+          exit 0
+        fi
+        git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Checkpoint ${{ inputs.evaluation }} benchmark cache for ${EVALUATED_SHA:0:7}"
+        git push origin HEAD:benchmark
+
+    - name: Read Primary status
+      id: status
+      if: ${{ always() }}
+      shell: bash
+      env:
+        EVALUATION: ${{ inputs.evaluation }}
+      run: |
+        value="$(python - "$EVALUATION" <<'PY'
+        import json, sys
+        from pathlib import Path
+        path = Path(".quidra-benchmark/results/primary_status.json")
+        if not path.is_file():
+            print("unknown")
+        else:
+            data = json.loads(path.read_text())
+            print((data.get("evaluations", {}).get(sys.argv[1], {}) or {}).get("status", "unknown"))
+        PY
+        )"
+        echo "value=$value" >> "$GITHUB_OUTPUT"
+        echo "$EVALUATION status: $value"
+
+    - name: Package workspace for the next Primary
+      id: package
+      if: ${{ always() }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "ready=false" >> "$GITHUB_OUTPUT"
+        test -d .quidra-benchmark || exit 0
+        test -f .quidra-benchmark/run.json || exit 0
+        mkdir -p "$RUNNER_TEMP/benchmark-handoff"
+        tar -czf "$RUNNER_TEMP/benchmark-handoff/workspace.tgz" .quidra-benchmark
+        cp "$RUNNER_TEMP/benchmark-budget-state.json" \
+          "$RUNNER_TEMP/benchmark-handoff/budget-state.json"
+        cp "$RUNNER_TEMP/api-cost.json" \
+          "$RUNNER_TEMP/benchmark-handoff/api-cost.json" 2>/dev/null || true
+        cp "$RUNNER_TEMP/gateway-audit.jsonl" \
+          "$RUNNER_TEMP/benchmark-handoff/gateway-audit.jsonl" 2>/dev/null || true
+        cp "$RUNNER_TEMP/cache-checkpoint.json" \
+          "$RUNNER_TEMP/benchmark-handoff/cache-checkpoint.json" 2>/dev/null || true
+        echo "ready=true" >> "$GITHUB_OUTPUT"
+
+    - name: Upload Primary handoff
+      if: ${{ always() && steps.package.outputs.ready == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.handoff-name }}
+        path: ${{ runner.temp }}/benchmark-handoff
+        if-no-files-found: error
+        retention-days: 30
+        overwrite: true
+
+    - name: Surface budget or paid-run failure after preserving the handoff
+      if: ${{ always() && (steps.budget.outcome == 'failure' || steps.paid.outcome == 'failure' || steps.checkpoint.outcome == 'failure') }}
+      shell: bash
+      run: |
+        echo "::error::The Primary job preserved its workspace/cache evidence but did not complete its trusted execution path."
+        exit 1

@@ -4135,6 +4135,16 @@ def cmd_manifest_merge(args: argparse.Namespace) -> int:
                 "packet_layout": str(raw.get("packet_layout") or "task-first"),
                 "assigned_languages": list(raw.get("assigned_languages", [])),
                 "runner_action": raw.get("runner_action"),
+                # These are part of the frozen Semantic Compression contract.
+                # Dropping them at manifest-merge time lets downstream A/B/C/D/E
+                # units dispatch without the canonical fragment selected by the
+                # Capability Coverage owner.
+                "canonical_fragment_owner": bool(
+                    raw.get("canonical_fragment_owner", False)
+                ),
+                "canonical_fragment_source_requirement": raw.get(
+                    "canonical_fragment_source_requirement"
+                ),
             }
     reuse_status_path = root / "results" / "reuse_status.json"
     if (root / "template" / "reuse" / "materialized.json").is_file():

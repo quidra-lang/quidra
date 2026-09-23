@@ -7,6 +7,7 @@
         "gate.capability_universe",
         "gate.semantic_site_matrix",
         "gate.matrix_validator",
+        "gate.semantic_premeasurement_validation",
         "gate.comparability_audit",
         "coverage.all_frozen_probes",
         "metric.semantic_density",

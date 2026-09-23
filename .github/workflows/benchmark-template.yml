@@ -233,6 +233,18 @@ jobs:
           with tempfile.TemporaryDirectory() as repair_td:
               repair_root = Path(repair_td)
               (repair_root / "work/root").mkdir(parents=True)
+              matrix_path = (
+                  repair_root / "template/methodology-assets/semantic_compression"
+                  / "semantic_site_matrix.json"
+              )
+              matrix_path.parent.mkdir(parents=True)
+              module.json_dump(matrix_path, {
+                  "schema_version": 1,
+                  "probes": [{
+                      "probe_id": "F10.P1",
+                      "family": "10. synthetic conversion family",
+                  }],
+              })
               module.json_dump(
                   repair_root / module.COMPARABILITY_BLINDING_RELATIVE,
                   {"schema_version":1,"labels":{"Python":"E"}},

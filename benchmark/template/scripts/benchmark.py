@@ -1086,10 +1086,22 @@ def cmd_toolchain_scan(args: argparse.Namespace) -> int:
         except (BenchmarkError, FileNotFoundError) as exc:
             results[language] = {"error": str(exc), "commands": commands}
             missing.append(language)
+    runtime_image_record: dict[str, Any] = {}
+    runtime_record_path = Path("/opt/quidra-benchmark/toolchains-observed.json")
+    if runtime_record_path.is_file():
+        try:
+            runtime_image_record = json_load(runtime_record_path)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise BenchmarkError(
+                "runtime image toolchain observation record is unreadable: "
+                f"{exc}"
+            ) from exc
     payload = {
         "schema_version": 1,
         "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "toolchains": results,
+        "semantic_ffi_smoke": runtime_image_record.get("semantic_ffi_smoke", {}),
+        "runtime_image": runtime_image_record.get("image"),
         "missing": missing,
         "ok": not missing,
     }
@@ -2918,6 +2930,32 @@ def clip_annotation_text(value: Any, limit: int | None = None) -> Any:
     return value
 
 
+def merge_annotation_fields_strict(
+    target: dict[str, Any],
+    incoming: dict[str, Any],
+    *,
+    context: str,
+) -> None:
+    """Merge annotation fields only when duplicate values are identical.
+
+    Semantic Compression is assembled from several metric shards.  A plain
+    dict.update() made the last shard silently win when two shards emitted the
+    same field with different values, so one sampled row could become a
+    synthetic combination that no worker actually wrote.  Equal duplicates are
+    harmless; unequal duplicates are a measurement-integrity error and must be
+    repaired at the producing shard instead of hidden by the runner.
+    """
+    for key, value in incoming.items():
+        if key in target:
+            if target[key] != value:
+                raise BenchmarkError(
+                    f"{context}: conflicting annotation field {key!r} across "
+                    "completed shards"
+                )
+            continue
+        target[key] = value
+
+
 def probe_annotation_fields(
     result: dict[str, Any], wanted: set[str]
 ) -> dict[str, dict[str, Any]]:
@@ -2933,7 +2971,9 @@ def probe_annotation_fields(
         if isinstance(node, dict):
             for key, value in node.items():
                 if key in rows:
-                    rows[key][name] = value
+                    merge_annotation_fields_strict(
+                        rows[key], {name: value}, context=f"probe {key}"
+                    )
                 else:
                     visit(value, key)
         elif isinstance(node, list):
@@ -2942,10 +2982,17 @@ def probe_annotation_fields(
                 if isinstance(item, dict):
                     probe_key = item.get("probe_id", item.get("probe"))
                 if probe_key is not None and str(probe_key) in rows:
-                    row = rows[str(probe_key)]
-                    for key, value in item.items():
-                        if key not in {"probe_id", "probe"}:
-                            row[key] = value
+                    probe_id = str(probe_key)
+                    row = rows[probe_id]
+                    merge_annotation_fields_strict(
+                        row,
+                        {
+                            key: value
+                            for key, value in item.items()
+                            if key not in {"probe_id", "probe"}
+                        },
+                        context=f"probe {probe_id}",
+                    )
                 else:
                     visit(item, name)
 
@@ -3185,7 +3232,11 @@ def build_support_adjudication_input(
         collected = probe_annotation_fields(result, {probe_id})
         fields = collected.get(probe_id) or {}
         if fields:
-            by_language.setdefault(language, {}).update(clip_annotation_text(fields))
+            merge_annotation_fields_strict(
+                by_language.setdefault(language, {}),
+                clip_annotation_text(fields),
+                context=f"{probe_id}/{language} from {source.get('id')}",
+            )
         if support_owner_id in (source.get("requirement_ids") or []):
             context = probe_annotation_fields(result, sampled)
             cross_probe[language] = {
@@ -3468,12 +3519,25 @@ def build_comparability_sample(
         annotations = by_language.setdefault(str(languages[0]), {})
         for probe_id, fields in collected.items():
             if fields:
-                annotations.setdefault(probe_id, {}).update(fields)
+                merge_annotation_fields_strict(
+                    annotations.setdefault(probe_id, {}),
+                    fields,
+                    context=(
+                        f"{languages[0]}/{probe_id} from {source.get('id')}"
+                    ),
+                )
         if support_owner_id in (source.get("requirement_ids") or []):
             owned = owner_rows.setdefault(str(languages[0]), {})
             for probe_id, fields in collected.items():
                 if fields:
-                    owned.setdefault(probe_id, {}).update(fields)
+                    merge_annotation_fields_strict(
+                        owned.setdefault(probe_id, {}),
+                        fields,
+                        context=(
+                            f"support owner {languages[0]}/{probe_id} "
+                            f"from {source.get('id')}"
+                        ),
+                    )
     if not by_language:
         raise BenchmarkError(
             "comparability audit sample has no completed annotations to review"
@@ -6569,6 +6633,63 @@ def toolchain_evidence_required(root: Path) -> bool:
     )
 
 
+def proficiency_required_trial_ids(root: Path) -> list[str]:
+    """The exact fresh-session IDs required by the frozen Primary allocation."""
+    cfg = json_load(root / "template" / "config" / "primary.json")["llm_proficiency"]
+    workloads = [str(value) for value in cfg["primary_workloads"]]
+    scenarios = [str(value) for value in cfg["primary_scenarios"]]
+    replications = int(cfg["independent_trials_per_replicated_cell"])
+    if replications < 1:
+        raise BenchmarkError("LLM Proficiency requires at least one Primary replication")
+    trial_ids = [
+        f"{slug_id(workload)}--{slug_id(scenario)}--t{replication}"
+        for workload in workloads
+        for scenario in scenarios
+        for replication in range(1, replications + 1)
+    ]
+    if len(trial_ids) != len(set(trial_ids)):
+        raise BenchmarkError(
+            "LLM Proficiency workload/scenario names collide after trial-ID normalization"
+        )
+    return trial_ids
+
+
+def proficiency_primary_trial_set_sha256(root: Path) -> str:
+    payload = json.dumps(
+        proficiency_required_trial_ids(root),
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return sha256_bytes(payload)
+
+
+def proficiency_trial_coverage_problems(
+    root: Path, trace: dict[str, Any]
+) -> list[str]:
+    """Require exactly the predeclared Primary cells and replications."""
+    expected = set(proficiency_required_trial_ids(root))
+    trials = ((trace.get("trials") or {}).get("trials") or {})
+    if not isinstance(trials, dict):
+        return ["scored trial records are not an object"]
+    observed = {str(trial_id) for trial_id in trials}
+    missing = sorted(expected - observed)
+    extra = sorted(observed - expected)
+    problems: list[str] = []
+    if missing:
+        problems.append(
+            "missing required Primary trials: " + ", ".join(missing)
+        )
+    if extra:
+        problems.append(
+            "unexpected Primary trial IDs: " + ", ".join(extra)
+        )
+    if len(observed) != len(expected):
+        problems.append(
+            f"Primary trial count is {len(observed)}, expected exactly {len(expected)}"
+        )
+    return problems
+
+
 def is_trial_unit(unit: dict[str, Any]) -> bool:
     evaluation = str(unit.get("evaluation") or "")
     if unit.get("execution_kind", "agent") != "agent":
@@ -6623,6 +6744,8 @@ def trial_unit_problems(
         if toolchain_evidence_required(agent_dir.parent.parent.parent):
             problems.extend(learnability_toolchain_evidence_problems(unit, trace))
     elif evaluation == "llm_proficiency":
+        root = agent_dir.parent.parent.parent
+        problems.extend(proficiency_trial_coverage_problems(root, trace))
         problems.extend(_preserved_trial_problems(agent_dir, trace))
     return infrastructure, problems
 
@@ -8123,6 +8246,13 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
             if certification.get("proficiency_integrity") is not True:
                 problems.append(f"{uid}: cache record lacks proficiency integrity certification")
                 continue
+            expected_trials = proficiency_primary_trial_set_sha256(root)
+            if certification.get("proficiency_primary_trial_set_sha256") != expected_trials:
+                problems.append(
+                    f"{uid}: cache record was not certified against the current "
+                    "complete Primary trial set"
+                )
+                continue
             signature = certification.get("configuration_signature")
             if not isinstance(signature, str) or not signature:
                 problems.append(f"{uid}: cached configuration signature is missing")
@@ -8146,6 +8276,10 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
             problems.append(f"{uid}: trial client was not credential-less")
         if gateway.get("host_tools_exposed") is not False:
             problems.append(f"{uid}: host tool surface was exposed")
+        problems.extend(
+            f"{uid}: {p}"
+            for p in proficiency_trial_coverage_problems(root, trace)
+        )
         problems.extend(f"{uid}: {p}" for p in _preserved_trial_problems(agent_dir, trace))
     fixed = len(signatures) == 1 and not any("provider/model/sampling" in p for p in problems)
     preserved = not any(
@@ -9213,6 +9347,7 @@ def cache_certification_for_unit(
             problems.append("trial client was not credential-less")
         if gateway.get("host_tools_exposed") is not False:
             problems.append("host tool surface was exposed")
+        problems.extend(proficiency_trial_coverage_problems(root, trace))
         problems.extend(_preserved_trial_problems(agent_dir, trace))
         if problems:
             raise BenchmarkError(
@@ -9220,6 +9355,12 @@ def cache_certification_for_unit(
                 + "; ".join(problems)
             )
         certification["proficiency_integrity"] = True
+        certification["proficiency_primary_trial_set_sha256"] = (
+            proficiency_primary_trial_set_sha256(root)
+        )
+        certification["proficiency_primary_trial_count"] = len(
+            proficiency_required_trial_ids(root)
+        )
         certification["configuration_signature"] = json.dumps({
             "provider": provider,
             "model": model,

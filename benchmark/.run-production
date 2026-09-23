@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T08:44:00Z
-reason: full run of all five Primary evaluations on the develop snapshot, to publish Semantic Compression alongside the four rankings the last run already settled; the comparability audit failed that run on three support disagreements, so this one measures the three adjudications 1635309 added and the audit that depends on them, with all 227 other work units hydrating from the certified cache; smoke e9a9f34 passed its twelve checks
+requested_at_utc: 2026-09-23T09:34:00Z
+reason: full run of all five Primary evaluations on the develop snapshot, re-requesting what f64113f asked for and was cancelled inside its first paid minute, before it spent anything; 787f981 returned evaluation_requirements.json to the bytes 8168710 hashed, so the task packet hash matches again and cache-impact's 227 certified records hydrate rather than sending 212 units back to be re-measured; the run pays for the 21 records cache-impact reports invalid plus the three support adjudications 1635309 added and the comparability audit that depends on them; a470500 removed the previous result directory, so this run stands as the benchmark's first published result; smoke 0a83bdf passed
 model: claude-sonnet-5
 evaluation: all
 budget_usd: 8.0

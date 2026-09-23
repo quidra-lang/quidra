@@ -2459,15 +2459,15 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
             repair = benchmark.proficiency_repair_prompt(hardcoded)
             check(
                 "hidden-" not in repair
-                and "hidden_case_failures" in repair
+                and "hidden_failure_count" in repair
                 and "expected_sha256" not in repair
                 and "input_sha256" not in repair,
                 f"hidden-oracle details leaked into the scored repair prompt: {repair}",
             )
 
             # A generated program is untrusted and may try to exfiltrate hidden
-            # stdin through stdout/stderr. The worker can read trials/, so hidden
-            # run bytes must never be persisted there even when verification fails.
+            # stdin through stdout/stderr. Full evidence is retained only in the
+            # trusted runner store; worker/model-visible projections must reveal none.
             leaky_dir = agent_dir / "leaky-hidden-verification"
             leaky = benchmark.verify_proficiency_completion(
                 root,
@@ -2487,31 +2487,28 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
             hidden_rows = [
                 row for row in leaky["oracle_tests"] if row.get("hidden") is True
             ]
+            leaked_inputs = ("1.5 -2 4", "-1 0.5 -3", "0.25 1.2 -0.75")
+            trusted_text = json.dumps(leaky, sort_keys=True)
             check(
-                hidden_rows
-                and all(
-                    row["run"].get("output_redacted") is True
-                    and "stdout" not in row["run"]
-                    and "stderr" not in row["run"]
-                    and isinstance(row["run"].get("stdout_sha256"), str)
-                    and isinstance(row["run"].get("stderr_sha256"), str)
-                    for row in hidden_rows
+                hidden_rows and any(secret in trusted_text for secret in leaked_inputs),
+                "the exfiltration fixture did not exercise trusted hidden output",
+            )
+            summary_text = json.dumps(
+                benchmark.proficiency_verification_summary(leaky), sort_keys=True
+            )
+            feedback_text = json.dumps(
+                benchmark.proficiency_model_visible_feedback(leaky), sort_keys=True
+            )
+            check(
+                all(secret not in summary_text for secret in leaked_inputs)
+                and all(secret not in feedback_text for secret in leaked_inputs)
+                and "input_sha256" not in summary_text
+                and "expected_sha256" not in summary_text
+                and "hidden-" not in feedback_text,
+                (
+                    "hidden oracle evidence escaped the trusted runner boundary: "
+                    f"summary={summary_text} feedback={feedback_text}"
                 ),
-                f"hidden runtime output remained worker-readable: {hidden_rows}",
-            )
-            check(
-                isinstance(leaky.get("run"), dict)
-                and leaky["run"].get("output_redacted") is True
-                and "stdout" not in leaky["run"]
-                and "stderr" not in leaky["run"],
-                f"representative hidden failure leaked runtime output: {leaky.get('run')}",
-            )
-            preserved_hidden = (leaky_dir / "verification.json").read_text()
-            check(
-                "1.5 -2 4" not in preserved_hidden
-                and "-1 0.5 -3" not in preserved_hidden
-                and "0.25 1.2 -0.75" not in preserved_hidden,
-                f"worker-readable verification persisted hidden stdin: {preserved_hidden}",
             )
 
             extra_stdout = benchmark.verify_proficiency_completion(

@@ -42,8 +42,8 @@
     "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
     "semantic_compression": "2026-09-canonical-fragments-v6-fixed-stdout",
     "semantic_compression_note": "Semantic Compression v6 preserves the mechanically verified canonical-fragment, trusted-runtime, machine-enforced R9, and comparability-certified cache contracts, and additionally checks frozen exact stdout oracles for every probe whose canonical task fixes a language-neutral concrete result. The runner checks those outputs during the real frozen-recipe execution and rechecks the preserved evidence before downstream scoring. Earlier Semantic Compression records remain preserved but cannot hydrate a v6 run.",
-    "llm_proficiency": "2026-09-complete-primary-trials-v5-prompt-variants",
-    "llm_proficiency_note": "LLM Proficiency v5 preserves the v4 trusted hidden-input oracle, runtime-owned initial/repair prompts, and per-trial verification, and additionally maps the three Primary trials in each workload/scenario cell to three predeclared equivalent prompt layouts. Prompt Robustness is runner-owned as the worst first-attempt correctness rate across variants, and Unseen-case Generalization is runner-owned from first-attempt hidden-case results. The call count remains 18 per language; earlier Proficiency records remain preserved but cannot hydrate v5."
+    "llm_proficiency": "2026-09-complete-primary-trials-v6-hidden-score-only",
+    "llm_proficiency_note": "LLM Proficiency v6 preserves the v5 exact Primary trials, prompt variants, trusted runtime verification, and hidden-input correctness scoring. Hidden oracle cases are now strictly score-only holdout evidence: repair continuation and model-visible feedback depend only on compilation and public cases, so hidden pass/fail information cannot act as an adaptive black-box repair oracle. Earlier Proficiency records remain preserved but cannot hydrate v6."
   },
   "promotion": {
     "require_complete_unit": true,

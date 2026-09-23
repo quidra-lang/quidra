@@ -229,7 +229,7 @@ runs:
         status = (
             json.loads(status_path.read_text())
             if status_path.is_file()
-            else {"hits": {}, "misses": {}}
+            else {"hits": {}, "misses": {}, "invalidated": {}}
         )
         manifest = json.loads((root / "work/root/manifest.json").read_text())
         evaluation_by_id = {
@@ -245,12 +245,18 @@ runs:
             uid for uid in status.get("misses", {})
             if evaluation_by_id.get(uid) == evaluation
         )
+        invalidated = sorted(
+            uid for uid in status.get("invalidated", {})
+            if evaluation_by_id.get(uid) == evaluation
+        )
         print(json.dumps({
             "evaluation": evaluation,
             "known_hits": len(hits),
             "known_misses": len(misses),
+            "known_invalidated": len(invalidated),
             "hit_units": hits,
             "miss_units": misses,
+            "invalidated_units": invalidated,
             "note": (
                 "Exact for units whose fingerprints are materializable now. "
                 "Downstream packet keys depending on new uncached results are "
@@ -299,14 +305,15 @@ runs:
         )"
         unit_args=()
         for unit in $UNITS; do unit_args+=(--unit "$unit"); done
+        plan="$GITHUB_WORKSPACE/.quidra-benchmark/results/execution-plan-$EVALUATION.json"
         python benchmark/template/scripts/production_run.py budget-plan \
           --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
           --model "$MODEL" \
           --available-usd "$remaining" \
           --evaluation "$EVALUATION" \
-          --output "$RUNNER_TEMP/budget-plan.json" \
+          --output "$plan" \
           "${unit_args[@]}"
-        python - "$RUNNER_TEMP/budget-plan.json" <<'PY'
+        python - "$plan" <<'PY'
         import json, sys
         from pathlib import Path
         plan = json.loads(Path(sys.argv[1]).read_text())
@@ -388,6 +395,29 @@ runs:
           --log "$RUNNER_TEMP/gateway-audit.jsonl" \
           --output "$RUNNER_TEMP/api-cost.json"
         cat "$RUNNER_TEMP/api-cost.json"
+
+    - name: Reconcile frozen execution plan with actual paid calls
+      if: ${{ always() }}
+      shell: bash
+      env:
+        EVALUATION: ${{ inputs.evaluation }}
+      run: |
+        set -euo pipefail
+        plan="$GITHUB_WORKSPACE/.quidra-benchmark/results/execution-plan-$EVALUATION.json"
+        actual="$RUNNER_TEMP/api-cost.json"
+        output="$GITHUB_WORKSPACE/.quidra-benchmark/results/execution-actual-$EVALUATION.json"
+        if [ ! -f "$plan" ]; then
+          echo "::notice::No frozen execution plan was produced; skipping reconciliation."
+          exit 0
+        fi
+        test -f "$actual" || echo '{"schema_version":1,"paid_inference_calls":0,"estimated_cost_usd":0.0,"gateway_errors":{}}' > "$actual"
+        python benchmark/template/scripts/production_run.py reconcile-plan \
+          --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+          --plan "$plan" \
+          --actual "$actual" \
+          --evaluation "$EVALUATION" \
+          --output "$output"
+        cat "$output"
 
     - name: Update whole-run budget ledger
       if: ${{ always() }}

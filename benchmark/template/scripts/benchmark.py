@@ -7241,9 +7241,18 @@ def ecosystem_rubric_asset(root: Path) -> dict[str, Any]:
         )
     if int(policy.get("activity_window_months", 0) or 0) <= 0:
         raise BenchmarkError("Ecosystem activity window must be positive")
-    if int(policy.get("provider_search_budget_per_worker", 0) or 0) != 5:
+    frozen_search_budget = int(
+        policy.get("provider_search_budget_per_worker", 0) or 0
+    )
+    gateway = json_load(root / "template" / "config" / "inference_gateway.json")
+    gateway_search_budget = int(
+        ((gateway.get("anthropic_web_search") or {}).get("max_uses_per_request", 0))
+        or 0
+    )
+    if frozen_search_budget <= 0 or frozen_search_budget != gateway_search_budget:
         raise BenchmarkError(
-            "Ecosystem provider search budget must match the frozen five-use gateway"
+            "Ecosystem provider search budget must equal the frozen gateway "
+            "max_uses_per_request"
         )
     if not isinstance(policy.get("source_priority"), list) or not policy["source_priority"]:
         raise BenchmarkError("Ecosystem source priority must be non-empty")
@@ -7328,6 +7337,15 @@ def apply_ecosystem_runner_scores(
             r"\d{4}-\d{2}-\d{2}", snapshot_date
         ):
             raise BenchmarkError(f"{rid}: snapshot_date must be YYYY-MM-DD")
+        ecosystem_epoch = cache_epoch(root, "ecosystem")
+        epoch_month = ecosystem_epoch[:7]
+        if re.fullmatch(r"\d{4}-\d{2}", epoch_month) and not snapshot_date.startswith(
+            epoch_month + "-"
+        ):
+            raise BenchmarkError(
+                f"{rid}: snapshot_date {snapshot_date} is outside the frozen "
+                f"Ecosystem epoch month {epoch_month}"
+            )
         limitations = row.get("limitations")
         if not isinstance(limitations, str):
             raise BenchmarkError(f"{rid}: limitations must be a string")
@@ -10761,10 +10779,23 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 )
             else:
                 policy = asset.get("evidence_policy") or {}
+                gateway = json_load(
+                    root / "template" / "config" / "inference_gateway.json"
+                )
+                gateway_budget = int(
+                    ((gateway.get("anthropic_web_search") or {}).get(
+                        "max_uses_per_request", 0
+                    ))
+                    or 0
+                )
+                frozen_budget = int(
+                    policy.get("provider_search_budget_per_worker", 0) or 0
+                )
                 ok = (
                     not rubric_problems
                     and int(policy.get("activity_window_months", 0) or 0) > 0
-                    and int(policy.get("provider_search_budget_per_worker", 0) or 0) == 5
+                    and frozen_budget > 0
+                    and frozen_budget == gateway_budget
                     and bool(policy.get("symmetry_rule"))
                 )
             requirements[rid] = bool(ok and fixed_10)

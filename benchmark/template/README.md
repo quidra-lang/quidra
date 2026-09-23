@@ -129,8 +129,8 @@ trusted Actions/gateway steps. The scored container remains credential-less and
 network-isolated.
 
 Before paid dispatch, deterministic preparation hydrates exact certified-cache
-hits, restores exact-fingerprint paid leaf inference state from the durable
-`benchmark/cache/partial-paid/` store (with Actions cache as a speed mirror),
+hits, restores exact-fingerprint paid leaf inference state from the private durable
+`quidra-benchmark-paid-state-*` Actions artifact (with Actions cache as a speed mirror),
 writes `results/cache_impact.json`, and freezes
 `results/execution-plan-preflight.json`. The plan lists cache reuse,
 invalidation/re-evaluation, new paid work, dependency-deferred work, expected
@@ -144,8 +144,8 @@ ledger refuse dispatch beyond it. Token usage, web-search count and estimated
 cost are retained in a redacted audit log.
 
 COMPLETE+PASS leaves are checkpointed independently into the certified result
-cache. Paid responses/trials are checkpointed separately in the content-addressed
-`benchmark/cache/partial-paid/` store, optionally mirrored in Actions cache, and
+cache. Paid responses/trials are checkpointed separately in a private content-addressed
+`quidra-benchmark-paid-state-*` Actions artifact, optionally mirrored in Actions cache, and
 can be restored in a later run only when the complete dependency fingerprint and
 Task Packet hash match. This remains true after the leaf becomes COMPLETE, so a
 later current-validator re-evaluation can reuse already-paid model calls instead

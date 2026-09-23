@@ -1043,7 +1043,27 @@ def assert_support_adjudication_receives_trusted_verification() -> None:
         assert payload["trusted_runtime_baselines"]["languages"]["Python"][
             "observed_stdout"
         ] == "3", payload
+        contract = payload["frozen_support_contract"]
+        assert contract["authoring_rules"]["R9_no_probe_substitution"], contract
+        assert contract["support_rubric"]["levels"]["PARTIAL"], contract
+        assert contract["toolchain_binding"]["recipes"]["Python"]["run"] == "python3 FILE.py"
+        sampled = {
+            str(row["probe_id"]) for row in benchmark.comparability_sample_probes(root)
+        }
+        assert set(contract["sampled_probe_contracts"]) == sampled, contract
+        assert "F20.P1" in contract["sampled_probe_contracts"], contract
         assert "do not contradict those build/run facts" in payload["task"], payload["task"]
+
+        plan = json.loads(
+            (ROOT / "benchmark/template/config/work_plan_templates.json").read_text()
+        )
+        adjudicators = [
+            row
+            for row in plan["evaluations"]["semantic_compression"]["units"]
+            if str(row.get("id", "")).startswith("sc-support-adjudication--")
+        ]
+        assert len(adjudicators) == 20, len(adjudicators)
+        assert all(row.get("read_paths") == [] for row in adjudicators), adjudicators
 
 
 def assert_failed_comparability_quarantines_affected_probe() -> None:

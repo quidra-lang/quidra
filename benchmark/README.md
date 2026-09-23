@@ -1,8 +1,8 @@
 # Operating the benchmark
 
 `master_prompt.md` is the contract every run follows. This page is the operator's
-checklist: what to push, in which order, what it costs, and what to do when a run
-does not finish. It assumes nothing beyond a clone of this repository, `git` and
+checklist: what to push, in which order, and what to do when a run does not
+finish. It assumes nothing beyond a clone of this repository, `git` and
 the GitHub Actions page of the repository.
 
 ## Before a run
@@ -36,12 +36,6 @@ Nothing else starts paid inference. Edit the fields below the comment header:
 | `units` | omit | omit | comma-separated work unit ids of one evaluation |
 | `budget_usd` | omit (100 USD soft guard) or up to 150 | same | at most 1.0 |
 
-A full run at the September 2026 cache state pays for about 92 of 244 work units
-(the rest hydrate from `cache/`), costs roughly 40 to 65 USD and takes about one and
-a half to two hours at concurrency 6. The mechanical Language Quality measurements
-(about six hours of runner time) are certified records and are not measured again
-while their keys hold.
-
 Do not push anything to `develop` until the run has finished. Do not force-push
 `develop` while the marker requests anything you would not want re-run: GitHub
 treats a forced update as a change to the marker and starts the workflow again.
@@ -68,8 +62,7 @@ treats a forced update as a change to the marker and starts the workflow again.
    `primary.json` untouched unless you accept re-measuring everything it keys, and
    check `cache-impact` again.
 3. Request the run again. Every unit that completed before hydrates from the cache,
-   so the second run pays only for the units that failed, typically a few dollars.
-   A failure in finalize alone re-runs for about nothing.
+   so the second run pays only for the units that failed.
 
 Rehearsals under one dollar (`units:` plus `budget_usd: 1.0`) are the way to try a
 fix on one unit before paying for the rest.

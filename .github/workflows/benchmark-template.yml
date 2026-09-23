@@ -1030,6 +1030,21 @@ jobs:
           PY
           git check-ignore -q .quidra-benchmark/run.json
 
+          # A hosted-job handoff carries the ignored workspace but not .git,
+          # so the next trusted job must be able to recreate only the sentinel
+          # after proving the run belongs to this exact clean checkout.
+          EVALUATED="$(python - <<'PY'
+          import json
+          print(json.load(open(".quidra-benchmark/run.json"))["evaluated"]["commit_sha"])
+          PY
+          )"
+          rm "$SENTINEL"
+          test ! -e "$SENTINEL"
+          python benchmark/template/scripts/benchmark.py restore-workspace-guard \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --expected-commit "$EVALUATED"
+          test -f "$SENTINEL"
+
           # Abandoned runs must remain safely discardable even if sandbox state is damaged.
           rm .quidra-benchmark/run.json
           python benchmark/template/scripts/benchmark.py discard-workspace \

@@ -740,9 +740,10 @@ The batch form runs up to {trials.max_batch} independent trials in one turn; use
 it. Every trial prompt and completion is recorded verbatim by the runtime under
 `trials/<trial_id>/` in your directory (`prompt_NN.txt`, `completion_NN.txt`,
 `session.json`); you can read those files but not write them. Batch observations
-report each completion's path and size rather than its text, so extract, compile
-and test trial output in bulk with a script you `write_file` and `run`, then
-decide which trials to repair. Trial completions are capped at
+report each completion's path and size rather than its text. When a trial
+evaluation has no runtime-owned verifier, use scripts you `write_file` and
+`run` to inspect its outputs. LLM Proficiency is different: the rules below
+provide trusted compile/run verification automatically. Trial completions are capped at
 {trials.max_output_tokens} output tokens; a trial whose reply hit that cap or came
 back empty is reported with `ok:false` and counts as a failed attempt for that
 trial. Budget for this unit: {trials.budget} trial calls in total ({trials.used}
@@ -757,11 +758,17 @@ before finalizing; any other trial ID is rejected before it can spend a scored
 call. Do NOT author an initial prompt. Use
 `{"action":"trial_start","trial_id":"<id>"}` (or batch entries containing only
 `trial_id`). The runtime inserts the frozen workload/scenario prompt. A custom
-prompt is rejected before inference. Repair feedback is also runtime-owned:
-omit the message field on trial_continue. The runtime sends only the trusted
-verifier's compile/run facts plus the frozen replacement-source instruction.
-Custom repair guidance is rejected before inference, and a trial that already
-passed cannot be repaired.
+prompt is rejected before inference.
+
+After every initial or repair completion, the runtime writes the returned source,
+performs the target language's frozen compile/parse step, runs the frozen recipe,
+and records the expected-output check. The observation includes a compact
+verification object and a path to the complete trusted record; do not repeat
+those commands merely to establish compile/run success. Repair feedback is also
+runtime-owned: omit the message field on trial_continue. The runtime sends only
+the trusted verifier's compile/run facts plus the frozen replacement-source
+instruction. Custom repair guidance is rejected before inference, and a trial
+that already passed cannot be repaired.
 
 {required}
 """

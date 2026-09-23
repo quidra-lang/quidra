@@ -5341,6 +5341,28 @@ def cmd_reclaim_stale(args: argparse.Namespace) -> int:
     return 0
 
 
+def resolve_evidence_path(root: Path, raw: str) -> Path:
+    """A recorded evidence path, resolved against this workspace.
+
+    A command unit records its result by the absolute path it had inside the
+    sandbox (/quidra-benchmark/...). That path is right while the run is live
+    and wrong for anything that reads a finished run back from outside the
+    container, so fall back to the same location under `root`.
+    """
+    path = Path(raw)
+    if path.is_file() or not path.is_absolute():
+        return path
+    parts = path.parts[1:]
+    if parts:
+        candidate = root.joinpath(*parts[1:]) if len(parts) > 1 else root
+        if candidate.is_file():
+            return candidate
+        candidate = root.joinpath(*parts)
+        if candidate.is_file():
+            return candidate
+    return path
+
+
 def requirement_results_for_evaluation(root: Path, evaluation: str) -> dict[str, Any]:
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")
@@ -5365,7 +5387,7 @@ def requirement_results_for_evaluation(root: Path, evaluation: str) -> dict[str,
                 raise BenchmarkError(
                     f"{evaluation}: command requirement unit must have one result file"
                 )
-            result_path = Path(evidence[0])
+            result_path = resolve_evidence_path(root, evidence[0])
         result = json_load(result_path)
         if unit.get("result_kind") == "audit":
             if result.get("audit_pass") is not True:
@@ -8024,6 +8046,360 @@ def cmd_cache_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+def requirement_evidence_sources(
+    root: Path, evaluation: str
+) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
+    """Which unit measured each requirement, and the evidence that unit wrote.
+
+    `requirement_results_for_evaluation` merges the scores and drops everything
+    else, so a published ranking keeps no trace of who measured a cell or why
+    they scored it that way.  This collects both.  A source the reconstruction
+    cannot reach is skipped rather than raised on: a command unit names its
+    result by absolute in-container path, which does not resolve when a finished
+    run is reported on again from outside the sandbox.
+    """
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    by_requirement: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
+    records: list[dict[str, Any]] = []
+    for unit in manifest.get("work_units", []):
+        if unit.get("evaluation") != evaluation or unit.get("phase") == "aggregation":
+            continue
+        if unit.get("execution_kind", "agent") not in {"agent", "command"}:
+            continue
+        if unit.get("result_kind") == "audit":
+            continue
+        agent_id = str(unit.get("assigned_agent_id") or unit["id"])
+        candidates = [root / "work" / "agents" / agent_id / "result.json"]
+        for raw in unit.get("evidence_paths", []):
+            candidates.append(resolve_evidence_path(root, raw))
+        result = None
+        for candidate in candidates:
+            try:
+                if candidate.is_file():
+                    result = json_load(candidate)
+                    break
+            except (OSError, json.JSONDecodeError):
+                continue
+        if result is None:
+            continue
+        requirement_ids = sorted(
+            rid
+            for rid in (result.get("requirements") or {})
+            if rid.startswith("metric.") or rid.startswith("condition.")
+        )
+        if not requirement_ids:
+            continue
+        records.append(
+            {
+                "work_unit_id": str(unit["id"]),
+                "agent_id": agent_id,
+                "assigned_languages": list(unit.get("assigned_languages") or []),
+                "requirement_ids": requirement_ids,
+                "requirements": result.get("requirements") or {},
+                "evidence": result.get("evidence"),
+            }
+        )
+        for rid in requirement_ids:
+            by_requirement[rid].append(
+                {
+                    "work_unit_id": str(unit["id"]),
+                    "agent_id": agent_id,
+                    "assigned_languages": list(unit.get("assigned_languages") or []),
+                }
+            )
+    return by_requirement, records
+
+
+def requirement_breakdown_rows(
+    config: dict[str, Any],
+    req: dict[str, Any],
+    languages: list[str],
+    sources: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """One row per scored requirement: its cells, its own ranking, its weight."""
+    typ = config["type"]
+    weights: dict[str, float] = {}
+    category_of: dict[str, str] = {}
+    if typ == "weighted_mean":
+        weights = {rid: float(w) for rid, w in (config.get("weights") or {}).items()}
+    elif typ == "semantic_harmonic":
+        weights = {
+            rid: float(w) for rid, w in (config.get("quality_weights") or {}).items()
+        }
+    elif typ == "category_mean":
+        for name, category in config["categories"].items():
+            for rid in category["metrics"]:
+                category_of[rid] = name
+
+    ordered = list(weights) + [rid for rid in category_of if rid not in weights]
+    ordered += [
+        rid
+        for rid in sorted(req)
+        if (rid.startswith("metric.") or rid.startswith("condition."))
+        and rid not in ordered
+    ]
+
+    rows = []
+    for rid in ordered:
+        cells = req.get(rid)
+        if not isinstance(cells, dict):
+            continue
+        scores: dict[str, float] = {}
+        not_applicable: dict[str, str] = {}
+        for language in languages:
+            if language not in cells:
+                continue
+            value = cells[language]
+            score = score_or_na(value)
+            if score is None:
+                not_applicable[language] = str(value.get("reason") or "").strip()
+            else:
+                scores[language] = score
+        row = {
+            "requirement_id": rid,
+            "scores": {language: scores[language] for language in languages if language in scores},
+            "ranking": deterministic_ranking(scores, languages) if scores else [],
+            "not_applicable": not_applicable,
+            "measured_by": sources.get(rid, []),
+        }
+        if rid in weights:
+            row["weight"] = weights[rid]
+        if rid in category_of:
+            row["category"] = category_of[rid]
+        if typ == "semantic_harmonic" and rid == config.get("coverage_metric"):
+            row["role"] = "coverage"
+        rows.append(row)
+    return rows
+
+
+def evaluation_breakdown(
+    root: Path,
+    evaluation: str,
+    config: dict[str, Any],
+    req: dict[str, Any],
+    languages: list[str],
+    published: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Decompose a published Primary score into the cells it was computed from.
+
+    Every figure is read back through the same `weighted_score` /
+    `category_score` the aggregate itself used, and `reconstruction` records the
+    largest disagreement with the published score, so a reader can tell a real
+    decomposition from a parallel calculation that merely looks plausible.
+    """
+    sources, records = requirement_evidence_sources(root, evaluation)
+    rows = requirement_breakdown_rows(config, req, languages, sources)
+    typ = config["type"]
+
+    categories: list[dict[str, Any]] = []
+    if typ == "category_mean":
+        total_weight = sum(
+            float(category["weight"]) for category in config["categories"].values()
+        )
+        for name, category in config["categories"].items():
+            weight = float(category["weight"])
+            means: dict[str, float] = {}
+            for language in languages:
+                values = [
+                    score
+                    for rid in category["metrics"]
+                    if isinstance(req.get(rid), dict) and language in req[rid]
+                    for score in [score_or_na(req[rid][language])]
+                    if score is not None
+                ]
+                if values:
+                    means[language] = sum(values) / len(values)
+            categories.append(
+                {
+                    "category": name,
+                    "weight": weight,
+                    "metrics": list(category["metrics"]),
+                    "means": means,
+                    "contribution": {
+                        language: weight * value / total_weight
+                        for language, value in means.items()
+                    },
+                    "ranking": deterministic_ranking(means, languages) if means else [],
+                }
+            )
+
+    recomputed: dict[str, float] = {}
+    for language in languages:
+        try:
+            if typ == "weighted_mean":
+                value = weighted_score(config["weights"], req, language)
+            elif typ == "category_mean":
+                value = category_score(config["categories"], req, language)
+            elif typ == "semantic_harmonic":
+                quality = weighted_score(config["quality_weights"], req, language)
+                coverage = score_or_na(req[config["coverage_metric"]][language])
+                if quality is None or coverage is None:
+                    value = None
+                elif quality + coverage == 0:
+                    value = 0.0
+                else:
+                    value = 2.0 * quality * coverage / (quality + coverage)
+            else:
+                value = None
+        except BenchmarkError:
+            value = None
+        if value is not None:
+            recomputed[language] = float(value)
+
+    published_scores = published.get("scores") or {}
+    deltas = {
+        language: abs(recomputed[language] - float(published_scores[language]))
+        for language in recomputed
+        if language in published_scores
+    }
+    breakdown = {
+        "schema_version": 1,
+        "evaluation": evaluation,
+        "status": published.get("status"),
+        "aggregation": config,
+        "languages": list(languages),
+        "published": {
+            "score": published.get("score"),
+            "scores": published_scores or None,
+            "ranking": published.get("ranking"),
+            "blockers": published.get("blockers") or [],
+        },
+        "categories": categories,
+        "requirements": rows,
+        "reconstruction": {
+            "recomputed_scores": recomputed,
+            "max_abs_error_vs_published": max(deltas.values()) if deltas else None,
+            "note": (
+                "Recomputed with the same functions the aggregate used. A null "
+                "error means the evaluation published no scores to compare against."
+            ),
+        },
+    }
+    return breakdown, records
+
+def render_breakdown_markdown(breakdown: dict[str, Any]) -> str:
+    """The same decomposition as a table a reader can scan without a JSON tool."""
+    languages = list(breakdown["languages"])
+    display = PRIMARY_DISPLAY_NAMES.get(breakdown["evaluation"], breakdown["evaluation"])
+    lines = [f"# {display}: score breakdown", ""]
+    lines.append(f"Status: **{breakdown['status']}**")
+    published = breakdown["published"]
+    if published.get("ranking"):
+        lines += ["", "## Published ranking", "", "| Rank | Language | Score |", "| ---: | --- | ---: |"]
+        for entry in published["ranking"]:
+            lines.append(f"| {entry['rank']} | {entry['language']} | {entry['score']} |")
+    for blocker in published.get("blockers") or []:
+        lines += ["", f"> BLOCKED: {blocker.get('reason')} ({blocker.get('work_unit_id')})"]
+
+    if breakdown["categories"]:
+        lines += ["", "## Categories", "", "| Category | Weight | " + " | ".join(languages) + " |"]
+        lines.append("| --- | ---: |" + " ---: |" * len(languages))
+        for category in breakdown["categories"]:
+            cells = [
+                f"{category['means'][language]:.1f}" if language in category["means"] else "-"
+                for language in languages
+            ]
+            lines.append(
+                f"| {category['category']} | {category['weight']} | " + " | ".join(cells) + " |"
+            )
+
+    lines += ["", "## Per-requirement scores", ""]
+    lines.append("Each row is one measured requirement. `w` is its frozen weight (or its")
+    lines.append("category's, for a category mean). A rank in parentheses is the language's")
+    lines.append("position on that requirement alone.")
+    lines += ["", "| Requirement | w | " + " | ".join(languages) + " |"]
+    lines.append("| --- | ---: |" + " ---: |" * len(languages))
+    for row in breakdown["requirements"]:
+        ranks = {entry["language"]: entry["rank"] for entry in row["ranking"]}
+        cells = []
+        for language in languages:
+            if language in row["scores"]:
+                cells.append(f"{row['scores'][language]:g} ({ranks.get(language, '-')})")
+            elif language in row["not_applicable"]:
+                cells.append("N/A")
+            else:
+                cells.append("-")
+        weight = row.get("weight")
+        label = row["requirement_id"]
+        if row.get("category"):
+            label = f"{label}<br>_{row['category']}_"
+        lines.append(f"| {label} | {weight if weight is not None else ''} | " + " | ".join(cells) + " |")
+
+    na_rows = [row for row in breakdown["requirements"] if row["not_applicable"]]
+    if na_rows:
+        lines += ["", "## N/A cells and their stated reasons", ""]
+        for row in na_rows:
+            for language, reason in sorted(row["not_applicable"].items()):
+                lines.append(f"- **{row['requirement_id']} / {language}** — {reason}")
+
+    lines += ["", "## Who measured what", "", "| Requirement | Work unit | Languages |", "| --- | --- | --- |"]
+    for row in breakdown["requirements"]:
+        for source in row["measured_by"]:
+            langs = ", ".join(source["assigned_languages"]) or "all"
+            lines.append(f"| {row['requirement_id']} | `{source['work_unit_id']}` | {langs} |")
+
+    reconstruction = breakdown["reconstruction"]
+    error = reconstruction.get("max_abs_error_vs_published")
+    lines += [
+        "",
+        "## Reconstruction check",
+        "",
+        "These figures were recomputed with the same functions that produced the",
+        "published score. Largest disagreement with the published score: "
+        + (f"`{error:.2e}`." if error is not None else "not applicable (no published scores)."),
+        "",
+        "The workers' own reasoning for every cell is under `evidence/` beside this file.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def write_run_breakdown(staging: Path, root: Path) -> None:
+    """Record how each Primary score was reached, next to the score itself.
+
+    A run directory that carries only five aggregate rankings cannot be analysed
+    and cannot be audited: the per-requirement cells, the weights that combined
+    them and the workers' stated reasoning all lived in the workspace, which
+    import discards, and in an artifact that expires.
+    """
+    aggregation = json_load(root / "template" / "config" / "aggregation.json")
+    languages = metadata_languages(root)
+    for evaluation in PRIMARY_NAMES:
+        published_path = root / "results" / "evaluations" / f"{evaluation}.json"
+        published = json_load(published_path) if published_path.is_file() else {}
+        config = (aggregation.get("evaluations") or {}).get(evaluation)
+        if config is None:
+            continue
+        try:
+            req = requirement_results_for_evaluation(root, evaluation)
+            if config.get("recompute_from_evidence"):
+                req = sc_recomputed_requirements(root, config, req, languages)
+        except (BenchmarkError, OSError, json.JSONDecodeError):
+            # A blocked evaluation has no complete requirement set, and that is
+            # exactly when what *was* measured matters most, so fall back to the
+            # cells the finished units recorded. These are unaggregated: no
+            # score is published from them.
+            req = {}
+            _sources, partial = requirement_evidence_sources(root, evaluation)
+            for record in partial:
+                for rid, value in (record.get("requirements") or {}).items():
+                    if isinstance(value, dict) and (
+                        rid.startswith("metric.") or rid.startswith("condition.")
+                    ):
+                        req.setdefault(rid, {}).update(value)
+        breakdown, records = evaluation_breakdown(
+            root, evaluation, config, req, languages, published
+        )
+        json_dump(staging / "breakdown" / f"{evaluation}.json", breakdown)
+        (staging / "breakdown" / f"{evaluation}.md").write_text(
+            render_breakdown_markdown(breakdown), encoding="utf-8"
+        )
+        for record in records:
+            json_dump(
+                staging / "evidence" / evaluation / f"{record['agent_id']}.json",
+                record,
+            )
+
+
 def compact_run_files(
     staging: Path,
     root: Path,
@@ -8069,7 +8445,10 @@ def compact_run_files(
             "promoted_records": int(cache_promotion.get("promoted", 0) or 0),
         },
         "raw_evidence": {
-            "committed_to_git": False,
+            "worker_evidence_committed_to_git": True,
+            "worker_evidence_path": "evidence/",
+            "score_breakdown_path": "breakdown/",
+            "agent_traces_committed_to_git": False,
             "workflow_artifact_retention_days": 30,
         },
     }
@@ -8105,11 +8484,25 @@ def compact_run_files(
     }
     for name, payload in files.items():
         json_dump(staging / name, payload)
+    write_run_breakdown(staging, root)
 
     hashes: dict[str, str] = {}
     for file in sorted(p for p in staging.rglob("*") if p.is_file()):
         hashes[file.relative_to(staging).as_posix()] = sha256_file(file)
     return hashes
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    """Write the score breakdown for a workspace that has already been scored."""
+    root = Path(args.workspace).resolve()
+    if not (root / "work" / "root" / "manifest.json").is_file():
+        raise BenchmarkError(f"not a benchmark workspace: {root}")
+    out = Path(args.out).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    write_run_breakdown(out, root)
+    written = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())
+    print(json.dumps({"schema_version": 1, "out": str(out), "files": len(written)}, indent=2))
+    return 0
 
 
 def cmd_post_run(args: argparse.Namespace) -> int:
@@ -8485,6 +8878,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     impact.add_argument("--source-repo", required=True)
     impact.set_defaults(func=cmd_cache_impact)
+
+    report = sub.add_parser(
+        "report",
+        help="write the per-requirement score breakdown and worker evidence for a scored workspace",
+    )
+    report.add_argument("--workspace", required=True)
+    report.add_argument("--out", required=True)
+    report.set_defaults(func=cmd_report)
 
     post = sub.add_parser(
         "post-run",

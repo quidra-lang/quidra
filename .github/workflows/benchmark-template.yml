@@ -194,6 +194,37 @@ jobs:
                   missing_ownership,
               )
 
+          lq_required = requirements["language_quality"]["required"]
+          lq_ownership = module.execution_ownership_for(
+              root, "language_quality", lq_required
+          )
+          try:
+              module.validate_requirement_execution_ownership(
+                  "negative-runner-owned",
+                  ["metric.native_execution_performance"],
+                  "agent",
+                  lq_ownership,
+              )
+          except module.BenchmarkError:
+              pass
+          else:
+              raise AssertionError(
+                  "runner-owned requirement accepted as agent work"
+              )
+          try:
+              module.validate_requirement_execution_ownership(
+                  "negative-agent-owned",
+                  ["metric.readability"],
+                  "command",
+                  lq_ownership,
+              )
+          except module.BenchmarkError:
+              pass
+          else:
+              raise AssertionError(
+                  "LLM-owned requirement accepted as command work"
+              )
+
           catalog = json.loads((root / "reuse" / "catalog.json").read_text())
           module.validate_reuse_catalog(catalog)
           assert catalog["schema_version"] == 3

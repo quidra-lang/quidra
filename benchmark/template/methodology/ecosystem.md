@@ -76,6 +76,27 @@ For each Ecosystem metric, define and freeze an objective rubric or proxy before
 
 For **Toolchain Stability / Release Maturity**, language age, first-release date, and elapsed years are contextual metadata only. They must not be a threshold, direct score, or automatic penalty/bonus. Score frozen, currently observable evidence such as release reproducibility, versioning/support policy, compatibility guarantees, supported artifact availability, maintenance/release cadence, and documented stability commitments, using the same rubric for all languages.
 
+### Frozen runner-owned rubric contract
+
+The authoritative Ecosystem scoring rubric is the machine-readable file:
+
+`template/methodology-assets/ecosystem/rubrics.json`
+
+It is frozen before evidence collection and contains exactly five equally weighted components for every Ecosystem metric, one shared 0–4 evidence level scale, the level-to-points mapping, the metric-specific evidence selection rule, and the common evidence-window/retrieval policy. Language-specific workers **must not invent, tune, or replace** these rubrics.
+
+For every assigned metric, a language worker returns semantic evidence only:
+
+- `rubric_id`: exact ID from the frozen asset;
+- `component_levels`: exactly the five frozen component IDs, each an integer 0–4;
+- `component_findings`: exactly the same five IDs, each with a concise evidence-based finding;
+- `sources`: non-empty source identifiers or URLs supporting the findings;
+- `snapshot_date`: the evidence snapshot date;
+- `limitations`: known evidence limitations.
+
+The trusted runner validates this structure and mechanically computes the 0–100 metric score from the frozen level-to-points mapping. A worker-supplied normalized score is not authoritative and is overwritten. Therefore the LLM performs the part that requires semantic judgment—finding and classifying evidence—while the runner owns rubric identity, component universe, weights, arithmetic, score range, and cross-language consistency.
+
+A missing applicable capability is scored through the frozen rubric rather than silently changed to `N/A`. If a worker changes the rubric, omits a component, uses a non-integer/out-of-range level, or provides no evidence source, its result is invalid and must be retried rather than scored.
+
 ### Predeclared sampling
 
 Do not select evidence by "first search result", "first alphabetical hit", or any other retrieval-order accident.

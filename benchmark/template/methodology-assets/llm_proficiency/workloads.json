@@ -18,7 +18,9 @@
       "scenario-first",
       "contract-first"
     ],
-    "prompt_variant_note": "The three Primary trials per workload/scenario cell use the same semantic content under three trusted runtime-owned layouts. Only section order/format changes; the same variants are used for every language."
+    "prompt_variant_note": "The three Primary trials per workload/scenario cell use the same semantic content under three trusted runtime-owned layouts. Only section order/format changes; the same variants are used for every language.",
+    "hidden_tests_score_only_no_repair_feedback": true,
+    "hidden_test_repair_policy": "Hidden cases are evaluated by trusted runtime for scoring only. They never decide whether a repair turn is offered and no hidden pass/fail verdict, count, case identity, input, expected output, stdout, or stderr is exposed to the scored model. Repairs are driven only by compile diagnostics and public-case failures."
   },
   "source_provenance": {
     "SVM": {

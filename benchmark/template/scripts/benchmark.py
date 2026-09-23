@@ -8635,7 +8635,7 @@ def proficiency_runtime_verification_problems(
                     f"success or the frozen {max_repairs}-repair budget was exhausted"
                 )
 
-    computed = proficiency_runtime_metrics(trace)
+    computed = proficiency_runtime_metrics(root, trace)
     synthetic = any(
         isinstance(call.get("verification"), dict)
         and call["verification"].get("synthetic_ci") is True

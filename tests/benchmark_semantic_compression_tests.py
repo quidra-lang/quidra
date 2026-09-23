@@ -533,6 +533,49 @@ def _write_semantic_owner_cohort(
             }, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+
+        verified = {}
+        for probe_id, record in catalog.items():
+            if str(record["level"]).upper() == "NONE":
+                continue
+            if probe_id == "F20.P2":
+                verified[probe_id] = {
+                    "mode": "nm-add2",
+                    "run_count": 0,
+                    "build": (
+                        None
+                        if language == "Python"
+                        else {"argv": ["compiler", "source"], "exit_code": 0}
+                    ),
+                    "nm": {"argv": ["nm", "program"], "exit_code": 0},
+                    "symbol_add2_defined": True,
+                }
+            else:
+                run_count = 20 if probe_id == "F19.P2" else 1
+                verified[probe_id] = {
+                    "mode": "run",
+                    "run_count": run_count,
+                    "build": (
+                        None
+                        if language == "Python"
+                        else {"argv": ["compiler", "source"], "exit_code": 0}
+                    ),
+                    "runs": [
+                        {"argv": ["runtime", "program"], "exit_code": 0}
+                        for _ in range(run_count)
+                    ],
+                }
+        benchmark.json_dump(
+            root
+            / "work/audit/semantic-compression"
+            / f"canonical_verification_{benchmark.slug_id(language)}.json",
+            {
+                "schema_version": 1,
+                "language": language,
+                "synthetic_ci": False,
+                "probes": verified,
+            },
+        )
         units.append({
             "id": "owner--" + benchmark.slug_id(language),
             "evaluation": "semantic_compression",
@@ -555,6 +598,25 @@ def assert_premeasurement_cohort_gate() -> None:
         assert summary["passed"] is True, summary
         assert not summary["v3_probes_without_full"], summary
         assert not summary["v4_languages_over_one_third_none"], summary
+        assert set(summary["v1_mechanical_verification"]) == set(languages), summary
+        assert all(
+            row["verified_probe_count"] == len(probe_ids)
+            for row in summary["v1_mechanical_verification"].values()
+        ), summary
+
+        missing_report = (
+            root
+            / "work/audit/semantic-compression"
+            / f"canonical_verification_{benchmark.slug_id(languages[0])}.json"
+        )
+        missing_report.unlink()
+        try:
+            benchmark.semantic_premeasurement_cohort_summary(root)
+        except benchmark.BenchmarkError as exc:
+            assert "mechanical verification report is missing" in str(exc), exc
+        else:
+            raise AssertionError("premeasurement gate accepted a missing V1 report")
+        _write_semantic_owner_cohort(root)
 
         target_probe = probe_ids[0]
         overrides = {

@@ -13,15 +13,24 @@ The normal full-run lifecycle is:
 3. Confirm the preconditions below.
 4. Create **benchmark** from the exact **develop** commit to evaluate, change
    benchmark/.run-production, commit that request on **benchmark**, and push it.
-5. GitHub Actions runs **benchmark-production** on **benchmark**. Its first paid
-   operation is the provider smoke; no separate smoke run is required.
+5. GitHub Actions runs **benchmark-production** on **benchmark**. A single
+   provider smoke runs first, then a full request is split into five durable
+   evaluation jobs: **Language Quality → LLM Proficiency → LLM Learnability →
+   Ecosystem → Semantic Compression**. A scoped one-evaluation/rehearsal request
+   still uses the single scoped job.
 6. Do not write to **benchmark** while the workflow runs. **develop** may continue
-   moving independently.
-7. The workflow checkpoints every newly certified reusable unit. Only when all
-   five Primary evaluations are **COMPLETE** does it commit a formal compact
-   result to **benchmark**. An incomplete attempt never creates
-   benchmark/<run-id>/; its full diagnostic evidence remains in the workflow
-   artifact and its valid completed work remains reusable through the cache.
+   moving independently. The workflow itself may advance **benchmark** between
+   evaluation jobs, but those commits contain only certified cache/prompt
+   artifacts; every job still evaluates the exact original trigger SHA.
+7. Each evaluation job checkpoints every newly certified reusable unit before
+   the next job starts. Estimated API spend is carried forward, so the request's
+   budget is one workflow-wide soft guard rather than five independent budgets.
+   Only when all five Primary evaluations are **COMPLETE** does the final
+   Semantic Compression job reassemble the five evaluations from cache and
+   commit one formal compact result to **benchmark**. An incomplete attempt
+   never creates benchmark/<run-id>/; its diagnostic evidence remains in the
+   per-evaluation workflow artifacts and its valid completed work remains
+   reusable through the cache.
 8. Reconcile **benchmark** into the then-current **develop**:
    - if **develop** has not moved since **benchmark** forked, fast-forward
      **develop** to **benchmark**;
@@ -118,10 +127,15 @@ benchmark snapshot.
 
 ## What the workflow writes
 
-The workflow checks out **benchmark**, not **develop**.
+For a full run, every evaluation job checks out the exact commit that triggered
+the workflow, attaches it locally as **benchmark**, and stages that immutable
+snapshot. Between jobs it imports only certified cache from the current remote
+**benchmark** branch into the isolated workspace; source code from later cache
+checkpoint commits is never treated as the evaluated snapshot.
 
 - Validated cache is checkpointed into benchmark/cache and pushed to
-  **benchmark**.
+  **benchmark** after each of the five evaluation jobs. This makes a failure in
+  job 3 resumable without losing paid work from jobs 1–2.
 - Only an all-five-Primary **COMPLETE** full run is imported under
   benchmark/<run-id>/. A PARTIAL/BLOCKED/NOT_EXECUTED attempt is not a formal
   repository result; it keeps its diagnostic evidence in the workflow artifact
@@ -131,11 +145,10 @@ The workflow checks out **benchmark**, not **develop**.
 - The workflow never pushes benchmark output directly to **develop**.
 - If another writer unexpectedly moves **benchmark**, the workflow stops racing
   the branch and preserves the local result in the workflow artifact.
-- The workflow artifact benchmark-<run-id> keeps the workspace evidence, gateway
-  audit, API cost report, provider smoke report, task policy and checkpoint
-  report. For a complete run it also contains the imported formal result; for
-  an incomplete attempt it is the diagnostic record while no dated result is
-  committed to Git.
+- A full run keeps one provider-smoke artifact plus one diagnostic artifact per
+  evaluation, named benchmark-<run-id>-<evaluation>. If all five evaluations
+  complete, it additionally writes benchmark-<run-id> with the combined formal
+  result. A scoped request keeps the legacy single-run artifact shape.
 
 ## Reconciling after the workflow finishes
 

@@ -6574,6 +6574,18 @@ def _prompt_component_signature_without_scoped(
     ]
 
 
+def _prompt_component_sha(
+    components: Iterable[dict[str, Any]], kind: str
+) -> str | None:
+    """Return a validated component digest without requiring its stored bytes."""
+    for component in components:
+        if str(component.get("kind") or "") != kind:
+            continue
+        digest = str(component.get("sha256") or "")
+        return digest if re.fullmatch(r"[0-9a-f]{64}", digest) else None
+    return None
+
+
 def _embedded_component_body(text: str) -> str | None:
     marker = "Source SHA-256:"
     start = text.find(marker)
@@ -6662,10 +6674,21 @@ def _legacy_primary_prompt_compatible(
         old_primary, evaluation
     ) != primary_config_projection_data(root, evaluation):
         return False
+    old_components = old_manifest.get("components", []) or []
+    current_components = task.get("prompt_components", []) or []
     for kind in (
         f"embedded:{EVALUATION_SPEC_FILES[evaluation]}",
         "embedded:assigned_requirements.json",
     ):
+        # Equal content digests already prove byte identity. This matters for
+        # paid legacy records whose manifest survived but whose unchanged
+        # methodology component was never separately promoted into the prompt
+        # store. Fall back to body comparison only for migrations that changed
+        # the component wrapper while preserving the selected semantic body.
+        old_sha = _prompt_component_sha(old_components, kind)
+        current_sha = _prompt_component_sha(current_components, kind)
+        if old_sha is not None and old_sha == current_sha:
+            continue
         old_body = _stored_prompt_component_body(store_root, old_prompt, kind)
         current_body = _task_prompt_component_body(task, kind)
         if old_body is None or current_body is None or old_body != current_body:
@@ -13482,7 +13505,11 @@ def _copy_if_new(source_file: Path, destination: Path) -> bool:
     return True
 
 
-def promote_prompt_store(source: Path, root: Path) -> dict[str, Any]:
+def promote_prompt_store(
+    source: Path,
+    root: Path,
+    prompt_hashes: set[str] | None = None,
+) -> dict[str, Any]:
     promoted_components = 0
     promoted_manifests = 0
     manifests_root = root / "prompts" / "manifests"
@@ -13495,11 +13522,14 @@ def promote_prompt_store(source: Path, root: Path) -> dict[str, Any]:
     if not manifests_root.is_dir():
         return {"components": 0, "manifests": 0}
 
+    selected = set(prompt_hashes) if prompt_hashes is not None else None
     for manifest_path in sorted(manifests_root.glob("*.json")):
         manifest = json_load(manifest_path)
         prompt_hash = str(manifest.get("prompt_sha256") or "")
         if not re.fullmatch(r"[0-9a-f]{64}", prompt_hash):
             raise BenchmarkError(f"invalid prompt SHA-256 in {manifest_path}")
+        if selected is not None and prompt_hash not in selected:
+            continue
         compact_components = []
         for component in manifest.get("components", []):
             digest = str(component.get("sha256") or "")
@@ -14850,6 +14880,34 @@ def cmd_partial_paid_import(args: argparse.Namespace) -> int:
     return 0
 
 
+def cache_record_prompt_hashes(
+    root: Path, promotion: dict[str, Any]
+) -> set[str]:
+    """Prompt dependencies for exactly the certified records in one checkpoint."""
+    promoted_ids = {
+        str(row.get("work_unit_id") or "")
+        for row in (promotion.get("records") or [])
+        if str(row.get("work_unit_id") or "")
+    }
+    if not promoted_ids:
+        return set()
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    hashes: set[str] = set()
+    for unit in manifest.get("work_units", []):
+        if str(unit.get("id") or "") not in promoted_ids:
+            continue
+        if unit.get("execution_kind", "agent") != "agent":
+            continue
+        agent_id = str(unit.get("assigned_agent_id") or "")
+        task_path = root / "work" / "agents" / agent_id / "task.json"
+        if not task_path.is_file():
+            continue
+        prompt_hash = str(json_load(task_path).get("prompt_sha256") or "")
+        if re.fullmatch(r"[0-9a-f]{64}", prompt_hash):
+            hashes.add(prompt_hash)
+    return hashes
+
+
 def cmd_cache_checkpoint(args: argparse.Namespace) -> int:
     """Promote independently validated cache records without requiring finalize.
 
@@ -14875,11 +14933,20 @@ def cmd_cache_checkpoint(args: argparse.Namespace) -> int:
         raise BenchmarkError("cache checkpoint requires a clean source repository")
 
     promotion = promote_certified_cache(source, root)
+    # A certified result is only maximally reusable if the exact prompt
+    # dependencies needed for later compatibility/revalidation survive too.
+    # Store only prompts for records this checkpoint actually certified; raw
+    # paid calls remain private in the paid-state store.
+    prompt_hashes = cache_record_prompt_hashes(root, promotion)
+    prompt_promotion = promote_prompt_store(
+        source, root, prompt_hashes=prompt_hashes
+    )
     result = {
         "schema_version": 1,
         "ok": True,
         "run_id": run.get("run_id"),
         "evaluated_commit_sha": (run.get("evaluated") or {}).get("commit_sha"),
+        "prompt_store": prompt_promotion,
         **promotion,
     }
     print(json.dumps(result, indent=2))

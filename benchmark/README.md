@@ -133,8 +133,15 @@ git push -u origin benchmark
 ~~~
 
 Only a push to **benchmark** that creates or changes benchmark/.run-production
-starts the paid production workflow. A push to **develop** cannot start it, and
-the marker must never be reconciled back to **develop**.
+starts the production workflow. It does **not** immediately spend the requested
+budget. The prepare job first runs deterministic planning, hydrates every
+certified cache record whose exact fingerprint is already materializable, and
+computes a conservative remaining-work budget from the unresolved units. If the
+requested budget is below that recommendation, or the free preparation finds a
+terminal blocker, the workflow stops before the provider is called. Only after
+those free gates pass does one small provider smoke run; the five Primary jobs
+then inherit that prepared workspace. A push to **develop** cannot start paid
+work, and the marker must never be reconciled back to **develop**.
 
 Do not modify, rebase, merge into, or force-push **benchmark** while the run is
 in flight. The production workflow itself is the only writer allowed during
@@ -143,13 +150,22 @@ benchmark snapshot.
 
 ## What the workflow writes
 
-For a full run, every evaluation job checks out the exact commit that triggered
-the workflow and attaches it locally as **benchmark**. The first Primary stages
-that immutable snapshot once; each later Primary restores the previous job's
-compressed **.quidra-benchmark** workspace handoff and recreates only the
-Git-private host guard. The scored workspace therefore advances across the five
-jobs without ever changing the evaluated source SHA. Cache checkpoint commits on
-the remote **benchmark** branch are durability copies, not a new source snapshot.
+For a full run, the prepare job checks out the exact commit that triggered the
+workflow, stages that immutable snapshot once, runs the no-provider deterministic
+preparation and cache hydration, verifies the conservative budget, then packages
+**benchmark-<run-id>-prepared**. Semantic Compression starts from that artifact;
+each later Primary restores the previous job's compressed **.quidra-benchmark**
+workspace handoff and recreates only the Git-private host guard. The scored
+workspace therefore advances across the five jobs without ever changing the
+evaluated source SHA. Cache checkpoint commits on the remote **benchmark** branch
+are durability copies, not a new source snapshot.
+
+A planned wall-clock slice is a checkpoint, not a benchmark failure. After the
+normal five Primary jobs, each Primary has its own continuation job with another
+long execution window. An evaluation already marked **COMPLETE** skips the image
+build and paid dispatch entirely and simply forwards the handoff; only unresolved
+work can consume the continuation window or API budget. Terminal scientific or
+validator blockers are never silently converted into scores.
 
 - Validated cache is checkpointed into benchmark/cache and pushed to
   **benchmark** after each of the five evaluation jobs. The full scored workspace
@@ -164,12 +180,12 @@ the remote **benchmark** branch are durability copies, not a new source snapshot
 - The workflow never pushes benchmark output directly to **develop**.
 - If another writer unexpectedly moves **benchmark**, the workflow stops racing
   the branch and preserves the local result in the workflow artifact.
-- A full run keeps one diagnostic handoff artifact per evaluation, named
-  benchmark-<run-id>-<evaluation>; each handoff carries the workspace, the
-  cumulative budget ledger and that evaluation's API-cost evidence. If all five
-  evaluations complete, **finalize** additionally writes benchmark-<run-id> with
-  the combined formal result. A scoped request writes
-  benchmark-<run-id>-scoped.
+- A full run keeps the prepared handoff, one normal handoff per evaluation and
+  one continuation handoff per evaluation. Every handoff carries the workspace,
+  cumulative budget ledger and API-cost evidence for that slice. **finalize**
+  consumes benchmark-<run-id>-recovery-llm-proficiency, and only if all five
+  evaluations are **COMPLETE** does it write benchmark-<run-id> with the combined
+  formal result. A scoped request writes benchmark-<run-id>-scoped.
 
 ## Reconciling after the workflow finishes
 

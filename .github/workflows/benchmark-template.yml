@@ -196,7 +196,7 @@ jobs:
 
           lq_required = requirements["language_quality"]["required"]
           lq_ownership = module.execution_ownership_for(
-              root, "language_quality", lq_required
+              root.parent, "language_quality", lq_required
           )
           try:
               module.validate_requirement_execution_ownership(

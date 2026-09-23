@@ -218,7 +218,8 @@ def install_cache_record(root: Path, unit: dict, task: dict) -> str:
     assert pair is not None
     fingerprint, payload = pair
     rid = "metric.documentation_quality"
-    rubric = benchmark.ecosystem_rubric_asset(root)["metrics"][rid]
+    ecosystem_asset = benchmark.ecosystem_rubric_asset(root)
+    rubric = ecosystem_asset["metrics"][rid]
     component_ids = [row["id"] for row in rubric["components"]]
     result = {
         "schema_version": 1,
@@ -237,9 +238,7 @@ def install_cache_record(root: Path, unit: dict, task: dict) -> str:
                 "candidate_universe": "synthetic cache candidate universe",
                 "selection_rule": rubric["selection_rule"],
                 "retrieval_route": "provider-brokered web search",
-                "snapshot_date": str(
-                    benchmark.json_load(root / "run.json")["created_at_utc"]
-                )[:10],
+                "snapshot_date": ecosystem_asset["evidence_policy"]["snapshot_date"],
                 "limitations": "",
             },
         },
@@ -793,9 +792,9 @@ def assert_ecosystem_runner_owned_scoring() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         asset = benchmark.ecosystem_rubric_asset(root)
-        frozen_run_date = str(
-            benchmark.json_load(root / "run.json")["created_at_utc"]
-        )[:10]
+        frozen_snapshot_date = str(
+            asset["evidence_policy"]["snapshot_date"]
+        )
         assert asset["frozen"] is True
         assert len(asset["metrics"]) == 15
         reqs = [
@@ -822,7 +821,7 @@ def assert_ecosystem_runner_owned_scoring() -> None:
                 "candidate_universe": "frozen test candidate universe",
                 "selection_rule": rubric["selection_rule"],
                 "retrieval_route": "provider-brokered web search",
-                "snapshot_date": frozen_run_date,
+                "snapshot_date": frozen_snapshot_date,
                 "limitations": "",
             }
         result = {
@@ -854,30 +853,30 @@ def assert_ecosystem_runner_owned_scoring() -> None:
 
         wrong_date = json.loads(json.dumps(result))
         wrong_day = (
-            frozen_run_date[:-2] + "01"
-            if not frozen_run_date.endswith("01")
-            else frozen_run_date[:-2] + "02"
+            frozen_snapshot_date[:-2] + "01"
+            if not frozen_snapshot_date.endswith("01")
+            else frozen_snapshot_date[:-2] + "02"
         )
         wrong_date["evidence"][reqs[0]]["snapshot_date"] = wrong_day
         try:
             benchmark.apply_ecosystem_runner_scores(root, task, wrong_date)
         except benchmark.BenchmarkError as exc:
-            assert "must equal the frozen run date" in str(exc), exc
+            assert "must equal the frozen Ecosystem snapshot date" in str(exc), exc
         else:
-            raise AssertionError("non-run-date Ecosystem evidence was accepted")
+            raise AssertionError("non-frozen Ecosystem snapshot was accepted")
 
-        run_path = root / "run.json"
-        run_bytes = run_path.read_bytes()
-        run = benchmark.json_load(run_path)
-        run["created_at_utc"] = "2026-10-01T00:00:00+00:00"
-        benchmark.json_dump(run_path, run)
+        policy_path = root / "template/config/cache_policy.json"
+        policy_bytes = policy_path.read_bytes()
+        policy = benchmark.json_load(policy_path)
+        policy["declared_epochs"]["ecosystem"] = "2026-10"
+        benchmark.json_dump(policy_path, policy)
         try:
             benchmark.apply_ecosystem_runner_scores(root, task, result)
         except benchmark.BenchmarkError as exc:
-            assert "advance the Ecosystem epoch" in str(exc), exc
+            assert "advance both together" in str(exc), exc
         else:
-            raise AssertionError("run date outside declared Ecosystem epoch was accepted")
-        run_path.write_bytes(run_bytes)
+            raise AssertionError("Ecosystem epoch/snapshot drift was accepted")
+        policy_path.write_bytes(policy_bytes)
 
         gateway_path = root / "template/config/inference_gateway.json"
         gateway_bytes = gateway_path.read_bytes()

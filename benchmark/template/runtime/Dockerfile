@@ -109,7 +109,7 @@ COPY install_toolchains.sh /opt/quidra-benchmark/install_toolchains.sh
 RUN chmod +x /opt/quidra-benchmark/install_toolchains.sh \
  && /opt/quidra-benchmark/install_toolchains.sh
 
-COPY toolchains.json verify_toolchains.py /opt/quidra-benchmark/runtime/
+COPY toolchains.json verify_toolchains.py f20_interop_fixtures.json /opt/quidra-benchmark/runtime/
 RUN python3 /opt/quidra-benchmark/runtime/verify_toolchains.py \
  && chown -R 1000:1000 /opt/quidra-benchmark
 

@@ -552,8 +552,38 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     (root / "cache" / rel).unlink()
 
 
+def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit = {
+            "evaluation": "llm_proficiency",
+            "max_output_tokens_per_call": 16384,
+        }
+        record = {
+            "certification": {
+                "scored_output_cap": 16384,
+                "trial_calls": 18,
+                "cap_truncated_trial_calls": 0,
+                "max_trial_output_tokens": 512,
+                "proficiency_integrity": True,
+            }
+        }
+        problem = benchmark.cache_cap_reuse_problem(root, record, unit)
+        assert problem is not None and "Primary trial allocation" in problem, problem
+
+        certification = record["certification"]
+        certification["proficiency_primary_trial_set_sha256"] = (
+            benchmark.proficiency_primary_trial_set_sha256(root)
+        )
+        certification["proficiency_primary_trial_count"] = len(
+            benchmark.proficiency_required_trial_ids(root)
+        )
+        assert benchmark.cache_cap_reuse_problem(root, record, unit) is None
+
+
 def main() -> None:
     assert_accepted_trial_start_marks_the_scored_boundary()
+    assert_proficiency_cache_requires_exact_primary_trial_set()
     with tempfile.TemporaryDirectory() as mechanical_td:
         # Its own workspace: the test freezes a manifest of one mechanical unit.
         assert_mechanical_measurements_are_cacheable(make_workspace(Path(mechanical_td)), Path(mechanical_td))

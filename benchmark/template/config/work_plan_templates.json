@@ -943,18 +943,21 @@
           "id": "lq-coverage",
           "phase": "readiness",
           "requirement_ids": [
-            "coverage.all_10_languages"
+            "coverage.all_10_languages",
+            "gate.language_quality_design_rubrics_frozen"
           ],
           "dependencies": [],
           "prompt_sections": [],
-          "read_paths": [],
+          "read_paths": [
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
           "network_allowed": false,
           "worker_mode": "runner-command",
           "execution_kind": "command",
           "result_kind": "requirements",
           "runner_action": "static-coverage",
           "max_attempts": 1,
-          "goal": "Mechanically verify that Language Quality uses exactly the frozen 10-language comparison set."
+          "goal": "Mechanically verify the frozen 10-language comparison set and the complete frozen Language Quality intrinsic-design rubric contract before any design-judgment worker runs."
         },
         {
           "id": "lq-quidra-audit",
@@ -1033,11 +1036,13 @@
           "read_paths": [
             "repo/docs",
             "template/programs",
-            "template/workloads"
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
           ],
           "network_allowed": false,
           "worker_mode": "sandbox-agent",
-          "split_by_language": true
+          "split_by_language": true,
+          "goal": "Judge only the assigned language for the assigned intrinsic Language Quality design metric(s). Use design_rubrics.json exactly. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five frozen component IDs, integer 0..4), component_findings (same IDs, non-empty rubric-grounded findings), evidence_refs (one or more existing relative repo/... or template/... paths from the frozen readable inputs), selection_rule (exact frozen string), and limitations. Do not invent a normalized score: the trusted runner computes requirements[metric_id][language] mechanically from component_levels and overwrites worker arithmetic."
         },
         {
           "id": "lq-language-development--part-2",
@@ -1057,11 +1062,13 @@
           "read_paths": [
             "repo/docs",
             "template/programs",
-            "template/workloads"
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
           ],
           "network_allowed": false,
           "worker_mode": "sandbox-agent",
-          "split_by_language": true
+          "split_by_language": true,
+          "goal": "Judge only the assigned language for the assigned intrinsic Language Quality design metric(s). Use design_rubrics.json exactly. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five frozen component IDs, integer 0..4), component_findings (same IDs, non-empty rubric-grounded findings), evidence_refs (one or more existing relative repo/... or template/... paths from the frozen readable inputs), selection_rule (exact frozen string), and limitations. Do not invent a normalized score: the trusted runner computes requirements[metric_id][language] mechanically from component_levels and overwrites worker arithmetic."
         },
         {
           "id": "lq-language-development--part-3",
@@ -1081,11 +1088,13 @@
           "read_paths": [
             "repo/docs",
             "template/programs",
-            "template/workloads"
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
           ],
           "network_allowed": false,
           "worker_mode": "sandbox-agent",
-          "split_by_language": true
+          "split_by_language": true,
+          "goal": "Judge only the assigned language for the assigned intrinsic Language Quality design metric(s). Use design_rubrics.json exactly. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five frozen component IDs, integer 0..4), component_findings (same IDs, non-empty rubric-grounded findings), evidence_refs (one or more existing relative repo/... or template/... paths from the frozen readable inputs), selection_rule (exact frozen string), and limitations. Do not invent a normalized score: the trusted runner computes requirements[metric_id][language] mechanically from component_levels and overwrites worker arithmetic."
         },
         {
           "id": "lq-language-development--part-4",
@@ -1105,11 +1114,13 @@
           "read_paths": [
             "repo/docs",
             "template/programs",
-            "template/workloads"
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
           ],
           "network_allowed": false,
           "worker_mode": "sandbox-agent",
-          "split_by_language": true
+          "split_by_language": true,
+          "goal": "Judge only the assigned language for the assigned intrinsic Language Quality design metric(s). Use design_rubrics.json exactly. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five frozen component IDs, integer 0..4), component_findings (same IDs, non-empty rubric-grounded findings), evidence_refs (one or more existing relative repo/... or template/... paths from the frozen readable inputs), selection_rule (exact frozen string), and limitations. Do not invent a normalized score: the trusted runner computes requirements[metric_id][language] mechanically from component_levels and overwrites worker arithmetic."
         },
         {
           "id": "lq-adversarial-mechanical",

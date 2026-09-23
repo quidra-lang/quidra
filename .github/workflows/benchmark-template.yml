@@ -30,6 +30,7 @@ on:
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
+      - ".github/workflows/benchmark-paid-state-keepalive.yml"
       - ".github/actions/benchmark-primary/**"
 
 concurrency:

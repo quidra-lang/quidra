@@ -972,31 +972,36 @@ jobs:
         if: ${{ always() }}
         run: |
           echo "value=false" >> "$GITHUB_OUTPUT"
-          status=".quidra-benchmark/results/primary_status.json"
-          test -f "$status" || exit 0
-          if python - <<'PY'
-          import json
-          from pathlib import Path
-          status = json.loads(Path(".quidra-benchmark/results/primary_status.json").read_text())
-          expected = [
-              "semantic_compression", "llm_learnability", "language_quality",
-              "ecosystem", "llm_proficiency",
-          ]
-          evaluations = status.get("evaluations") or {}
-          incomplete = {
-              name: (evaluations.get(name) or {}).get("status")
-              for name in expected
-              if (evaluations.get(name) or {}).get("status") != "COMPLETE"
+          finalization=".quidra-benchmark/results/finalization.json"
+          audit=".quidra-benchmark/results/completeness_audit.json"
+          test -f "$finalization" || {
+            echo "No finalization record; no formal result will be committed."
+            exit 0
           }
-          print(json.dumps({"incomplete": incomplete}, indent=2))
-          if incomplete:
+          if python - "$finalization" "$audit" <<'PY'
+          import json, sys
+          from pathlib import Path
+          finalization = json.loads(Path(sys.argv[1]).read_text())
+          audit = (
+              json.loads(Path(sys.argv[2]).read_text())
+              if Path(sys.argv[2]).is_file()
+              else {}
+          )
+          payload = {
+              "formal_complete": finalization.get("formal_complete"),
+              "required_incomplete_units": audit.get("required_incomplete_units", []),
+              "rerun_agent_leaf_ids": audit.get("rerun_agent_leaf_ids", []),
+              "rerun_machine_unit_ids": audit.get("rerun_machine_unit_ids", []),
+          }
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          if finalization.get("formal_complete") is not True:
               raise SystemExit(3)
           PY
           then
             echo "value=true" >> "$GITHUB_OUTPUT"
-            echo "All five Primary evaluations are COMPLETE."
+            echo "Every required leaf and all five Primary rankings are formally COMPLETE."
           else
-            echo "Incomplete run: certified cache/evidence are retained, but no formal result will be committed."
+            echo "Incomplete run: exact missing-leaf resume targets, certified cache and evidence are retained; no formal result will be committed."
           fi
 
       - name: Import only a complete formal result

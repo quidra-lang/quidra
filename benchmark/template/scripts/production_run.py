@@ -636,11 +636,10 @@ def provider_smoke(
             health.get("provider", {}).get("id") == "anthropic-messages",
             health.get("provider"),
         )
-        frozen_tool = (
-            json.loads((template / "config" / "inference_gateway.json").read_text("utf-8"))
-            .get("anthropic_web_search", {})
-            .get("tool_type")
+        gateway_cfg = json.loads(
+            (template / "config" / "inference_gateway.json").read_text("utf-8")
         )
+        frozen_tool = gateway_cfg.get("anthropic_web_search", {}).get("tool_type")
         declared = [entry.get("type") for entry in health.get("exposed_tool_surface", [])]
         record(
             "the declared tool surface matches the frozen policy",
@@ -688,6 +687,34 @@ def provider_smoke(
             int(plain.get("usage", {}).get("input_tokens", 0)) > 0,
             plain.get("usage"),
         )
+
+        # Packet-only workers send the frozen output ceiling as max_tokens on
+        # every call, and the provider validates it against the model's own
+        # limit: a ceiling one token too high fails every packet of a paid run
+        # with HTTP 400 before any text. Prove the value on this key with a
+        # one-word answer under the full ceiling.
+        ceiling = int(gateway_cfg.get("max_output_tokens_ceiling", 0) or 0)
+        ceiling_check = "the provider accepts the frozen output ceiling as max_tokens"
+        try:
+            capped = client.complete(
+                [{"role": "user", "content": "Reply with the single word: ready"}],
+                task_id=plain_task,
+                max_output_tokens=ceiling,
+                request_id=uuid.uuid4().hex,
+            )
+        except gateway_client.GatewayClientError as exc:
+            record(ceiling_check, False, {"ceiling": ceiling, "error": str(exc)})
+        else:
+            record_call(f"plain under the frozen output ceiling ({ceiling} max_tokens)", capped)
+            record(
+                ceiling_check,
+                isinstance(capped.get("content"), str) and capped["content"].strip() != "",
+                {
+                    "ceiling": ceiling,
+                    "stop_reason": capped.get("stop_reason"),
+                    "usage": capped.get("usage"),
+                },
+            )
 
         # The second real call exercises the network-enabled payload shape, which
         # carries the frozen server-side tool and is otherwise never sent.

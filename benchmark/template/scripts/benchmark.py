@@ -14391,6 +14391,413 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     }
 
 
+
+def partial_paid_store_manifest(store: Path, fingerprint: str) -> Path:
+    return store / "v1" / fingerprint[:2] / fingerprint / "manifest.json"
+
+
+def partial_paid_store_blob(store: Path, digest: str) -> Path:
+    return store / "blobs" / digest[:2] / digest
+
+
+def _partial_paid_file_record(
+    store: Path,
+    root: Path,
+    source: Path,
+    restore_relative: str,
+) -> dict[str, Any]:
+    source = require_under(source, root)
+    data = source.read_bytes()
+    digest = sha256_bytes(data)
+    blob = partial_paid_store_blob(store, digest)
+    blob.parent.mkdir(parents=True, exist_ok=True)
+    if blob.is_file():
+        if sha256_file(blob) != digest:
+            raise BenchmarkError(
+                f"partial paid checkpoint blob is corrupt: {blob}"
+            )
+    else:
+        tmp = blob.with_name(blob.name + ".tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, blob)
+    return {
+        "restore_relative": restore_relative,
+        "sha256": digest,
+        "bytes": len(data),
+    }
+
+
+def _partial_paid_call_count(agent_dir: Path, worker_mode: str) -> int:
+    if worker_mode == "packet-only":
+        return len(_packet_paid_response_records(agent_dir))
+    journal = agent_dir / "trial_call_journal.json"
+    if not journal.is_file():
+        return 0
+    try:
+        payload = json_load(journal)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return 0
+    calls = payload.get("calls")
+    return len(calls) if isinstance(calls, list) else 0
+
+
+def export_partial_paid_checkpoints(
+    root: Path,
+    store: Path,
+    evaluation: str | None = None,
+) -> dict[str, Any]:
+    """Persist paid-but-not-yet-COMPLETE leaf state outside the public Git cache.
+
+    The store is intended for GitHub Actions cache. Each record is keyed by the
+    same full dependency fingerprint used by the certified result cache. Raw
+    prompts/completions remain private workflow/cache material rather than being
+    committed to benchmark/cache in Git.
+    """
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    ledger = json_load(root / "work" / "root" / "ledger.json")
+    exported: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+
+    for unit in manifest.get("work_units", []):
+        if evaluation is not None and unit.get("evaluation") != evaluation:
+            continue
+        if unit.get("execution_kind", "agent") != "agent":
+            continue
+        uid = str(unit["id"])
+        state = (ledger.get("units", {}).get(uid) or {})
+        if state.get("status") == "COMPLETE":
+            # COMPLETE work belongs in the certified result cache instead.
+            continue
+        agent_id = str(unit.get("assigned_agent_id") or "")
+        agent_dir = root / "work" / "agents" / agent_id
+        task_path = agent_dir / "task.json"
+        if not task_path.is_file():
+            continue
+        task = json_load(task_path)
+        pair = cache_fingerprint(root, unit, task)
+        if pair is None:
+            continue
+        fingerprint, payload = pair
+        worker_mode = str(unit.get("worker_mode") or "packet-only")
+        paid_calls = _partial_paid_call_count(agent_dir, worker_mode)
+        if paid_calls <= 0:
+            continue
+
+        file_specs: list[tuple[Path, str]] = []
+        agent_prefix = f"work/agents/{agent_id}"
+        if worker_mode == "packet-only":
+            paid_dir = agent_dir / "paid_responses"
+            for source in sorted(p for p in paid_dir.rglob("*") if p.is_file()):
+                rel = source.relative_to(agent_dir).as_posix()
+                file_specs.append((source, f"{agent_prefix}/{rel}"))
+        elif worker_mode == "sandbox-agent":
+            trials = agent_dir / "trials"
+            if trials.is_dir():
+                for source in sorted(p for p in trials.rglob("*") if p.is_file()):
+                    rel = source.relative_to(agent_dir).as_posix()
+                    file_specs.append((source, f"{agent_prefix}/{rel}"))
+            for name in (
+                "trial_call_journal.json",
+                "learnability_preflight.json",
+                "learnability_leakage.json",
+            ):
+                source = agent_dir / name
+                if source.is_file():
+                    file_specs.append((source, f"{agent_prefix}/{name}"))
+
+            trace_source = None
+            for name in (
+                "agent_trace.partial.json",
+                "agent_trace.json",
+                "resume_trace.json",
+            ):
+                candidate = agent_dir / name
+                if candidate.is_file():
+                    trace_source = candidate
+                    break
+            if trace_source is not None:
+                file_specs.append(
+                    (trace_source, f"{agent_prefix}/resume_trace.json")
+                )
+
+            # Proficiency session records point at trusted verifier evidence
+            # outside the worker directory. Preserve only referenced files.
+            verification_paths: set[Path] = set()
+            if trials.is_dir():
+                for session_path in trials.glob("*/session.json"):
+                    try:
+                        session = json_load(session_path)
+                    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                        continue
+                    for call in session.get("calls", []) or []:
+                        raw = call.get("verification_path")
+                        if not isinstance(raw, str) or not raw:
+                            continue
+                        candidate = require_under(root / raw, root)
+                        if candidate.is_file():
+                            verification_paths.add(candidate)
+                        elif candidate.is_dir():
+                            verification_paths.update(
+                                p for p in candidate.rglob("*") if p.is_file()
+                            )
+            for source in sorted(verification_paths):
+                rel = source.relative_to(root).as_posix()
+                if not rel.startswith("work/root/proficiency-verification/"):
+                    raise BenchmarkError(
+                        f"unexpected trusted verification checkpoint path: {rel}"
+                    )
+                file_specs.append((source, rel))
+        else:
+            skipped.append({
+                "work_unit_id": uid,
+                "reason": f"unsupported worker mode {worker_mode!r}",
+            })
+            continue
+
+        if not file_specs:
+            continue
+        files = [
+            _partial_paid_file_record(store, root, source, restore_relative)
+            for source, restore_relative in file_specs
+        ]
+        record = {
+            "schema_version": 1,
+            "fingerprint": fingerprint,
+            "fingerprint_payload": payload,
+            "work_unit_id": uid,
+            "evaluation": unit.get("evaluation"),
+            "agent_id": agent_id,
+            "worker_mode": worker_mode,
+            "prompt_sha256": task.get("prompt_sha256"),
+            "paid_call_count": paid_calls,
+            "files": files,
+            "exported_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        }
+        destination = partial_paid_store_manifest(store, fingerprint)
+        keep_existing = False
+        if destination.is_file():
+            try:
+                existing = json_load(destination)
+                existing_calls = int(existing.get("paid_call_count", 0) or 0)
+                existing_files = len(existing.get("files", []) or [])
+                keep_existing = (
+                    existing.get("fingerprint_payload") == payload
+                    and (
+                        existing_calls > paid_calls
+                        or (
+                            existing_calls == paid_calls
+                            and existing_files >= len(files)
+                        )
+                    )
+                )
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                keep_existing = False
+        if not keep_existing:
+            json_dump(destination, record)
+        exported.append({
+            "work_unit_id": uid,
+            "fingerprint": fingerprint,
+            "paid_call_count": max(
+                paid_calls,
+                int(
+                    (json_load(destination).get("paid_call_count", 0) or 0)
+                    if destination.is_file()
+                    else paid_calls
+                ),
+            ),
+            "record": destination.relative_to(store).as_posix(),
+        })
+
+    result = {
+        "schema_version": 1,
+        "exported_units": exported,
+        "exported_unit_count": len(exported),
+        "skipped": skipped,
+    }
+    json_dump(root / "results" / "partial_paid_checkpoint_export.json", result)
+    return result
+
+
+def _partial_paid_restore_allowed(
+    root: Path,
+    agent_id: str,
+    relative: str,
+) -> Path:
+    rel = PurePosixPath(relative)
+    if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
+        raise BenchmarkError(f"invalid paid checkpoint restore path: {relative!r}")
+    agent_prefix = PurePosixPath("work") / "agents" / agent_id
+    trusted_prefix = PurePosixPath("work") / "root" / "proficiency-verification"
+    allowed_agent = False
+    try:
+        suffix = rel.relative_to(agent_prefix)
+        text = suffix.as_posix()
+        allowed_agent = (
+            text == "trial_call_journal.json"
+            or text == "learnability_preflight.json"
+            or text == "learnability_leakage.json"
+            or text == "resume_trace.json"
+            or text.startswith("trials/")
+            or text.startswith("paid_responses/")
+        )
+    except ValueError:
+        pass
+    allowed_trusted = False
+    try:
+        rel.relative_to(trusted_prefix)
+        allowed_trusted = True
+    except ValueError:
+        pass
+    if not (allowed_agent or allowed_trusted):
+        raise BenchmarkError(
+            f"paid checkpoint restore path is outside the allowed state: {relative}"
+        )
+    return require_under(root.joinpath(*rel.parts), root)
+
+
+def import_partial_paid_checkpoints(
+    root: Path,
+    store: Path,
+    evaluation: str | None = None,
+) -> dict[str, Any]:
+    """Restore only exact-fingerprint paid state into still-PENDING leaves."""
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    ledger = json_load(root / "work" / "root" / "ledger.json")
+    imported: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+
+    for unit in manifest.get("work_units", []):
+        if evaluation is not None and unit.get("evaluation") != evaluation:
+            continue
+        if unit.get("execution_kind", "agent") != "agent":
+            continue
+        uid = str(unit["id"])
+        state = (ledger.get("units", {}).get(uid) or {})
+        if state.get("status", "PENDING") != "PENDING":
+            continue
+        if not all(
+            (ledger.get("units", {}).get(dep) or {}).get("status") == "COMPLETE"
+            for dep in unit.get("dependencies", [])
+        ):
+            continue
+        agent_id = str(unit.get("assigned_agent_id") or "")
+        agent_dir = root / "work" / "agents" / agent_id
+        task_path = agent_dir / "task.json"
+        if not task_path.is_file():
+            continue
+        task = json_load(task_path)
+        pair = cache_fingerprint(root, unit, task)
+        if pair is None:
+            continue
+        fingerprint, payload = pair
+        record_path = partial_paid_store_manifest(store, fingerprint)
+        if not record_path.is_file():
+            continue
+        try:
+            record = json_load(record_path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            rejected.append({
+                "work_unit_id": uid,
+                "reason": f"checkpoint manifest unreadable: {exc}",
+            })
+            continue
+        if (
+            record.get("fingerprint") != fingerprint
+            or record.get("fingerprint_payload") != payload
+            or record.get("work_unit_id") != uid
+            or record.get("agent_id") != agent_id
+            or record.get("prompt_sha256") != task.get("prompt_sha256")
+            or record.get("worker_mode") != unit.get("worker_mode")
+        ):
+            rejected.append({
+                "work_unit_id": uid,
+                "reason": "checkpoint dependency identity does not exactly match",
+            })
+            continue
+
+        staged: list[tuple[Path, bytes]] = []
+        problem = None
+        for file_row in record.get("files", []) or []:
+            relative = str(file_row.get("restore_relative") or "")
+            digest = str(file_row.get("sha256") or "")
+            blob = partial_paid_store_blob(store, digest)
+            if not blob.is_file() or sha256_file(blob) != digest:
+                problem = f"missing/corrupt paid checkpoint blob for {relative}"
+                break
+            data = blob.read_bytes()
+            if len(data) != int(file_row.get("bytes", -1)):
+                problem = f"paid checkpoint byte count mismatch for {relative}"
+                break
+            try:
+                target = _partial_paid_restore_allowed(root, agent_id, relative)
+            except BenchmarkError as exc:
+                problem = str(exc)
+                break
+            if target.exists() and target.read_bytes() != data:
+                problem = f"current workspace conflicts with checkpoint file {relative}"
+                break
+            staged.append((target, data))
+        if problem:
+            rejected.append({"work_unit_id": uid, "reason": problem})
+            continue
+
+        for target, data in staged:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if not target.exists():
+                tmp = target.with_name(target.name + ".partial-paid.tmp")
+                tmp.write_bytes(data)
+                os.replace(tmp, target)
+        imported.append({
+            "work_unit_id": uid,
+            "fingerprint": fingerprint,
+            "worker_mode": record.get("worker_mode"),
+            "restored_paid_calls": int(record.get("paid_call_count", 0) or 0),
+            "restored_files": len(staged),
+            "record": record_path.relative_to(store).as_posix(),
+        })
+
+    result = {
+        "schema_version": 1,
+        "imported_units": imported,
+        "imported_unit_count": len(imported),
+        "restored_paid_calls": sum(
+            int(row.get("restored_paid_calls", 0) or 0) for row in imported
+        ),
+        "rejected": rejected,
+    }
+    json_dump(root / "results" / "partial_paid_checkpoint_status.json", result)
+    return result
+
+
+def cmd_partial_paid_export(args: argparse.Namespace) -> int:
+    root = workspace(args)
+    store = lexical_absolute(Path(args.store))
+    store.mkdir(parents=True, exist_ok=True)
+    result = export_partial_paid_checkpoints(root, store, args.evaluation)
+    print(json.dumps(result, indent=2))
+    return 0
+
+
+def cmd_partial_paid_import(args: argparse.Namespace) -> int:
+    root = workspace(args)
+    store = lexical_absolute(Path(args.store))
+    if not store.is_dir():
+        result = {
+            "schema_version": 1,
+            "imported_units": [],
+            "imported_unit_count": 0,
+            "restored_paid_calls": 0,
+            "rejected": [],
+            "note": "no cross-run paid checkpoint cache was available",
+        }
+        json_dump(root / "results" / "partial_paid_checkpoint_status.json", result)
+        print(json.dumps(result, indent=2))
+        return 0
+    result = import_partial_paid_checkpoints(root, store, args.evaluation)
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def cmd_cache_checkpoint(args: argparse.Namespace) -> int:
     """Promote independently validated cache records without requiring finalize.
 
@@ -15406,6 +15813,24 @@ def build_parser() -> argparse.ArgumentParser:
     refresh_cache.add_argument("--source-repo", required=True)
     refresh_cache.add_argument("--expected-commit")
     refresh_cache.set_defaults(func=cmd_refresh_cache_snapshot)
+
+    paid_import = sub.add_parser(
+        "partial-paid-import",
+        help="restore exact-fingerprint paid-but-incomplete leaf state from a private CI cache",
+    )
+    paid_import.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
+    paid_import.add_argument("--store", required=True)
+    paid_import.add_argument("--evaluation", choices=PRIMARY_NAMES)
+    paid_import.set_defaults(func=cmd_partial_paid_import)
+
+    paid_export = sub.add_parser(
+        "partial-paid-export",
+        help="checkpoint paid-but-incomplete leaf state into a private CI cache",
+    )
+    paid_export.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
+    paid_export.add_argument("--store", required=True)
+    paid_export.add_argument("--evaluation", choices=PRIMARY_NAMES)
+    paid_export.set_defaults(func=cmd_partial_paid_export)
 
     checkpoint = sub.add_parser(
         "checkpoint-cache",

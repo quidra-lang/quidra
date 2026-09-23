@@ -4320,7 +4320,17 @@ def validate_canonical_fragment_verification(
 ) -> dict[str, Any]:
     """Mechanically enforce capability-universe R6 / pre-measurement V1."""
     verification = _semantic_verification_schema(catalog, evidence)
-    synthetic = bool(evidence.get("synthetic"))
+    synthetic_marker = bool(evidence.get("synthetic"))
+    synthetic_allowed = (
+        lexical_absolute(root) != lexical_absolute(CANONICAL_WORKSPACE)
+        and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
+    )
+    if synthetic_marker and not synthetic_allowed:
+        raise BenchmarkError(
+            "synthetic canonical verification is allowed only in an explicit "
+            "non-canonical CI workspace; scored workers may not self-declare it"
+        )
+    synthetic = synthetic_marker and synthetic_allowed
     audit_path = (
         root / "work" / "audit" / "semantic-compression"
         / f"canonical_verification_{slug_id(language)}.json"

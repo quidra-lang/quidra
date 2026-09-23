@@ -230,9 +230,13 @@ def assert_f20_work_plan_uses_stable_runtime_facts() -> None:
         unit["id"]: unit
         for unit in plan["evaluations"]["semantic_compression"]["units"]
     }
+    # Canonical authoring and the final comparability audit consume the
+    # stable runner-owned facts directly. Cohort support adjudication receives
+    # the same facts inside its dynamically generated support input, avoiding a
+    # duplicate Task Packet dependency while still letting the current validator
+    # enforce the runtime baseline.
     for unit_id in (
         "sc-metrics-hidden-coverage--part-2",
-        "sc-support-adjudication--f20-p1",
         "sc-comparability",
     ):
         reads = units[unit_id].get("read_paths", [])
@@ -241,6 +245,10 @@ def assert_f20_work_plan_uses_stable_runtime_facts() -> None:
         assert "template/runtime/f20_interop_fixtures.json" not in reads, (
             unit_id, reads
         )
+
+    adjudication = units["sc-support-adjudication--f20-p1"]
+    assert adjudication.get("read_paths", []) == [], adjudication.get("read_paths")
+    assert "work/root/f20_runtime_facts.json" in adjudication.get("goal", "")
 
 
 def assert_r9_p_a_scope_is_enforced() -> None:

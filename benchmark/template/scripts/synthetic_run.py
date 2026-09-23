@@ -389,7 +389,9 @@ def emit_fake_script(root: Path, output: Path) -> dict[str, Any]:
         if unit.get("execution_kind", "agent") != "agent":
             continue
         agent_id = str(unit["assigned_agent_id"])
-        payload = json.dumps(unit_payload(unit, languages), indent=2) + "\n"
+        payload = json.dumps(
+            unit_payload(root, unit, languages, units), indent=2
+        ) + "\n"
         if unit.get("worker_mode", "packet-only") == "packet-only":
             turns = [json.dumps({
                 "schema_version": 1,

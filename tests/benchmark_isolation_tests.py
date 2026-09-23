@@ -3486,15 +3486,13 @@ def test_a_worker_may_run_what_it_built_and_is_told_every_earlier_rejection() ->
 
 
 def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
-    """The inputs sibling packets share are rendered first and cached once.
+    """Prompt caching must not mutate the certified result-cache identity.
 
-    A semantic-compression packet carries about 180k tokens of the same
-    methodology assets for every language; with the per-unit header first,
-    the third paid run wrote them once per packet and never read them. In the
-    shared-inputs-first layout the rendered bytes are a permutation of the
-    task-first layout - nothing added, nothing removed. Only frozen embedded
-    inputs precede the header; unit-specific generated/read-path inputs follow
-    it, so the trusted adapter's breakpoint is actually reusable by siblings.
+    The historical shared-inputs-first byte order is frozen embedded inputs,
+    unit-specific task inputs, the per-unit Task Packet header, then the
+    assigned-requirements tail. The trusted Anthropic adapter may split that
+    unchanged string into content blocks for pricing, but must put the cache
+    breakpoint before unit-specific input rather than moving bytes around.
     """
     import argparse
     import contextlib
@@ -3507,66 +3505,61 @@ def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
         (docs / "allowed.md").write_text(
             "unit-specific input A\n" * 50, encoding="utf-8"
         )
-        components_by_layout = {}
-        for layout in ("task-first", "shared-inputs-first"):
-            agent_id = f"worker-layout-{layout}"
-            with contextlib.redirect_stdout(io.StringIO()):
-                benchmark.cmd_task_create(argparse.Namespace(
-                    workspace=str(root), id=agent_id, parent=None,
-                    evaluation="semantic_compression",
-                    goal="layout test", read=[str(docs / "allowed.md")], write=None,
-                    output=[str(root / "work" / "agents" / agent_id / "result.json")],
-                    validate="true", network=False, depth=0, section=[],
-                    requirement_id=["metric.semantic_density"],
-                    language=["Python"], worker_mode="packet-only", layout=layout,
-                ))
-            task = json.loads((root / "work" / "agents" / agent_id / "task.json").read_text("utf-8"))
-            rendered = benchmark.render_prompt_components(task["prompt_components"], task["prompt_sha256"])
-            components_by_layout[layout] = (task["prompt_components"], rendered, task)
-        first_components, first_bytes, _ = components_by_layout["task-first"]
-        shared_components, shared_bytes, shared_task = components_by_layout["shared-inputs-first"]
-        first_kinds = [c["kind"] for c in first_components]
-        shared_kinds = [c["kind"] for c in shared_components]
-        check(first_kinds[0] == "task", f"task-first no longer starts with the header: {first_kinds}")
-        task_index = shared_kinds.index("task")
-        check(
-            task_index > 0
-            and not any(kind.startswith("task-input:") for kind in shared_kinds[:task_index])
-            and all(
-                index > task_index
-                for index, kind in enumerate(shared_kinds)
-                if kind.startswith("task-input:")
-            ),
-            (
-                "shared-inputs-first must cache only frozen embedded inputs; "
-                f"unit-specific task inputs belong after the header: {shared_kinds}"
-            ),
-        )
-        check(sorted(first_kinds) == sorted(shared_kinds), "a layout changed the set of components")
-        # The same shared components, byte for byte; only the per-unit header
-        # (which names the agent) differs between the two tasks.
-        check(
-            sorted(c["sha256"] for c in first_components if c["kind"] != "task")
-            == sorted(c["sha256"] for c in shared_components if c["kind"] != "task"),
-            "a layout changed the bytes of a shared component",
-        )
-        check(shared_task.get("packet_layout") == "shared-inputs-first", "the layout was not recorded")
-        text = shared_bytes.decode("utf-8")
-        cut = text.find(inference_gateway.PACKET_HEADER_MARKER)
-        check(cut > 0, "the shared-inputs-first packet does not carry the header marker after its inputs")
 
+        agent_id = "worker-layout-shared"
+        with contextlib.redirect_stdout(io.StringIO()):
+            benchmark.cmd_task_create(argparse.Namespace(
+                workspace=str(root), id=agent_id, parent=None,
+                evaluation="semantic_compression",
+                goal="layout test", read=[str(docs / "allowed.md")], write=None,
+                output=[str(root / "work" / "agents" / agent_id / "result.json")],
+                validate="true", network=False, depth=0, section=[],
+                requirement_id=["metric.semantic_density"],
+                language=["Python"], worker_mode="packet-only",
+                layout="shared-inputs-first",
+            ))
+        task = json.loads(
+            (root / "work" / "agents" / agent_id / "task.json").read_text("utf-8")
+        )
+        components = task["prompt_components"]
+        kinds = [component["kind"] for component in components]
+        task_index = kinds.index("task")
+        task_inputs = [
+            index for index, kind in enumerate(kinds)
+            if kind.startswith("task-input:")
+        ]
+        assigned_index = kinds.index("embedded:assigned_requirements.json")
+        check(
+            task_inputs
+            and all(index < task_index for index in task_inputs)
+            and task_index < assigned_index,
+            (
+                "shared-inputs-first byte order changed; moving unit-specific inputs "
+                f"across the task header invalidates certified prompt hashes: {kinds}"
+            ),
+        )
+
+        text = benchmark.render_prompt_components(
+            components, task["prompt_sha256"]
+        ).decode("utf-8")
         marker = {"type": "ephemeral"}
         blocks = inference_gateway.split_cached_user_content(text, marker)
         check(
-            len(blocks) == 2 and "cache_control" in blocks[0] and "cache_control" not in blocks[1]
+            len(blocks) == 2
+            and "cache_control" in blocks[0]
+            and "cache_control" not in blocks[1]
             and blocks[0]["text"] + blocks[1]["text"] == text
-            and blocks[1]["text"].startswith("\n# Task Packet: ")
-            and "unit-specific input A" not in blocks[0]["text"]
+            and blocks[1]["text"].startswith(inference_gateway.TASK_INPUT_MARKER),
+            "the provider adapter did not split before the first unit-specific input",
+        )
+        check(
+            "unit-specific input A" not in blocks[0]["text"]
             and "unit-specific input A" in blocks[1]["text"],
-            f"the adapter did not split the packet at its header: {[b.get('text', '')[:40] for b in blocks]}",
+            "unit-specific evidence leaked into the supposedly shared cache prefix",
         )
 
-        # Different per-unit evidence must change only the uncached tail.
+        # A sibling with different task-local evidence must keep the exact same
+        # cached prefix while changing only the uncached tail.
         (docs / "other.md").write_text(
             "unit-specific input B\n" * 50, encoding="utf-8"
         )
@@ -3596,63 +3589,53 @@ def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
             and sibling_blocks[0]["text"] == blocks[0]["text"]
             and sibling_blocks[1]["text"] != blocks[1]["text"]
             and "unit-specific input B" in sibling_blocks[1]["text"],
-            "unit-specific task inputs changed the supposedly shared cache prefix",
+            "sibling packets did not share only their frozen prefix",
         )
 
-        plain = inference_gateway.split_cached_user_content("# Task Packet: x\nheader first", marker)
+        # When there is no unit-specific embedded input, the legacy Task Packet
+        # header remains the fallback breakpoint.
+        fallback = (
+            "shared frozen prefix"
+            + inference_gateway.PACKET_HEADER_MARKER
+            + "worker-x\nrest"
+        )
+        fallback_blocks = inference_gateway.split_cached_user_content(
+            fallback, marker
+        )
+        check(
+            len(fallback_blocks) == 2
+            and fallback_blocks[0]["text"] == "shared frozen prefix"
+            and fallback_blocks[1]["text"].startswith(
+                inference_gateway.PACKET_HEADER_MARKER
+            ),
+            "header fallback breakpoint drifted",
+        )
+        plain = inference_gateway.split_cached_user_content(
+            "# Task Packet: x\nheader first", marker
+        )
         check(
             len(plain) == 1 and "cache_control" in plain[0],
-            f"a task-first packet was split: {plain}",
+            f"a header-first packet was unexpectedly split: {plain}",
         )
 
-        sibling_prefixes = []
-        sibling_tails = []
-        for suffix, body in (("a", "unit A only\n"), ("b", "unit B only\n")):
-            read_dir = root / "repo" / "docs" / f"sibling-{suffix}"
-            read_dir.mkdir()
-            (read_dir / "input.md").write_text(body, encoding="utf-8")
-            sibling_id = f"worker-shared-prefix-{suffix}"
-            with contextlib.redirect_stdout(io.StringIO()):
-                benchmark.cmd_task_create(argparse.Namespace(
-                    workspace=str(root), id=sibling_id, parent=None, evaluation=None,
-                    goal=f"sibling {suffix}", read=[str(read_dir)], write=None,
-                    output=[str(root / "work" / "agents" / sibling_id / "result.json")],
-                    validate="true", network=False, depth=0, section=[], requirement_id=[],
-                    language=[], worker_mode="packet-only", layout="shared-inputs-first",
-                ))
-            sibling = json.loads(
-                (root / "work" / "agents" / sibling_id / "task.json").read_text("utf-8")
-            )
-            sibling_text = benchmark.render_prompt_components(
-                sibling["prompt_components"], sibling["prompt_sha256"]
-            ).decode("utf-8")
-            sibling_blocks = inference_gateway.split_cached_user_content(
-                sibling_text, marker
-            )
-            check(len(sibling_blocks) == 2, f"sibling packet was not split: {suffix}")
-            sibling_prefixes.append(sibling_blocks[0]["text"])
-            sibling_tails.append(sibling_blocks[1]["text"])
-        check(
-            sibling_prefixes[0] == sibling_prefixes[1]
-            and sibling_tails[0] != sibling_tails[1],
-            (
-                "unit-specific task inputs contaminated the cached prefix; "
-                "sibling prefixes must be byte-identical"
-            ),
-        )
-
-        # End to end through the adapter's request builder.
+        # End to end through the adapter: content blocks may change shape, never
+        # their concatenated model-visible bytes.
         provider = _anthropic_provider()
         http = _ScriptedHTTP([
-            {"content": [{"type": "text", "text": "ready"}], "stop_reason": "end_turn", "usage": {}},
+            {"content": [{"type": "text", "text": "ready"}],
+             "stop_reason": "end_turn", "usage": {}},
         ])
         provider._open = http
-        provider.complete(_validated_request(messages=[{"role": "user", "content": text}]))
+        provider.complete(
+            _validated_request(messages=[{"role": "user", "content": text}])
+        )
         content = http.payloads[0]["messages"][-1]["content"]
         check(
-            isinstance(content, list) and len(content) == 2 and "cache_control" in content[0]
+            isinstance(content, list)
+            and len(content) == 2
+            and "cache_control" in content[0]
             and content[0]["text"] + content[1]["text"] == text,
-            f"the request did not carry the split blocks: {type(content)} {len(content) if isinstance(content, list) else ''}",
+            "provider request changed model-visible Task Packet bytes",
         )
 
 

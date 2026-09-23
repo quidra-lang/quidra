@@ -842,27 +842,35 @@ class AnthropicMessagesProvider(Provider):
         }
 
 
-#: The line that opens a Task Packet's per-unit header. A packet rendered in
-#: the shared-inputs-first layout carries every input its sibling units share
-#: before this line; the trusted side puts the cache breakpoint there.
+#: Shared-inputs-first packets deliberately keep their historical byte order:
+#: frozen embedded inputs, then any unit-specific embedded task inputs, then the
+#: Task Packet header. Result-cache identity hashes those exact bytes, so prompt
+#: caching must never reorder them. The trusted provider adapter instead places
+#: its breakpoint at the first unit-specific section; packets without one fall
+#: back to the Task Packet header.
+TASK_INPUT_MARKER = "\n\n---\n\n## Embedded task input: "
 PACKET_HEADER_MARKER = "\n# Task Packet: "
 
 
 def split_cached_user_content(text: str, cache_marker: dict[str, Any]) -> list[dict[str, Any]]:
-    """The last user message as content blocks with the cache breakpoint placed.
+    """Split one user message without changing a byte the model receives.
 
-    A message that is one whole Task Packet in the shared-inputs-first layout
-    becomes two text blocks: the shared inputs, marked as the breakpoint, and
-    the per-unit header after it. Every sibling unit then reads the shared
-    prefix at the cache rate instead of writing it again - about 180k tokens
-    per semantic-compression packet, which the third paid run wrote once per
-    language and never read. The model receives exactly the same bytes, in the
-    same order, as one turn. Any other message keeps the single-block form
-    with the breakpoint on its end, as before.
+    For shared-inputs-first packets, only the frozen embedded prefix is reusable
+    across sibling work units. Unit-specific read-path material follows that
+    prefix in the historical packet layout, so the first Embedded task input is
+    the preferred breakpoint. If a packet has no such input, the per-unit Task
+    Packet header is the boundary. Ordinary messages retain the single-block
+    cache marker on their end.
     """
-    cut = text.find(PACKET_HEADER_MARKER)
-    if cut <= 0:
+    candidates = [
+        position
+        for marker in (TASK_INPUT_MARKER, PACKET_HEADER_MARKER)
+        for position in [text.find(marker)]
+        if position > 0
+    ]
+    if not candidates:
         return [{"type": "text", "text": text, "cache_control": dict(cache_marker)}]
+    cut = min(candidates)
     return [
         {"type": "text", "text": text[:cut], "cache_control": dict(cache_marker)},
         {"type": "text", "text": text[cut:]},

@@ -7073,17 +7073,17 @@ Goal: {args.goal}
         for name, packet_input in packet_input_sections
     ]
     if layout == "shared-inputs-first":
-        # Only inputs guaranteed identical across sibling units may precede the
-        # cache breakpoint. input_components are derived from each unit's
-        # read_paths and can include generated canonical catalogs, adjudication
-        # packets, or other unit-specific evidence. Putting those before the
-        # Task Packet header made the provider cache key unique per unit and
-        # produced cache_read_input_tokens=0 even though the large frozen
-        # methodology prefix was identical. Keep only frozen embedded inputs
-        # before the header; all unit-specific task inputs follow it.
+        # Preserve the historical rendered Task Packet byte order because
+        # prompt_sha256 is part of every certified result-cache fingerprint.
+        # The provider cache breakpoint is a transport concern: the trusted
+        # gateway splits the unchanged text before the first unit-specific
+        # embedded task input (or, when none exists, before the Task Packet
+        # header). Reordering components here would needlessly invalidate
+        # already-paid certified records even though their semantic inputs did
+        # not change.
         shared = [c for name, c in embedded_components if name != "assigned_requirements.json"]
         tail = [c for name, c in embedded_components if name == "assigned_requirements.json"]
-        components = [*shared, task_component, *input_components, *tail]
+        components = [*shared, *input_components, task_component, *tail]
     else:
         components = [task_component, *(c for _, c in embedded_components), *input_components]
     rendered = b"".join(Path(c["path"]).read_bytes() for c in components)

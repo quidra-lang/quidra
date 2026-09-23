@@ -55,6 +55,7 @@ benchmark = load(SCRIPTS / "benchmark.py", "isolation_tests_benchmark")
 gateway_client = load(SCRIPTS / "gateway_client.py", "isolation_tests_gateway_client")
 inference_gateway = load(SCRIPTS / "inference_gateway.py", "isolation_tests_gateway")
 sandbox_launcher = load(SCRIPTS / "sandbox_launcher.py", "isolation_tests_launcher")
+sandbox_agent = load(SCRIPTS / "sandbox_agent.py", "isolation_tests_sandbox_agent")
 
 
 # --------------------------------------------------------------------------
@@ -344,6 +345,97 @@ def test_gateway_brokers_inference_and_nothing_else() -> None:
                 allowed.get("kind") == "inference.response",
                 f"an explicitly granted network ceiling was still refused: {allowed}",
             )
+
+
+
+def test_gateway_binds_each_task_to_one_live_worker_process() -> None:
+    """A child process cannot spend through a task already owned by its worker."""
+    with tempfile.TemporaryDirectory() as td:
+        with Gateway(Path(td)) as gw:
+            first = raw_request(gw.socket_path, {
+                "schema_version": 1,
+                "kind": "inference.request",
+                "request_id": "peer-parent",
+                "task_id": "peer-bound-task",
+                "messages": [{"role": "user", "content": "bind this task"}],
+            })
+            check(
+                first.get("kind") == "inference.response" and first.get("ok"),
+                f"the legitimate worker could not bind its task: {first}",
+            )
+            code = """
+import json, socket, sys
+path = sys.argv[1]
+payload = {
+    "schema_version": 1,
+    "kind": "inference.request",
+    "request_id": "peer-child",
+    "task_id": "peer-bound-task",
+    "messages": [{"role": "user", "content": "child bypass"}],
+}
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+    client.connect(path)
+    client.sendall(json.dumps(payload).encode("utf-8") + b"\\n")
+    data = b""
+    while not data.endswith(b"\\n"):
+        chunk = client.recv(65536)
+        if not chunk:
+            break
+        data += chunk
+print(data.decode("utf-8"))
+"""
+            child = subprocess.run(
+                [sys.executable, "-c", code, str(gw.socket_path)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10,
+            )
+            try:
+                response = json.loads(child.stdout)
+            except json.JSONDecodeError:
+                response = {"decode_error": child.stdout, "stderr": child.stderr}
+            check(
+                response.get("kind") == "inference.error"
+                and response.get("error", {}).get("class") == "policy",
+                f"a child process reused its parent's task budget: {response}",
+            )
+
+
+def test_sandbox_subprocess_trace_rejects_undeclared_workspace_access() -> None:
+    class Policy:
+        root = Path("/quidra-benchmark")
+        agent_dir = Path("/quidra-benchmark/work/agents/worker-a")
+        read_roots = [
+            Path("/quidra-benchmark/repo/docs"),
+            Path("/quidra-benchmark/work/agents/worker-a"),
+        ]
+
+    policy = Policy()
+    allowed = (
+        '1 openat(AT_FDCWD, "/quidra-benchmark/repo/docs/allowed.md", O_RDONLY) = 3\\n'
+        '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/worker-a/result.json", O_WRONLY) = 4\\n'
+    )
+    check(
+        sandbox_agent._sandbox_subprocess_access_problem(allowed, policy) is None,
+        "declared subprocess workspace access was rejected",
+    )
+    sibling = (
+        '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/worker-b/result.json", O_RDONLY) = 3\\n'
+    )
+    problem = sandbox_agent._sandbox_subprocess_access_problem(sibling, policy)
+    check(
+        problem is not None and "undeclared workspace access" in problem,
+        f"sibling-worker access escaped the subprocess audit: {problem}",
+    )
+    gateway = (
+        '1 connect(3, {sa_family=AF_UNIX, sun_path="/quidra-benchmark/gateway/inference.sock"}, 110) = 0\\n'
+    )
+    problem = sandbox_agent._sandbox_subprocess_access_problem(gateway, policy)
+    check(
+        problem is not None and "gateway/inference.sock" in problem,
+        f"direct gateway-socket access escaped the subprocess audit: {problem}",
+    )
 
 
 def test_gateway_never_returns_credentials_or_host_paths() -> None:

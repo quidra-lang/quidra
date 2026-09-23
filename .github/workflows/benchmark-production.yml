@@ -137,11 +137,12 @@ jobs:
 
           echo "mode=$mode evaluation=$evaluation budget=$budget run_id=$run_id"
 
-      - name: Show certified-cache impact before paid work
+      - name: Freeze certified-cache impact before paid work
         run: |
           set +e
           python benchmark/template/scripts/benchmark.py cache-impact \
-            --source-repo "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/cache-impact.json"
+            --source-repo "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/cache-impact.json" > /dev/null
           rc=$?
           set -e
           cat "$RUNNER_TEMP/cache-impact.json"
@@ -179,6 +180,9 @@ jobs:
             --run-id "$RUN_ID" \
             --provider anthropic-messages \
             --model "$BENCHMARK_MODEL"
+          mkdir -p .quidra-benchmark/results
+          cp "$RUNNER_TEMP/cache-impact.json" \
+            .quidra-benchmark/results/cache_impact.json
           args=()
           if [ "$MODE" = "scoped" ]; then args+=(--evaluation "$EVALUATION"); fi
           python benchmark/template/scripts/sandbox_launcher.py run \

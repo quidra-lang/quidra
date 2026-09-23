@@ -163,11 +163,11 @@ Workers never need this root prompt, the parent conversation, another evaluation
 
 Ledger state is authoritative. Work units use `PENDING`, `RUNNING`, `COMPLETE`, `BLOCKED`, or `INVALID`.
 
-A worker crash must not strand the run permanently. RUNNING work has a heartbeat lease. When stale, the runner returns it to PENDING and redispatches the same frozen Task Packet. After the frozen maximum attempts, it becomes an explicit infrastructure blocker instead of remaining silently stuck.
+RUNNING work has a heartbeat lease. Stale work returns to PENDING and redispatches the same frozen Task Packet; after the frozen attempt limit it becomes an explicit infrastructure blocker.
 
 Persist paid responses/trials before parsing, validation or orchestration. Handoffs and the private content-addressed `quidra-benchmark-paid-state` artifact preserve them across workflow runs; Actions cache is only a speed mirror. Corruption rejects only that leaf checkpoint.
 
-COMPLETE requires evidence plus current-validator PASS. Diagnostic finalize records missing required leaves in `completeness_audit.json`; `post-run` requires `formal_complete=true`.
+COMPLETE requires evidence and current-validator PASS. Diagnostic finalize records missing required leaves in `completeness_audit.json`; publication requires `formal_complete=true`.
 
 ## 7. Deterministic score/ranking publication
 

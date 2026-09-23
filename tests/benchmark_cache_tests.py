@@ -217,13 +217,30 @@ def install_cache_record(root: Path, unit: dict, task: dict) -> str:
     pair = benchmark.cache_fingerprint(root, unit, task)
     assert pair is not None
     fingerprint, payload = pair
+    rid = "metric.documentation_quality"
+    rubric = benchmark.ecosystem_rubric_asset(root)["metrics"][rid]
+    component_ids = [row["id"] for row in rubric["components"]]
     result = {
         "schema_version": 1,
         "evaluation": "ecosystem",
-        "requirements": {
-            "metric.documentation_quality": {"Python": 88.0}
+        "requirements": {rid: {"Python": 75.0}},
+        "evidence": {
+            "certified": "synthetic cache contract",
+            rid: {
+                "rubric_id": rubric["rubric_id"],
+                "component_levels": {cid: 3 for cid in component_ids},
+                "component_findings": {
+                    cid: f"synthetic cache evidence for {cid}"
+                    for cid in component_ids
+                },
+                "sources": ["https://example.invalid/cache-evidence"],
+                "candidate_universe": "synthetic cache candidate universe",
+                "selection_rule": rubric["selection_rule"],
+                "retrieval_route": "provider-brokered web search",
+                "snapshot_date": "2026-09-23",
+                "limitations": "",
+            },
         },
-        "evidence": {"certified": "synthetic cache contract"},
     }
     result_raw = json.dumps(
         result, sort_keys=True, separators=(",", ":")
@@ -913,7 +930,7 @@ def main() -> None:
         result = benchmark.json_load(
             root / "work/agents" / unit["assigned_agent_id"] / "result.json"
         )
-        assert result["requirements"]["metric.documentation_quality"] == {"Python": 88.0}
+        assert result["requirements"]["metric.documentation_quality"] == {"Python": 75.0}
         receipt = benchmark.json_load(
             root / "work/agents" / unit["assigned_agent_id"] / "cache_receipt.json"
         )
@@ -946,8 +963,8 @@ def main() -> None:
                     "ecosystem": {
                         "status": "PARTIAL",
                         "scoreable": True,
-                        "scores": {"Python": 88.0},
-                        "ranking": [{"language": "Python", "score": 88.0}],
+                        "scores": {"Python": 75.0},
+                        "ranking": [{"language": "Python", "score": 75.0}],
                         "blockers": [],
                     }
                 },

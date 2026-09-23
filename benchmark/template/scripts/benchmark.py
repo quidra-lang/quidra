@@ -2705,33 +2705,35 @@ COMPARABILITY_SAMPLE_BUDGET = 280_000
 COMPARABILITY_AUDIT_INSTRUCTIONS = """
 
 The blinded comparability sample for this audit is embedded as a task input.
-Methodology 6.1.1A requires the audit to run on the language-specific
-annotations, not on the frozen matrix template, so the runner has collected
-them for you from the completed metric shards. Each sampled probe carries one
-entry per language under an opaque label; the labels are a per-run permutation,
-so you cannot tell which language authored an entry, which is the blinding the
-methodology requires.
+Methodology 6.1.1A requires the audit to judge the language-specific
+annotations against the frozen matrix. Entries use opaque per-run labels.
 
-For a probe that carries a nested `support_adjudication` object, that object is
-the sole authoritative support record for FULL/PARTIAL/NONE, P-letter or
-N-reason, citation and justification. The runner deliberately removes older
-support-level explanations from metric shards before building this packet.
-Do not resurrect or compare superseded shard support rationales. The remaining
-metric fields and verbatim fragment are still valid evidence for annotation
-depth, row interpretation and non-support semantic measurements.
+When an entry carries `support_adjudication`, that object is the sole
+authoritative support record for FULL/PARTIAL/NONE, the selected fragment,
+P-letter or N-reason, justification and citation. Superseded support prose from
+metric shards has been removed by the runner. Do not resurrect it.
 
-Judge the entries only against the frozen matrix and the binding
-support-consistency configuration embedded in this packet. A disagreement is
-annotation depth, row interpretation, or asymmetric treatment, never a language
-preference. A difference in support level is not itself a disagreement when the
-authoritative adjudications state a rubric-grounded distinguishing fact.
+If the sample is mutually comparable, return gate.comparability_audit=true.
+If it is not, return false and identify every affected pair under
+`evidence.gate_result.affected_pairs_requiring_revalidation` as objects with
+`probe_id` and opaque `label`.
 
-Name every unresolved disagreement you find, with its probe ID and opaque labels.
-If the gate fails, `evidence.gate_result.affected_pairs_requiring_revalidation`
-MUST be a JSON array of objects carrying `probe_id` and `label`; this lets the
-runner re-adjudicate only the affected predeclared probes and regenerate this
-sample instead of blocking the entire run immediately. Pass the gate when the
-sampled annotations are mutually comparable."""
+For every affected pair that can be resolved from the frozen evidence, also put
+a complete replacement under `evidence.repair_directives`:
+{"probe_id":"FNN.PN","label":"A","record":{"level":"FULL|PARTIAL|NONE",
+"fragment":"exact code or null","partial_reasons":["P-a"],"none_reason":null,
+"justification":"...","citation":"..."}}
+FULL and PARTIAL require the exact selected fragment. PARTIAL requires one or
+more P-a..P-e reasons. NONE requires fragment=null and exactly one N-1..N-4
+reason. Justification and citation are always required.
+
+The runner may apply only valid pair-specific directives, rebuild the identical
+predeclared blinded sample, and rerun this audit. This repair loop never sees
+aggregate scores or rankings and is capped, so it cannot be used to tune the
+outcome. If evidence is insufficient to author a justified repair, report the
+affected pair without inventing one; that unresolved disagreement will remain
+a scientific blocker."""
+
 
 
 
@@ -3056,9 +3058,8 @@ def sc_reconcile_support(
                         if level == "PARTIAL"
                         else ([canonical["none_reason"]] if level == "NONE" else [])
                     )
-                    row["support_justification"] = canonical["justification"]
-                    row["support_citation"] = canonical["citation"]
-                    row["support_source"] = "cohort_adjudication"
+                    row["support_adjudication"] = dict(canonical)
+                    row["support_source"] = "cohort_adjudication_or_repair"
             if dropped or level is None or canonical is not None:
                 replaced.append({
                     "language": language,
@@ -3212,6 +3213,28 @@ def sc_comparability_repairs(root: Path) -> dict[str, dict[str, dict[str, Any]]]
         if record is not None:
             out.setdefault(str(row.get("probe_id")), {})[str(row.get("language"))] = record
     return out
+
+
+def sc_adjudicated_annotations(
+    root: Path,
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Authoritative support records, with validated comparability repairs last.
+
+    Cohort adjudication is the normal source. A blinded comparability repair is
+    pair-specific and may replace only the affected (probe, language) record.
+    This keeps the frozen metric shards untouched while letting the same run
+    reconcile an inconsistency on any sampled probe, including probes without a
+    dedicated cohort-adjudication work unit.
+    """
+    merged = {
+        probe: {language: dict(record) for language, record in rows.items()}
+        for probe, rows in sc_adjudicated_records(root).items()
+    }
+    for probe, rows in sc_comparability_repairs(root).items():
+        merged.setdefault(probe, {}).update(
+            {language: dict(record) for language, record in rows.items()}
+        )
+    return merged
 
 
 def validate_comparability_repair_directives(
@@ -5315,6 +5338,12 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                     raise BenchmarkError(f"{rid}: gate/coverage result must be boolean")
                 if rid == COMPARABILITY_GATE and value is False:
                     validate_comparability_repair_directives(root, result)
+                    affected = comparability_revalidation_probes(result)
+                    if not affected:
+                        raise BenchmarkError(
+                            "failed comparability gate must identify at least one "
+                            "affected probe/label pair"
+                        )
             elif rid.startswith("metric.") or rid.startswith("condition."):
                 if not isinstance(value, dict):
                     raise BenchmarkError(f"{rid}: score result must map assigned languages")
@@ -5748,11 +5777,12 @@ def comparability_repair_detail(result: dict[str, Any]) -> str:
 def schedule_comparability_repair(
     root: Path, unit: dict[str, Any], state: dict[str, Any]
 ) -> bool:
-    """Re-adjudicate only affected predeclared probes, then rebuild the audit.
+    """Repair the failed blinded audit without resetting completed measurements.
 
-    The manifest stays frozen. A repair is possible only when every affected
-    probe already owns a declared cohort-adjudication unit. Completed metric
-    shards and certified cache hits are never reset.
+    Preferred path: apply complete pair-specific directives emitted by the
+    blinded auditor. This works for any sampled probe and keeps the manifest
+    frozen. Fallback path: if no direct repair was possible, re-run an existing
+    cohort-adjudication unit for affected probes that already have one.
     """
     result_path = (
         root / "work" / "agents" / str(unit["assigned_agent_id"]) / "result.json"
@@ -5760,15 +5790,39 @@ def schedule_comparability_repair(
     if not result_path.is_file():
         return False
     result = json_load(result_path)
-    probes = comparability_revalidation_probes(result)
-    if not probes:
-        return False
-
     attempts = int(state.get("attempts", 0) or 0)
     max_attempts = int(state.get("max_attempts", 3) or 3)
     if attempts >= max_attempts:
         return False
 
+    changed = persist_comparability_repairs(root, result)
+    detail = comparability_repair_detail(result)
+    if changed > 0:
+        archive_attempt(
+            root, unit, attempts, "comparability-direct-repair",
+            reset=False,
+            detail=f"applied {changed} blinded pair repair(s): {detail}",
+        )
+        comparability_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
+        if comparability_dir.exists():
+            shutil.rmtree(comparability_dir)
+        cmd_ledger_update(argparse.Namespace(
+            workspace=str(root), id=str(unit["id"]), status="PENDING",
+            evidence=[], validation_result="FAIL", blocker=None, blocker_class=None,
+        ))
+        print(json.dumps({
+            "ok": False,
+            "comparability_direct_repair_scheduled": True,
+            "applied_repairs": changed,
+        }, indent=2))
+        return True
+
+    # A worker may identify a disagreement but decline to invent a replacement
+    # record. If the affected probe has a predeclared cohort adjudicator, give
+    # that adjudicator another attempt with the audit's feedback.
+    probes = comparability_revalidation_probes(result)
+    if not probes:
+        return False
     manifest = json_load(root / "work" / "root" / "manifest.json")
     units = {str(item["id"]): item for item in manifest.get("work_units", [])}
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -5779,16 +5833,17 @@ def schedule_comparability_repair(
         support_unit = units.get(uid)
         support_state = (ledger.get("units") or {}).get(uid)
         if support_unit is None or support_state is None:
-            return False
+            continue
         if support_state.get("status") != "COMPLETE":
-            return False
+            continue
         if int(support_state.get("attempts", 0) or 0) >= int(
             support_state.get("max_attempts", 3) or 3
         ):
-            return False
+            continue
         repair_units.append(support_unit)
+    if not repair_units:
+        return False
 
-    detail = comparability_repair_detail(result)
     for support_unit in repair_units:
         support_state = ledger["units"][str(support_unit["id"])]
         archive_attempt(
@@ -5802,7 +5857,7 @@ def schedule_comparability_repair(
         )
 
     archive_attempt(
-        root, unit, attempts, "comparability-triggered-repair",
+        root, unit, attempts, "comparability-triggered-revalidation",
         reset=False, detail=detail,
     )
     comparability_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
@@ -5837,8 +5892,7 @@ def schedule_comparability_repair(
     ))
     print(json.dumps({
         "ok": False,
-        "comparability_repair_scheduled": True,
-        "probes": probes,
+        "comparability_revalidation_scheduled": True,
         "support_units": [str(item["id"]) for item in repair_units],
     }, indent=2))
     return True

@@ -1344,7 +1344,7 @@ jobs:
             "evaluated": {"commit_sha": "deadbeef"}
           }
           JSON
-          echo '{"ok":true}' > "$RUN/results/finalization.json"
+          echo '{"ok":true,"formal_complete":true}' > "$RUN/results/finalization.json"
           echo '{"raw":true}' > "$RUN/raw/sample.json"
           echo 'prompt /quidra-benchmark/repo' > "$RUN/prompts/by-hash/sample.md"
           echo '{"schema_version":1}' > "$RUN/work/agents/worker-a/result.json"

@@ -427,6 +427,19 @@ def assert_support_adjudication_receives_trusted_verification() -> None:
                 },
             },
         )
+        (root / "results").mkdir(exist_ok=True)
+        benchmark.json_dump(
+            root / "results/toolchains.json",
+            {
+                "schema_version": 1,
+                "toolchains": {
+                    "Python": {
+                        "canonical": "3.14.5",
+                        "commands": [["python3", "--version"]],
+                    }
+                },
+            },
+        )
         source = {
             "id": "sc-source--python",
             "assigned_agent_id": "worker-python",
@@ -449,7 +462,8 @@ def assert_support_adjudication_receives_trusted_verification() -> None:
         assert verified["runs"][0]["argv"] == ["python3", "main.py"], verified
         assert verified["runs"][0]["exit_code"] == 0, verified
         assert verified["runs"][0]["stdout"] == "3\n", verified
-        assert "do not contradict its build/run facts" in payload["task"], payload["task"]
+        assert payload["frozen_toolchains"]["Python"]["canonical"] == "3.14.5", payload
+        assert "do not contradict those build/run facts" in payload["task"], payload["task"]
 
 
 def main() -> None:

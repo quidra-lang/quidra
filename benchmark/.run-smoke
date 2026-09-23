@@ -6,6 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T03:41:00Z
-reason: request-shape proof on the snapshot the paid run will evaluate (dc82972 tree: attempt limit 5 from sandbox_agent.json, 128000 output ceiling, mechanical records hydrated before command units); the paid run follows only if all twelve checks pass
+requested_at_utc: 2026-09-23T05:56:00Z
+reason: request-shape proof on the snapshot the next paid run will evaluate (0a37282); the full run follows only if all twelve checks pass
 model: claude-sonnet-5

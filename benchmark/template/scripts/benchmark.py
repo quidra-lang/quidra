@@ -3519,7 +3519,7 @@ def build_support_adjudication_input(
             f"support adjudication probe {probe_id} is missing from capability universe"
         )
     frozen_support_contract = {
-        "authoring_rules": universe.get("authoring_rules") or {},
+        "authoring_rules": universe.get("authoring_rules_for_probe_fragments") or {},
         "support_rubric": universe.get("support_rubric") or {},
         "na_policy": universe.get("na_policy") or {},
         "toolchain_binding": universe.get("toolchain_binding") or {},

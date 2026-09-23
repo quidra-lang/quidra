@@ -98,7 +98,8 @@
             "sc-structure-gates--part-1a",
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
-            "sc-coverage"
+            "sc-coverage",
+            "sc-metrics-hidden-coverage--part-2"
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
@@ -114,7 +115,8 @@
           "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "canonical_fragment_source_requirement": "metric.capability_coverage"
         },
         {
           "id": "sc-metrics-local--part-3",
@@ -126,7 +128,8 @@
             "sc-structure-gates--part-1a",
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
-            "sc-coverage"
+            "sc-coverage",
+            "sc-metrics-hidden-coverage--part-2"
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
@@ -142,7 +145,8 @@
           "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "canonical_fragment_source_requirement": "metric.capability_coverage"
         },
         {
           "id": "sc-metrics-local--part-2",
@@ -154,7 +158,8 @@
             "sc-structure-gates--part-1a",
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
-            "sc-coverage"
+            "sc-coverage",
+            "sc-metrics-hidden-coverage--part-2"
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
@@ -170,7 +175,8 @@
           "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "canonical_fragment_source_requirement": "metric.capability_coverage"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-1",
@@ -182,7 +188,8 @@
             "sc-structure-gates--part-1a",
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
-            "sc-coverage"
+            "sc-coverage",
+            "sc-metrics-hidden-coverage--part-2"
           ],
           "prompt_sections": [
             "#### D. Hidden Semantic Cost — 20% of quality score",
@@ -198,7 +205,8 @@
           "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "canonical_fragment_source_requirement": "metric.capability_coverage"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-3",
@@ -210,7 +218,8 @@
             "sc-structure-gates--part-1a",
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
-            "sc-coverage"
+            "sc-coverage",
+            "sc-metrics-hidden-coverage--part-2"
           ],
           "prompt_sections": [
             "#### D. Hidden Semantic Cost — 20% of quality score",
@@ -226,7 +235,8 @@
           "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "canonical_fragment_source_requirement": "metric.capability_coverage"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-2",
@@ -254,7 +264,9 @@
           "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
-          "packet_layout": "shared-inputs-first"
+          "packet_layout": "shared-inputs-first",
+          "canonical_fragment_owner": true,
+          "goal": "Author the one canonical fragment/support record per frozen probe for the assigned language, then report metric.capability_coverage. Apply R1-R10 and the frozen support rubric exactly. evidence.canonical_fragments must contain all 44 probe IDs. Each probe record must carry level, fragment (or null for NONE), partial_reasons, none_reason, justification, and citation. These records are the sole fragment source consumed by Semantic Density, Determinacy, Locality, Hidden Cost, and Capability Efficiency."
         },
         {
           "id": "sc-support-adjudication--f04-p1",

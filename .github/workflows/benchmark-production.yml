@@ -327,7 +327,7 @@ jobs:
             echo "No Primary status exists; preserve evidence/cache only."
             exit 0
           fi
-          python - <<'PY'
+          if python - <<'PY'
           import json
           from pathlib import Path
           status = json.loads(Path(".quidra-benchmark/results/primary_status.json").read_text())
@@ -346,14 +346,12 @@ jobs:
           if missing or incomplete:
               raise SystemExit(3)
           PY
-          rc=$?
-          if [ "$rc" -eq 0 ]; then
+          then
             echo "BENCHMARK_PUBLISH_RESULT=1" >> "$GITHUB_ENV"
             echo "All five Primary evaluations are COMPLETE; this run is publishable."
           else
             echo "Run is not fully COMPLETE; keep certified cache and workflow artifact, but do not create a formal benchmark/<run-id> result."
           fi
-          exit 0
 
       - name: Import the finished run
         if: success() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == '' && env.BENCHMARK_PUBLISH_RESULT == '1'

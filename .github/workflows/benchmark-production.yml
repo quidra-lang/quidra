@@ -10,6 +10,7 @@ on:
       - "benchmark/.run-production"
 
 permissions:
+  actions: read
   contents: write
 
 concurrency:
@@ -51,6 +52,25 @@ jobs:
           key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-prepare-${{ github.run_attempt }}
           restore-keys: |
             quidra-benchmark-paid-v1-${{ runner.os }}-
+
+      - name: Restore durable private paid-call artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+          artifact_id="$(gh api \
+            "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=quidra-benchmark-paid-state&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty')"
+          if [ -n "$artifact_id" ]; then
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+              > "$RUNNER_TEMP/benchmark-paid-state.zip"
+            unzip -q -o "$RUNNER_TEMP/benchmark-paid-state.zip" \
+              -d "$RUNNER_TEMP/benchmark-paid-state"
+            echo "Restored durable private paid-call artifact $artifact_id."
+          else
+            echo "No durable private paid-call artifact exists yet."
+          fi
 
       - name: Validate request and freeze run identity
         id: contract
@@ -195,10 +215,6 @@ jobs:
           cp "$RUNNER_TEMP/cache-impact.json" \
             .quidra-benchmark/results/cache_impact.json
           mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
-          if [ -d .quidra-benchmark/cache/partial-paid ]; then
-            cp -a .quidra-benchmark/cache/partial-paid/. \
-              "$RUNNER_TEMP/benchmark-paid-state/"
-          fi
           paid_args=()
           if [ "$MODE" = "scoped" ]; then paid_args+=(--evaluation "$EVALUATION"); fi
           python benchmark/template/scripts/benchmark.py partial-paid-import \
@@ -337,6 +353,10 @@ jobs:
           PY
           cp "$RUNNER_TEMP/budget-plan.json" "$RUNNER_TEMP/benchmark-prepared/budget-plan.json"
           cp "$RUNNER_TEMP/provider-smoke.json" "$RUNNER_TEMP/benchmark-prepared/provider-smoke.json"
+          if [ -d "$RUNNER_TEMP/benchmark-paid-state" ]; then
+            tar -czf "$RUNNER_TEMP/benchmark-prepared/paid-state.tgz" \
+              -C "$RUNNER_TEMP/benchmark-paid-state" .
+          fi
 
       - name: Upload free prepared workspace
         uses: actions/upload-artifact@v4

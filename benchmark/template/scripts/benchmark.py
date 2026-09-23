@@ -2936,6 +2936,9 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                         else "runner-command"
                     ),
                     "result_kind": result_kind,
+                    "required_for_complete": bool(
+                        raw.get("required_for_complete", True)
+                    ),
                     "runner_action": raw.get("runner_action"),
                     "goal": goal,
                     "assigned_agent_id": agent_id,
@@ -2991,6 +2994,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
             "execution_kind": "command",
             "worker_mode": "runner-command",
             "result_kind": "aggregate",
+            "required_for_complete": True,
             "runner_action": "aggregate-primary",
             "goal": f"Mechanically aggregate {evaluation} and generate its language ranking.",
             "assigned_agent_id": f"system-{aggregate_id}",
@@ -12795,6 +12799,7 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     return 0
 
 
+
 def cmd_ledger_reconcile(args: argparse.Namespace) -> int:
     root = workspace(args)
     manifest_path = root / "work" / "root" / "manifest.json"
@@ -12833,10 +12838,25 @@ def cmd_ledger_reconcile(args: argparse.Namespace) -> int:
                 problems.append({"id": uid, "problem": f"{status.lower()}_without_blocker"})
         else:
             problems.append({"id": uid, "problem": "invalid_ledger_status", "status": status})
-    result = {"ok": not problems, "problems": problems, "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat()}
+
+    incomplete_kinds = {"unit_pending", "unit_running"}
+    incomplete = [
+        row for row in problems if str(row.get("problem") or "") in incomplete_kinds
+    ]
+    integrity = [row for row in problems if row not in incomplete]
+    result = {
+        "ok": not problems,
+        "integrity_ok": not integrity,
+        "complete": not problems,
+        "problems": problems,
+        "incomplete": incomplete,
+        "integrity_problems": integrity,
+        "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+    }
     json_dump(root / "results" / "ledger_reconcile.json", result)
     print(json.dumps(result, indent=2))
     return 0 if result["ok"] else 2
+
 
 def validate_primary_status(data: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
     errors: list[str] = []
@@ -13247,6 +13267,136 @@ def cmd_privacy_check(args: argparse.Namespace) -> int:
     return 0 if result["ok"] else 2
 
 
+
+def build_completeness_audit(root: Path) -> dict[str, Any]:
+    """Mechanically identify exactly what prevents a formal COMPLETE result."""
+    manifest_path = root / "work" / "root" / "manifest.json"
+    ledger_path = root / "work" / "root" / "ledger.json"
+    status_path = root / "results" / "primary_status.json"
+    if not (manifest_path.is_file() and ledger_path.is_file() and status_path.is_file()):
+        raise BenchmarkError("completeness audit requires manifest, ledger and primary status")
+
+    manifest = json_load(manifest_path)
+    ledger = json_load(ledger_path)
+    primary = json_load(status_path)
+    required_missing: list[dict[str, Any]] = []
+    optional_incomplete: list[dict[str, Any]] = []
+    required_complete = 0
+    required_total = 0
+    optional_total = 0
+
+    for unit in manifest.get("work_units", []):
+        uid = str(unit["id"])
+        required = bool(unit.get("required_for_complete", True))
+        state = (ledger.get("units", {}).get(uid) or {})
+        status = str(state.get("status") or "PENDING")
+        evidence_paths = state.get("evidence_paths") or unit.get("evidence_paths") or []
+        missing_evidence = [
+            str(path)
+            for path in evidence_paths
+            if not Path(path).exists()
+        ]
+        valid_complete = (
+            status == "COMPLETE"
+            and state.get("validation_result") == "PASS"
+            and not missing_evidence
+        )
+        row = {
+            "work_unit_id": uid,
+            "evaluation": unit.get("evaluation"),
+            "execution_kind": unit.get("execution_kind", "agent"),
+            "worker_mode": unit.get("worker_mode"),
+            "status": status,
+            "validation_result": state.get("validation_result"),
+            "blocker": state.get("blocker"),
+            "blocker_class": state.get("blocker_class"),
+            "missing_evidence": missing_evidence,
+            "dependencies": list(unit.get("dependencies", []) or []),
+            "assigned_languages": list(unit.get("assigned_languages", []) or []),
+            "requirement_ids": list(unit.get("requirement_ids", []) or []),
+        }
+        if required:
+            required_total += 1
+            if valid_complete:
+                required_complete += 1
+            else:
+                required_missing.append(row)
+        else:
+            optional_total += 1
+            if not valid_complete:
+                optional_incomplete.append(row)
+
+    errors, status_summary = validate_primary_status(primary)
+    evaluation_incomplete = {
+        name: (primary.get("evaluations", {}).get(name) or {})
+        for name in PRIMARY_NAMES
+        if (primary.get("evaluations", {}).get(name) or {}).get("status") != "COMPLETE"
+    }
+
+    cache_status_path = root / "results" / "cache_status.json"
+    cache_status = (
+        json_load(cache_status_path)
+        if cache_status_path.is_file()
+        else {"invalidated": {}}
+    )
+    invalidated = cache_status.get("invalidated", {}) or {}
+
+    rerun_agent_leaf_ids = [
+        row["work_unit_id"]
+        for row in required_missing
+        if row["execution_kind"] == "agent"
+    ]
+    rerun_machine_unit_ids = [
+        row["work_unit_id"]
+        for row in required_missing
+        if row["execution_kind"] != "agent"
+    ]
+
+    formal_complete = (
+        not required_missing
+        and not evaluation_incomplete
+        and not errors
+        and required_complete == required_total
+    )
+    return {
+        "schema_version": 1,
+        "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "formal_complete": formal_complete,
+        "complete_condition": (
+            "Every required_for_complete work unit is COMPLETE+PASS with all "
+            "evidence present, and all five Primary aggregates are structurally "
+            "valid COMPLETE rankings."
+        ),
+        "required_unit_count": required_total,
+        "required_complete_count": required_complete,
+        "optional_unit_count": optional_total,
+        "required_incomplete_units": required_missing,
+        "optional_incomplete_units": optional_incomplete,
+        "rerun_agent_leaf_ids": rerun_agent_leaf_ids,
+        "rerun_machine_unit_ids": rerun_machine_unit_ids,
+        "evaluation_incomplete": evaluation_incomplete,
+        "primary_status_validation_errors": errors,
+        "primary_status_summary": status_summary,
+        "invalidated_cache_units": invalidated,
+        "note": (
+            "Only required units block formal COMPLETE. Optional diagnostics may "
+            "be absent without making the run permanently PARTIAL. Re-run only "
+            "the listed missing leaves/commands; already COMPLETE certified work "
+            "remains reusable."
+        ),
+    }
+
+
+def cmd_completeness_audit(args: argparse.Namespace) -> int:
+    root = workspace(args)
+    cmd_primary_status_derive(argparse.Namespace(workspace=str(root)))
+    payload = build_completeness_audit(root)
+    json_dump(root / "results" / "completeness_audit.json", payload)
+    print(json.dumps(payload, indent=2))
+    return 0 if payload["formal_complete"] else 3
+
+
+
 def cmd_finalize(args: argparse.Namespace) -> int:
     root = workspace(args)
     run = json_load(root / "run.json")
@@ -13266,13 +13416,18 @@ def cmd_finalize(args: argparse.Namespace) -> int:
     status_path = root / "results" / "primary_status.json"
     if not status_path.exists():
         raise BenchmarkError("cannot finalize without results/primary_status.json")
+
     reconcile_rc = cmd_ledger_reconcile(args)
-    if reconcile_rc != 0:
-        raise BenchmarkError("ledger reconciliation failed")
+    reconcile = json_load(root / "results" / "ledger_reconcile.json")
+    if reconcile_rc != 0 and not reconcile.get("integrity_ok"):
+        raise BenchmarkError("ledger reconciliation found structural integrity failures")
 
     errors, summary = validate_primary_status(json_load(status_path))
     if errors:
         raise BenchmarkError("score status invalid: " + "; ".join(errors))
+
+    completeness = build_completeness_audit(root)
+    json_dump(root / "results" / "completeness_audit.json", completeness)
 
     privacy_rc = cmd_privacy_check(args)
     if privacy_rc != 0:
@@ -13280,17 +13435,21 @@ def cmd_finalize(args: argparse.Namespace) -> int:
 
     result = {
         "ok": True,
+        "formal_complete": bool(completeness.get("formal_complete")),
         "finalized_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "primary_evaluations": summary,
+        "required_incomplete_units": completeness.get("required_incomplete_units", []),
+        "rerun_agent_leaf_ids": completeness.get("rerun_agent_leaf_ids", []),
+        "rerun_machine_unit_ids": completeness.get("rerun_machine_unit_ids", []),
         "note": (
-            "Use post-run from the trusted outer runner to import compact retained "
-            "artifacts into the local repository and then delete the workspace."
+            "Diagnostic finalization is allowed for an incomplete run so its exact "
+            "resume set is retained. post-run publication requires formal_complete=true. "
+            "Resume only the listed missing leaves; COMPLETE+PASS cache records remain valid."
         ),
     }
     json_dump(root / "results" / "finalization.json", result)
     print(json.dumps(result, indent=2))
     return 0
-
 
 
 def _copy_if_new(source_file: Path, destination: Path) -> bool:
@@ -14890,8 +15049,16 @@ def cmd_post_run(args: argparse.Namespace) -> int:
     validate_host_workspace_sentinel(root, source, run)
 
     finalization_path = root / "results" / "finalization.json"
-    if not finalization_path.is_file() or not json_load(finalization_path).get("ok"):
+    if not finalization_path.is_file():
         raise BenchmarkError("post-run requires a successful finalize first")
+    finalization = json_load(finalization_path)
+    if not finalization.get("ok"):
+        raise BenchmarkError("post-run requires a successful finalize first")
+    if finalization.get("formal_complete") is not True:
+        raise BenchmarkError(
+            "post-run refuses diagnostic/partial finalization; all required units "
+            "and all five Primary rankings must be COMPLETE"
+        )
 
     privacy_rc = cmd_privacy_check(argparse.Namespace(workspace=str(root)))
     if privacy_rc != 0:
@@ -15213,7 +15380,14 @@ def build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     pc.set_defaults(func=cmd_privacy_check)
 
-    fin = sub.add_parser("finalize", help="enforce score/blocker and privacy gates")
+    complete_audit = sub.add_parser(
+        "completeness-audit",
+        help="identify the exact required leaves/commands still preventing formal COMPLETE",
+    )
+    complete_audit.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
+    complete_audit.set_defaults(func=cmd_completeness_audit)
+
+    fin = sub.add_parser("finalize", help="audit completeness and enforce score/blocker and privacy gates")
     fin.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     fin.set_defaults(func=cmd_finalize)
 

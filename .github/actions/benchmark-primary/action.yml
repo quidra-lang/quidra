@@ -61,6 +61,7 @@ runs:
 
     - name: Download previous Primary handoff
       if: ${{ inputs.previous-handoff != '' }}
+      continue-on-error: true
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.previous-handoff }}
@@ -78,22 +79,59 @@ runs:
       run: |
         set -euo pipefail
         state="$RUNNER_TEMP/benchmark-budget-state.json"
-        if [ -n "$PREVIOUS_HANDOFF" ]; then
-          test -f "$RUNNER_TEMP/benchmark-previous/workspace.tgz"
-          test -f "$RUNNER_TEMP/benchmark-previous/budget-state.json"
+        have_handoff=false
+        if [ -n "$PREVIOUS_HANDOFF" ] \
+           && [ -f "$RUNNER_TEMP/benchmark-previous/workspace.tgz" ] \
+           && [ -f "$RUNNER_TEMP/benchmark-previous/budget-state.json" ]; then
+          have_handoff=true
+        fi
+
+        if [ "$have_handoff" = true ]; then
           tar -xzf "$RUNNER_TEMP/benchmark-previous/workspace.tgz" -C "$GITHUB_WORKSPACE"
           cp "$RUNNER_TEMP/benchmark-previous/budget-state.json" "$state"
           python benchmark/template/scripts/benchmark.py restore-workspace-guard \
             --source-repo "$GITHUB_WORKSPACE" \
             --expected-commit "$EVALUATED_SHA"
         else
+          if [ -n "$PREVIOUS_HANDOFF" ]; then
+            echo "::warning::Previous Actions handoff is unavailable; rebuilding this run from the evaluated snapshot and independently certified unit cache."
+          fi
+
           python benchmark/template/scripts/benchmark.py init \
             --source-repo "$GITHUB_WORKSPACE" \
             --sandbox-mode container \
             --run-id "$RUN_ID" \
             --provider anthropic-messages \
             --model "$MODEL"
-          python - "$state" "$WHOLE_BUDGET" "$INITIAL_SPEND" <<'PY'
+
+          if [ -n "$PREVIOUS_HANDOFF" ]; then
+            # COMPLETE+PASS units are checkpointed before the handoff upload. Recover
+            # them without checking out the moving benchmark branch over the frozen
+            # evaluated source tree.
+            git fetch origin benchmark
+            recovery="$RUNNER_TEMP/benchmark-cache-recovery"
+            rm -rf "$recovery"
+            mkdir -p "$recovery"
+            if git cat-file -e "origin/benchmark:benchmark/cache" 2>/dev/null; then
+              git archive --format=tar origin/benchmark benchmark/cache | tar -xf - -C "$recovery"
+              rm -rf .quidra-benchmark/cache
+              cp -a "$recovery/benchmark/cache" .quidra-benchmark/cache
+              python benchmark/template/scripts/benchmark.py refresh-cache-snapshot \
+                --source-repo "$GITHUB_WORKSPACE" \
+                --expected-commit "$EVALUATED_SHA"
+            fi
+
+            # Do not guess already-spent API money. This checkpoint is written before
+            # every handoff upload, so losing both means there is no trustworthy way
+            # to preserve the run-wide budget invariant.
+            checkpoint="benchmark/checkpoints/$RUN_ID/budget-state.json"
+            if ! git cat-file -e "origin/benchmark:$checkpoint" 2>/dev/null; then
+              echo "::error::Missing both the previous handoff and its trusted budget checkpoint."
+              exit 1
+            fi
+            git show "origin/benchmark:$checkpoint" > "$state"
+          else
+            python - "$state" "$WHOLE_BUDGET" "$INITIAL_SPEND" <<'PY'
         import json, sys
         from pathlib import Path
         path, limit, spent = Path(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3])
@@ -104,6 +142,7 @@ runs:
             "evaluations": {},
         }, indent=2, sort_keys=True) + "\n")
         PY
+          fi
         fi
 
         python - "$state" "$RUN_ID" "$EVALUATED_SHA" "$WHOLE_BUDGET" <<'PY'
@@ -385,6 +424,8 @@ runs:
       shell: bash
       env:
         EVALUATED_SHA: ${{ inputs.evaluated-sha }}
+        RUN_ID: ${{ inputs.run-id }}
+        EVALUATION: ${{ inputs.evaluation }}
       run: |
         set -euo pipefail
         if [ ! -f .quidra-benchmark/work/root/ledger.json ]; then
@@ -396,27 +437,56 @@ runs:
           --source-repo "$GITHUB_WORKSPACE" \
           | tee "$RUNNER_TEMP/cache-checkpoint.json"
 
+        # Certified results remain content-addressed under benchmark/cache. The
+        # run-specific checkpoint stores only trusted orchestration state needed
+        # to reconstruct the same run if an Actions artifact disappears.
+        checkpoint_dir="benchmark/checkpoints/$RUN_ID"
+        mkdir -p "$checkpoint_dir"
+        cp "$RUNNER_TEMP/benchmark-budget-state.json" "$checkpoint_dir/budget-state.json"
+        python - "$checkpoint_dir/resume.json" "$EVALUATED_SHA" "$EVALUATION" <<'PY'
+        import json, sys
+        from pathlib import Path
+        path, sha, evaluation = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+        status_path = Path(".quidra-benchmark/results/primary_status.json")
+        status = json.loads(status_path.read_text()) if status_path.is_file() else {}
+        ledger_path = Path(".quidra-benchmark/work/root/ledger.json")
+        ledger = json.loads(ledger_path.read_text()) if ledger_path.is_file() else {"units": {}}
+        counts = {}
+        for row in ledger.get("units", {}).values():
+            key = str(row.get("status", "PENDING"))
+            counts[key] = counts.get(key, 0) + 1
+        path.write_text(json.dumps({
+            "schema_version": 1,
+            "evaluated_sha": sha,
+            "last_evaluation": evaluation,
+            "primary_status": status.get("evaluations", {}),
+            "ledger_status_counts": counts,
+        }, indent=2, sort_keys=True) + "\n")
+        PY
+
         tar -czf "$RUNNER_TEMP/updated-cache.tgz" benchmark/cache
+        tar -czf "$RUNNER_TEMP/updated-checkpoint.tgz" "$checkpoint_dir"
         git reset --hard
         git fetch origin benchmark
         unexpected="$(git diff --name-only "$EVALUATED_SHA"..origin/benchmark \
-          | grep -v '^benchmark/cache/' || true)"
+          | grep -Ev "^benchmark/cache/|^benchmark/checkpoints/$RUN_ID/" || true)"
         if [ -n "$unexpected" ]; then
-          echo "::error::benchmark branch moved outside certified cache during the run:"
+          echo "::error::benchmark branch moved outside certified cache/resume state during the run:"
           echo "$unexpected"
           exit 1
         fi
         git checkout -B benchmark origin/benchmark
-        rm -rf benchmark/cache
+        rm -rf benchmark/cache "$checkpoint_dir"
         tar -xzf "$RUNNER_TEMP/updated-cache.tgz"
-        git add -f benchmark/cache
+        tar -xzf "$RUNNER_TEMP/updated-checkpoint.tgz"
+        git add -f benchmark/cache "$checkpoint_dir"
         if git diff --cached --quiet; then
-          echo "No new certified cache records."
+          echo "No new certified cache or resume-state records."
           exit 0
         fi
         git -c user.name="github-actions[bot]" \
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -m "Checkpoint ${{ inputs.evaluation }} benchmark cache for ${EVALUATED_SHA:0:7}"
+            commit -m "Checkpoint ${{ inputs.evaluation }} benchmark state for ${EVALUATED_SHA:0:7}"
         git push origin HEAD:benchmark
 
     - name: Read Primary status

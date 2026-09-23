@@ -307,6 +307,12 @@ jobs:
                   }],
               })
               module.json_dump(
+                  matrix_path.parent / "capability_universe.json",
+                  module.json_load(
+                      root / "methodology-assets/semantic_compression/capability_universe.json"
+                  ),
+              )
+              module.json_dump(
                   repair_root / module.COMPARABILITY_BLINDING_RELATIVE,
                   {"schema_version":1,"labels":{"Python":"E"}},
               )
@@ -324,6 +330,14 @@ jobs:
                       }],
                   },
               )
+              repair_partial = {
+                  "level": "PARTIAL",
+                  "fragment": "wrapper(x)",
+                  "partial_reasons": ["P-b"],
+                  "none_reason": None,
+                  "justification": "synthetic repair exercises a non-R9 partial reason",
+                  "citation": "frozen synthetic evidence",
+              }
               result = {
                   "evidence": {
                       "gate_result": {
@@ -332,7 +346,7 @@ jobs:
                           ]
                       },
                       "repair_directives": [{
-                          "probe_id":"F10.P1","label":"E","record":partial
+                          "probe_id":"F10.P1","label":"E","record":repair_partial
                       }],
                   }
               }
@@ -340,8 +354,8 @@ jobs:
               assert module.persist_comparability_repairs(repair_root, result) == 0
               repairs = module.sc_comparability_repairs(repair_root)
               assert repairs["F10.P1"]["Python"]["level"] == "PARTIAL"
-              # F10 intentionally has no dedicated cohort-adjudication unit:
-              # direct repair must still become authoritative.
+              # This isolated fixture has no cohort-adjudication record, so the
+              # validated pair-specific repair must still become authoritative.
               merged = module.sc_adjudicated_annotations(repair_root)
               assert merged["F10.P1"]["Python"]["fragment"] == "wrapper(x)"
               levels = module.sc_adjudicated_levels(repair_root)

@@ -798,7 +798,8 @@ def assert_capability_efficiency_uses_final_support_denominator() -> None:
                 / "benchmark/template/methodology-assets/semantic_compression/semantic_site_matrix.json"
             ).read_text()
         )
-        probe_id = str(matrix["probes"][0]["probe_id"])
+        probe_id = "F02.P2"
+        assert probe_id in {str(probe["probe_id"]) for probe in matrix["probes"]}
         partial_language = languages[0]
         _write_semantic_owner_cohort(
             root,

@@ -5768,6 +5768,15 @@ def cache_cap_reuse_problem(
                 f"Primary trial allocation ({expected_count} frozen trials); "
                 "it must be measured again"
             )
+        assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+        if len(assigned) != 1:
+            return "the Proficiency cache unit does not identify exactly one language"
+        expected_prompts = proficiency_primary_prompt_set_sha256(root, assigned[0])
+        if certification.get("proficiency_primary_prompt_set_sha256") != expected_prompts:
+            return (
+                "the Proficiency record was not certified against the current "
+                "runtime-owned workload/scenario prompt set; it must be measured again"
+            )
         if certification.get("proficiency_toolchain_evidence") is not True:
             return (
                 "the Proficiency record is not certified to have run the assigned "
@@ -8600,6 +8609,39 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
     for rid in unit.get("requirement_ids", []):
         if rid == "coverage.all_10_languages":
             requirements[rid] = fixed_10
+        elif rid == "gate.proficiency_workload_contract":
+            asset = proficiency_workload_contract(root)
+            trial_manifest = proficiency_trial_manifest(root)
+            prompt_hashes = {
+                language: proficiency_primary_prompt_set_sha256(root, language)
+                for language in languages
+            }
+            requirements[rid] = (
+                fixed_10
+                and len(trial_manifest)
+                == (
+                    len(asset["workloads"])
+                    * len(asset["scenarios"])
+                    * int(
+                        json_load(root / "template" / "config" / "primary.json")
+                        ["llm_proficiency"]["independent_trials_per_replicated_cell"]
+                    )
+                )
+                and len(set(prompt_hashes.values())) == len(languages)
+            )
+            evidence.update({
+                "proficiency_workload_document_id": asset.get("document_id"),
+                "proficiency_workloads": sorted(asset["workloads"]),
+                "proficiency_scenarios": sorted(asset["scenarios"]),
+                "proficiency_trial_count": len(trial_manifest),
+                "proficiency_prompt_set_sha256_by_language": prompt_hashes,
+                "proficiency_source_commits": {
+                    workload: row.get("commit")
+                    for workload, row in sorted(
+                        (asset.get("source_provenance") or {}).items()
+                    )
+                },
+            })
         elif rid == "gate.capability_universe":
             asset = json_load(
                 root / "template" / "methodology-assets" / "semantic_compression"
@@ -9170,6 +9212,22 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
                 problems.append(
                     f"{uid}: cache record was not certified against the current "
                     "complete Primary trial set"
+                )
+                continue
+            assigned = [str(value) for value in (trial_unit.get("assigned_languages") or [])]
+            expected_prompts = (
+                proficiency_primary_prompt_set_sha256(root, assigned[0])
+                if len(assigned) == 1
+                else None
+            )
+            if (
+                expected_prompts is None
+                or certification.get("proficiency_primary_prompt_set_sha256")
+                != expected_prompts
+            ):
+                problems.append(
+                    f"{uid}: cache record was not certified against the current "
+                    "runtime-owned Proficiency prompt set"
                 )
                 continue
             signature = certification.get("configuration_signature")
@@ -10296,6 +10354,14 @@ def cache_certification_for_unit(
         )
         certification["proficiency_primary_trial_count"] = len(
             proficiency_required_trial_ids(root)
+        )
+        assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+        if len(assigned) != 1:
+            raise BenchmarkError(
+                f"{unit['id']}: Proficiency cache certification requires one language"
+            )
+        certification["proficiency_primary_prompt_set_sha256"] = (
+            proficiency_primary_prompt_set_sha256(root, assigned[0])
         )
         certification["configuration_signature"] = json.dumps({
             "provider": provider,

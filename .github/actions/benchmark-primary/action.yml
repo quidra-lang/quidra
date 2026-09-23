@@ -59,6 +59,15 @@ runs:
       with:
         python-version: "3.12"
 
+    - name: Restore private paid-leaf checkpoint cache
+      id: paid-cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ runner.temp }}/benchmark-paid-state
+        key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.job }}-${{ github.run_attempt }}
+        restore-keys: |
+          quidra-benchmark-paid-v1-${{ runner.os }}-
+
     - name: Download previous Primary handoff
       if: ${{ inputs.previous-handoff != '' }}
       continue-on-error: true
@@ -213,6 +222,17 @@ runs:
           --provider fake \
           -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare \
              --evaluation "$EVALUATION"
+
+    - name: Restore exact-fingerprint paid partial leaves before pricing
+      if: ${{ steps.scope.outputs.needs-run == 'true' }}
+      shell: bash
+      env:
+        EVALUATION: ${{ inputs.evaluation }}
+      run: |
+        python benchmark/template/scripts/benchmark.py partial-paid-import \
+          --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+          --store "$RUNNER_TEMP/benchmark-paid-state" \
+          --evaluation "$EVALUATION"
 
     - name: Show current exact cache state before paid dispatch
       if: ${{ steps.scope.outputs.needs-run == 'true' }}
@@ -446,6 +466,45 @@ runs:
         state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
         print(json.dumps(state, indent=2, sort_keys=True))
         PY
+
+    - name: Export paid-but-incomplete leaf state
+      if: ${{ always() }}
+      id: paid-partial-export
+      continue-on-error: true
+      shell: bash
+      env:
+        EVALUATION: ${{ inputs.evaluation }}
+      run: |
+        set -euo pipefail
+        echo "changed=false" >> "$GITHUB_OUTPUT"
+        if [ ! -f .quidra-benchmark/work/root/manifest.json ]; then
+          exit 0
+        fi
+        mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+        python benchmark/template/scripts/benchmark.py partial-paid-export \
+          --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+          --store "$RUNNER_TEMP/benchmark-paid-state" \
+          --evaluation "$EVALUATION" \
+          > "$RUNNER_TEMP/partial-paid-export.json"
+        cat "$RUNNER_TEMP/partial-paid-export.json"
+        changed="$(python - "$RUNNER_TEMP/partial-paid-export.json" <<'PY'
+        import json, sys
+        from pathlib import Path
+        payload = json.loads(Path(sys.argv[1]).read_text())
+        print("true" if int(payload.get("updated_unit_count", 0) or 0) > 0 else "false")
+        PY
+        )"
+        echo "changed=$changed" >> "$GITHUB_OUTPUT"
+        cp "$RUNNER_TEMP/partial-paid-export.json" \
+          .quidra-benchmark/results/partial_paid_checkpoint_export.json
+
+    - name: Save updated private paid-leaf checkpoint cache
+      if: ${{ always() && steps.paid-partial-export.outputs.changed == 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.temp }}/benchmark-paid-state
+        key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.job }}-${{ github.run_attempt }}
 
     - name: Checkpoint every newly certified unit
       if: ${{ always() }}

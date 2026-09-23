@@ -612,6 +612,11 @@ def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
         problem = benchmark.cache_cap_reuse_problem(root, record, unit)
         assert problem is not None and "per-completion" in problem, problem
         certification["proficiency_runtime_verification"] = True
+        problem = benchmark.cache_cap_reuse_problem(root, record, unit)
+        assert problem is not None and "hidden-oracle workload contract" in problem, problem
+        certification["proficiency_workload_contract_sha256"] = (
+            benchmark.proficiency_workload_contract_sha256(root)
+        )
         assert benchmark.cache_cap_reuse_problem(root, record, unit) is None
 
 

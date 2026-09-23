@@ -30,7 +30,7 @@
     "runner_owned": true
   },
   "evidence_policy": {
-    "snapshot_basis": "The run's frozen created_at_utc date; every language shard in the run uses the same date.",
+    "snapshot_basis": "Each scored record names one YYYY-MM-DD snapshot_date inside the declared Ecosystem cache-epoch month. Records may be reused within that frozen month; changing the declared Ecosystem epoch invalidates them.",
     "activity_window_months": 24,
     "provider_search_budget_per_worker": 5,
     "source_priority": [

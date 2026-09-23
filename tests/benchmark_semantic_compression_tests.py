@@ -109,6 +109,29 @@ def assert_conflicting_annotation_fields_are_rejected() -> None:
         raise AssertionError("probe collection silently stitched conflicting fields")
 
 
+def assert_f20_runtime_fixtures_match_frozen_recipes() -> None:
+    fixtures = json.loads(
+        (
+            ROOT
+            / "benchmark/template/runtime/f20_interop_fixtures.json"
+        ).read_text(encoding="utf-8")
+    )
+    environment = json.loads(
+        (
+            ROOT
+            / "benchmark/template/environment/environment.json"
+        ).read_text(encoding="utf-8")
+    )
+    cases = fixtures["languages"]
+    assert set(cases) == {"Python", "Go", "Java", "Kotlin"}, cases
+    frozen = environment["frozen_toolchain_recipes"]
+    for language, row in cases.items():
+        assert row["build"] == frozen[language]["build"], (language, row, frozen[language])
+        assert row["run"] == frozen[language]["run"], (language, row, frozen[language])
+        assert row.get("source"), language
+        assert row.get("mechanism"), language
+
+
 def assert_adjudication_is_authoritative() -> None:
     by_language = {
         "Go": {
@@ -471,6 +494,7 @@ def main() -> None:
     assert_support_adjudication_receives_trusted_verification()
     assert_probe_alias_rows_are_recognized()
     assert_conflicting_annotation_fields_are_rejected()
+    assert_f20_runtime_fixtures_match_frozen_recipes()
     assert_adjudication_is_authoritative()
     assert_repair_loop_is_scoped_and_idempotent()
     assert_every_sampled_probe_has_a_cohort_adjudicator()

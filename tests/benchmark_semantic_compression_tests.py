@@ -584,6 +584,91 @@ def assert_premeasurement_cohort_gate() -> None:
         assert investigation["none_count"] == 15, investigation
 
 
+def assert_v3_survives_support_adjudication() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        languages, probe_ids = _write_semantic_owner_cohort(root)
+        probe_id = probe_ids[0]
+        value = {
+            language: canonical(
+                "PARTIAL", "verified_fragment()", partial=["P-a"]
+            )
+            for language in languages
+        }
+        try:
+            benchmark.validate_support_adjudication_against_canonical_fragments(
+                root,
+                "annotation.support_adjudication--" + probe_id.lower().replace(".", "-"),
+                value,
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "pre-measurement V3" in str(exc), exc
+        else:
+            raise AssertionError(
+                "support adjudication removed the cohort's last FULL implementation"
+            )
+
+
+def assert_v3_survives_comparability_repair() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        languages = benchmark.metadata_languages(root)
+        labels = {
+            language: chr(ord("A") + index)
+            for index, language in enumerate(languages)
+        }
+        benchmark.json_dump(
+            root / benchmark.COMPARABILITY_BLINDING_RELATIVE,
+            {"schema_version": 1, "labels": labels},
+        )
+        probe_id = "F01.P1"
+        annotations = []
+        for index, language in enumerate(languages):
+            annotations.append({
+                "label": labels[language],
+                "support": "FULL" if index == 0 else "PARTIAL",
+                "fragment": "verified_fragment()",
+            })
+        benchmark.json_dump(
+            root / benchmark.COMPARABILITY_SAMPLE_RELATIVE,
+            {
+                "schema_version": 1,
+                "probes": [{
+                    "probe_id": probe_id,
+                    "annotations": annotations,
+                }],
+            },
+        )
+        first_label = labels[languages[0]]
+        result = {
+            "schema_version": 1,
+            "evaluation": "semantic_compression",
+            "requirements": {benchmark.COMPARABILITY_GATE: False},
+            "evidence": {
+                "gate_result": {
+                    "affected_pairs_requiring_revalidation": [
+                        {"probe_id": probe_id, "label": first_label}
+                    ]
+                },
+                "repair_directives": [{
+                    "probe_id": probe_id,
+                    "label": first_label,
+                    "record": canonical(
+                        "PARTIAL", "verified_fragment()", partial=["P-a"]
+                    ),
+                }],
+            },
+        }
+        try:
+            benchmark.validate_comparability_repair_directives(root, result)
+        except benchmark.BenchmarkError as exc:
+            assert "pre-measurement V3" in str(exc), exc
+        else:
+            raise AssertionError(
+                "comparability repair removed the cohort's last FULL implementation"
+            )
+
+
 def assert_premeasurement_gate_is_wired() -> None:
     plan = json.loads(
         (ROOT / "benchmark/template/config/work_plan_templates.json").read_text()
@@ -833,6 +918,8 @@ def main() -> None:
     assert_canonical_fragment_verification_runs_real_recipe()
     assert_synthetic_verification_cannot_masquerade_as_real()
     assert_premeasurement_cohort_gate()
+    assert_v3_survives_support_adjudication()
+    assert_v3_survives_comparability_repair()
     assert_premeasurement_gate_is_wired()
     assert_go_multi_unit_recipe_builds_one_main_package()
     print("semantic compression reconciliation contract: ok")

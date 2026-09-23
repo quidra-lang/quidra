@@ -514,6 +514,62 @@ def assert_canonical_fragment_verification_runs_real_recipe() -> None:
             raise AssertionError("a canonical fragment whose fixture fails must be rejected")
 
 
+def assert_verification_fragment_files_participate_in_frozen_recipe() -> None:
+    catalog = {
+        "F01.P1": canonical("FULL", "n = 7\nreturn n"),
+    }
+    hidden = {
+        "canonical_verification": {
+            "F01.P1": {
+                "entry_file": "main.py",
+                "fragment_files": ["unused.py"],
+                "files": {
+                    "main.py": "print(7)\n",
+                    "unused.py": "n = 7\nreturn n\n",
+                },
+                "mode": "run",
+                "run_count": 1,
+            }
+        }
+    }
+    try:
+        benchmark._semantic_verification_schema(catalog, hidden)
+    except benchmark.BenchmarkError as exc:
+        assert "single-unit verification fragment_files must be exactly" in str(exc), exc
+    else:
+        raise AssertionError(
+            "single-unit canonical fragment hidden in an unbuilt file was accepted"
+        )
+
+    bad_multi = {
+        "entry_file": "main.py",
+        "fragment_files": ["main.py", "notes.txt"],
+        "files": {
+            "main.py": "import util\n",
+            "notes.txt": "measured fragment\n",
+            "util.py": "def pub_add(a, b): return a + b\n",
+        },
+        "mode": "run",
+        "run_count": 1,
+    }
+    try:
+        benchmark._semantic_validate_real_fragment_files(
+            "Python", "F18.P2", bad_multi
+        )
+    except benchmark.BenchmarkError as exc:
+        assert "non-source/unbuilt fixture files" in str(exc), exc
+    else:
+        raise AssertionError(
+            "multi-unit canonical fragment hidden in a non-source file was accepted"
+        )
+
+    good_multi = dict(bad_multi)
+    good_multi["fragment_files"] = ["main.py", "util.py"]
+    benchmark._semantic_validate_real_fragment_files(
+        "Python", "F18.P2", good_multi
+    )
+
+
 def assert_synthetic_verification_cannot_masquerade_as_real() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_root(td)
@@ -1172,6 +1228,7 @@ def main() -> None:
     assert_every_sampled_probe_has_a_cohort_adjudicator()
     assert_cohort_work_is_cacheable()
     assert_canonical_fragment_verification_runs_real_recipe()
+    assert_verification_fragment_files_participate_in_frozen_recipe()
     assert_synthetic_verification_cannot_masquerade_as_real()
     assert_premeasurement_cohort_gate()
     assert_v3_survives_support_adjudication()

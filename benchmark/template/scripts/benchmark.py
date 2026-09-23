@@ -4292,6 +4292,15 @@ def _semantic_verification_schema(
                 f"{probe_id}: fragment_files are missing from files: "
                 + ", ".join(missing_fragment_files)
             )
+        if (
+            probe_id not in SEMANTIC_MULTI_UNIT_PROBES
+            and fragment_paths != [entry]
+        ):
+            raise BenchmarkError(
+                f"{probe_id}: single-unit verification fragment_files must be "
+                f"exactly [entry_file] ({entry!r}); measured code may not live "
+                "in an unbuilt or unused fixture file"
+            )
         measured = _semantic_code_normalize(
             "\n".join(normalized_files[name] for name in fragment_paths)
         )
@@ -4327,6 +4336,82 @@ def _semantic_verification_schema(
             "run_count": run_count,
         }
     return normalized
+
+
+def _semantic_validate_real_fragment_files(
+    language: str,
+    probe_id: str,
+    row: dict[str, Any],
+) -> None:
+    """Require every measured fragment file to participate in the frozen recipe."""
+    if probe_id not in SEMANTIC_MULTI_UNIT_PROBES:
+        return
+
+    entry = str(row["entry_file"])
+    fragment_files = list(row["fragment_files"])
+    files = row["files"]
+    if entry not in fragment_files:
+        raise BenchmarkError(
+            f"{probe_id}: multi-unit verification fragment_files must include "
+            f"the executed entry file {entry!r}"
+        )
+    if len(set(fragment_files)) < 2:
+        raise BenchmarkError(
+            f"{probe_id}: multi-unit verification must measure code from at least "
+            "two source files"
+        )
+
+    fixed_helpers = {
+        "C++": {"util.cpp"},
+        "Java": {"util/Util.java"},
+        "Kotlin": {"util.kt"},
+        "Swift": {"util.swift"},
+    }
+    suffixes = {
+        "Quidra": ".qui",
+        "Python": ".py",
+        "Rust": ".rs",
+        "TypeScript": ".ts",
+        "Zig": ".zig",
+    }
+
+    if language in fixed_helpers:
+        required_helpers = fixed_helpers[language]
+        allowed = {entry, *required_helpers}
+        missing_helpers = sorted(required_helpers - set(fragment_files))
+        if missing_helpers:
+            raise BenchmarkError(
+                f"{probe_id}: {language} multi-unit measured fragment must include "
+                "the frozen helper source(s): " + ", ".join(missing_helpers)
+            )
+    elif language == "Go":
+        helpers = {
+            name for name in files
+            if name.startswith("util/") and name.endswith(".go")
+        }
+        if not helpers.intersection(fragment_files):
+            raise BenchmarkError(
+                f"{probe_id}: Go multi-unit measured fragment must include at least "
+                "one util/*.go source used by the frozen package build"
+            )
+        allowed = {entry, *helpers}
+    else:
+        suffix = suffixes.get(language)
+        if suffix is None:
+            raise BenchmarkError(
+                f"{probe_id}: unknown Semantic Compression language {language!r}"
+            )
+        allowed = {
+            name for name in files
+            if name == entry or name.endswith(suffix)
+        }
+
+    unbuilt = sorted(set(fragment_files) - allowed)
+    if unbuilt:
+        raise BenchmarkError(
+            f"{probe_id}: {language} fragment_files contain non-source/unbuilt "
+            "fixture files: " + ", ".join(unbuilt)
+        )
 
 
 def _semantic_verification_recipe(
@@ -4725,6 +4810,11 @@ def validate_canonical_fragment_verification(
             "non-canonical CI workspace; scored workers may not self-declare it"
         )
     synthetic = synthetic_marker and synthetic_allowed
+    if not synthetic:
+        for probe_id, row in verification.items():
+            _semantic_validate_real_fragment_files(
+                language, probe_id, row
+            )
     audit_path = (
         root / "work" / "audit" / "semantic-compression"
         / f"canonical_verification_{slug_id(language)}.json"

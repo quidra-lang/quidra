@@ -133,6 +133,19 @@ Source size and artifact size must remain separate metrics.
 - FFI / Interoperability Design
 - Concurrency
 
+These eight **Language / Development** metrics use the frozen
+`methodology-assets/language_quality/design_rubrics.json` contract. Each metric
+has exactly five equally weighted components and fixed levels 0..4. The
+language-scoped worker performs only the semantic judgment: it assigns one
+frozen level per component and cites existing frozen `repo/...` or
+`template/...` evidence. The trusted runner owns all arithmetic, maps levels
+to 0/5/10/15/20 points, sums the five components to the normalized 0–100
+metric score, and overwrites any worker-supplied numeric score. The rubric set
+is mechanically validated by `gate.language_quality_design_rubrics_frozen`
+before any of these judgment workers may run. External ecosystem maturity,
+popularity and live web evidence are forbidden here and belong exclusively to
+Primary Evaluation 4.
+
 ## Safety / Robustness
 
 - Type Safety

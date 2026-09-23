@@ -165,10 +165,17 @@ def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
         if requirement_id.startswith("gate.") or requirement_id.startswith("coverage."):
             requirements[requirement_id] = True
         elif requirement_id.startswith("annotation.support_adjudication--"):
-            # A support adjudication answers for the whole cohort with a level,
-            # not a score, and never for a subset of the languages.
+            # A support adjudication answers for the whole cohort with the full
+            # normalized decision record the real validator requires.
             requirements[requirement_id] = {
-                language: "FULL" for language in languages
+                language: {
+                    "support": "FULL",
+                    "p_letters": [],
+                    "n_reason": None,
+                    "citation": "Synthetic frozen documentation citation.",
+                    "justification": "Synthetic cohort-consistent justification.",
+                }
+                for language in languages
             }
         else:
             requirements[requirement_id] = {

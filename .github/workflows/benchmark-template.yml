@@ -5,6 +5,7 @@ on:
     branches: [develop]
     paths:
       - "benchmark/master_prompt.md"
+      - "benchmark/README.md"
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"
@@ -17,6 +18,7 @@ on:
   pull_request:
     paths:
       - "benchmark/master_prompt.md"
+      - "benchmark/README.md"
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"

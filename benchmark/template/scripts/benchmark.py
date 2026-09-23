@@ -13697,7 +13697,21 @@ def cache_impact(source: Path) -> dict[str, Any]:
     invalid: list[dict[str, Any]] = []
     valid = 0
     for record_path in sorted(cache_root.rglob("*.json")):
-        record = json_load(record_path)
+        try:
+            record = json_load(record_path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            invalid.append({
+                "record": record_path.relative_to(source).as_posix(),
+                "work_unit_id": None,
+                "evaluation": "unknown",
+                "changed": [
+                    f"record_unreadable_or_corrupt:{type(exc).__name__}:{exc}"
+                ],
+            })
+            # One damaged historical record is a leaf-local invalidation. Keep
+            # auditing every other paid record so preflight can still determine
+            # the unaffected reuse set.
+            continue
         payload = record.get("fingerprint_payload") or {}
         changed: list[str] = []
         for relative, recorded in (payload.get("readable_input_content_hashes") or {}).items():

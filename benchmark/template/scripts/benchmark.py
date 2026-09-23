@@ -7326,6 +7326,16 @@ def proficiency_trial_manifest(root: Path) -> dict[str, dict[str, Any]]:
     replications = int(cfg["independent_trials_per_replicated_cell"])
     if replications < 1:
         raise BenchmarkError("LLM Proficiency requires at least one Primary replication")
+    variants = [str(value) for value in (cfg.get("primary_prompt_variants") or [])]
+    if (
+        len(variants) != replications
+        or len(set(variants)) != len(variants)
+        or any(not variant for variant in variants)
+    ):
+        raise BenchmarkError(
+            "LLM Proficiency primary_prompt_variants must contain exactly one "
+            "unique frozen variant per independent trial"
+        )
     manifest: dict[str, dict[str, Any]] = {}
     for workload in workloads:
         for scenario in scenarios:
@@ -7340,6 +7350,7 @@ def proficiency_trial_manifest(root: Path) -> dict[str, dict[str, Any]]:
                     "workload": workload,
                     "scenario": scenario,
                     "replication": replication,
+                    "prompt_variant": variants[replication - 1],
                 }
     return manifest
 
@@ -7367,12 +7378,14 @@ def proficiency_expected_prompt(root: Path, language: str, trial_id: str) -> str
         raise BenchmarkError(
             f"LLM Proficiency has no frozen toolchain recipe for {language}"
         )
-    sections = [
+    metadata = [
         "# Frozen LLM Proficiency Trial",
         f"Target language: {language}",
         f"Workload: {cell['workload']} ({workload['subset_id']})",
         f"Scenario: {cell['scenario']}",
-        "",
+        f"Prompt variant: {cell['prompt_variant']}",
+    ]
+    rules = [
         "Rules:",
         "- Return only one complete source program, with no Markdown fences or explanation.",
         "- Use only the target language and its standard library/runtime shipped in the frozen toolchain.",
@@ -7380,26 +7393,50 @@ def proficiency_expected_prompt(root: Path, language: str, trial_id: str) -> str
         "- Preserve the algorithm and validation contract exactly; do not replace the task with a simpler computation or hard-code the public example output.",
         "- The trusted runtime supplies additional hidden stdin cases; your program must compute its output from stdin on every run.",
         f"- Frozen build/run recipe: {json.dumps(recipe, sort_keys=True, separators=(',', ':'))}",
-        "",
-        "Scenario instruction:",
-        str(scenario["instruction"]),
-        "",
+    ]
+    scenario_block = ["Scenario instruction:", str(scenario["instruction"])]
+    specification_block = [
         "Frozen specification:",
         str(workload["specification"]).strip(),
     ]
-    if scenario["include_reference"]:
-        sections.extend([
-            "",
+    reference_block = (
+        [
             "Frozen C++ reference implementation:",
             str(workload["reference_cpp"]).strip(),
-        ])
-    sections.extend([
-        "",
+        ]
+        if scenario["include_reference"]
+        else []
+    )
+    validation_block = [
         "Frozen validation contract:",
         json.dumps(workload["validation"], sort_keys=True, separators=(",", ":")),
-        "",
-        "Return only the complete target-language source program.",
-    ])
+    ]
+    layouts = {
+        "canonical": [
+            metadata, rules, scenario_block, specification_block,
+            reference_block, validation_block,
+        ],
+        "scenario-first": [
+            metadata, scenario_block, specification_block, reference_block,
+            rules, validation_block,
+        ],
+        "contract-first": [
+            metadata, validation_block, rules, scenario_block,
+            specification_block, reference_block,
+        ],
+    }
+    variant = str(cell["prompt_variant"])
+    selected = layouts.get(variant)
+    if selected is None:
+        raise BenchmarkError(f"unknown frozen Proficiency prompt variant: {variant}")
+    sections: list[str] = []
+    for block in selected:
+        if not block:
+            continue
+        if sections:
+            sections.append("")
+        sections.extend(block)
+    sections.extend(["", "Return only the complete target-language source program."])
     return "\n".join(sections).rstrip() + "\n"
 
 

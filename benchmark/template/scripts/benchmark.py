@@ -9906,6 +9906,26 @@ def mechanical_certification(
     }
 
 
+def unresolved_semantic_comparability_probes(
+    root: Path, manifest: dict[str, Any]
+) -> set[str]:
+    """Probes a terminal failed comparability audit says must be revalidated."""
+    for unit in manifest.get("work_units", []):
+        if COMPARABILITY_GATE not in (unit.get("requirement_ids") or []):
+            continue
+        result_path = (
+            root / "work" / "agents" / str(unit.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if not result_path.is_file():
+            return set()
+        result = json_load(result_path)
+        if (result.get("requirements") or {}).get(COMPARABILITY_GATE) is not False:
+            return set()
+        return set(comparability_revalidation_probes(result))
+    return set()
+
+
 def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -9932,6 +9952,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
 
     manifest = json_load(manifest_path)
     ledger = json_load(ledger_path)
+    unresolved_sc_probes = unresolved_semantic_comparability_probes(root, manifest)
     records: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     promoted = 0
@@ -9945,6 +9966,21 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         if state.get("status") != "COMPLETE":
             continue
         if state.get("validation_result") != "PASS":
+            continue
+        adjudicated_probe = support_adjudication_probe(
+            [str(value) for value in (unit.get("requirement_ids") or [])]
+        )
+        if (
+            unit.get("evaluation") == "semantic_compression"
+            and adjudicated_probe in unresolved_sc_probes
+        ):
+            skipped.append({
+                "work_unit_id": unit.get("id"),
+                "reason": (
+                    "final comparability audit requires this probe to be "
+                    "revalidated; its support adjudication is not cache-certified"
+                ),
+            })
             continue
         if (
             require_primary

@@ -8379,7 +8379,11 @@ def archive_attempt(
             # Learnability attestations are frozen-snapshot infrastructure evidence,
             # not model scores. Keeping them lets a resumed trial remain auditable
             # without pretending that a fresh preflight happened after paid calls.
-            for name in ("learnability_preflight.json", "learnability_leakage.json"):
+            for name in (
+                "learnability_preflight.json",
+                "learnability_leakage.json",
+                "trial_call_journal.json",
+            ):
                 src = archive / name
                 if src.is_file():
                     shutil.copy2(src, agent_dir / name)

@@ -1,12 +1,12 @@
 name: benchmark-production
 
-# Paid inference is triggered only by an explicit benchmark request marker.
-# Ordinary source pushes cannot match this path, and there is no PR or schedule
-# trigger. Updating benchmark/.run-production is the deliberate "run it now"
-# action for develop.
+# Paid inference is triggered only by an explicit request on the disposable
+# benchmark branch. develop never starts this workflow. The operator creates
+# benchmark from the develop snapshot to evaluate, then changes
+# benchmark/.run-production on that branch.
 on:
   push:
-    branches: [develop]
+    branches: [benchmark]
     paths:
       - "benchmark/.run-production"
 
@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: benchmark
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
@@ -278,7 +278,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "CHECKPOINT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "DEVELOP_MOVED_DURING_RUN=0" >> "$GITHUB_ENV"
+          echo "BENCHMARK_BRANCH_MOVED_DURING_RUN=0" >> "$GITHUB_ENV"
           if [ ! -f .quidra-benchmark/work/root/ledger.json ]; then
             echo "No frozen ledger exists; there is nothing safe to checkpoint."
             exit 0
@@ -294,11 +294,11 @@ jobs:
             exit 0
           fi
 
-          git fetch origin develop
-          origin_head="$(git rev-parse origin/develop)"
+          git fetch origin benchmark
+          origin_head="$(git rev-parse origin/benchmark)"
           if [ "$origin_head" != "$EVALUATED_SHA" ]; then
-            echo "DEVELOP_MOVED_DURING_RUN=1" >> "$GITHUB_ENV"
-            echo "::warning::develop moved independently during the benchmark; cache remains in the workflow artifact rather than being pushed onto an unrelated source snapshot."
+            echo "BENCHMARK_BRANCH_MOVED_DURING_RUN=1" >> "$GITHUB_ENV"
+            echo "::warning::benchmark moved independently during the run; cache is committed locally and preserved in the workflow artifact instead of racing another writer."
             git -c user.name="github-actions[bot]" \
                 -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
                 commit -m "Checkpoint certified benchmark cache for ${EVALUATED_SHA:0:7}"
@@ -309,7 +309,7 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -m "Checkpoint certified benchmark cache for ${EVALUATED_SHA:0:7}"
-          git push origin HEAD:develop
+          git push origin HEAD:benchmark
           echo "CHECKPOINT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Import the finished run
@@ -322,16 +322,16 @@ jobs:
             --source-repo "$GITHUB_WORKSPACE"
           test -f "benchmark/$RUN_ID/import_manifest.json"
 
-      - name: Push the result when develop has not moved
+      - name: Push the result to the isolated benchmark branch
         if: success() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == ''
         run: |
-          git fetch origin develop
-          if [ "$DEVELOP_MOVED_DURING_RUN" = "1" ]; then
-            echo "::warning::develop moved independently during the benchmark; the imported run is preserved as an artifact instead of being pushed onto a different source snapshot."
+          git fetch origin benchmark
+          if [ "$BENCHMARK_BRANCH_MOVED_DURING_RUN" = "1" ]; then
+            echo "::warning::benchmark moved independently during the run; the imported run is preserved as an artifact instead of racing another writer."
             exit 0
           fi
-          if [ "$(git rev-parse origin/develop)" != "$CHECKPOINT_HEAD" ]; then
-            echo "::warning::develop moved after the cache checkpoint; the imported run is preserved as an artifact instead of racing another writer."
+          if [ "$(git rev-parse origin/benchmark)" != "$CHECKPOINT_HEAD" ]; then
+            echo "::warning::benchmark moved after the cache checkpoint; the imported run is preserved as an artifact instead of racing another writer."
             exit 0
           fi
           # -f: the repository ignores *.o, *.ll, __pycache__ and similar, and a
@@ -355,7 +355,7 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -m "Add benchmark summary and certified cache for ${EVALUATED_SHA:0:7}"
-          git push origin HEAD:develop
+          git push origin HEAD:benchmark
 
       - name: Preserve run evidence
         if: always()

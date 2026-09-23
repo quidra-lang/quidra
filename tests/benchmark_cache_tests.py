@@ -578,6 +578,9 @@ def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
         certification["proficiency_primary_trial_count"] = len(
             benchmark.proficiency_required_trial_ids(root)
         )
+        problem = benchmark.cache_cap_reuse_problem(root, record, unit)
+        assert problem is not None and "toolchain" in problem, problem
+        certification["proficiency_toolchain_evidence"] = True
         assert benchmark.cache_cap_reuse_problem(root, record, unit) is None
 
 

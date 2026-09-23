@@ -14489,12 +14489,12 @@ def export_partial_paid_checkpoints(
     """Persist already-paid model-call state independently of leaf completion.
 
     Each record is keyed by the same full dependency fingerprint used by the
-    certified result cache. The store is content-addressed and may be mirrored
-    by GitHub Actions cache for speed, but production also checkpoints it under
-    benchmark/cache/partial-paid so paid prompts/completions survive artifact
-    expiry and later workflow runs. These bytes never certify a score by
-    themselves: import restores them only into a PENDING exact-fingerprint leaf,
-    after which current parsing, runtime verification and validators still apply.
+    certified result cache. The store is content-addressed. Production keeps it
+    in private Actions artifacts, with Actions cache as a speed mirror, so hidden
+    prompts/completions/trial verification never enter public Git. These bytes
+    never certify a score by themselves: import restores them only into a PENDING
+    exact-fingerprint leaf, after which current parsing, runtime verification and
+    validators still apply.
     """
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")

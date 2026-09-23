@@ -88,6 +88,11 @@ runs:
       run: |
         set -euo pipefail
         state="$RUNNER_TEMP/benchmark-budget-state.json"
+        mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+        if [ -f "$RUNNER_TEMP/benchmark-previous/paid-state.tgz" ]; then
+          tar -xzf "$RUNNER_TEMP/benchmark-previous/paid-state.tgz" \
+            -C "$RUNNER_TEMP/benchmark-paid-state"
+        fi
         have_handoff=false
         if [ -n "$PREVIOUS_HANDOFF" ] \
            && [ -f "$RUNNER_TEMP/benchmark-previous/workspace.tgz" ] \
@@ -230,13 +235,9 @@ runs:
         EVALUATION: ${{ inputs.evaluation }}
       run: |
         mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
-        # Actions cache is only a speed layer. The benchmark branch also carries
-        # the same content-addressed paid-leaf store, so a cache eviction or a
-        # brand-new workflow run never forces us to buy an exact prior call again.
-        if [ -d .quidra-benchmark/cache/partial-paid ]; then
-          cp -a .quidra-benchmark/cache/partial-paid/. \
-            "$RUNNER_TEMP/benchmark-paid-state/"
-        fi
+        # Paid-call state stays private. The handoff artifact and Actions cache
+        # are merged above; exact-fingerprint import below is the only path back
+        # into a PENDING leaf.
         python benchmark/template/scripts/benchmark.py partial-paid-import \
           --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
           --store "$RUNNER_TEMP/benchmark-paid-state" \
@@ -534,16 +535,6 @@ runs:
           --source-repo "$GITHUB_WORKSPACE" \
           | tee "$RUNNER_TEMP/cache-checkpoint.json"
 
-        # Persist paid model calls in the repository cache as well as Actions
-        # cache, including calls from leaves that reached COMPLETE. The store is
-        # already content-addressed and exact-
-        # fingerprint guarded by partial-paid-import, so this is durable resume
-        # state rather than scored input visible to workers.
-        if [ -d "$RUNNER_TEMP/benchmark-paid-state" ]; then
-          mkdir -p benchmark/cache/partial-paid
-          cp -a "$RUNNER_TEMP/benchmark-paid-state/." benchmark/cache/partial-paid/
-        fi
-
         # Certified results remain content-addressed under benchmark/cache. The
         # run-specific checkpoint stores only trusted orchestration state needed
         # to reconstruct the same run if an Actions artifact disappears.
@@ -636,6 +627,10 @@ runs:
           "$RUNNER_TEMP/benchmark-handoff/gateway-audit.jsonl" 2>/dev/null || true
         cp "$RUNNER_TEMP/cache-checkpoint.json" \
           "$RUNNER_TEMP/benchmark-handoff/cache-checkpoint.json" 2>/dev/null || true
+        if [ -d "$RUNNER_TEMP/benchmark-paid-state" ]; then
+          tar -czf "$RUNNER_TEMP/benchmark-handoff/paid-state.tgz" \
+            -C "$RUNNER_TEMP/benchmark-paid-state" .
+        fi
         echo "ready=true" >> "$GITHUB_OUTPUT"
 
     - name: Upload Primary handoff

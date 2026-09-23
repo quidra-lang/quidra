@@ -6,6 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T02:47:23Z
-reason: output ceiling proof on 559f3e4: the packet output ceiling is now 128000 and the smoke sends one one-word request under the full ceiling; the provider must accept it as max_tokens before any paid run depends on it
+requested_at_utc: 2026-09-23T03:41:00Z
+reason: request-shape proof on the snapshot the paid run will evaluate (dc82972 tree: attempt limit 5 from sandbox_agent.json, 128000 output ceiling, mechanical records hydrated before command units); the paid run follows only if all twelve checks pass
 model: claude-sonnet-5

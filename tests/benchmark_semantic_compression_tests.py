@@ -217,6 +217,25 @@ def assert_f20_work_plan_uses_stable_runtime_facts() -> None:
         )
 
 
+def assert_r9_p_a_scope_is_enforced() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        allowed = canonical("PARTIAL", "substitute()", partial=["P-a"])
+        benchmark.validate_sc_record_for_probe(
+            root, "F02.P2", allowed, context="allowed R9 substitution"
+        )
+
+        forbidden = canonical("PARTIAL", "wrapper()", partial=["P-a"])
+        try:
+            benchmark.validate_sc_record_for_probe(
+                root, "F10.P1", forbidden, context="forbidden R9 substitution"
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "cannot cite P-a" in str(exc), exc
+        else:
+            raise AssertionError("F10.P1 incorrectly accepted P-a outside R9 scope")
+
+
 def assert_adjudication_is_authoritative() -> None:
     by_language = {
         "Go": {
@@ -621,7 +640,7 @@ def assert_premeasurement_cohort_gate() -> None:
         target_probe = probe_ids[0]
         overrides = {
             (language, target_probe): canonical(
-                "PARTIAL", "verified_fragment()", partial=["P-a"]
+                "PARTIAL", "verified_fragment()", partial=["P-c"]
             )
             for language in languages
         }
@@ -967,6 +986,7 @@ def assert_failed_comparability_quarantines_affected_probe() -> None:
 
 def main() -> None:
     assert_complete_support_record_contract()
+    assert_r9_p_a_scope_is_enforced()
     assert_failed_comparability_quarantines_affected_probe()
     assert_support_adjudication_receives_trusted_verification()
     assert_probe_alias_rows_are_recognized()

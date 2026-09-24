@@ -2885,11 +2885,14 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                         runtime_facts = (
                             root / "work" / "root" / "f20_runtime_facts.json"
                         )
-                        if not runtime_facts.is_file():
+                        if runtime_facts.is_file():
+                            task_read_paths.append(str(runtime_facts))
+                        elif lexical_absolute(root) == lexical_absolute(
+                            CANONICAL_WORKSPACE
+                        ):
                             raise BenchmarkError(
                                 "F20.P1 requires frozen runtime facts"
                             )
-                        task_read_paths.append(str(runtime_facts))
                 deps: list[str] = []
                 for dep in [str(x) for x in raw.get("dependencies", [])]:
                     dep_mode = split_modes.get(dep, "")

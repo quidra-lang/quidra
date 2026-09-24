@@ -35,15 +35,24 @@ while a benchmark-only documentation/harness commit does not. New records carry
 this execution identity explicitly. Identity-less legacy records are accepted
 only from the migration commits frozen in `cache_policy.json` and only while the
 current target still matches that migration baseline.
-Ecosystem evidence uses a declared epoch (`declared_epochs.ecosystem` in the cache
+Ecosystem evidence uses a declared epoch (\`declared_epochs.ecosystem\` in the cache
 policy) because external ecosystem facts change without a language version change;
-the operator changes that value when they should be measured again. Semantic
-Compression uses one too (`declared_epochs.semantic_compression`). The exact
-epoch string is authoritative; it currently covers the canonical-fragment,
-pre-measurement verification, and fixed-output-oracle contract. Earlier Semantic
-Compression records remain stored as historical certified artifacts but cannot
-hydrate a run whose declared epoch differs. Other Primary-evaluation cache records
-are unaffected.
+the operator changes that value when they should be measured again. Historical
+Ecosystem scores are not migrated across the runner-rubric-v2 boundary: retained
+records prove that some language workers used different rubrics for the same metric,
+so preserving those scores would break comparability.
+
+Semantic Compression also uses a declared epoch
+(\`declared_epochs.semantic_compression\`). An epoch change is not automatically a
+paid cache miss. For the explicitly approved historical SC epochs, a language-scoped
+record whose model/provider, sampling, toolchains, requirements, Primary projection,
+evaluation specification and all non-SC readable inputs still match may be staged as
+a **validator-recertification candidate**. The trusted runner then applies the full
+current validator, including current canonical-fragment/runtime/fixed-stdout checks.
+A PASS is checkpointed under the current fingerprint; a rejection discards only that
+candidate and executes the leaf normally. LLM Proficiency deliberately has no such
+migration because its prompt allocation and repair trajectory are themselves the
+measurement.
 
 Language Quality mechanical work is certified as well. The micro suite
 (`lq-micro-mechanical`) remains one intentionally coupled all-language unit because

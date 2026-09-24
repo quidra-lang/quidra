@@ -6761,6 +6761,184 @@ def _legacy_primary_prompt_compatible(
     return True
 
 
+
+def _validator_recertification_config(
+    root: Path, evaluation: str
+) -> dict[str, Any] | None:
+    """Return the narrowly approved legacy-result recertification rule.
+
+    This is deliberately not a generic "ignore the cache epoch" escape hatch.
+    An evaluation must opt in explicitly, list the historical epochs it accepts,
+    and name the exact fingerprint fields whose change is runner-verifiable.
+    The old result is still passed through the current validator before it can
+    complete the leaf or be checkpointed under the current fingerprint.
+    """
+    raw = (
+        (cache_policy(root).get("reuse_conditions") or {})
+        .get("validator_recertification", {})
+    )
+    if not isinstance(raw, dict):
+        raise BenchmarkError("validator_recertification cache policy must be an object")
+    cfg = raw.get(evaluation)
+    if cfg is None:
+        return None
+    if not isinstance(cfg, dict):
+        raise BenchmarkError(
+            f"validator_recertification policy for {evaluation} must be an object"
+        )
+    for key in (
+        "legacy_epochs",
+        "ignored_payload_fields",
+        "ignored_unit_input_hashes",
+        "ignored_readable_input_hashes",
+    ):
+        values = cfg.get(key)
+        if not isinstance(values, list) or not all(
+            isinstance(value, str) and value for value in values
+        ):
+            raise BenchmarkError(
+                f"validator_recertification.{evaluation}.{key} "
+                "must be a string array"
+            )
+    return cfg
+
+
+def _validator_recertification_payload(
+    payload: dict[str, Any], cfg: dict[str, Any]
+) -> dict[str, Any]:
+    """Project away only fields the current validator can independently re-prove."""
+    normalized = json.loads(json.dumps(payload))
+
+    for field in cfg.get("ignored_payload_fields", []):
+        normalized.pop(str(field), None)
+
+    hashes = dict(normalized.get("unit_input_hashes") or {})
+    for field in cfg.get("ignored_unit_input_hashes", []):
+        hashes.pop(str(field), None)
+    normalized["unit_input_hashes"] = hashes
+
+    reads = dict(normalized.get("readable_input_content_hashes") or {})
+    for field in cfg.get("ignored_readable_input_hashes", []):
+        reads.pop(str(field), None)
+    normalized["readable_input_content_hashes"] = reads
+    return normalized
+
+
+def find_validator_recertifiable_cache_record(
+    root: Path,
+    unit: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    """Find historical paid evidence that today's validator can re-prove.
+
+    The returned record is projected to the current fingerprint only in memory.
+    hydrate_certified_cache stages its result under the current task and runs the
+    current validator. Rejection becomes a normal leaf-local MISS; only a PASS
+    can complete the leaf and later be checkpointed under the current key.
+
+    LLM Proficiency intentionally has no rule here: its prompt/repair trajectory
+    is itself the measured experiment, so a newer validator cannot retroactively
+    make an old trial allocation or hidden-oracle feedback policy equivalent.
+    """
+    evaluation = str(unit.get("evaluation") or "")
+    cfg = _validator_recertification_config(root, evaluation)
+    if cfg is None:
+        return None, None, None
+    if cfg.get("language_scoped_only") is True and not (
+        unit.get("assigned_languages") or []
+    ):
+        return None, None, None
+
+    current_epoch = str(current_payload.get("cache_epoch") or "")
+    legacy_epochs = [
+        str(value) for value in (cfg.get("legacy_epochs") or [])
+    ]
+    priority = {value: index for index, value in enumerate(legacy_epochs)}
+    directory = (
+        root
+        / "cache"
+        / "v1"
+        / slug_id(evaluation or "unknown")
+        / cache_scope(unit)
+    )
+    if not directory.is_dir():
+        return None, None, None
+
+    normalized_current = _validator_recertification_payload(
+        current_payload, cfg
+    )
+    matches: list[tuple[int, str, str, Path, dict[str, Any]]] = []
+    invalid_candidates: list[str] = []
+    for path in sorted(directory.glob("*.json")):
+        try:
+            record = json_load(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+        old = record.get("fingerprint_payload") or {}
+        if str(old.get("work_unit_id") or "") != str(unit.get("id") or ""):
+            continue
+        old_epoch = str(old.get("cache_epoch") or "")
+        if old_epoch == current_epoch or old_epoch not in priority:
+            continue
+        if _validator_recertification_payload(old, cfg) != normalized_current:
+            continue
+        problem = _cache_record_self_integrity_problem(record)
+        if problem:
+            invalid_candidates.append(f"{path.name}: {problem}")
+            continue
+        run_id = str((record.get("provenance") or {}).get("run_id") or "")
+        matches.append(
+            (priority[old_epoch], run_id, path.name, path, record)
+        )
+
+    if not matches:
+        if invalid_candidates:
+            return (
+                None,
+                None,
+                "all validator-recertification candidates failed self-integrity: "
+                + "; ".join(invalid_candidates[:8]),
+            )
+        return None, None, None
+
+    # Never choose by score/result. Prefer the newest explicitly allowed
+    # protocol generation, then the newest run id, then a stable path tie-break.
+    # This makes repeated historical measurements deterministic without
+    # cherry-picking whichever output ranks a language best.
+    _, _, _, path, record = sorted(matches)[-1]
+    old_payload = record.get("fingerprint_payload") or {}
+    source_fingerprint = str(record.get("fingerprint") or "")
+    current_fingerprint = sha256_bytes(
+        json.dumps(
+            current_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    projected = {
+        **record,
+        "fingerprint": current_fingerprint,
+        "fingerprint_payload": current_payload,
+        "evaluation": evaluation,
+        "assigned_languages": list(unit.get("assigned_languages", [])),
+        "certification": {
+            **(record.get("certification") or {}),
+            "validator_recertification_candidate": True,
+            "validator_recertification_source_epoch": old_payload.get(
+                "cache_epoch"
+            ),
+            "validator_recertification_target_epoch": current_epoch,
+        },
+        "provenance": {
+            **(record.get("provenance") or {}),
+            "projection_source_fingerprint": source_fingerprint,
+            "projection_source_epoch": old_payload.get("cache_epoch"),
+            "work_unit_id": unit.get("id"),
+        },
+    }
+    return path, projected, None
+
 def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
     payload = record.get("fingerprint_payload")
     if record.get("schema_version") != 1 or not isinstance(payload, dict):
@@ -7215,24 +7393,41 @@ def hydrate_certified_cache(
             if compatible_path is not None and record is not None:
                 compatibility_mode = "scoped-input-projection"
             else:
-                compatible_path, record, projection_problem = (
-                    find_adversarial_language_projection_cache_record(
+                compatible_path, record, recertification_problem = (
+                    find_validator_recertifiable_cache_record(
                         root, unit, payload
                     )
                 )
-                if projection_problem:
+                if recertification_problem:
                     record_miss(
                         uid,
                         fingerprint,
                         unit,
-                        projection_problem,
+                        recertification_problem,
                         invalidated=True,
                     )
                     continue
                 if compatible_path is not None and record is not None:
-                    compatibility_mode = (
-                        "legacy-adversarial-cohort-to-language-shard"
+                    compatibility_mode = "validator-recertification"
+                else:
+                    compatible_path, record, projection_problem = (
+                        find_adversarial_language_projection_cache_record(
+                            root, unit, payload
+                        )
                     )
+                    if projection_problem:
+                        record_miss(
+                            uid,
+                            fingerprint,
+                            unit,
+                            projection_problem,
+                            invalidated=True,
+                        )
+                        continue
+                    if compatible_path is not None and record is not None:
+                        compatibility_mode = (
+                            "legacy-adversarial-cohort-to-language-shard"
+                        )
             if compatible_path is None or record is None:
                 record_miss(
                     uid,
@@ -7330,6 +7525,18 @@ def hydrate_certified_cache(
                 record_path=source_rel.as_posix(),
             )
             continue
+        if compatibility_mode is not None:
+            # The receipt is created before validation so a failed projection can
+            # be deleted atomically. Only after today's validator passes do we
+            # certify the migration as current-valid for checkpoint promotion.
+            receipt_path = agent_dir / "cache_receipt.json"
+            receipt = json_load(receipt_path)
+            certification = dict(receipt.get("certification") or {})
+            certification["validator_pass"] = True
+            certification["compatibility_migration"] = compatibility_mode
+            certification["current_validator_revalidated"] = True
+            receipt["certification"] = certification
+            json_dump(receipt_path, receipt)
         cmd_ledger_update(argparse.Namespace(
             workspace=str(root), id=uid, status="RUNNING", evidence=[],
             validation_result=None, blocker=None, blocker_class=None,

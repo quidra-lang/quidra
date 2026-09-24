@@ -36,7 +36,7 @@
     "quidra_execution_identity": "The historical fingerprint remains unchanged so already-paid cache stays addressable. Reuse of any record that measures Quidra additionally requires an exact compiler/runtime execution identity. New records carry it explicitly; legacy records are accepted only from verified migration commits while the target still equals the frozen migration baseline.",
     "same_result_metadata_refresh": "When reuse is rejected and a unit is freshly remeasured, identical result bytes do not preserve stale compatibility/certification metadata. The current trust metadata replaces the old record so changed Quidra execution identity or stronger certification cannot create a permanent MISS loop.",
     "legacy_identity_ratchet": "A verified legacy Quidra record that predates explicit execution identity may be rewritten at checkpoint with the current proven-equivalent execution identity while preserving its historical fingerprint and result. This is counted as an upgrade, not a remeasurement or replacement.",
-    "ecosystem_runner_rubric": "Ecosystem cache reuse requires the same frozen rubric asset through the rendered Task Packet/readable-input hashes and the declared Ecosystem epoch. Pre-v2 language-local rubric results are preserved but are not reused as scored evidence.",
+    "ecosystem_runner_rubric": "Ecosystem cache reuse requires the same frozen runner-owned rubric. Historical language-local rubric scores are not recertified: retained paid records show that nominally identical metrics were actually scored with different rubrics across languages (for example four 25-point dimensions versus five 20-point dimensions), so reusing those scores would break cross-language comparability. Historical sources/findings remain preserved as evidence, but current scored cache requires the fixed rubric.",
     "evaluation_scoped_primary_config": "Primary Task Packets and cache keys include shared Primary policy plus only the current evaluation's local section. Methodology dependencies are likewise scoped to the sections actually embedded in that unit, and assigned-requirement metadata is hashed as the exact assigned projection rather than the whole catalog. Historical records created before these scoping migrations may be reused only when every unscoped prompt component and every other fingerprint dependency match exactly, the historical full Primary JSON projects to the same evaluation-specific configuration, and the historical selected methodology/assigned-requirement bodies are byte-identical to the current ones. A compatible hit is revalidated by the current validator and ratcheted to the current scoped fingerprint at checkpoint; disagreeing compatible records are not reused.",
     "adversarial_language_shard_migration": {
       "legacy_cohort_fingerprints": [
@@ -44,6 +44,24 @@
       ],
       "scope": "comparison_languages_only",
       "reason": "Explicit one-time migration of the certified all-language adversarial record to comparison-language shards. Reuse requires unchanged benchmark metadata, full LQ spec, frozen assets, complete reusable program tree, selected toolchain/runtime pins, epoch and requirement set. Quidra is excluded because the legacy key omitted snapshot-owned Quidra adversarial fixture hashes."
+    },
+    "validator_recertification": {
+      "semantic_compression": {
+        "legacy_epochs": [
+          "stable",
+          "2026-09-medium"
+        ],
+        "ignored_payload_fields": [
+          "exact_task_packet_sha256",
+          "cache_epoch"
+        ],
+        "ignored_unit_input_hashes": [],
+        "ignored_readable_input_hashes": [
+          "template/methodology-assets/semantic_compression"
+        ],
+        "language_scoped_only": true,
+        "reason": "Automatic no-provider recertification for historical language-scoped Semantic Compression measurements. Model/provider, frozen sampling, toolchains, requirement set, Primary projection, evaluation specification and every non-SC readable input must still match exactly. Only the Task Packet hash, declared SC epoch and SC methodology-asset tree hash may differ. The historical result is staged under the current task and must pass the current validator, including current canonical-fragment/runtime/fixed-stdout checks, before it becomes a cache hit. LLM Proficiency is intentionally excluded because its prompt and repair trajectory are the scored experiment."
+      }
     }
   },
   "epochs": {
@@ -60,9 +78,9 @@
     "mechanical": "2026-09",
     "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
     "semantic_compression": "2026-09-canonical-fragments-v6-fixed-stdout",
-    "semantic_compression_note": "Semantic Compression v6 preserves the mechanically verified canonical-fragment, trusted-runtime, machine-enforced R9, and comparability-certified cache contracts, and additionally checks frozen exact stdout oracles for every probe whose canonical task fixes a language-neutral concrete result. The runner checks those outputs during the real frozen-recipe execution and rechecks the preserved evidence before downstream scoring. Earlier Semantic Compression records remain preserved but cannot hydrate a v6 run.",
+    "semantic_compression_note": "Semantic Compression v6 preserves the mechanically verified canonical-fragment, trusted-runtime, machine-enforced R9, comparability-certified and fixed-stdout contracts. Historical language-scoped records are not blindly accepted across this epoch. When every scientific dependency except the SC methodology-asset tree, Task Packet serialization/hash and declared epoch still matches, the runner may stage the old result and run the full current validator. Only a current-validator PASS becomes a compatibility hit and is ratcheted to the v6 fingerprint; a rejection reruns only that leaf.",
     "llm_proficiency": "2026-09-complete-primary-trials-v6-hidden-score-only",
-    "llm_proficiency_note": "LLM Proficiency v6 preserves the v5 exact Primary trials, prompt variants, trusted runtime verification, and hidden-input correctness scoring. Hidden oracle cases are now strictly score-only holdout evidence: repair continuation and model-visible feedback depend only on compilation and public cases, so hidden pass/fail information cannot act as an adaptive black-box repair oracle. Earlier Proficiency records remain preserved but cannot hydrate v6."
+    "llm_proficiency_note": "LLM Proficiency v6 preserves the exact complete Primary trial allocation, prompt variants, trusted runtime verification and hidden-input correctness scoring, with hidden cases strictly score-only. Historical Proficiency records are preserved but are never validator-recertified across the epoch: the prompt allocation and repair trajectory are themselves the scored experiment, and retained old records include unequal/incomplete trial populations, so only exact current-contract trial evidence can hydrate."
   },
   "promotion": {
     "require_complete_unit": true,

@@ -1326,6 +1326,176 @@ def assert_evaluation_scoped_primary_cache() -> None:
 
 
 
+
+def assert_semantic_validator_recertification_is_narrow() -> None:
+    """Old SC evidence may cross an epoch only by passing today's validator."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit_id = "sc-recertify--python"
+        agent_id = "worker-sc-recertify--python"
+        agent_dir = root / "work/agents" / agent_id
+        result_path = agent_dir / "result.json"
+        validator = (
+            f"python3 {root / 'template/scripts/benchmark.py'} result-check "
+            f"--workspace {root} --id {agent_id}"
+        )
+        unit = {
+            "id": unit_id,
+            "evaluation": "semantic_compression",
+            "phase": "measurement",
+            "execution_kind": "agent",
+            "worker_mode": "packet-only",
+            "result_kind": "requirements",
+            "goal": "Measure one frozen Semantic Compression metric for Python.",
+            "assigned_agent_id": agent_id,
+            "assigned_languages": ["Python"],
+            "dependencies": [],
+            "input_hashes": {
+                "primary_config": benchmark.primary_config_projection_sha256(
+                    root, "semantic_compression"
+                ),
+                "benchmark_metadata": benchmark.sha256_file(
+                    root / "template/config/benchmark_metadata.json"
+                ),
+                "evaluation_spec_sections": benchmark.evaluation_spec_projection_sha256(
+                    root, "semantic_compression", []
+                ),
+            },
+            "reuse_audit_for": [],
+            "requirement_ids": ["metric.semantic_density"],
+            "workload_ids": [],
+            "read_paths": [
+                str(
+                    root
+                    / "template/methodology-assets/semantic_compression"
+                )
+            ],
+            "evidence_paths": [str(result_path)],
+            "validator_command": validator,
+            "network_allowed": False,
+            "prompt_sections": [],
+            "max_attempts": 3,
+            "max_llm_calls": 1,
+            "estimated_input_tokens_per_call": 1000,
+            "max_output_tokens_per_call": 1000,
+        }
+        benchmark.cmd_task_create(
+            argparse.Namespace(
+                workspace=str(root),
+                id=agent_id,
+                parent="RUNNER",
+                evaluation="semantic_compression",
+                goal=unit["goal"],
+                read=unit["read_paths"],
+                write=str(agent_dir),
+                output=[str(result_path)],
+                validate=validator,
+                network=False,
+                depth=1,
+                section=[],
+                requirement_id=unit["requirement_ids"],
+                language=["Python"],
+                worker_mode="packet-only",
+            )
+        )
+        task = benchmark.json_load(agent_dir / "task.json")
+        freeze_manifest(root, unit)
+
+        pair = benchmark.cache_fingerprint(root, unit, task)
+        assert pair is not None
+        current_fingerprint, current_payload = pair
+        assert current_payload["cache_epoch"] == (
+            benchmark.cache_policy(root)["declared_epochs"]["semantic_compression"]
+        )
+
+        old_payload = json.loads(json.dumps(current_payload))
+        old_payload["cache_epoch"] = "2026-09-medium"
+        old_payload["exact_task_packet_sha256"] = "a" * 64
+        old_reads = dict(old_payload["readable_input_content_hashes"])
+        assert "template/methodology-assets/semantic_compression" in old_reads
+        old_reads["template/methodology-assets/semantic_compression"] = "b" * 64
+        old_payload["readable_input_content_hashes"] = old_reads
+
+        old_fingerprint = benchmark.sha256_bytes(
+            json.dumps(
+                old_payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        )
+        result = {
+            "schema_version": 1,
+            "evaluation": "semantic_compression",
+            "requirements": {"metric.semantic_density": {"Python": 42.0}},
+            "evidence": {"legacy": "preserved semantic measurement"},
+        }
+        result_sha = benchmark.sha256_bytes(
+            json.dumps(
+                result, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        )
+        record = {
+            "schema_version": 1,
+            "fingerprint": old_fingerprint,
+            "fingerprint_payload": old_payload,
+            "evaluation": "semantic_compression",
+            "assigned_languages": ["Python"],
+            "result": result,
+            "result_sha256": result_sha,
+            "certification": {
+                "validator_pass": True,
+                "unit_complete": True,
+                "primary_complete": False,
+            },
+            "provenance": {
+                "run_id": "2026-09-23-fce5cfa-gh16",
+                "work_unit_id": unit_id,
+                "prompt_sha256": old_payload["exact_task_packet_sha256"],
+            },
+        }
+        old_rel = benchmark.cache_record_relative(unit, old_fingerprint)
+        benchmark.json_dump(root / "cache" / old_rel, record)
+        run = benchmark.json_load(root / "run.json")
+        run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
+        benchmark.json_dump(root / "run.json", run)
+
+        compatible_path, projected, problem = (
+            benchmark.find_validator_recertifiable_cache_record(
+                root, unit, current_payload
+            )
+        )
+        assert problem is None and compatible_path is not None and projected is not None
+        assert projected["fingerprint"] == current_fingerprint
+        assert projected["result"] == result
+
+        hits = benchmark.hydrate_certified_cache(root, "semantic_compression")
+        assert hits == 1
+        receipt = benchmark.json_load(agent_dir / "cache_receipt.json")
+        assert receipt["compatibility_mode"] == "validator-recertification"
+        assert receipt["source_fingerprint"] == old_fingerprint
+        assert receipt["certification"]["current_validator_revalidated"] is True
+        assert receipt["certification"]["validator_pass"] is True
+        status = benchmark.json_load(root / "results/cache_status.json")
+        assert unit_id in status["hits"] and unit_id not in status["misses"]
+
+        policy = benchmark.cache_policy(root)["reuse_conditions"][
+            "validator_recertification"
+        ]
+        assert "semantic_compression" in policy
+        assert "llm_proficiency" not in policy
+
+        changed = json.loads(json.dumps(old_payload))
+        changed["model"] = "different-model"
+        assert (
+            benchmark._validator_recertification_payload(
+                changed, policy["semantic_compression"]
+            )
+            != benchmark._validator_recertification_payload(
+                current_payload, policy["semantic_compression"]
+            )
+        )
+
 def assert_corrupt_cache_is_leaf_local_and_explicit() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
@@ -1680,6 +1850,7 @@ def main() -> None:
     assert_packet_paid_response_commit_is_replayable()
     assert_empty_cache_impact_is_a_valid_first_run()
     assert_evaluation_scoped_primary_cache()
+    assert_semantic_validator_recertification_is_narrow()
     assert_budget_plan_excludes_complete_units()
     assert_budget_plan_exposes_configured_retry_ceiling()
     assert_accepted_trial_start_marks_the_scored_boundary()

@@ -1009,6 +1009,11 @@ def cmd_init(args: argparse.Namespace) -> int:
         meta["commit_sha"],
         quidra_execution_input_paths(cache_cfg_for_identity),
     )
+    target_lq_design_identity = quidra_execution_identity_from_git(
+        source,
+        meta["commit_sha"],
+        LQ_TARGET_DESIGN_INPUT_PATHS,
+    )
 
     run = {
         "schema_version": 1,
@@ -1017,6 +1022,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             **meta,
             "compiler_version": manifest_version(root / "repo"),
             "quidra_execution_identity": target_execution_identity,
+            "language_quality_design_identity": target_lq_design_identity,
         },
         "workspace_root": str(CANONICAL_WORKSPACE),
         "sandbox_mode": args.sandbox_mode,
@@ -8461,6 +8467,43 @@ def current_quidra_execution_identity(root: Path) -> dict[str, Any] | None:
     return raw
 
 
+LQ_TARGET_DESIGN_INPUT_PATHS = ("docs", "tests/benchmark/quidra")
+
+
+def current_language_quality_design_identity(root: Path) -> dict[str, Any] | None:
+    """Trusted identity of the Quidra docs/program corpus used by LQ design judgment."""
+    run_path = root / "run.json"
+    if not run_path.is_file():
+        return None
+    raw = (json_load(run_path).get("evaluated") or {}).get(
+        "language_quality_design_identity"
+    )
+    if raw is None:
+        return None
+    if (
+        not isinstance(raw, dict)
+        or raw.get("schema_version") != 1
+        or not re.fullmatch(r"[0-9a-f]{64}", str(raw.get("sha256") or ""))
+        or not isinstance(raw.get("git_objects"), dict)
+        or set(raw["git_objects"]) != set(LQ_TARGET_DESIGN_INPUT_PATHS)
+    ):
+        raise BenchmarkError(
+            "run.json carries an invalid Language Quality target design identity"
+        )
+    return raw
+
+
+def is_language_quality_design_unit(root: Path, unit: dict[str, Any]) -> bool:
+    """Whether a unit is one of the fixed-rubric intrinsic LQ design shards."""
+    if str(unit.get("evaluation") or "") != "language_quality":
+        return False
+    requirement_ids = [str(value) for value in (unit.get("requirement_ids") or [])]
+    if not requirement_ids:
+        return False
+    design_metrics = set(language_quality_design_rubric_asset(root)["metrics"])
+    return set(requirement_ids) <= design_metrics
+
+
 def _legacy_cache_run_commit_prefix(record: dict[str, Any]) -> str | None:
     run_id = str((record.get("provenance") or {}).get("run_id") or "")
     match = re.search(r"-([0-9a-f]{7,40})-gh\d+$", run_id)
@@ -8638,7 +8681,8 @@ def cache_fingerprint_payload(
     provider = identity.get("provider")
     model = identity.get("model")
     mechanical = mechanical_unit(unit)
-    if not mechanical and (not provider or not model):
+    lq_design = is_language_quality_design_unit(root, unit)
+    if not mechanical and not lq_design and (not provider or not model):
         return None
     # The toolchain report is written by the toolchain check, which a run
     # performs before dispatch; the mechanical audit of the snapshot's own
@@ -8718,6 +8762,19 @@ def cache_fingerprint_payload(
             root, "mechanical" if mechanical else str(unit.get("evaluation"))
         ),
     }
+    if lq_design:
+        # Language Quality design measures the language under a frozen rubric.
+        # The judge implementation is not the experiment, so provider/model/
+        # sampling identity must not make scientifically identical evidence cold.
+        # Exact Task Packet, rubric/input hashes, language/toolchain identity and
+        # the current validator remain content-addressed.
+        payload.pop("provider", None)
+        payload.pop("model", None)
+        payload.pop("frozen_sampling", None)
+        asset = language_quality_design_rubric_asset(root)
+        payload["semantic_evidence_contract"] = "language-quality-design-rubric-v1"
+        payload["language_quality_rubric_set_id"] = asset.get("rubric_set_id")
+
     support_probe = support_adjudication_probe(
         [str(rid) for rid in (unit.get("requirement_ids") or [])]
     )
@@ -9799,6 +9856,579 @@ def ecosystem_snapshot_recertification_record(
     return path, record, None
 
 
+
+LQ_DESIGN_PART_BY_METRIC = {
+    "metric.code_efficiency_conciseness": 1,
+    "metric.readability": 1,
+    "metric.functionality_expressiveness": 2,
+    "metric.diagnostics": 2,
+    "metric.dependency_simplicity": 3,
+    "metric.portability_design_platform_neutrality": 3,
+    "metric.ffi_interoperability_design": 4,
+    "metric.concurrency": 4,
+}
+
+
+def _language_quality_legacy_metric_evidence(
+    result: dict[str, Any], requirement_id: str
+) -> Any | None:
+    evidence = result.get("evidence")
+    if not isinstance(evidence, dict):
+        return None
+    aliases = [requirement_id, requirement_id.removeprefix("metric.")]
+    if requirement_id == "metric.code_efficiency_conciseness":
+        aliases.append("code_efficiency_conciseness_analysis")
+    elif requirement_id == "metric.readability":
+        aliases.append("readability_analysis")
+    for key in aliases:
+        if key in evidence:
+            return evidence[key]
+    return None
+
+
+def _language_quality_evidence_excerpt(value: Any, limit: int = 1400) -> str:
+    """Compact preserved observations without importing legacy score rhetoric."""
+    strings: list[str] = []
+
+    def visit(node: Any, key: str = "") -> None:
+        lower = key.lower()
+        if any(token in lower for token in ("score", "normalization")):
+            return
+        if isinstance(node, str):
+            text = " ".join(node.split())
+            if text and text not in strings:
+                strings.append(text)
+            return
+        if isinstance(node, list):
+            for item in node:
+                visit(item, key)
+            return
+        if isinstance(node, dict):
+            for child_key, child in node.items():
+                visit(child, str(child_key))
+
+    visit(value)
+    text = " | ".join(strings)
+    if len(text) > limit:
+        text = text[:limit].rstrip() + "…"
+    return text
+
+
+def _language_quality_snapshot_path(root: Path) -> Path | None:
+    cfg = (
+        (cache_policy(root).get("reuse_conditions") or {}).get(
+            "language_quality_snapshot_recertification"
+        )
+    )
+    if not isinstance(cfg, dict):
+        return None
+    relative = str(cfg.get("path") or "")
+    rel = PurePosixPath(relative)
+    if (
+        not relative
+        or rel.is_absolute()
+        or any(part in {"", ".", ".."} for part in rel.parts)
+    ):
+        raise BenchmarkError("invalid Language Quality snapshot path in cache policy")
+    return require_under(root / "cache" / Path(*rel.parts), root / "cache")
+
+
+def _language_quality_snapshot_source_record(
+    root: Path,
+    snapshot: dict[str, Any],
+    language: str,
+    requirement_id: str,
+    row: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[dict[str, Any] | None, Any | None, str | None]:
+    raw = str(row.get("source_record") or "")
+    prefix = "benchmark/cache/"
+    if not raw.startswith(prefix):
+        return None, None, (
+            f"Language Quality snapshot {language}/{requirement_id} has no "
+            "benchmark/cache source_record"
+        )
+    rel = PurePosixPath(raw[len(prefix):])
+    if (
+        rel.is_absolute()
+        or any(part in {"", ".", ".."} for part in rel.parts)
+        or len(rel.parts) < 4
+        or rel.parts[0] != "v1"
+        or rel.parts[1] != "language-quality"
+        or rel.suffix != ".json"
+    ):
+        return None, None, (
+            f"Language Quality snapshot {language}/{requirement_id} has invalid "
+            f"source_record path: {raw!r}"
+        )
+    source_path = require_under(root / "cache" / Path(*rel.parts), root / "cache")
+    if not source_path.is_file():
+        return None, None, (
+            f"Language Quality snapshot source is missing for "
+            f"{language}/{requirement_id}: {raw}"
+        )
+    try:
+        source = json_load(source_path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        return None, None, (
+            f"Language Quality snapshot source is unreadable for "
+            f"{language}/{requirement_id}: {type(exc).__name__}: {exc}"
+        )
+    problem = _cache_record_self_integrity_problem(source)
+    if problem:
+        return None, None, (
+            f"Language Quality source failed self-integrity for "
+            f"{language}/{requirement_id}: {problem}"
+        )
+    if sha256_file(source_path) != row.get("source_record_sha256"):
+        return None, None, (
+            f"Language Quality source byte hash changed for "
+            f"{language}/{requirement_id}"
+        )
+    if str(source.get("evaluation") or "") != "language_quality":
+        return None, None, "Language Quality snapshot source has wrong evaluation"
+    if [str(value) for value in (source.get("assigned_languages") or [])] != [language]:
+        return None, None, (
+            f"Language Quality snapshot source language mismatch for {language}"
+        )
+    provenance = source.get("provenance") or {}
+    if str(provenance.get("work_unit_id") or "") != str(
+        row.get("source_work_unit_id") or ""
+    ):
+        return None, None, (
+            f"Language Quality source work-unit mismatch for "
+            f"{language}/{requirement_id}"
+        )
+    if str(provenance.get("run_id") or "") != str(row.get("source_run_id") or ""):
+        return None, None, (
+            f"Language Quality source run mismatch for {language}/{requirement_id}"
+        )
+    if source.get("result_sha256") != row.get("source_result_sha256"):
+        return None, None, (
+            f"Language Quality source result hash changed for "
+            f"{language}/{requirement_id}"
+        )
+    source_result = source.get("result")
+    if not isinstance(source_result, dict):
+        return None, None, "Language Quality source result is missing"
+    metric_evidence = _language_quality_legacy_metric_evidence(
+        source_result, requirement_id
+    )
+    if metric_evidence is None:
+        return None, None, (
+            f"Language Quality source has no recoverable evidence for "
+            f"{language}/{requirement_id}"
+        )
+    evidence_hash = sha256_bytes(
+        json.dumps(
+            metric_evidence,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    if evidence_hash != row.get("source_evidence_sha256"):
+        return None, None, (
+            f"Language Quality source evidence hash changed for "
+            f"{language}/{requirement_id}"
+        )
+
+    target = str(cache_policy(root).get("target_language") or "Quidra")
+    if language == target:
+        if snapshot.get("quidra_execution_identity") != current_quidra_execution_identity(root):
+            return None, None, None
+        if (
+            snapshot.get("quidra_language_quality_design_identity")
+            != current_language_quality_design_identity(root)
+        ):
+            return None, None, None
+    else:
+        old_payload = source.get("fingerprint_payload") or {}
+        if (old_payload.get("runtime_toolchain_pins") or {}) != (
+            current_payload.get("runtime_toolchain_pins") or {}
+        ):
+            return None, None, None
+        if (old_payload.get("toolchains") or {}) != (
+            current_payload.get("toolchains") or {}
+        ):
+            return None, None, None
+        old_reads = old_payload.get("readable_input_content_hashes") or {}
+        current_reads = current_payload.get("readable_input_content_hashes") or {}
+        relevant = {
+            key: value
+            for key, value in old_reads.items()
+            if str(key).startswith("template/programs/")
+            or str(key) == "template/workloads"
+        }
+        if not relevant:
+            return None, None, (
+                f"Language Quality source has no program/workload input hashes "
+                f"for {language}/{requirement_id}"
+            )
+        if any(current_reads.get(key) != value for key, value in relevant.items()):
+            # Program/workload drift is a scientific miss, not a corrupt cache.
+            return None, None, None
+    return source, metric_evidence, None
+
+
+def language_quality_snapshot_recertification_record(
+    root: Path,
+    unit: dict[str, Any],
+    task: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    """Re-adjudicate preserved LQ evidence under the current fixed rubric.
+
+    The legacy normalized score is never copied. The frozen snapshot supplies
+    only current 0..4 component judgments; each row is bound to exact retained
+    paid evidence, and this function reconstructs the normal current worker
+    shape before the ordinary validator/runner arithmetic accepts it.
+    """
+    if not is_language_quality_design_unit(root, unit):
+        return None, None, None
+    path = _language_quality_snapshot_path(root)
+    if path is None or not path.is_file():
+        return None, None, None
+    try:
+        snapshot = json_load(path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        return None, None, (
+            "Language Quality recertification snapshot is unreadable/corrupt: "
+            f"{type(exc).__name__}: {exc}"
+        )
+    if (
+        snapshot.get("schema_version") != 1
+        or snapshot.get("frozen") is not True
+        or snapshot.get("bound") is not True
+    ):
+        return None, None, "Language Quality snapshot must be frozen and bound"
+
+    asset = language_quality_design_rubric_asset(root)
+    if snapshot.get("rubric_set_id") != asset.get("rubric_set_id"):
+        return None, None, "Language Quality snapshot rubric_set_id differs from current"
+    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+    if len(assigned) != 1:
+        return None, None, None
+    language = assigned[0]
+    language_row = (snapshot.get("languages") or {}).get(language)
+    if not isinstance(language_row, dict):
+        return None, None, None
+    snapshot_metrics = language_row.get("metrics")
+    if not isinstance(snapshot_metrics, dict):
+        return None, None, None
+
+    requirement_ids = [str(value) for value in (unit.get("requirement_ids") or [])]
+    if any(rid not in snapshot_metrics for rid in requirement_ids):
+        # An intentionally unresolved part remains a leaf-local paid MISS.
+        return None, None, None
+
+    evidence: dict[str, Any] = {
+        "language_quality_snapshot_recertification": {
+            "snapshot_id": snapshot.get("snapshot_id"),
+            "rubric_set_id": snapshot.get("rubric_set_id"),
+            "recertifier": snapshot.get("recertifier"),
+            "new_paid_benchmark_provider_call": False,
+            "source": path.relative_to(root / "cache").as_posix(),
+        }
+    }
+    requirements: dict[str, dict[str, float]] = {}
+    points = asset["scoring"]["level_points"]
+    for rid in requirement_ids:
+        rubric = asset["metrics"][rid]
+        row = snapshot_metrics[rid]
+        if not isinstance(row, dict):
+            return None, None, f"Language Quality snapshot row is invalid: {language}/{rid}"
+        component_ids = [str(item["id"]) for item in rubric["components"]]
+        levels = row.get("component_levels")
+        if not isinstance(levels, dict) or set(levels) != set(component_ids):
+            return None, None, (
+                f"Language Quality snapshot component set differs from current rubric: "
+                f"{language}/{rid}"
+            )
+        normalized_levels: dict[str, int] = {}
+        expected_score = 0
+        for cid in component_ids:
+            level = levels[cid]
+            if (
+                isinstance(level, bool)
+                or not isinstance(level, int)
+                or level not in {0, 1, 2, 3, 4}
+            ):
+                return None, None, (
+                    f"Language Quality snapshot level is invalid: {language}/{rid}/{cid}"
+                )
+            normalized_levels[cid] = level
+            expected_score += int(points[str(level)])
+        if row.get("score_0_100") != expected_score:
+            return None, None, (
+                f"Language Quality snapshot score arithmetic mismatch: {language}/{rid}"
+            )
+
+        source, source_evidence, source_problem = _language_quality_snapshot_source_record(
+            root, snapshot, language, rid, row, current_payload
+        )
+        if source_problem:
+            return None, None, source_problem
+        if source is None or source_evidence is None:
+            return None, None, None
+
+        basis = str(row.get("current_adjudication_basis") or "").strip()
+        preserved = _language_quality_evidence_excerpt(source_evidence)
+        if not basis:
+            basis = preserved
+        elif preserved:
+            basis = basis + " Preserved paid evidence additionally records: " + preserved
+        if not basis:
+            return None, None, (
+                f"Language Quality snapshot has no evidence basis: {language}/{rid}"
+            )
+
+        refs = row.get("evidence_refs")
+        if not isinstance(refs, list) or not refs:
+            return None, None, f"Language Quality snapshot has no evidence_refs: {language}/{rid}"
+        normalized_refs = [
+            _language_quality_design_evidence_ref(root, value) for value in refs
+        ]
+        findings = {
+            str(component["id"]): (
+                f"Recertified level {normalized_levels[str(component['id'])]} under "
+                f"the current criterion: {component['criterion']} Evidence basis: {basis}"
+            )
+            for component in rubric["components"]
+        }
+        evidence[rid] = {
+            "rubric_id": rubric["rubric_id"],
+            "component_levels": normalized_levels,
+            "component_findings": findings,
+            "evidence_refs": normalized_refs,
+            "selection_rule": rubric["selection_rule"],
+            "limitations": str(row.get("limitations") or ""),
+            "recertification_provenance": {
+                "method": row.get("source_mode"),
+                "source_record": row.get("source_record"),
+                "source_record_sha256": row.get("source_record_sha256"),
+                "source_result_sha256": row.get("source_result_sha256"),
+                "source_evidence_sha256": row.get("source_evidence_sha256"),
+                "source_run_id": row.get("source_run_id"),
+                "legacy_score_0_100": row.get("legacy_score_0_100"),
+                "legacy_score_used_for_component_levels": False,
+                "new_paid_provider_call": False,
+            },
+        }
+        requirements[rid] = {language: float(expected_score)}
+
+    result = {
+        "schema_version": 1,
+        "evaluation": "language_quality",
+        "requirements": requirements,
+        "evidence": evidence,
+    }
+    raw_result = json.dumps(
+        result, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    fingerprint = sha256_bytes(
+        json.dumps(
+            current_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    record: dict[str, Any] = {
+        "schema_version": 1,
+        "fingerprint": fingerprint,
+        "fingerprint_payload": current_payload,
+        "evaluation": "language_quality",
+        "assigned_languages": assigned,
+        "result": result,
+        "result_sha256": sha256_bytes(raw_result),
+        "certification": {
+            "unit_complete": True,
+            "primary_complete": False,
+            "validator_pass": False,
+            "language_quality_snapshot_recertification_candidate": True,
+            "language_quality_snapshot_id": snapshot.get("snapshot_id"),
+            "new_paid_provider_call": False,
+        },
+        "provenance": {
+            "run_id": f"snapshot:{snapshot.get('snapshot_id')}",
+            "work_unit_id": unit.get("id"),
+            "prompt_sha256": task.get("prompt_sha256"),
+            "projection_source_fingerprint": sha256_file(path),
+            "certification_method": (
+                "evidence-certified fixed-rubric reprojection; no new provider call"
+            ),
+        },
+    }
+    target = str(cache_policy(root).get("target_language") or "Quidra")
+    if language == target:
+        record["compatibility"] = {
+            "quidra_execution_identity": snapshot.get("quidra_execution_identity"),
+            "language_quality_design_identity": snapshot.get(
+                "quidra_language_quality_design_identity"
+            ),
+        }
+    return path, record, None
+
+
+def bind_language_quality_snapshot(source: Path) -> dict[str, Any]:
+    """Bind the reviewed LQ component judgments to exact retained evidence.
+
+    This operation performs no inference. It refuses to bind if any reviewed
+    language/program/rubric Git object moved since adjudication, then resolves
+    the newest self-consistent retained paid evidence record by run id (never
+    by score) for every recertifiable metric.
+    """
+    path = (
+        source
+        / "benchmark/cache/snapshots/language_quality/2026-09-design-rubric-v1.json"
+    )
+    if not path.is_file():
+        raise BenchmarkError(f"Language Quality snapshot blueprint is missing: {path}")
+    snapshot = json_load(path)
+    if snapshot.get("schema_version") != 1 or snapshot.get("frozen") is not True:
+        raise BenchmarkError("Language Quality snapshot blueprint must be frozen v1")
+    anchors = snapshot.get("adjudication_anchor_git_objects")
+    if not isinstance(anchors, dict) or not anchors:
+        raise BenchmarkError("Language Quality snapshot has no adjudication Git anchors")
+    for relative, expected in anchors.items():
+        if not isinstance(relative, str) or not isinstance(expected, str):
+            raise BenchmarkError("Language Quality snapshot Git anchors are malformed")
+        try:
+            observed = run_capture(
+                ["git", "rev-parse", f"HEAD:{relative}"], source
+            )
+        except subprocess.CalledProcessError as exc:
+            raise BenchmarkError(
+                f"cannot resolve Language Quality adjudication anchor: {relative}"
+            ) from exc
+        if observed != expected:
+            raise BenchmarkError(
+                "Language Quality adjudication input changed since review: "
+                f"{relative}: expected {expected}, observed {observed}"
+            )
+
+    asset_path = (
+        source
+        / "benchmark/template/methodology-assets/language_quality/design_rubrics.json"
+    )
+    asset = json_load(asset_path)
+    if snapshot.get("rubric_set_id") != asset.get("rubric_set_id"):
+        raise BenchmarkError("Language Quality snapshot rubric no longer matches")
+
+    bound_rows = 0
+    target = str(
+        json_load(source / "benchmark/template/config/cache_policy.json").get(
+            "target_language", "Quidra"
+        )
+    )
+    for language, language_row in (snapshot.get("languages") or {}).items():
+        metrics = language_row.get("metrics") if isinstance(language_row, dict) else None
+        if not isinstance(metrics, dict):
+            raise BenchmarkError(f"Language Quality snapshot metrics missing for {language}")
+        directory = (
+            source
+            / "benchmark/cache/v1/language-quality"
+            / slug_id(str(language))
+        )
+        for rid, row in metrics.items():
+            if rid not in asset.get("metrics", {}):
+                raise BenchmarkError(f"unknown Language Quality snapshot metric: {rid}")
+            part = LQ_DESIGN_PART_BY_METRIC.get(str(rid))
+            if part is None:
+                raise BenchmarkError(f"no Language Quality part mapping for {rid}")
+            source_uid = (
+                f"lq-language-development--part-{part}--{slug_id(str(language))}"
+            )
+            candidates: list[tuple[str, str, Path, dict[str, Any], Any]] = []
+            if directory.is_dir():
+                for candidate in sorted(directory.glob("*.json")):
+                    try:
+                        record = json_load(candidate)
+                    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                        continue
+                    provenance = record.get("provenance") or {}
+                    run_id = str(provenance.get("run_id") or "")
+                    if run_id.startswith("snapshot:"):
+                        continue
+                    if (
+                        str(record.get("evaluation") or "") != "language_quality"
+                        or [str(v) for v in (record.get("assigned_languages") or [])]
+                        != [str(language)]
+                        or str(provenance.get("work_unit_id") or "") != source_uid
+                    ):
+                        continue
+                    if _cache_record_self_integrity_problem(record):
+                        continue
+                    result = record.get("result")
+                    if not isinstance(result, dict):
+                        continue
+                    metric_evidence = _language_quality_legacy_metric_evidence(
+                        result, str(rid)
+                    )
+                    if metric_evidence is None:
+                        continue
+                    candidates.append(
+                        (run_id, candidate.name, candidate, record, metric_evidence)
+                    )
+            if not candidates:
+                raise BenchmarkError(
+                    f"no recoverable paid Language Quality evidence for "
+                    f"{language}/{rid}"
+                )
+            _, _, source_path, record, metric_evidence = sorted(candidates)[-1]
+            result = record.get("result") or {}
+            legacy_value = ((result.get("requirements") or {}).get(rid) or {}).get(
+                language
+            )
+            row["source_mode"] = (
+                "current-target-reinspection-with-historical-paid-seed"
+                if language == target
+                else "legacy-paid-evidence-reprojected-on-current-frozen-inputs"
+            )
+            row["source_run_id"] = (record.get("provenance") or {}).get("run_id")
+            row["source_work_unit_id"] = source_uid
+            row["source_record"] = source_path.relative_to(source).as_posix()
+            row["source_record_sha256"] = sha256_file(source_path)
+            row["source_result_sha256"] = record.get("result_sha256")
+            row["source_evidence_sha256"] = sha256_bytes(
+                json.dumps(
+                    metric_evidence,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            )
+            row["legacy_score_0_100"] = legacy_value
+            bound_rows += 1
+
+    snapshot["bound"] = True
+    snapshot["binding_schema_version"] = 1
+    snapshot["bound_source_commit"] = run_capture(["git", "rev-parse", "HEAD"], source)
+    snapshot["bound_metric_rows"] = bound_rows
+    path.write_text(
+        json.dumps(snapshot, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "schema_version": 1,
+        "snapshot": path.relative_to(source).as_posix(),
+        "snapshot_id": snapshot.get("snapshot_id"),
+        "bound_metric_rows": bound_rows,
+        "unresolved_units": snapshot.get("unresolved_units") or [],
+        "bound_source_commit": snapshot["bound_source_commit"],
+    }
+
+
+def cmd_cache_bind_language_quality_snapshot(args: argparse.Namespace) -> int:
+    source = Path(args.source_repo).resolve()
+    if not source.is_dir():
+        raise BenchmarkError(f"source repository does not exist: {source}")
+    summary = bind_language_quality_snapshot(source)
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
 def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
     payload = record.get("fingerprint_payload")
     if record.get("schema_version") != 1 or not isinstance(payload, dict):
@@ -9841,6 +10471,23 @@ CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
             "Preserved paid Ecosystem findings/citations were centrally "
             "re-adjudicated under the current runner-owned fixed rubric. Legacy "
             "language-local scores were not copied."
+        ),
+        "transformed_fields": [
+            "requirements",
+            "evidence",
+            "fingerprint",
+            "fingerprint_payload",
+            "provenance",
+            "certification",
+        ],
+    },
+    "language-quality-design-rubric-v1-snapshot": {
+        "reason": (
+            "Preserved paid Language Quality findings were independently "
+            "re-adjudicated against the current fixed five-component design "
+            "rubric. Legacy normalized scores were retained only for audit and "
+            "were not used to derive component levels. The snapshot is bound to "
+            "exact source evidence and the current validator recomputes scores."
         ),
         "transformed_fields": [
             "requirements",
@@ -10444,6 +11091,10 @@ def find_primary_projection_compatible_cache_record(
     task: dict[str, Any],
     current_payload: dict[str, Any],
 ) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    if is_language_quality_design_unit(root, unit):
+        return language_quality_snapshot_recertification_record(
+            root, unit, task, current_payload
+        )
     directory = (
         root
         / "cache"
@@ -10681,7 +11332,15 @@ def hydrate_certified_cache(
                 )
                 continue
             if compatible_path is not None and record is not None:
-                compatibility_mode = "scoped-input-projection"
+                certification = record.get("certification") or {}
+                if certification.get(
+                    "language_quality_snapshot_recertification_candidate"
+                ):
+                    compatibility_mode = (
+                        "language-quality-design-rubric-v1-snapshot"
+                    )
+                else:
+                    compatibility_mode = "scoped-input-projection"
             else:
                 compatible_path, record, ecosystem_problem = (
                     ecosystem_snapshot_recertification_record(
@@ -20163,6 +20822,14 @@ def build_parser() -> argparse.ArgumentParser:
     promote.add_argument("--evidence", required=True, help="extracted workspace-evidence.tgz")
     promote.add_argument("--snapshot", required=True, help="the evaluated commit (git revision)")
     promote.set_defaults(func=cmd_cache_promote_evidence)
+
+    bind_lq = sub.add_parser(
+        "cache-bind-language-quality-snapshot",
+        help="bind the reviewed Language Quality rubric snapshot to exact retained "
+             "paid evidence and reviewed Git input objects without provider calls",
+    )
+    bind_lq.add_argument("--source-repo", required=True)
+    bind_lq.set_defaults(func=cmd_cache_bind_language_quality_snapshot)
 
     impact = sub.add_parser(
         "cache-impact",

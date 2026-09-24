@@ -153,6 +153,15 @@ jobs:
             "benchmark-2026-09-23-61f50c1-gh22" \
             61f50c1a8c1518f6d6abcb9b1468e4a9e0aa0610
 
+          # Bind the reviewed Language Quality component judgments to the
+          # exact retained paid evidence now present in benchmark/cache. This
+          # performs no inference/provider call and fails closed if any reviewed
+          # language/program/rubric Git input moved since adjudication.
+          python benchmark/template/scripts/benchmark.py \
+            cache-bind-language-quality-snapshot \
+            --source-repo "$GITHUB_WORKSPACE" \
+            | tee "$evidence_root/language-quality-snapshot-binding.json"
+
           # Classify the union of Git-tracked cache and every certifiable record
           # recovered from retained paid artifacts.
           set +e
@@ -370,6 +379,7 @@ jobs:
           mode_class = {
               "scoped-input-projection": "A",
               "ecosystem-runner-rubric-v2-snapshot": "C",
+              "language-quality-design-rubric-v1-snapshot": "C",
               "validator-recertification": "D",
               "micro-measure-input-projection": "C",
               "legacy-adversarial-cohort-to-language-shard": "C",
@@ -406,6 +416,14 @@ jobs:
                   reason = str(
                       audited.get("reason")
                       or "legacy trial contract could not be proved current-compatible"
+                  )
+              elif evaluation == "language_quality" and uid in next_hits:
+                  classification = "C"
+                  disposition = "recertified-current-cache"
+                  reason = (
+                      "preserved paid Language Quality evidence was independently "
+                      "reprojected to the current fixed rubric and passed the "
+                      "current validator"
                   )
               elif (
                   evaluation == "semantic_compression"

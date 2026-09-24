@@ -1,0 +1,1437 @@
+{
+  "schema_version": 1,
+  "frozen": true,
+  "bound": false,
+  "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+  "rubric_set_id": "language-quality-design-runner-rubric-v1",
+  "snapshot_date": "2026-09-25",
+  "purpose": "Trusted one-time Language Quality design recertification. Historical normalized scores are audit-only; current component levels are independently re-adjudicated against the fixed five-component rubric from preserved paid evidence and current frozen Quidra inputs.",
+  "recertifier": {
+    "engine": "GPT-5.6 Sol",
+    "mode": "evidence-reprojection/current-rubric-adjudication",
+    "new_paid_benchmark_provider_call": false,
+    "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+  },
+  "adjudication_anchor_git_objects": {
+    "docs": "943176a86af7d0ffb8371dfb217983ef5355aace",
+    "tests/benchmark/quidra": "3764b4f5b14d2f7243d6144efd34b1870847ff6e",
+    "benchmark/template/workloads": "fce06d9f3c5391b3cb59e249b87430ac1344dcaf",
+    "benchmark/template/methodology-assets/language_quality/design_rubrics.json": "0d553144cb8f873f7bd4af003822e59b1fadc134",
+    "benchmark/template/programs/python": "36a3feb4e412c9b578736cd2f4dd02b13be357c4",
+    "benchmark/template/programs/cpp": "3bb517e5c5bb848f6d38ef06cdca064eb5ae2eea",
+    "benchmark/template/programs/rust": "1196bf42d049badbd39e9eef16f75fc72e086fbf",
+    "benchmark/template/programs/go": "ddb32414618768dc254795db57f308e18d81ddaf",
+    "benchmark/template/programs/java": "d95605e3e5642dda35ab98de0b500c1f5d93da5e",
+    "benchmark/template/programs/typescript": "82abd682d8d8c6cce04bc44f7eb1f2de20d2d716",
+    "benchmark/template/programs/kotlin": "457bca1f9cd73cd6cacf799915b6c28bd1af8550",
+    "benchmark/template/programs/swift": "d57bcb8133c78ddd23381b1da796fba282e846bd",
+    "benchmark/template/programs/zig": "32d1545ea81c7b3e818d2b16b4087bc21c817070"
+  },
+  "quidra_execution_identity": {
+    "schema_version": 1,
+    "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b",
+    "git_objects": {
+      "CMakeLists.txt": "6235be49e91b72294049b2ae7b17c1fa2006ee72",
+      "project.toml": "740e2feec8b50a287a2b66f3634276adf31a1001",
+      "quidra.manifest.json": "41e4b800f1da0705b9099a5df891165aa05bcb4e",
+      "src": "9d4efb1251afd04455edae83f1e48736f87fc35a",
+      "include": "8b5548c2f205c85d2631963984e2ce140d28c6dc",
+      "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a"
+    }
+  },
+  "quidra_language_quality_design_identity": {
+    "schema_version": 1,
+    "sha256": "4cf2e375589315c87451ef500a1b85fa7221be1c76b002a887e9094ec40cc179",
+    "git_objects": {
+      "docs": "943176a86af7d0ffb8371dfb217983ef5355aace",
+      "tests/benchmark/quidra": "3764b4f5b14d2f7243d6144efd34b1870847ff6e"
+    }
+  },
+  "unresolved_units": [
+    {
+      "work_unit_id": "lq-language-development--part-4--c",
+      "language": "C++",
+      "metrics": [
+        "metric.ffi_interoperability_design",
+        "metric.concurrency"
+      ],
+      "reason": "The preserved certified cache contains only the legacy numeric scores plus a note pointing to evidence.md; retained workspace evidence does not contain that promised evidence.md or another recoverable metric rationale. Reconstructing current components from those scores would violate the no-score-copy rule, so this unit remains a paid MISS."
+    }
+  ],
+  "languages": {
+    "Quidra": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 4,
+            "control_data_ceremony": 4,
+            "abstraction_ceremony": 3,
+            "error_resource_ceremony": 3,
+            "semantic_work_ratio": 4
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "repo/docs",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+          "current_adjudication_basis": "Current Quidra uses indentation blocks without braces/semicolons, local auto inference and concise range/collection forms while keeping typed boundaries and explicit error/resource semantics; generic/class/error handling retains deliberate bounded ceremony."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 4,
+            "structural_clarity": 4,
+            "consistency_regular_forms": 3,
+            "name_type_signal": 4,
+            "control_effect_traceability": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "repo/docs",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+          "current_adjudication_basis": "Current Quidra makes types, writable aliases (&), control flow and error propagation explicit with low punctuation noise and regular forms; a few language-specific spellings and rules still require familiarity."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 4,
+            "abstraction_reuse": 3,
+            "higher_order_composition": 3,
+            "systems_runtime_control": 4,
+            "feature_composability": 3
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "repo/docs",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+          "current_adjudication_basis": "Current docs specify classes, constrained generics, tagged unions, exhaustive match, first-class function values, arbitrary-precision numerics, arrays/tensors, explicit errors, FFI, modules/packages and native/runtime control; dynamic abstraction remains intentionally narrower than the richest peers."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 4,
+            "cause_specificity": 4,
+            "expected_actual": 4,
+            "machine_stability": 4,
+            "actionability": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "repo/docs",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+          "current_adjudication_basis": "Current Quidra diagnostics have stable codes, source spans, structured JSON output, cause-specific messages, bounded recovery and coded runtime failures, directly covering the five frozen diagnostic components."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 4,
+            "resolution_determinism": 4,
+            "dependency_declaration": 4,
+            "isolation_namespacing": 4,
+            "transitive_visibility": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "repo/docs",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+          "current_adjudication_basis": "Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 4,
+            "platform_abstraction": 3,
+            "data_numeric_portability": 4,
+            "conditional_platform_mechanism": 3,
+            "artifact_source_separation": 4
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "repo/docs",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+          "current_adjudication_basis": "Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 3,
+            "abi_calling_control": 3,
+            "type_layout_mapping": 2,
+            "ownership_lifetime_boundary": 3,
+            "bidirectional_callbacks": 3
+          },
+          "score_0_100": 70,
+          "evidence_refs": [
+            "repo/docs",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+          "current_adjudication_basis": "Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 3,
+            "async_structured": 2,
+            "synchronization_channels": 2,
+            "race_safety": 3,
+            "error_cancel_propagation": 1
+          },
+          "score_0_100": 55,
+          "evidence_refs": [
+            "repo/docs",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+          "current_adjudication_basis": "Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited."
+        }
+      }
+    },
+    "Python": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 4,
+            "control_data_ceremony": 4,
+            "abstraction_ceremony": 3,
+            "error_resource_ceremony": 3,
+            "semantic_work_ratio": 4
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 4,
+            "structural_clarity": 4,
+            "consistency_regular_forms": 4,
+            "name_type_signal": 2,
+            "control_effect_traceability": 3
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 4,
+            "abstraction_reuse": 4,
+            "higher_order_composition": 4,
+            "systems_runtime_control": 2,
+            "feature_composability": 4
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 3,
+            "cause_specificity": 3,
+            "expected_actual": 2,
+            "machine_stability": 2,
+            "actionability": 3
+          },
+          "score_0_100": 65,
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 3,
+            "resolution_determinism": 2,
+            "dependency_declaration": 2,
+            "isolation_namespacing": 3,
+            "transitive_visibility": 2
+          },
+          "score_0_100": 60,
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 4,
+            "platform_abstraction": 4,
+            "data_numeric_portability": 4,
+            "conditional_platform_mechanism": 2,
+            "artifact_source_separation": 4
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 4,
+            "abi_calling_control": 2,
+            "type_layout_mapping": 2,
+            "ownership_lifetime_boundary": 2,
+            "bidirectional_callbacks": 4
+          },
+          "score_0_100": 70,
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 2,
+            "async_structured": 3,
+            "synchronization_channels": 3,
+            "race_safety": 1,
+            "error_cancel_propagation": 3
+          },
+          "score_0_100": 60,
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    },
+    "C++": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 2,
+            "control_data_ceremony": 2,
+            "abstraction_ceremony": 2,
+            "error_resource_ceremony": 2,
+            "semantic_work_ratio": 2
+          },
+          "score_0_100": 50,
+          "evidence_refs": [
+            "template/programs/cpp/micro",
+            "template/programs/cpp/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 2,
+            "structural_clarity": 2,
+            "consistency_regular_forms": 1,
+            "name_type_signal": 3,
+            "control_effect_traceability": 2
+          },
+          "score_0_100": 50,
+          "evidence_refs": [
+            "template/programs/cpp/micro",
+            "template/programs/cpp/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 4,
+            "abstraction_reuse": 4,
+            "higher_order_composition": 4,
+            "systems_runtime_control": 4,
+            "feature_composability": 2
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/cpp/micro",
+            "template/programs/cpp/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 3,
+            "cause_specificity": 3,
+            "expected_actual": 3,
+            "machine_stability": 1,
+            "actionability": 2
+          },
+          "score_0_100": 60,
+          "evidence_refs": [
+            "template/programs/cpp/micro",
+            "template/programs/cpp/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 2,
+            "resolution_determinism": 1,
+            "dependency_declaration": 1,
+            "isolation_namespacing": 2,
+            "transitive_visibility": 1
+          },
+          "score_0_100": 35,
+          "evidence_refs": [
+            "template/programs/cpp/micro",
+            "template/programs/cpp/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 2,
+            "platform_abstraction": 3,
+            "data_numeric_portability": 1,
+            "conditional_platform_mechanism": 2,
+            "artifact_source_separation": 2
+          },
+          "score_0_100": 50,
+          "evidence_refs": [
+            "template/programs/cpp/micro",
+            "template/programs/cpp/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    },
+    "Rust": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 3,
+            "control_data_ceremony": 3,
+            "abstraction_ceremony": 3,
+            "error_resource_ceremony": 3,
+            "semantic_work_ratio": 3
+          },
+          "score_0_100": 75,
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 3,
+            "structural_clarity": 3,
+            "consistency_regular_forms": 3,
+            "name_type_signal": 4,
+            "control_effect_traceability": 3
+          },
+          "score_0_100": 80,
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 4,
+            "abstraction_reuse": 4,
+            "higher_order_composition": 4,
+            "systems_runtime_control": 4,
+            "feature_composability": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 4,
+            "cause_specificity": 4,
+            "expected_actual": 4,
+            "machine_stability": 4,
+            "actionability": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 4,
+            "resolution_determinism": 4,
+            "dependency_declaration": 4,
+            "isolation_namespacing": 4,
+            "transitive_visibility": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 3,
+            "platform_abstraction": 4,
+            "data_numeric_portability": 3,
+            "conditional_platform_mechanism": 4,
+            "artifact_source_separation": 4
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 4,
+            "abi_calling_control": 4,
+            "type_layout_mapping": 4,
+            "ownership_lifetime_boundary": 4,
+            "bidirectional_callbacks": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 4,
+            "async_structured": 3,
+            "synchronization_channels": 4,
+            "race_safety": 4,
+            "error_cancel_propagation": 3
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    },
+    "Go": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 3,
+            "control_data_ceremony": 3,
+            "abstraction_ceremony": 2,
+            "error_resource_ceremony": 1,
+            "semantic_work_ratio": 3
+          },
+          "score_0_100": 60,
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 4,
+            "structural_clarity": 4,
+            "consistency_regular_forms": 4,
+            "name_type_signal": 3,
+            "control_effect_traceability": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 3,
+            "abstraction_reuse": 3,
+            "higher_order_composition": 2,
+            "systems_runtime_control": 4,
+            "feature_composability": 3
+          },
+          "score_0_100": 75,
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 3,
+            "cause_specificity": 3,
+            "expected_actual": 2,
+            "machine_stability": 2,
+            "actionability": 3
+          },
+          "score_0_100": 65,
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 4,
+            "resolution_determinism": 4,
+            "dependency_declaration": 4,
+            "isolation_namespacing": 4,
+            "transitive_visibility": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 4,
+            "platform_abstraction": 4,
+            "data_numeric_portability": 4,
+            "conditional_platform_mechanism": 4,
+            "artifact_source_separation": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 3,
+            "abi_calling_control": 3,
+            "type_layout_mapping": 2,
+            "ownership_lifetime_boundary": 2,
+            "bidirectional_callbacks": 3
+          },
+          "score_0_100": 65,
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 4,
+            "async_structured": 2,
+            "synchronization_channels": 4,
+            "race_safety": 1,
+            "error_cancel_propagation": 3
+          },
+          "score_0_100": 70,
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    },
+    "Java": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 2,
+            "control_data_ceremony": 2,
+            "abstraction_ceremony": 3,
+            "error_resource_ceremony": 1,
+            "semantic_work_ratio": 2
+          },
+          "score_0_100": 50,
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 3,
+            "structural_clarity": 4,
+            "consistency_regular_forms": 3,
+            "name_type_signal": 4,
+            "control_effect_traceability": 3
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 4,
+            "abstraction_reuse": 4,
+            "higher_order_composition": 3,
+            "systems_runtime_control": 3,
+            "feature_composability": 3
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 3,
+            "cause_specificity": 4,
+            "expected_actual": 3,
+            "machine_stability": 2,
+            "actionability": 3
+          },
+          "score_0_100": 75,
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 3,
+            "resolution_determinism": 2,
+            "dependency_declaration": 3,
+            "isolation_namespacing": 4,
+            "transitive_visibility": 3
+          },
+          "score_0_100": 75,
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 4,
+            "platform_abstraction": 4,
+            "data_numeric_portability": 4,
+            "conditional_platform_mechanism": 3,
+            "artifact_source_separation": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 3,
+            "abi_calling_control": 3,
+            "type_layout_mapping": 3,
+            "ownership_lifetime_boundary": 4,
+            "bidirectional_callbacks": 4
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 4,
+            "async_structured": 4,
+            "synchronization_channels": 4,
+            "race_safety": 1,
+            "error_cancel_propagation": 4
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    },
+    "TypeScript": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 4,
+            "control_data_ceremony": 4,
+            "abstraction_ceremony": 3,
+            "error_resource_ceremony": 3,
+            "semantic_work_ratio": 4
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 3,
+            "structural_clarity": 4,
+            "consistency_regular_forms": 3,
+            "name_type_signal": 3,
+            "control_effect_traceability": 2
+          },
+          "score_0_100": 75,
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 4,
+            "abstraction_reuse": 4,
+            "higher_order_composition": 4,
+            "systems_runtime_control": 2,
+            "feature_composability": 4
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 4,
+            "cause_specificity": 4,
+            "expected_actual": 4,
+            "machine_stability": 3,
+            "actionability": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 3,
+            "resolution_determinism": 2,
+            "dependency_declaration": 3,
+            "isolation_namespacing": 3,
+            "transitive_visibility": 2
+          },
+          "score_0_100": 65,
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 3,
+            "platform_abstraction": 4,
+            "data_numeric_portability": 3,
+            "conditional_platform_mechanism": 3,
+            "artifact_source_separation": 3
+          },
+          "score_0_100": 80,
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 1,
+            "abi_calling_control": 1,
+            "type_layout_mapping": 1,
+            "ownership_lifetime_boundary": 1,
+            "bidirectional_callbacks": 2
+          },
+          "score_0_100": 30,
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 2,
+            "async_structured": 4,
+            "synchronization_channels": 3,
+            "race_safety": 2,
+            "error_cancel_propagation": 4
+          },
+          "score_0_100": 75,
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    },
+    "Kotlin": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 4,
+            "control_data_ceremony": 4,
+            "abstraction_ceremony": 4,
+            "error_resource_ceremony": 3,
+            "semantic_work_ratio": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/kotlin/micro",
+            "template/programs/kotlin/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 4,
+            "structural_clarity": 4,
+            "consistency_regular_forms": 3,
+            "name_type_signal": 4,
+            "control_effect_traceability": 3
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/kotlin/micro",
+            "template/programs/kotlin/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 4,
+            "abstraction_reuse": 4,
+            "higher_order_composition": 4,
+            "systems_runtime_control": 3,
+            "feature_composability": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/kotlin/micro",
+            "template/programs/kotlin/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 4,
+            "cause_specificity": 4,
+            "expected_actual": 4,
+            "machine_stability": 2,
+            "actionability": 3
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "template/programs/kotlin/micro",
+            "template/programs/kotlin/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 3,
+            "resolution_determinism": 2,
+            "dependency_declaration": 3,
+            "isolation_namespacing": 3,
+            "transitive_visibility": 2
+          },
+          "score_0_100": 65,
+          "evidence_refs": [
+            "template/programs/kotlin/micro",
+            "template/programs/kotlin/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 4,
+            "platform_abstraction": 4,
+            "data_numeric_portability": 4,
+            "conditional_platform_mechanism": 4,
+            "artifact_source_separation": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/kotlin/micro",
+            "template/programs/kotlin/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 4,
+            "abi_calling_control": 3,
+            "type_layout_mapping": 3,
+            "ownership_lifetime_boundary": 3,
+            "bidirectional_callbacks": 4
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "template/programs/kotlin/micro",
+            "template/programs/kotlin/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 4,
+            "async_structured": 4,
+            "synchronization_channels": 4,
+            "race_safety": 1,
+            "error_cancel_propagation": 4
+          },
+          "score_0_100": 85,
+          "evidence_refs": [
+            "template/programs/kotlin/micro",
+            "template/programs/kotlin/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    },
+    "Swift": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 4,
+            "control_data_ceremony": 4,
+            "abstraction_ceremony": 4,
+            "error_resource_ceremony": 3,
+            "semantic_work_ratio": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 4,
+            "structural_clarity": 4,
+            "consistency_regular_forms": 3,
+            "name_type_signal": 4,
+            "control_effect_traceability": 3
+          },
+          "score_0_100": 90,
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 4,
+            "abstraction_reuse": 4,
+            "higher_order_composition": 4,
+            "systems_runtime_control": 3,
+            "feature_composability": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 4,
+            "cause_specificity": 4,
+            "expected_actual": 4,
+            "machine_stability": 3,
+            "actionability": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 4,
+            "resolution_determinism": 4,
+            "dependency_declaration": 4,
+            "isolation_namespacing": 4,
+            "transitive_visibility": 3
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 3,
+            "platform_abstraction": 3,
+            "data_numeric_portability": 3,
+            "conditional_platform_mechanism": 4,
+            "artifact_source_separation": 3
+          },
+          "score_0_100": 80,
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 4,
+            "abi_calling_control": 4,
+            "type_layout_mapping": 4,
+            "ownership_lifetime_boundary": 3,
+            "bidirectional_callbacks": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 4,
+            "async_structured": 4,
+            "synchronization_channels": 4,
+            "race_safety": 4,
+            "error_cancel_propagation": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    },
+    "Zig": {
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "declaration_ceremony": 3,
+            "control_data_ceremony": 3,
+            "abstraction_ceremony": 2,
+            "error_resource_ceremony": 2,
+            "semantic_work_ratio": 3
+          },
+          "score_0_100": 65,
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.readability": {
+          "component_levels": {
+            "local_intent_visibility": 3,
+            "structural_clarity": 3,
+            "consistency_regular_forms": 3,
+            "name_type_signal": 3,
+            "control_effect_traceability": 3
+          },
+          "score_0_100": 75,
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "data_modeling": 3,
+            "abstraction_reuse": 3,
+            "higher_order_composition": 3,
+            "systems_runtime_control": 4,
+            "feature_composability": 3
+          },
+          "score_0_100": 80,
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.diagnostics": {
+          "component_levels": {
+            "location_context": 4,
+            "cause_specificity": 4,
+            "expected_actual": 4,
+            "machine_stability": 3,
+            "actionability": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "module_import_model": 4,
+            "resolution_determinism": 4,
+            "dependency_declaration": 4,
+            "isolation_namespacing": 3,
+            "transitive_visibility": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "specified_core_semantics": 4,
+            "platform_abstraction": 4,
+            "data_numeric_portability": 4,
+            "conditional_platform_mechanism": 4,
+            "artifact_source_separation": 4
+          },
+          "score_0_100": 100,
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "foreign_declaration": 4,
+            "abi_calling_control": 4,
+            "type_layout_mapping": 4,
+            "ownership_lifetime_boundary": 3,
+            "bidirectional_callbacks": 4
+          },
+          "score_0_100": 95,
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        },
+        "metric.concurrency": {
+          "component_levels": {
+            "parallel_execution": 4,
+            "async_structured": 2,
+            "synchronization_channels": 4,
+            "race_safety": 1,
+            "error_cancel_propagation": 2
+          },
+          "score_0_100": 65,
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses."
+        }
+      }
+    }
+  }
+}

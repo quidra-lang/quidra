@@ -344,8 +344,7 @@ def assert_adjudication_is_authoritative() -> None:
     assert row["support_factor"] == 0.5, row
     assert row["support_reason_codes"] == ["P-b"], row
     assert row["support_adjudication"]["partial_reasons"] == ["P-b"], row
-    assert row["fragment"] == "go_fragment", row
-    assert row["metric_only_fact"] == 7, row
+    # Compact reconciled rows intentionally omit the authoritative fragment;\n    # it remains preserved in the adjudication provenance returned by reconciliation.\n    assert "fragment" not in row, row\n    assert replaced[0]["authoritative_adjudication"]["fragment"] == "go_fragment"\n    assert row["metric_only_fact"] == 7, row
     assert "p_letter" not in row, row
     assert row.get("justification") != "stale single-language explanation", row
     assert replaced and replaced[0]["authoritative_adjudication"]["level"] == "PARTIAL"

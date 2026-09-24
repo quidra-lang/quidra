@@ -865,28 +865,27 @@ jobs:
           # units in the intentionally incomplete synthetic toolchain workspace.
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation semantic_compression
 
-          # Capability Coverage now owns the one canonical fragment/support
-          # record per probe. No A/B/C/D/E consumer may dispatch before its
-          # same-language owner is COMPLETE.
+          # Canonical fragment ownership is probe × language. No quality-metric
+          # consumer may dispatch before all 44 leaves for its language are COMPLETE.
           test -f "$TMP/results/dispatch_queue.json"
-          grep -q '"agent_id": "worker-sc-metrics-hidden-coverage--part-2--quidra"' "$TMP/results/dispatch_queue.json"
+          grep -q '"agent_id": "worker-sc-canonical-fragment--quidra--f01-p1"' "$TMP/results/dispatch_queue.json"
           if grep -q '"agent_id": "worker-sc-metrics-local--part-1--quidra"' "$TMP/results/dispatch_queue.json"; then
-            echo "semantic metric consumer dispatched before canonical fragment owner" >&2
+            echo "semantic metric consumer dispatched before canonical probe leaves" >&2
             exit 1
           fi
           python benchmark/template/scripts/benchmark.py task-render \
-            --workspace "$TMP" --id worker-sc-metrics-hidden-coverage--part-2--quidra \
+            --workspace "$TMP" --id worker-sc-canonical-fragment--quidra--f01-p1 \
             > "$TMP/rendered-owner-task.md"
           grep -q "Embedded input: worker_core.md" "$TMP/rendered-owner-task.md"
-          grep -q "Capability Coverage" "$TMP/rendered-owner-task.md"
+          grep -q "probe × language" "$TMP/rendered-owner-task.md"
           grep -q "/quidra-benchmark" "$TMP/rendered-owner-task.md"
           if grep -Fq "$TMP" "$TMP/rendered-owner-task.md"; then
             echo "physical synthetic workspace leaked into rendered Task Packet" >&2
             exit 1
           fi
 
-          # Give each language a complete 44-probe canonical catalog. The
-          # synthetic owner reports 100 coverage because every probe is FULL.
+          # Materialize all 440 independent synthetic probe leaves. Every leaf is
+          # FULL here; deterministic Capability Coverage aggregation should become 100.
           python - <<'PY'
           from pathlib import Path
           import json
@@ -897,19 +896,22 @@ jobs:
               (root / "template/methodology-assets/semantic_compression/semantic_site_matrix.json").read_text()
           )
           probe_ids = [str(p["probe_id"]) for p in matrix["probes"]]
-          slug = {
+          lang_slug = {
               "Quidra":"quidra","Python":"python","C++":"c","Rust":"rust","Go":"go",
               "Java":"java","TypeScript":"typescript","Kotlin":"kotlin","Swift":"swift","Zig":"zig",
           }
+          def probe_slug(value):
+              return value.lower().replace(".", "-")
+
+          ids = []
           for language in langs:
-              catalog = {}
               for probe_id in probe_ids:
                   fragment = (
                       "synthetic_wrapper()"
                       if language == "Python" and probe_id == "F10.P1"
                       else "synthetic_fragment()"
                   )
-                  catalog[probe_id] = {
+                  record = {
                       "level": "FULL",
                       "fragment": fragment,
                       "partial_reasons": [],
@@ -917,15 +919,14 @@ jobs:
                       "justification": "Synthetic canonical fragment selected under R1-R10.",
                       "citation": "Synthetic frozen documentation citation.",
                   }
-              verification = {
-                  probe_id: {
+                  verification = {
                       "entry_file": "main.txt",
                       "fragment_files": ["main.txt"],
                       "files": {
                           "main.txt": (
-                              "synthetic fixture prefix\\n"
-                              + record["fragment"]
-                              + "\\nsynthetic fixture suffix\\n"
+                              "synthetic fixture prefix\n"
+                              + fragment
+                              + "\nsynthetic fixture suffix\n"
                           )
                       },
                       "mode": "nm-add2" if probe_id == "F20.P2" else "run",
@@ -935,36 +936,42 @@ jobs:
                           else 1
                       ),
                   }
-                  for probe_id, record in catalog.items()
-              }
-              agent = "worker-sc-metrics-hidden-coverage--part-2--" + slug[language]
-              payload = {
-                  "schema_version": 1,
-                  "evaluation": "semantic_compression",
-                  "requirements": {
-                      "metric.capability_coverage": {language: 100.0},
-                  },
-                  "evidence": {
-                      "synthetic": "deterministic runner canonical owner",
-                      "canonical_fragments": catalog,
-                      "canonical_verification": verification,
-                  },
-              }
-              response = {
-                  "schema_version": 1,
-                  "task_id": agent,
-                  "files": [{"path": "result.json", "content": json.dumps(payload, indent=2) + "\n"}],
-              }
-              (root / "raw" / f"{agent}.response.json").write_text(json.dumps(response) + "\n")
+                  pslug = probe_slug(probe_id)
+                  uid = f"sc-canonical-fragment--{lang_slug[language]}--{pslug}"
+                  agent = "worker-" + uid
+                  payload = {
+                      "schema_version": 1,
+                      "evaluation": "semantic_compression",
+                      "requirements": {
+                          "annotation.canonical_fragment--" + pslug: True,
+                      },
+                      "evidence": {
+                          "synthetic": "deterministic runner canonical probe owner",
+                          "canonical_fragments": {probe_id: record},
+                          "canonical_verification": {probe_id: verification},
+                      },
+                  }
+                  response = {
+                      "schema_version": 1,
+                      "task_id": agent,
+                      "files": [{"path": "result.json", "content": json.dumps(payload, indent=2) + "\n"}],
+                  }
+                  (root / "raw" / f"{agent}.response.json").write_text(
+                      json.dumps(response) + "\n"
+                  )
+                  ids.append(uid)
+          (root / "raw" / "sc-canonical-leaf-ids.txt").write_text(
+              "\n".join(ids) + "\n"
+          )
+          assert len(ids) == 440, len(ids)
           PY
-          for SUFFIX in quidra python c rust go java typescript kotlin swift zig; do
-            ID="sc-metrics-hidden-coverage--part-2--$SUFFIX"
+          while IFS= read -r ID; do
             AGENT="worker-$ID"
             python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
             python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT" \
               < "$TMP/raw/$AGENT.response.json"
             python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
-          done
+          done < "$TMP/raw/sc-canonical-leaf-ids.txt"
 
           # Owner completion releases the five metric consumers. Their task
           # packets must contain and attest the exact canonical catalog SHA.

@@ -15730,6 +15730,17 @@ def semantic_premeasurement_verification_summary(
             raise BenchmarkError(
                 f"Semantic Compression V1 report invalid: {language} {probe_id}"
             )
+        if report.get("synthetic_ci") is True:
+            synthetic_verified = {
+                str(value) for value in (report.get("verified_probes") or [])
+            }
+            if probe_id not in synthetic_verified:
+                raise BenchmarkError(
+                    f"Semantic Compression synthetic V1 row missing: "
+                    f"{language} {probe_id}"
+                )
+            verified += 1
+            continue
         row = (report.get("probes") or {}).get(probe_id)
         if not isinstance(row, dict):
             raise BenchmarkError(

@@ -5224,6 +5224,104 @@ def _fragment_values(node: Any, key: str = "") -> set[str]:
     return found
 
 
+def project_semantic_consumer_recertification(
+    root: Path,
+    unit: dict[str, Any],
+    task: dict[str, Any],
+    record: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Bridge only legacy SC consumer evidence that proves exact fragment identity.
+
+    Canonical-fragment consumers gained a generated trusted catalog after the
+    historical medium/stable epochs.  Merely dropping that new input from the
+    fingerprint would be unsafe: old workers sometimes measured a different
+    idiomatic fragment.  A legacy result may therefore acquire the current
+    catalog attestation only when it carries an explicit fragment for every
+    current FULL/PARTIAL probe and each one is byte-identical to the catalog.
+    NONE probes must still carry no fragment.  The ordinary current validator
+    runs after this projection and remains authoritative for every other field.
+    """
+    if str(unit.get("evaluation") or "") != "semantic_compression":
+        return record, None
+    if not str(unit.get("canonical_fragment_source_requirement") or ""):
+        # The Capability Coverage owner is not a consumer.  Its newer mechanical
+        # verification contract cannot be manufactured from an old score record.
+        return record, None
+
+    digest = str(task.get("canonical_fragment_catalog_sha256") or "")
+    if not re.fullmatch(r"[0-9a-f]{64}", digest):
+        return None, (
+            f"{unit.get('id')}: current canonical-fragment consumer task "
+            "has no frozen catalog digest"
+        )
+
+    catalog_path = None
+    for raw in task.get("read_paths", []) or []:
+        path = resolve_recorded_workspace_path(root, raw)
+        if path.name.startswith("canonical_fragments_") and path.suffix == ".json":
+            catalog_path = path
+            break
+    if catalog_path is None or not catalog_path.is_file():
+        return None, (
+            f"{unit.get('id')}: current canonical-fragment catalog is not "
+            "materialized yet"
+        )
+    if sha256_file(catalog_path) != digest:
+        return None, (
+            f"{unit.get('id')}: canonical-fragment catalog digest does not "
+            "match the frozen task"
+        )
+
+    catalog_payload = json_load(catalog_path)
+    catalog = catalog_payload.get("canonical_fragments") or {}
+    if not isinstance(catalog, dict) or not catalog:
+        return None, f"{unit.get('id')}: canonical-fragment catalog is empty"
+
+    result = json.loads(json.dumps(record.get("result") or {}))
+    rows = probe_annotation_fields(result, set(catalog))
+    for probe_id, raw_record in catalog.items():
+        canonical = sc_adjudicated_record(raw_record)
+        if canonical is None:
+            return None, f"{unit.get('id')}: invalid canonical record {probe_id}"
+        values = _fragment_values(rows.get(probe_id) or {})
+        if canonical["level"] == "NONE":
+            if values:
+                return None, (
+                    f"{unit.get('id')}: legacy {probe_id} measured a fragment "
+                    "but the current canonical record is NONE"
+                )
+            continue
+        expected = str(canonical["fragment"]).strip()
+        if not values:
+            return None, (
+                f"{unit.get('id')}: legacy {probe_id} carries no explicit "
+                "fragment, so semantic equivalence cannot be proved without "
+                "rerunning the measurement"
+            )
+        if values != {expected}:
+            return None, (
+                f"{unit.get('id')}: legacy {probe_id} fragment differs from "
+                "the current canonical fragment"
+            )
+
+    evidence = result.get("evidence")
+    if not isinstance(evidence, dict):
+        return None, f"{unit.get('id')}: legacy result evidence is not an object"
+    evidence["canonical_fragment_catalog_sha256"] = digest
+    result_raw = json.dumps(
+        result, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    projected = json.loads(json.dumps(record))
+    projected["result"] = result
+    projected["result_sha256"] = sha256_bytes(result_raw)
+    projected["certification"] = {
+        **(projected.get("certification") or {}),
+        "canonical_fragment_equivalence_proved": True,
+        "canonical_fragment_catalog_sha256": digest,
+    }
+    return projected, None
+
+
 def validate_canonical_fragment_consumer_result(
     root: Path, task: dict[str, Any], result: dict[str, Any]
 ) -> None:
@@ -6800,6 +6898,13 @@ def _validator_recertification_config(
                 f"validator_recertification.{evaluation}.{key} "
                 "must be a string array"
             )
+    if "ignore_canonical_fragment_catalog" in cfg and not isinstance(
+        cfg["ignore_canonical_fragment_catalog"], bool
+    ):
+        raise BenchmarkError(
+            f"validator_recertification.{evaluation}."
+            "ignore_canonical_fragment_catalog must be boolean"
+        )
     return cfg
 
 
@@ -6820,6 +6925,17 @@ def _validator_recertification_payload(
     reads = dict(normalized.get("readable_input_content_hashes") or {})
     for field in cfg.get("ignored_readable_input_hashes", []):
         reads.pop(str(field), None)
+    if cfg.get("ignore_canonical_fragment_catalog") is True:
+        reads = {
+            key: value
+            for key, value in reads.items()
+            if not (
+                str(key).startswith(
+                    "work/audit/semantic-compression/canonical_fragments_"
+                )
+                and str(key).endswith(".json")
+            )
+        }
     normalized["readable_input_content_hashes"] = reads
     return normalized
 
@@ -6828,6 +6944,7 @@ def find_validator_recertifiable_cache_record(
     root: Path,
     unit: dict[str, Any],
     current_payload: dict[str, Any],
+    task: dict[str, Any] | None = None,
 ) -> tuple[Path | None, dict[str, Any] | None, str | None]:
     """Find historical paid evidence that today's validator can re-prove.
 
@@ -6937,6 +7054,14 @@ def find_validator_recertifiable_cache_record(
             "work_unit_id": unit.get("id"),
         },
     }
+    if task is not None and evaluation == "semantic_compression":
+        projected, projection_problem = project_semantic_consumer_recertification(
+            root, unit, task, projected
+        )
+        if projection_problem:
+            return None, None, projection_problem
+        if projected is None:
+            return None, None, "semantic recertification projection produced no record"
     return path, projected, None
 
 def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
@@ -7395,7 +7520,7 @@ def hydrate_certified_cache(
             else:
                 compatible_path, record, recertification_problem = (
                     find_validator_recertifiable_cache_record(
-                        root, unit, payload
+                        root, unit, payload, task
                     )
                 )
                 if recertification_problem:

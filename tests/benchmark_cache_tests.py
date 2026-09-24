@@ -1496,6 +1496,96 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
             )
         )
 
+def assert_semantic_recertification_requires_exact_canonical_fragments() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        catalog_path = (
+            root / "work/audit/semantic-compression/canonical_fragments_python.json"
+        )
+        catalog_path.parent.mkdir(parents=True, exist_ok=True)
+        benchmark.json_dump(
+            catalog_path,
+            {
+                "schema_version": 1,
+                "canonical_fragments": {
+                    "F01.P1": {
+                        "level": "FULL",
+                        "fragment": "const int n = 7; return n;",
+                        "partial_reasons": [],
+                        "none_reason": None,
+                        "justification": "frozen canonical fragment",
+                        "citation": "synthetic-test",
+                    },
+                    "F02.P1": {
+                        "level": "NONE",
+                        "fragment": None,
+                        "partial_reasons": [],
+                        "none_reason": "N-1",
+                        "justification": "unsupported in synthetic test",
+                        "citation": "synthetic-test",
+                    },
+                },
+            },
+        )
+        digest = benchmark.sha256_file(catalog_path)
+        task = {
+            "canonical_fragment_catalog_sha256": digest,
+            "read_paths": [str(catalog_path)],
+        }
+        unit = {
+            "id": "sc-metrics-local--part-1--python",
+            "evaluation": "semantic_compression",
+            "canonical_fragment_source_requirement": "metric.capability_coverage",
+        }
+        record = {
+            "result": {
+                "schema_version": 1,
+                "evaluation": "semantic_compression",
+                "requirements": {"metric.semantic_density": {"Python": 50.0}},
+                "evidence": {
+                    "per_probe_measurements": [
+                        {
+                            "probe_id": "F01.P1",
+                            "fragment": "const int n = 7; return n;",
+                            "tokens": 9,
+                            "explicit_local_sites": 4,
+                        },
+                        {"probe_id": "F02.P1", "tokens": 0},
+                    ]
+                },
+            },
+            "certification": {"validator_pass": True},
+        }
+        projected, problem = benchmark.project_semantic_consumer_recertification(
+            root, unit, task, record
+        )
+        assert problem is None and projected is not None, problem
+        assert (
+            projected["result"]["evidence"]["canonical_fragment_catalog_sha256"]
+            == digest
+        )
+        assert (
+            projected["certification"]["canonical_fragment_equivalence_proved"]
+            is True
+        )
+
+        missing = json.loads(json.dumps(record))
+        missing["result"]["evidence"]["per_probe_measurements"][0].pop("fragment")
+        projected, problem = benchmark.project_semantic_consumer_recertification(
+            root, unit, task, missing
+        )
+        assert projected is None and "carries no explicit fragment" in str(problem)
+
+        drifted = json.loads(json.dumps(record))
+        drifted["result"]["evidence"]["per_probe_measurements"][0]["fragment"] = (
+            "const int n = 8; return n;"
+        )
+        projected, problem = benchmark.project_semantic_consumer_recertification(
+            root, unit, task, drifted
+        )
+        assert projected is None and "differs from" in str(problem)
+
+
 def assert_corrupt_cache_is_leaf_local_and_explicit() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
@@ -1851,6 +1941,7 @@ def main() -> None:
     assert_empty_cache_impact_is_a_valid_first_run()
     assert_evaluation_scoped_primary_cache()
     assert_semantic_validator_recertification_is_narrow()
+    assert_semantic_recertification_requires_exact_canonical_fragments()
     assert_budget_plan_excludes_complete_units()
     assert_budget_plan_exposes_configured_retry_ceiling()
     assert_accepted_trial_start_marks_the_scored_boundary()

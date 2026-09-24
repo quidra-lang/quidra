@@ -49,6 +49,12 @@ record whose model/provider, sampling, toolchains, requirements, Primary project
 evaluation specification and all non-SC readable inputs still match may be staged as
 a **validator-recertification candidate**. The trusted runner then applies the full
 current validator, including current canonical-fragment/runtime/fixed-stdout checks.
+For a downstream canonical-fragment consumer, the newly generated catalog may be
+projected out of the historical fingerprint comparison only if the old result itself
+contains an explicit fragment for every current FULL/PARTIAL probe and every fragment
+is byte-identical to that catalog. The runner then adds the catalog attestation before
+validation. A missing fragment, a different fragment, or an old Capability Coverage
+owner that lacks the newer mechanical verification remains a MISS and runs normally.
 A PASS is checkpointed under the current fingerprint; a rejection discards only that
 candidate and executes the leaf normally. LLM Proficiency deliberately has no such
 migration because its prompt allocation and repair trajectory are themselves the

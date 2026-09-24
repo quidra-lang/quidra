@@ -820,7 +820,7 @@ def assert_premeasurement_cohort_gate() -> None:
         try:
             benchmark.semantic_premeasurement_cohort_summary(root)
         except benchmark.BenchmarkError as exc:
-            assert "mechanical verification report is missing" in str(exc), exc
+            assert "Semantic Compression V1 report missing" in str(exc), exc
         else:
             raise AssertionError("premeasurement gate accepted a missing V1 report")
         _write_semantic_owner_cohort(root)
@@ -835,7 +835,7 @@ def assert_premeasurement_cohort_gate() -> None:
         try:
             benchmark.semantic_premeasurement_cohort_summary(root)
         except benchmark.BenchmarkError as exc:
-            assert "canonical fragment hash mismatch" in str(exc), exc
+            assert "Semantic Compression V1 report stale" in str(exc), exc
         else:
             raise AssertionError("premeasurement gate accepted a stale V1 report")
         _write_semantic_owner_cohort(root)

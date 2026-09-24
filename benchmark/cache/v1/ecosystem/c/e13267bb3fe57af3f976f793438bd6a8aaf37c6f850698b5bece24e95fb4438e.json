@@ -1,0 +1,112 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "e13267bb3fe57af3f976f793438bd6a8aaf37c6f850698b5bece24e95fb4438e",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "ba8211a91508fb6276f95cef6d07ea766aa24916a93f8008630654e63c10613d",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.third_party_tool_availability",
+      "metric.production_adoption_deployment_evidence"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "ecosystem-external--part-2--c",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "ba8211a91508fb6276f95cef6d07ea766aa24916a93f8008630654e63c10613d",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-external--part-2--c"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.production_adoption_deployment_evidence": {
+        "limitations": "TIOBE-style popularity/search-share figures and generic 'companies that use X' listicles are used only as corroborating context, not as the sole proxy, consistent with methodology restrictions on standalone popularity proxies.",
+        "normalization_rationale": "C++ has extensive, well-documented, multi-source production deployment evidence spanning all 6 predeclared domains: consumer OS/browsers (Windows, Chrome, Firefox), core internet infrastructure (Google Search/Chrome backend), databases (MySQL, MongoDB), AAA game engines (Unreal Engine), safety-critical aerospace (NASA JPL Mars rovers, SpaceX Falcon 9/Dragon flight software confirmed directly by SpaceX engineers), and finance/HFT and embedded/automotive systems. This breadth and primary-source corroboration (direct engineering statements, conference talks, sustained multi-decade deployment) place C++ at the top of the production-adoption scale; the score is not a full 100 only because some cited sources are secondary/listicle-style rather than uniformly primary, which is disclosed as a limitation.",
+        "predeclared_sampling": {
+          "candidate_universe_examined": "OS/browsers: Windows, macOS/iOS, Linux kernel userspace, Chrome/Chromium, Firefox. Databases: MySQL, MongoDB, PostgreSQL components. Games: Unreal Engine, Unity runtime, Source 2. Safety/latency-critical: NASA JPL Mars rovers, SpaceX Falcon 9/Dragon flight software, high-frequency trading systems (e.g. Bloomberg-adjacent HFT engineering). Tech companies: Google (Search, Chrome, core infra), Microsoft (Windows, Office), Adobe (Photoshop/Illustrator/Premiere).",
+          "retrieval_route": "Web search snapshot, 3 queries covering companies/products, HFT/embedded/aerospace domains, and primary-source engineering accounts (SpaceX AMA, JPL CppCon talk), consistent retrieval depth with the tool-availability metric.",
+          "selection_rule": "Fixed, language-neutral checklist of 6 production-deployment domains checked for every language: (1) major OS/browser/desktop software, (2) database/infrastructure systems, (3) game engines/AAA titles, (4) safety-/latency-critical domains (aerospace, automotive, HFT/finance), (5) large-scale internet services at flagship tech companies, (6) embedded/IoT. Targets within each domain are named organizations or products independently documented as flagship real-world deployments (not selected by search-rank order).",
+          "snapshot_time": "2026-09-22"
+        },
+        "raw_findings": {
+          "aerospace": "NASA JPL researchers had already demonstrated Mars-rover autonomous-driving capability using software written primarily in C++ on a VxWorks realtime OS before incorporating it into the Spirit and Opportunity Mars Exploration Rovers, and SpaceX engineers stated directly that all of the application-level autonomous software for Falcon 9 and Dragon is written in C++.",
+          "databases": "C++ is used for creating well-known database tools such as MongoDB and MySQL, which serve as backbones of other popular applications like Netflix, Google, Adobe, and YouTube.",
+          "embedded_automotive": "Embedded, automotive, aerospace, and high-frequency trading remain C/C++ strongholds because of deterministic performance and hardware control, with C++ growing specifically in automotive infotainment and driver-assistance stacks under standards like AUTOSAR and MISRA.",
+          "finance_hft": "High-frequency trading is described as the purest expression of why C++ exists, since firms compete on latencies measured in microseconds and nanoseconds and C++ dominates the field by letting engineers control memory layout and avoid allocation on the hot path.",
+          "games": "C++ powers game engines like Unreal Engine, offering real-time graphics rendering and physics simulation, with major companies like Epic Games relying on it for blockbuster titles.",
+          "os_browsers": "C++ powers core parts of Google Search, Chrome browser, and performance-heavy backend services, and every major browser (Chrome, Firefox, Safari, Edge) is a C++ codebase at its core, alongside Microsoft's use of C++ extensively for Windows OS, Office Suite, and performance-critical applications.",
+          "popularity_context": "As of the September 2026 TIOBE Index, C++ ranks third overall at 8.67%, ahead of Java, indicating sustained large-scale real-world usage share alongside the qualitative deployment evidence above.",
+          "tech_companies": "Adobe uses C++ as a scripting/implementation language for several imaging systems and codecs across its major applications, and multiple independent sources jointly name Adobe, Microsoft, Amazon, and Google as companies that use C++ to develop products and provide services."
+        }
+      },
+      "metric.third_party_tool_availability": {
+        "limitations": "Popularity/usage figures (e.g. 80% Conan+vcpkg share, one-third no-tooling rate) are used only as declared supporting evidence alongside qualitative tool-category coverage, not as a standalone proxy, per methodology.",
+        "normalization_rationale": "C++ has mature, actively maintained, multi-vendor tooling covering all 8 predeclared categories (build, package management, static analysis, formatting, debugging, IDE integration, profiling, CI/SBOM), each with more than one credible option and first-party or near-first-party vendor backing (Microsoft/vcpkg, JFrog/Conan, LLVM/clang-tooling, JetBrains/CLion). This is near-ceiling tool availability; the score is not 100 because C++ lacks a single official/standard package manager and a meaningful share of the ecosystem historically manages dependencies manually, per the cited academic study and survey, which is treated as a mild availability/uniformity deduction rather than absence of tooling.",
+        "predeclared_sampling": {
+          "candidate_universe_examined": "CMake/Meson/Bazel (build); vcpkg/Conan/Hunter/Spack (package managers); clang-tidy/cppcheck/PVS-Studio/Coverity/SonarSource (static analysis); clang-format (formatting); gdb/lldb/Visual Studio debugger (debugging); CLion/Visual Studio/VS Code+clangd (IDE); Valgrind/perf/Google Sanitizers/Intel VTune (profiling/dynamic analysis); GitHub Actions+SBOM generators for Conan/vcpkg (CI/security).",
+          "retrieval_route": "Web search snapshot, 2 queries, examination depth = first-order citation of vendor docs, a peer-reviewed ecosystem study (arXiv), and one independent industry survey (JetBrains C++ Ecosystem survey), consistent with the retrieval depth used for the sibling production-adoption metric.",
+          "selection_rule": "Fixed, language-neutral checklist of 8 third-party tool categories every systems/application language is checked against: (1) build system, (2) dependency/package manager, (3) static analyzer/linter, (4) code formatter, (5) debugger, (6) IDE/editor integration, (7) profiler/dynamic analysis, (8) CI/build-service and SBOM/security tooling. For each category the target is the tool most frequently named as the de-facto standard by independent, language-neutral sources (official docs, JetBrains ecosystem survey, GitHub topic co-occurrence, academic ecosystem study) identified before scoring began. This rule and depth are applied identically across all 10 languages in this evaluation.",
+          "snapshot_time": "2026-09-22"
+        },
+        "raw_findings": {
+          "build_systems": "CMake is the dominant, IDE- and package-manager-integrated build system; Meson and Bazel are viable alternates.",
+          "ci_sbom": "Dedicated SBOM-generation guidance and tooling exists specifically for the CMake/Conan/vcpkg toolchain combination, including commands such as `conan graph info` and `vcpkg list` for dependency inspection.",
+          "debugger_ide": "CLion adds native vcpkg support and bundles Clang-Tidy/Clang analyzer integration; Visual Studio and VS Code (via clangd) provide additional first-party and community integrations.",
+          "gap_noted": "The same academic study found only 1.8% of sampled repositories adopt any application-level package manager at all, and a JetBrains survey found roughly one-third of C++ developers use no code-analysis tooling, indicating strong tool availability but comparatively low uniform adoption discipline relative to languages with a single blessed package manager -- a limitation of any usage-based proxy.",
+          "package_managers": "vcpkg (Microsoft) and Conan (JFrog) are described as the two mature, dominant C++ package managers that integrate seamlessly with CMake.",
+          "static_analysis": "An academic study of 24,001 C/C++ repositories found Conan and Vcpkg contribute about 80% of application-level package-manager usage, while a JetBrains developer survey found clang-based tools, CppCheck, SonarSource linters, PVS-Studio, and Coverity all in active use, with CLion bundling Clang-Tidy and the Clang analyzer directly."
+        }
+      }
+    },
+    "requirements": {
+      "metric.production_adoption_deployment_evidence": {
+        "C++": 98
+      },
+      "metric.third_party_tool_availability": {
+        "C++": 96
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "5e705b5c08dcbb10ac5072532dd6f770192cec6dc343490e9a4faebab1c9dbd7",
+  "schema_version": 1
+}

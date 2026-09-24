@@ -1,0 +1,186 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "df338fbe354d12d5dad9f9352001ea7f4257cc24a23a571d2647bdcc42bf499e",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "426a8cd0d4b8174ee6bcf721b9e5d537e6eba3ca281d67b00d000964bf36b861",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.build_test_integration",
+      "metric.documentation_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "ecosystem-tooling--part-3--zig",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "426a8cd0d4b8174ee6bcf721b9e5d537e6eba3ca281d67b00d000964bf36b861",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-3--zig"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.build_test_integration": {
+        "dimension_scores": {
+          "build_api_stability": {
+            "max": 15,
+            "note": "The build system underwent a maker/configurer process split in 2026, plus package-management, std.Io, and dependency-layout overhauls across 0.15/0.16/0.17 that broke existing build.zig scripts each release; this is explicit, currently-observable pre-1.0 churn rather than contextual language age.",
+            "score": 7
+          },
+          "ci_cd_support": {
+            "max": 15,
+            "note": "No official first-party GitHub Action, but de-facto-standard community actions (mlugg/setup-zig, formerly goto-bus-stop/setup-zig, korandoru/setup-zig) with version pinning and OS/version matrix support are widely used.",
+            "score": 10
+          },
+          "coverage_tooling": {
+            "max": 15,
+            "note": "Coverage relies on bolting third-party kcov onto zig build test via a user-defined -Dtest-coverage option and manual Codecov upload steps; there is no built-in native coverage report format.",
+            "score": 8
+          },
+          "package_manager_integration": {
+            "max": 15,
+            "note": "build.zig.zon is an official, built-in manifest/fetch mechanism, but there is no central package registry (git-URL based), and the dependency layout/fetch mechanics have been overhauled across 0.11-0.16, requiring project migration.",
+            "score": 10
+          },
+          "test_runner_feature_depth": {
+            "max": 20,
+            "note": "The build system supports --watch, --debounce, --webui, and --fuzz continuous fuzzing of unit tests, plus incremental rebuild-and-retest workflows.",
+            "score": 17
+          },
+          "unified_build_test": {
+            "max": 20,
+            "note": "zig build is the first-party build system and zig test / zig build test is the built-in test runner wired directly into the same graph via Compile+Run steps.",
+            "score": 18
+          }
+        },
+        "rubric": {
+          "description": "Frozen proxy rubric applied identically to all 10 languages (this shard scores Zig only). Six equally-important sub-dimensions summed to a 0-100 score: (1) first-party unified build+test integration [0-20], (2) built-in test-runner feature depth (filtering, watch, fuzz, incremental) [0-20], (3) package-manager/build integration for dependency-aware test builds [0-15], (4) CI/CD ecosystem support (official or de-facto-standard actions, matrix/cross-target testing) [0-15], (5) code-coverage tooling maturity/nativeness [0-15], (6) build-system API stability across releases (pre-1.0 languages are not penalized for age, only for currently-observable churn/reproducibility evidence) [0-15].",
+          "snapshot_date": "2026-09-22",
+          "sources_examined": [
+            "https://ziglang.org/devlog/2026/",
+            "https://ziglang.org/learn/overview/",
+            "https://ziglang.org/learn/build-system/",
+            "https://deepwiki.com/ziglang/zig/5.3-zig-build-system",
+            "https://blog.orhun.dev/zig-bits-03/",
+            "https://github.com/korandoru/setup-zig",
+            "https://medium.com/@edlyuu/zig-package-manager-2-wtf-is-build-zig-zon-and-build-zig-0-11-0-update-5bc46e830fc1",
+            "https://ziglang.org/download/0.16.0/release-notes.html",
+            "https://byteiota.com/zig-build-system-rework-90-faster-ships-in-0-17/",
+            "https://codeberg.org/ziglings/exercises"
+          ]
+        },
+        "supporting_citations": [
+          "Zig's build.zig files are compiled into a small 'configurer' process whose in-memory build graph is now serialized to a binary configuration file that the parent zig build process caches, part of a 2026 rework separating the maker and configurer processes.",
+          "Individual files can be tested directly with zig test foo.zig, but more complex use cases are solved by orchestrating testing via the build script, where unit tests are split into Compile and Run steps joined by addRunArtifact.",
+          "The build system's CLI documents --watch, --debounce, --webui, and a --fuzz flag that continuously searches for unit test failures with an optional iteration limit.",
+          "A documented community GitHub Actions workflow installs Zig via a setup-zig action, installs kcov, runs zig build test -Dtest-coverage, and uploads the kcov-output directory to Codecov.",
+          "Zig 0.16 brought breaking changes including an overhaul of package management with dependencies moving to a local zig-pkg directory and a new --fork debugging flag.",
+          "A widely-quoted developer comment described Zig's pre-1.0 reality as projects breaking because 'the API changed and that is broken now', which the source frames as the tradeoff for the core team's long-term correctness decisions.",
+          "Ziglings, a hands-on Zig teaching project, tracks development builds rather than stable releases and maintains a running changelog of breaking API changes across successive 0.15/0.16 dev builds it had to adapt to."
+        ]
+      },
+      "metric.documentation_quality": {
+        "dimension_scores": {
+          "advanced_topic_coverage": {
+            "max": 10,
+            "note": "Community feedback explicitly flags gaps, such as comptime/comptime-reflection builtins being documented only tersely under Builtin Functions, which contributors say is inadequate for writing type-introspecting code.",
+            "score": 5
+          },
+          "autodoc_tooling": {
+            "max": 20,
+            "note": "The zig std command serves interactive, always-current WASM-based standard-library docs generated live from source, but the newer autodoc pipeline has had bugs such as broken cross-links to stdlib declarations for third-party project docs, and the system underwent a substantial redesign in 2026.",
+            "score": 13
+          },
+          "community_guides_breadth": {
+            "max": 15,
+            "note": "A visible secondary ecosystem exists (zig.guide, the Ziggit community forum, third-party books/tutorials such as 'Introduction to Zig'), but there is no single dominant, officially endorsed comprehensive guide beyond the terse language reference.",
+            "score": 10
+          },
+          "doc_stability_versioning": {
+            "max": 10,
+            "note": "Documentation is explicitly acknowledged by maintainers/community as being 'in flux as the language changes' pre-1.0, though each release does ship its own versioned langref and generation can be disabled/validated via -Dno-langref and -Denable-superhtml build options.",
+            "score": 5
+          },
+          "language_reference_completeness": {
+            "max": 25,
+            "note": "The Zig language reference is maintained as a comprehensive single-page HTML document generated from a template with embedded, compiler-verified code examples.",
+            "score": 20
+          },
+          "tested_examples_accuracy": {
+            "max": 20,
+            "note": "All code examples in the language reference are compiled and tested as part of Zig's main test suite, giving strong assurance that documentation stays synchronized with actual compiler behavior.",
+            "score": 18
+          }
+        },
+        "rubric": {
+          "description": "Frozen proxy rubric applied identically to all 10 languages (this shard scores Zig only). Six equally-important sub-dimensions summed to a 0-100 score: (1) completeness/currency of the official language reference [0-25], (2) accessibility and functionality of auto-generated API/std-lib docs tooling [0-20], (3) accuracy guarantees from tested/executable doc examples [0-20], (4) breadth of community-authored supplementary guides/books [0-15], (5) coverage completeness for advanced topics (comptime/metaprogramming, etc.) [0-10], (6) doc stability/versioning discipline across releases [0-10].",
+          "snapshot_date": "2026-09-22",
+          "sources_examined": [
+            "https://ziglang.org/documentation/master/",
+            "https://github.com/ziglang/zig/pull/19208",
+            "https://github.com/ziglang/zig/issues/19259",
+            "https://ziggit.dev/t/suggested-areas-for-documentation-improvements/948",
+            "https://zig.guide/build-system/generating-documentation/",
+            "https://codeberg.org/ziglang/zig",
+            "https://deepwiki.com/ziglang/zig/6-documentation-and-tools"
+          ]
+        },
+        "supporting_citations": [
+          "Normal comments are ignored, while Doc Comments and Top-Level Doc Comments are used by the compiler to generate the package documentation.",
+          "The Zig language reference is a comprehensive single-page HTML document generated from a template file with embedded Zig code examples, and all its code examples are compiled and tested as part of the main test suite.",
+          "The command zig std spawns an HTTP server that provides documentation assets specifically for the standard library, rebuilding on the fly so source changes are immediately reflected when viewing docs.",
+          "A GitHub issue reports that documentation generated for third-party projects via -femit-docs leads to 'Declaration not found' pages when links reference the standard library.",
+          "A community documentation-improvement thread notes that comptime-related builtins are documented under Builtin Functions but that this format is considered inadequate for code that inspects types, while acknowledging docs are considered in flux as the language changes.",
+          "Zig's build system can skip language-reference generation with -Dno-langref and enable HTML validity checking with -Denable-superhtml."
+        ]
+      }
+    },
+    "requirements": {
+      "metric.build_test_integration": {
+        "Zig": 70
+      },
+      "metric.documentation_quality": {
+        "Zig": 68
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "e8263c3dc2d094c756f2ed42e8a8dfb0af0816bf983011cfadf0713c76895263",
+  "schema_version": 1
+}

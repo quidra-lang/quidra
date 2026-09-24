@@ -1,0 +1,184 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "2a66b51ddba5a8da457b4f3e9f88523877fbf449ded61623d7339fd814e480bb",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "2f6a43fd3c990046c3c1619f324d5338f1c9480f032ac0c837f5c91a0b7e90f4",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.build_test_integration",
+      "metric.documentation_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "ecosystem-tooling--part-3--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "2f6a43fd3c990046c3c1619f324d5338f1c9480f032ac0c837f5c91a0b7e90f4",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-3--typescript"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.build_test_integration": {
+        "evidence_sources_and_retrieval_route": "Web search (provider-brokered) against official docs (turbo.build, vitest.dev) and current third-party tooling comparison articles dated 2026; same retrieval route and examination depth applied as would be applied to other languages in this metric family.",
+        "language_score": {
+          "TypeScript": {
+            "bundler_ecosystem_breadth": {
+              "citations": [
+                "Compare tsup, unbuild, pkgroll, tsc, esbuild, and SWC for building TypeScript libraries and applications in 2026.",
+                "esbuild is 45x faster than tsc for transpilation."
+              ],
+              "note": "Rich, actively benchmarked set of TypeScript-aware build tools (esbuild, swc, tsup, unbuild, webpack, Vite, Rollup) each with defined roles for libraries vs applications.",
+              "score": 23
+            },
+            "monorepo_orchestration": {
+              "citations": [
+                "Turborepo is a high-performance monorepo build tool that simplifies dependency management and speeds up builds through caching.",
+                "Nx offers a highly integrated monorepo experience, by implementing an efficient caching mechanism, storing results from previous executions."
+              ],
+              "note": "Turborepo and Nx are established, actively documented monorepo build systems with caching, parallelization, and TypeScript-specific configuration guides.",
+              "score": 22
+            },
+            "official_build_tool": {
+              "citations": [
+                "For Internal Packages, we recommend that you use tsc to compile your TypeScript libraries whenever possible.",
+                "tsc: Only tool that performs type checking; transpilation is 45x slower than esbuild"
+              ],
+              "note": "tsc is the reference compiler for both type-checking and emission, with incremental/composite project-reference builds; official monorepo guidance recommends tsc for internal packages.",
+              "score": 23
+            },
+            "test_framework_native_integration": {
+              "citations": [
+                "Vitest offers the best out-of-the-box TypeScript support via Vite.",
+                "Out-of-box ESM, TypeScript and JSX support powered by Oxc."
+              ],
+              "note": "Vitest provides out-of-the-box TypeScript transpilation with no separate ts-jest/Babel config, while Jest remains viable via ts-jest/@swc/jest; both are mature, well-documented paths.",
+              "score": 23
+            },
+            "total_normalized_0_100": 91
+          }
+        },
+        "limitations": "Sub-scores are worker-assigned integer estimates within each 25-point rubric band, informed by cited evidence rather than a single numeric benchmark; identical band definitions and evidence-collection depth are intended to be applied to every language under this metric.",
+        "rubric_components_equal_weight_25pts_each": [
+          "Official/standard compiler-driven build tooling: incremental builds, project references, watch mode",
+          "Native or near-native test-framework integration with the language/build system (minimal transform friction)",
+          "Breadth/maturity of surrounding build-tool ecosystem (bundlers/transpilers) that plug into the language's build pipeline",
+          "Monorepo/large-project build orchestration (caching, parallelization, workspace-awareness) and CI-friendliness"
+        ],
+        "rubric_frozen_before_scoring": true,
+        "snapshot_date": "2026-09-22"
+      },
+      "metric.documentation_quality": {
+        "evidence_sources_and_retrieval_route": "Web search (provider-brokered) against typescriptlang.org, tsdoc.org, microsoft/tsdoc and TypeStrong/typedoc GitHub repos, and DefinitelyTyped project pages; same retrieval route and examination depth applied as for other languages in this metric family.",
+        "language_score": {
+          "TypeScript": {
+            "community_ecosystem_openness": {
+              "citations": [
+                "DefinitelyTyped is a community-led open-source repository for TypeScript type definitions.",
+                "DefinitelyTyped is one of the largest repositories on GitHub, with over 8,000 packages typed by thousands of contributors."
+              ],
+              "note": "DefinitelyTyped is a large, actively maintained community documentation/typing repository feeding inline docs and type information for thousands of packages, with an automated publishing pipeline.",
+              "score": 23
+            },
+            "ide_integration": {
+              "citations": [
+                "In the screenshot, we can see now that we have TSDoc comments in our editor and hints highlighting detail about the API of our method."
+              ],
+              "note": "TSDoc-annotated comments surface directly as editor hints/tooltips (e.g., in VS Code), giving inline documentation without leaving the editor.",
+              "score": 17
+            },
+            "official_handbook_reference": {
+              "citations": [
+                "The TypeScript Handbook is intended to be a comprehensive document that explains TypeScript to everyday programmers.",
+                "The reference section below the handbook in the navigation is built to provide a richer understanding of how a particular part of TypeScript works.",
+                "The TypeScript docs are an open source project."
+              ],
+              "note": "The official Handbook is explicitly scoped as a comprehensive, readable introduction plus a deeper reference section, maintained as an open-source project.",
+              "score": 28
+            },
+            "standardized_doc_comment_tooling": {
+              "citations": [
+                "TSDoc is a spec maintained by the TypeScript team.",
+                "TypeDoc is an open-source project that uses TSDoc to generate API documentation.",
+                "TSDoc is a proposal to standardize the doc comments used in TypeScript code, so that different tools can extract content without getting confused by each other's markup."
+              ],
+              "note": "TSDoc is a spec maintained by the TypeScript team specifically to standardize doc comments across tools, with TypeDoc as a widely used generator and an official reference implementation package.",
+              "score": 24
+            },
+            "total_normalized_0_100": 92
+          }
+        },
+        "limitations": "Sub-scores are worker-assigned integer estimates within each rubric band informed by cited evidence; DefinitelyTyped size figures vary across sources and are used only as one qualitative signal among several, not as a standalone popularity proxy.",
+        "rubric_components": [
+          {
+            "component": "Official comprehensive documentation (handbook/reference covering fundamentals and configuration)",
+            "max_points": 30
+          },
+          {
+            "component": "Standardized doc-comment format and tooling for API doc generation",
+            "max_points": 25
+          },
+          {
+            "component": "IDE integration of documentation (inline hints/tooltips)",
+            "max_points": 20
+          },
+          {
+            "component": "Community documentation ecosystem, openness and currency",
+            "max_points": 25
+          }
+        ],
+        "rubric_frozen_before_scoring": true,
+        "snapshot_date": "2026-09-22"
+      }
+    },
+    "requirements": {
+      "metric.build_test_integration": {
+        "TypeScript": 91
+      },
+      "metric.documentation_quality": {
+        "TypeScript": 92
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "32ba3d09e5e7641a828d906a1584d849796ad889b8b09b60750237c0aaa91350",
+  "schema_version": 1
+}

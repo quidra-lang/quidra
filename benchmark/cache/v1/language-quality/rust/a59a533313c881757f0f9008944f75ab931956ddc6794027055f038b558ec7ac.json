@@ -1,0 +1,96 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "a59a533313c881757f0f9008944f75ab931956ddc6794027055f038b558ec7ac",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "27cd0d0a7ff8bfa943db7c3c717df1eedc2eb5916b6845ab9249d28547568e16",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/programs/rust/adversarial": "6146d3338572181c436d4d9c91395b33d366da3ebd1f3ad3bb77b25418f34eed",
+      "template/programs/rust/micro": "477bed528952f34f4bf68318001bdc4e3f4ca15d102fac1abd391c817886f96d",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.functionality_expressiveness",
+      "metric.diagnostics"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "lq-language-development--part-2--rust",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "27cd0d0a7ff8bfa943db7c3c717df1eedc2eb5916b6845ab9249d28547568e16",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "lq-language-development--part-2--rust"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "metric.diagnostics": {
+        "infrastructure_blocker": "rustc via rustup lacked a default toolchain in this sandbox and 'rustup default stable' is not in the permitted executable allowlist, preventing a fresh compiler-output capture for this run.",
+        "method": "Direct compiler invocation attempted (rustc test_diag.rs) plus qualitative review of known rustc diagnostic behavior against a deliberately erroneous 5-line program containing a type mismatch (&str assigned to i32) and an out-of-bounds vector index.",
+        "observations": [
+          "Toolchain execution note: the sandbox's rustc is a rustup shim with no default toolchain configured, and 'rustup' is outside the allowed executable list, so direct compiler invocation in this sandbox returned an infrastructure error ('rustup could not choose a version of rustc to run') rather than a language diagnostic. This is recorded as an infrastructure blocker for live capture, not as evidence of Rust's diagnostic quality itself.",
+          "Well-documented, reproducible rustc characteristics (established language-quality knowledge, independent of this sandbox run): rustc emits structured, span-annotated error messages with source-line pointers (`^^^`), explicit error codes (e.g. E0308 for type mismatches), and often actionable `help:`/`note:` suggestions (e.g. suggesting `.parse()` or the correct type). Borrow-checker errors additionally show both the origin and conflicting-use spans with lifetime explanations. Out-of-bounds vector indexing (`v[10]`) is a compile-time-unverifiable runtime bound, so Rust catches it at runtime via a `panic!` with an explicit 'index out of bounds: the len is N but the index is M' message and a backtrace when RUST_BACKTRACE=1, rather than silently corrupting memory.",
+          "The adversarial suite (ADV-01..ADV-26) specifically targets narrowing casts, integer overflow, and unchecked externally supplied input (see ADV-01_C.rs vs ADV-01_R.rs), which in idiomatic Rust are either compile errors, explicit checked/`as` casts, or well-defined runtime panics with descriptive messages, rather than undefined behavior."
+        ],
+        "score_rationale": "90/100: rustc is widely regarded as best-in-class for compile-time diagnostics (precise spans, error codes, contextual suggestions, borrow-checker explanations) and Rust's runtime failure modes (panics with descriptive messages) are also high quality; slight deduction because live capture of a fresh diagnostic sample was blocked by a sandbox toolchain configuration issue rather than fully re-verified in this run."
+      },
+      "metric.functionality_expressiveness": {
+        "method": "Qualitative structural review of Rust language surface using template/programs/rust/adversarial and template/programs/rust/micro reference programs (ADV-01..ADV-26, mb00..mb11) as the concrete workload set common to all languages under evaluation.",
+        "observations": [
+          "Rust supports algebraic data types (enums with payload variants), pattern matching with exhaustiveness checking, trait-based polymorphism (static and dynamic dispatch via dyn Trait), generics with trait bounds, closures with capture-by-move/borrow, RAII-based resource management, zero-cost abstractions (iterators compiling to loops), and a strong ownership/borrowing model expressed directly in the type system (e.g. ADV-01_R.rs shows explicit narrowing-cast semantics `as i32`, ADV-06/07/08 exercise trait objects and lifetime-sensitive constructs typical of the adversarial suite).",
+          "Micro-benchmark programs (mb01-mb11) exercise numeric, collection, string, and control-flow idioms showing the language expresses common workload patterns (loops, recursion, vectors, hashmaps, iterators, error propagation via Result/Option and the `?` operator) concisely without external libraries.",
+          "Compared to C/C-like baselines (ADV-*_C.rs vs ADV-*_R.rs pairs), the Rust variants (_R) require explicit, safe input handling (e.g. read_line + parse::<i64>) rather than implicit unchecked conversions, illustrating higher expressiveness of safety-relevant intent at a modest verbosity cost.",
+          "Limitations: no built-in reflection, no native GADOT-level dependent types, macro system is powerful (declarative + procedural macros) but less ergonomic than Lisp-style ones; async/await exists but requires runtime crates for full concurrency ergonomics (ecosystem concern, not scored here)."
+        ],
+        "score_rationale": "88/100: Rust offers rich, safe, zero-cost expressiveness (traits, generics, pattern matching, ADTs, ownership types, `?` error propagation, closures, iterators) covering essentially all workload shapes seen in the adversarial/micro corpus, with minor deductions for verbosity in generic trait bound syntax and absence of native higher-kinded types/reflection."
+      }
+    },
+    "requirements": {
+      "metric.diagnostics": {
+        "Rust": 90
+      },
+      "metric.functionality_expressiveness": {
+        "Rust": 88
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "e63a376a74f82d2357a36be14c8a4d58104b07fcb1da3fe245c4c6ee5b494e37",
+  "schema_version": 1
+}

@@ -1,0 +1,196 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "d8f2cec29975ee048cb5ea85efc8dd11f272449a96ca782485a38079cf14f447",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "3e1290a9b6d7406c790200c77c5a9e052ad7f971bc5ea6d51e5200d084a7f2e7",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.ide_editor_support_quality",
+      "metric.debugger_profiler_support"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "ecosystem-tooling--part-2--java",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "3e1290a9b6d7406c790200c77c5a9e052ad7f971bc5ea6d51e5200d084a7f2e7",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-2--java"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "java_findings": {
+        "debugger_profiler_support": {
+          "key_evidence": [
+            {
+              "claim": "JDWP is a component of the Java Platform Debugger Architecture (JPDA) defining communication between a debugger and a JVM, used to set breakpoints, step through code, and inspect variables, and supports remote debugging.",
+              "retrieved": "2026-09-22",
+              "source": "https://medium.com/@mbanaee61/java-debug-wire-protocol-jdwp-791645aa5f4a"
+            },
+            {
+              "claim": "JDWP defines the format of information and requests transferred between the debugged process and the debugger front end, which implements the Java Debug Interface (JDI).",
+              "retrieved": "2026-09-22",
+              "source": "https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/index.html"
+            },
+            {
+              "claim": "Every professional Java profiling, debugging, and diagnostics tool relies on JVMTI under the hood, including JProfiler, YourKit, async-profiler, Java Flight Recorder, and the JVM's own JMX implementation.",
+              "retrieved": "2026-09-22",
+              "source": "https://geekworkbench.com/blog/technical/jvmti-agents/"
+            },
+            {
+              "claim": "Java Flight Recorder (JFR) is integrated into the JVM and causes almost no performance overhead, so it can be used even in heavily loaded production environments.",
+              "retrieved": "2026-09-22",
+              "source": "https://cw.fel.cvut.cz/b192/courses/b4m36esw/labs/lab02"
+            },
+            {
+              "claim": "Three prominent open-source Java profilers (VisualVM, async-profiler, JFR) are in active development and usable for various applications, each with different strengths and trade-offs.",
+              "retrieved": "2026-09-22",
+              "source": "https://www.infoq.com/articles/open-source-java-profilers/"
+            },
+            {
+              "claim": "JProfiler offers CPU and memory profiling, a heap walker for memory leaks, HTTP call profiling, real-time monitoring, and IDE plugin integration.",
+              "retrieved": "2026-09-22",
+              "source": "https://bell-sw.com/blog/a-guide-to-java-profiling-tools-techniques-best-practices/"
+            },
+            {
+              "claim": "Java Mission Control (JMC) is Oracle's official profiling suite, originally bundled with the JDK and now open source, integrating tightly with JFR for near-zero-overhead production monitoring.",
+              "retrieved": "2026-09-22",
+              "source": "https://www.javacodegeeks.com/2025/09/unleash-the-power-of-open-source-java-profilers-comparing-visualvm-jmc-and-async-profiler.html"
+            }
+          ],
+          "limitations_of_proxy_used": "No raw popularity counts (stars/downloads) were used as a standalone proxy; scoring rests on documented protocol standardization, native tool-interface breadth, and the count/maturity of independently sourced profiling tools (built-in and third-party, free and commercial).",
+          "rationale": "Java defines a standardized, vendor-neutral wire debugging protocol (JDWP) as part of the Java Platform Debugger Architecture (JPDA), consumed by every major IDE debugger. Below that, the JVM Tool Interface (JVMTI) is a native instrumentation API that underlies essentially the entire third-party profiling and diagnostics tool ecosystem. The JVM also ships a built-in, near-zero-overhead production profiler (Java Flight Recorder / JFR, paired with Java Mission Control), and there are multiple independent mature profilers spanning free/open-source (VisualVM, async-profiler, JMC) and commercial (JProfiler, YourKit) options. This breadth and standardization is best-in-class.",
+          "score": 98
+        },
+        "ide_editor_support_quality": {
+          "key_evidence": [
+            {
+              "claim": "IntelliJ IDEA is the most popular Java IDE, used by 84% of Java developers according to the 2025 Java Developer Productivity Report, with VS Code ranking second at 31%, followed by Eclipse at 28%.",
+              "retrieved": "2026-09-22",
+              "source": "https://www.jrebel.com/blog/best-java-ide"
+            },
+            {
+              "claim": "VS Code becomes a Java IDE after installing the Extension Pack for Java from Microsoft, which includes Language Support for Java by Red Hat, Debugger for Java, Test Runner for Java, Maven support, and project management tools.",
+              "retrieved": "2026-09-22",
+              "source": "https://www.globaltechcouncil.org/java/best-java-ides-eclipse-intellij-idea-vs-code/"
+            },
+            {
+              "claim": "The Eclipse JDT Language Server (jdt.ls) is an open source Java-specific implementation of the Language Server Protocol, built on the Eclipse Platform, Eclipse JDT, M2E (Maven), and Buildship (Gradle), and adopted by many clients including VS Code, Eclipse Che, Vim, Emacs, and Atom.",
+              "retrieved": "2026-09-22",
+              "source": "https://static.rainfocus.com/oracle/oow18/sess/1526583844565001AUe4/PF/vscode-java-code-one_1540505639715001Qj4D.pdf"
+            },
+            {
+              "claim": "Eclipse JDT-LS is described as a mature language server serving popular dev tools such as vscode-java.",
+              "retrieved": "2026-09-22",
+              "source": "https://github.com/redhat-developer/eclipseide-jdtls/"
+            },
+            {
+              "claim": "Eclipse is a mature, feature-rich, free-for-business-use open-source IDE, popular for large-scale enterprise Java development.",
+              "retrieved": "2026-09-22",
+              "source": "https://www.jrebel.com/blog/best-java-ide"
+            },
+            {
+              "claim": "JetBrains moved IntelliJ IDEA to a unified free distribution (2025.3+) that includes full Java/Kotlin development, refactoring, debugger, Git, and Maven/Gradle support at no cost, with paid Ultimate tier adding framework/DB/profiler extras.",
+              "retrieved": "2026-09-22",
+              "source": "https://toolradar.com/blog/intellij-idea-vs-eclipse"
+            }
+          ],
+          "limitations_of_proxy_used": "Third-party usage-share surveys (JRebel Java Developer Productivity Report, Stack Overflow) are self-reported and not independently audited; they are used only as corroborating, non-sole evidence for the breadth/adoption of IDE options, not as the entire basis for the score. The core scoring basis is the documented existence, maturity, and feature completeness of the IDE/editor options and the standardized language server infrastructure.",
+          "rationale": "Java has one of the most mature multi-IDE ecosystems of any language: a dominant full-featured commercial/free IDE (IntelliJ IDEA), a long-standing free open-source full IDE (Eclipse) built on the Java Development Tools (JDT), and first-class lightweight editor support in VS Code via an actively maintained extension pack backed by a standardized, independently reusable language server (Eclipse JDT Language Server / jdt.ls). This combination of depth (refactoring, navigation, framework-aware tooling) and breadth (heavyweight, free/open-source, and LSP-based lightweight options) places Java at the top band.",
+          "score": 97
+        }
+      },
+      "predeclared_sampling": {
+        "retrieval_route": "web_search tool queries against public documentation and independent comparison sources",
+        "selection_rule": "For each metric, evidence targets were selected by (a) the officially documented/standardized protocol or interface for the language runtime (JDWP, JVMTI, JFR) where one exists, and (b) the IDEs/tools most consistently cited across independent, dated 2025-2026 comparison sources and official project documentation as the dominant options for the language, rather than first-search-result order. The same retrieval depth (multiple independent web searches per metric) and the same examination approach (official docs + independent comparison articles) is intended to be applied uniformly across all 10 languages by the respective shards.",
+        "snapshot_date": "2026-09-22"
+      },
+      "rubric": {
+        "metric.debugger_profiler_support": {
+          "bands": {
+            "0-20": "No standard debug protocol, no profiling tool ecosystem.",
+            "21-40": "Print-debugging only; no meaningful profiler ecosystem.",
+            "41-60": "Basic debugger support with limited/no independent profiling tools.",
+            "61-80": "Standardized debugging protocol integrated into major IDEs plus at least one usable profiler.",
+            "81-100": "Standardized wire-level debug protocol, multiple mature IDE-integrated debuggers, multiple independent production-grade profilers (free and commercial), a built-in low-overhead production profiler, and a native/low-level tool interface enabling a broader third-party tool ecosystem."
+          },
+          "evidence_sources_considered": [
+            "existence/openness of a standardized debug wire protocol",
+            "existence of a native VM/runtime tool interface used by third-party tools",
+            "built-in low-overhead production profiling capability",
+            "number and maturity of independent third-party profilers (free and commercial)",
+            "IDE-integrated debugger maturity"
+          ],
+          "scale": "0-100, 100 best"
+        },
+        "metric.ide_editor_support_quality": {
+          "bands": {
+            "0-20": "No meaningful IDE/editor support; no LSP; manual tooling only.",
+            "21-40": "Basic single-editor support with limited features (syntax highlighting only, no refactoring/navigation).",
+            "41-60": "One mature IDE-level solution with core completion/navigation/refactoring but limited breadth of alternatives.",
+            "61-80": "Multiple mature IDE options across major editors with strong feature completeness (completion, refactoring, navigation, integrated debugging) but with fragmentation or notable friction/performance issues.",
+            "81-100": "Multiple first-class, actively maintained IDEs/editors (dedicated commercial + open-source + lightweight LSP-based) with deep language-aware completion, refactoring, navigation, integrated debugging, and broad plugin ecosystems; consistently ranked top-tier for professional development."
+          },
+          "evidence_sources_considered": [
+            "official/major IDE feature sets",
+            "existence and maturity of a standardized language server",
+            "breadth of editor choices (heavyweight IDE, free/open-source IDE, lightweight LSP-based editor)",
+            "third-party productivity/usage surveys as corroborating (not sole) signal"
+          ],
+          "scale": "0-100, 100 best"
+        }
+      },
+      "scope_note": "This work unit is a language-sharded worker assigned only Java. Scores for other languages are produced by other shards and merged by the runner. The rubric below is frozen and intended to be applied identically to all 10 languages.",
+      "status_notes": "Both requirement values reflect only the Java column of a language-sharded metric; the runner is expected to merge with other language shards before aggregation. No N/A conditions apply: Java has extensive, well-documented IDE/editor and debugger/profiler support."
+    },
+    "requirements": {
+      "metric.debugger_profiler_support": {
+        "Java": 98
+      },
+      "metric.ide_editor_support_quality": {
+        "Java": 97
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "0b334932691a5b2da4f35725f86d3e87ec60e8cde89f0664dbc830ab2aa9e65a",
+  "schema_version": 1
+}

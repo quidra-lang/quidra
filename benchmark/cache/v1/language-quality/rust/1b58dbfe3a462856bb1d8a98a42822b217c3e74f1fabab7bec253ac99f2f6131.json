@@ -1,0 +1,121 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "1b58dbfe3a462856bb1d8a98a42822b217c3e74f1fabab7bec253ac99f2f6131",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "f4eac67f62d505181fae07d41061de9e3445769c58bc32d28d803f3cadd13132",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/programs/rust/adversarial": "6146d3338572181c436d4d9c91395b33d366da3ebd1f3ad3bb77b25418f34eed",
+      "template/programs/rust/micro": "477bed528952f34f4bf68318001bdc4e3f4ca15d102fac1abd391c817886f96d",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.code_efficiency_conciseness",
+      "metric.readability"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "lq-language-development--part-1--rust",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "f4eac67f62d505181fae07d41061de9e3445769c58bc32d28d803f3cadd13132",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "lq-language-development--part-1--rust"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "limitations": "Qualitative code review of reusable comparison programs; no cross-language numeric benchmark executed in this unit. Scores are relative expert assessments per language_quality.md guidance (idiomatic best practice, no artificial penalty/boost). No LLM proficiency scenario data generated here; only static code-quality metrics for Rust assessed as assigned.",
+      "metric.code_efficiency_conciseness": {
+        "method": "Inspected reusable Rust micro-benchmark programs (mb00-mb11) and adversarial programs under template/programs/rust. Assessed token/line density needed to express the same algorithm relative to idiomatic Rust practice: iterator chains (zip, map), no manual bounds-checked indexing loops except where the frozen algorithm requires index-based updates, preallocated Vec<f64>, no unnecessary cloning.",
+        "observations": [
+          "mb04.rs: core workload uses iterator zip over two f64 vectors with four scalar accumulators, concise and idiomatic; avoids manual index loops in the hot inner loop.",
+          "Outer loop anti-elimination update (a_vec[r % M] += 1e-9) requires index-based access intrinsic to the algorithm across all languages, not Rust-specific overhead.",
+          "No unnecessary heap allocations inside hot loops; vectors preallocated via vec![0.0f64; M].",
+          "Ownership/borrowing model enables safe zip-based iteration without bounds-check boilerplate or copies (#![forbid(unsafe_code)]).",
+          "Struct-based Lcg generator is compact standard encapsulation; no boilerplate beyond Rust's module/impl requirements."
+        ],
+        "score_rationale": "Idiomatic iterator/zip patterns keep code compact relative to explicit-index languages; slightly more verbose than Python (types, impl blocks, float suffixes) but comparable to Go/Java/Kotlin. Scored 78/100."
+      },
+      "metric.readability": {
+        "method": "Reviewed identifier naming, control flow, and structuring conventions in the reusable Rust programs (micro and adversarial sets) for idiomatic readability: function separation, comments citing methodology sections, meaningful variable names, consistent formatting.",
+        "observations": [
+          "Comments cite exact methodology sections and describe algorithmic intent, aiding traceability.",
+          "Explicit local type annotations (f64, usize, i64) improve self-documentation without excessive verbosity.",
+          "Explicit .expect()/.unwrap_or() error handling avoids hidden control flow, aiding clarity of paths.",
+          "Tuple destructuring (let (s1,s2,s3,s4) = ...) names results clearly, improving clarity over positional/pointer outputs.",
+          "Adversarial programs are short, single-purpose files isolating one language-edge-case each, aiding per-file readability."
+        ],
+        "score_rationale": "Strong type system, explicit ownership annotations, and pattern-matching idioms yield self-documenting code with low incidental complexity; on par with Kotlin/Swift, above raw-pointer-heavy C++/Zig styles, though explicit type/lifetime annotations add minor cognitive overhead vs dynamically typed languages. Scored 80/100."
+      },
+      "programs_reviewed": {
+        "adversarial_sample": [
+          "ADV-01_R.rs",
+          "ADV-06_R.rs",
+          "ADV-11_R.rs",
+          "ADV-22-valid.rs"
+        ],
+        "micro": [
+          "mb00.rs",
+          "mb01.rs",
+          "mb02.rs",
+          "mb03.rs",
+          "mb04.rs",
+          "mb05.rs",
+          "mb06.rs",
+          "mb07.rs",
+          "mb08.rs",
+          "mb09.rs",
+          "mb10.rs",
+          "mb11.rs"
+        ]
+      }
+    },
+    "requirements": {
+      "metric.code_efficiency_conciseness": {
+        "Rust": 78
+      },
+      "metric.readability": {
+        "Rust": 80
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "6ea47ec9164b68efadb2d21a2f7b2dbdedfde542cad52b875c79f6e8364efa10",
+  "schema_version": 1
+}

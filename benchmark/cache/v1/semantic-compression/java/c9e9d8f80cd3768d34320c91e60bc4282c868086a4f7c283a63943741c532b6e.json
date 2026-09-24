@@ -1,0 +1,140 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "c9e9d8f80cd3768d34320c91e60bc4282c868086a4f7c283a63943741c532b6e",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-medium",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "5ccccdcae67abd6ab942ef2e590563cc3d1199ce7ee24a03693be4ca4fccd521",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.semantic_determinacy"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "sc-metrics-local--part-3--java",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "5ccccdcae67abd6ab942ef2e590563cc3d1199ce7ee24a03693be4ca4fccd521",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "sc-metrics-local--part-3--java"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.semantic_determinacy": {
+        "aggregate_calculation": {
+          "mean_log2_Bi": 0.13953488372093023,
+          "n_probes_with_fragment": 43,
+          "normalized_score_formula": "100 * 2^(-mean_log2_Bi)",
+          "normalized_score_raw": 90.78,
+          "normalized_score_reported": 91,
+          "sum_log2_Bi": 6
+        },
+        "basis_note": "This is a single-language (Java-only) shard. Per spec's common-basis rule, metrics A-D must ultimately be computed on the set of probes for which ALL TEN languages have a fragment; this worker reports Java's per-probe B_i and an all-fragments-basis aggregate (43/44 probes) for the aggregator to reconcile against the common basis once every language's shard is available. The F20.P2 NONE is recorded per NA-2/NA-6 and does not lower this determinacy figure directly; it is captured instead by Capability Coverage.",
+        "language": "Java",
+        "limitations": "B_i values were assigned by expert estimation against the frozen semantic_site_matrix.json rows and capability_universe.json canonical_task text for Java under its frozen recipe (javac, standard library only), not by exhaustive mechanical enumeration of every possible reader misinterpretation; they are recorded here as auditable raw evidence per probe so a reviewer can contest any individual figure without invalidating the aggregate methodology.",
+        "method": "Per spec 6.1.3.B, for each of the 44 frozen probes we estimated B_i, the count of materially different semantic interpretations (mutation/aliasing/failure/conversion/dispatch/resource/control-flow/representation outcomes) that remain compatible with the probe's local Java surface form (measured_fragment) alone, before consulting external declarations. Raw metric is mean(log2(B_i)) over the probes for which a Java fragment exists (43 of 44; F20.P2 has no fragment because Java's frozen toolchain/recipe provides no mechanism to export a stable unmangled C-ABI symbol, so it is NONE and excluded from this per-language determinacy computation pending the common-basis reconciliation done by the aggregator).",
+        "normalization": "Since lower branching is better, the 0-100 score is normalized_score = 100 * 2^(-mean_log2_B). This maps B=1 (fully determinate) to 100 and penalizes geometrically as the geometric mean of B_i grows (B=2 -> 50, B=4 -> 25).",
+        "rationale_notes": {
+          "F01.P2": "static mutable field vs static final constant: the mutability distinction is explicit via `final`, but a plain (non-volatile) static field leaves a second live interpretation open under the JMM (visibility timing to other threads is unspecified without `volatile`/synchronization), so B=2.",
+          "F04.P1": "Java has no native writable alias to a scalar local; the nearest standard substitute (a length-1 array or AtomicInteger wrapper) is not uniquely mandated by the language, leaving two materially different but standard mechanisms compatible with 'the normal way', so B=2 for the substituted form.",
+          "F05.P1": "the bare call site `f(xs)` passes the List reference by value with no local annotation of what `f` will do; from the call-site syntax alone (excluding f's signature per R5) at least 4 materially distinct aliasing/mutation outcomes remain compatible: read-only use, in-place element mutation observable through `xs`, retention of the alias beyond the call, or (if f defensively copies) no observable effect at all.",
+          "F05.P2": "Java has no dedicated inout/reference-parameter syntax for scalars; the explicit writable-alias form must be simulated via a wrapper object, and which wrapper idiom (array cell vs. mutable holder class vs. AtomicInteger) is used is not fixed by the language, leaving B=2.",
+          "F20.P1": "Java's Foreign Function & Memory API requires runtime/lookup-object setup whose determinacy of ABI/safety marking is less locally self-evident than in languages with dedicated FFI keywords, so B=2."
+        },
+        "raw_branching_counts": {
+          "F01.P1": 1,
+          "F01.P2": 2,
+          "F02.P1": 1,
+          "F02.P2": 1,
+          "F03.P1": 1,
+          "F03.P2": 1,
+          "F04.P1": 2,
+          "F04.P2": 1,
+          "F04.P3": 1,
+          "F05.P1": 4,
+          "F05.P2": 2,
+          "F05.P3": 1,
+          "F06.P1": 1,
+          "F06.P2": 1,
+          "F07.P1": 1,
+          "F07.P2": 1,
+          "F08.P1": 1,
+          "F08.P2": 1,
+          "F09.P1": 1,
+          "F09.P2": 1,
+          "F10.P1": 1,
+          "F10.P2": 1,
+          "F11.P1": 1,
+          "F11.P2": 1,
+          "F12.P1": 1,
+          "F12.P2": 1,
+          "F13.P1": 1,
+          "F13.P2": 1,
+          "F14.P1": 1,
+          "F14.P2": 1,
+          "F14.P3": 1,
+          "F15.P1": 1,
+          "F15.P2": 1,
+          "F15.P3": 1,
+          "F16.P1": 1,
+          "F16.P2": 1,
+          "F17.P1": 1,
+          "F17.P2": 1,
+          "F18.P1": 1,
+          "F18.P2": 1,
+          "F19.P1": 1,
+          "F19.P2": 1,
+          "F20.P1": 2,
+          "F20.P2": "NONE - no fragment (Java's frozen toolchain lacks a standard mechanism to export a stable unmangled C-ABI symbol); excluded from mean, not counted as B=1 or 0"
+        }
+      }
+    },
+    "requirements": {
+      "metric.semantic_determinacy": {
+        "Java": 91
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "1931cbb8e98880706244bc17fe0ea857cdf1b881dfed9eef90c15dd6a445a20b",
+  "schema_version": 1
+}

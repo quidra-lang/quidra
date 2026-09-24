@@ -1,0 +1,101 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "d092ee6a9483710aa34ed2080e7c9af1b4ae953071445470349fe6acbd3ff785",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "e14c7fa94f782dfedf599359368c55a96e8a86115ee3efadc1335ff589503376",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/programs/typescript/adversarial": "1b38dd91d4f6cadfd78800183c415c5c77b8fe197be5be5ef08bb54d2cd9f31b",
+      "template/programs/typescript/micro": "f57b3731c18c106a72b6fa001b98f8ddd22ff973a7d894580fb64e3301e8d0ab",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.ffi_interoperability_design",
+      "metric.concurrency"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "lq-language-development--part-4--typescript",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "e14c7fa94f782dfedf599359368c55a96e8a86115ee3efadc1335ff589503376",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "lq-language-development--part-4--typescript"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "metric.concurrency": {
+        "method": "Static language-design analysis of TypeScript's concurrency model (single-threaded event loop, async/await, Promises, Worker Threads) based on language semantics and inspection of readable micro-benchmark sources.",
+        "observations": [
+          "TypeScript inherits JavaScript's single-threaded, event-loop-based concurrency model. There is no shared-memory multithreading in the language itself; true parallelism requires spawning separate Worker Threads (or Web Workers) with message-passing (structured clone / SharedArrayBuffer for shared memory).",
+          "async/await and Promises are first-class, well-integrated language/type-system features (Promise<T> is fully generic-typed), giving excellent ergonomics for I/O-bound concurrency and composing asynchronous pipelines with strong static typing of resolved values and errors.",
+          "No built-in structured concurrency or cancellation beyond library convention; AbortController is a runtime pattern layered on top, not enforced by the type system.",
+          "CPU-bound parallelism is comparatively weak: Worker Threads require explicit message-passing boilerplate, structured cloning overhead, and separate module loading, unlike native shared-memory threads with typed channels (Rust, Go, Java, Kotlin).",
+          "SharedArrayBuffer + Atomics exist for low-level shared-memory concurrency across workers but are unergonomic, unsafe (no compiler-enforced data-race protection), and rarely idiomatic in typical TS code.",
+          "No compiler-level data-race safety guarantees (contrast with Rust's Send/Sync) since there is no shared mutable state across the single-threaded model by default."
+        ],
+        "scoring_rationale": "Scored 55/100: TypeScript offers excellent, strongly-typed asynchronous I/O concurrency (async/await/Promise) which is a genuine language-quality strength, but true parallel/CPU-bound concurrency is bolted on via Worker Threads with weak ergonomics and no compiler-enforced safety, placing it below languages with native structured concurrency and shared-memory safety guarantees (Go, Rust, Java/Kotlin coroutines) but above languages with no cooperative async model at all."
+      },
+      "metric.ffi_interoperability_design": {
+        "method": "Static language-design analysis of TypeScript/JavaScript FFI model on Node.js runtime, informed by inspection of readable TypeScript micro-benchmark sources under template/programs/typescript/micro.",
+        "observations": [
+          "TypeScript itself has no native FFI keyword or ABI-level interop; interop is delegated entirely to the underlying JS runtime (Node.js N-API/node-ffi, Deno FFI, or WASM bindings).",
+          "Calling native code requires either writing a native Node addon in C/C++ using N-API (a separate compiled artifact, not part of TS language semantics) or using a third-party FFI package (e.g. ffi-napi, koffi) that maps C signatures dynamically at runtime with no compile-time type checking against the native side.",
+          "TypeScript's structural type system and .d.ts declaration files give reasonable static typing quality for JS-side wrappers once a hand-written or generated .d.ts exists, but the FFI boundary itself is untyped/unsafe (raw pointers as opaque numbers/BigInt, manual marshalling of structs/buffers).",
+          "WebAssembly interop (via Emscripten or wasm-bindgen-style tooling) is ergonomically decent but still requires generated glue and is not a language-level construct.",
+          "No first-class syntax for calling into shared libraries directly (unlike Zig's @cImport or Go's cgo); all approaches go through the host runtime's C++ embedding API or third-party packages.",
+          "Async/Promise-based native call wrapping is idiomatic and composes cleanly with TS's async/await, a genuine design strength for interop ergonomics on the calling side."
+        ],
+        "scoring_rationale": "Scored 58/100: TypeScript/JS has workable but not language-native FFI; interop safety and typing across the native boundary are weak (untyped buffers/pointers, manual marshalling), while calling-side async ergonomics and declaration-file typing are genuine strengths. This sits below languages with built-in typed FFI (Rust, Zig, Go cgo, Swift) but above languages with essentially no practical FFI story."
+      }
+    },
+    "requirements": {
+      "metric.concurrency": {
+        "TypeScript": 55
+      },
+      "metric.ffi_interoperability_design": {
+        "TypeScript": 58
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "b52780a9fc7dc02ae4a94202c11096bf212149d19fa899a1889bc712553e6e2d",
+  "schema_version": 1
+}

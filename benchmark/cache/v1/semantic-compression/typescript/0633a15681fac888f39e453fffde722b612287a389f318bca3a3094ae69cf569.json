@@ -1,0 +1,296 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "0633a15681fac888f39e453fffde722b612287a389f318bca3a3094ae69cf569",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-medium",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "16b904dc876612f2a190c6b60e1803600bb68e4bfcba146bda021a043c549812",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_efficiency"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "16b904dc876612f2a190c6b60e1803600bb68e4bfcba146bda021a043c549812",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--typescript"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.capability_efficiency": {
+        "basis": "all-fragments (single-language shard; common-basis reconciliation deferred to aggregator)",
+        "capability_coverage_C_TypeScript": 79.5,
+        "complexity_units_by_family_itemized": {
+          "10_type_conversion": {
+            "citation": "ECMA-262 ToNumber/ToString/ToPrimitive abstract operations; TS 'as'/bitwise-OR narrowing idioms",
+            "context_rules": 3,
+            "documented_exceptions": 3,
+            "implicit_rules": 4,
+            "subtotal": 12,
+            "syntax_forms": 2
+          },
+          "11_indexing_slicing": {
+            "citation": "ECMA-262 Array element access returns undefined out-of-range (no trap); Array.prototype.slice",
+            "context_rules": 1,
+            "documented_exceptions": 1,
+            "implicit_rules": 2,
+            "subtotal": 6,
+            "syntax_forms": 2
+          },
+          "12_nullable_optional": {
+            "citation": "TS Handbook union types with null/undefined, ?? nullish coalescing, ?. optional chaining",
+            "context_rules": 2,
+            "documented_exceptions": 1,
+            "implicit_rules": 2,
+            "subtotal": 8,
+            "syntax_forms": 3
+          },
+          "13_errors_exceptions": {
+            "citation": "ECMA-262 try/catch/throw; TS catch clause variable typed unknown/any",
+            "context_rules": 2,
+            "documented_exceptions": 2,
+            "implicit_rules": 2,
+            "subtotal": 8,
+            "syntax_forms": 2
+          },
+          "14_alternatives_sum_types": {
+            "citation": "TS Handbook discriminated unions and exhaustiveness checking via 'never'",
+            "context_rules": 2,
+            "documented_exceptions": 1,
+            "implicit_rules": 2,
+            "subtotal": 8,
+            "syntax_forms": 3
+          },
+          "15_generics": {
+            "citation": "TS Handbook Generics; structural typing and variance rules",
+            "context_rules": 3,
+            "documented_exceptions": 2,
+            "implicit_rules": 3,
+            "subtotal": 11,
+            "syntax_forms": 3
+          },
+          "16_collections_iteration": {
+            "citation": "TS Handbook iterables/Map/Array; ECMA-262 Iterator protocol",
+            "context_rules": 1,
+            "documented_exceptions": 0,
+            "implicit_rules": 1,
+            "subtotal": 5,
+            "syntax_forms": 3
+          },
+          "17_resource_management": {
+            "citation": "TS 5.2 'using' declarations (explicit resource management); no deterministic destructors otherwise",
+            "context_rules": 2,
+            "documented_exceptions": 2,
+            "implicit_rules": 1,
+            "subtotal": 7,
+            "syntax_forms": 2
+          },
+          "18_modules_imports": {
+            "citation": "TS Handbook Modules; ESM/CommonJS interop rules; # private fields vs convention",
+            "context_rules": 2,
+            "documented_exceptions": 2,
+            "implicit_rules": 2,
+            "subtotal": 9,
+            "syntax_forms": 3
+          },
+          "19_concurrency_async": {
+            "citation": "ECMA-262 async/await, Promise; single-threaded event-loop concurrency model",
+            "context_rules": 2,
+            "documented_exceptions": 2,
+            "implicit_rules": 2,
+            "subtotal": 8,
+            "syntax_forms": 2
+          },
+          "1_value_storage_declaration": {
+            "citation": "TS Handbook: Variable Declarations (const/let/var, readonly, type inference); TDZ per ECMA-262 8.1.1",
+            "context_rules": 1,
+            "documented_exceptions": 1,
+            "implicit_rules": 2,
+            "subtotal": 7,
+            "syntax_forms": 3
+          },
+          "20_ffi_interop": {
+            "citation": "No standard built-in FFI mechanism in TypeScript/Node frozen recipe; both probes NONE",
+            "context_rules": 0,
+            "documented_exceptions": 0,
+            "implicit_rules": 0,
+            "subtotal": 0,
+            "syntax_forms": 0
+          },
+          "2_initialization_state": {
+            "citation": "TS Handbook: strictNullChecks / definite assignment analysis (--strictPropertyInitialization); TDZ",
+            "context_rules": 2,
+            "documented_exceptions": 1,
+            "implicit_rules": 2,
+            "subtotal": 7,
+            "syntax_forms": 2
+          },
+          "3_mutation": {
+            "citation": "ECMA-262 assignment/update operators; numeric coercion on ++/+=",
+            "context_rules": 1,
+            "documented_exceptions": 0,
+            "implicit_rules": 1,
+            "subtotal": 5,
+            "syntax_forms": 3
+          },
+          "4_aliasing": {
+            "citation": "ECMA-262 object reference semantics; TS readonly array/tuple types; TypedArray.subarray view",
+            "context_rules": 2,
+            "documented_exceptions": 1,
+            "implicit_rules": 2,
+            "subtotal": 7,
+            "syntax_forms": 2
+          },
+          "5_function_calls": {
+            "citation": "ECMA-262 argument passing (primitives by value, objects by reference implicitly); TS Handbook closures",
+            "context_rules": 2,
+            "documented_exceptions": 1,
+            "implicit_rules": 3,
+            "subtotal": 9,
+            "syntax_forms": 3
+          },
+          "6_return_value": {
+            "citation": "TS Handbook tuple types; ECMA-262 return semantics (value vs reference implicit by operand kind)",
+            "context_rules": 1,
+            "documented_exceptions": 0,
+            "implicit_rules": 2,
+            "subtotal": 5,
+            "syntax_forms": 2
+          },
+          "7_arithmetic_operators": {
+            "citation": "ECMA-262 Number type unification; + operator string/number coercion rules (12.8.3)",
+            "context_rules": 2,
+            "documented_exceptions": 2,
+            "implicit_rules": 3,
+            "subtotal": 9,
+            "syntax_forms": 2
+          },
+          "8_overflow_numeric_edge": {
+            "citation": "ECMA-262 Number.MAX_SAFE_INTEGER, IEEE754 double semantics, no integer overflow trap",
+            "context_rules": 2,
+            "documented_exceptions": 2,
+            "implicit_rules": 3,
+            "subtotal": 8,
+            "syntax_forms": 1
+          },
+          "9_equality_ordering": {
+            "citation": "ECMA-262 == abstract equality vs === strict equality (7.2.13/7.2.14)",
+            "context_rules": 2,
+            "documented_exceptions": 1,
+            "implicit_rules": 2,
+            "subtotal": 7,
+            "syntax_forms": 2
+          }
+        },
+        "counting_rule_frozen_before_annotation": "Per probe-family, count (a) distinct syntax forms required to express/interpret the family's supported probes, (b) context-dependent rules (behavior depends on surrounding declaration/mode, e.g. strictNullChecks, TDZ), (c) implicit rules (behavior triggered without local syntax marker, e.g. numeric coercion, prototype/reference semantics), (d) documented semantic exceptions (deviations from the family's 'normal' rule noted in the TypeScript Handbook/ECMA-262). Sub-counts with no governing written rule are recorded as 'unknown', never 0. All four sub-counts here have governing written rules (TypeScript Handbook + ECMAScript spec sections cited per family below), so none are 'unknown'.",
+        "denominator_definition": "sum over 44 probes of capability_points(2) * support_factor(TypeScript), per interaction_with_quality_metrics.metric_E_denominator",
+        "language": "TypeScript",
+        "limitation": "Family-level (not full per-probe, per-site) itemization was used given task scope; per-site sub-ledgers are reproducible from the same cited sources and the semantic_site_matrix.json site list for TypeScript on request.",
+        "normalization_note": "This shard evaluates TypeScript only; the frozen methodology (6.1.4.E) computes Capability Efficiency by dividing counted semantic-complexity units by supported capability points, lower being better, and requires a cross-language basis to fix the 0-100 scale. Absent the other nine languages' figures in this shard, the reported normalized value uses a documented, invertible proxy score = 100 / (1 + raw_units_per_supported_capability_point), which preserves 'lower raw = higher normalized' and is monotonic; the runner should recompute the final normalized 0-100 value jointly across all ten languages' raw figures once all per-language shards are merged, per common_basis_rule.",
+        "normalized_score_formula_applied": "100 / (1 + 2.0857) = 32.4, rounded to 32",
+        "per_probe_support_factors": {
+          "F01.P1": 1,
+          "F01.P2": 1,
+          "F02.P1": 1,
+          "F02.P2": 0.5,
+          "F03.P1": 1,
+          "F03.P2": 1,
+          "F04.P1": 0,
+          "F04.P2": 0.5,
+          "F04.P3": 1,
+          "F05.P1": 1,
+          "F05.P2": 0,
+          "F05.P3": 1,
+          "F06.P1": 1,
+          "F06.P2": 1,
+          "F07.P1": 1,
+          "F07.P2": 1,
+          "F08.P1": 0.5,
+          "F08.P2": 0.5,
+          "F09.P1": 1,
+          "F09.P2": 1,
+          "F10.P1": 0.5,
+          "F10.P2": 0.5,
+          "F11.P1": 1,
+          "F11.P2": 1,
+          "F12.P1": 1,
+          "F12.P2": 1,
+          "F13.P1": 1,
+          "F13.P2": 1,
+          "F14.P1": 1,
+          "F14.P2": 1,
+          "F14.P3": 1,
+          "F15.P1": 1,
+          "F15.P2": 1,
+          "F15.P3": 1,
+          "F16.P1": 1,
+          "F16.P2": 1,
+          "F17.P1": 0.5,
+          "F17.P2": 0,
+          "F18.P1": 1,
+          "F18.P2": 1,
+          "F19.P1": 1,
+          "F19.P2": 0.5,
+          "F20.P1": 0,
+          "F20.P2": 0
+        },
+        "raw_capability_efficiency_units_per_supported_capability_point": 2.0857,
+        "support_factor_sum": 35,
+        "supported_capability_points": 70,
+        "total_complexity_units": 146,
+        "total_fixed_capability_points_denominator_for_C": 88,
+        "unknown_subcounts": "none \u2014 every complexity sub-count above is backed by a cited TypeScript Handbook / ECMA-262 provision; no category lacked governing documentation for TypeScript, so no 'unknown' entries were required for this language."
+      }
+    },
+    "requirements": {
+      "metric.capability_efficiency": {
+        "TypeScript": 32
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "38427028752b75e1b93d24975e35050f3ac4602bc6f93a74c54e1ae8f04171b0",
+  "schema_version": 1
+}

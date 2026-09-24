@@ -1,0 +1,155 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "dfba6de06c61c1b82f1b171d0040386cdd09b3210354f09621fa6c0d4a08395a",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "d839035e4a5ca4da15439ea447010e0ec504ce11accb1357c4ea7a90216acf6f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.ide_editor_support_quality",
+      "metric.debugger_profiler_support"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "ecosystem-tooling--part-2--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "d839035e4a5ca4da15439ea447010e0ec504ce11accb1357c4ea7a90216acf6f",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-2--typescript"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.debugger_profiler_support.TypeScript": {
+        "component_A_vscode_debugger": {
+          "citations": [
+            "<cite index=10-12,10-13>Remember that 9229 is the default port for the Node inspector: Notice that the above configuration doesn't specify the UUID of the Node session. VS Code, just like Chrome DevTools, will inspect ws://127.0.0.1:9229 and automatically attach to the current running session if there's only one.</cite>",
+            "<cite index=15-10>Source maps so production stack traces point at your TypeScript, not main.abc123.min.js:1:48291.</cite>"
+          ],
+          "rationale": "VS Code's Node debugger attaches to the standard Node inspector protocol and, combined with source maps, allows setting breakpoints directly in .ts source rather than compiled output; this is described as a smooth, near-automatic workflow.",
+          "score": 24
+        },
+        "component_B_jetbrains_debugger": {
+          "citation": "<cite index=2-12>WebStorm 2025.3: Enhanced Monorepo Support, Framework Improvements, Vitest 4 Support, Multiple Agents in AI Assistant, Remote Debugging, and More</cite>",
+          "rationale": "WebStorm ships a full JS/TS debugger and JetBrains has continued to invest in it, including a 2025.3 release adding remote debugging capability.",
+          "score": 24
+        },
+        "component_C_profiler_tooling": {
+          "citations": [
+            "<cite index=12-2,12-3>Node.js has built-in inspector support. Start your application with the --inspect flag</cite>",
+            "<cite index=15-11>You get the full Sources panel, breakpoints, async stack traces, Scope, and the Profiler \u2014 pointed at a server process.</cite>"
+          ],
+          "rationale": "TypeScript/Node runs on V8, which exposes a built-in inspector supporting CPU and memory profiling directly through Chrome DevTools' Sources/Profiler panels, requiring only the standard --inspect flag.",
+          "score": 24
+        },
+        "component_D_third_party_breadth": {
+          "citations": [
+            "<cite index=11-1>React debugging in Chrome DevTools: a 5-view panel (Dashboard/Profiler/State/Effects/Settings) with render+memory profiling, issue detectors, a Redux inspector, AI analysis, and an MCP server for coding agents.</cite>",
+            "<cite index=16-9>Be aware that the Node.js inspector supports breakpoints but is not a full-featured debugger.</cite>",
+            "<cite index=17-3>This protocol allows any tool to connect to node to debug it \u00b7 The 4 protocol domains available expose all underlying methods that deliver the JavaScript functionality found in Chrome DevTools.</cite>"
+          ],
+          "rationale": "A wide ecosystem of third-party profiling/monitoring tools builds on the standard Chrome Debugging Protocol shared by Node and browsers (e.g. React DevTools profiling panels, trace/lighthouse analyzers, and general Node performance-monitoring middleware), though the base inspector CLI itself is explicitly noted as a minimal, not full-featured, debugger, reflecting reliance on tooling built atop the protocol rather than a single unified native debugger.",
+          "score": 23
+        },
+        "summary": "TypeScript/Node debugging and profiling is highly mature: both VS Code and WebStorm provide native source-level debugging via source maps and the standard V8/Node inspector protocol, and Chrome DevTools supplies an industry-standard CPU/memory profiler usable against any Node or browser TypeScript process. Score is slightly below the IDE metric because core debugging is mediated through source maps over the underlying compiled JavaScript (an indirection layer) and the bundled CLI inspector is explicitly documented as minimal, with richer functionality coming from the surrounding DevTools/IDE tooling rather than a single unified native TS debugger.",
+        "total": 95
+      },
+      "metric.ide_editor_support_quality.TypeScript": {
+        "component_A_first_party": {
+          "citation": "<cite index=33-1,33-2>The TypeScript project/package includes a tsserver component which provides a custom API that can be used for gathering various intelligence about a typescript/javascript project, and the VSCode team has built a project called Typescript Language Features (and bundled it as an internal extension in VSCode) that provides code intelligence for your javascript and typescript projects by utilizing that tsserver API.</cite>",
+          "rationale": "TypeScript ships an official language service (tsserver) built and maintained by Microsoft, and Microsoft's own VS Code bundles a first-party 'TypeScript Language Features' extension built directly on that service.",
+          "score": 25
+        },
+        "component_B_vscode": {
+          "citation": "<cite index=10-9,10-10>You can also very easily create a launch configuration for attaching to a Node process running from the terminal. The VS Code auto-completion for configurations is amazing.</cite>",
+          "rationale": "VS Code auto-completion for launch/debug and language configuration around TypeScript projects is described as very mature and near-seamless, consistent with TypeScript/VS Code being co-developed by Microsoft.",
+          "score": 25
+        },
+        "component_C_jetbrains": {
+          "citations": [
+            "<cite index=2-8>WebStorm 2026.1 focuses on the places where the IDE's quality most affects your everyday work, ensuring type checking stays responsive, framework support keeps up with the ecosystem, and your workflows let you stay in the editor instead of switching tools.</cite>",
+            "<cite index=4-5,4-6>If you work on a large TypeScript codebase, this release is a meaningful upgrade. TypeScript 7 support ships out of the box for projects already using it, delivering faster type checking without requiring full project migration.</cite>",
+            "<cite index=3-1,3-2>I began experiencing this issue late in 2025 and it just seemed to get worse every day. Typescript and Angular template errors wouldn't get marked in the IDE or would take a long time to get marked.</cite>"
+          ],
+          "rationale": "WebStorm provides a dedicated, actively developed JavaScript/TypeScript IDE with continuous feature releases (TypeScript-Go engine support, TypeScript 7 support, monorepo support, remote debugging), but user reports document periods of unreliable TypeScript/Angular error-reporting performance on large codebases, warranting a modest deduction versus a perfect score.",
+          "score": 22
+        },
+        "component_D_long_tail_editors": {
+          "citations": [
+            "<cite index=19-4>Emacs \u00b7 NeoVim \u00b7 NetBeans \u00b7 Notepad++ Sublime Text \u00b7 Vim \u00b7 Visual Studio \u00b7 Visual Studio Code \u00b7 WebStorm \u00b7 alm.tools a complete TypeScript development environment available as a simple npm package.</cite>",
+            "<cite index=33-3,33-4>Since that extension doesn't use the standardized Language Server Protocol to communicate with the editor, other editors that implement LSP can't directly utilize it. Here is where the TypeScript Language Server project comes in with the aim to provide a thin LSP interface on top of that extension's code base for the benefit of all other editors that implement the LSP protocol.</cite>",
+            "<cite index=23-2,23-6>This extension is a fork of typescript-language-features extension which is bundled with VSCode... Supports javascript & typescript and jsx/tsx (make sure the buffer filetype is typescriptreact or javascriptreact).</cite>"
+          ],
+          "rationale": "TypeScript has one of the widest documented sets of editor integrations of any language: an official Microsoft wiki catalogs support across Emacs, NeoVim, NetBeans, Notepad++, Sublime Text, Vim, Visual Studio, VS Code, WebStorm, Atom, and Eclipse, and a widely used community bridge (typescript-language-server) exposes tsserver over the standard Language Server Protocol so any LSP-capable editor (Neovim, Helix, Zed, Sublime via LSP, Emacs via lsp-mode/coc) gets rich TypeScript intelligence.",
+          "score": 25
+        },
+        "summary": "TypeScript scores near the top of the rubric: it has an official Microsoft-maintained language service powering a first-party VS Code extension, a dedicated commercial IDE (WebStorm) with continuous investment, and one of the broadest documented sets of long-tail editor integrations of any language via both native plugins and the standardized typescript-language-server LSP bridge. A small deduction is applied for documented WebStorm large-project responsiveness/reliability complaints.",
+        "total": 97
+      },
+      "rubric": {
+        "metric.debugger_profiler_support": [
+          "A (0-25): Native, source-level (not just compiled-output) step debugger integration in the dominant general editor (VS Code).",
+          "B (0-25): Dedicated/commercial IDE debugger integration depth (conditional breakpoints, watches, remote/attach debugging).",
+          "C (0-25): Profiler tooling maturity -- CPU profiling, heap/memory snapshots, flamecharts, available via first-party or de-facto-standard tooling.",
+          "D (0-25): Breadth of third-party profiling/tracing tools building on a standard, widely adopted debug/profiling protocol."
+        ],
+        "metric.ide_editor_support_quality": [
+          "A (0-25): Existence and maintenance quality of an official/first-party language server or IDE integration maintained by the language's steward.",
+          "B (0-25): Depth of support in the dominant general-purpose editor (VS Code) -- completion, diagnostics, refactoring, go-to-definition, rename-across-files.",
+          "C (0-25): Depth of a dedicated full-featured IDE (JetBrains-class) integration -- semantic navigation, refactors, debugging hooks, reported reliability.",
+          "D (0-25): Breadth of LSP-based or plugin-based support across long-tail editors (Vim/Neovim, Emacs, Sublime, Helix, Zed, Eclipse, NetBeans)."
+        ],
+        "note": "Frozen objective rubric to be applied identically to all 10 languages by their respective per-language shards. Each metric is decomposed into four equally-weighted 0-25 point components summing to a 0-100 normalized score.",
+        "observation_window": "Evidence collected September 2026 from official Microsoft/TypeScript documentation, JetBrains WebStorm release blogs (2024-2026), Node.js/V8 inspector documentation, and third-party technical guides."
+      }
+    },
+    "requirements": {
+      "metric.debugger_profiler_support": {
+        "TypeScript": 95
+      },
+      "metric.ide_editor_support_quality": {
+        "TypeScript": 97
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d7eb2b19d447c74948beffa50bf1b169b9ceffe195174040d98f4ad63423a64f",
+  "schema_version": 1
+}

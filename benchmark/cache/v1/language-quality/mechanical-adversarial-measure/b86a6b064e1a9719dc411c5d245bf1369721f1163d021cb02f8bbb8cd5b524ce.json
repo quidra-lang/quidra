@@ -1,0 +1,123 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "measured_at_utc": null,
+    "mechanical": true,
+    "primary_complete": false,
+    "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
+    "raw_evidence_sha256": {
+      "adversarial_raw.json": "24a63e36dcf44f1e650570e00411d5ab619551b8354651135018e57b231f1142",
+      "cells/": "ecdda54711b508f4a5f3e1d04fb64bd4c9f9977e3604ea983ee8de591d65ee39"
+    },
+    "runner_action": "adversarial-measure",
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "b86a6b064e1a9719dc411c5d245bf1369721f1163d021cb02f8bbb8cd5b524ce",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": null,
+    "frozen_sampling": null,
+    "measurement_script_hashes": {
+      "adversarial_measure.py": "bb861c0bbb8390820aae577560f2109b90b0faa76db9ac6bb53b06aa67b1314b",
+      "micro_measure.py": "905324d09a7f4612d5df9e17b11a64ade59eef8b8d17bd1dbaa1afde1b2b44be"
+    },
+    "model": null,
+    "network_allowed": false,
+    "provider": null,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality": "538847ef64cef3ab9a27f0fd76ba32fa0df952dcd11c9f2719a1067e3ee37723",
+      "template/methodology-assets/scoring": "a3be91ff162f3411462bb19e1858b517d5d21301795cd2a728344d9a1c35dd58",
+      "template/programs/java/adversarial": "8d8b771e2788305b80f47a2c8c853ee6232778e8f5c910ceb225b513dce0a1ce",
+      "template/programs/java/micro": "4b3258d0c3989b4ca04cf51b22a1536b8f7c82b32481fc66b2e4fcf1c02499ef"
+    },
+    "requirement_ids": [
+      "metric.type_safety",
+      "metric.memory_safety",
+      "metric.runtime_safety",
+      "metric.boundary_value_safety",
+      "metric.adversarial_input_robustness",
+      "metric.early_error_detection",
+      "metric.debuggability",
+      "metric.silent_bug_resistance",
+      "metric.implementation_robustness"
+    ],
+    "result_kind": "mechanical",
+    "runner_action": "adversarial-measure",
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "59f63312c6f2bf3a4bda671cdd23d3f4c4b1b0d27e7a9a3ac35ddd8b304eb21d",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py command-result-check --workspace /quidra-benchmark --id lq-adversarial-mechanical--java",
+    "work_unit_id": "lq-adversarial-mechanical--java",
+    "worker_mode": "runner-command"
+  },
+  "provenance": {
+    "prompt_sha256": null,
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "lq-adversarial-mechanical--java"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "assigned_languages": [
+        "Java"
+      ],
+      "programs_per_language": 37,
+      "quidra_na_reason": null,
+      "raw": "/quidra-benchmark/work/root/commands/lq-adversarial-mechanical--java/adversarial_raw.json",
+      "scorer": "adversarial_measure.py (mechanical replay of D0..D7)"
+    },
+    "requirements": {
+      "metric.adversarial_input_robustness": {
+        "Java": 85.71
+      },
+      "metric.boundary_value_safety": {
+        "Java": 42.27
+      },
+      "metric.debuggability": {
+        "Java": 61.54
+      },
+      "metric.early_error_detection": {
+        "Java": 65.0
+      },
+      "metric.implementation_robustness": {
+        "Java": 100.0
+      },
+      "metric.memory_safety": {
+        "Java": 100.0
+      },
+      "metric.runtime_safety": {
+        "Java": 57.69
+      },
+      "metric.silent_bug_resistance": {
+        "Java": 70.59
+      },
+      "metric.type_safety": {
+        "Java": 45.83
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "dd8017cf4c61a59a8cacf531ff9142fcf4ab23510532ec6f904e75d9fbc7714d",
+  "schema_version": 1
+}

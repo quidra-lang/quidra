@@ -55,9 +55,28 @@
     "work_unit_id": "ecosystem-external--part-3--c",
     "worker_mode": "packet-only"
   },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
   "provenance": {
     "prompt_sha256": "9b2e241622daafca3c4bc04fe96879145e6ce3a7f2d770fed08e9e845bac9e78",
-    "run_id": "cache-recertify-06cf5a9",
+    "run_id": "cache-recertify-584269b",
     "work_unit_id": "ecosystem-external--part-3--c"
   },
   "result": {

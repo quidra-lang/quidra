@@ -280,6 +280,15 @@ def assert_r9_p_a_scope_is_enforced() -> None:
         swift_f04 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Swift"]["F04.P1"]
         assert swift_f04["level"] == "PARTIAL"
         assert swift_f04["partial_reasons"] == ["P-e"]
+        typescript_f14 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["TypeScript"]["F14.P2"]
+        assert typescript_f14["level"] == "FULL"
+        assert not typescript_f14.get("partial_reasons")
+        zig_f14 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Zig"]["F14.P3"]
+        zig_f15 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Zig"]["F15.P3"]
+        assert zig_f14["level"] == "FULL"
+        assert zig_f15["level"] == "FULL"
+        assert not zig_f14.get("partial_reasons")
+        assert not zig_f15.get("partial_reasons")
         universe = benchmark.json_load(
             root
             / "template/methodology-assets/semantic_compression"

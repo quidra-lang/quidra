@@ -5526,6 +5526,16 @@ LEGACY_SC_SUPPORT_OVERRIDES: dict[str, dict[str, dict[str, Any]]] = {
                 "failure without handling it. F13.P1 has no R9 substitution."
             ),
         },
+        "F14.P2": {
+            "level": "FULL",
+            "reason": (
+                "The retained discriminated-union switch delivers every numbered "
+                "requirement with no default arm and computes both Circle and Rect "
+                "areas. Compiler-enforced exhaustiveness is explicitly an OBSERVATION "
+                "TARGET scored by B/D, not a Capability Coverage support requirement, "
+                "so the legacy PARTIAL/P-c judgment double-counted determinacy."
+            ),
+        },
     },
     "Swift": {
         "F04.P1": {
@@ -5586,6 +5596,31 @@ LEGACY_SC_SUPPORT_OVERRIDES: dict[str, dict[str, dict[str, Any]]] = {
                 "The unchanged canonical task explicitly makes a local b == 0 guard "
                 "preference rung (ii). The retained guard therefore delivers every "
                 "numbered requirement and is FULL, not a P-a substitution."
+            ),
+        },
+        "F14.P3": {
+            "level": "FULL",
+            "reason": (
+                "The current canonical task requires an extensible abstract operation "
+                "across a separate unit; it does not require a built-in nominal "
+                "interface keyword. Zig's documented type-erasure/vtable idiom using "
+                "*anyopaque plus function pointers lets the shapes unit define the "
+                "abstract Shape value while a separate unit adds Tri without editing "
+                "shapes and dispatches area at runtime. All numbered requirements are "
+                "therefore delivered without an R9 substitution."
+            ),
+        },
+        "F15.P3": {
+            "level": "FULL",
+            "reason": (
+                "The current canonical task asks for one declared abstract element "
+                "type that can hold A and B and dispatch tag at runtime; it does not "
+                "require a built-in interface construct. A Zig type-erased Named "
+                "value with *anyopaque context plus a tag function pointer is one "
+                "declared element type, can populate a heterogeneous sequence, and "
+                "dispatches to the concrete implementation. The legacy PARTIAL/P-a "
+                "classification therefore treated the ordinary vtable idiom as a "
+                "substitute when it actually satisfies every numbered requirement."
             ),
         },
     },

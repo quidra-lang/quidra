@@ -23,6 +23,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -506,7 +507,12 @@ def sandbox_turns(root: Path, unit: dict[str, Any], payload: str) -> list[str]:
         # toolchain the synthetic escape hatch waives the check there.
         for language in unit.get("assigned_languages") or []:
             probe = TOOLCHAIN_VERSION_PROBES.get(str(language))
-            if probe:
+            # Synthetic CI deliberately runs without the full ten-language
+            # toolchain image. The validator has an explicit non-canonical
+            # synthetic escape hatch for this exact case, so do not script a
+            # run action that the sandbox runtime is guaranteed to deny. When
+            # a toolchain is present, still exercise the direct invocation.
+            if probe and shutil.which(probe[0]) is not None:
                 turns.append(json.dumps({"action": "run", "argv": list(probe)}))
     if int(unit.get("max_llm_calls", 0) or 0) > 0:
         if unit.get("evaluation") == "llm_proficiency":

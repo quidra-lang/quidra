@@ -47,6 +47,10 @@ jobs:
           short_sha="$(git rev-parse --short=7 HEAD)"
           python benchmark/template/scripts/benchmark.py init --source-repo "$GITHUB_WORKSPACE" --sandbox-mode container --run-id "cache-recertify-${short_sha}" --provider anthropic-messages --model claude-sonnet-5
           python benchmark/template/scripts/sandbox_launcher.py run --source-repo "$GITHUB_WORKSPACE" --image "$BENCHMARK_IMAGE" --provider fake -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare --evaluation semantic_compression
+          # Language Quality mechanical leaves cost no provider calls. Re-run any
+          # stale mechanical measurements now so the paid benchmark never waits
+          # to discover or regenerate them.
+          python benchmark/template/scripts/sandbox_launcher.py run --source-repo "$GITHUB_WORKSPACE" --image "$BENCHMARK_IMAGE" --provider fake -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare --evaluation language_quality
           python benchmark/template/scripts/sandbox_launcher.py run --source-repo "$GITHUB_WORKSPACE" --image "$BENCHMARK_IMAGE" --provider fake -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare --evaluation ecosystem
           python benchmark/template/scripts/benchmark.py checkpoint-cache --source-repo "$GITHUB_WORKSPACE" | tee "$RUNNER_TEMP/cache-recertify.json"
 

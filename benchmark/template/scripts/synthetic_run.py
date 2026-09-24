@@ -565,6 +565,28 @@ def sandbox_turns(root: Path, unit: dict[str, Any], payload: str) -> list[str]:
     return turns
 
 
+
+def packet_only_files(
+    unit: dict[str, Any], languages: list[str], payload: str
+) -> list[dict[str, str]]:
+    """Mirror production's runner-owned support-adjudication JSON protocol."""
+    support = any(
+        str(rid).startswith("annotation.support_adjudication--")
+        for rid in (unit.get("requirement_ids") or [])
+    )
+    if not support:
+        return [{"path": "result.json", "content": payload}]
+    content = (
+        "LEVEL\nFULL\n"
+        "FRAGMENT\nsynthetic_fragment()\n"
+        "PARTIAL_REASONS\n-\n"
+        "NONE_REASON\n-\n"
+        "JUSTIFICATION\nSynthetic cohort-consistent justification.\n"
+        "CITATION\nSynthetic frozen documentation citation.\n"
+    )
+    return [{"path": f"{language}.txt", "content": content} for language in languages]
+
+
 def script_for_queue(
     root: Path,
     queue: list[dict[str, Any]],
@@ -583,7 +605,7 @@ def script_for_queue(
             tasks[agent_id] = [json.dumps({
                 "schema_version": 1,
                 "task_id": agent_id,
-                "files": [{"path": "result.json", "content": payload}],
+                "files": packet_only_files(unit, languages, payload),
             })]
         else:
             tasks[agent_id] = sandbox_turns(root, unit, payload)

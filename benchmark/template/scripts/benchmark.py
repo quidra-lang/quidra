@@ -3149,12 +3149,11 @@ COMPARABILITY_SAMPLE_RELATIVE = "work/audit/semantic-compression/comparability_s
 COMPARABILITY_BLINDING_RELATIVE = "work/root/comparability_blinding.json"
 COMPARABILITY_REPAIR_RELATIVE = "work/audit/semantic-compression/comparability_repairs.json"
 COMPARABILITY_POLICY_RELATIVE = "template/config/semantic_compression_comparability.json"
-COMPARABILITY_TEXT_LIMIT = 300
-# Measured on the first full run: the audit's other inputs (the snapshot docs
-# and the frozen Semantic Compression assets) embed 707,897 of the 1,048,576
-# bytes a packet-only Task Packet may carry, and the sample of all twenty
-# families costs 237,000 of the remaining 340,679. The ceiling here is a sanity
-# bound on the sample itself; the packet's own limit still guards the total.
+COMPARABILITY_TEXT_LIMIT = 220
+# Keep the blinded sample inside the packet reserve even after metric evidence
+# is preserved by source instead of being field-spliced.  The full, unclipped
+# reconciliation remains in work/audit/semantic-compression and is never
+# discarded; this limit affects only the packet view used by the auditor.
 COMPARABILITY_SAMPLE_BUDGET = 280_000
 
 COMPARABILITY_AUDIT_INSTRUCTIONS = """

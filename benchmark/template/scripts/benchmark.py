@@ -8494,14 +8494,33 @@ def current_language_quality_design_identity(root: Path) -> dict[str, Any] | Non
 
 
 def is_language_quality_design_unit(root: Path, unit: dict[str, Any]) -> bool:
-    """Whether a unit is one of the fixed-rubric intrinsic LQ design shards."""
+    """Whether a unit uses the current fixed-rubric intrinsic LQ contract.
+
+    Historical paid workspaces predate design_rubrics.json. They must keep
+    their original provider/model-bearing fingerprints while being recovered;
+    only a workspace that actually contains the current frozen rubric switches
+    to evidence-certified judge-independent identity.
+    """
     if str(unit.get("evaluation") or "") != "language_quality":
         return False
     requirement_ids = [str(value) for value in (unit.get("requirement_ids") or [])]
     if not requirement_ids:
         return False
-    design_metrics = set(language_quality_design_rubric_asset(root)["metrics"])
-    return set(requirement_ids) <= design_metrics
+    path = root / LANGUAGE_QUALITY_DESIGN_RUBRICS_RELATIVE
+    if not path.is_file():
+        return False
+    try:
+        asset = json_load(path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if (
+        asset.get("schema_version") != 1
+        or asset.get("frozen") is not True
+        or asset.get("rubric_set_id") != "language-quality-design-runner-rubric-v1"
+        or not isinstance(asset.get("metrics"), dict)
+    ):
+        return False
+    return set(requirement_ids) <= set(asset["metrics"])
 
 
 def _legacy_cache_run_commit_prefix(record: dict[str, Any]) -> str | None:

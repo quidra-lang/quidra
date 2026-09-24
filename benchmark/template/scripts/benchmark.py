@@ -4312,6 +4312,20 @@ def semantic_probe_ids(root: Path) -> list[str]:
     return probe_ids
 
 
+def semantic_reviewed_none_evidence(
+    root: Path, language: str, probe_id: str
+) -> dict[str, Any] | None:
+    path = (
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "none_capability_evidence.json"
+    )
+    if not path.is_file():
+        return None
+    payload = json_load(path)
+    row = ((payload.get("cases") or {}).get(language) or {}).get(probe_id)
+    return dict(row) if isinstance(row, dict) else None
+
+
 def materialize_semantic_probe_contract(
     root: Path, probe_id: str, language: str
 ) -> Path:
@@ -4357,6 +4371,15 @@ def materialize_semantic_probe_contract(
         },
         "capability_probe": universe_rows[probe_id],
         "semantic_site_probe": matrix_rows[probe_id],
+        **(
+            {"reviewed_none_evidence": reviewed_none}
+            if (
+                reviewed_none := semantic_reviewed_none_evidence(
+                    root, language, probe_id
+                )
+            ) is not None
+            else {}
+        ),
         "generation_failure_policy": (
             "A failed candidate, compile/run failure, or exhausted repair attempt "
             "is not evidence of NONE. NONE requires capability-absence evidence."
@@ -5363,6 +5386,24 @@ def validate_canonical_none_verification(
         raise BenchmarkError(
             f"{probe_id}: generation failure must never be treated as NONE evidence"
         )
+    reviewed = semantic_reviewed_none_evidence(root, language, probe_id)
+    if reviewed is not None:
+        if str(row.get("reviewed_evidence_id") or "") != str(
+            reviewed.get("evidence_id") or ""
+        ):
+            raise BenchmarkError(
+                f"{probe_id}: reviewed NONE evidence id is missing or drifted"
+            )
+        if row.get("citations") != reviewed.get("citations"):
+            raise BenchmarkError(f"{probe_id}: reviewed NONE citations drifted")
+        if row.get("evidence_kinds") != reviewed.get("evidence_kinds"):
+            raise BenchmarkError(
+                f"{probe_id}: reviewed NONE evidence kinds drifted"
+            )
+        if str(row.get("conclusion") or "") != str(
+            reviewed.get("conclusion") or ""
+        ):
+            raise BenchmarkError(f"{probe_id}: reviewed NONE conclusion drifted")
     if not str(row.get("conclusion") or "").strip():
         raise BenchmarkError(f"{probe_id}: NONE verification conclusion is missing")
     if not str(record.get("justification") or "").strip():
@@ -7166,18 +7207,28 @@ def project_semantic_probe_owner_from_current_cache(
         },
     }
     if canonical["level"] == "NONE":
-        evidence["canonical_none_verification"] = {
-            probe_id: {
+        reviewed = semantic_reviewed_none_evidence(root, language, probe_id)
+        if reviewed is not None:
+            none_row = {
+                "none_reason": canonical["none_reason"],
+                "reviewed_evidence_id": reviewed["evidence_id"],
+                "conclusion": reviewed["conclusion"],
+                "citations": reviewed["citations"],
+                "evidence_kinds": reviewed["evidence_kinds"],
+                "generation_failures_not_used_as_evidence": True,
+            }
+        else:
+            none_row = {
                 "none_reason": canonical["none_reason"],
                 "conclusion": canonical["justification"],
                 "citations": [str(canonical["citation"])],
                 "evidence_kinds": [
                     "retained-current-validator-certified-owner",
-                    "official-or-standard-evidence-cited-by-owner",
+                    "evidence-cited-by-current-owner",
                 ],
                 "generation_failures_not_used_as_evidence": True,
             }
-        }
+        evidence["canonical_none_verification"] = {probe_id: none_row}
     result = {
         "schema_version": 1,
         "evaluation": "semantic_compression",

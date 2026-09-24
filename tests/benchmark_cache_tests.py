@@ -1026,11 +1026,13 @@ def assert_budget_plan_exposes_configured_retry_ceiling() -> None:
             safety_multiplier=1.25,
         )
         row = plan["units"][0]
-        max_turns = int(
-            benchmark.json_load(root / "template/config/sandbox_agent.json")[
-                "max_turns"
-            ]
+        sandbox_runtime = benchmark.json_load(
+            root / "template/config/sandbox_agent.json"
         )
+        max_turns = int(sandbox_runtime["max_turns"])
+        assert row["output_tokens_per_call"] == int(
+            sandbox_runtime["orchestration_max_output_tokens"]
+        ), row
         assert row["planned_calls_estimate"] == 1 + min(3, max_turns), row
         assert row["remaining_attempts"] == 3, row
         assert row["calls_upper_bound"] == 3 * (1 + max_turns), row

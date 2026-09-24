@@ -641,9 +641,11 @@ def build_budget_plan(
     )
     packet_output_ceiling = int(gateway.get("max_output_tokens_ceiling", 0) or 0)
     sandbox_cfg = benchmark.json_load(root / "template/config/sandbox_agent.json")
-    worker_cfg = benchmark.worker_isolation_config(root)
+    # The sandbox-agent runtime owns this cap. It was deliberately moved out of
+    # primary.json so changing retry/orchestration policy does not invalidate
+    # scientific cache keys; pricing must therefore read the runtime config too.
     orchestration_output = int(
-        worker_cfg.get("orchestration_max_output_tokens", 8192) or 8192
+        sandbox_cfg.get("orchestration_max_output_tokens", 8192) or 8192
     )
     orchestration_turn_ceiling = int(sandbox_cfg.get("max_turns", 3) or 3)
     if orchestration_turn_ceiling < 1:

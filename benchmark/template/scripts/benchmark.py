@@ -4765,43 +4765,7 @@ def semantic_verification_recipe_drift_problems(root: Path) -> list[str]:
         "Swift": {"util.swift": ""},
         "Java": {"util/Util.java": ""},
         "Kotlin": {"util.kt": ""},
-        "TypeScript": {
-        "F08.P1": {
-            "level": "NONE",
-            "none_reason": "N-1",
-            "reason": (
-                "TypeScript/JavaScript number is IEEE-754 binary64 rather than a "
-                "signed 32-bit integer type. ToInt32 coercion through a bitwise "
-                "operator is a conversion substitute for the required fixed-width "
-                "binding, and F08.P1 has no R9 substitution. The prior FULL/P-a "
-                "interpretations are therefore NONE under the current rubric."
-            ),
-        },
-        "F13.P1": {
-            "level": "NONE",
-            "none_reason": "N-1",
-            "reason": (
-                "The standard Number/parseInt conversions report malformed input "
-                "as NaN rather than a propagating failure. Adding an isNaN check "
-                "and throwing handles and manufactures the failure locally, contrary "
-                "to the canonical requirement to propagate the standard conversion's "
-                "own failure without handling it. F13.P1 has no R9 substitution."
-            ),
-        },
-    },
-    "Swift": {
-        "F04.P1": {
-            "level": "PARTIAL",
-            "partial_reasons": ["P-e"],
-            "reason": (
-                "withUnsafeMutablePointer(to:) gives a documented writable pointer "
-                "to the same scalar storage, but it requires a closure-scope scaffold "
-                "not requested by F04.P1. The retained mechanism therefore remains "
-                "PARTIAL under P-e only; P-a is not permitted for this probe."
-            ),
-        },
-    },
-    "Go": {"go.mod": "module example\n", "util/util.go": "package util\n"},
+        "Go": {"go.mod": "module example\n", "util/util.go": "package util\n"},
     }
 
     for language, entry in SEMANTIC_VERIFICATION_ENTRY_FILES.items():
@@ -5536,6 +5500,42 @@ LEGACY_SC_SUPPORT_OVERRIDES: dict[str, dict[str, dict[str, Any]]] = {
                 "task's required standard descending-order facility, and F09.P2 has "
                 "no R9 substitution. The legacy PARTIAL/P-a judgment is therefore "
                 "NONE under the current rubric."
+            ),
+        },
+    },
+    "TypeScript": {
+        "F08.P1": {
+            "level": "NONE",
+            "none_reason": "N-1",
+            "reason": (
+                "TypeScript/JavaScript number is IEEE-754 binary64 rather than a "
+                "signed 32-bit integer type. ToInt32 coercion through a bitwise "
+                "operator is a conversion substitute for the required fixed-width "
+                "binding, and F08.P1 has no R9 substitution. The prior FULL/P-a "
+                "interpretations are therefore NONE under the current rubric."
+            ),
+        },
+        "F13.P1": {
+            "level": "NONE",
+            "none_reason": "N-1",
+            "reason": (
+                "The standard Number/parseInt conversions report malformed input "
+                "as NaN rather than a propagating failure. Adding an isNaN check "
+                "handles and manufactures the failure locally, contrary to the "
+                "canonical requirement to propagate the standard conversion's own "
+                "failure without handling it. F13.P1 has no R9 substitution."
+            ),
+        },
+    },
+    "Swift": {
+        "F04.P1": {
+            "level": "PARTIAL",
+            "partial_reasons": ["P-e"],
+            "reason": (
+                "withUnsafeMutablePointer(to:) gives a documented writable pointer "
+                "to the same scalar storage, but it requires a closure-scope scaffold "
+                "not requested by F04.P1. The retained mechanism therefore remains "
+                "PARTIAL under P-e only; P-a is not permitted for this probe."
             ),
         },
     },

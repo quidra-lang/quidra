@@ -1605,6 +1605,10 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
         old_payload = json.loads(json.dumps(current_payload))
         old_payload["cache_epoch"] = "2026-09-medium"
         old_payload["exact_task_packet_sha256"] = "a" * 64
+        # Historical agent keys included the runner-owned validator command.
+        # Current keys intentionally do not; recertification must project it away
+        # and then run today's validator on the staged legacy result.
+        old_payload["validator_contract"] = "python3 legacy-validator.py result-check"
         old_reads = dict(old_payload["readable_input_content_hashes"])
         assert "template/methodology-assets/semantic_compression" in old_reads
         old_reads["template/methodology-assets/semantic_compression"] = "b" * 64
@@ -1678,6 +1682,7 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
         ]
         assert "semantic_compression" in policy
         assert "llm_proficiency" not in policy
+        assert "validator_contract" in policy["semantic_compression"]["ignored_payload_fields"]
 
         changed = json.loads(json.dumps(old_payload))
         changed["model"] = "different-model"

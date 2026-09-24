@@ -53,14 +53,15 @@
         ],
         "ignored_payload_fields": [
           "exact_task_packet_sha256",
-          "cache_epoch"
+          "cache_epoch",
+          "validator_contract"
         ],
         "ignored_unit_input_hashes": [],
         "ignored_readable_input_hashes": [
           "template/methodology-assets/semantic_compression"
         ],
         "language_scoped_only": true,
-        "reason": "Automatic no-provider recertification for historical language-scoped Semantic Compression measurements. Model/provider, frozen sampling, toolchains, requirement set, Primary projection, evaluation specification and every non-SC readable input must still match exactly. Only the Task Packet hash, declared SC epoch and SC methodology-asset tree hash may differ. For downstream canonical-fragment consumers, the newly generated catalog path is projected out of the legacy fingerprint comparison only after the migration bridge proves that every non-NONE fragment actually recorded by the historical result is complete and byte-identical to the current canonical catalog; it then adds the current catalog attestation. The historical result is still staged under the current task and must pass the full current validator. Capability-coverage owners and consumers that do not carry complete exact fragment evidence therefore remain misses and execute normally. LLM Proficiency is intentionally excluded because its prompt and repair trajectory are the scored experiment.",
+        "reason": "Automatic no-provider recertification for historical language-scoped Semantic Compression measurements. Model/provider, frozen sampling, toolchains, requirement set, Primary projection, evaluation specification and every non-SC readable input must still match exactly. Only the Task Packet hash, retired legacy validator-contract field, declared SC epoch and SC methodology-asset tree hash may differ. For downstream canonical-fragment consumers, the newly generated catalog path is projected out of the legacy fingerprint comparison only after the migration bridge proves that every non-NONE fragment actually recorded by the historical result is complete and byte-identical to the current canonical catalog; it then adds the current catalog attestation. The historical result is still staged under the current task and must pass the full current validator. Capability-coverage owners and consumers that do not carry complete exact fragment evidence therefore remain misses and execute normally. LLM Proficiency is intentionally excluded because its prompt and repair trajectory are the scored experiment.",
         "ignore_canonical_fragment_catalog": true
       }
     },

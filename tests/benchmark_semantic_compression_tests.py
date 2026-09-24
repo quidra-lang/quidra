@@ -685,78 +685,100 @@ def _write_semantic_owner_cohort(
     )
     probe_ids = [str(probe["probe_id"]) for probe in matrix["probes"]]
     units = []
+    stdout_oracles = benchmark.semantic_fixed_stdout_oracles(root)
     for language in languages:
-        agent_id = "owner-" + benchmark.slug_id(language)
-        agent_dir = root / "work/agents" / agent_id
-        agent_dir.mkdir(parents=True, exist_ok=True)
         catalog = {
             probe_id: overrides.get(
                 (language, probe_id), canonical("FULL", "verified_fragment()")
             )
             for probe_id in probe_ids
         }
-        (agent_dir / "result.json").write_text(
-            json.dumps({
-                "schema_version": 1,
-                "evaluation": "semantic_compression",
-                "requirements": {"metric.capability_coverage": {language: 100.0}},
-                "evidence": {"canonical_fragments": catalog},
-            }, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-
         verified = {}
-        stdout_oracles = benchmark.semantic_fixed_stdout_oracles(root)
         for probe_id, record in catalog.items():
-            if str(record["level"]).upper() == "NONE":
-                continue
-            if probe_id == "F20.P2":
-                verified[probe_id] = {
-                    "mode": "nm-add2",
-                    "run_count": 0,
-                    "canonical_fragment_sha256": benchmark.sha256_bytes(
-                        str(record["fragment"]).encode("utf-8")
-                    ),
-                    "build": (
-                        None
-                        if language == "Python"
-                        else {"argv": ["compiler", "source"], "exit_code": 0}
-                    ),
-                    "nm": {"argv": ["nm", "program"], "exit_code": 0},
-                    "symbol_add2_defined": True,
-                }
-            else:
-                run_count = 20 if probe_id == "F19.P2" else 1
-                expected_stdout = stdout_oracles.get(probe_id)
-                verified[probe_id] = {
-                    "mode": "run",
-                    "run_count": run_count,
-                    "canonical_fragment_sha256": benchmark.sha256_bytes(
-                        str(record["fragment"]).encode("utf-8")
-                    ),
-                    "build": (
-                        None
-                        if language == "Python"
-                        else {"argv": ["compiler", "source"], "exit_code": 0}
-                    ),
-                    **(
-                        {"expected_stdout": expected_stdout}
-                        if expected_stdout is not None
-                        else {}
-                    ),
-                    "runs": [
-                        {
-                            "argv": ["runtime", "program"],
-                            "exit_code": 0,
-                            **(
-                                {"stdout": expected_stdout + "\n"}
-                                if expected_stdout is not None
-                                else {}
-                            ),
-                        }
-                        for _ in range(run_count)
-                    ],
-                }
+            agent_id = (
+                "owner-"
+                + benchmark.slug_id(language)
+                + "--"
+                + benchmark.slug_id(probe_id)
+            )
+            agent_dir = root / "work/agents" / agent_id
+            agent_dir.mkdir(parents=True, exist_ok=True)
+            (agent_dir / "result.json").write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "evaluation": "semantic_compression",
+                    "requirements": {
+                        benchmark.CANONICAL_FRAGMENT_PREFIX + probe_id: True
+                    },
+                    "evidence": {"canonical_fragments": {probe_id: record}},
+                }, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+
+            if str(record["level"]).upper() != "NONE":
+                if probe_id == "F20.P2":
+                    verified[probe_id] = {
+                        "mode": "nm-add2",
+                        "run_count": 0,
+                        "canonical_fragment_sha256": benchmark.sha256_bytes(
+                            str(record["fragment"]).encode("utf-8")
+                        ),
+                        "build": (
+                            None
+                            if language == "Python"
+                            else {"argv": ["compiler", "source"], "exit_code": 0}
+                        ),
+                        "nm": {"argv": ["nm", "program"], "exit_code": 0},
+                        "symbol_add2_defined": True,
+                    }
+                else:
+                    run_count = 20 if probe_id == "F19.P2" else 1
+                    expected_stdout = stdout_oracles.get(probe_id)
+                    verified[probe_id] = {
+                        "mode": "run",
+                        "run_count": run_count,
+                        "canonical_fragment_sha256": benchmark.sha256_bytes(
+                            str(record["fragment"]).encode("utf-8")
+                        ),
+                        "build": (
+                            None
+                            if language == "Python"
+                            else {"argv": ["compiler", "source"], "exit_code": 0}
+                        ),
+                        **(
+                            {"expected_stdout": expected_stdout}
+                            if expected_stdout is not None
+                            else {}
+                        ),
+                        "runs": [
+                            {
+                                "argv": ["runtime", "program"],
+                                "exit_code": 0,
+                                **(
+                                    {"stdout": expected_stdout + "\n"}
+                                    if expected_stdout is not None
+                                    else {}
+                                ),
+                            }
+                            for _ in range(run_count)
+                        ],
+                    }
+            units.append({
+                "id": (
+                    "owner--"
+                    + benchmark.slug_id(language)
+                    + "--"
+                    + benchmark.slug_id(probe_id)
+                ),
+                "evaluation": "semantic_compression",
+                "canonical_fragment_owner": True,
+                "canonical_probe_id": probe_id,
+                "assigned_languages": [language],
+                "assigned_agent_id": agent_id,
+                "requirement_ids": [
+                    benchmark.CANONICAL_FRAGMENT_PREFIX + probe_id
+                ],
+            })
         benchmark.json_dump(
             root
             / "work/audit/semantic-compression"
@@ -768,14 +790,6 @@ def _write_semantic_owner_cohort(
                 "probes": verified,
             },
         )
-        units.append({
-            "id": "owner--" + benchmark.slug_id(language),
-            "evaluation": "semantic_compression",
-            "canonical_fragment_owner": True,
-            "assigned_languages": [language],
-            "assigned_agent_id": agent_id,
-            "requirement_ids": ["metric.capability_coverage"],
-        })
     (root / "work/root/manifest.json").write_text(
         json.dumps({"schema_version": 1, "work_units": units}, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

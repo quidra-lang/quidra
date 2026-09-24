@@ -5312,8 +5312,9 @@ def project_semantic_consumer_recertification(
                 or str(owner_meta.get("source_run_id") or "") != source_run
             ):
                 return None, (
-                    f"{unit.get('id')}: fragmentless legacy metric is not from "
-                    "the same paid run as the recertified canonical owner"
+                    f"{unit.get('id')}: legacy {probe_id} carries no explicit "
+                    "fragment, and no same-run recertified canonical owner proves "
+                    "the current fragment identity"
                 )
             continue
         if values != {expected}:

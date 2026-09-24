@@ -6321,6 +6321,78 @@ def _legacy_sc_source_projection_attestation(
     }
 
 
+SC_PROBE_CACHE_OWNERSHIP_APPENDIX = """
+
+## Probe × language cache ownership
+
+Canonical fragment generation is owned and cached by **probe × language**.
+Each owner receives the shared frozen Semantic Compression rules plus only its
+own capability-universe and semantic-site rows. A change to one probe therefore
+invalidates that probe's leaves, not sibling probes. Quidra leaves additionally
+read the evaluated language documentation, and only F20.P1 reads the frozen
+runtime-facts file.
+
+Generation failure is not NONE. FULL/PARTIAL leaves are accepted only after the
+trusted validator verifies their frozen compile/run/symbol recipe. A NONE leaf
+must carry capability-absence evidence and no fragment. Bounded retry repairs
+only the failing leaf.
+
+Capability Coverage is aggregated mechanically from the certified leaves.
+Downstream Q metrics consume a deterministic per-language catalog assembled
+from the same completed leaves. NONE remains outside the primary common-basis Q
+measurement and contributes zero through Capability Coverage, so capability
+absence is not double-penalized.
+"""
+
+
+def _semantic_sc_appendix_projection_compatible(
+    root: Path,
+    selectors: list[str],
+    source_projection: dict[str, str],
+    raw_old_spec: Any,
+    raw_current_spec: Any,
+) -> bool:
+    """Allow only the reviewed atomic-cache appendix across paid SC evidence.
+
+    The D/E metric definitions, Coverage formula and pre-existing Semantic
+    Regularity rules are unchanged. The current spec adds one exact operational
+    appendix describing probe×language cache ownership and the already-runner-
+    enforced NONE/common-basis rule. Historical D/E evidence may cross that
+    append-only change only while the appendix bytes remain exactly frozen here.
+    Any future edit to the appendix or to the scientific selected sections makes
+    this proof fail closed.
+    """
+    source_scoped = str(
+        source_projection.get("evaluation_spec_projection_sha256") or ""
+    )
+    source_full = str(
+        source_projection.get("evaluation_spec_full_sha256") or ""
+    )
+    if raw_old_spec not in {source_full, source_scoped}:
+        return False
+    current_actual = evaluation_spec_projection_sha256(
+        root, "semantic_compression", selectors
+    )
+    if raw_current_spec != current_actual:
+        return False
+    spec_path = (
+        root / "template" / "methodology"
+        / EVALUATION_SPEC_FILES["semantic_compression"]
+    )
+    selected = extract_markdown_sections(
+        spec_path.read_text(encoding="utf-8"), selectors
+    )
+    if selected.count(SC_PROBE_CACHE_OWNERSHIP_APPENDIX) != 1:
+        return False
+    scientific_projection = selected.replace(
+        SC_PROBE_CACHE_OWNERSHIP_APPENDIX, "", 1
+    )
+    return (
+        sha256_bytes(scientific_projection.encode("utf-8"))
+        == source_scoped
+    )
+
+
 LEGACY_SC_INPUT_HASH_PROJECTIONS: dict[str, dict[str, str]] = {
     # Explicit one-time projections proved from the approved retained paid
     # snapshots. The source digest is the historical whole-file SHA-256; the
@@ -9129,16 +9201,24 @@ def _semantic_validator_recertification_payloads_compatible(
             return False
 
     if raw_old_spec != raw_current_spec:
-        if (
+        exact_projection = (
             raw_old_spec
-            != source_projection.get("evaluation_spec_full_sha256")
-            or raw_current_spec
-            != source_projection.get("evaluation_spec_projection_sha256")
-            or raw_current_spec
-            != evaluation_spec_projection_sha256(
+            == source_projection.get("evaluation_spec_full_sha256")
+            and raw_current_spec
+            == source_projection.get("evaluation_spec_projection_sha256")
+            and raw_current_spec
+            == evaluation_spec_projection_sha256(
                 root, "semantic_compression", selectors
             )
-        ):
+        )
+        appendix_projection = _semantic_sc_appendix_projection_compatible(
+            root,
+            selectors,
+            source_projection,
+            raw_old_spec,
+            raw_current_spec,
+        )
+        if not (exact_projection or appendix_projection):
             return False
 
     return True
@@ -9201,13 +9281,22 @@ def _semantic_validator_recertification_mismatch_summary(
         if "evaluation_spec_sections" in raw_current_hashes
         else raw_current_hashes.get("evaluation_spec")
     )
-    if raw_old_spec != raw_current_spec and (
-        raw_old_spec
-        != source_projection.get("evaluation_spec_full_sha256")
-        or raw_current_spec
-        != source_projection.get("evaluation_spec_projection_sha256")
-    ):
-        projection_notes.append("evaluation_spec projection proof mismatch")
+    if raw_old_spec != raw_current_spec:
+        exact_projection = (
+            raw_old_spec
+            == source_projection.get("evaluation_spec_full_sha256")
+            and raw_current_spec
+            == source_projection.get("evaluation_spec_projection_sha256")
+        )
+        appendix_projection = _semantic_sc_appendix_projection_compatible(
+            root,
+            selectors,
+            source_projection,
+            raw_old_spec,
+            raw_current_spec,
+        )
+        if not (exact_projection or appendix_projection):
+            projection_notes.append("evaluation_spec projection proof mismatch")
     if not differing and not projection_notes:
         return "candidate failed a strict SC projection compatibility check"
     return "; ".join(

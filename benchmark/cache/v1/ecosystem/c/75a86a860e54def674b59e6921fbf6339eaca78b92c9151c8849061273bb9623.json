@@ -1,0 +1,170 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "75a86a860e54def674b59e6921fbf6339eaca78b92c9151c8849061273bb9623",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "f7e847392340b73e05e58cb577acef211b3f2ecde031a7e910e07dfde90d85bd",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.third_party_library_availability_domain_coverage",
+      "metric.package_ecosystem_activity_maintenance"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "89c8c222e1bf008c40b7aa617683c67798ab32b79890684a3958484886422e25",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-external--part-1--c",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "f7e847392340b73e05e58cb577acef211b3f2ecde031a7e910e07dfde90d85bd",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-external--part-1--c"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.package_ecosystem_activity_maintenance": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-1--c; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "dependency_metadata": "Preserved paid evidence (ecosystem-external--part-1--c): vcpkg release cadence and volume: <cite index=\"42-3,42-4,42-5\">302 ports were updated in July... as part of the 2026.07.29 registry release and the 2026-07-13, 2026-07-24, and 2026-07-27 tool releases, these updates include major SBOM improvements in vcpkg-tool, 302 updated ports including multiple major library upgrades</cite>. Earlier months show similarly high churn: <cite index=\"47-3,47-6\">521 ports were updated in May... This release includes major library updates for Boost 1.91, Qt 6.11, and OpenCASCADE 8.0, along with 27 new ports and over 500 port updates</cite>, and <cite index=\"49-3\">415 ports were updated in February and 321 ports were updated in March</cite>.",
+          "distribution_artifacts": "Preserved paid evidence (ecosystem-external--part-1--c): 85/100. The dominant curated registry (vcpkg) demonstrates near-continuous, high-volume maintenance (hundreds of port updates monthly, monthly release cadence, steady net growth), and flagship domain libraries (Boost, Asio, nlohmann/json, gRPC, Dlib) all show recent, dated, substantive releases within the last 6-18 months. Score is not higher because C++ package activity is split across multiple non-interoperable package managers (vcpkg, Conan, Spack, system managers) rather than one unified registry, which dilutes any single ecosystem-wide activity signal and increases the risk of stale or duplicate/abandoned recipes across registries relative to ecosystems with one authoritative, first-par",
+          "recent_maintenance": "Preserved paid evidence (ecosystem-external--part-1--c): 85/100. The dominant curated registry (vcpkg) demonstrates near-continuous, high-volume maintenance (hundreds of port updates monthly, monthly release cadence, steady net growth), and flagship domain libraries (Boost, Asio, nlohmann/json, gRPC, Dlib) all show recent, dated, substantive releases within the last 6-18 months. Score is not higher because C++ package activity is split across multiple non-interoperable package managers (vcpkg, Conan, Spack, system managers) rather than one unified registry, which dilutes any single ecosystem-wide activity signal and increases the risk of stale or duplicate/abandoned recipes across registries relative to ecosystems with one authoritative, first-par",
+          "registry_discovery": "Preserved paid evidence (ecosystem-external--part-1--c): 85/100. The dominant curated registry (vcpkg) demonstrates near-continuous, high-volume maintenance (hundreds of port updates monthly, monthly release cadence, steady net growth), and flagship domain libraries (Boost, Asio, nlohmann/json, gRPC, Dlib) all show recent, dated, substantive releases within the last 6-18 months. Score is not higher because C++ package activity is split across multiple non-interoperable package managers (vcpkg, Conan, Spack, system managers) rather than one unified registry, which dilutes any single ecosystem-wide activity signal and increases the risk of stale or duplicate/abandoned recipes across registries relative to ecosystems with one authoritative, first-par",
+          "security_provenance": "Preserved paid evidence (ecosystem-external--part-1--c): Registry growth trend across 2026: total ports rose from <cite index=\"49-1\">There are now 2,773 total ports available in the vcpkg curated registry</cite> (Feb-Mar 2026) to <cite index=\"42-1\">There are now 2,858 total ports available in the vcpkg curated registry</cite> (Jul 2026), i.e. roughly 85 net new ports added in five months despite continual removals of stale ones, e.g. <cite index=\"42-16\">7 ports were removed as part of ongoing registry maintenance</cite> in July alone."
+        },
+        "component_levels": {
+          "dependency_metadata": 4,
+          "distribution_artifacts": 4,
+          "recent_maintenance": 4,
+          "registry_discovery": 3,
+          "security_provenance": 3
+        },
+        "legacy_score_0_100": 85,
+        "limitations": "Port-update counts and GitHub stars/forks are disclosed as raw, consistently-collected proxies alongside dated release evidence; they are not used as the sole basis for the score.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.package-activity.v1",
+        "runner_score_0_100": 90,
+        "selection_rule": "Use the primary package registry/ecosystem for the language when one exists and evaluate current observable maintenance within the fixed activity window; package count alone is never sufficient.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-external--part-1--c",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/c/0e9ef46293ed9a7184df51e7248ae452ee1fe7e1cbc1a5caff390aa191e8e947.json"
+        ]
+      },
+      "metric.third_party_library_availability_domain_coverage": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-1--c; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "application_testing": "Preserved paid evidence (ecosystem-external--part-1--c): Database/GUI/compression/CLI/messaging domains are also directly covered inside vcpkg's popular-ports catalog, e.g. <cite index=\"17-1,17-2\">MySQL Server, the world's most popular open source database, and MySQL Cluster... SQLite is a software library that implements a self-contained, serverless, zero-configuration, transactional SQL database engine</cite>, GUI via <cite index=\"19-7\">Simple DirectMedia Layer is a cross-platform development library designed to provide low level access to audio, keyboard, mouse, joystick, and graphics hardware via OpenGL and Direct3D</cite>, and CLI flag parsing via <cite index=\"17-13,17-14\">The gflags package contains a C++ library that implements commandline ",
+          "data_numerical": "Preserved paid evidence (ecosystem-external--part-1--c): Foundational/general-purpose domain: Boost is treated as a standards-adjacent reference; <cite index=\"25-2\">Beginning with the ten Boost Libraries included in the Library Technical Report (TR1) and continuing with every release of the ISO standard for C++ since 2011, the C++ Standards Committee has continued to rely on Boost as a valuable source for additions to the Standard C++ Library.</cite> Boost itself spans linear algebra, threading, image processing, regex, and unit testing in one umbrella: <cite index=\"24-1\">The Boost C++ Libraries (also known simply as Boost) are a set of libraries for the C++ programming language that provides support for tasks and structures such as linear algebra",
+          "ml_ai": "Preserved paid evidence (ecosystem-external--part-1--c): vcpkg registry breadth: <cite index=\"42-1,42-2\">There are now 2,858 total ports available in the vcpkg curated registry, a port is a versioned recipe for building a package from source, such as a C or C++ library.</cite> Microsoft's own overview states <cite index=\"20-5\">Over 2300 open-source libraries to choose from in a curated registry, routinely built to verify ABI compatibility.</cite>",
+          "storage_interchange": "Preserved paid evidence (ecosystem-external--part-1--c): vcpkg registry breadth: <cite index=\"42-1,42-2\">There are now 2,858 total ports available in the vcpkg curated registry, a port is a versioned recipe for building a package from source, such as a C or C++ library.</cite> Microsoft's own overview states <cite index=\"20-5\">Over 2300 open-source libraries to choose from in a curated registry, routinely built to verify ABI compatibility.</cite>",
+          "web_network": "Preserved paid evidence (ecosystem-external--part-1--c): Async/networking domain: Asio is a dedicated, long-running cross-platform async I/O library: <cite index=\"26-1,26-2\">Asio is a freely available, open-source, cross-platform C++ library for network programming, it provides developers with a asynchronous I/O model.</cite>"
+        },
+        "component_levels": {
+          "application_testing": 4,
+          "data_numerical": 4,
+          "ml_ai": 4,
+          "storage_interchange": 4,
+          "web_network": 4
+        },
+        "legacy_score_0_100": 93,
+        "limitations": "Port/recipe counts and presence in vcpkg/ConanCenter are used only as declared, disclosed evidence of breadth, not as the sole scoring input; qualitative domain-by-domain library maturity and standards-adjacency were the primary basis for the score.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.library-domain-coverage.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Inspect the same five fixed domain groups for every language; prefer the official package index or official ecosystem directory, then independent package/project evidence.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-external--part-1--c",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/c/0e9ef46293ed9a7184df51e7248ae452ee1fe7e1cbc1a5caff390aa191e8e947.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "C++",
+        "metrics": {
+          "metric.package_ecosystem_activity_maintenance": {
+            "component_levels": {
+              "dependency_metadata": 4,
+              "distribution_artifacts": 4,
+              "recent_maintenance": 4,
+              "registry_discovery": 3,
+              "security_provenance": 3
+            },
+            "rubric_id": "ecosystem.package-activity.v1",
+            "score_0_100": 90
+          },
+          "metric.third_party_library_availability_domain_coverage": {
+            "component_levels": {
+              "application_testing": 4,
+              "data_numerical": 4,
+              "ml_ai": 4,
+              "storage_interchange": 4,
+              "web_network": 4
+            },
+            "rubric_id": "ecosystem.library-domain-coverage.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.package_ecosystem_activity_maintenance": {
+        "C++": 90.0
+      },
+      "metric.third_party_library_availability_domain_coverage": {
+        "C++": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "718b5ab561663da50a76220e13bd46be776db1953142b549e356bb2cc12e77cc",
+  "schema_version": 1
+}

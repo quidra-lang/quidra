@@ -1,0 +1,190 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "d7906d910395078178c7ce6f3fe8c44518b05ada450dbf36c57f94004ad5b687",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "36f92a49d61c18bc72acc55f807b8ecd8e6c5b2071dd721b2fa795fe67478018",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.build_test_integration",
+      "metric.documentation_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-3--kotlin",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "36f92a49d61c18bc72acc55f807b8ecd8e6c5b2071dd721b2fa795fe67478018",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-tooling--part-3--kotlin"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.build_test_integration": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--kotlin; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "build_system": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): C1 (20pts): First-party/official build-tool plugin(s) exist for 2+ mainstream build systems (full=20, one system=10, none/community-only=0).",
+          "ci_matrix": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): kotlinlang.org hosts an official tutorial: 'Kotlin/JVM supports the latest stable JUnit version, JUnit 6' with a version catalog entry, satisfying C3.",
+          "config_integration": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): The Kotlin Koans workshop repository documents running tests 'on the Gradle tool window (View | Tool Windows | Gradle)' inside IntelliJ IDEA, confirming IDE/build-tool test-runner integration (C5); Maven test-phase integration is also documented, but no equivalent first-party coverage/report-merging tool was confirmed in this pass, so C5 is docked slightly (18/20).",
+          "coverage": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): The Kotlin Koans workshop repository documents running tests 'on the Gradle tool window (View | Tool Windows | Gradle)' inside IntelliJ IDEA, confirming IDE/build-tool test-runner integration (C5); Maven test-phase integration is also documented, but no equivalent first-party coverage/report-merging tool was confirmed in this pass, so C5 is docked slightly (18/20).",
+          "test_framework": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): C2 (20pts): A bundled/native unit-test mechanism runs via a single standard build-tool command with automatic test discovery, no extra glue code (full=20, requires manual wiring=10, unsupported=0)."
+        },
+        "component_levels": {
+          "build_system": 4,
+          "ci_matrix": 4,
+          "config_integration": 4,
+          "coverage": 4,
+          "test_framework": 4
+        },
+        "legacy_score_0_100": 96,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.build-test.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate the standard/de-facto build-to-test-to-CI path with official tool documentation plus current integration evidence.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-3--kotlin",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/kotlin/fd6528c2b37101ecb36a1ece333b76664737e0db14c2d05cc9e8d396f3d8fe1d.json",
+          "https://kotlinlang.org/docs/jvm-test-using-junit.html",
+          "https://kotlinlang.org/docs/dokka-introduction.html",
+          "https://kotlinlang.org/docs/kotlin-doc.html",
+          "https://github.com/Kotlin/dokka",
+          "https://kotlinlang.org/docs/learning-materials-overview.html",
+          "https://kotlinlang.org/docs/koans.html",
+          "https://github.com/Kotlin/kotlin-koans",
+          "https://mvnrepository.com/artifact/org.jetbrains.kotlin",
+          "https://kotlinlang.org/docs/reference/using-maven.html",
+          "https://github.com/omuomugin/kotest-gradle-plugin"
+        ]
+      },
+      "metric.documentation_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--kotlin; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "examples_guides": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): kotlinlang.org's 'Learning materials overview' officially indexes basic syntax, a full Kotlin tour, idioms guides, and Java-to-Kotlin migration guides for strings, collections, and nullability, satisfying C1.",
+          "generation_localization": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): A broad third-party documentation ecosystem is readily observable, including Baeldung's Dokka introduction, and multiple independent tutorial sites (dev.to, Petri Kainulainen, Tom Gregory, lastminute.com/technology) covering Kotlin build/test configuration, satisfying C5 (slightly docked since this is a sampled snapshot rather than an exhaustive community-doc audit).",
+          "language_reference": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): Official documentation pages show recent maintenance activity, e.g. the KDoc reference page dated August 12, 2026, the JUnit testing tutorial dated December 18, 2025 noting current JUnit 6 support, and the learning-materials overview dated September 3, 2025, supporting C4 (slightly docked since no explicit versioned release-note cadence for docs was independently verified).",
+          "library_api": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): Dokka is described by kotlinlang.org itself as 'an API documentation engine for Kotlin' that 'understands Kotlin's KDoc comments and Java's Javadoc comments' and is applied as an official Gradle plugin (id(\"org.jetbrains.dokka\")) or Maven plugin, satisfying C2; it is used by major libraries such as kotlinx.coroutines, Ktor, and OkHttp for their API reference docs.",
+          "version_navigation": "Preserved paid evidence (ecosystem-tooling--part-3--kotlin): Official documentation pages show recent maintenance activity, e.g. the KDoc reference page dated August 12, 2026, the JUnit testing tutorial dated December 18, 2025 noting current JUnit 6 support, and the learning-materials overview dated September 3, 2025, supporting C4 (slightly docked since no explicit versioned release-note cadence for docs was independently verified)."
+        },
+        "component_levels": {
+          "examples_guides": 4,
+          "generation_localization": 4,
+          "language_reference": 4,
+          "library_api": 4,
+          "version_navigation": 4
+        },
+        "legacy_score_0_100": 98,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.documentation.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Prioritize official current-version documentation, then independently maintained supplementary material; community size alone is not documentation quality.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-3--kotlin",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/kotlin/fd6528c2b37101ecb36a1ece333b76664737e0db14c2d05cc9e8d396f3d8fe1d.json",
+          "https://kotlinlang.org/docs/jvm-test-using-junit.html",
+          "https://kotlinlang.org/docs/dokka-introduction.html",
+          "https://kotlinlang.org/docs/kotlin-doc.html",
+          "https://github.com/Kotlin/dokka",
+          "https://kotlinlang.org/docs/learning-materials-overview.html",
+          "https://kotlinlang.org/docs/koans.html",
+          "https://github.com/Kotlin/kotlin-koans",
+          "https://mvnrepository.com/artifact/org.jetbrains.kotlin",
+          "https://kotlinlang.org/docs/reference/using-maven.html",
+          "https://github.com/omuomugin/kotest-gradle-plugin"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Kotlin",
+        "metrics": {
+          "metric.build_test_integration": {
+            "component_levels": {
+              "build_system": 4,
+              "ci_matrix": 4,
+              "config_integration": 4,
+              "coverage": 4,
+              "test_framework": 4
+            },
+            "rubric_id": "ecosystem.build-test.v1",
+            "score_0_100": 100
+          },
+          "metric.documentation_quality": {
+            "component_levels": {
+              "examples_guides": 4,
+              "generation_localization": 4,
+              "language_reference": 4,
+              "library_api": 4,
+              "version_navigation": 4
+            },
+            "rubric_id": "ecosystem.documentation.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.build_test_integration": {
+        "Kotlin": 100.0
+      },
+      "metric.documentation_quality": {
+        "Kotlin": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "3025b2704f84e6ee977f68cbb2c854262ecaecada45e4b3c1ccc3a3db8cb7d82",
+  "schema_version": 1
+}

@@ -1,0 +1,176 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "661a26d9fc1fc70652753a37212e0d947277a8e98b0ffc0b26af124ecd58f253",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "000a8b22f2c85c15c8275d30ed4e42004a1135a8eb2d1150221b017600734e7f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.third_party_library_availability_domain_coverage",
+      "metric.package_ecosystem_activity_maintenance"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "89c8c222e1bf008c40b7aa617683c67798ab32b79890684a3958484886422e25",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-external--part-1--python",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "000a8b22f2c85c15c8275d30ed4e42004a1135a8eb2d1150221b017600734e7f",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-external--part-1--python"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.package_ecosystem_activity_maintenance": {
+        "candidate_universe": "hugovk/top-pypi-packages 2026.09 monthly dump (15,000 most-downloaded PyPI packages) at https://hugovk.dev/top-pypi-packages/ and https://zenodo.org/records/22225583; cross-reference list at https://pyreadiness.org/3.14/ ('most popular Python packages' tracked set) and https://pypistats.org/.",
+        "component_findings": {
+          "dependency_metadata": "Preserved paid evidence (ecosystem-external--part-1--python): Latest version 2.34.2, last published May 14, 2026; 160 releases; release frequency about 1 month 4 days",
+          "distribution_artifacts": "Preserved paid evidence (ecosystem-external--part-1--python): Every sampled package across the frozen domain list shows releases or changelog entries within the 2026 calendar year, several within the last one to two months of the snapshot date, and most track new CPython release readiness within the same release cycle (3.14 classifiers already present for numpy, pandas, requests, cryptography, boto3, pytest, fastapi, aiohttp, pydantic per the pyreadiness.org cross-check). This indicates a highly active, well-maintained package ecosystem across sampled domains, supporting a high but not maximal normalized score (97/100) to leave room for packages/domains outside the sampled set that may show slower cadence.",
+          "recent_maintenance": "Preserved paid evidence (ecosystem-external--part-1--python): Every sampled package across the frozen domain list shows releases or changelog entries within the 2026 calendar year, several within the last one to two months of the snapshot date, and most track new CPython release readiness within the same release cycle (3.14 classifiers already present for numpy, pandas, requests, cryptography, boto3, pytest, fastapi, aiohttp, pydantic per the pyreadiness.org cross-check). This indicates a highly active, well-maintained package ecosystem across sampled domains, supporting a high but not maximal normalized score (97/100) to leave room for packages/domains outside the sampled set that may show slower cadence.",
+          "registry_discovery": "Preserved paid evidence (ecosystem-external--part-1--python): Evidence was gathered via a single provider-brokered web-search retrieval route per package (project page + latest metadata + changelog), applied uniformly across all sampled packages to keep examination depth constant.",
+          "security_provenance": "Preserved paid evidence (ecosystem-external--part-1--python): All 11 predeclared functional domains have a canonical, officially-recognized, currently-maintained third-party (or first-party-adjacent, e.g. Django) library available on PyPI. No domain returned a gap. Coverage is treated as near-total (98/100) rather than a perfect 100 to acknowledge that this is a bounded sample of domains, not an exhaustive enumeration of every conceivable software domain, per the predeclared-sampling caveat that raw popularity/coverage indicators are declared evidence with stated limitations rather than an absolute proof of universal coverage."
+        },
+        "component_levels": {
+          "dependency_metadata": 4,
+          "distribution_artifacts": 4,
+          "recent_maintenance": 4,
+          "registry_discovery": 4,
+          "security_provenance": 4
+        },
+        "legacy_score_0_100": 97,
+        "limitations": "Download counts and GitHub star counts cited above (e.g. FastAPI GitHub stars, requests daily download counts) are used only as declared corroborating context per package, never as the sole basis for either metric's score, consistent with the predeclared-sampling rule against single-proxy scoring. | This shard evaluates only the Python language; cross-language comparability of the same domain/selection-rule structure is the responsibility of the sibling per-language shards and the runner's aggregation step. | Evidence was gathered via a single provider-brokered web-search retrieval route per package (project page + latest metadata + changelog), applied uniformly across all sampled packages to keep examination depth constant.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.package-activity.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Use the primary package registry/ecosystem for the language when one exists and evaluate current observable maintenance within the fixed activity window; package count alone is never sufficient.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-external--part-1--python",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/python/6b17d9d7aade9c81449747c0bf80b713b2b0c6e80175efbe402b224f2b45a070.json",
+          "https://hugovk.dev/top-pypi-packages/",
+          "https://zenodo.org/records/22225583",
+          "https://pyreadiness.org/3.14/",
+          "https://pypistats.org/"
+        ]
+      },
+      "metric.third_party_library_availability_domain_coverage": {
+        "candidate_universe": "hugovk/top-pypi-packages 2026.09 monthly dump (15,000 most-downloaded PyPI packages) at https://hugovk.dev/top-pypi-packages/ and https://zenodo.org/records/22225583; cross-reference list at https://pyreadiness.org/3.14/ ('most popular Python packages' tracked set) and https://pypistats.org/.",
+        "component_findings": {
+          "application_testing": "Preserved paid evidence (ecosystem-external--part-1--python): All 11 predeclared functional domains have a canonical, officially-recognized, currently-maintained third-party (or first-party-adjacent, e.g. Django) library available on PyPI. No domain returned a gap. Coverage is treated as near-total (98/100) rather than a perfect 100 to acknowledge that this is a bounded sample of domains, not an exhaustive enumeration of every conceivable software domain, per the predeclared-sampling caveat that raw popularity/coverage indicators are declared evidence with stated limitations rather than an absolute proof of universal coverage.",
+          "data_numerical": "Preserved paid evidence (ecosystem-external--part-1--python): All 11 predeclared functional domains have a canonical, officially-recognized, currently-maintained third-party (or first-party-adjacent, e.g. Django) library available on PyPI. No domain returned a gap. Coverage is treated as near-total (98/100) rather than a perfect 100 to acknowledge that this is a bounded sample of domains, not an exhaustive enumeration of every conceivable software domain, per the predeclared-sampling caveat that raw popularity/coverage indicators are declared evidence with stated limitations rather than an absolute proof of universal coverage.",
+          "ml_ai": "Preserved paid evidence (ecosystem-external--part-1--python): All 11 predeclared functional domains have a canonical, officially-recognized, currently-maintained third-party (or first-party-adjacent, e.g. Django) library available on PyPI. No domain returned a gap. Coverage is treated as near-total (98/100) rather than a perfect 100 to acknowledge that this is a bounded sample of domains, not an exhaustive enumeration of every conceivable software domain, per the predeclared-sampling caveat that raw popularity/coverage indicators are declared evidence with stated limitations rather than an absolute proof of universal coverage.",
+          "storage_interchange": "Preserved paid evidence (ecosystem-external--part-1--python): All 11 predeclared functional domains have a canonical, officially-recognized, currently-maintained third-party (or first-party-adjacent, e.g. Django) library available on PyPI. No domain returned a gap. Coverage is treated as near-total (98/100) rather than a perfect 100 to acknowledge that this is a bounded sample of domains, not an exhaustive enumeration of every conceivable software domain, per the predeclared-sampling caveat that raw popularity/coverage indicators are declared evidence with stated limitations rather than an absolute proof of universal coverage.",
+          "web_network": "Preserved paid evidence (ecosystem-external--part-1--python): All 11 predeclared functional domains have a canonical, officially-recognized, currently-maintained third-party (or first-party-adjacent, e.g. Django) library available on PyPI. No domain returned a gap. Coverage is treated as near-total (98/100) rather than a perfect 100 to acknowledge that this is a bounded sample of domains, not an exhaustive enumeration of every conceivable software domain, per the predeclared-sampling caveat that raw popularity/coverage indicators are declared evidence with stated limitations rather than an absolute proof of universal coverage."
+        },
+        "component_levels": {
+          "application_testing": 4,
+          "data_numerical": 4,
+          "ml_ai": 4,
+          "storage_interchange": 4,
+          "web_network": 4
+        },
+        "legacy_score_0_100": 98,
+        "limitations": "Download counts and GitHub star counts cited above (e.g. FastAPI GitHub stars, requests daily download counts) are used only as declared corroborating context per package, never as the sole basis for either metric's score, consistent with the predeclared-sampling rule against single-proxy scoring. | This shard evaluates only the Python language; cross-language comparability of the same domain/selection-rule structure is the responsibility of the sibling per-language shards and the runner's aggregation step. | Evidence was gathered via a single provider-brokered web-search retrieval route per package (project page + latest metadata + changelog), applied uniformly across all sampled packages to keep examination depth constant.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.library-domain-coverage.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Inspect the same five fixed domain groups for every language; prefer the official package index or official ecosystem directory, then independent package/project evidence.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-external--part-1--python",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/python/6b17d9d7aade9c81449747c0bf80b713b2b0c6e80175efbe402b224f2b45a070.json",
+          "https://hugovk.dev/top-pypi-packages/",
+          "https://zenodo.org/records/22225583",
+          "https://pyreadiness.org/3.14/",
+          "https://pypistats.org/"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Python",
+        "metrics": {
+          "metric.package_ecosystem_activity_maintenance": {
+            "component_levels": {
+              "dependency_metadata": 4,
+              "distribution_artifacts": 4,
+              "recent_maintenance": 4,
+              "registry_discovery": 4,
+              "security_provenance": 4
+            },
+            "rubric_id": "ecosystem.package-activity.v1",
+            "score_0_100": 100
+          },
+          "metric.third_party_library_availability_domain_coverage": {
+            "component_levels": {
+              "application_testing": 4,
+              "data_numerical": 4,
+              "ml_ai": 4,
+              "storage_interchange": 4,
+              "web_network": 4
+            },
+            "rubric_id": "ecosystem.library-domain-coverage.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.package_ecosystem_activity_maintenance": {
+        "Python": 100.0
+      },
+      "metric.third_party_library_availability_domain_coverage": {
+        "Python": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "7c5be7f1a01b58b0550870fc85d877964937a4a022df987c8cf1a7b49d404626",
+  "schema_version": 1
+}

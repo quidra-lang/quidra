@@ -1,0 +1,168 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "5ed47908c51013c31aafd2e2b8153b43fc45ede98bcbed2ee8a7857d3f1e0cfe",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "951c5425273a4abbb64d53d7e389d1d66305a56ba5e876c75336ff2e0fa48995",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.ide_editor_support_quality",
+      "metric.debugger_profiler_support"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-2--go",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "951c5425273a4abbb64d53d7e389d1d66305a56ba5e876c75336ff2e0fa48995",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-tooling--part-2--go"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.debugger_profiler_support": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--go; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "advanced_debug": "Preserved paid evidence (ecosystem-tooling--part-2--go): GoLand provides deep first-party debugger integration including local run/debug, remote attach-to-process debugging (documented in JetBrains's 'Attach to running Go processes with the debugger' guide), and even time-travel/record-replay debugging via Delve internals per third-party Undo.io documentation.",
+          "basic_debug": "Preserved paid evidence (ecosystem-tooling--part-2--go): 0-100 score built from four equally-weighted 25-point components, applied identically to all languages: (1) existence and maturity of a dedicated, actively maintained source-level debugger; (2) IDE/editor debugger integration via a standard protocol (e.g., DAP) across multiple editors with breakpoints, stepping, variable/goroutine inspection, remote/attach debugging; (3) first-party, stdlib/toolchain-integrated profiling support (CPU, memory, blocking, contention) requiring no third-party install; (4) advanced/production-grade profiling and tracing tooling (flame graphs, execution tracing, IDE-integrated profiler UI).",
+          "cpu_profile": "Preserved paid evidence (ecosystem-tooling--part-2--go): GoLand 2026.2's Go Optimization tool window lets developers 'profile regular Go applications without additional setup, analyze production profiles, monitor CPU and memory usage in real time, and visualize performance data directly in your code', integrating the stdlib pprof toolchain into the IDE UI.",
+          "integration_platforms": "Preserved paid evidence (ecosystem-tooling--part-2--go): Delve ships its own DAP server, enabling standardized editor integration; VS Code Go, GoLand, Neovim (nvim-dap-go, go.nvim), Vim, Emacs, and Sublime plugins all integrate with it per Delve's EditorIntegration.md and multiple tutorials.",
+          "memory_profile": "Preserved paid evidence (ecosystem-tooling--part-2--go): GoLand 2026.2's Go Optimization tool window lets developers 'profile regular Go applications without additional setup, analyze production profiles, monitor CPU and memory usage in real time, and visualize performance data directly in your code', integrating the stdlib pprof toolchain into the IDE UI."
+        },
+        "component_levels": {
+          "advanced_debug": 4,
+          "basic_debug": 4,
+          "cpu_profile": 4,
+          "integration_platforms": 4,
+          "memory_profile": 4
+        },
+        "legacy_score_0_100": 94,
+        "limitations": "Scoring for this shard covers only Go; comparability across the full 10-language set depends on the same rubric being applied by other language shards using the same evidence-collection methodology. | Some cited sources are third-party blogs/tutorials rather than official documentation for peripheral claims (e.g., Neovim plugin ecosystem details); official go.dev, pkg.go.dev, github.com/golang, and github.com/go-delve sources were prioritized for the core scoring claims. | No raw popularity metrics (stars, downloads) were used as a standalone score input; they were not used at all in this determination.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.debug-profile.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate implemented, documented debugging/profiling workflows on current supported toolchains; generic OS tools count only when language-aware use is documented.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-2--go",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/go/4c6420d23e2fbddbe7da87203725d361d8cf470ddcd1a2fe1c8e25ede8c0ce24.json"
+        ]
+      },
+      "metric.ide_editor_support_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--go; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "breadth_maintenance": "Preserved paid evidence (ecosystem-tooling--part-2--go): Go scores near the top of the 0-100 band: it has an official, actively-maintained language server (gopls) built and owned by the Go team, first-class official VS Code integration, a dedicated commercial IDE (GoLand) with continuous feature investment (e.g., 2026.2 Go Optimization tool window, auto run-config detection), and broad third-party editor coverage (Neovim, Vim, Emacs, Sublime) all built on the same gopls/Delve foundation, minimizing feature fragmentation across editors. Score: 93/100.",
+          "completion_types": "Preserved paid evidence (ecosystem-tooling--part-2--go): gopls is the official Go-team-maintained language server, described on go.dev as supporting a wide range of standard LSP features for navigation, completion, diagnostics, analysis, and refactoring plus extras not found in other language servers.",
+          "debug_integration": "Preserved paid evidence (ecosystem-tooling--part-2--go): GoLand provides deep first-party debugger integration including local run/debug, remote attach-to-process debugging (documented in JetBrains's 'Attach to running Go processes with the debugger' guide), and even time-travel/record-replay debugging via Delve internals per third-party Undo.io documentation.",
+          "refactor_actions": "Preserved paid evidence (ecosystem-tooling--part-2--go): Delve ships its own DAP server, enabling standardized editor integration; VS Code Go, GoLand, Neovim (nvim-dap-go, go.nvim), Vim, Emacs, and Sublime plugins all integrate with it per Delve's EditorIntegration.md and multiple tutorials.",
+          "syntax_navigation": "Preserved paid evidence (ecosystem-tooling--part-2--go): gopls is the official Go-team-maintained language server, described on go.dev as supporting a wide range of standard LSP features for navigation, completion, diagnostics, analysis, and refactoring plus extras not found in other language servers."
+        },
+        "component_levels": {
+          "breadth_maintenance": 4,
+          "completion_types": 4,
+          "debug_integration": 4,
+          "refactor_actions": 4,
+          "syntax_navigation": 4
+        },
+        "legacy_score_0_100": 93,
+        "limitations": "Scoring for this shard covers only Go; comparability across the full 10-language set depends on the same rubric being applied by other language shards using the same evidence-collection methodology. | Some cited sources are third-party blogs/tutorials rather than official documentation for peripheral claims (e.g., Neovim plugin ecosystem details); official go.dev, pkg.go.dev, github.com/golang, and github.com/go-delve sources were prioritized for the core scoring claims. | No raw popularity metrics (stars, downloads) were used as a standalone score input; they were not used at all in this determination.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.ide-editor.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Inspect the same editor capabilities across at least the dominant general-purpose editor and any major dedicated IDE when available.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-2--go",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/go/4c6420d23e2fbddbe7da87203725d361d8cf470ddcd1a2fe1c8e25ede8c0ce24.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Go",
+        "metrics": {
+          "metric.debugger_profiler_support": {
+            "component_levels": {
+              "advanced_debug": 4,
+              "basic_debug": 4,
+              "cpu_profile": 4,
+              "integration_platforms": 4,
+              "memory_profile": 4
+            },
+            "rubric_id": "ecosystem.debug-profile.v1",
+            "score_0_100": 100
+          },
+          "metric.ide_editor_support_quality": {
+            "component_levels": {
+              "breadth_maintenance": 4,
+              "completion_types": 4,
+              "debug_integration": 4,
+              "refactor_actions": 4,
+              "syntax_navigation": 4
+            },
+            "rubric_id": "ecosystem.ide-editor.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.debugger_profiler_support": {
+        "Go": 100.0
+      },
+      "metric.ide_editor_support_quality": {
+        "Go": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "4d6c81d18f6ee571bb944bfcf7a0eb38374e3c620b906ad82848782740962c88",
+  "schema_version": 1
+}

@@ -1,0 +1,169 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "0b39e363e29b066a5e1d4bd004bec60e265d31728b7db60777030d53c9e11db8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "f46e7497c601e983042c94e5910fc7f5686dd2fbb6d930d0a80b7f31f67c3a07",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.ide_editor_support_quality",
+      "metric.debugger_profiler_support"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-2--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "f46e7497c601e983042c94e5910fc7f5686dd2fbb6d930d0a80b7f31f67c3a07",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-tooling--part-2--typescript"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.debugger_profiler_support": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--typescript; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "advanced_debug": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): <cite index=2-12>WebStorm 2025.3: Enhanced Monorepo Support, Framework Improvements, Vitest 4 Support, Multiple Agents in AI Assistant, Remote Debugging, and More</cite>",
+          "basic_debug": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): <cite index=15-11>You get the full Sources panel, breakpoints, async stack traces, Scope, and the Profiler \u2014 pointed at a server process.</cite>",
+          "cpu_profile": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): TypeScript/Node runs on V8, which exposes a built-in inspector supporting CPU and memory profiling directly through Chrome DevTools' Sources/Profiler panels, requiring only the standard --inspect flag.",
+          "integration_platforms": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): A wide ecosystem of third-party profiling/monitoring tools builds on the standard Chrome Debugging Protocol shared by Node and browsers (e.g. React DevTools profiling panels, trace/lighthouse analyzers, and general Node performance-monitoring middleware), though the base inspector CLI itself is explicitly noted as a minimal, not full-featured, debugger, reflecting reliance on tooling built atop the protocol rather than a single unified native debugger.",
+          "memory_profile": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): TypeScript/Node runs on V8, which exposes a built-in inspector supporting CPU and memory profiling directly through Chrome DevTools' Sources/Profiler panels, requiring only the standard --inspect flag."
+        },
+        "component_levels": {
+          "advanced_debug": 4,
+          "basic_debug": 4,
+          "cpu_profile": 4,
+          "integration_platforms": 4,
+          "memory_profile": 4
+        },
+        "legacy_score_0_100": 95,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.debug-profile.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate implemented, documented debugging/profiling workflows on current supported toolchains; generic OS tools count only when language-aware use is documented.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-2--typescript",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/e2322c284db595ed12aecc9642bc181720a6a13b5ca809b3766b5ed9b2e5e291.json"
+        ]
+      },
+      "metric.ide_editor_support_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--typescript; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "breadth_maintenance": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): TypeScript ships an official language service (tsserver) built and maintained by Microsoft, and Microsoft's own VS Code bundles a first-party 'TypeScript Language Features' extension built directly on that service.",
+          "completion_types": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): <cite index=10-9,10-10>You can also very easily create a launch configuration for attaching to a Node process running from the terminal. The VS Code auto-completion for configurations is amazing.</cite>",
+          "debug_integration": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): VS Code auto-completion for launch/debug and language configuration around TypeScript projects is described as very mature and near-seamless, consistent with TypeScript/VS Code being co-developed by Microsoft.",
+          "refactor_actions": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): <cite index=33-1,33-2>The TypeScript project/package includes a tsserver component which provides a custom API that can be used for gathering various intelligence about a typescript/javascript project, and the VSCode team has built a project called Typescript Language Features (and bundled it as an internal extension in VSCode) that provides code intelligence for your javascript and typescript projects by utilizing that tsserver API.</cite>",
+          "syntax_navigation": "Preserved paid evidence (ecosystem-tooling--part-2--typescript): <cite index=33-1,33-2>The TypeScript project/package includes a tsserver component which provides a custom API that can be used for gathering various intelligence about a typescript/javascript project, and the VSCode team has built a project called Typescript Language Features (and bundled it as an internal extension in VSCode) that provides code intelligence for your javascript and typescript projects by utilizing that tsserver API.</cite>"
+        },
+        "component_levels": {
+          "breadth_maintenance": 4,
+          "completion_types": 4,
+          "debug_integration": 4,
+          "refactor_actions": 4,
+          "syntax_navigation": 4
+        },
+        "legacy_score_0_100": 97,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.ide-editor.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Inspect the same editor capabilities across at least the dominant general-purpose editor and any major dedicated IDE when available.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-2--typescript",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/e2322c284db595ed12aecc9642bc181720a6a13b5ca809b3766b5ed9b2e5e291.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "TypeScript",
+        "metrics": {
+          "metric.debugger_profiler_support": {
+            "component_levels": {
+              "advanced_debug": 4,
+              "basic_debug": 4,
+              "cpu_profile": 4,
+              "integration_platforms": 4,
+              "memory_profile": 4
+            },
+            "rubric_id": "ecosystem.debug-profile.v1",
+            "score_0_100": 100
+          },
+          "metric.ide_editor_support_quality": {
+            "component_levels": {
+              "breadth_maintenance": 4,
+              "completion_types": 4,
+              "debug_integration": 4,
+              "refactor_actions": 4,
+              "syntax_navigation": 4
+            },
+            "rubric_id": "ecosystem.ide-editor.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.debugger_profiler_support": {
+        "TypeScript": 100.0
+      },
+      "metric.ide_editor_support_quality": {
+        "TypeScript": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "a7120705a707c7d6b8f6aaa0c0e3bb7de2ba947a582f935364bd2588217376c8",
+  "schema_version": 1
+}

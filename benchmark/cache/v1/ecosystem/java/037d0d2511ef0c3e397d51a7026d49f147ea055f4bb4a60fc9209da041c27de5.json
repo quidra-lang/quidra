@@ -1,0 +1,126 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "037d0d2511ef0c3e397d51a7026d49f147ea055f4bb4a60fc9209da041c27de5",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "1012102b323e1d9d30279ec2da2b97561aa3472e90d5cb07d7540335fce977be",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.community_public_knowledge_availability"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "89c8c222e1bf008c40b7aa617683c67798ab32b79890684a3958484886422e25",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-external--part-3--java",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "1012102b323e1d9d30279ec2da2b97561aa3472e90d5cb07d7540335fce977be",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-external--part-3--java"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.community_public_knowledge_availability": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-3--java; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--java): Java exhibits an exceptionally deep and broad publicly available knowledge base across all three predeclared indicator families: it is among the top handful of languages by cumulative Stack Overflow Q&A volume, it sustains one of the largest single-language-dedicated public subreddits with 18 years of continuous activity, its vendor (Oracle) maintains a complete and actively updated public documentation stack (JLS, Java Tutorials, dev.java, Javadoc tooling), and it is unusual among languages in supporting a mature worldwide network of volunteer user groups plus multiple long-running (decades-old) global conferences and a formal community-recognition program (Java Champions). The score is set",
+          "events_groups": "Preserved paid evidence (ecosystem-external--part-3--java): Before evidence collection, three language-neutral, externally observable indicator families were fixed for every language in this metric: (1) Stack Overflow tag question-volume rank, a standardized cross-language activity/knowledge-repository proxy; (2) size and activity of the single largest general-purpose language-dedicated public discussion forum (subreddit) as a proxy for informal community knowledge exchange; (3) completeness/official status of the vendor-maintained public documentation and learning ecosystem (language spec, official tutorials, API-doc tooling) plus the existence of recurring public in-person/virtual community events (user groups, conferences). These three families ar",
+          "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--java): Java exhibits an exceptionally deep and broad publicly available knowledge base across all three predeclared indicator families: it is among the top handful of languages by cumulative Stack Overflow Q&A volume, it sustains one of the largest single-language-dedicated public subreddits with 18 years of continuous activity, its vendor (Oracle) maintains a complete and actively updated public documentation stack (JLS, Java Tutorials, dev.java, Javadoc tooling), and it is unusual among languages in supporting a mature worldwide network of volunteer user groups plus multiple long-running (decades-old) global conferences and a formal community-recognition program (Java Champions). The score is set",
+          "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--java): Java exhibits an exceptionally deep and broad publicly available knowledge base across all three predeclared indicator families: it is among the top handful of languages by cumulative Stack Overflow Q&A volume, it sustains one of the largest single-language-dedicated public subreddits with 18 years of continuous activity, its vendor (Oracle) maintains a complete and actively updated public documentation stack (JLS, Java Tutorials, dev.java, Javadoc tooling), and it is unusual among languages in supporting a mature worldwide network of volunteer user groups plus multiple long-running (decades-old) global conferences and a formal community-recognition program (Java Champions). The score is set",
+          "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--java): Java exhibits an exceptionally deep and broad publicly available knowledge base across all three predeclared indicator families: it is among the top handful of languages by cumulative Stack Overflow Q&A volume, it sustains one of the largest single-language-dedicated public subreddits with 18 years of continuous activity, its vendor (Oracle) maintains a complete and actively updated public documentation stack (JLS, Java Tutorials, dev.java, Javadoc tooling), and it is unusual among languages in supporting a mature worldwide network of volunteer user groups plus multiple long-running (decades-old) global conferences and a formal community-recognition program (Java Champions). The score is set"
+        },
+        "component_levels": {
+          "current_knowledge": 4,
+          "events_groups": 4,
+          "international_breadth": 4,
+          "learning_materials": 4,
+          "qa_discussion": 4
+        },
+        "legacy_score_0_100": 96,
+        "limitations": "Raw SO tag counts are a partial proxy: newer/faster-growing tags (e.g., Python, TypeScript) are gaining share and per-quarter pageview leaderboards have shifted away from Java toward Python/JS/Git-related questions since ~2018-2020, so absolute volume overstates current-day relative mindshare growth even though it still reflects an enormous historical and ongoing archive. | Subreddit membership counts are a raw popularity indicator and are not used alone; they are combined with the other two indicator families. | Stack Overflow tag counts and subreddit subscriber counts are raw popularity/volume indicators; per methodology they are not used standalone but combined with qualitative documentation-completeness and community-infrastructure evidence collected via the same retrieval route and depth that would be applied to every other language in this metric.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.community-knowledge.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Inspect the same knowledge channels for every language and use current, publicly accessible evidence rather than raw search-result counts alone.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-external--part-3--java",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/java/1e5635c41cf2dd78376564e2afbb70d8650a88444d616d3ca86cf854cae9c5cc.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Java",
+        "metrics": {
+          "metric.community_public_knowledge_availability": {
+            "component_levels": {
+              "current_knowledge": 4,
+              "events_groups": 4,
+              "international_breadth": 4,
+              "learning_materials": 4,
+              "qa_discussion": 4
+            },
+            "rubric_id": "ecosystem.community-knowledge.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.community_public_knowledge_availability": {
+        "Java": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "4173acc1ba50bb591226cdf8afed6b8a1372f4ef0e1d398ef1e5d1c8317f6c65",
+  "schema_version": 1
+}

@@ -1,8 +1,142 @@
 {
-  "cache_hits": 0,
-  "invalidated": 0,
-  "misses": 10,
+  "cache_hits": 80,
+  "ecosystem_snapshot_recertified": 80,
+  "ecosystem_snapshot_recertified_units": [
+    "ecosystem-external--part-1--c",
+    "ecosystem-external--part-1--go",
+    "ecosystem-external--part-1--java",
+    "ecosystem-external--part-1--kotlin",
+    "ecosystem-external--part-1--python",
+    "ecosystem-external--part-1--quidra",
+    "ecosystem-external--part-1--rust",
+    "ecosystem-external--part-1--swift",
+    "ecosystem-external--part-1--typescript",
+    "ecosystem-external--part-1--zig",
+    "ecosystem-external--part-2--c",
+    "ecosystem-external--part-2--go",
+    "ecosystem-external--part-2--java",
+    "ecosystem-external--part-2--kotlin",
+    "ecosystem-external--part-2--python",
+    "ecosystem-external--part-2--quidra",
+    "ecosystem-external--part-2--rust",
+    "ecosystem-external--part-2--swift",
+    "ecosystem-external--part-2--typescript",
+    "ecosystem-external--part-2--zig",
+    "ecosystem-external--part-3--c",
+    "ecosystem-external--part-3--go",
+    "ecosystem-external--part-3--java",
+    "ecosystem-external--part-3--kotlin",
+    "ecosystem-external--part-3--python",
+    "ecosystem-external--part-3--quidra",
+    "ecosystem-external--part-3--rust",
+    "ecosystem-external--part-3--swift",
+    "ecosystem-external--part-3--typescript",
+    "ecosystem-external--part-3--zig",
+    "ecosystem-tooling--part-1--c",
+    "ecosystem-tooling--part-1--go",
+    "ecosystem-tooling--part-1--java",
+    "ecosystem-tooling--part-1--kotlin",
+    "ecosystem-tooling--part-1--python",
+    "ecosystem-tooling--part-1--quidra",
+    "ecosystem-tooling--part-1--rust",
+    "ecosystem-tooling--part-1--swift",
+    "ecosystem-tooling--part-1--typescript",
+    "ecosystem-tooling--part-1--zig",
+    "ecosystem-tooling--part-2--c",
+    "ecosystem-tooling--part-2--go",
+    "ecosystem-tooling--part-2--java",
+    "ecosystem-tooling--part-2--kotlin",
+    "ecosystem-tooling--part-2--python",
+    "ecosystem-tooling--part-2--quidra",
+    "ecosystem-tooling--part-2--rust",
+    "ecosystem-tooling--part-2--swift",
+    "ecosystem-tooling--part-2--typescript",
+    "ecosystem-tooling--part-2--zig",
+    "ecosystem-tooling--part-3--c",
+    "ecosystem-tooling--part-3--go",
+    "ecosystem-tooling--part-3--java",
+    "ecosystem-tooling--part-3--kotlin",
+    "ecosystem-tooling--part-3--python",
+    "ecosystem-tooling--part-3--quidra",
+    "ecosystem-tooling--part-3--rust",
+    "ecosystem-tooling--part-3--swift",
+    "ecosystem-tooling--part-3--typescript",
+    "ecosystem-tooling--part-3--zig",
+    "ecosystem-tooling--part-4--c",
+    "ecosystem-tooling--part-4--go",
+    "ecosystem-tooling--part-4--java",
+    "ecosystem-tooling--part-4--kotlin",
+    "ecosystem-tooling--part-4--python",
+    "ecosystem-tooling--part-4--quidra",
+    "ecosystem-tooling--part-4--rust",
+    "ecosystem-tooling--part-4--swift",
+    "ecosystem-tooling--part-4--typescript",
+    "ecosystem-tooling--part-4--zig",
+    "ecosystem-tooling--part-5--c",
+    "ecosystem-tooling--part-5--go",
+    "ecosystem-tooling--part-5--java",
+    "ecosystem-tooling--part-5--kotlin",
+    "ecosystem-tooling--part-5--python",
+    "ecosystem-tooling--part-5--quidra",
+    "ecosystem-tooling--part-5--rust",
+    "ecosystem-tooling--part-5--swift",
+    "ecosystem-tooling--part-5--typescript",
+    "ecosystem-tooling--part-5--zig"
+  ],
+  "invalidated": {},
+  "misses": {
+    "sc-metrics-hidden-coverage--part-2--c": {
+      "fingerprint": "7d6af81295dfc2dd63044d280be8051d21cc644867eeb403d50ad50c72228393",
+      "reason": "no certified record",
+      "scope": "c"
+    },
+    "sc-metrics-hidden-coverage--part-2--go": {
+      "fingerprint": "4bdfc25cdae0085c76ba1bd7640a7501ffcd4ddd0a54accd375877b66df75659",
+      "reason": "no certified record",
+      "scope": "go"
+    },
+    "sc-metrics-hidden-coverage--part-2--java": {
+      "fingerprint": "4ddc7d866d1716e6430224bef84e2448b85ce95197033cd88eb4e85177a7dc24",
+      "reason": "no certified record",
+      "scope": "java"
+    },
+    "sc-metrics-hidden-coverage--part-2--kotlin": {
+      "fingerprint": "f521567282485b6827b5b14212beca675b4b9633dc0efa31429f6e40edd1a544",
+      "reason": "no certified record",
+      "scope": "kotlin"
+    },
+    "sc-metrics-hidden-coverage--part-2--python": {
+      "fingerprint": "b945d94fcee171ca2da55df754130d2d3b6729229134cc04f3ba635bd882d449",
+      "reason": "no certified record",
+      "scope": "python"
+    },
+    "sc-metrics-hidden-coverage--part-2--quidra": {
+      "fingerprint": "d8fdb32b470eb0b9d2479df5bef2cca3e28dc162bb8102fc14026a838120225f",
+      "reason": "no certified record",
+      "scope": "quidra"
+    },
+    "sc-metrics-hidden-coverage--part-2--rust": {
+      "fingerprint": "2c53dd09461fd14a50ac4debd8f71e40f7817c68c02144b90fa86f3bad8a5c1d",
+      "reason": "no certified record",
+      "scope": "rust"
+    },
+    "sc-metrics-hidden-coverage--part-2--swift": {
+      "fingerprint": "4fa425f26333c3fa027ef4ba78beebf826ebf06951b904368a65a5f75a546169",
+      "reason": "no certified record",
+      "scope": "swift"
+    },
+    "sc-metrics-hidden-coverage--part-2--typescript": {
+      "fingerprint": "cb60d52b2726ffdd895e00cb1133e1b37bf98d4d94394958f1ed0706159dafb4",
+      "reason": "no certified record",
+      "scope": "typescript"
+    },
+    "sc-metrics-hidden-coverage--part-2--zig": {
+      "fingerprint": "46a1d3bc390dd83215f2c49b564e0f979a1c38587e2a13a1fa699968d2d27306",
+      "reason": "no certified record",
+      "scope": "zig"
+    }
+  },
   "schema_version": 1,
-  "validator_recertified": 0,
-  "validator_recertified_units": []
+  "semantic_validator_recertified": 0,
+  "semantic_validator_recertified_units": []
 }

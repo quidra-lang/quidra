@@ -1,0 +1,125 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "baec0b9dd0946e0a7f5ff45e9c1334e70dad50e3aa54d2da5bd8683e1893cce4",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "c5b4f4f8ddbe200fed340cf574d2cb6a218d02eabbdea09d2735b1c58606c91b",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.community_public_knowledge_availability"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "89c8c222e1bf008c40b7aa617683c67798ab32b79890684a3958484886422e25",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-external--part-3--swift",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "c5b4f4f8ddbe200fed340cf574d2cb6a218d02eabbdea09d2735b1c58606c91b",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-external--part-3--swift"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.community_public_knowledge_availability": {
+        "candidate_universe": "Selection rule fixed before collection: examine (1) the official Swift Forums at swift.org/community as the canonical official discussion channel (language-neutral criterion: every assigned language's official/primary community hub is checked identically), (2) Stack Overflow 'swift' tag and historical Stack Overflow Trends/Developer Survey data as the largest general-purpose public Q&A source, (3) Apple Developer Forums 'Swift' tag as the vendor-run official Q&A channel, (4) the top independently-documented third-party tutorial/book ecosystem for the language (identified via search rather than picked by the benchmark), and (5) StackShare's per-language discussion/follower counts, used only as one proxy among several, never standalone.",
+        "component_findings": {
+          "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--swift): Apple's official developer forums maintain an active, current 'Swift' tag with recent (multi-day-old) technical Q&A threads, indicating an actively used vendor-run public knowledge channel distinct from the community-run forums.",
+          "events_groups": "Preserved paid evidence (ecosystem-external--part-3--swift): Community and ecosystem-project discussion volume on the official forums has grown over time, with a dedicated 'Related Projects' category added to accommodate ecosystem growth, and recurring community events (e.g., Embedded Swift Community Hour).",
+          "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--swift): Swift scores high (85/100) reflecting: (a) a mature, official, well-structured community forum; (b) a second, actively used vendor (Apple) Q&A channel; (c) a historically very large and fast-growing Stack Overflow presence plus a top developer-sentiment survey result; and (d) an unusually deep, independently corroborated third-party tutorial/book/course ecosystem. It is not scored at the very top of the range because its public knowledge base is more platform-concentrated (Apple ecosystem) than the most universally-discussed general-purpose languages, and because some precise current-volume figures (exact live SO tag count) were not obtainable within the retrieval budget, so qualitative/tren",
+          "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--swift): Swift has an unusually large independent third-party learning-content ecosystem: Kodeco offers extensive free content plus books and high-quality tutorials, and Hacking with Swift's author is described as one of the most prolific iOS educators, continuously publishing and updating a library of books; additional community-run resources include the Try Swift conference series and Swift by Sundell.",
+          "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--swift): The Swift forums are the official discussion channel for the Swift community and the best place to connect with other Swift developers (swift.org/community); forum migrated from mailing lists with dedicated subcategories for Compiler, Standard Library, Core Libraries, Package Manager, LLDB, Server, etc."
+        },
+        "component_levels": {
+          "current_knowledge": 4,
+          "events_groups": 4,
+          "international_breadth": 3,
+          "learning_materials": 4,
+          "qa_discussion": 3
+        },
+        "legacy_score_0_100": 85,
+        "limitations": "StackShare stack/follower counts are a raw popularity proxy and are not used standalone; they corroborate but do not independently establish the score. | Swift's public knowledge base is more concentrated around Apple-platform (iOS/macOS) use cases than general-purpose programming discourse, so breadth outside that domain (e.g., server-side/embedded Swift) is comparatively thinner, though growing (per Embedded Swift Community Hour activity). | Raw counts (StackShare followers, historical SO tag growth) are proxies with known limitations per methodology and are corroborating evidence only, not the sole basis for the score.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.community-knowledge.v1",
+        "runner_score_0_100": 90,
+        "selection_rule": "Inspect the same knowledge channels for every language and use current, publicly accessible evidence rather than raw search-result counts alone.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-external--part-3--swift",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/swift/4eaca7551867b0e27c268a6b2239c167056acde103452dd3776dc8307ee250e6.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Swift",
+        "metrics": {
+          "metric.community_public_knowledge_availability": {
+            "component_levels": {
+              "current_knowledge": 4,
+              "events_groups": 4,
+              "international_breadth": 3,
+              "learning_materials": 4,
+              "qa_discussion": 3
+            },
+            "rubric_id": "ecosystem.community-knowledge.v1",
+            "score_0_100": 90
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.community_public_knowledge_availability": {
+        "Swift": 90.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "417cdea92fe030486c15643bf454833f0552cb312189391f0c561ba1c24b8465",
+  "schema_version": 1
+}

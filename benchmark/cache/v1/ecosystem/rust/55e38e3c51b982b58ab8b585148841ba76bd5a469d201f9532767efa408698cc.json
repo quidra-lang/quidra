@@ -1,0 +1,125 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "55e38e3c51b982b58ab8b585148841ba76bd5a469d201f9532767efa408698cc",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "d560d73309d35a0dc39dd773beba17a3cb019709fcfefa87ec12f7c67f169c5f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.community_public_knowledge_availability"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "89c8c222e1bf008c40b7aa617683c67798ab32b79890684a3958484886422e25",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-external--part-3--rust",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "d560d73309d35a0dc39dd773beba17a3cb019709fcfefa87ec12f7c67f169c5f",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-external--part-3--rust"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.community_public_knowledge_availability": {
+        "candidate_universe": "rust-lang.org/community (official community index page)",
+        "component_findings": {
+          "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--rust): Editorial rigor of the newsletter (signal of sustained, curated public knowledge rather than noise)",
+          "events_groups": "Preserved paid evidence (ecosystem-external--part-3--rust): <cite index=\"15-12,15-13\">There are more than 90 Meetups and several conferences worldwide in over 35 countries, and Rustaceans meet periodically in Rust User Groups.</cite>",
+          "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--rust): Rust exhibits very high community/public-knowledge availability across every examined channel: an official, actively maintained, community-translated book and adjacent official 'bookshelf' (Rust by Example, Rustlings, Cargo Book, rustc Book, Rust Reference, etc.) per rust-lang.org's own book index; two dedicated official Discourse forums (Users, Internals) plus an official Zulip chat; a continuously published, human-edited weekly newsletter running for over a decade; strong Stack Overflow presence and sentiment (repeated 'Most Loved Language' status); and an official multi-channel community page (blog, Twitter/Weibo, subreddit, 90+ meetups in 35+ countries). This breadth and official curatio",
+          "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--rust): Official book (canonical single-language learning artifact, mirrors what other languages have as an equivalent official resource)",
+          "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--rust): <cite index=\"15-1,15-3,15-4,15-5\">The Rust Users Forum is a place for Rust users to communicate about anything and everything related to Rust and The Rust Internals Forum is a place for discussion about the development of Rust itself, with general chatter happening on several chat platforms including the Rust Zulip server.</cite>"
+        },
+        "component_levels": {
+          "current_knowledge": 4,
+          "events_groups": 4,
+          "international_breadth": 4,
+          "learning_materials": 4,
+          "qa_discussion": 4
+        },
+        "legacy_score_0_100": 96,
+        "limitations": "Follower/subscriber counts and Stack Overflow tag counts sourced from third-party aggregator sites (e.g. feedspot, saashub) were cross-checked but not used as a standalone score input; several general web-search results for 'r/rust subscribers' returned unrelated subreddits (the Steam game 'Rust', r/bald, r/wallstreetbets, etc.) due to name collision with the Steam survival game, and those irrelevant results were excluded from evidence rather than used to inflate or deflate the score. Numeric star/subscriber/download counts were not obtained cleanly within the 5-search budget for this shard and are therefore not asserted as point figures; the qualitative, multi-channel evidence above (official book, official multi-venue community page, weekly human-edited newsletter running continuously since 2014, official forums, Stack Overflow 'Most Loved' recognition, 90+ meetups across 35+ countries) is used instead, consistent with the rule that raw popularity counts must not be the sole proxy.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.community-knowledge.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Inspect the same knowledge channels for every language and use current, publicly accessible evidence rather than raw search-result counts alone.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-external--part-3--rust",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/rust/2ec7d8c5e2233c6a96a58a1f0abc928ff6a01cc2d790340894bf9ff65af6c12f.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Rust",
+        "metrics": {
+          "metric.community_public_knowledge_availability": {
+            "component_levels": {
+              "current_knowledge": 4,
+              "events_groups": 4,
+              "international_breadth": 4,
+              "learning_materials": 4,
+              "qa_discussion": 4
+            },
+            "rubric_id": "ecosystem.community-knowledge.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.community_public_knowledge_availability": {
+        "Rust": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "ada7fcdef036056eb907a5b506b3c0553f62908cd15d8dd56e3f8ccc0462abf5",
+  "schema_version": 1
+}

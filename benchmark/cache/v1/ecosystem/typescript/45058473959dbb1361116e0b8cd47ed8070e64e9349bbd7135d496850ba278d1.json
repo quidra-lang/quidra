@@ -1,0 +1,126 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "45058473959dbb1361116e0b8cd47ed8070e64e9349bbd7135d496850ba278d1",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "103be351164b61bd610d3cee58b9049ebb2263b9b65951505eaea177cf09a969",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.community_public_knowledge_availability"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "89c8c222e1bf008c40b7aa617683c67798ab32b79890684a3958484886422e25",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-external--part-3--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "103be351164b61bd610d3cee58b9049ebb2263b9b65951505eaea177cf09a969",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-external--part-3--typescript"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.community_public_knowledge_availability": {
+        "candidate_universe": "All ten benchmark languages are subject to the identical four-signal collection procedure; TypeScript is the assigned target for this worker.",
+        "component_findings": {
+          "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--typescript): TypeScript has a comprehensive, actively maintained official Handbook, ranks 6th (43.6% overall / 48.8% among professional developers) in the 2025 Stack Overflow Developer Survey with a rising multi-year trend, became the #1 language on GitHub by monthly contributors in the 2025 Octoverse report, has strong presence in independent community surveys (State of JS), and is backed by a large, continuously growing body of third-party tutorials, articles, and Q&A content. This combination of official documentation depth, independent-survey visibility, and breadth of third-party public knowledge supports a near-maximum normalized score, with a small deduction reflecting that some public discourse i",
+          "events_groups": "Preserved paid evidence (ecosystem-external--part-3--typescript): TypeScript has a comprehensive, actively maintained official Handbook, ranks 6th (43.6% overall / 48.8% among professional developers) in the 2025 Stack Overflow Developer Survey with a rising multi-year trend, became the #1 language on GitHub by monthly contributors in the 2025 Octoverse report, has strong presence in independent community surveys (State of JS), and is backed by a large, continuously growing body of third-party tutorials, articles, and Q&A content. This combination of official documentation depth, independent-survey visibility, and breadth of third-party public knowledge supports a near-maximum normalized score, with a small deduction reflecting that some public discourse i",
+          "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--typescript): TypeScript has a comprehensive, actively maintained official Handbook, ranks 6th (43.6% overall / 48.8% among professional developers) in the 2025 Stack Overflow Developer Survey with a rising multi-year trend, became the #1 language on GitHub by monthly contributors in the 2025 Octoverse report, has strong presence in independent community surveys (State of JS), and is backed by a large, continuously growing body of third-party tutorials, articles, and Q&A content. This combination of official documentation depth, independent-survey visibility, and breadth of third-party public knowledge supports a near-maximum normalized score, with a small deduction reflecting that some public discourse i",
+          "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--typescript): Independent tutorial and reference material for TypeScript is abundant and actively produced (e.g. dedicated freeCodeCamp long-form guides walking through the most common Stack Overflow TypeScript questions), indicating a mature secondary layer of public knowledge beyond official docs.",
+          "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--typescript): TypeScript ships an official, actively maintained Handbook and reference documentation at typescriptlang.org/docs, covering language fundamentals through advanced type-system features; this is the canonical first-party knowledge source referenced throughout the wider ecosystem (e.g. tutorial sites explicitly point learners back to the official Handbook for interfaces-vs-types guidance)."
+        },
+        "component_levels": {
+          "current_knowledge": 4,
+          "events_groups": 4,
+          "international_breadth": 4,
+          "learning_materials": 4,
+          "qa_discussion": 4
+        },
+        "legacy_score_0_100": 95,
+        "limitations": "GitHub contributor/repository counts are raw activity/popularity indicators and are used here only as one of four declared corroborating signals, not as the sole basis for the score. | An exact current Stack Overflow 'typescript' tag question-count could not be retrieved via search in this session (aggregator/scraper listing pages dominated results instead of the live tag page); the Developer Survey usage-share and GitHub Octoverse figures are used as the primary quantitative substitutes, consistent with the predeclared multi-signal rule. | Survey percentages are self-reported and opt-in, so absolute magnitudes are directional rather than exact.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.community-knowledge.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Inspect the same knowledge channels for every language and use current, publicly accessible evidence rather than raw search-result counts alone.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-external--part-3--typescript",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/80d9f1aba788ca957d30f5cf9c0678d194386cd30530ebd8c9d4e0ce5499083a.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "TypeScript",
+        "metrics": {
+          "metric.community_public_knowledge_availability": {
+            "component_levels": {
+              "current_knowledge": 4,
+              "events_groups": 4,
+              "international_breadth": 4,
+              "learning_materials": 4,
+              "qa_discussion": 4
+            },
+            "rubric_id": "ecosystem.community-knowledge.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.community_public_knowledge_availability": {
+        "TypeScript": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "7de1a6a6f5477b6f1b5d070c7af6d4237e94f8a81973bb824756b6e5244e5147",
+  "schema_version": 1
+}

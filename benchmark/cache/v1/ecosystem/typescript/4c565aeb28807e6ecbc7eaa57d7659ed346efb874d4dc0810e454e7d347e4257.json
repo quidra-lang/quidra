@@ -1,0 +1,169 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "4c565aeb28807e6ecbc7eaa57d7659ed346efb874d4dc0810e454e7d347e4257",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "3b08450c9dfda10b06f7412c6bbd9293fc7bf9588b8339cd9285f690a4d6c97b",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.implemented_platform_coverage",
+      "metric.external_integration_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-5--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "3b08450c9dfda10b06f7412c6bbd9293fc7bf9588b8339cd9285f690a4d6c97b",
+    "run_id": "cache-recertify-06cf5a9",
+    "work_unit_id": "ecosystem-tooling--part-5--typescript"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.external_integration_coverage": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-5--typescript; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "c_native": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): OAuth2/OIDC libraries (Passport, next-auth, Auth0's official SDK) provide typed integration for the Node/TypeScript ecosystem.",
+          "database_data": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): MQTT.js and related IoT protocol libraries provide working TypeScript integration, though typings and platform reach are more limited than for web/cloud-centric domains.",
+          "extension_embedding": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): Mature, widely used TypeScript-first ORMs and drivers (Prisma, TypeORM, Mongoose, node-postgres) cover both relational and NoSQL databases.",
+          "language_bindings": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): OpenAI's official Node/TypeScript SDK, along with TensorFlow.js and Hugging Face's JS SDKs, provide first-class TypeScript-typed access to major AI platforms.",
+          "network_cloud": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): MQTT.js and related IoT protocol libraries provide working TypeScript integration, though typings and platform reach are more limited than for web/cloud-centric domains."
+        },
+        "component_levels": {
+          "c_native": 2,
+          "database_data": 4,
+          "extension_embedding": 4,
+          "language_bindings": 4,
+          "network_cloud": 4
+        },
+        "legacy_score_0_100": 95,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.external-integration.v1",
+        "runner_score_0_100": 90,
+        "selection_rule": "Evaluate working documented integrations and binding ecosystems, not only theoretical FFI design; FFI language design itself belongs to Language Quality.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-5--typescript",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/04dbe66ba91c72b74887eacbd773593a697122f83a438cc49112d20e58000039.json"
+        ]
+      },
+      "metric.implemented_platform_coverage": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-5--typescript; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "architectures": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): <cite index=\"36-8\">Despite its web nature, WebAssembly can also run in non-web modes, such as servers, IoT devices, Mobile/Desktop applications, taking into account some web features will not be available.</cite>",
+          "desktop_server_os": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): <cite index=\"27-1\">A modern, lightweight starter template for building cross-platform desktop applications with Tauri, React, TypeScript, and shadcn/ui</cite>",
+          "embedded": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): JavaScript/TypeScript can run on some microcontroller-class devices via engines like Espruino or through Node-based IoT frameworks (Johnny-Five), but this is a niche use case relative to C/C++/Rust in embedded contexts, and typing support there is limited.",
+          "mobile": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): <cite index=\"27-1\">A modern, lightweight starter template for building cross-platform desktop applications with Tauri, React, TypeScript, and shadcn/ui</cite>",
+          "web_wasm_other": "Preserved paid evidence (ecosystem-tooling--part-5--typescript): TypeScript itself is not compiled directly to WebAssembly by tsc; reaching Wasm requires AssemblyScript, a related but distinct strict subset/variant of TypeScript with its own compiler and semantic limitations, so support is indirect rather than native to the TypeScript toolchain."
+        },
+        "component_levels": {
+          "architectures": 4,
+          "desktop_server_os": 4,
+          "embedded": 2,
+          "mobile": 3,
+          "web_wasm_other": 4
+        },
+        "legacy_score_0_100": 74,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.platform-coverage.v1",
+        "runner_score_0_100": 85,
+        "selection_rule": "Count only platforms with currently implemented and documented build/run support; design intent without working support does not count.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-5--typescript",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/04dbe66ba91c72b74887eacbd773593a697122f83a438cc49112d20e58000039.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "TypeScript",
+        "metrics": {
+          "metric.external_integration_coverage": {
+            "component_levels": {
+              "c_native": 2,
+              "database_data": 4,
+              "extension_embedding": 4,
+              "language_bindings": 4,
+              "network_cloud": 4
+            },
+            "rubric_id": "ecosystem.external-integration.v1",
+            "score_0_100": 90
+          },
+          "metric.implemented_platform_coverage": {
+            "component_levels": {
+              "architectures": 4,
+              "desktop_server_os": 4,
+              "embedded": 2,
+              "mobile": 3,
+              "web_wasm_other": 4
+            },
+            "rubric_id": "ecosystem.platform-coverage.v1",
+            "score_0_100": 85
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.external_integration_coverage": {
+        "TypeScript": 90.0
+      },
+      "metric.implemented_platform_coverage": {
+        "TypeScript": 85.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "7eda17b05b888826e1cab88af63e89c064831173ee2c36633b0746a0d4bf5774",
+  "schema_version": 1
+}

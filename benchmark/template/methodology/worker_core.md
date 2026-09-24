@@ -53,6 +53,11 @@ In `packet-only` mode, wrap `result.json` and any additional files in the Worker
 
 Do not surround the Worker Response with Markdown fences.
 
+### Semantic Compression support adjudication exception
+
+For `annotation.support_adjudication--*` tasks, **do not author `result.json`**. Return one UTF-8 text leaf per fixed language, named exactly `Quidra.txt`, `Python.txt`, `C++.txt`, `Rust.txt`, `Go.txt`, `Java.txt`, `TypeScript.txt`, `Kotlin.txt`, `Swift.txt`, and `Zig.txt`. Each file contains only the adjudication fields under the fixed `LEVEL`, `FRAGMENT`, `PARTIAL_REASONS`, `NONE_REASON`, `JUSTIFICATION`, and `CITATION` section labels described in the Task Packet. The trusted runner derives the language from the filename, validates the fields, and constructs/escapes the canonical JSON itself. A model-authored `result.json` is rejected for these tasks.
+
+
 For reusable-artifact currency audits with no Primary requirement IDs:
 
 ```json

@@ -5823,14 +5823,35 @@ def validate_legacy_canonical_fragment_recertification(
             raise BenchmarkError(
                 f"{probe_id}: legacy Semantic Compression fragment hash mismatch"
             )
-        if (
-            row.get("source_run_id") != density_run
-            or row.get("source_record") != metadata.get("source_density_record")
-            or row.get("source_record_sha256")
-            != metadata.get("source_density_record_sha256")
-        ):
+        fragment_origin = str(row.get("fragment_origin") or "")
+        if fragment_origin == "legacy-semantic-density":
+            if (
+                row.get("source_run_id") != density_run
+                or row.get("source_record") != metadata.get("source_density_record")
+                or row.get("source_record_sha256")
+                != metadata.get("source_density_record_sha256")
+            ):
+                raise BenchmarkError(
+                    f"{probe_id}: legacy Semantic Compression density fragment "
+                    "provenance drifted"
+                )
+        elif fragment_origin == "reviewed-current-recertification-override":
+            expected_override = (
+                (LEGACY_SC_FRAGMENT_OVERRIDES.get(language) or {}).get(probe_id)
+                or ""
+            ).strip()
+            if (
+                row.get("recertifier") != "GPT-5.6 Sol"
+                or row.get("source") != "LEGACY_SC_FRAGMENT_OVERRIDES"
+                or expected_override != str(catalog[probe_id]["fragment"]).strip()
+            ):
+                raise BenchmarkError(
+                    f"{probe_id}: legacy Semantic Compression reviewed fragment "
+                    "override provenance drifted"
+                )
+        else:
             raise BenchmarkError(
-                f"{probe_id}: legacy Semantic Compression fragment provenance drifted"
+                f"{probe_id}: unknown legacy Semantic Compression fragment origin"
             )
 
     audit_path = (
@@ -6007,14 +6028,25 @@ def project_semantic_owner_recertification(
         )
         catalog[probe_id] = canonical
         if level in {"FULL", "PARTIAL"}:
-            verification[probe_id] = {
+            verification_row = {
                 "mode": "legacy-evidence-recertification",
                 "canonical_fragment_sha256": sha256_bytes(
                     str(fragment).encode("utf-8")
                 ),
                 "fragment_origin": fragment_origin,
-                "source_run_id": source_run,
             }
+            if fragment_origin == "legacy-semantic-density":
+                verification_row.update({
+                    "source_run_id": density_run,
+                    "source_record": density_rel.as_posix(),
+                    "source_record_sha256": sha256_file(density_path),
+                })
+            elif fragment_origin == "reviewed-current-recertification-override":
+                verification_row.update({
+                    "recertifier": "GPT-5.6 Sol",
+                    "source": "LEGACY_SC_FRAGMENT_OVERRIDES",
+                })
+            verification[probe_id] = verification_row
 
     aggregation = json_load(root / "template" / "config" / "aggregation.json")
     owner_cfg = (

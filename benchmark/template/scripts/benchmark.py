@@ -6604,6 +6604,31 @@ def materialize_legacy_semantic_owner_runner_attestation(
     ):
         return None
 
+    expected_catalog_sha256 = _legacy_sc_catalog_digest(catalog)
+    if metadata.get("canonical_catalog_sha256") != expected_catalog_sha256:
+        return None
+    expected_probes = {
+        str(probe_id)
+        for probe_id, row in catalog.items()
+        if isinstance(row, dict)
+        and str(row.get("level") or "").upper() in {"FULL", "PARTIAL"}
+    }
+    if set(str(probe_id) for probe_id in verification) != expected_probes:
+        return None
+    for probe_id in sorted(expected_probes):
+        row = verification.get(probe_id)
+        canonical = catalog.get(probe_id)
+        if not isinstance(row, dict) or not isinstance(canonical, dict):
+            return None
+        fragment = canonical.get("fragment")
+        if (
+            row.get("mode") != "legacy-evidence-recertification"
+            or not isinstance(fragment, str)
+            or row.get("canonical_fragment_sha256")
+            != sha256_bytes(fragment.encode("utf-8"))
+        ):
+            return None
+
     language = assigned[0]
     audit_path = (
         root / "work" / "audit" / "semantic-compression"

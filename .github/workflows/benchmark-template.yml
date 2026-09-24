@@ -1069,21 +1069,28 @@ jobs:
                       "citation": "Synthetic guarantee documentation citation.",
                       "justification": "Synthetic standard mechanism leaves a named guarantee undocumented.",
                   }
-              payload = {
-                  "schema_version": 1,
-                  "evaluation": "semantic_compression",
-                  "requirements": {
-                      "annotation.support_adjudication--" + slug: values,
-                  },
-                  "evidence": {"ci": "synthetic adjudication"},
-              }
+              files = []
+              for language in langs:
+                  record = values[language]
+                  def field(value):
+                      if value is None or value == []:
+                          return "-"
+                      if isinstance(value, list):
+                          return ",".join(value)
+                      return str(value)
+                  content = "\n".join([
+                      "LEVEL", field(record["level"]),
+                      "FRAGMENT", field(record["fragment"]),
+                      "PARTIAL_REASONS", field(record["partial_reasons"]),
+                      "NONE_REASON", field(record["none_reason"]),
+                      "JUSTIFICATION", field(record["justification"]),
+                      "CITATION", field(record["citation"]),
+                  ]) + "\n"
+                  files.append({"path": language + ".txt", "content": content})
               response = {
                   "schema_version": 1,
                   "task_id": agent,
-                  "files": [{
-                      "path": "result.json",
-                      "content": json.dumps(payload, indent=2) + "\n",
-                  }],
+                  "files": files,
               }
               (root / "raw" / (agent + ".response.json")).write_text(
                   json.dumps(response) + "\n"

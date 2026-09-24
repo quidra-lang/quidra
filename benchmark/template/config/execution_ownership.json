@@ -8,7 +8,8 @@
         "gate.semantic_site_matrix",
         "gate.matrix_validator",
         "coverage.all_frozen_probes",
-        "gate.semantic_premeasurement_validation"
+        "gate.semantic_premeasurement_validation",
+        "metric.capability_coverage"
       ],
       "agent_requirements": [
         "metric.semantic_density",
@@ -16,11 +17,11 @@
         "metric.semantic_locality",
         "metric.hidden_semantic_cost",
         "metric.capability_efficiency",
-        "metric.capability_coverage",
         "gate.comparability_audit"
       ],
       "agent_requirement_prefixes": [
-        "annotation.support_adjudication--"
+        "annotation.support_adjudication--",
+        "annotation.canonical_fragment--"
       ]
     },
     "llm_learnability": {

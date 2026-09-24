@@ -96,7 +96,7 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
+            "sc-capability-coverage",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -113,7 +113,7 @@
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
-          "canonical_fragment_source_requirement": "metric.capability_coverage"
+          "canonical_fragment_source_requirement": "annotation.canonical_fragment--"
         },
         {
           "id": "sc-metrics-local--part-3",
@@ -126,7 +126,7 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
+            "sc-capability-coverage",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -143,7 +143,7 @@
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
-          "canonical_fragment_source_requirement": "metric.capability_coverage"
+          "canonical_fragment_source_requirement": "annotation.canonical_fragment--"
         },
         {
           "id": "sc-metrics-local--part-2",
@@ -156,7 +156,7 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
+            "sc-capability-coverage",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -173,7 +173,7 @@
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
-          "canonical_fragment_source_requirement": "metric.capability_coverage"
+          "canonical_fragment_source_requirement": "annotation.canonical_fragment--"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-1",
@@ -186,7 +186,7 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
+            "sc-capability-coverage",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -203,7 +203,7 @@
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
-          "canonical_fragment_source_requirement": "metric.capability_coverage"
+          "canonical_fragment_source_requirement": "annotation.canonical_fragment--"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-3",
@@ -216,7 +216,7 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
+            "sc-capability-coverage",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -233,15 +233,13 @@
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
-          "canonical_fragment_source_requirement": "metric.capability_coverage",
+          "canonical_fragment_source_requirement": "annotation.canonical_fragment--",
           "goal": "Measure metric.capability_efficiency for the assigned language from the frozen canonical fragments and written counting rules. Itemise every counted syntax form, context-dependent rule, implicit rule, and documented semantic exception. Evidence must include the numeric numerator under total_semantic_complexity_units. You may also report a provisional raw ratio/denominator, but the runner treats the final supported_capability_points denominator as authoritative and recomputes the ratio after cohort support adjudication/comparability repair. Never infer the final denominator from a stale support annotation."
         },
         {
-          "id": "sc-metrics-hidden-coverage--part-2",
+          "id": "sc-canonical-fragment",
           "phase": "measurement",
-          "requirement_ids": [
-            "metric.capability_coverage"
-          ],
+          "requirement_ids": [],
           "dependencies": [
             "sc-structure-gates--part-1a",
             "sc-structure-gates--part-1b",
@@ -261,10 +259,33 @@
           ],
           "network_allowed": false,
           "worker_mode": "packet-only",
-          "split_by_language": true,
           "packet_layout": "shared-inputs-first",
           "canonical_fragment_owner": true,
-          "goal": "Author the one canonical fragment/support record per frozen probe for the assigned language, then report metric.capability_coverage. Apply R1-R10 and the frozen support rubric exactly. evidence.canonical_fragments must contain all 44 probe IDs. Each probe record must carry level, fragment (or null for NONE), partial_reasons, none_reason, justification, and citation. These records are the sole fragment source consumed by Semantic Density, Determinacy, Locality, Hidden Cost, and Capability Efficiency.\n\nMechanical verification contract (mandatory for every FULL/PARTIAL probe):\n- Also write evidence.canonical_verification with exactly the FULL/PARTIAL probe IDs.\n- Each entry has only: entry_file, fragment_files, files, mode, run_count.\n- files maps relative paths to complete UTF-8 fixture source/input files. Keep fixtures minimal. fragment_files lists, in order, the files containing the measured fragment; the canonical fragment must appear in their concatenated text unchanged except whitespace.\n- For ordinary single-unit probes, fragment_files must be exactly [entry_file]. For F14.P3/F18.P2, fragment_files must include entry_file and only source files that participate in the frozen multi-unit recipe; never place measured code in an unbuilt or unused fixture file.\n- The trusted runner, not you, executes the frozen language recipe. Your fixture must make the canonical_task behavior self-checking: a wrong result must make the program exit nonzero.\n- For every probe listed in pre_measurement_validation.V1_fixed_stdout_oracles.by_probe, the fixture's TOTAL stdout on every successful run must equal that frozen value after leading/trailing whitespace is stripped. Do not add a second print when the canonical fragment itself already produces the required stdout. The runner compares this independently.\n- entry_file is the frozen single-file entry name for the assigned language (main.qui, main.py, main.cpp, main.rs, main.go, Main.java, main.ts, main.kt, main.swift, or main.zig).\n- F14.P3 and F18.P2 use the frozen multi-unit recipe. Use util.cpp for C++, util.swift for Swift, util/Util.java for Java, util.kt for Kotlin, and go.mod plus util/*.go for Go when those languages need the second unit.\n- mode is \"run\" and run_count is 1 for ordinary probes; F19.P2 uses mode=\"run\", run_count=20; F20.P2 uses mode=\"nm-add2\", run_count=0.\n- Do not claim build/run/nm success yourself. The validator compiles/runs after your response and rejects the work unit on any failure.\n\nFor F20.P1, work/root/f20_runtime_facts.json is trusted evidence projected from the pinned Linux runtime image before paid Semantic Compression work. For each listed language it records a successful exact-frozen-recipe build/run, no extra compiler/runtime flags, and observed stdout 3. Do not classify a listed language as NONE or cite P-b on a contrary toolchain assumption. Absence of a language from that positive-evidence file is not negative evidence."
+          "goal": "Author and certify exactly one canonical fragment/support record for the assigned probe × language pair. Apply R1-R10 and the frozen support rubric. A generation failure is never evidence of unsupported capability.\n\nOutput requirements:\n- requirements contains the assigned annotation.canonical_fragment--<probe> set to true.\n- evidence.canonical_fragments contains exactly the assigned probe.\n- FULL/PARTIAL: include evidence.canonical_verification for that probe. The trusted runner compiles/runs the fixture under the frozen recipe and rejects a failure; bounded retry receives the validator failure and repairs only this probe × language leaf.\n- NONE: fragment must be null and evidence.canonical_none_verification must contain the same probe with none_reason, a nonempty conclusion, authoritative citation text, evidence_kinds, and generation_failures_not_used_as_evidence=true. Retry exhaustion alone must never produce NONE.\n- Preserve exact official/standard/frozen-toolchain evidence used to conclude that no standard expression exists.\n- Successful leaves are independently cacheable and must not be invalidated by failures in sibling probes.",
+          "split_by_probe_language": true,
+          "max_llm_calls": 1,
+          "max_attempts": 5
+        },
+        {
+          "id": "sc-capability-coverage",
+          "phase": "measurement",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "semantic-capability-coverage",
+          "requirement_ids": [
+            "metric.capability_coverage"
+          ],
+          "dependencies": [
+            "sc-canonical-fragment"
+          ],
+          "prompt_sections": [],
+          "read_paths": [
+            "template/methodology-assets/semantic_compression"
+          ],
+          "network_allowed": false,
+          "max_attempts": 1,
+          "goal": "Mechanically aggregate the independently certified probe × language support leaves into Capability Coverage. No LLM call is permitted for arithmetic, denominator handling, or score aggregation.",
+          "worker_mode": "runner-command"
         },
         {
           "id": "sc-premeasurement-validation",
@@ -276,7 +297,8 @@
             "gate.semantic_premeasurement_validation"
           ],
           "dependencies": [
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-canonical-fragment",
+            "sc-capability-coverage"
           ],
           "prompt_sections": [],
           "read_paths": [
@@ -284,7 +306,7 @@
           ],
           "network_allowed": false,
           "max_attempts": 1,
-          "goal": "Mechanically enforce Semantic Compression pre-measurement V3/V4 after all ten canonical fragment owners complete: every frozen probe must have at least one mechanically verified FULL implementation. V4 suspicious rows/columns, including languages with NONE on more than one third of probes, are investigated and preserved as evidence; a high NONE rate alone does not invalidate a language or block scoring unless the investigation finds an actual instrument contradiction.",
+          "goal": "Mechanically enforce Semantic Compression V1/V3/V4 after all 440 probe × language canonical leaves complete. Each NONE must be evidence-bearing; generation failure alone is never NONE. Every frozen probe must retain at least one FULL implementation before scoring.",
           "worker_mode": "runner-command"
         },
         {
@@ -299,7 +321,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -323,7 +345,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -347,7 +369,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -371,7 +393,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -395,7 +417,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -419,7 +441,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -443,7 +465,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -467,7 +489,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -491,7 +513,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -515,7 +537,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -539,7 +561,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -563,7 +585,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -587,7 +609,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -611,7 +633,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -635,7 +657,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -659,7 +681,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -683,7 +705,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -707,7 +729,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -731,7 +753,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -755,7 +777,7 @@
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-3",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-capability-coverage"
           ],
           "prompt_sections": [
             "### 6.1.5 Capability Coverage",
@@ -777,7 +799,7 @@
             "sc-metrics-local--part-1",
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
-            "sc-metrics-hidden-coverage--part-2",
+            "sc-capability-coverage",
             "sc-metrics-local--part-3",
             "sc-metrics-hidden-coverage--part-3",
             "sc-support-adjudication--f01-p1",

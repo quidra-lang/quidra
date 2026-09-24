@@ -1724,6 +1724,40 @@ def main() -> None:
         original_fingerprint = original[0]
         assert benchmark.cache_eligible_unit(root, unit)
 
+        # Runner validation is applied again on hydration and must never be a
+        # paid-result dependency. Tightening/changing only the validator must
+        # preserve the semantic cache key.
+        changed_validator = {**unit, "validator_command": "python3 newer-validator.py"}
+        assert benchmark.cache_fingerprint(root, changed_validator, task)[0] == original_fingerprint, (
+            "runner validator changes must not invalidate paid semantic evidence"
+        )
+
+        # SC cohort adjudication has an explicit semantic-evidence key. Its
+        # generated support input/rubric/model/sampling remain dependencies, but
+        # transport and output-serialization instructions do not.
+        support = {
+            **unit,
+            "id": "sc-support-adjudication--f04-p1",
+            "evaluation": "semantic_compression",
+            "assigned_languages": [],
+            "requirement_ids": ["annotation.support_adjudication--f04-p1"],
+            "worker_mode": "packet-only",
+            "network_allowed": False,
+        }
+        support_task = dict(task)
+        support_task["prompt_sha256"] = "1" * 64
+        support_pair = benchmark.cache_fingerprint(root, support, support_task)
+        assert support_pair is not None
+        support_payload = support_pair[1]
+        assert support_payload["semantic_evidence_contract"] == "sc-support-adjudication-v1"
+        assert "exact_task_packet_sha256" not in support_payload
+        assert "worker_mode" not in support_payload
+        changed_transport_task = dict(support_task, prompt_sha256="2" * 64)
+        changed_transport = {**support, "worker_mode": "sandbox-agent", "validator_command": "new validator"}
+        assert benchmark.cache_fingerprint(root, changed_transport, changed_transport_task)[0] == support_pair[0], (
+            "SC serialization/transport-only changes must not repurchase adjudication"
+        )
+
         # Quidra is cacheable, keyed by the versions its snapshot declares.
         quidra = {**unit, "assigned_languages": ["Quidra"]}
         assert benchmark.cache_eligible_unit(root, quidra)

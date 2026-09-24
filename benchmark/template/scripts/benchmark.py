@@ -5235,23 +5235,18 @@ def project_semantic_consumer_recertification(
     unit: dict[str, Any],
     task: dict[str, Any],
     record: dict[str, Any],
+    source_path: Path | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """Bridge only legacy SC consumer evidence that proves exact fragment identity.
+    """Rebind preserved SC metric shards to the current canonical catalog safely.
 
-    Canonical-fragment consumers gained a generated trusted catalog after the
-    historical medium/stable epochs.  Merely dropping that new input from the
-    fingerprint would be unsafe: old workers sometimes measured a different
-    idiomatic fragment.  A legacy result may therefore acquire the current
-    catalog attestation only when it carries an explicit fragment for every
-    current FULL/PARTIAL probe and each one is byte-identical to the catalog.
-    NONE probes must still carry no fragment.  The ordinary current validator
-    runs after this projection and remains authoritative for every other field.
+    Explicit historical fragments must still match byte-for-byte. Older shards
+    that stored only raw metric counts may omit fragment text only when the
+    recertified owner proves the exact same shared scientific experiment
+    identity and owns the current catalog digest.
     """
     if str(unit.get("evaluation") or "") != "semantic_compression":
         return record, None
     if not str(unit.get("canonical_fragment_source_requirement") or ""):
-        # The Capability Coverage owner is not a consumer.  Its newer mechanical
-        # verification contract cannot be manufactured from an old score record.
         return record, None
 
     digest = str(task.get("canonical_fragment_catalog_sha256") or "")
@@ -5263,9 +5258,12 @@ def project_semantic_consumer_recertification(
 
     catalog_path = None
     for raw in task.get("read_paths", []) or []:
-        path = resolve_recorded_workspace_path(root, raw)
-        if path.name.startswith("canonical_fragments_") and path.suffix == ".json":
-            catalog_path = path
+        candidate = resolve_recorded_workspace_path(root, raw)
+        if (
+            candidate.name.startswith("canonical_fragments_")
+            and candidate.suffix == ".json"
+        ):
+            catalog_path = candidate
             break
     if catalog_path is None or not catalog_path.is_file():
         return None, (
@@ -5283,8 +5281,46 @@ def project_semantic_consumer_recertification(
     if not isinstance(catalog, dict) or not catalog:
         return None, f"{unit.get('id')}: canonical-fragment catalog is empty"
 
+    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+    owner_meta = (
+        _semantic_owner_legacy_metadata(root, assigned[0])
+        if len(assigned) == 1
+        else None
+    )
+    legacy_source: dict[str, Any] | None = None
+    legacy_identity_sha: str | None = None
+    source_rel: str | None = None
+    source_hash: str | None = None
+    if source_path is not None:
+        try:
+            legacy_source = json_load(source_path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            return None, f"{unit.get('id')}: legacy consumer source record is unreadable"
+        problem = _cache_record_self_integrity_problem(legacy_source)
+        if problem:
+            return None, (
+                f"{unit.get('id')}: legacy consumer source failed self-integrity: "
+                f"{problem}"
+            )
+        identity = _legacy_sc_shared_experiment_identity(legacy_source)
+        if identity:
+            legacy_identity_sha = sha256_bytes(
+                json.dumps(
+                    identity,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            )
+        try:
+            source_rel = source_path.relative_to(root / "cache").as_posix()
+        except ValueError:
+            return None, f"{unit.get('id')}: legacy consumer source is outside cache"
+        source_hash = sha256_file(source_path)
+
     result = json.loads(json.dumps(record.get("result") or {}))
     rows = probe_annotation_fields(result, set(catalog))
+    used_owner_identity_join = False
     for probe_id, raw_record in catalog.items():
         canonical = sc_adjudicated_record(raw_record)
         if canonical is None:
@@ -5297,54 +5333,70 @@ def project_semantic_consumer_recertification(
                     "but the current canonical record is NONE"
                 )
             continue
+
         expected = str(canonical["fragment"]).strip()
-        if not values:
-            assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
-            if len(assigned) != 1:
+        if values:
+            if values != {expected}:
                 return None, (
-                    f"{unit.get('id')}: legacy {probe_id} carries no explicit "
-                    "fragment and the consumer is not language-scoped"
-                )
-            owner_meta = _semantic_owner_legacy_metadata(root, assigned[0])
-            source_run = str((record.get("provenance") or {}).get("run_id") or "")
-            if (
-                not isinstance(owner_meta, dict)
-                or str(owner_meta.get("source_run_id") or "") != source_run
-            ):
-                return None, (
-                    f"{unit.get('id')}: legacy {probe_id} carries no explicit "
-                    "fragment, and no same-run recertified canonical owner proves "
-                    "the current fragment identity"
+                    f"{unit.get('id')}: legacy {probe_id} fragment differs from "
+                    "the current canonical fragment"
                 )
             continue
-        if values != {expected}:
+
+        if len(assigned) != 1:
             return None, (
-                f"{unit.get('id')}: legacy {probe_id} fragment differs from "
-                "the current canonical fragment"
+                f"{unit.get('id')}: legacy {probe_id} carries no explicit "
+                "fragment and the consumer is not language-scoped"
             )
+        if (
+            not isinstance(owner_meta, dict)
+            or not legacy_identity_sha
+            or owner_meta.get("scientific_identity_sha256") != legacy_identity_sha
+            or owner_meta.get("canonical_catalog_sha256") != digest
+        ):
+            return None, (
+                f"{unit.get('id')}: legacy {probe_id} carries no explicit fragment "
+                "and the recertified owner does not prove the same scientific "
+                "experiment identity and current catalog"
+            )
+        used_owner_identity_join = True
 
     evidence = result.get("evidence")
     if not isinstance(evidence, dict):
         return None, f"{unit.get('id')}: legacy result evidence is not an object"
     evidence["canonical_fragment_catalog_sha256"] = digest
-    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
-    if len(assigned) == 1:
-        owner_meta = _semantic_owner_legacy_metadata(root, assigned[0])
-        source_run = str((record.get("provenance") or {}).get("run_id") or "")
-        if isinstance(owner_meta, dict) and str(owner_meta.get("source_run_id") or "") == source_run:
-            evidence["legacy_fragment_equivalence"] = {
-                "schema_version": 1,
-                "source_run_id": density_run,
-                "source_record": density_rel.as_posix(),
-                "source_record_sha256": sha256_file(density_path),
-                "canonical_fragment_catalog_sha256": digest,
-                "policy": (
-                    "The historical metric shard and canonical owner came from "
-                    "the same paid run. The current validator binds the shard to "
-                    "the reconstructed canonical catalog; explicit historical "
-                    "fragment fields, when present, were required to match exactly."
-                ),
-            }
+
+    source_run = str((record.get("provenance") or {}).get("run_id") or "")
+    proof_mode = (
+        "shared-experiment-owner-catalog"
+        if used_owner_identity_join
+        else "explicit-fragment-match"
+    )
+    equivalence: dict[str, Any] = {
+        "schema_version": 1,
+        "proof_mode": proof_mode,
+        "source_run_id": source_run,
+        "canonical_fragment_catalog_sha256": digest,
+        "all_explicit_fragments_matched": not used_owner_identity_join,
+    }
+    if source_rel is not None and source_hash is not None:
+        equivalence["source_metric_record"] = source_rel
+        equivalence["source_metric_record_sha256"] = source_hash
+    if legacy_identity_sha is not None:
+        equivalence["scientific_identity_sha256"] = legacy_identity_sha
+    if isinstance(owner_meta, dict):
+        equivalence["source_owner_record"] = owner_meta.get("source_owner_record")
+        equivalence["source_owner_record_sha256"] = owner_meta.get(
+            "source_owner_record_sha256"
+        )
+        equivalence["source_density_record"] = owner_meta.get(
+            "source_density_record"
+        )
+        equivalence["source_density_record_sha256"] = owner_meta.get(
+            "source_density_record_sha256"
+        )
+    evidence["legacy_fragment_equivalence"] = equivalence
+
     result_raw = json.dumps(
         result, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
@@ -5355,12 +5407,9 @@ def project_semantic_consumer_recertification(
         **(projected.get("certification") or {}),
         "canonical_fragment_equivalence_proved": True,
         "canonical_fragment_catalog_sha256": digest,
-        "semantic_legacy_consumer_recertified": bool(
-            evidence.get("legacy_fragment_equivalence")
-        ),
+        "semantic_legacy_consumer_recertified": True,
     }
     return projected, None
-
 
 
 # One-time Semantic Compression legacy recertification support.
@@ -8021,7 +8070,7 @@ def find_validator_recertifiable_cache_record(
             )
         else:
             projected, projection_problem = project_semantic_consumer_recertification(
-                root, unit, task, projected
+                root, unit, task, projected, source_path=path
             )
         if projection_problem:
             return None, None, projection_problem

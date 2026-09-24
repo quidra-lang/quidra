@@ -132,6 +132,16 @@ jobs:
           smoke_run = smoke.fetch("run", "")
           raise "provider smoke does not prove shared-prefix caching" unless smoke_run.include?("--prefix-probe-text")
 
+          production_text = File.read(".github/workflows/benchmark-production.yml")
+          final_checkpoint_markers = [
+            'updated-prompts.tgz',
+            '^benchmark/template/prompts/',
+            'git add -f benchmark/cache benchmark/template/prompts "$checkpoint_dir"',
+          ]
+          final_checkpoint_markers.each do |marker|
+            raise "final checkpoint no longer preserves certified prompt dependencies: #{marker}" unless production_text.include?(marker)
+          end
+
           readme = File.read("benchmark/README.md").gsub(/\s+/, " ")
           order = "Semantic Compression → LLM Learnability → Language Quality → Ecosystem → LLM Proficiency"
           raise "README five-Primary order drifted from workflow" unless readme.include?(order)

@@ -1691,7 +1691,17 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
                 root, unit, current_payload
             )
         )
-        assert problem is None and compatible_path is not None and projected is not None
+        assert (
+            problem is None and compatible_path is not None and projected is not None
+        ), (
+            problem
+            or benchmark._semantic_validator_recertification_mismatch_summary(
+                root, unit, record, current_payload,
+                benchmark.cache_policy(root)["reuse_conditions"][
+                    "validator_recertification"
+                ]["semantic_compression"],
+            )
+        )
         assert projected["fingerprint"] == current_fingerprint
         assert projected["result"] == result
 

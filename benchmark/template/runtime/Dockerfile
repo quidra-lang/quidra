@@ -24,15 +24,24 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # The native dependency list matches the repository's own Linux CI so the
 # evaluated snapshot builds here exactly as it does there.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl unzip xz-utils tar git make strace \
-      python3 python3-venv \
-      build-essential pkg-config ninja-build cmake \
-      clang-${CLANG_MAJOR} lld-${CLANG_MAJOR} llvm-${CLANG_MAJOR}-dev llvm-${CLANG_MAJOR} \
-      libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev \
-      ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev \
-      zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -e; \
+    for attempt in 1 2 3; do \
+      rm -rf /var/lib/apt/lists/*; \
+      apt-get -o Acquire::Retries=3 update; \
+      if apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+        ca-certificates curl unzip xz-utils tar git make strace \
+        python3 python3-venv \
+        build-essential pkg-config ninja-build cmake \
+        clang-${CLANG_MAJOR} lld-${CLANG_MAJOR} llvm-${CLANG_MAJOR}-dev llvm-${CLANG_MAJOR} \
+        libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev \
+        ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev \
+        zlib1g-dev; then \
+        break; \
+      fi; \
+      if [ "$attempt" -eq 3 ]; then exit 1; fi; \
+      sleep 3; \
+    done; \
+    rm -rf /var/lib/apt/lists/*
 
 # The benchmark fingerprints C++ with `c++ --version` while `micro_measure.py`
 # compiles with `clang++`. Repointing the distribution alternatives makes those
@@ -93,9 +102,18 @@ ARG SWIFT_PIN
 ARG ZIG_PIN
 
 # Swift's Linux runtime needs a few shared libraries beyond the base set.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      libncurses6 libpython3-dev libsqlite3-0 libxml2 tzdata \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -e; \
+    for attempt in 1 2 3; do \
+      rm -rf /var/lib/apt/lists/*; \
+      apt-get -o Acquire::Retries=3 update; \
+      if apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+        libncurses6 libpython3-dev libsqlite3-0 libxml2 tzdata; then \
+        break; \
+      fi; \
+      if [ "$attempt" -eq 3 ]; then exit 1; fi; \
+      sleep 3; \
+    done; \
+    rm -rf /var/lib/apt/lists/*
 
 # Keep the install and verification phases on exactly the same toolchain
 # environment. In particular rustc is a rustup proxy and needs RUSTUP_HOME

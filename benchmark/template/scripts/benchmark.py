@@ -14935,6 +14935,7 @@ def cache_impact(source: Path) -> dict[str, Any]:
     hash_cache: dict[str, str | None] = {}
     invalid: list[dict[str, Any]] = []
     superseded: list[dict[str, Any]] = []
+    valid = 0
     ecosystem_snapshot_cfg = (
         (policy.get("reuse_conditions") or {}).get(
             "ecosystem_snapshot_recertification"

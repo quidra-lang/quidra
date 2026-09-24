@@ -5670,10 +5670,9 @@ def validate_legacy_canonical_fragment_recertification(
     )
     if metadata.get("current_rubric_sha256") != sha256_file(current_rubric_path):
         raise BenchmarkError("legacy Semantic Compression current rubric hash drifted")
-    expected_source_snapshot = {
-        "2026-09-23-fce5cfa-gh16":
-            "fce5cfa731cbf735dca4200257d4c54e084aacc4",
-    }.get(str(metadata.get("source_run_id") or ""))
+    expected_source_snapshot = LEGACY_SC_SOURCE_SNAPSHOTS.get(
+        str(metadata.get("source_run_id") or "")
+    )
     if (
         expected_source_snapshot is None
         or metadata.get("source_snapshot_commit") != expected_source_snapshot
@@ -5683,6 +5682,7 @@ def validate_legacy_canonical_fragment_recertification(
     if metadata.get("canonical_catalog_sha256") != expected_digest:
         raise BenchmarkError("legacy Semantic Compression canonical catalog hash drifted")
 
+    source_records: dict[str, dict[str, Any]] = {}
     for key in ("source_owner_record", "source_density_record"):
         raw = str(metadata.get(key) or "")
         rel = PurePosixPath(raw)
@@ -5698,6 +5698,54 @@ def validate_legacy_canonical_fragment_recertification(
         expected_hash = str(metadata.get(key + "_sha256") or "")
         if sha256_file(path) != expected_hash:
             raise BenchmarkError(f"legacy Semantic Compression {key} hash drifted")
+        source_records[key] = json_load(path)
+
+    density_run = str(metadata.get("source_density_run_id") or "")
+    expected_density_snapshot = LEGACY_SC_SOURCE_SNAPSHOTS.get(density_run)
+    if (
+        expected_density_snapshot is None
+        or metadata.get("source_density_snapshot_commit")
+        != expected_density_snapshot
+    ):
+        raise BenchmarkError("legacy Semantic Compression density snapshot drifted")
+    owner_identity = _legacy_sc_shared_experiment_identity(
+        source_records["source_owner_record"]
+    )
+    density_identity = _legacy_sc_shared_experiment_identity(
+        source_records["source_density_record"]
+    )
+    if not owner_identity or density_identity != owner_identity:
+        raise BenchmarkError(
+            "legacy Semantic Compression source scientific identity mismatch"
+        )
+    identity_sha = sha256_bytes(
+        json.dumps(
+            owner_identity,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    if metadata.get("scientific_identity_sha256") != identity_sha:
+        raise BenchmarkError(
+            "legacy Semantic Compression scientific identity hash drifted"
+        )
+    selection = str(metadata.get("density_source_selection") or "")
+    owner_run = str(metadata.get("source_run_id") or "")
+    if selection == "same-run":
+        if density_run != owner_run:
+            raise BenchmarkError(
+                "legacy Semantic Compression same-run density provenance drifted"
+            )
+    elif selection == "cross-run-scientific-identity":
+        if density_run == owner_run:
+            raise BenchmarkError(
+                "legacy Semantic Compression cross-run provenance is not cross-run"
+            )
+    else:
+        raise BenchmarkError(
+            "legacy Semantic Compression density source selection is invalid"
+        )
 
     verification = evidence.get("canonical_verification")
     if not isinstance(verification, dict):
@@ -5726,6 +5774,15 @@ def validate_legacy_canonical_fragment_recertification(
             raise BenchmarkError(
                 f"{probe_id}: legacy Semantic Compression fragment hash mismatch"
             )
+        if (
+            row.get("source_run_id") != density_run
+            or row.get("source_record") != metadata.get("source_density_record")
+            or row.get("source_record_sha256")
+            != metadata.get("source_density_record_sha256")
+        ):
+            raise BenchmarkError(
+                f"{probe_id}: legacy Semantic Compression fragment provenance drifted"
+            )
 
     audit_path = (
         root / "work" / "audit" / "semantic-compression"
@@ -5740,7 +5797,19 @@ def validate_legacy_canonical_fragment_recertification(
         audit.get("schema_version") != 1
         or audit.get("language") != language
         or audit.get("legacy_evidence_recertified") is not True
+        or audit.get("verification_mode") != "legacy-evidence-recertification"
+        or audit.get("mechanical_verification_performed") is not False
         or audit.get("canonical_catalog_sha256") != expected_digest
+        or audit.get("source_owner_record") != metadata.get("source_owner_record")
+        or audit.get("source_owner_record_sha256")
+        != metadata.get("source_owner_record_sha256")
+        or audit.get("source_density_record") != metadata.get("source_density_record")
+        or audit.get("source_density_record_sha256")
+        != metadata.get("source_density_record_sha256")
+        or audit.get("source_density_run_id") != density_run
+        or audit.get("source_density_snapshot_commit")
+        != expected_density_snapshot
+        or audit.get("scientific_identity_sha256") != identity_sha
         or audit.get("probes") != verification
     ):
         raise BenchmarkError(
@@ -6002,11 +6071,19 @@ def project_semantic_owner_recertification(
             "schema_version": 1,
             "language": language,
             "legacy_evidence_recertified": True,
+            "verification_mode": "legacy-evidence-recertification",
+            "mechanical_verification_performed": False,
             "canonical_catalog_sha256": catalog_digest,
             "source_owner_record": source_rel.as_posix(),
             "source_owner_record_sha256": source_hash,
+            "source_owner_run_id": source_run,
+            "source_owner_snapshot_commit": source_snapshot,
             "source_density_record": density_rel.as_posix(),
             "source_density_record_sha256": density_hash,
+            "source_density_run_id": density_run,
+            "source_density_snapshot_commit": density_snapshot,
+            "density_source_selection": density_source_selection,
+            "scientific_identity_sha256": scientific_identity_sha256,
             "probes": verification,
         },
     )
@@ -8474,9 +8551,13 @@ def cache_migration_metadata(
         "transformed_fields": list(rule["transformed_fields"]),
         "current_validator": "PASS",
         "current_mechanical_verification": (
-            "current-validator"
-            if evaluation in {"semantic_compression", "language_quality"}
-            else "not-applicable"
+            "not-performed-legacy-evidence-recertification"
+            if evaluation == "semantic_compression"
+            else (
+                "current-validator"
+                if evaluation == "language_quality"
+                else "not-applicable"
+            )
         ),
     }
 
@@ -14437,9 +14518,18 @@ def semantic_premeasurement_verification_summary(
                     f"Semantic Compression legacy verification drifted: "
                     f"{language} {probe_id}"
                 )
+        if (
+            report.get("verification_mode") != "legacy-evidence-recertification"
+            or report.get("mechanical_verification_performed") is not False
+        ):
+            raise BenchmarkError(
+                f"Semantic Compression legacy verification mode is ambiguous for {language}"
+            )
         return {
             "synthetic_ci": False,
             "legacy_evidence_recertified": True,
+            "verification_mode": "legacy-evidence-recertification",
+            "mechanical_verification_performed": False,
             "verified_probe_count": len(actual),
             "report": str(report_path),
         }

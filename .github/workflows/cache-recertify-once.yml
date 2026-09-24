@@ -55,44 +55,6 @@ jobs:
           python benchmark/template/scripts/sandbox_launcher.py build-image --target toolchains --image "$BENCHMARK_IMAGE"
           python benchmark/template/scripts/sandbox_launcher.py doctor --image "$BENCHMARK_IMAGE"
 
-      - name: Restore certifiable records from retained paid-run artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          evidence_root="$RUNNER_TEMP/legacy-paid-evidence"
-          mkdir -p "$evidence_root"
-
-          restore_run() {
-            run_id="$1"
-            artifact_id="$2"
-            snapshot="$3"
-            zip="$evidence_root/${artifact_id}.zip"
-            tgz="$evidence_root/${artifact_id}.tgz"
-            dst="$evidence_root/${run_id}"
-
-            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$zip"
-            unzip -p "$zip" '_temp/workspace-evidence.tgz' > "$tgz"
-            mkdir -p "$dst"
-            tar -xzf "$tgz" -C "$dst"
-
-            # This does not make an old record current by assertion. It only
-            # reconstructs records that were COMPLETE + validator PASS in the
-            # historical run under their historical fingerprint. Ordinary
-            # current-key hydration below must still prove semantic compatibility
-            # and pass the current validator before any unit becomes a HIT.
-            python benchmark/template/scripts/benchmark.py cache-promote-evidence \
-              --source-repo "$GITHUB_WORKSPACE" \
-              --evidence "$dst" \
-              --snapshot "$snapshot" \
-              | tee "$evidence_root/${run_id}-promotion.json"
-          }
-
-          restore_run "2026-09-22-56f2c65-gh3" 10697874616 56f2c65cf938edce1de6f038148cf660eba9dd2b
-          restore_run "2026-09-23-1231af5-gh12" 10728073669 1231af5b6bdb6e525a303e2d79307d016f3bcc36
-          restore_run "2026-09-23-fce5cfa-gh16" 10732219089 fce5cfa731cbf735dca4200257d4c54e084aacc4
-          restore_run "2026-09-23-61f50c1-gh22" 10745064587 61f50c1a8c1518f6d6abcb9b1468e4a9e0aa0610
-
       - name: Initialize clean recertification workspace
         run: |
           set -euo pipefail

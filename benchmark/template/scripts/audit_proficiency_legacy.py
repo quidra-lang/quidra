@@ -76,7 +76,8 @@ def current_nontrajectory_compatibility(
         "runtime_toolchain_pins",
         "worker_mode",
         "network_allowed",
-        "quidra_target_versions",
+        "quidra_target",
+        "proficiency_workload_contract_sha256",
     )
     mismatches: list[str] = []
     for key in fields:

@@ -6070,6 +6070,25 @@ def cache_policy(root: Path) -> dict[str, Any]:
     if data.get("schema_version") != 1 or data.get("cache_schema_version") != 1:
         raise BenchmarkError("unsupported certified cache policy schema")
     identity = data.get("quidra_execution_identity") or {}
+    raw_paths = identity.get("input_paths")
+    if not isinstance(raw_paths, list) or not raw_paths:
+        # Retained paid workspaces from before execution-identity tracking have
+        # neither the policy field nor a trusted identity in run.json. They may
+        # still be opened to recover comparison-language evidence. A current
+        # workspace (or any workspace claiming an identity) must never take
+        # this legacy escape hatch.
+        run_path = root / "run.json"
+        run_identity = None
+        if run_path.is_file():
+            run_identity = (
+                (json_load(run_path).get("evaluated") or {})
+                .get("quidra_execution_identity")
+            )
+        if run_identity is None:
+            return data
+        raise BenchmarkError(
+            "cache policy quidra_execution_identity.input_paths must be non-empty"
+        )
     paths = quidra_execution_input_paths(data)
     baseline = identity.get("legacy_baseline") or {}
     baseline_objects = baseline.get("git_objects")

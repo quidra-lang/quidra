@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-09-23-61f50c1-gh22",
+  "source_snapshot_commit": "61f50c1a8c1518f6d6abcb9b1468e4a9e0aa0610",
+  "source_primary_config": "provenance/semantic-compression/source-files/aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9.primary.json",
+  "source_primary_config_sha256": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9",
+  "source_primary_config_sc_projection_sha256": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819",
+  "source_evaluation_spec": "provenance/semantic-compression/source-files/33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92.semantic_compression.md",
+  "source_evaluation_spec_sha256": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+  "migration_rule": "semantic-source-snapshot-projection-v1",
+  "migration_rule_version": 1
+}

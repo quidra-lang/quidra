@@ -5696,6 +5696,211 @@ LEGACY_SC_INPUT_PROJECTION_MIGRATIONS: dict[str, dict[str, str]] = {
 }
 
 
+
+LEGACY_SC_SOURCE_PROVENANCE_ROOT = PurePosixPath(
+    "provenance/semantic-compression"
+)
+
+
+def _legacy_sc_source_projection_metadata_path(root: Path, run_id: str) -> Path:
+    return (
+        root / "cache" / Path(*LEGACY_SC_SOURCE_PROVENANCE_ROOT.parts)
+        / "runs" / f"{slug_id(run_id)}.json"
+    )
+
+
+def _legacy_sc_source_projection_file(
+    root: Path, raw: str
+) -> Path | None:
+    rel = PurePosixPath(str(raw or ""))
+    if (
+        not raw
+        or rel.is_absolute()
+        or any(part in {"", ".", ".."} for part in rel.parts)
+    ):
+        return None
+    try:
+        return require_under(root / "cache" / Path(*rel.parts), root / "cache")
+    except BenchmarkError:
+        return None
+
+
+def record_legacy_sc_source_projection_provenance(
+    source: Path, evidence: Path, snapshot: str
+) -> dict[str, Any] | None:
+    """Preserve exact public source bytes used to justify SC hash projection."""
+    run = json_load(evidence / "run.json")
+    run_id = str(run.get("run_id") or "")
+    expected_snapshot = LEGACY_SC_SOURCE_SNAPSHOTS.get(run_id)
+    if expected_snapshot is None:
+        return None
+    if snapshot != expected_snapshot:
+        raise BenchmarkError(
+            f"{run_id}: Semantic Compression source snapshot mismatch: "
+            f"{snapshot} != {expected_snapshot}"
+        )
+
+    primary = evidence / "template" / "config" / "primary.json"
+    spec = (
+        evidence / "template" / "methodology"
+        / EVALUATION_SPEC_FILES["semantic_compression"]
+    )
+    if not primary.is_file() or not spec.is_file():
+        raise BenchmarkError(
+            f"{run_id}: recovered Semantic Compression source inputs are missing"
+        )
+
+    migration = LEGACY_SC_INPUT_PROJECTION_MIGRATIONS.get(run_id)
+    if migration is None:
+        raise BenchmarkError(f"{run_id}: no reviewed SC projection migration exists")
+    primary_full = sha256_file(primary)
+    spec_full = sha256_file(spec)
+    primary_projection = sha256_bytes(
+        json.dumps(
+            primary_config_projection_from_data(
+                json_load(primary), "semantic_compression"
+            ),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    if (
+        primary_full != migration.get("primary_config_full_sha256")
+        or spec_full != migration.get("evaluation_spec_full_sha256")
+        or primary_projection
+        != migration.get("primary_config_projection_sha256")
+    ):
+        raise BenchmarkError(
+            f"{run_id}: recovered source bytes do not match the reviewed SC migration"
+        )
+
+    cache_root = source / "benchmark" / "cache"
+    provenance_root = (
+        cache_root / Path(*LEGACY_SC_SOURCE_PROVENANCE_ROOT.parts)
+    )
+    files_root = provenance_root / "source-files"
+    runs_root = provenance_root / "runs"
+    files_root.mkdir(parents=True, exist_ok=True)
+    runs_root.mkdir(parents=True, exist_ok=True)
+    primary_rel = (
+        LEGACY_SC_SOURCE_PROVENANCE_ROOT / "source-files"
+        / f"{primary_full}.primary.json"
+    )
+    spec_rel = (
+        LEGACY_SC_SOURCE_PROVENANCE_ROOT / "source-files"
+        / f"{spec_full}.semantic_compression.md"
+    )
+
+    for source_path, relative in ((primary, primary_rel), (spec, spec_rel)):
+        destination = cache_root / Path(*relative.parts)
+        source_bytes = source_path.read_bytes()
+        if destination.exists():
+            if destination.read_bytes() != source_bytes:
+                raise BenchmarkError(
+                    f"{run_id}: preserved SC source provenance drifted: {relative}"
+                )
+        else:
+            destination.write_bytes(source_bytes)
+
+    metadata = {
+        "schema_version": 1,
+        "run_id": run_id,
+        "source_snapshot_commit": snapshot,
+        "source_primary_config": primary_rel.as_posix(),
+        "source_primary_config_sha256": primary_full,
+        "source_primary_config_sc_projection_sha256": primary_projection,
+        "source_evaluation_spec": spec_rel.as_posix(),
+        "source_evaluation_spec_sha256": spec_full,
+        "migration_rule": "semantic-source-snapshot-projection-v1",
+        "migration_rule_version": 1,
+    }
+    metadata_path = runs_root / f"{slug_id(run_id)}.json"
+    if metadata_path.exists():
+        existing = json_load(metadata_path)
+        if existing != metadata:
+            raise BenchmarkError(
+                f"{run_id}: preserved SC source projection metadata drifted"
+            )
+    else:
+        json_dump(metadata_path, metadata)
+    return metadata
+
+
+def _legacy_sc_source_projection_attestation(
+    root: Path, run_id: str, selectors: list[str]
+) -> dict[str, str] | None:
+    """Recompute legacy full-file -> current scoped hashes from snapshot bytes."""
+    expected_snapshot = LEGACY_SC_SOURCE_SNAPSHOTS.get(run_id)
+    migration = LEGACY_SC_INPUT_PROJECTION_MIGRATIONS.get(run_id)
+    if expected_snapshot is None or migration is None:
+        return None
+    path = _legacy_sc_source_projection_metadata_path(root, run_id)
+    if not path.is_file():
+        return None
+    try:
+        metadata = json_load(path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    if (
+        metadata.get("schema_version") != 1
+        or metadata.get("run_id") != run_id
+        or metadata.get("source_snapshot_commit") != expected_snapshot
+        or metadata.get("migration_rule")
+        != "semantic-source-snapshot-projection-v1"
+        or metadata.get("migration_rule_version") != 1
+    ):
+        return None
+
+    primary = _legacy_sc_source_projection_file(
+        root, str(metadata.get("source_primary_config") or "")
+    )
+    spec = _legacy_sc_source_projection_file(
+        root, str(metadata.get("source_evaluation_spec") or "")
+    )
+    if primary is None or spec is None or not primary.is_file() or not spec.is_file():
+        return None
+    try:
+        primary_full = sha256_file(primary)
+        spec_full = sha256_file(spec)
+        primary_projection = sha256_bytes(
+            json.dumps(
+                primary_config_projection_from_data(
+                    json_load(primary), "semantic_compression"
+                ),
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        )
+        spec_projection = sha256_bytes(
+            extract_markdown_sections(
+                spec.read_text(encoding="utf-8"), selectors
+            ).encode("utf-8")
+        )
+    except (OSError, json.JSONDecodeError, TypeError, ValueError, BenchmarkError):
+        return None
+
+    if (
+        primary_full != metadata.get("source_primary_config_sha256")
+        or primary_full != migration.get("primary_config_full_sha256")
+        or primary_projection
+        != metadata.get("source_primary_config_sc_projection_sha256")
+        or primary_projection
+        != migration.get("primary_config_projection_sha256")
+        or spec_full != metadata.get("source_evaluation_spec_sha256")
+        or spec_full != migration.get("evaluation_spec_full_sha256")
+    ):
+        return None
+    return {
+        "source_snapshot_commit": expected_snapshot,
+        "primary_config_full_sha256": primary_full,
+        "primary_config_projection_sha256": primary_projection,
+        "evaluation_spec_full_sha256": spec_full,
+        "evaluation_spec_projection_sha256": spec_projection,
+    }
+
+
 LEGACY_SC_INPUT_HASH_PROJECTIONS: dict[str, dict[str, str]] = {
     # Explicit one-time projections proved from the approved retained paid
     # snapshots. The source digest is the historical whole-file SHA-256; the
@@ -8208,12 +8413,13 @@ def _semantic_validator_recertification_payloads_compatible(
         return True
 
     run_id = str((record.get("provenance") or {}).get("run_id") or "")
-    migration = LEGACY_SC_INPUT_PROJECTION_MIGRATIONS.get(run_id)
-    if not migration:
-        return False
-    if migration.get("source_snapshot_commit") != LEGACY_SC_SOURCE_SNAPSHOTS.get(
-        run_id
-    ):
+    selectors = [
+        str(value) for value in (unit.get("prompt_sections") or [])
+    ]
+    source_projection = _legacy_sc_source_projection_attestation(
+        root, run_id, selectors
+    )
+    if source_projection is None:
         return False
 
     old_hashes = dict(old.get("unit_input_hashes") or {})
@@ -8231,26 +8437,21 @@ def _semantic_validator_recertification_payloads_compatible(
 
     if raw_old_primary != raw_current_primary:
         if (
-            raw_old_primary != migration.get("primary_config_full_sha256")
+            raw_old_primary
+            != source_projection.get("primary_config_full_sha256")
             or raw_current_primary
-            != migration.get("primary_config_projection_sha256")
+            != source_projection.get("primary_config_projection_sha256")
             or raw_current_primary
             != primary_config_projection_sha256(root, "semantic_compression")
         ):
             return False
 
     if raw_old_spec != raw_current_spec:
-        current_spec_path = (
-            root / "template" / "methodology"
-            / EVALUATION_SPEC_FILES["semantic_compression"]
-        )
-        selectors = [
-            str(value) for value in (unit.get("prompt_sections") or [])
-        ]
         if (
-            raw_old_spec != migration.get("evaluation_spec_full_sha256")
-            or not current_spec_path.is_file()
-            or sha256_file(current_spec_path) != raw_old_spec
+            raw_old_spec
+            != source_projection.get("evaluation_spec_full_sha256")
+            or raw_current_spec
+            != source_projection.get("evaluation_spec_projection_sha256")
             or raw_current_spec
             != evaluation_spec_projection_sha256(
                 root, "semantic_compression", selectors
@@ -16764,7 +16965,12 @@ def promote_from_evidence(source: Path, evidence: Path, snapshot: str) -> dict[s
             raise BenchmarkError(
                 f"extracting {relative} failed: {extract.stderr.decode('utf-8', 'replace')[:400]}"
             )
+    sc_source_provenance = record_legacy_sc_source_projection_provenance(
+        source, evidence, snapshot
+    )
     summary = promote_certified_cache(source, evidence)
+    if sc_source_provenance is not None:
+        summary["semantic_compression_source_provenance"] = sc_source_provenance
     summary["snapshot"] = snapshot
     summary["evidence"] = str(evidence)
     return summary

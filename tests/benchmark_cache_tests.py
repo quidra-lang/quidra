@@ -1525,6 +1525,15 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
     """Old SC evidence may cross an epoch only by passing today's validator."""
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
+        provenance_source = (
+            ROOT / "benchmark/cache/provenance/semantic-compression"
+        )
+        assert provenance_source.is_dir()
+        shutil.copytree(
+            provenance_source,
+            root / "cache/provenance/semantic-compression",
+            dirs_exist_ok=True,
+        )
         unit_id = "sc-recertify--python"
         agent_id = "worker-sc-recertify--python"
         semantic_section = "#### A. Semantic Density — 20% of quality score"
@@ -1711,6 +1720,50 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
             root,
             unit,
             unproved,
+            current_payload,
+            policy["semantic_compression"],
+        )
+
+        metadata_path = benchmark._legacy_sc_source_projection_metadata_path(
+            root, "2026-09-23-fce5cfa-gh16"
+        )
+        metadata = benchmark.json_load(metadata_path)
+        source_spec = benchmark._legacy_sc_source_projection_file(
+            root, metadata["source_evaluation_spec"]
+        )
+        source_primary = benchmark._legacy_sc_source_projection_file(
+            root, metadata["source_primary_config"]
+        )
+        assert source_spec is not None and source_primary is not None
+
+        original_spec = source_spec.read_text(encoding="utf-8")
+        source_spec.write_text(original_spec + "\nsource drift\n", encoding="utf-8")
+        assert not benchmark._semantic_validator_recertification_payloads_compatible(
+            root,
+            unit,
+            record,
+            current_payload,
+            policy["semantic_compression"],
+        )
+        source_spec.write_text(original_spec, encoding="utf-8")
+
+        original_primary = source_primary.read_text(encoding="utf-8")
+        source_primary.write_text(
+            original_primary.replace('"schema_version": 1', '"schema_version": 9', 1),
+            encoding="utf-8",
+        )
+        assert not benchmark._semantic_validator_recertification_payloads_compatible(
+            root,
+            unit,
+            record,
+            current_payload,
+            policy["semantic_compression"],
+        )
+        source_primary.write_text(original_primary, encoding="utf-8")
+        assert benchmark._semantic_validator_recertification_payloads_compatible(
+            root,
+            unit,
+            record,
             current_payload,
             policy["semantic_compression"],
         )

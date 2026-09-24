@@ -1901,7 +1901,7 @@ def assert_semantic_legacy_full_hash_projection_is_explicit() -> None:
         owner = next(
             unit
             for unit in plan["evaluations"]["semantic_compression"]["units"]
-            if unit["id"] == "sc-metrics-hidden-coverage--part-2"
+            if unit["id"] == "sc-metrics-hidden-coverage--part-3"
         )
         expected = {
             "primary_config": benchmark.primary_config_projection_sha256(

@@ -172,6 +172,7 @@ RETAINED_RUN_PATHS = (
     "work/root/manifest.json",
     "work/root/ledger.json",
     "work/root/plans",
+    "work/root/semantic-probes",
     "work/root/commands",
     "work/root/proficiency-verification",
     "work/root/comparability_blinding.json",
@@ -2871,6 +2872,24 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                         raw.get("language_scoped_program_reads", False)
                     ),
                 )
+                if canonical_probe_id is not None:
+                    if len(assigned_languages) != 1:
+                        raise BenchmarkError(
+                            f"{uid}: canonical probe owner must have one language"
+                        )
+                    probe_contract = materialize_semantic_probe_contract(
+                        root, canonical_probe_id, assigned_languages[0]
+                    )
+                    task_read_paths.append(str(probe_contract))
+                    if canonical_probe_id == "F20.P1":
+                        runtime_facts = (
+                            root / "work" / "root" / "f20_runtime_facts.json"
+                        )
+                        if not runtime_facts.is_file():
+                            raise BenchmarkError(
+                                "F20.P1 requires frozen runtime facts"
+                            )
+                        task_read_paths.append(str(runtime_facts))
                 deps: list[str] = []
                 for dep in [str(x) for x in raw.get("dependencies", [])]:
                     dep_mode = split_modes.get(dep, "")
@@ -4290,6 +4309,64 @@ def semantic_probe_ids(root: Path) -> list[str]:
     return probe_ids
 
 
+def materialize_semantic_probe_contract(
+    root: Path, probe_id: str, language: str
+) -> Path:
+    """Freeze the exact shared rules and one probe row read by an atomic owner."""
+    asset_root = (
+        root / "template" / "methodology-assets" / "semantic_compression"
+    )
+    universe = json_load(asset_root / "capability_universe.json")
+    matrix = json_load(asset_root / "semantic_site_matrix.json")
+    universe_rows = {
+        str(row.get("probe_id")): row
+        for row in (universe.get("probes") or [])
+    }
+    matrix_rows = {
+        str(row.get("probe_id")): row
+        for row in (matrix.get("probes") or [])
+    }
+    if probe_id not in universe_rows or probe_id not in matrix_rows:
+        raise BenchmarkError(
+            f"unknown Semantic Compression probe contract: {probe_id}"
+        )
+    payload = {
+        "schema_version": 1,
+        "language": language,
+        "probe_id": probe_id,
+        "global_rules": {
+            "spec_authority": universe.get("spec_authority"),
+            "toolchain_binding": universe.get("toolchain_binding"),
+            "semantic_fact_kinds": universe.get("semantic_fact_kinds"),
+            "authoring_rules_for_probe_fragments": universe.get(
+                "authoring_rules_for_probe_fragments"
+            ),
+            "support_rubric": universe.get("support_rubric"),
+            "na_policy": universe.get("na_policy"),
+            "pre_measurement_validation": universe.get(
+                "pre_measurement_validation"
+            ),
+            "annotation_states": matrix.get("annotation_states"),
+            "scored_annotation_states": matrix.get(
+                "scored_annotation_states"
+            ),
+            "metrics": matrix.get("metrics"),
+        },
+        "capability_probe": universe_rows[probe_id],
+        "semantic_site_probe": matrix_rows[probe_id],
+        "generation_failure_policy": (
+            "A failed candidate, compile/run failure, or exhausted repair attempt "
+            "is not evidence of NONE. NONE requires capability-absence evidence."
+        ),
+    }
+    destination = (
+        root / "work" / "root" / "semantic-probes"
+        / f"{slug_id(language)}--{slug_id(probe_id)}.json"
+    )
+    json_dump(destination, payload)
+    return destination
+
+
 def canonical_fragment_catalog(
     root: Path,
     result: dict[str, Any],
@@ -4339,13 +4416,11 @@ def canonical_fragment_input_for_unit(
             f"{unit.get('id')}: canonical fragment consumer must own one language"
         )
     language = str(assigned[0])
-    units = {str(item.get("id")): item for item in manifest.get("work_units", [])}
     expected = set(semantic_probe_ids(root))
     by_probe: dict[str, dict[str, Any]] = {}
     source_ids: list[str] = []
-    for dep in unit.get("dependencies", []):
-        source = units.get(str(dep))
-        if source is None or not source.get("canonical_fragment_owner"):
+    for source in manifest.get("work_units", []):
+        if not source.get("canonical_fragment_owner"):
             continue
         if list(source.get("assigned_languages") or []) != [language]:
             continue

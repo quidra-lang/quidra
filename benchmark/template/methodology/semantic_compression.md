@@ -369,3 +369,24 @@ Create an independent:
 **Semantic Compression Ranking**
 
 based only on Semantic Compression Overall Score, **and only when the Semantic Compression status is `COMPLETE` and the semantic-site comparability gate passed**. Otherwise print the status and withhold both Overall Score and Ranking.
+
+
+## Probe × language cache ownership
+
+Canonical fragment generation is owned and cached by **probe × language**.
+Each owner receives the shared frozen Semantic Compression rules plus only its
+own capability-universe and semantic-site rows. A change to one probe therefore
+invalidates that probe's leaves, not sibling probes. Quidra leaves additionally
+read the evaluated language documentation, and only F20.P1 reads the frozen
+runtime-facts file.
+
+Generation failure is not NONE. FULL/PARTIAL leaves are accepted only after the
+trusted validator verifies their frozen compile/run/symbol recipe. A NONE leaf
+must carry capability-absence evidence and no fragment. Bounded retry repairs
+only the failing leaf.
+
+Capability Coverage is aggregated mechanically from the certified leaves.
+Downstream Q metrics consume a deterministic per-language catalog assembled
+from the same completed leaves. NONE remains outside the primary common-basis Q
+measurement and contributes zero through Capability Coverage, so capability
+absence is not double-penalized.

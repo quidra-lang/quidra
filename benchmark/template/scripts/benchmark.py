@@ -6401,7 +6401,10 @@ def cache_fingerprint_payload(
         "toolchains": selected_toolchains,
         "unit_input_hashes": unit.get("input_hashes") or {},
         "readable_input_content_hashes": cache_read_input_hashes(root, task),
-        "validator_contract": str(unit.get("validator_command") or ""),
+        # Validator commands are runner-owned acceptance machinery, not part of
+        # the paid semantic experiment. A stricter/new validator is applied again
+        # on hydration, so changing only that command must not buy the same model
+        # answer again.
         "worker_mode": unit.get("worker_mode"),
         "network_allowed": bool(unit.get("network_allowed")),
         "runtime_toolchain_pins": selected_pins,
@@ -6664,6 +6667,11 @@ def _cache_payload_without_scoped_prompt(
 ) -> dict[str, Any]:
     normalized = dict(payload)
     normalized.pop("exact_task_packet_sha256", None)
+    # Historical records included the validator command in their paid-result
+    # fingerprint. Validation is runner-owned and current hydration always runs
+    # the current validator, so it is safe (and necessary for reuse) to project
+    # this field away when comparing legacy paid records.
+    normalized.pop("validator_contract", None)
     hashes = dict(normalized.get("unit_input_hashes") or {})
     # Old records used the whole files. Current records use only the selected
     # evaluation section and Primary projection. Exact scoped component bodies

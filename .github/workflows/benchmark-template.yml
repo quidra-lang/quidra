@@ -375,6 +375,17 @@ jobs:
           )
           assert len(master) < 20_000
 
+          # Canonical Semantic Compression owner inputs are atomic: comparison
+          # languages must never hash/embed Quidra docs, while the target sees
+          # only the language-spec tree rather than unrelated repository docs.
+          work_templates = json.loads((root / "config" / "work_plan_templates.json").read_text())
+          sc_owner = next(
+              unit for unit in work_templates["evaluations"]["semantic_compression"]["units"]
+              if unit["id"] == "sc-canonical-fragment"
+          )
+          assert sc_owner["read_paths"] == []
+          assert sc_owner["target_only_read_paths"] == ["repo/docs/spec"]
+
           # Semantic support adjudication must carry the whole canonical record,
           # not only a level. Otherwise comparability falls back to stale shard
           # prose and can reject a correction that was already made.
@@ -410,9 +421,13 @@ jobs:
               {"F08.P1": {"Python": partial}},
           )
           row = by_language["Python"]["F08.P1"]
-          assert row["support"] == "PARTIAL" and row["fragment"] == "wrapper(x)"
+          assert row["support"] == "PARTIAL" and "fragment" not in row
           assert row["support_reason_codes"] == ["P-a"]
-          assert row["support_adjudication"]["justification"] == "standard substitution"
+          assert row["support_adjudication"] == {
+              "level": "PARTIAL",
+              "partial_reasons": ["P-a"],
+              "none_reason": None,
+          }
           assert row["support_source"] == "cohort_adjudication_or_repair"
           assert "rationale" not in row
 

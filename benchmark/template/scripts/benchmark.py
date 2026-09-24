@@ -2872,6 +2872,32 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                         raw.get("language_scoped_program_reads", False)
                     ),
                 )
+                target_language = str(
+                    load_benchmark_metadata(root / "template").get(
+                        "evaluated_target_language", "Quidra"
+                    )
+                )
+                target_only_read_paths = raw.get("target_only_read_paths", [])
+                if (
+                    not isinstance(target_only_read_paths, list)
+                    or not all(
+                        isinstance(path, str) for path in target_only_read_paths
+                    )
+                ):
+                    raise BenchmarkError(
+                        f"{base_uid}: target_only_read_paths must be a string array"
+                    )
+                if assigned_languages == [target_language]:
+                    task_read_paths.extend(
+                        planned_read_paths(
+                            root,
+                            [str(value) for value in target_only_read_paths],
+                            assigned_languages,
+                            language_scoped_program_reads=bool(
+                                raw.get("language_scoped_program_reads", False)
+                            ),
+                        )
+                    )
                 if canonical_probe_id is not None:
                     if len(assigned_languages) != 1:
                         raise BenchmarkError(

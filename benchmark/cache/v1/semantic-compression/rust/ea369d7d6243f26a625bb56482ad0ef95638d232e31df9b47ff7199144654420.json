@@ -1,0 +1,189 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "canonical_fragment_catalog_sha256": "dd4bb5427b0501b1700f55d1852afc14e0a1d81b3b45cc36238a676ea607b370",
+    "canonical_fragment_equivalence_proved": true,
+    "compatibility_migration": "semantic-legacy-consumer-recertification",
+    "current_validator_revalidated": true,
+    "primary_complete": false,
+    "semantic_legacy_consumer_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "ea369d7d6243f26a625bb56482ad0ef95638d232e31df9b47ff7199144654420",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "c7efbde6299615de14cfa6de599ac3b60eff0c68d98313f95c0372ea0d5fb042",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/audit/semantic-compression/canonical_fragments_rust.json": "dd4bb5427b0501b1700f55d1852afc14e0a1d81b3b45cc36238a676ea607b370"
+    },
+    "requirement_ids": [
+      "metric.semantic_locality"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "1d441dd9732821c80f95df874c541f4c88d3928af09651abc5d5d5735d67a5e8",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-local--part-2--rust",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+    "migration_rule": "semantic-legacy-consumer-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "ab79eafb92f267f87ca816b3010dd0e75272bdffd741d793c6e163a9fe884d9e",
+    "source_record": "v1/semantic-compression/rust/ab79eafb92f267f87ca816b3010dd0e75272bdffd741d793c6e163a9fe884d9e.json",
+    "source_record_sha256": "b1def14a050a8a6937cd767c30584b1d4d3b53511f31cf540e918c62b6cc7c6b",
+    "source_result_sha256": "32601f4e1ef544aedc60f3035320e6e2a1e14d30649dc99ef935edfdf12dbb00",
+    "transformed_fields": [
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "c7efbde6299615de14cfa6de599ac3b60eff0c68d98313f95c0372ea0d5fb042",
+    "run_id": "cache-recertify-ac466b1",
+    "work_unit_id": "sc-metrics-local--part-2--rust"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragment_catalog_sha256": "dd4bb5427b0501b1700f55d1852afc14e0a1d81b3b45cc36238a676ea607b370",
+      "legacy_fragment_equivalence": {
+        "all_explicit_fragments_matched": false,
+        "canonical_fragment_catalog_content_sha256": "747d85fce83d0bf20646982bac18fd8c4c06c386bdab795b734828d2b16de3a2",
+        "canonical_fragment_catalog_sha256": "dd4bb5427b0501b1700f55d1852afc14e0a1d81b3b45cc36238a676ea607b370",
+        "proof_mode": "shared-experiment-owner-catalog",
+        "schema_version": 1,
+        "scientific_identity_sha256": "ea696e92fcf76cf2d6fb99e387aae3cce4193cb391d15bebf3c0be93cdfc63f3",
+        "source_density_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
+        "source_density_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
+        "source_metric_record": "v1/semantic-compression/rust/ab79eafb92f267f87ca816b3010dd0e75272bdffd741d793c6e163a9fe884d9e.json",
+        "source_metric_record_sha256": "b1def14a050a8a6937cd767c30584b1d4d3b53511f31cf540e918c62b6cc7c6b",
+        "source_owner_record": "v1/semantic-compression/rust/e76751d96630ff4bde5ed9fcda44b8543915e11c49a6d996bc13764c3ce652ba.json",
+        "source_owner_record_sha256": "5d309a31d88565b5409435f77507f5f11fd25bf78b9ae10293d20d5d523391a3",
+        "source_run_id": "2026-09-23-fce5cfa-gh16"
+      },
+      "metric.semantic_locality": {
+        "method": "Per spec 6.1.3.C, for each frozen probe's measured_fragment, the number of required external semantic lookups or declaration-graph hops (callee signature, variable declaration, type declaration, overload set, trait/interface impl, imported definition, global config/mode) needed to resolve the frozen semantic_facts_expected for that probe was counted. A lookup was counted ONLY when it was necessary to resolve a fact in the fixed inventory (per spec: 'a lookup that is optional for extra detail must not be counted'). Context explicitly included inside a probe's measured_fragment boundary (e.g. F05.P2's put declaration, F14.P1's full enum declaration, F20.P2's whole exported function) required zero external lookups. Context the probe declares as 'given'/'already declared elsewhere' (R5) was counted as one non-local lookup only when a listed semantic fact actually depended on it (e.g. the declared element type of an already-declared Vec, or a callee's signature needed to determine caller-side aliasing/move behavior per F05.P1's own scoring note).",
+        "normalization": {
+          "basis": "all-fragments (all 44 fixed probes for Rust; Rust has a supportable fragment, FULL or PARTIAL, for every probe in this universe, so the all-fragments and common-basis figures for Rust are identical pending the other nine languages' fragment sets, which this worker was not assigned).",
+          "caveat": "This figure must be recombined by the runner with the other nine languages' identically-derived figures (same L_max=7, same formula, same 44-probe basis) before any cross-language ranking is computed, per the common_basis_rule and basis_reporting_requirement in capability_universe.json.",
+          "formula": "score = 100 * (1 - mean(L_i) / L_max), where L_i is the raw lookup count for probe i and L_max = 7 is the fixed number of lookup categories enumerated in semantic_compression.md 6.1.3.C (callee signature, variable declaration, type declaration, overload set, trait/interface implementation, imported definition, global configuration/mode). Lower mean lookup cost yields a higher (better) score, consistent with 'lower lookup cost is better.'",
+          "mean_raw_lookups": 0.5909,
+          "n_probes": 44,
+          "score_computation": "100 * (1 - 0.5909/7) = 100 * (1 - 0.08442) = 91.56, rounded to 92",
+          "sum_of_raw_lookups": 26
+        },
+        "rationale_notes": {
+          "F02.P2": "Rust expresses genuine uninitialized storage via MaybeUninit<[u8;16]>; the guarantee that this is NOT zero/default-filled requires one lookup to the std::mem::MaybeUninit documentation (type declaration / imported definition).",
+          "F03.P1/F03.P2/F04.P2/F07.*/F08.P2/F09.*/F10.*/F11.*/F12.P2": "The operand/receiver local (x, xs, a, b, i, d, s1, s2, o) is 'already-declared' context per R5; one lookup to that declaration is required to fix its concrete type/mutability, which the overflow/conversion/equality/index facts in the site list depend on.",
+          "F05.P1": "Per the probe's own scoring note this is the required spec-6.1.4.B probe; in Rust the bare call f(x) with a Vec argument either moves x (if f takes Vec<i32> by value) or borrows it (if f takes &Vec<i32>/&mut Vec<i32>); the post-call read of x[0] only type-checks under the borrowing signature, so one lookup to f's declared signature is required to resolve aliasing/mutability/allocation facts. F05.P2's put declaration is inside the measured_fragment for that probe (per its own boundary definition) so it requires zero external lookups.",
+          "F13.P1/F13.P2": "Determining that str::parse::<i32>() returns a Result (possible_failure / alternative_value_cases) requires one lookup to the standard library's imported definition/signature for parse.",
+          "F14.P2": "Shape's variant declaration is given context from the companion probe F14.P1 rather than being inside F14.P2's own measured_fragment; one lookup is required to confirm exhaustiveness of the match.",
+          "F14.P3": "Resolving both the trait's declaration in the shapes unit and the separate unit's Tri impl requires two declaration-graph hops (trait/interface definition + a second unit's impl).",
+          "F15.P2": "The declaration-site bound relies on the standard Ord trait; one lookup to that trait's contract is required to know exactly what comparison guarantee is being required.",
+          "F17.P1": "Resolving the exact release-on-every-path guarantee of std::fs::File requires one lookup to its documented Drop/RAII contract (imported definition).",
+          "F17.P2": "The module-level 'released' counter is given context outside the fragment; one lookup to its declaration is needed to confirm it is the same counter being incremented.",
+          "F18.P1": "println! is part of the Rust prelude with no import statement required and its side-effect/failure behavior is fixed by the language itself, so zero lookups were counted.",
+          "F18.P2/F20.P2": "Both units/declarations required by the probe are inside the measured_fragment per the probe's own boundary, so zero external lookups were counted.",
+          "F19.P1/F19.P2": "std::thread::spawn / std::sync::Mutex+Arc guarantees (join semantics, documented race-freedom of the lock) each require one lookup to the standard library's documented contract.",
+          "F20.P1": "extern \"C\" { fn abs(x: i32) -> i32; } relies on the platform C ABI/linkage convention, one lookup."
+        },
+        "raw_lookup_counts_per_probe_rust": {
+          "F01.P1": 0,
+          "F01.P2": 0,
+          "F02.P1": 0,
+          "F02.P2": 1,
+          "F03.P1": 1,
+          "F03.P2": 1,
+          "F04.P1": 0,
+          "F04.P2": 1,
+          "F04.P3": 0,
+          "F05.P1": 1,
+          "F05.P2": 0,
+          "F05.P3": 0,
+          "F06.P1": 0,
+          "F06.P2": 0,
+          "F07.P1": 1,
+          "F07.P2": 1,
+          "F08.P1": 0,
+          "F08.P2": 1,
+          "F09.P1": 1,
+          "F09.P2": 1,
+          "F10.P1": 1,
+          "F10.P2": 1,
+          "F11.P1": 1,
+          "F11.P2": 1,
+          "F12.P1": 0,
+          "F12.P2": 1,
+          "F13.P1": 1,
+          "F13.P2": 1,
+          "F14.P1": 0,
+          "F14.P2": 1,
+          "F14.P3": 2,
+          "F15.P1": 0,
+          "F15.P2": 1,
+          "F15.P3": 0,
+          "F16.P1": 0,
+          "F16.P2": 0,
+          "F17.P1": 1,
+          "F17.P2": 1,
+          "F18.P1": 0,
+          "F18.P2": 0,
+          "F19.P1": 1,
+          "F19.P2": 1,
+          "F20.P1": 1,
+          "F20.P2": 0
+        },
+        "scope_note": "This worker is assigned only the Rust column for metric.semantic_locality. Raw per-probe lookup counts are recorded below for Rust across all 44 frozen probes; the other nine language columns are produced by sibling workers and merged by the runner."
+      }
+    },
+    "requirements": {
+      "metric.semantic_locality": {
+        "Rust": 92
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "03512bf6d1f360da8b84f683fe4217b34ebf50b219718cdf04276439a5540449",
+  "schema_version": 1
+}

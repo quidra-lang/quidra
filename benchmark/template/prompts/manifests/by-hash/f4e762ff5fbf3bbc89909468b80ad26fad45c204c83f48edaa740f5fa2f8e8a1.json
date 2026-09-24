@@ -1,0 +1,52 @@
+{
+  "components": [
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 4890,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "a74413295e23deda2ce14c970eebb8a76809de4ea225d01d23969b4a45a1f2cc"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 114782,
+      "kind": "task-input:template/methodology-assets/semantic_compression/capability_universe.json",
+      "sha256": "25fe1ff0be667e245256ff08e2b65ed048d4604e3b6fd7436080593317fdec3b"
+    },
+    {
+      "bytes": 365790,
+      "kind": "task-input:template/methodology-assets/semantic_compression/semantic_site_matrix.json",
+      "sha256": "7b7913f75da5a0d36c8e363747d0a658671f548b1a3c4b259f8f99cfc27caaf6"
+    },
+    {
+      "bytes": 24323,
+      "kind": "task-input:work/audit/semantic-compression/canonical_fragments_python.json",
+      "sha256": "4b9ac41484f8d393c262bb680545c4e136e025ff480c91f6db5cf7b1ede99020"
+    },
+    {
+      "bytes": 3287,
+      "kind": "task",
+      "sha256": "f887a54602bc7486d34b14d32ce543d035c6942ee70574270a25f9608393af35"
+    },
+    {
+      "bytes": 255,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "7ea8237a3e747bef6276ad2917f73dd6e93c80e21cafb84ef2f22d7ed6c87d83"
+    }
+  ],
+  "prompt_sha256": "f4e762ff5fbf3bbc89909468b80ad26fad45c204c83f48edaa740f5fa2f8e8a1",
+  "rendered_bytes": 523961,
+  "schema_version": 1
+}

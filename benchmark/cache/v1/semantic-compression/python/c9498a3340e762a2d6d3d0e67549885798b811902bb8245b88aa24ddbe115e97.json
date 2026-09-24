@@ -1,0 +1,632 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "canonical_fragment_catalog_sha256": "a8122c1ecb3fdcf7772ec19f8db55082f15240015455c7403bf36fd20bb19ba4",
+    "canonical_fragment_equivalence_proved": true,
+    "compatibility_migration": "semantic-legacy-consumer-recertification",
+    "current_validator_revalidated": true,
+    "primary_complete": false,
+    "semantic_legacy_consumer_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "c9498a3340e762a2d6d3d0e67549885798b811902bb8245b88aa24ddbe115e97",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "245eb5e958dbac41e95cf52e6dd4a1474038cba552ac9ce9d9c956283797ba57",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/audit/semantic-compression/canonical_fragments_python.json": "a8122c1ecb3fdcf7772ec19f8db55082f15240015455c7403bf36fd20bb19ba4"
+    },
+    "requirement_ids": [
+      "metric.capability_efficiency"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--python",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+    "migration_rule": "semantic-legacy-consumer-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "ee878d0276b4bfd28f41f3fb944b10926da4f7e2efd60793822ce4e7726457d6",
+    "source_record": "v1/semantic-compression/python/ee878d0276b4bfd28f41f3fb944b10926da4f7e2efd60793822ce4e7726457d6.json",
+    "source_record_sha256": "a5bb0a4ca4fe99342a6ebc714e539d0f9b27113d283d05f42d02f6cb17507593",
+    "source_result_sha256": "9df82a09cf987a0f13df54f17f2af1202ba3584617c47d6b8e81761230f20e28",
+    "transformed_fields": [
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "245eb5e958dbac41e95cf52e6dd4a1474038cba552ac9ce9d9c956283797ba57",
+    "run_id": "cache-recertify-ac466b1",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--python"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragment_catalog_sha256": "a8122c1ecb3fdcf7772ec19f8db55082f15240015455c7403bf36fd20bb19ba4",
+      "legacy_fragment_equivalence": {
+        "all_explicit_fragments_matched": false,
+        "canonical_fragment_catalog_content_sha256": "02bb9363c591ce550788277336f57e72f3e26318c2607663f61c7c18f108f9d3",
+        "canonical_fragment_catalog_sha256": "a8122c1ecb3fdcf7772ec19f8db55082f15240015455c7403bf36fd20bb19ba4",
+        "proof_mode": "shared-experiment-owner-catalog",
+        "schema_version": 1,
+        "scientific_identity_sha256": "02a2821a75601f65408b6f6f96cb9f04909d6be56d724ee3e9b0ccbfafacbf83",
+        "source_density_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+        "source_density_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+        "source_metric_record": "v1/semantic-compression/python/ee878d0276b4bfd28f41f3fb944b10926da4f7e2efd60793822ce4e7726457d6.json",
+        "source_metric_record_sha256": "a5bb0a4ca4fe99342a6ebc714e539d0f9b27113d283d05f42d02f6cb17507593",
+        "source_owner_record": "v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json",
+        "source_owner_record_sha256": "25a00ef45789bd09dd97bbaa8308d14999c605fffd50a9f533b167457b88a321",
+        "source_run_id": "2026-09-23-fce5cfa-gh16"
+      },
+      "metric.capability_efficiency": {
+        "basis": "all-fragments (Python-only shard; common-basis figure requires merge with the other nine language shards by the runner before a comparability gate can be evaluated)",
+        "basis_size_note": "This shard covers all 44 frozen probes for Python. It cannot itself determine which probes fall in the 10-language common basis; that determination is deferred to the runner's merge step per spec 6.1.4 interaction_with_quality_metrics.",
+        "capability_efficiency_normalized": {
+          "caveat": "This shard evaluates Python only and has no visibility into the other nine languages' raw capability_efficiency figures. Per spec 6.1.4/6.1.5, normalized scores are comparative (higher = better across the fixed 10-language column order) and the common-basis figure additionally requires the runner to intersect this language's supported-probe set with the other nine languages' supported-probe sets before A-D/E are computed on the common basis. The value reported here is a self-contained monotonic transform of the raw figure (100/(1+raw), which preserves 'lower raw = higher score, higher = better, bounded in (0,100)') and is offered so this work unit is independently scoreable per spec 'unfinished applicable work is not N/A'. The runner must recompute the final normalized and common-basis figures once all ten language shards for metric.capability_efficiency are merged, using raw_totals.total_complexity_units and raw_totals.supported_capability_points published here as the frozen raw inputs.",
+          "formula_used": "provisional_transform = 100 / (1 + raw)",
+          "status": "PROVISIONAL",
+          "value": 29.65
+        },
+        "capability_efficiency_raw": {
+          "formula": "raw = total_complexity_units / supported_capability_points",
+          "interpretation": "2.373 semantic-complexity units required per supported capability point for Python, on the all-fragments basis.",
+          "value": 2.373134328358209,
+          "value_rounded": 2.373
+        },
+        "frozen_counting_rule": {
+          "context_dependent_rules": "Count of frozen semantic_facts_expected for the probe whose correct interpretation depends on information outside the measured_fragment's local syntax (e.g. dynamic name resolution, duck-typed dispatch resolved only at the call target, non-enforced conventions such as leading-underscore privacy or ALL_CAPS constants) per Python Language Reference chapters 3 (data model) and 4 (execution model).",
+          "documented_semantic_exceptions": "Count of named departures from a general rule that Python's own reference/documentation states explicitly for the constructs used (e.g. floor-division/modulo sign rule in the Reference's 'Binary arithmetic operations' section, UnboundLocalError as an exception to normal name binding, `__del__` non-guaranteed timing documented in the Data Model chapter, absence of checked exceptions as a documented departure from other languages' propagation model).",
+          "implicit_rules": "Count of behaviors that occur at the fragment's site without a corresponding local written marker (implicit numeric promotion, implicit pass-by-object-reference, implicit exception propagation with no declared checked-exception surface, implicit refcounting-based cleanup, arbitrary-precision integers implicitly suppressing overflow) per Python Language Reference chapters 3, 6 and the `sys`/`gc` documentation.",
+          "purpose": "Per semantic_compression.md section 6.1.4.E and 20, the counting rule for each complexity sub-category is frozen BEFORE annotation and itemised so the figure is auditable. All four sub-categories below are governed by an observable rule grounded in the Python Language Reference / Python documentation, so none is recorded as 'unknown'.",
+          "syntax_forms": "Count of distinct Python grammatical construct KINDS (statement or expression forms, e.g. assignment-statement, if/else, def, with-statement, try/except, subscript, slice, call-expression, comprehension) required inside the measured_fragment to deliver the canonical_task, per R5. Two uses of the same construct kind count once."
+        },
+        "gates": {
+          "scoreability_note": "This figure is reported as unfinished-but-scoreable raw+provisional evidence per primary.json scoreability.unfinished_applicable_work_is_not_na; it is not a genuine N/A because measurement was taken for every one of the 44 frozen probes for the assigned language."
+        },
+        "per_probe_support_and_complexity": [
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F01.P1",
+            "reason": "Python has no syntax for a non-reassignable local binding; ordinary assignment is used and reassignment is never rejected by the language.",
+            "support": "PARTIAL",
+            "syntax_forms": 1,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F01.P2",
+            "reason": "Module-level mutable storage is native; the 'constant' is only a naming convention (UPPER_CASE), not enforced.",
+            "support": "PARTIAL",
+            "syntax_forms": 2,
+            "total": 6
+          },
+          {
+            "context_dependent_rules": 2,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F02.P1",
+            "reason": "Python has no declaration-without-initializer statement; name binding only occurs at assignment. UnboundLocalError is the documented exception mechanism if a path misses assignment.",
+            "support": "PARTIAL",
+            "syntax_forms": 2,
+            "total": 7
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F02.P2",
+            "reason": "Named R9 substitution: Python's bytearray(16) is documented as zero-initialized, not genuinely uninitialized; substitute fragment written per rule.",
+            "support": "PARTIAL",
+            "syntax_forms": 2,
+            "total": 6
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "x += 1; arbitrary-precision int implicitly removes overflow concerns.",
+            "probe": "F03.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 2
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "xs[1] = 42; in-place mutation of the list object.",
+            "probe": "F03.P2",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 2
+          },
+          {
+            "probe": "F04.P1",
+            "reason": "Python has no documented mechanism for two names in one scope to share writable scalar storage; ints are immutable and there is no reference/pointer type for locals. (Language Reference ch.3: 'Data model'.)",
+            "support": "NONE",
+            "total": 0
+          },
+          {
+            "context_dependent_rules": 2,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F04.P2",
+            "reason": "A second name bound to the same list object is not a distinct read-only view type; read-only-ness is unenforced.",
+            "support": "PARTIAL",
+            "syntax_forms": 1,
+            "total": 6
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "list.append/pop round-trip plus `is` identity test.",
+            "probe": "F04.P3",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 4
+          },
+          {
+            "context_dependent_rules": 2,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 2,
+            "note": "Bare call f(x): pass-by-object-reference is implicit and not locally distinguishable from copy semantics.",
+            "probe": "F05.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 5
+          },
+          {
+            "probe": "F05.P2",
+            "reason": "No documented mechanism for a callee to write a caller's scalar local; ints are immutable and Python has no inout/reference parameter form. Rubric explicitly excludes a mutable-container wrapper as an acceptable FULL substitute.",
+            "support": "NONE",
+            "total": 0
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 1,
+            "note": "def + map(); documented late-binding-closure exception for captured names.",
+            "probe": "F05.P3",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "probe": "F06.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "tuple literal + unpacking.",
+            "probe": "F06.P2",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "probe": "F07.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 2
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 1,
+            "note": "//, %, / ; documented floor-division/negative-modulo sign rule.",
+            "probe": "F07.P2",
+            "support": "FULL",
+            "syntax_forms": 3,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F08.P1",
+            "reason": "Python ints are arbitrary-precision; a genuinely fixed-width overflow site requires the stdlib ctypes.c_int32 wrapping type, which is a non-idiomatic escape hatch.",
+            "support": "PARTIAL",
+            "syntax_forms": 1,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "explicit `if b == 0` guard around ordinary `/`/`//`.",
+            "probe": "F08.P2",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "`==` dispatches to `__eq__`, documented content comparison for str.",
+            "probe": "F09.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "sorted(xs, reverse=True) returns a new list; `<` operator.",
+            "probe": "F09.P2",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 1,
+            "p_letters": [
+              "P-a",
+              "P-b"
+            ],
+            "probe": "F10.P1",
+            "reason": "No native 32/64-bit int distinction; narrowing with a documented out-of-range signal requires ctypes.c_int32.",
+            "support": "PARTIAL",
+            "syntax_forms": 1,
+            "total": 4
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "`i + d`; numeric tower implicit int-to-float promotion.",
+            "probe": "F10.P2",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 2
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "xs[i] raises documented IndexError.",
+            "probe": "F11.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 2
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "xs[1:4]; list slicing is documented to copy.",
+            "probe": "F11.P2",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F12.P1",
+            "reason": "Named R9 substitution: no enforced Optional type or coalescing operator; conditional expression used as the standard fallback form.",
+            "support": "PARTIAL",
+            "syntax_forms": 2,
+            "total": 6
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F12.P2",
+            "reason": "Named R9 substitution: no optional-aware chaining operator; explicit conditional written.",
+            "support": "PARTIAL",
+            "syntax_forms": 2,
+            "total": 6
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 1,
+            "note": "int(s) raises ValueError; Python has no checked-exception declaration, documented departure from checked-exception languages.",
+            "probe": "F13.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "try/except ValueError.",
+            "probe": "F13.P2",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 1,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F14.P1",
+            "reason": "Named R9 substitution: no closed sum type; nearest standard form is an open class hierarchy or Enum-tagged dataclass, not closed by language rule.",
+            "support": "PARTIAL",
+            "syntax_forms": 2,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 1,
+            "p_letters": [
+              "P-c"
+            ],
+            "probe": "F14.P2",
+            "reason": "if/elif isinstance dispatch has no compiler-checked exhaustiveness guarantee.",
+            "support": "PARTIAL",
+            "syntax_forms": 2,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "Duck-typed extension from a separate module is native and unrestricted.",
+            "probe": "F14.P3",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 4
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F15.P1",
+            "reason": "Named R9 substitution: Python generics (typing.TypeVar) are unenforced annotations; the runtime relies on duck typing, not a checked type-parameter relationship.",
+            "support": "PARTIAL",
+            "syntax_forms": 1,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F15.P2",
+            "reason": "Named R9 substitution: declaration-site constraint (typing.Protocol bound) is not enforced at the declaration; misuse is only diagnosed, if at all, by an optional external type checker not run under the frozen recipe.",
+            "support": "PARTIAL",
+            "syntax_forms": 1,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "Heterogeneous list plus duck-typed dispatch is native.",
+            "probe": "F15.P3",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 4
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 0,
+            "note": "list literal + sum().",
+            "probe": "F16.P1",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 2
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 0,
+            "note": "dict literal, .values(), .get(key, default) documented lookup-with-default.",
+            "probe": "F16.P2",
+            "support": "FULL",
+            "syntax_forms": 3,
+            "total": 3
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "`with open(...) as f:` context-manager protocol guarantees __exit__ on every path.",
+            "probe": "F17.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 2
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 2,
+            "p_letters": [
+              "P-c"
+            ],
+            "probe": "F17.P2",
+            "reason": "__del__ end-of-lifetime hook timing is documented as not guaranteed by the language (only conventional in CPython's refcounting implementation).",
+            "support": "PARTIAL",
+            "syntax_forms": 1,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 0,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 0,
+            "note": "print(\"x\") is a builtin, no import required.",
+            "probe": "F18.P1",
+            "support": "FULL",
+            "syntax_forms": 1,
+            "total": 1
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 1,
+            "implicit_rules": 1,
+            "p_letters": [
+              "P-a"
+            ],
+            "probe": "F18.P2",
+            "reason": "Leading-underscore 'privacy' is a documented convention, not an enforced access boundary.",
+            "support": "PARTIAL",
+            "syntax_forms": 1,
+            "total": 4
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "asyncio.gather + asyncio.run is the stdlib async facility shipped with the frozen recipe.",
+            "probe": "F19.P1",
+            "support": "FULL",
+            "syntax_forms": 3,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "threading.Thread + threading.Lock documented to make the guarded increment race-free.",
+            "probe": "F19.P2",
+            "support": "FULL",
+            "syntax_forms": 3,
+            "total": 5
+          },
+          {
+            "context_dependent_rules": 1,
+            "documented_semantic_exceptions": 0,
+            "implicit_rules": 1,
+            "note": "ctypes.CDLL is the stdlib FFI mechanism shipped with the frozen toolchain.",
+            "probe": "F20.P1",
+            "support": "FULL",
+            "syntax_forms": 2,
+            "total": 4
+          },
+          {
+            "probe": "F20.P2",
+            "reason": "`python3 FILE.py` under the frozen recipe produces no compiled artifact with an exported unmangled C symbol; N-1 per rubric, `nm` field records 'no compiled artifact under the frozen recipe'.",
+            "support": "NONE",
+            "total": 0
+          }
+        ],
+        "raw_totals": {
+          "capability_coverage_C_for_reference_only": 76.14,
+          "full_support_probe_count": 26,
+          "none_support_probe_count": 3,
+          "partial_support_probe_count": 15,
+          "sum_complexity_units_full_support_probes": 83,
+          "sum_complexity_units_partial_support_probes": 76,
+          "supported_capability_points": 67,
+          "supported_capability_points_formula": "sum over 44 probes of capability_points(2) * support_factor; FULL=1, PARTIAL=0.5, NONE=0 => 26*2 + 15*1 + 3*0 = 67",
+          "total_complexity_units": 159,
+          "total_complexity_units_formula": "sum of (syntax_forms + context_dependent_rules + implicit_rules + documented_semantic_exceptions) over every probe with support in {FULL, PARTIAL}; NONE probes contribute 0 because no fragment exists to measure (per spec 6.1.4.E and na_policy NA-2/NA-4).",
+          "total_fixed_capability_points_denominator_for_reference_only": 88
+        },
+        "semantic_regularity_evidence_used_for_this_metric": {
+          "note": "Per spec section 20, the exception/context/implicit counts above double as this probe-set's contribution to Rule Exception Density evidence and are not separately re-derived; they are drawn once from the same itemised per-probe table and are not double counted across Hidden Semantic Cost and Capability Efficiency beyond what each metric's own definition requires."
+        },
+        "support_rubric_application_note": "Support level (FULL/PARTIAL/NONE) for each probe was assigned using the frozen deterministic_tie_break question from capability_universe.json support_rubric, applied to documented Python 3 standard-library capability under the frozen recipe (python3 FILE.py, stdlib only, no third-party packages). NONE fragments carry a documented citation and contribute 0 to both the complexity numerator and the coverage numerator (NA-2); their capability_points still count in the fixed 88-point Capability Coverage denominator but are irrelevant to this Efficiency metric's numerator/denominator, which use only the supported-points total."
+      }
+    },
+    "requirements": {
+      "metric.capability_efficiency": {
+        "Python": 29.65
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "570b6da475ed62c938f8f1afcc697ad87a7aeb1c1556aedd75703d5802d85806",
+  "schema_version": 1
+}

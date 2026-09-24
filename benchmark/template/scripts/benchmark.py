@@ -2885,14 +2885,16 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                         runtime_facts = (
                             root / "work" / "root" / "f20_runtime_facts.json"
                         )
+                        # The full production toolchains image writes these
+                        # facts during toolchain-scan before planning. The
+                        # lightweight sandbox CI image intentionally has no
+                        # comparison toolchains/observation record, so planning
+                        # must remain possible there. Real F20.P1 certification
+                        # still fails closed in
+                        # validate_f20_record_against_runtime_baseline when the
+                        # trusted facts are required but absent.
                         if runtime_facts.is_file():
                             task_read_paths.append(str(runtime_facts))
-                        elif lexical_absolute(root) == lexical_absolute(
-                            CANONICAL_WORKSPACE
-                        ):
-                            raise BenchmarkError(
-                                "F20.P1 requires frozen runtime facts"
-                            )
                 deps: list[str] = []
                 for dep in [str(x) for x in raw.get("dependencies", [])]:
                     dep_mode = split_modes.get(dep, "")

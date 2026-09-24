@@ -1144,14 +1144,20 @@
           ],
           "prompt_sections": [],
           "read_paths": [
+            "repo/tests/benchmark/quidra",
             "template/programs",
             "template/methodology-assets/language_quality",
             "template/methodology-assets/scoring"
           ],
           "network_allowed": false,
           "max_attempts": 1,
-          "goal": "Mechanically build and run the frozen 34-row adversarial case set for all 10 languages under the frozen primary and non-scoring secondary recipes, replay decision rules D0..D7 on the captured bytes, and compute the nine Safety / Robustness metrics exactly as adversarial_cases.json, type_safety.json, memory_safety.json and debuggability.json define them. Comparison-language programs come from the reusable template; Quidra programs and the frozen Quidra type-binding amendment come from the evaluated snapshot and are re-audited for every commit.",
-          "worker_mode": "runner-command"
+          "goal": "Mechanically build and run the frozen adversarial case set for the assigned language only, replay decision rules D0..D7 on captured bytes, and compute the nine Safety / Robustness metrics. Comparison-language shards read only their reusable programs. The Quidra shard alone reads snapshot-owned Quidra programs and depends on lq-quidra-audit. Shards are independently cacheable.",
+          "worker_mode": "runner-command",
+          "split_by_language": true,
+          "language_scoped_program_reads": true,
+          "target_only_dependencies": [
+            "lq-quidra-audit"
+          ]
         }
       ]
     },

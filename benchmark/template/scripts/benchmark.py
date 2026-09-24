@@ -2635,14 +2635,34 @@ def planned_read_paths(
     root: Path,
     raw_paths: list[str],
     assigned_languages: list[str],
+    *,
+    language_scoped_program_reads: bool = False,
 ) -> list[str]:
-    """Resolve task reads, narrowing reusable programs to assigned comparison languages."""
-    comparison_only = bool(assigned_languages) and "Quidra" not in assigned_languages
+    """Resolve task reads, optionally narrowing program trees to one language."""
+    target = str(
+        load_benchmark_metadata(root / "template").get(
+            "evaluated_target_language", "Quidra"
+        )
+    )
+    comparison_only = bool(assigned_languages) and target not in assigned_languages
+    target_only = assigned_languages == [target]
     expanded: list[str] = []
     catalog: dict[str, Any] | None = None
 
     for value in raw_paths:
         if comparison_only and value == "repo/docs":
+            continue
+        if (
+            language_scoped_program_reads
+            and comparison_only
+            and value == "repo/tests/benchmark/quidra"
+        ):
+            continue
+        if (
+            language_scoped_program_reads
+            and target_only
+            and value == "template/programs"
+        ):
             continue
         if comparison_only and value == "template/programs":
             if catalog is None:
@@ -2792,8 +2812,6 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                 if bool(raw.get("split_by_language", False))
                 else str(raw.get("split_mode") or "")
             )
-            if execution_kind != "agent":
-                split_mode = ""
             if split_mode == "language":
                 shards: list[list[str]] = [[language] for language in fixed_languages]
             elif split_mode == "target_vs_comparison":
@@ -2826,6 +2844,9 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     root,
                     [str(value) for value in raw.get("read_paths", [])],
                     assigned_languages,
+                    language_scoped_program_reads=bool(
+                        raw.get("language_scoped_program_reads", False)
+                    ),
                 )
                 deps: list[str] = []
                 for dep in [str(x) for x in raw.get("dependencies", [])]:
@@ -2858,6 +2879,22 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                             ])
                     else:
                         deps.append(dep)
+
+                target_language = str(
+                    load_benchmark_metadata(root / "template").get(
+                        "evaluated_target_language", "Quidra"
+                    )
+                )
+                target_only_dependencies = raw.get("target_only_dependencies", [])
+                if not isinstance(target_only_dependencies, list) or not all(
+                    isinstance(dep, str) for dep in target_only_dependencies
+                ):
+                    raise BenchmarkError(
+                        f"{base_uid}: target_only_dependencies must be a string array"
+                    )
+                if assigned_languages == [target_language]:
+                    deps.extend(target_only_dependencies)
+
                 if audit_ids:
                     raw_reads = [
                         lexical_absolute(Path(path))
@@ -6311,14 +6348,12 @@ def cache_fingerprint_payload(
             return None
     target = str(cache_policy(root).get("target_language") or "Quidra")
     if mechanical:
-        # The micro suite and the adversarial set measure every language on the
-        # pinned image; the audit measures only the snapshot's own programs.
-        # No model is involved, so provider, model and sampling stay out of the
-        # key, and the measurement scripts themselves enter it.
-        assigned = (
-            [target] if unit.get("runner_action") == "quidra-audit"
-            else list(metadata_languages(root))
-        )
+        # A language-sharded mechanical unit keeps its explicit assignment.
+        # The interleaved micro cohort intentionally remains unassigned/all-language.
+        if unit.get("runner_action") == "quidra-audit":
+            assigned = [target]
+        elif not assigned:
+            assigned = list(metadata_languages(root))
         task = mechanical_task(unit)
     selected_toolchains: dict[str, str] = {}
     for language in assigned:
@@ -6718,6 +6753,193 @@ def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
 
 
 
+def find_adversarial_language_projection_cache_record(
+    root: Path,
+    unit: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    """Project an explicitly approved legacy cohort result to one comparison shard."""
+    if (
+        str(unit.get("runner_action") or "") != "adversarial-measure"
+        or unit.get("execution_kind") != "command"
+    ):
+        return None, None, None
+    assigned = [str(x) for x in (unit.get("assigned_languages") or [])]
+    target = str(cache_policy(root).get("target_language") or "Quidra")
+    if len(assigned) != 1 or assigned[0] == target:
+        return None, None, None
+    language = assigned[0]
+    migration = (
+        (cache_policy(root).get("reuse_conditions") or {}).get(
+            "adversarial_language_shard_migration"
+        )
+        or {}
+    )
+    allowed = {
+        str(value)
+        for value in (migration.get("legacy_cohort_fingerprints") or [])
+    }
+    if not allowed:
+        return None, None, None
+    directory = (
+        root / "cache" / "v1" / "language-quality"
+        / "mechanical-adversarial-measure"
+    )
+    if not directory.is_dir():
+        return None, None, None
+
+    current_hashes = current_payload.get("unit_input_hashes") or {}
+    current_reads = current_payload.get("readable_input_content_hashes") or {}
+    broad_programs = cache_read_input_hashes(
+        root, {"read_paths": [str(root / "template" / "programs")]}
+    ).get("template/programs")
+    matches: list[tuple[Path, dict[str, Any]]] = []
+    for fingerprint in sorted(allowed):
+        path = directory / f"{fingerprint}.json"
+        if not path.is_file():
+            continue
+        try:
+            record = json_load(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            return None, None, (
+                f"approved adversarial migration record is unreadable: "
+                f"{path.name}: {exc}"
+            )
+        problem = _cache_record_self_integrity_problem(record)
+        if problem:
+            return None, None, (
+                f"approved adversarial migration record failed self-integrity: "
+                f"{path.name}: {problem}"
+            )
+        old = record.get("fingerprint_payload") or {}
+        if (
+            record.get("fingerprint") != fingerprint
+            or old.get("work_unit_id") != "lq-adversarial-mechanical"
+            or old.get("evaluation") != "language_quality"
+            or old.get("runner_action") != "adversarial-measure"
+            or old.get("cache_epoch") != current_payload.get("cache_epoch")
+            or old.get("requirement_ids") != current_payload.get("requirement_ids")
+            or old.get("network_allowed") != current_payload.get("network_allowed")
+            or old.get("worker_mode") != current_payload.get("worker_mode")
+        ):
+            continue
+        old_hashes = old.get("unit_input_hashes") or {}
+        old_eval_hash = (
+            old_hashes.get("evaluation_spec_sections")
+            or old_hashes.get("evaluation_spec")
+        )
+        current_eval_hash = (
+            current_hashes.get("evaluation_spec_sections")
+            or current_hashes.get("evaluation_spec")
+        )
+        if (
+            old_hashes.get("benchmark_metadata")
+            != current_hashes.get("benchmark_metadata")
+            or old_eval_hash != current_eval_hash
+        ):
+            continue
+
+        old_reads = old.get("readable_input_content_hashes") or {}
+        if old_reads.get("template/programs") != broad_programs:
+            continue
+        comparable_reads = {
+            key: value for key, value in old_reads.items()
+            if key != "template/programs"
+        }
+        if any(
+            current_reads.get(key) != value
+            for key, value in comparable_reads.items()
+        ):
+            continue
+        if (old.get("toolchains") or {}).get(language) != (
+            current_payload.get("toolchains") or {}
+        ).get(language):
+            continue
+        if (old.get("runtime_toolchain_pins") or {}).get(language) != (
+            current_payload.get("runtime_toolchain_pins") or {}
+        ).get(language):
+            continue
+
+        old_result = record.get("result")
+        old_requirements = (
+            old_result.get("requirements")
+            if isinstance(old_result, dict)
+            else None
+        )
+        if not isinstance(old_requirements, dict):
+            continue
+        projected_requirements: dict[str, Any] = {}
+        valid = True
+        for rid in current_payload.get("requirement_ids") or []:
+            values = old_requirements.get(rid)
+            if not isinstance(values, dict) or language not in values:
+                valid = False
+                break
+            projected_requirements[str(rid)] = {language: values[language]}
+        if not valid:
+            continue
+
+        projected_result = {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": projected_requirements,
+            "evidence": {
+                "certified_projection": {
+                    "mode": "legacy-adversarial-cohort-to-language-shard",
+                    "source_fingerprint": fingerprint,
+                    "source_run_id": (record.get("provenance") or {}).get("run_id"),
+                    "language": language,
+                    "reason": (
+                        "same frozen comparison program/assets/toolchain; only "
+                        "the mechanical orchestration unit was split"
+                    ),
+                }
+            },
+        }
+        projected_raw = json.dumps(
+            projected_result, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        projected = {
+            **record,
+            "fingerprint": sha256_bytes(
+                json.dumps(
+                    current_payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            ),
+            "fingerprint_payload": current_payload,
+            "assigned_languages": [language],
+            "result": projected_result,
+            "result_sha256": sha256_bytes(projected_raw),
+            "certification": {
+                **(record.get("certification") or {}),
+                "projection_migration": (
+                    "legacy-adversarial-cohort-to-language-shard"
+                ),
+                "projected_language": language,
+            },
+            "provenance": {
+                **(record.get("provenance") or {}),
+                "projection_source_fingerprint": fingerprint,
+                "work_unit_id": unit.get("id"),
+            },
+        }
+        matches.append((path, projected))
+
+    if len(matches) > 1 and len({
+        str(record.get("result_sha256") or "") for _, record in matches
+    }) != 1:
+        return None, None, (
+            "multiple approved adversarial cohort records disagree on the "
+            f"projected {language} result"
+        )
+    if not matches:
+        return None, None, None
+    return matches[-1][0], matches[-1][1], None
+
+
 def find_primary_projection_compatible_cache_record(
     root: Path,
     unit: dict[str, Any],
@@ -6960,6 +7182,27 @@ def hydrate_certified_cache(
                     invalidated=True,
                 )
                 continue
+            if compatible_path is not None and record is not None:
+                compatibility_mode = "scoped-input-projection"
+            else:
+                compatible_path, record, projection_problem = (
+                    find_adversarial_language_projection_cache_record(
+                        root, unit, payload
+                    )
+                )
+                if projection_problem:
+                    record_miss(
+                        uid,
+                        fingerprint,
+                        unit,
+                        projection_problem,
+                        invalidated=True,
+                    )
+                    continue
+                if compatible_path is not None and record is not None:
+                    compatibility_mode = (
+                        "legacy-adversarial-cohort-to-language-shard"
+                    )
             if compatible_path is None or record is None:
                 record_miss(
                     uid,
@@ -6969,8 +7212,12 @@ def hydrate_certified_cache(
                     invalidated=False,
                 )
                 continue
-            compatibility_mode = "scoped-input-projection"
-            source_fingerprint = str(record.get("fingerprint") or "")
+            source_fingerprint = str(
+                (record.get("provenance") or {}).get(
+                    "projection_source_fingerprint",
+                    record.get("fingerprint") or "",
+                )
+            )
             source_rel = compatible_path.relative_to(root / "cache")
         cap_problem = cache_cap_reuse_problem(root, record, unit)
         if cap_problem:
@@ -8482,15 +8729,20 @@ def cmd_command_result_check(args: argparse.Namespace) -> int:
             f"command result requirement mismatch; missing={missing}, unknown={unknown}"
         )
     languages = metadata_languages(root)
+    assigned_languages = list(unit.get("assigned_languages", []) or [])
+    expected_languages = assigned_languages or languages
     for rid in requirement_ids:
         value = req[rid]
         if rid.startswith("gate.") or rid.startswith("coverage."):
             if not isinstance(value, bool):
                 raise BenchmarkError(f"{rid}: command gate/coverage result must be boolean")
         elif rid.startswith("metric.") or rid.startswith("condition."):
-            if not isinstance(value, dict) or set(value) != set(languages):
-                raise BenchmarkError(f"{rid}: command score must contain all fixed languages")
-            for language in languages:
+            if not isinstance(value, dict) or set(value) != set(expected_languages):
+                raise BenchmarkError(
+                    f"{rid}: command score must contain exactly the assigned languages "
+                    f"{sorted(expected_languages)}"
+                )
+            for language in expected_languages:
                 score_or_na(value[language])
         else:
             raise BenchmarkError(f"unsupported command requirement type: {rid}")

@@ -45,9 +45,13 @@ Compression records remain stored as historical certified artifacts but cannot
 hydrate a run whose declared epoch differs. Other Primary-evaluation cache records
 are unaffected.
 
-The three Language Quality mechanical units are certified as well: the micro
-suite (`lq-micro-mechanical`), the adversarial case set (`lq-adversarial-mechanical`)
-and the audit of the snapshot's own Quidra programs (`lq-quidra-audit`). No model is
+Language Quality mechanical work is certified as well. The micro suite
+(`lq-micro-mechanical`) remains one intentionally coupled all-language unit because
+its timing schedule interleaves languages and normalizes each workload against the
+same measured cohort; splitting that timing cohort would reduce comparability. The
+adversarial/safety set is independent by language, so
+`lq-adversarial-mechanical--<language>` is a separate leaf/cache record. The
+snapshot's own Quidra-program audit remains `lq-quidra-audit`. No model is
 involved, so their key carries no provider or sampling; it carries the pinned
 toolchains of every language they measure, the programs, fixtures, workloads and
 validators they read, the measurement scripts (`scripts/micro_measure.py` and

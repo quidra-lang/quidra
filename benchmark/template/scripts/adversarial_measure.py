@@ -1165,16 +1165,25 @@ def quidra_amendment(root: Path, programs_dir: Path) -> dict[str, Any] | None:
     return data
 
 
-def missing_comparison_toolchains(root: Path) -> list[str]:
+def missing_comparison_toolchains(
+    root: Path, languages: list[str] | None = None
+) -> list[str]:
     report_path = root / "results" / "toolchains.json"
     if not report_path.is_file():
         raise MeasureError("toolchains.json is missing; run toolchain-scan first")
     missing = [str(m) for m in mm.load_json(report_path).get("missing", [])]
-    return sorted(set(missing) & set(COMPARISON_LANGUAGES))
+    selected = set(languages or COMPARISON_LANGUAGES) & set(COMPARISON_LANGUAGES)
+    return sorted(set(missing) & selected)
 
 
 def synthetic_result(root: Path, unit: dict[str, Any], out_dir: Path) -> int:
-    scores = {lang: float(80 - index) for index, lang in enumerate(LANGUAGES)}
+    selected = [
+        str(language) for language in (unit.get("assigned_languages") or [])
+    ] or list(LANGUAGES)
+    scores = {
+        lang: float(80 - LANGUAGES.index(lang))
+        for lang in selected
+    }
     requirements = {
         rid: dict(scores) for rid in unit.get("requirement_ids", [])
         if str(rid).startswith(("metric.", "condition."))
@@ -1200,7 +1209,17 @@ def measure(root: Path, unit_id: str) -> int:
     if mm.synthetic_mode(root):
         return synthetic_result(root, unit, out_dir)
 
-    missing = missing_comparison_toolchains(root)
+    selected_languages = [
+        str(language) for language in (unit.get("assigned_languages") or [])
+    ] or list(LANGUAGES)
+    unknown = sorted(set(selected_languages) - set(LANGUAGES))
+    if unknown:
+        raise MeasureError(
+            "unknown assigned adversarial language(s): " + ", ".join(unknown)
+        )
+    if len(selected_languages) != len(set(selected_languages)):
+        raise MeasureError("assigned adversarial languages contain duplicates")
+    missing = missing_comparison_toolchains(root, selected_languages)
     if missing:
         raise MeasureError(
             "missing required comparison toolchains for the adversarial case set: "
@@ -1210,18 +1229,24 @@ def measure(root: Path, unit_id: str) -> int:
     locale = locale_value(root)
     quidra_root = quidra_program_root(root)
     quidra_dir = root / "repo" / quidra_root / "adversarial"
-    amendment = quidra_amendment(root, quidra_dir) if quidra_dir.is_dir() else None
+    quidra_selected = "Quidra" in selected_languages
+    amendment = (
+        quidra_amendment(root, quidra_dir)
+        if quidra_selected and quidra_dir.is_dir()
+        else None
+    )
     compiler: Path | None = None
     quidra_na_reason: str | None = None
-    if not quidra_dir.is_dir():
-        quidra_na_reason = (
-            f"authoring defect - Quidra adversarial programs are absent from the evaluated "
-            f"snapshot at {quidra_root}/adversarial"
-        )
-    elif amendment is None:
-        quidra_na_reason = "authoring defect - Quidra binding not frozen before measurement"
-    else:
-        compiler = mm.ensure_target_compiler(root)
+    if quidra_selected:
+        if not quidra_dir.is_dir():
+            quidra_na_reason = (
+                f"authoring defect - Quidra adversarial programs are absent from the evaluated "
+                f"snapshot at {quidra_root}/adversarial"
+            )
+        elif amendment is None:
+            quidra_na_reason = "authoring defect - Quidra binding not frozen before measurement"
+        else:
+            compiler = mm.ensure_target_compiler(root)
 
     records: dict[str, dict[str, dict[str, Any]]] = {}
     verdicts: dict[str, dict[str, dict[str, Any]]] = {}
@@ -1229,7 +1254,7 @@ def measure(root: Path, unit_id: str) -> int:
     scored_programs = [p for row in frozen.rows for p in row["programs"]]
     secondary_programs = ["ADV-21_depth1000", "ADV-21_depth10000"]
     cells_root = out_dir / "cells"
-    for language in LANGUAGES:
+    for language in selected_languages:
         slug = LANGUAGE_IDS[language]
         language_dir = quidra_dir if language == "Quidra" else (
             root / "template" / "programs" / slug / "adversarial"
@@ -1306,7 +1331,7 @@ def measure(root: Path, unit_id: str) -> int:
 
     metrics = {
         language: compute_metrics(frozen, language, verdicts[language], reports[language])
-        for language in LANGUAGES
+        for language in selected_languages
     }
     requirements: dict[str, Any] = {}
     for rid in unit.get("requirement_ids", []):
@@ -1314,7 +1339,7 @@ def measure(root: Path, unit_id: str) -> int:
         if metric is None:
             raise MeasureError(f"adversarial-measure received an unsupported requirement ID: {rid}")
         per_language: dict[str, Any] = {}
-        for language in LANGUAGES:
+        for language in selected_languages:
             score = metrics[language][metric]["score"]
             if score is None:
                 na_reasons = sorted({
@@ -1369,6 +1394,7 @@ def measure(root: Path, unit_id: str) -> int:
             "raw": str(raw_path),
             "scorer": "adversarial_measure.py (mechanical replay of D0..D7)",
             "programs_per_language": len(scored_programs),
+            "assigned_languages": selected_languages,
             "quidra_na_reason": quidra_na_reason,
         },
     })

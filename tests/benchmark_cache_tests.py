@@ -451,6 +451,77 @@ def assert_readiness_audits_are_cacheable(root: Path, task: dict) -> None:
     assert benchmark.cache_fingerprint(root, orphan, task) is None
 
 
+def assert_adversarial_mechanical_language_shards_are_independent() -> None:
+    """A Quidra change must not invalidate a comparison-language safety shard."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        toolchains = benchmark.json_load(root / "results/toolchains.json")
+        toolchains["toolchains"]["Rust"] = {
+            "canonical": "1.95.0",
+            "raw": ["rustc 1.95.0"],
+            "commands": [["rustc", "--version"]],
+        }
+        benchmark.json_dump(root / "results/toolchains.json", toolchains)
+        rust_programs = root / "template/programs/rust/adversarial"
+        assert rust_programs.is_dir()
+        result_path = (
+            root / "work/root/commands/lq-adversarial-mechanical--rust/result.json"
+        )
+        unit = {
+            "id": "lq-adversarial-mechanical--rust",
+            "evaluation": "language_quality",
+            "phase": "measurement",
+            "execution_kind": "command",
+            "result_kind": "requirements",
+            "runner_action": "adversarial-measure",
+            "requirement_ids": ["metric.type_safety"],
+            "dependencies": [],
+            "read_paths": [
+                str(rust_programs),
+                str(root / "template/methodology-assets/language_quality"),
+                str(root / "template/methodology-assets/scoring"),
+            ],
+            "evidence_paths": [str(result_path)],
+            "network_allowed": False,
+            "max_attempts": 1,
+            "worker_mode": "runner-command",
+            "assigned_languages": ["Rust"],
+            "input_hashes": {
+                "benchmark_metadata": benchmark.sha256_file(
+                    root / "template/config/benchmark_metadata.json"
+                ),
+                "evaluation_spec_sections": benchmark.evaluation_spec_projection_sha256(
+                    root, "language_quality", []
+                ),
+                "primary_config": benchmark.primary_config_projection_sha256(
+                    root, "language_quality"
+                ),
+            },
+        }
+        task = benchmark.mechanical_task(unit)
+        pair = benchmark.cache_fingerprint(root, unit, task)
+        assert pair is not None
+        fingerprint, payload = pair
+        assert payload["assigned_languages"] == ["Rust"], payload
+        assert set(payload["toolchains"]) == {"Rust"}, payload
+        assert set(payload["runtime_toolchain_pins"]) == {"Rust"}, payload
+        assert "quidra_target" not in payload
+
+        run = benchmark.json_load(root / "run.json")
+        changed = json.loads(json.dumps(
+            run["evaluated"]["quidra_execution_identity"]
+        ))
+        changed["sha256"] = "f" * 64
+        run["evaluated"]["quidra_execution_identity"] = changed
+        benchmark.json_dump(root / "run.json", run)
+        assert benchmark.cache_fingerprint(root, unit, task)[0] == fingerprint
+
+        changed_path = next(rust_programs.glob("*"))
+        original = changed_path.read_bytes()
+        changed_path.write_bytes(original + b"\n")
+        assert benchmark.cache_fingerprint(root, unit, task)[0] != fingerprint
+
+
 def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     """The micro suite, the adversarial set and the Quidra audit are certified.
 
@@ -1621,6 +1692,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as mechanical_td:
         # Its own workspace: the test freezes a manifest of one mechanical unit.
         assert_mechanical_measurements_are_cacheable(make_workspace(Path(mechanical_td)), Path(mechanical_td))
+    assert_adversarial_mechanical_language_shards_are_independent()
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         assert_language_scoped_program_reads(root)

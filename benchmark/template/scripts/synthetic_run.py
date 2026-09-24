@@ -526,6 +526,10 @@ def sandbox_turns(root: Path, unit: dict[str, Any], payload: str) -> list[str]:
                 (primary.get("worker_isolation") or {}).get("max_trial_batch", 16)
                 or 16
             )
+            max_repairs = int(
+                (primary.get("llm_proficiency") or {}).get("max_repair_turns", 0)
+                or 0
+            )
             trial_ids = synthetic_proficiency_trial_ids(root)
             for offset in range(0, len(trial_ids), max_batch):
                 batch = trial_ids[offset:offset + max_batch]
@@ -536,6 +540,18 @@ def sandbox_turns(root: Path, unit: dict[str, Any], payload: str) -> list[str]:
                 turns.extend(
                     "synthetic trial completion" for _ in batch
                 )
+                # Synthetic verification deliberately marks generated source
+                # as invalid. Exercise the same frozen repair state machine as
+                # production until every trial is terminal, rather than
+                # finalizing with unfinished failing sessions.
+                for _repair in range(max_repairs):
+                    turns.append(json.dumps({
+                        "action": "trial_continue",
+                        "trials": [{"trial_id": trial_id} for trial_id in batch],
+                    }))
+                    turns.extend(
+                        "synthetic trial completion" for _ in batch
+                    )
         else:
             turns.extend([
                 json.dumps({"action": "trial_start", "trial_id": "synthetic-t1",

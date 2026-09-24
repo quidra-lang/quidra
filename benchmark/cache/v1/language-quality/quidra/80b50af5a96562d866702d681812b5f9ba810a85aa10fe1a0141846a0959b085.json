@@ -1,0 +1,235 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "current_validator_revalidated": true,
+    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+    "language_quality_snapshot_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "6235be49e91b72294049b2ae7b17c1fa2006ee72",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "8b5548c2f205c85d2631963984e2ce140d28c6dc",
+        "project.toml": "740e2feec8b50a287a2b66f3634276adf31a1001",
+        "quidra.manifest.json": "41e4b800f1da0705b9099a5df891165aa05bcb4e",
+        "src": "9d4efb1251afd04455edae83f1e48736f87fc35a"
+      },
+      "schema_version": 1,
+      "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b"
+    }
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "80b50af5a96562d866702d681812b5f9ba810a85aa10fe1a0141846a0959b085",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "a24d184f095a6e09267333eaed61209689df60cbe5c884b91d1253a54c8b7c97",
+    "language_quality_rubric_set_id": "language-quality-design-runner-rubric-v1",
+    "network_allowed": false,
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851",
+      "repo/tests/benchmark/quidra": "1d18949efdca414105d423f73f250cd6d7ef7043ad5199b2f185efdfbfd172b2",
+      "template/methodology-assets/language_quality/design_rubrics.json": "8919eccdc1d6643f1409f0ebeb2413bfbd28769bd778c814f17bd4591bc95f70",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.functionality_expressiveness",
+      "metric.diagnostics"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-design-rubric-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b51952dd4ddf0ccb28171f2a2805e5f1eb56ada80576ca6381ec57ae170694d6",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "work_unit_id": "lq-language-development--part-2--quidra",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+    "migration_rule": "language-quality-design-rubric-v1-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+    "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "a24d184f095a6e09267333eaed61209689df60cbe5c884b91d1253a54c8b7c97",
+    "run_id": "cache-recertify-13feb35",
+    "work_unit_id": "lq-language-development--part-2--quidra"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "language_quality_design_runner_scoring": {
+        "language": "Quidra",
+        "metrics": {
+          "metric.diagnostics": {
+            "component_levels": {
+              "actionability": 4,
+              "cause_specificity": 4,
+              "expected_actual": 4,
+              "location_context": 4,
+              "machine_stability": 4
+            },
+            "evidence_refs": [
+              "repo/docs",
+              "repo/tests/benchmark/quidra",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.diagnostics.v1",
+            "score_0_100": 100
+          },
+          "metric.functionality_expressiveness": {
+            "component_levels": {
+              "abstraction_reuse": 3,
+              "data_modeling": 4,
+              "feature_composability": 3,
+              "higher_order_composition": 3,
+              "systems_runtime_control": 4
+            },
+            "evidence_refs": [
+              "repo/docs",
+              "repo/tests/benchmark/quidra",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.expressiveness.v1",
+            "score_0_100": 85
+          }
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1"
+      },
+      "language_quality_snapshot_recertification": {
+        "new_paid_benchmark_provider_call": false,
+        "recertifier": {
+          "engine": "GPT-5.6 Sol",
+          "mode": "evidence-reprojection/current-rubric-adjudication",
+          "new_paid_benchmark_provider_call": false,
+          "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1",
+        "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+        "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+      },
+      "metric.diagnostics": {
+        "component_findings": {
+          "actionability": "Recertified level 4 under the current criterion: Messages normally provide enough precise information to correct the issue without requiring unrelated guesswork; suggested fixes count only when semantically reliable. Evidence basis: Current Quidra diagnostics have stable codes, source spans, structured JSON output, cause-specific messages, bounded recovery and coded runtime failures, directly covering the five frozen diagnostic components. Preserved paid evidence additionally records: ~100 distinct stable diagnostic codes documented (AMBIGUOUS_NUMERIC_LITERAL .. WRITE_CAPABILITY) each with meaning and typical correction guidance, plus a separate catalogue of coded runtime failure codes (INDEX_BOUNDS, UNINITIALIZED, INTEGER_OVERFLOW, DIVISION_BY_ZERO, etc.) with a stable text shape 'Quidra runtime error[CODE] at LINE:COLUMN: message'. | no evidence in the docs of fix-it/auto-patch suggestions embedded in the diagnostic JSON itself (though a separate patch-schema.md exists for structural source patches, it is a distinct mechanism, not inline quick-fixes attached to each diagnostic) | no evidence of related-diagnostic chains (e.g. 'note:' secondary spans) in the sampled JSON output; only a single flat diagnostics list was observed in probes | Static detection of a runtime-shaped error at compile time with precise span. | int x = 5 / 0 | DIVIDE_BY_ZERO | Integer division by zero is known at compile time. | 1:13-1:14 | Actionable correction embedded directly in the message, not just a category label. | Box<int>.value passed through string(i) (invalid API use) | ARGUMENT_MISMATCH | string is not a constructor; use string.repeat(value, n) for repetition. | 9:29-9:38 | Precise type name and exact member name included, minimal noise. | int i method .to_string() (does not exist) | UNKNOWN_MEMBER | Type 'int' has no method 'to_string'. | 9:29-9:42 | Human-readable CLI\u2026",
+          "cause_specificity": "Recertified level 4 under the current criterion: Diagnostics distinguish meaningful error categories/root causes instead of collapsing failures into generic messages. Evidence basis: Current Quidra diagnostics have stable codes, source spans, structured JSON output, cause-specific messages, bounded recovery and coded runtime failures, directly covering the five frozen diagnostic components. Preserved paid evidence additionally records: ~100 distinct stable diagnostic codes documented (AMBIGUOUS_NUMERIC_LITERAL .. WRITE_CAPABILITY) each with meaning and typical correction guidance, plus a separate catalogue of coded runtime failure codes (INDEX_BOUNDS, UNINITIALIZED, INTEGER_OVERFLOW, DIVISION_BY_ZERO, etc.) with a stable text shape 'Quidra runtime error[CODE] at LINE:COLUMN: message'. | no evidence in the docs of fix-it/auto-patch suggestions embedded in the diagnostic JSON itself (though a separate patch-schema.md exists for structural source patches, it is a distinct mechanism, not inline quick-fixes attached to each diagnostic) | no evidence of related-diagnostic chains (e.g. 'note:' secondary spans) in the sampled JSON output; only a single flat diagnostics list was observed in probes | Static detection of a runtime-shaped error at compile time with precise span. | int x = 5 / 0 | DIVIDE_BY_ZERO | Integer division by zero is known at compile time. | 1:13-1:14 | Actionable correction embedded directly in the message, not just a category label. | Box<int>.value passed through string(i) (invalid API use) | ARGUMENT_MISMATCH | string is not a constructor; use string.repeat(value, n) for repetition. | 9:29-9:38 | Precise type name and exact member name included, minimal noise. | int i method .to_string() (does not exist) | UNKNOWN_MEMBER | Type 'int' has no method 'to_string'. | 9:29-9:42 | Human-readable CLI\u2026",
+          "expected_actual": "Recertified level 4 under the current criterion: Type/value/syntax contract failures report useful expected-versus-actual information or an equivalent precise explanation. Evidence basis: Current Quidra diagnostics have stable codes, source spans, structured JSON output, cause-specific messages, bounded recovery and coded runtime failures, directly covering the five frozen diagnostic components. Preserved paid evidence additionally records: ~100 distinct stable diagnostic codes documented (AMBIGUOUS_NUMERIC_LITERAL .. WRITE_CAPABILITY) each with meaning and typical correction guidance, plus a separate catalogue of coded runtime failure codes (INDEX_BOUNDS, UNINITIALIZED, INTEGER_OVERFLOW, DIVISION_BY_ZERO, etc.) with a stable text shape 'Quidra runtime error[CODE] at LINE:COLUMN: message'. | no evidence in the docs of fix-it/auto-patch suggestions embedded in the diagnostic JSON itself (though a separate patch-schema.md exists for structural source patches, it is a distinct mechanism, not inline quick-fixes attached to each diagnostic) | no evidence of related-diagnostic chains (e.g. 'note:' secondary spans) in the sampled JSON output; only a single flat diagnostics list was observed in probes | Static detection of a runtime-shaped error at compile time with precise span. | int x = 5 / 0 | DIVIDE_BY_ZERO | Integer division by zero is known at compile time. | 1:13-1:14 | Actionable correction embedded directly in the message, not just a category label. | Box<int>.value passed through string(i) (invalid API use) | ARGUMENT_MISMATCH | string is not a constructor; use string.repeat(value, n) for repetition. | 9:29-9:38 | Precise type name and exact member name included, minimal noise. | int i method .to_string() (does not exist) | UNKNOWN_MEMBER | Type 'int' has no method 'to_string'. | 9:29-9:42 | Human-readable CLI\u2026",
+          "location_context": "Recertified level 4 under the current criterion: Diagnostics identify the relevant source location and enough local context to find the failing construct. Evidence basis: Current Quidra diagnostics have stable codes, source spans, structured JSON output, cause-specific messages, bounded recovery and coded runtime failures, directly covering the five frozen diagnostic components. Preserved paid evidence additionally records: ~100 distinct stable diagnostic codes documented (AMBIGUOUS_NUMERIC_LITERAL .. WRITE_CAPABILITY) each with meaning and typical correction guidance, plus a separate catalogue of coded runtime failure codes (INDEX_BOUNDS, UNINITIALIZED, INTEGER_OVERFLOW, DIVISION_BY_ZERO, etc.) with a stable text shape 'Quidra runtime error[CODE] at LINE:COLUMN: message'. | no evidence in the docs of fix-it/auto-patch suggestions embedded in the diagnostic JSON itself (though a separate patch-schema.md exists for structural source patches, it is a distinct mechanism, not inline quick-fixes attached to each diagnostic) | no evidence of related-diagnostic chains (e.g. 'note:' secondary spans) in the sampled JSON output; only a single flat diagnostics list was observed in probes | Static detection of a runtime-shaped error at compile time with precise span. | int x = 5 / 0 | DIVIDE_BY_ZERO | Integer division by zero is known at compile time. | 1:13-1:14 | Actionable correction embedded directly in the message, not just a category label. | Box<int>.value passed through string(i) (invalid API use) | ARGUMENT_MISMATCH | string is not a constructor; use string.repeat(value, n) for repetition. | 9:29-9:38 | Precise type name and exact member name included, minimal noise. | int i method .to_string() (does not exist) | UNKNOWN_MEMBER | Type 'int' has no method 'to_string'. | 9:29-9:42 | Human-readable CLI\u2026",
+          "machine_stability": "Recertified level 4 under the current criterion: Diagnostics expose stable structured codes/categories or otherwise predictable forms suitable for tooling and automated reasoning. Evidence basis: Current Quidra diagnostics have stable codes, source spans, structured JSON output, cause-specific messages, bounded recovery and coded runtime failures, directly covering the five frozen diagnostic components. Preserved paid evidence additionally records: ~100 distinct stable diagnostic codes documented (AMBIGUOUS_NUMERIC_LITERAL .. WRITE_CAPABILITY) each with meaning and typical correction guidance, plus a separate catalogue of coded runtime failure codes (INDEX_BOUNDS, UNINITIALIZED, INTEGER_OVERFLOW, DIVISION_BY_ZERO, etc.) with a stable text shape 'Quidra runtime error[CODE] at LINE:COLUMN: message'. | no evidence in the docs of fix-it/auto-patch suggestions embedded in the diagnostic JSON itself (though a separate patch-schema.md exists for structural source patches, it is a distinct mechanism, not inline quick-fixes attached to each diagnostic) | no evidence of related-diagnostic chains (e.g. 'note:' secondary spans) in the sampled JSON output; only a single flat diagnostics list was observed in probes | Static detection of a runtime-shaped error at compile time with precise span. | int x = 5 / 0 | DIVIDE_BY_ZERO | Integer division by zero is known at compile time. | 1:13-1:14 | Actionable correction embedded directly in the message, not just a category label. | Box<int>.value passed through string(i) (invalid API use) | ARGUMENT_MISMATCH | string is not a constructor; use string.repeat(value, n) for repetition. | 9:29-9:38 | Precise type name and exact member name included, minimal noise. | int i method .to_string() (does not exist) | UNKNOWN_MEMBER | Type 'int' has no method 'to_string'. | 9:29-9:42 | Human-readable CLI\u2026"
+        },
+        "component_levels": {
+          "actionability": 4,
+          "cause_specificity": 4,
+          "expected_actual": 4,
+          "location_context": 4,
+          "machine_stability": 4
+        },
+        "evidence_refs": [
+          "repo/docs",
+          "repo/tests/benchmark/quidra",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 88,
+          "legacy_score_used_for_component_levels": false,
+          "method": "current-target-reinspection-with-historical-paid-seed",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "4decb3aff0010cabb07747dd245615e4cc2cc9013e7c92db0ebc4692963632fb",
+          "source_record": "benchmark/cache/v1/language-quality/quidra/e7d7d7039f8ada1d360c8a495eed4e952e0b4b8fa64d1a5eefdc70a62e6d2fcd.json",
+          "source_record_sha256": "4d0a2543886e4d6cf4a106395d11fdcdbb6953e61f007c1d8536804d25050eb0",
+          "source_result_sha256": "3bdf2297f36277a2532b9bad5f75c1b7e0892e805d5a76df7ff620d4768b8f84",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "rubric_id": "language-quality.diagnostics.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Judge built-in compiler/checker/runtime diagnostic design from normal language use; do not count external IDE/debugger maturity."
+      },
+      "metric.functionality_expressiveness": {
+        "component_findings": {
+          "abstraction_reuse": "Recertified level 3 under the current criterion: Functions, modules/types and generic/polymorphic abstraction support reusable composition across ordinary programs. Evidence basis: Current docs specify classes, constrained generics, tagged unions, exhaustive match, first-class function values, arbitrary-precision numerics, arrays/tensors, explicit errors, FFI, modules/packages and native/runtime control; dynamic abstraction remains intentionally narrower than the richest peers. Preserved paid evidence additionally records: Union types, exhaustiveness checking, per-field flow-sensitive initialization tracking across interprocedural summaries, and a restricted ABI-safe FFI surface are language-level design choices comparable in ambition to Rust/Kotlin sum types and Rust's FFI safety subset; scored below top established languages only where advanced generic metaprogramming (e.g. higher-kinded types, trait objects, reflection) is absent from the current spec. | generic classes with constrained type parameters (numeric/integer/floating/ordered/equatable constraints) | first-class tagged unions (T | U) with flattening/canonicalization and none/error alternatives | exhaustive structural match over union alternatives (MATCH_EXHAUSTIVE enforced) | algebraic-ish enums with typed payloads | arbitrary precision numeric types (bigint, bigreal) alongside fixed-width int8..uint64/float32/float64 | tensor and neural built-in types with shape patterns and static shape checking (TENSOR_SHAPE) | error as a first-class typed value plus try-propagation (TRY_CONTEXT) instead of exceptions | definite-initialization / uninitialized-field flow analysis integrated into the type system (per-field summaries across constructors/returns) | const/writable reference contracts with path-local const and explicit authority rules (WRITE_CAPABILITY) | FFI/extern declarations with a restricted, explicit ABI-safe subset (FFI_TYPE, FFI\u2026",
+          "data_modeling": "Recertified level 4 under the current criterion: The language can model structured data and domain variants/invariants with practical first-class constructs. Evidence basis: Current docs specify classes, constrained generics, tagged unions, exhaustive match, first-class function values, arbitrary-precision numerics, arrays/tensors, explicit errors, FFI, modules/packages and native/runtime control; dynamic abstraction remains intentionally narrower than the richest peers. Preserved paid evidence additionally records: Union types, exhaustiveness checking, per-field flow-sensitive initialization tracking across interprocedural summaries, and a restricted ABI-safe FFI surface are language-level design choices comparable in ambition to Rust/Kotlin sum types and Rust's FFI safety subset; scored below top established languages only where advanced generic metaprogramming (e.g. higher-kinded types, trait objects, reflection) is absent from the current spec. | generic classes with constrained type parameters (numeric/integer/floating/ordered/equatable constraints) | first-class tagged unions (T | U) with flattening/canonicalization and none/error alternatives | exhaustive structural match over union alternatives (MATCH_EXHAUSTIVE enforced) | algebraic-ish enums with typed payloads | arbitrary precision numeric types (bigint, bigreal) alongside fixed-width int8..uint64/float32/float64 | tensor and neural built-in types with shape patterns and static shape checking (TENSOR_SHAPE) | error as a first-class typed value plus try-propagation (TRY_CONTEXT) instead of exceptions | definite-initialization / uninitialized-field flow analysis integrated into the type system (per-field summaries across constructors/returns) | const/writable reference contracts with path-local const and explicit authority rules (WRITE_CAPABILITY) | FFI/extern declarations with a restricted, explicit ABI-safe subset (FFI_TYPE, FFI\u2026",
+          "feature_composability": "Recertified level 3 under the current criterion: Major language features compose predictably rather than becoming unavailable or fragile when used together. Evidence basis: Current docs specify classes, constrained generics, tagged unions, exhaustive match, first-class function values, arbitrary-precision numerics, arrays/tensors, explicit errors, FFI, modules/packages and native/runtime control; dynamic abstraction remains intentionally narrower than the richest peers. Preserved paid evidence additionally records: Union types, exhaustiveness checking, per-field flow-sensitive initialization tracking across interprocedural summaries, and a restricted ABI-safe FFI surface are language-level design choices comparable in ambition to Rust/Kotlin sum types and Rust's FFI safety subset; scored below top established languages only where advanced generic metaprogramming (e.g. higher-kinded types, trait objects, reflection) is absent from the current spec. | generic classes with constrained type parameters (numeric/integer/floating/ordered/equatable constraints) | first-class tagged unions (T | U) with flattening/canonicalization and none/error alternatives | exhaustive structural match over union alternatives (MATCH_EXHAUSTIVE enforced) | algebraic-ish enums with typed payloads | arbitrary precision numeric types (bigint, bigreal) alongside fixed-width int8..uint64/float32/float64 | tensor and neural built-in types with shape patterns and static shape checking (TENSOR_SHAPE) | error as a first-class typed value plus try-propagation (TRY_CONTEXT) instead of exceptions | definite-initialization / uninitialized-field flow analysis integrated into the type system (per-field summaries across constructors/returns) | const/writable reference contracts with path-local const and explicit authority rules (WRITE_CAPABILITY) | FFI/extern declarations with a restricted, explicit ABI-safe subset (FFI_TYPE, FFI\u2026",
+          "higher_order_composition": "Recertified level 3 under the current criterion: The language supports practical higher-order/compositional programming patterns where applicable without unnatural escape hatches. Evidence basis: Current docs specify classes, constrained generics, tagged unions, exhaustive match, first-class function values, arbitrary-precision numerics, arrays/tensors, explicit errors, FFI, modules/packages and native/runtime control; dynamic abstraction remains intentionally narrower than the richest peers. Preserved paid evidence additionally records: Union types, exhaustiveness checking, per-field flow-sensitive initialization tracking across interprocedural summaries, and a restricted ABI-safe FFI surface are language-level design choices comparable in ambition to Rust/Kotlin sum types and Rust's FFI safety subset; scored below top established languages only where advanced generic metaprogramming (e.g. higher-kinded types, trait objects, reflection) is absent from the current spec. | generic classes with constrained type parameters (numeric/integer/floating/ordered/equatable constraints) | first-class tagged unions (T | U) with flattening/canonicalization and none/error alternatives | exhaustive structural match over union alternatives (MATCH_EXHAUSTIVE enforced) | algebraic-ish enums with typed payloads | arbitrary precision numeric types (bigint, bigreal) alongside fixed-width int8..uint64/float32/float64 | tensor and neural built-in types with shape patterns and static shape checking (TENSOR_SHAPE) | error as a first-class typed value plus try-propagation (TRY_CONTEXT) instead of exceptions | definite-initialization / uninitialized-field flow analysis integrated into the type system (per-field summaries across constructors/returns) | const/writable reference contracts with path-local const and explicit authority rules (WRITE_CAPABILITY) | FFI/extern declarations with a restricted, explicit ABI-safe subset (FFI_TYPE, FFI\u2026",
+          "systems_runtime_control": "Recertified level 4 under the current criterion: The language exposes sufficient control over execution, resources, errors and interoperability for its claimed general-purpose scope. Evidence basis: Current docs specify classes, constrained generics, tagged unions, exhaustive match, first-class function values, arbitrary-precision numerics, arrays/tensors, explicit errors, FFI, modules/packages and native/runtime control; dynamic abstraction remains intentionally narrower than the richest peers. Preserved paid evidence additionally records: Union types, exhaustiveness checking, per-field flow-sensitive initialization tracking across interprocedural summaries, and a restricted ABI-safe FFI surface are language-level design choices comparable in ambition to Rust/Kotlin sum types and Rust's FFI safety subset; scored below top established languages only where advanced generic metaprogramming (e.g. higher-kinded types, trait objects, reflection) is absent from the current spec. | generic classes with constrained type parameters (numeric/integer/floating/ordered/equatable constraints) | first-class tagged unions (T | U) with flattening/canonicalization and none/error alternatives | exhaustive structural match over union alternatives (MATCH_EXHAUSTIVE enforced) | algebraic-ish enums with typed payloads | arbitrary precision numeric types (bigint, bigreal) alongside fixed-width int8..uint64/float32/float64 | tensor and neural built-in types with shape patterns and static shape checking (TENSOR_SHAPE) | error as a first-class typed value plus try-propagation (TRY_CONTEXT) instead of exceptions | definite-initialization / uninitialized-field flow analysis integrated into the type system (per-field summaries across constructors/returns) | const/writable reference contracts with path-local const and explicit authority rules (WRITE_CAPABILITY) | FFI/extern declarations with a restricted, explicit ABI-safe subset (FFI_TYPE, FFI\u2026"
+        },
+        "component_levels": {
+          "abstraction_reuse": 3,
+          "data_modeling": 4,
+          "feature_composability": 3,
+          "higher_order_composition": 3,
+          "systems_runtime_control": 4
+        },
+        "evidence_refs": [
+          "repo/docs",
+          "repo/tests/benchmark/quidra",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 78,
+          "legacy_score_used_for_component_levels": false,
+          "method": "current-target-reinspection-with-historical-paid-seed",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "6275c0a815d8bcf66fde266b3d89ef7dcb2a1a57f1b1b1cf4566827f983311e0",
+          "source_record": "benchmark/cache/v1/language-quality/quidra/e7d7d7039f8ada1d360c8a495eed4e952e0b4b8fa64d1a5eefdc70a62e6d2fcd.json",
+          "source_record_sha256": "4d0a2543886e4d6cf4a106395d11fdcdbb6953e61f007c1d8536804d25050eb0",
+          "source_result_sha256": "3bdf2297f36277a2532b9bad5f75c1b7e0892e805d5a76df7ff620d4768b8f84",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "rubric_id": "language-quality.expressiveness.v1",
+        "runner_score_0_100": 85,
+        "selection_rule": "Judge intrinsic general-purpose expressive power available in the language/core runtime, not third-party package breadth."
+      }
+    },
+    "requirements": {
+      "metric.diagnostics": {
+        "Quidra": 100.0
+      },
+      "metric.functionality_expressiveness": {
+        "Quidra": 85.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "ae6f68b987ccc3755c25ad089b8e7b404256ee2737ad8341ead8f5613ab09db1",
+  "schema_version": 1
+}

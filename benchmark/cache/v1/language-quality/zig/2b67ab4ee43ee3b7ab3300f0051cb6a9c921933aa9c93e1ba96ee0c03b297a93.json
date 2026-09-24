@@ -1,0 +1,221 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "current_validator_revalidated": true,
+    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+    "language_quality_snapshot_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "2b67ab4ee43ee3b7ab3300f0051cb6a9c921933aa9c93e1ba96ee0c03b297a93",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "92ba9ad39a0d404c4827510b9c6cba8c8a992a6f703d0e900d651cc70252442e",
+    "language_quality_rubric_set_id": "language-quality-design-runner-rubric-v1",
+    "network_allowed": false,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality/design_rubrics.json": "8919eccdc1d6643f1409f0ebeb2413bfbd28769bd778c814f17bd4591bc95f70",
+      "template/programs/zig/adversarial": "a6f8d87331b2ae10c959b6e2323af134de6d1d13e7fde90abca3e071d933da47",
+      "template/programs/zig/micro": "1ba105ba990e494756e0c0678e13e77a0a83d2a7b0cb4de077a4333183cc7a66",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.dependency_simplicity",
+      "metric.portability_design_platform_neutrality"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-design-rubric-v1",
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b51952dd4ddf0ccb28171f2a2805e5f1eb56ada80576ca6381ec57ae170694d6",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "work_unit_id": "lq-language-development--part-3--zig",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+    "migration_rule": "language-quality-design-rubric-v1-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+    "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "92ba9ad39a0d404c4827510b9c6cba8c8a992a6f703d0e900d651cc70252442e",
+    "run_id": "cache-recertify-13feb35",
+    "work_unit_id": "lq-language-development--part-3--zig"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "language_quality_design_runner_scoring": {
+        "language": "Zig",
+        "metrics": {
+          "metric.dependency_simplicity": {
+            "component_levels": {
+              "dependency_declaration": 4,
+              "isolation_namespacing": 3,
+              "module_import_model": 4,
+              "resolution_determinism": 4,
+              "transitive_visibility": 4
+            },
+            "evidence_refs": [
+              "template/programs/zig/micro",
+              "template/programs/zig/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.dependency-simplicity.v1",
+            "score_0_100": 95
+          },
+          "metric.portability_design_platform_neutrality": {
+            "component_levels": {
+              "artifact_source_separation": 4,
+              "conditional_platform_mechanism": 4,
+              "data_numeric_portability": 4,
+              "platform_abstraction": 4,
+              "specified_core_semantics": 4
+            },
+            "evidence_refs": [
+              "template/programs/zig/micro",
+              "template/programs/zig/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.portability-design.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1"
+      },
+      "language_quality_snapshot_recertification": {
+        "new_paid_benchmark_provider_call": false,
+        "recertifier": {
+          "engine": "GPT-5.6 Sol",
+          "mode": "evidence-reprojection/current-rubric-adjudication",
+          "new_paid_benchmark_provider_call": false,
+          "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1",
+        "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+        "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+      },
+      "metric.dependency_simplicity": {
+        "component_findings": {
+          "dependency_declaration": "Recertified level 4 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Zig | Zig ships a single self-contained toolchain (zig binary) bundling compiler, linker, bundled libc (musl/mingw/wasi-libc), and package manager (build.zig.zon) - no separate build system or package manager binary required. | Standard library is dependency-free for most programs; no system libc required by default on many targets. | build.zig is Zig code executed by the same compiler, eliminating a second build-DSL dependency (unlike CMake+Make or npm+webpack stacks). | Cross-compilation and dependency fetching are integrated in-tree via the same zig executable. | FFI-linked native libraries still reintroduce systems-level dependency management similar to C/C++, which is reflected as a minor deduction.",
+          "isolation_namespacing": "Recertified level 3 under the current criterion: The language/project model provides clear namespace/version/isolation boundaries that reduce accidental coupling. Evidence basis: Zig | Zig ships a single self-contained toolchain (zig binary) bundling compiler, linker, bundled libc (musl/mingw/wasi-libc), and package manager (build.zig.zon) - no separate build system or package manager binary required. | Standard library is dependency-free for most programs; no system libc required by default on many targets. | build.zig is Zig code executed by the same compiler, eliminating a second build-DSL dependency (unlike CMake+Make or npm+webpack stacks). | Cross-compilation and dependency fetching are integrated in-tree via the same zig executable. | FFI-linked native libraries still reintroduce systems-level dependency management similar to C/C++, which is reflected as a minor deduction.",
+          "module_import_model": "Recertified level 4 under the current criterion: Module/import semantics are small, explicit and predictable from source. Evidence basis: Zig | Zig ships a single self-contained toolchain (zig binary) bundling compiler, linker, bundled libc (musl/mingw/wasi-libc), and package manager (build.zig.zon) - no separate build system or package manager binary required. | Standard library is dependency-free for most programs; no system libc required by default on many targets. | build.zig is Zig code executed by the same compiler, eliminating a second build-DSL dependency (unlike CMake+Make or npm+webpack stacks). | Cross-compilation and dependency fetching are integrated in-tree via the same zig executable. | FFI-linked native libraries still reintroduce systems-level dependency management similar to C/C++, which is reflected as a minor deduction.",
+          "resolution_determinism": "Recertified level 4 under the current criterion: Ordinary dependency/name resolution has deterministic, documented precedence with limited ambient search-path surprises. Evidence basis: Zig | Zig ships a single self-contained toolchain (zig binary) bundling compiler, linker, bundled libc (musl/mingw/wasi-libc), and package manager (build.zig.zon) - no separate build system or package manager binary required. | Standard library is dependency-free for most programs; no system libc required by default on many targets. | build.zig is Zig code executed by the same compiler, eliminating a second build-DSL dependency (unlike CMake+Make or npm+webpack stacks). | Cross-compilation and dependency fetching are integrated in-tree via the same zig executable. | FFI-linked native libraries still reintroduce systems-level dependency management similar to C/C++, which is reflected as a minor deduction.",
+          "transitive_visibility": "Recertified level 4 under the current criterion: Transitive dependency visibility and import exposure are controlled and understandable rather than silently leaking arbitrary dependencies. Evidence basis: Zig | Zig ships a single self-contained toolchain (zig binary) bundling compiler, linker, bundled libc (musl/mingw/wasi-libc), and package manager (build.zig.zon) - no separate build system or package manager binary required. | Standard library is dependency-free for most programs; no system libc required by default on many targets. | build.zig is Zig code executed by the same compiler, eliminating a second build-DSL dependency (unlike CMake+Make or npm+webpack stacks). | Cross-compilation and dependency fetching are integrated in-tree via the same zig executable. | FFI-linked native libraries still reintroduce systems-level dependency management similar to C/C++, which is reflected as a minor deduction."
+        },
+        "component_levels": {
+          "dependency_declaration": 4,
+          "isolation_namespacing": 3,
+          "module_import_model": 4,
+          "resolution_determinism": 4,
+          "transitive_visibility": 4
+        },
+        "evidence_refs": [
+          "template/programs/zig/micro",
+          "template/programs/zig/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 92,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "eb7150ed58f2740bb993df77f5be8448d1d64b4045761313af3a880e7d1ea29c",
+          "source_record": "benchmark/cache/v1/language-quality/zig/f355028644c8334bbd2e32a3fc6f9d4c181d430fcd41491a42a73bec03304e3d.json",
+          "source_record_sha256": "b901374099f20455a034f4615b18904deb2a18ac88984a365410441e3f188d59",
+          "source_result_sha256": "c1890bf5035ed3e3365c95039890b358f3b93b78f557a524e6e47a6ae7dbea4c",
+          "source_run_id": "2026-09-22-62bb50a-gh2"
+        },
+        "rubric_id": "language-quality.dependency-simplicity.v1",
+        "runner_score_0_100": 95,
+        "selection_rule": "Judge language/module dependency semantics and intrinsic project dependency model. Registry size, package-manager maturity and community conventions belong to Ecosystem."
+      },
+      "metric.portability_design_platform_neutrality": {
+        "component_findings": {
+          "artifact_source_separation": "Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Zig | Zig's language design centers on cross-compilation as a first-class built-in feature: any zig install can target any supported triple without a separate cross toolchain. | std.builtin.Target and comptime target queries allow clean compile-time OS/arch branching without preprocessor macros. | Zig bundles libc implementations (musl, mingw-w64, wasi-libc) enabling static, portable binaries across Linux/Windows/macOS/WASI/freestanding from one host. | No mandatory GC runtime or OS-specific runtime service is baked into the language, allowing freestanding/embedded/WASI targeting directly - stronger neutrality than JVM-bound languages or Go's baked-in scheduler. | Explicit allocator passing avoids implicit OS-specific heap/thread assumptions, reinforcing platform-neutral core design. | Ecosystem breadth of currently supported/tested platforms is excluded here per methodology; this evaluates only architectural/design neutrality.",
+          "conditional_platform_mechanism": "Recertified level 4 under the current criterion: When platform-specific behavior is necessary, the language/project model exposes explicit, localized conditional mechanisms rather than implicit divergence. Evidence basis: Zig | Zig's language design centers on cross-compilation as a first-class built-in feature: any zig install can target any supported triple without a separate cross toolchain. | std.builtin.Target and comptime target queries allow clean compile-time OS/arch branching without preprocessor macros. | Zig bundles libc implementations (musl, mingw-w64, wasi-libc) enabling static, portable binaries across Linux/Windows/macOS/WASI/freestanding from one host. | No mandatory GC runtime or OS-specific runtime service is baked into the language, allowing freestanding/embedded/WASI targeting directly - stronger neutrality than JVM-bound languages or Go's baked-in scheduler. | Explicit allocator passing avoids implicit OS-specific heap/thread assumptions, reinforcing platform-neutral core design. | Ecosystem breadth of currently supported/tested platforms is excluded here per methodology; this evaluates only architectural/design neutrality.",
+          "data_numeric_portability": "Recertified level 4 under the current criterion: Primitive data/numeric behavior needed for portable programs is sufficiently specified across targets, with implementation-defined behavior clearly bounded. Evidence basis: Zig | Zig's language design centers on cross-compilation as a first-class built-in feature: any zig install can target any supported triple without a separate cross toolchain. | std.builtin.Target and comptime target queries allow clean compile-time OS/arch branching without preprocessor macros. | Zig bundles libc implementations (musl, mingw-w64, wasi-libc) enabling static, portable binaries across Linux/Windows/macOS/WASI/freestanding from one host. | No mandatory GC runtime or OS-specific runtime service is baked into the language, allowing freestanding/embedded/WASI targeting directly - stronger neutrality than JVM-bound languages or Go's baked-in scheduler. | Explicit allocator passing avoids implicit OS-specific heap/thread assumptions, reinforcing platform-neutral core design. | Ecosystem breadth of currently supported/tested platforms is excluded here per methodology; this evaluates only architectural/design neutrality.",
+          "platform_abstraction": "Recertified level 4 under the current criterion: Core/standard runtime interfaces provide portable abstractions for common OS/runtime needs with explicit platform escape hatches. Evidence basis: Zig | Zig's language design centers on cross-compilation as a first-class built-in feature: any zig install can target any supported triple without a separate cross toolchain. | std.builtin.Target and comptime target queries allow clean compile-time OS/arch branching without preprocessor macros. | Zig bundles libc implementations (musl, mingw-w64, wasi-libc) enabling static, portable binaries across Linux/Windows/macOS/WASI/freestanding from one host. | No mandatory GC runtime or OS-specific runtime service is baked into the language, allowing freestanding/embedded/WASI targeting directly - stronger neutrality than JVM-bound languages or Go's baked-in scheduler. | Explicit allocator passing avoids implicit OS-specific heap/thread assumptions, reinforcing platform-neutral core design. | Ecosystem breadth of currently supported/tested platforms is excluded here per methodology; this evaluates only architectural/design neutrality.",
+          "specified_core_semantics": "Recertified level 4 under the current criterion: Core language semantics avoid unnecessary dependence on one OS/CPU/ABI and specify portable behavior for ordinary constructs. Evidence basis: Zig | Zig's language design centers on cross-compilation as a first-class built-in feature: any zig install can target any supported triple without a separate cross toolchain. | std.builtin.Target and comptime target queries allow clean compile-time OS/arch branching without preprocessor macros. | Zig bundles libc implementations (musl, mingw-w64, wasi-libc) enabling static, portable binaries across Linux/Windows/macOS/WASI/freestanding from one host. | No mandatory GC runtime or OS-specific runtime service is baked into the language, allowing freestanding/embedded/WASI targeting directly - stronger neutrality than JVM-bound languages or Go's baked-in scheduler. | Explicit allocator passing avoids implicit OS-specific heap/thread assumptions, reinforcing platform-neutral core design. | Ecosystem breadth of currently supported/tested platforms is excluded here per methodology; this evaluates only architectural/design neutrality."
+        },
+        "component_levels": {
+          "artifact_source_separation": 4,
+          "conditional_platform_mechanism": 4,
+          "data_numeric_portability": 4,
+          "platform_abstraction": 4,
+          "specified_core_semantics": 4
+        },
+        "evidence_refs": [
+          "template/programs/zig/micro",
+          "template/programs/zig/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 90,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "53e3d30e56170f2683300f1ff6161849ef5247c2854d484fcf06bf72476ee276",
+          "source_record": "benchmark/cache/v1/language-quality/zig/f355028644c8334bbd2e32a3fc6f9d4c181d430fcd41491a42a73bec03304e3d.json",
+          "source_record_sha256": "b901374099f20455a034f4615b18904deb2a18ac88984a365410441e3f188d59",
+          "source_result_sha256": "c1890bf5035ed3e3365c95039890b358f3b93b78f557a524e6e47a6ae7dbea4c",
+          "source_run_id": "2026-09-22-62bb50a-gh2"
+        },
+        "rubric_id": "language-quality.portability-design.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Judge the language/runtime design for writing portable source. Actual number of currently implemented targets belongs to Ecosystem."
+      }
+    },
+    "requirements": {
+      "metric.dependency_simplicity": {
+        "Zig": 95.0
+      },
+      "metric.portability_design_platform_neutrality": {
+        "Zig": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "1b0503f77e2cff11b696a343f4677781d94d1c203126ba4af9e12cd7a95e008d",
+  "schema_version": 1
+}

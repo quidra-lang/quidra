@@ -12,13 +12,13 @@
         "retry_ceiling_uncached_usd": 0.0
       },
       "language_quality": {
-        "complete_units": 10,
-        "estimated_uncached_usd": 40.87909,
-        "expected_paid_api_calls_upper_bound": 4820,
+        "complete_units": 42,
+        "estimated_uncached_usd": 8.582548,
+        "expected_paid_api_calls_upper_bound": 980,
         "hard_blockers": [],
-        "pending_agent_units": 44,
-        "planned_paid_api_calls_estimate": 124,
-        "retry_ceiling_uncached_usd": 1610.0273
+        "pending_agent_units": 12,
+        "planned_paid_api_calls_estimate": 28,
+        "retry_ceiling_uncached_usd": 318.16562
       },
       "llm_learnability": {
         "complete_units": 1,
@@ -48,11 +48,11 @@
         "retry_ceiling_uncached_usd": 0.0
       }
     },
-    "cache_hits": 600,
+    "cache_hits": 632,
     "cache_invalidated_units": 0,
-    "cache_misses": 72,
-    "complete_units": 613,
-    "estimated_uncached_usd": 478.74614,
+    "cache_misses": 44,
+    "complete_units": 645,
+    "estimated_uncached_usd": 446.449598,
     "evaluation": "all",
     "execution_decisions": {
       "already_complete_not_from_cache": [
@@ -152,27 +152,6 @@
       "deferred_cache_decision": [
         {
           "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 0.983046,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 39.32184,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-1--quidra",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
             "Python"
           ],
           "attempts_used": 0,
@@ -211,27 +190,6 @@
           "retry_ceiling_uncached_usd": 39.32184,
           "status": "PENDING",
           "work_unit_id": "lq-language-development--part-1--c",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 0.983046,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 39.32184,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-2--quidra",
           "worker_mode": "sandbox-agent"
         },
         {
@@ -278,27 +236,6 @@
         },
         {
           "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 0.983046,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 39.32184,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-3--quidra",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
             "Python"
           ],
           "attempts_used": 0,
@@ -337,27 +274,6 @@
           "retry_ceiling_uncached_usd": 39.32184,
           "status": "PENDING",
           "work_unit_id": "lq-language-development--part-3--c",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 0.983046,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 39.32184,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--quidra",
           "worker_mode": "sandbox-agent"
         },
         {
@@ -1323,706 +1239,6 @@
           "status": "PENDING",
           "work_unit_id": "audit-adversarial-python",
           "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [
-            "Rust"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "8034c57f9f66b21fe44f5b2bdff4efa37c514498f01155786bbbb0759c302232",
-            "reason": "no certified record",
-            "scope": "rust"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.01298,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4990,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.5192,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-1--rust",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "d97caaa43f6c82fd099397197a555b782f8737dfc3fc69b1ef015c1214dd2dd1",
-            "reason": "no certified record",
-            "scope": "go"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012956,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4986,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51824,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-1--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Java"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "b3f8c8aaccb026354e838e719c7b829b2880f801cd6c59d2ba4f0102c7a3b715",
-            "reason": "no certified record",
-            "scope": "java"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.01298,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4990,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.5192,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-1--java",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "TypeScript"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "57816909052d7fdc66923d3bb2a4ab44402da76a8c30af221dd24f76eca6c3ac",
-            "reason": "no certified record",
-            "scope": "typescript"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.01304,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.5216,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-1--typescript",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Kotlin"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "2943de3060cbefe3ffcb310c927141bc87f685e5784a70106759dc57a60efaea",
-            "reason": "no certified record",
-            "scope": "kotlin"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012998,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4993,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51992,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-1--kotlin",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "4ac8bd42e0873817dee193c46b0a66747d76d10d04935405e5d6eb0c2a080fd8",
-            "reason": "no certified record",
-            "scope": "swift"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012992,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4992,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51968,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-1--swift",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Zig"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "26e017a703c0d690b8d9531a6ecd59eee1ac592f920dcbb36fd9d5fac611df84",
-            "reason": "no certified record",
-            "scope": "zig"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012968,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4988,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51872,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-1--zig",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Rust"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "01a51c6f706100f0613c55c5a207b465c7bdedf403464fc76e058265355e2d04",
-            "reason": "no certified record",
-            "scope": "rust"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012986,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4991,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51944,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-2--rust",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "fa22b181582c906139873c2819015cd3c2a58ef8cb429ab89cd7e70aae41489b",
-            "reason": "no certified record",
-            "scope": "go"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012962,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4987,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51848,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-2--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Java"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "f2d9a9286e1dc479231249d261b148a5570682e81c9ca9809bf75506eb476b8f",
-            "reason": "no certified record",
-            "scope": "java"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012986,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4991,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51944,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-2--java",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "TypeScript"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "50bc834e04edcdd762fc1273e6f412dc4a89b9ab3ef40ee779f404c2acd5d7b5",
-            "reason": "no certified record",
-            "scope": "typescript"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013046,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5001,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52184,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-2--typescript",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Kotlin"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "cd3bb15832cbb4d4612efdd118674e3d261e35bff3516bbe06b00ed07e8166af",
-            "reason": "no certified record",
-            "scope": "kotlin"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013004,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4994,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52016,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-2--kotlin",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "e66ac98bc02b86f12aa891b9c57fe2358bc3ce7bfa78992400ad8d5738d06439",
-            "reason": "no certified record",
-            "scope": "swift"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012992,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4992,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51968,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-2--swift",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Zig"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "c4855fde6134b34295fbc91e57f5b90bcb8e23c121e6ede81ab4e1a36a0b4f40",
-            "reason": "no certified record",
-            "scope": "zig"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012974,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4989,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51896,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-2--zig",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Rust"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "34a154f26c664a75c91b0ceed7dfa3758c9295942f1fb867d65489ba4d52af27",
-            "reason": "no certified record",
-            "scope": "rust"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013076,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5006,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52304,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-3--rust",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "338b3e7106f3b6dc3825b3856a0085f1387a63319501f723d15c4c2fe9f74a18",
-            "reason": "no certified record",
-            "scope": "go"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013052,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5002,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52208,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-3--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Java"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "d5e8d5c856c6483e1ea4a811935e813780b358686f92be51e95ee0b513647c12",
-            "reason": "no certified record",
-            "scope": "java"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013076,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5006,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52304,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-3--java",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "TypeScript"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "0a3ab4713b9b327bf823af8a145911eae5bf3332e47a45d5c689b0bdbe2a3476",
-            "reason": "no certified record",
-            "scope": "typescript"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013136,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5016,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52544,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-3--typescript",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Kotlin"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "fa37fef60404df23ff0c636d0af9d2f6f932799a6bf510a348062ce65dd240cb",
-            "reason": "no certified record",
-            "scope": "kotlin"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013094,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5009,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52376,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-3--kotlin",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "4b8e586dfdea163c76d61fd210c7aca111134b0f18cc3c8ca11f975feed730a3",
-            "reason": "no certified record",
-            "scope": "swift"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013082,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5007,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52328,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-3--swift",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Zig"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "9405cdc24220ff7edae0c3bb00141c4b0ed759fdb0e0fe8d795598d8dccd04dc",
-            "reason": "no certified record",
-            "scope": "zig"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.013064,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5004,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.52256,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-3--zig",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Rust"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "58bfe1847e981531113cb9a31dd035fd96b6652ad48b8d8c82bac61b00786a72",
-            "reason": "no certified record",
-            "scope": "rust"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.01298,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4990,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.5192,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--rust",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "40d04db849d0c257f942521f6c488fa0c6bd21516aed4c16227c25b8649abf1f",
-            "reason": "no certified record",
-            "scope": "go"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012956,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4986,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51824,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Java"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "52415cfb0ecb1ad6b789eb5f486cc8f67826db78010b593b38b02bd3089ff44a",
-            "reason": "no certified record",
-            "scope": "java"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.01298,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4990,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.5192,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--java",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "TypeScript"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "531c83271419cb5db0d8bfbfd6359bd8e03ffa6a315b2c84a9cddfb33dfafd7c",
-            "reason": "no certified record",
-            "scope": "typescript"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.01304,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 5000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.5216,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--typescript",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Kotlin"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "ef9212e64f2fa250be2c70d5518855742ea3bdf5de3481d9301264a25ac5f2cf",
-            "reason": "no certified record",
-            "scope": "kotlin"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012998,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4993,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51992,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--kotlin",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "338c2fc05d4624626c551008ca798d1490a4712b4e31581481464738cc4beb26",
-            "reason": "no certified record",
-            "scope": "swift"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012992,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4992,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51968,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--swift",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Zig"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "29eed28e54c84b6d4a3c5d9911a3049c09a7757f91d5ba2a240b493bf9b8f4e3",
-            "reason": "no certified record",
-            "scope": "zig"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012968,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4988,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51872,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--zig",
-          "worker_mode": "sandbox-agent"
         },
         {
           "assigned_languages": [
@@ -21024,7 +20240,7 @@
           "cache": {
             "assigned_languages": [],
             "compatibility_mode": "semantic-comparability-from-current-catalog",
-            "fingerprint": "0b922ce5a3809ee7850c83a2ecb8b977ef07dd3d8bc8b1acfd1f93c8cc6aee07",
+            "fingerprint": "373208c3ee906db1cf7bccfc77cc74e87847dfec1c964cef189919d3cbb8c6af",
             "migration": {
               "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
               "current_validator": "PASS",
@@ -21065,6 +20281,1158 @@
           "evaluation": "language_quality",
           "status": "COMPLETE",
           "work_unit_id": "lq-quidra-audit"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "344c760e7ddcf6c770c53a201422dc801e961def495308fa85cfbb295843251f",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/quidra/344c760e7ddcf6c770c53a201422dc801e961def495308fa85cfbb295843251f.json",
+            "scope": "quidra"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-1--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Rust"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Rust"
+            ],
+            "fingerprint": "8e35cab77007c54a752c39c7459be2906e9f7931b5d181e4365c490c8a9f1b46",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/rust/8e35cab77007c54a752c39c7459be2906e9f7931b5d181e4365c490c8a9f1b46.json",
+            "scope": "rust"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-1--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Go"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Go"
+            ],
+            "fingerprint": "560fc5bb2b11885a8c47bd982c6d78ea36961e74ef91aa3fa9c977ce10d47e27",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/go/560fc5bb2b11885a8c47bd982c6d78ea36961e74ef91aa3fa9c977ce10d47e27.json",
+            "scope": "go"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-1--go"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Java"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Java"
+            ],
+            "fingerprint": "756c42351f15577921ae4f73587d34d274994b90a8177ebfb3ca2a6380ac63b0",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/java/756c42351f15577921ae4f73587d34d274994b90a8177ebfb3ca2a6380ac63b0.json",
+            "scope": "java"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-1--java"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "TypeScript"
+            ],
+            "fingerprint": "e06b2a1945707226ff7f4ab4064d3295a98a674ed4741a98c13886440c8c3ba2",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/typescript/e06b2a1945707226ff7f4ab4064d3295a98a674ed4741a98c13886440c8c3ba2.json",
+            "scope": "typescript"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-1--typescript"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Kotlin"
+            ],
+            "fingerprint": "4fd7a83f2da645c38747f89237d5a6e7e12be050a9bd96c5d400de38dbc947b3",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/kotlin/4fd7a83f2da645c38747f89237d5a6e7e12be050a9bd96c5d400de38dbc947b3.json",
+            "scope": "kotlin"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-1--kotlin"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Swift"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Swift"
+            ],
+            "fingerprint": "6a6f09577797677e562630727b81e251a3e4f657b722451699bc0d0199695fc4",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/swift/6a6f09577797677e562630727b81e251a3e4f657b722451699bc0d0199695fc4.json",
+            "scope": "swift"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-1--swift"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Zig"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Zig"
+            ],
+            "fingerprint": "5d4872a078a935a125e6265f106d9e63ab59d5fc600d23bb48d2678c840b4e6f",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/zig/5d4872a078a935a125e6265f106d9e63ab59d5fc600d23bb48d2678c840b4e6f.json",
+            "scope": "zig"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-1--zig"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "80b50af5a96562d866702d681812b5f9ba810a85aa10fe1a0141846a0959b085",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/quidra/80b50af5a96562d866702d681812b5f9ba810a85aa10fe1a0141846a0959b085.json",
+            "scope": "quidra"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-2--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Rust"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Rust"
+            ],
+            "fingerprint": "906997f787f1b3c362d6a551947a171fb46cd8f05ea9fa3a549c791bc7b4ac7e",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/rust/906997f787f1b3c362d6a551947a171fb46cd8f05ea9fa3a549c791bc7b4ac7e.json",
+            "scope": "rust"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-2--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Go"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Go"
+            ],
+            "fingerprint": "f336f8db8c35a414fb46fc5a94a51c28423c37093ef5fa1e4fce332dcea4159c",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/go/f336f8db8c35a414fb46fc5a94a51c28423c37093ef5fa1e4fce332dcea4159c.json",
+            "scope": "go"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-2--go"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Java"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Java"
+            ],
+            "fingerprint": "90711f523b9b64fec101108ed0292668c24fda71a8adbfb0b5b2061e70fd2737",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/java/90711f523b9b64fec101108ed0292668c24fda71a8adbfb0b5b2061e70fd2737.json",
+            "scope": "java"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-2--java"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "TypeScript"
+            ],
+            "fingerprint": "e211fb44b6265b2461f63086d310caf13f197c2987b7ed1fc3d9255651695d55",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/typescript/e211fb44b6265b2461f63086d310caf13f197c2987b7ed1fc3d9255651695d55.json",
+            "scope": "typescript"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-2--typescript"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Kotlin"
+            ],
+            "fingerprint": "649f95c227ffc2b15fea9dc01f8baba6bd58a85c9a2cd56bfaf94cde3727322d",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/kotlin/649f95c227ffc2b15fea9dc01f8baba6bd58a85c9a2cd56bfaf94cde3727322d.json",
+            "scope": "kotlin"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-2--kotlin"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Swift"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Swift"
+            ],
+            "fingerprint": "13ab8f879106d8684439ff0b4ea5cd3e7dd3905a208e34a7637b7526e61847ef",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/swift/13ab8f879106d8684439ff0b4ea5cd3e7dd3905a208e34a7637b7526e61847ef.json",
+            "scope": "swift"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-2--swift"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Zig"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Zig"
+            ],
+            "fingerprint": "766ebb800b3bb4093c157b7dc18928988aab2874e1f47bcefee4a361d0fb6f00",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/zig/766ebb800b3bb4093c157b7dc18928988aab2874e1f47bcefee4a361d0fb6f00.json",
+            "scope": "zig"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-2--zig"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "2b64e6388a89afca72d4b859bd4a1607a3223e5b66e8793d1481a3a5aad390b6",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/quidra/2b64e6388a89afca72d4b859bd4a1607a3223e5b66e8793d1481a3a5aad390b6.json",
+            "scope": "quidra"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-3--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Rust"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Rust"
+            ],
+            "fingerprint": "1e74f252c9eb18995a1a52ef7980e9c30c2866e78adfcf779b59659b19758523",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/rust/1e74f252c9eb18995a1a52ef7980e9c30c2866e78adfcf779b59659b19758523.json",
+            "scope": "rust"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-3--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Go"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Go"
+            ],
+            "fingerprint": "907886069a958f2c6186fd341b438fcd3b92951d70017201ef491e8a9b07ae86",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/go/907886069a958f2c6186fd341b438fcd3b92951d70017201ef491e8a9b07ae86.json",
+            "scope": "go"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-3--go"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Java"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Java"
+            ],
+            "fingerprint": "345f728b867fc36b7493a929fe4a53d5144d328f5ee2325094c4fbf4d8b8fe03",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/java/345f728b867fc36b7493a929fe4a53d5144d328f5ee2325094c4fbf4d8b8fe03.json",
+            "scope": "java"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-3--java"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "TypeScript"
+            ],
+            "fingerprint": "44b63210302da4f70b956951b8336261950e830951399037e988d05578db8801",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/typescript/44b63210302da4f70b956951b8336261950e830951399037e988d05578db8801.json",
+            "scope": "typescript"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-3--typescript"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Kotlin"
+            ],
+            "fingerprint": "3624177a817238b29300ff196bc39a43faac4aceaa511abaf047a84ee0ba3dda",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/kotlin/3624177a817238b29300ff196bc39a43faac4aceaa511abaf047a84ee0ba3dda.json",
+            "scope": "kotlin"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-3--kotlin"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Swift"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Swift"
+            ],
+            "fingerprint": "10a9a0e6b3c3a07b949aad34b260898d25eeb1ca9aafe7e4817a40c099d42e17",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/swift/10a9a0e6b3c3a07b949aad34b260898d25eeb1ca9aafe7e4817a40c099d42e17.json",
+            "scope": "swift"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-3--swift"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Zig"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Zig"
+            ],
+            "fingerprint": "2b67ab4ee43ee3b7ab3300f0051cb6a9c921933aa9c93e1ba96ee0c03b297a93",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/zig/2b67ab4ee43ee3b7ab3300f0051cb6a9c921933aa9c93e1ba96ee0c03b297a93.json",
+            "scope": "zig"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-3--zig"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "dd2b28fc45d206d0c5aee37fb973ba5c59ca1e13992b58ec287be3df92ace5e4",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/quidra/dd2b28fc45d206d0c5aee37fb973ba5c59ca1e13992b58ec287be3df92ace5e4.json",
+            "scope": "quidra"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Rust"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Rust"
+            ],
+            "fingerprint": "41e7eb4d9185fc3908104f32de8b80999e59bb2df6e39dc6018bc7104da3e853",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/rust/41e7eb4d9185fc3908104f32de8b80999e59bb2df6e39dc6018bc7104da3e853.json",
+            "scope": "rust"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Go"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Go"
+            ],
+            "fingerprint": "5c0c8ce8c75fbcc337255f4d11ee7c0d245fd6d50fa333b4fb837190f4d5241f",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/go/5c0c8ce8c75fbcc337255f4d11ee7c0d245fd6d50fa333b4fb837190f4d5241f.json",
+            "scope": "go"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--go"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Java"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Java"
+            ],
+            "fingerprint": "f0df3ff360ca192726d10f1765c85a15c119b1fb424d4929178d07acee8f7a44",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/java/f0df3ff360ca192726d10f1765c85a15c119b1fb424d4929178d07acee8f7a44.json",
+            "scope": "java"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--java"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "TypeScript"
+            ],
+            "fingerprint": "c8fcda0d0582de75282426b4b431b38e3aba44036257861d9e5ed4413b90cdde",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/typescript/c8fcda0d0582de75282426b4b431b38e3aba44036257861d9e5ed4413b90cdde.json",
+            "scope": "typescript"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--typescript"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Kotlin"
+            ],
+            "fingerprint": "d61c361c646bf936bc15e29b857f8b3ddc8a1f2ceca5c8e8f994b437a557b5a8",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/kotlin/d61c361c646bf936bc15e29b857f8b3ddc8a1f2ceca5c8e8f994b437a557b5a8.json",
+            "scope": "kotlin"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--kotlin"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Swift"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Swift"
+            ],
+            "fingerprint": "0c59275fd2bd0fab4fa93b1c4bb8319fb7e172a8f43ca33a06c8b441f1a0486f",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/swift/0c59275fd2bd0fab4fa93b1c4bb8319fb7e172a8f43ca33a06c8b441f1a0486f.json",
+            "scope": "swift"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--swift"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Zig"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Zig"
+            ],
+            "fingerprint": "1dedc28229800654b15921c8a0e43cbb831b95cab4defc948560464dc33cc3b4",
+            "migration": {
+              "current_mechanical_verification": "current-validator",
+              "current_validator": "PASS",
+              "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+              "migration_rule": "language-quality-design-rubric-v1-snapshot",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+              "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/language-quality/zig/1dedc28229800654b15921c8a0e43cbb831b95cab4defc948560464dc33cc3b4.json",
+            "scope": "zig"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--zig"
         },
         {
           "api_calls": 0,
@@ -24084,9 +24452,9 @@
         }
       ]
     },
-    "expected_paid_api_calls_upper_bound": 15420,
+    "expected_paid_api_calls_upper_bound": 11580,
     "full_retry_envelope_funded": false,
-    "full_retry_envelope_recommended_budget_usd": 6537.907325,
+    "full_retry_envelope_recommended_budget_usd": 4923.080225,
     "hard_blockers": [],
     "invalidated_cache_records": [],
     "kind": "benchmark_execution_plan",
@@ -24094,11 +24462,11 @@
     "note": "Frozen pre-paid execution plan. COMPLETE certified-cache hits are revalidated and cost zero. estimated_uncached_usd and planned_paid_api_calls_estimate are the practical nominal envelope; retry_ceiling_uncached_usd and expected_paid_api_calls_upper_bound also expose every still-configured work-unit retry and sandbox-agent turn. The normal funding gate uses the nominal envelope plus its safety multiplier, while full_retry_envelope_funded says whether even the absolute configured retry envelope is funded. Pending leaves with a known invalidation state the exact reason; dependency-deferred cache decisions remain conservatively priced. Exact-fingerprint paid partial checkpoints reduce the remaining scored-call estimate before pricing. Prompt-cache discounts can only reduce actual provider spend further.",
     "partial_paid_restored_calls": 0,
     "partial_paid_resumed_units": [],
-    "pending_agent_units": 84,
-    "planned_paid_api_calls_estimate": 1404,
+    "pending_agent_units": 52,
+    "planned_paid_api_calls_estimate": 1308,
     "provider_smoke_required": true,
-    "recommended_budget_usd": 598.432675,
-    "retry_ceiling_uncached_usd": 5230.32586,
+    "recommended_budget_usd": 558.061998,
+    "retry_ceiling_uncached_usd": 3938.46418,
     "safety_multiplier": 1.25,
     "schema_version": 2,
     "scope_work_unit_count": 705,
@@ -24908,566 +25276,6 @@
       },
       {
         "assigned_languages": [
-          "TypeScript"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013136,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5016,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52544,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-3--typescript",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Kotlin"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013094,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5009,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52376,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-3--kotlin",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Swift"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013082,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5007,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52328,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-3--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Java"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013076,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5006,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52304,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-3--java",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Rust"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013076,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5006,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52304,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-3--rust",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Zig"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013064,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5004,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52256,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-3--zig",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Go"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013052,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5002,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52208,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-3--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "TypeScript"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013046,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5001,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52184,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-2--typescript",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "TypeScript"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.01304,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.5216,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-1--typescript",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "TypeScript"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.01304,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 5000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.5216,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--typescript",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Kotlin"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.013004,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4994,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.52016,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-2--kotlin",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Kotlin"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012998,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4993,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51992,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-1--kotlin",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Kotlin"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012998,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4993,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51992,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--kotlin",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Swift"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012992,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4992,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51968,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-1--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Swift"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012992,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4992,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51968,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-2--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Swift"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012992,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4992,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51968,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Java"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012986,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4991,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51944,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-2--java",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Rust"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012986,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4991,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51944,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-2--rust",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Java"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.01298,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4990,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.5192,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-1--java",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Rust"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.01298,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4990,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.5192,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-1--rust",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Java"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.01298,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4990,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.5192,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--java",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Rust"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.01298,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4990,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.5192,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--rust",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Zig"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012974,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4989,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51896,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-2--zig",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Zig"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012968,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4988,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51872,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-1--zig",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Zig"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012968,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4988,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51872,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--zig",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Go"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012962,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4987,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51848,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-2--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Go"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012956,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4986,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51824,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-1--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Go"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012956,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4986,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51824,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
           "C++"
         ],
         "attempts_used": 0,
@@ -25504,26 +25312,6 @@
         "retry_ceiling_uncached_usd": 39.32184,
         "status": "PENDING",
         "work_unit_id": "lq-language-development--part-1--python",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 0.983046,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 39.32184,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-1--quidra",
         "worker_mode": "sandbox-agent"
       },
       {
@@ -25568,26 +25356,6 @@
       },
       {
         "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 0.983046,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 39.32184,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-2--quidra",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
           "C++"
         ],
         "attempts_used": 0,
@@ -25628,26 +25396,6 @@
       },
       {
         "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 0.983046,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 39.32184,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-3--quidra",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
           "C++"
         ],
         "attempts_used": 0,
@@ -25684,26 +25432,6 @@
         "retry_ceiling_uncached_usd": 39.32184,
         "status": "PENDING",
         "work_unit_id": "lq-language-development--part-4--python",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 0.983046,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 39.32184,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--quidra",
         "worker_mode": "sandbox-agent"
       },
       {
@@ -25876,12 +25604,12 @@
     "invalid": 209,
     "note": "Legacy invalid records are retained as provenance. A successful migration adds an ordinary current-key record rather than rewriting or deleting its source.",
     "superseded": 240,
-    "valid": 658
+    "valid": 691
   },
   "historical_cache_before": {
     "invalid": 209,
     "superseded": 240,
-    "valid": 657
+    "valid": 658
   },
   "legacy_invalid_record_classifications": [
     {
@@ -25915,9 +25643,9 @@
         "primary_config",
         "measurement_script:adversarial_measure.py"
       ],
-      "classification": "D",
-      "classification_reason": "runner-owned command unit can be recomputed without provider calls",
-      "disposition": "free-mechanical-remeasurement",
+      "classification": "C",
+      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
+      "disposition": "recertified-current-cache",
       "evaluation": "language_quality",
       "record": "benchmark/cache/v1/language-quality/mechanical-quidra-audit/38b494059ce367b28d664c94f96ec5fc95071aa8ee53477ce3ddec6f3fadd307.json",
       "work_unit_id": "lq-quidra-audit"
@@ -25926,9 +25654,9 @@
       "changed": [
         "template/programs/swift/micro"
       ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
+      "classification": "C",
+      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
+      "disposition": "recertified-current-cache",
       "evaluation": "language_quality",
       "record": "benchmark/cache/v1/language-quality/swift/7b14fab6e05c9c93ab0b2cdadc23f93ec038f36b97a5184f866890fc97968ba9.json",
       "work_unit_id": "lq-language-development--part-3--swift"
@@ -25937,9 +25665,9 @@
       "changed": [
         "template/programs/swift/micro"
       ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
+      "classification": "C",
+      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
+      "disposition": "recertified-current-cache",
       "evaluation": "language_quality",
       "record": "benchmark/cache/v1/language-quality/swift/7b97e7f3505908946b6c79f303f6302fb7c6d1e906dbd2588925f15d68f0d37a.json",
       "work_unit_id": "lq-language-development--part-4--swift"
@@ -25948,9 +25676,9 @@
       "changed": [
         "template/programs/swift/micro"
       ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
+      "classification": "C",
+      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
+      "disposition": "recertified-current-cache",
       "evaluation": "language_quality",
       "record": "benchmark/cache/v1/language-quality/swift/832ba27fee390cad128378dec0264ba04ff14716f8324bacc138b2f871da78a1.json",
       "work_unit_id": "lq-language-development--part-1--swift"
@@ -25959,9 +25687,9 @@
       "changed": [
         "template/programs/swift/micro"
       ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
+      "classification": "C",
+      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
+      "disposition": "recertified-current-cache",
       "evaluation": "language_quality",
       "record": "benchmark/cache/v1/language-quality/swift/c5447e8237b14625b521f0b88c07508c208df658b95941b7267ce3e25c502ba9.json",
       "work_unit_id": "lq-language-development--part-2--swift"
@@ -28384,9 +28112,9 @@
         "misses": 0
       },
       "language_quality": {
-        "hits": 9,
+        "hits": 41,
         "invalidated": 0,
-        "misses": 32
+        "misses": 4
       },
       "llm_learnability": {
         "hits": 0,
@@ -28404,9 +28132,9 @@
         "misses": 0
       }
     },
-    "hits": 600,
+    "hits": 632,
     "invalidated": 0,
-    "misses": 72
+    "misses": 44
   },
   "next_run_invalidated": {},
   "next_run_misses": {
@@ -28580,146 +28308,6 @@
       "reason": "no certified record",
       "scope": "zig"
     },
-    "lq-language-development--part-1--go": {
-      "fingerprint": "d97caaa43f6c82fd099397197a555b782f8737dfc3fc69b1ef015c1214dd2dd1",
-      "reason": "no certified record",
-      "scope": "go"
-    },
-    "lq-language-development--part-1--java": {
-      "fingerprint": "b3f8c8aaccb026354e838e719c7b829b2880f801cd6c59d2ba4f0102c7a3b715",
-      "reason": "no certified record",
-      "scope": "java"
-    },
-    "lq-language-development--part-1--kotlin": {
-      "fingerprint": "2943de3060cbefe3ffcb310c927141bc87f685e5784a70106759dc57a60efaea",
-      "reason": "no certified record",
-      "scope": "kotlin"
-    },
-    "lq-language-development--part-1--rust": {
-      "fingerprint": "8034c57f9f66b21fe44f5b2bdff4efa37c514498f01155786bbbb0759c302232",
-      "reason": "no certified record",
-      "scope": "rust"
-    },
-    "lq-language-development--part-1--swift": {
-      "fingerprint": "4ac8bd42e0873817dee193c46b0a66747d76d10d04935405e5d6eb0c2a080fd8",
-      "reason": "no certified record",
-      "scope": "swift"
-    },
-    "lq-language-development--part-1--typescript": {
-      "fingerprint": "57816909052d7fdc66923d3bb2a4ab44402da76a8c30af221dd24f76eca6c3ac",
-      "reason": "no certified record",
-      "scope": "typescript"
-    },
-    "lq-language-development--part-1--zig": {
-      "fingerprint": "26e017a703c0d690b8d9531a6ecd59eee1ac592f920dcbb36fd9d5fac611df84",
-      "reason": "no certified record",
-      "scope": "zig"
-    },
-    "lq-language-development--part-2--go": {
-      "fingerprint": "fa22b181582c906139873c2819015cd3c2a58ef8cb429ab89cd7e70aae41489b",
-      "reason": "no certified record",
-      "scope": "go"
-    },
-    "lq-language-development--part-2--java": {
-      "fingerprint": "f2d9a9286e1dc479231249d261b148a5570682e81c9ca9809bf75506eb476b8f",
-      "reason": "no certified record",
-      "scope": "java"
-    },
-    "lq-language-development--part-2--kotlin": {
-      "fingerprint": "cd3bb15832cbb4d4612efdd118674e3d261e35bff3516bbe06b00ed07e8166af",
-      "reason": "no certified record",
-      "scope": "kotlin"
-    },
-    "lq-language-development--part-2--rust": {
-      "fingerprint": "01a51c6f706100f0613c55c5a207b465c7bdedf403464fc76e058265355e2d04",
-      "reason": "no certified record",
-      "scope": "rust"
-    },
-    "lq-language-development--part-2--swift": {
-      "fingerprint": "e66ac98bc02b86f12aa891b9c57fe2358bc3ce7bfa78992400ad8d5738d06439",
-      "reason": "no certified record",
-      "scope": "swift"
-    },
-    "lq-language-development--part-2--typescript": {
-      "fingerprint": "50bc834e04edcdd762fc1273e6f412dc4a89b9ab3ef40ee779f404c2acd5d7b5",
-      "reason": "no certified record",
-      "scope": "typescript"
-    },
-    "lq-language-development--part-2--zig": {
-      "fingerprint": "c4855fde6134b34295fbc91e57f5b90bcb8e23c121e6ede81ab4e1a36a0b4f40",
-      "reason": "no certified record",
-      "scope": "zig"
-    },
-    "lq-language-development--part-3--go": {
-      "fingerprint": "338b3e7106f3b6dc3825b3856a0085f1387a63319501f723d15c4c2fe9f74a18",
-      "reason": "no certified record",
-      "scope": "go"
-    },
-    "lq-language-development--part-3--java": {
-      "fingerprint": "d5e8d5c856c6483e1ea4a811935e813780b358686f92be51e95ee0b513647c12",
-      "reason": "no certified record",
-      "scope": "java"
-    },
-    "lq-language-development--part-3--kotlin": {
-      "fingerprint": "fa37fef60404df23ff0c636d0af9d2f6f932799a6bf510a348062ce65dd240cb",
-      "reason": "no certified record",
-      "scope": "kotlin"
-    },
-    "lq-language-development--part-3--rust": {
-      "fingerprint": "34a154f26c664a75c91b0ceed7dfa3758c9295942f1fb867d65489ba4d52af27",
-      "reason": "no certified record",
-      "scope": "rust"
-    },
-    "lq-language-development--part-3--swift": {
-      "fingerprint": "4b8e586dfdea163c76d61fd210c7aca111134b0f18cc3c8ca11f975feed730a3",
-      "reason": "no certified record",
-      "scope": "swift"
-    },
-    "lq-language-development--part-3--typescript": {
-      "fingerprint": "0a3ab4713b9b327bf823af8a145911eae5bf3332e47a45d5c689b0bdbe2a3476",
-      "reason": "no certified record",
-      "scope": "typescript"
-    },
-    "lq-language-development--part-3--zig": {
-      "fingerprint": "9405cdc24220ff7edae0c3bb00141c4b0ed759fdb0e0fe8d795598d8dccd04dc",
-      "reason": "no certified record",
-      "scope": "zig"
-    },
-    "lq-language-development--part-4--go": {
-      "fingerprint": "40d04db849d0c257f942521f6c488fa0c6bd21516aed4c16227c25b8649abf1f",
-      "reason": "no certified record",
-      "scope": "go"
-    },
-    "lq-language-development--part-4--java": {
-      "fingerprint": "52415cfb0ecb1ad6b789eb5f486cc8f67826db78010b593b38b02bd3089ff44a",
-      "reason": "no certified record",
-      "scope": "java"
-    },
-    "lq-language-development--part-4--kotlin": {
-      "fingerprint": "ef9212e64f2fa250be2c70d5518855742ea3bdf5de3481d9301264a25ac5f2cf",
-      "reason": "no certified record",
-      "scope": "kotlin"
-    },
-    "lq-language-development--part-4--rust": {
-      "fingerprint": "58bfe1847e981531113cb9a31dd035fd96b6652ad48b8d8c82bac61b00786a72",
-      "reason": "no certified record",
-      "scope": "rust"
-    },
-    "lq-language-development--part-4--swift": {
-      "fingerprint": "338c2fc05d4624626c551008ca798d1490a4712b4e31581481464738cc4beb26",
-      "reason": "no certified record",
-      "scope": "swift"
-    },
-    "lq-language-development--part-4--typescript": {
-      "fingerprint": "531c83271419cb5db0d8bfbfd6359bd8e03ffa6a315b2c84a9cddfb33dfafd7c",
-      "reason": "no certified record",
-      "scope": "typescript"
-    },
-    "lq-language-development--part-4--zig": {
-      "fingerprint": "29eed28e54c84b6d4a3c5d9911a3049c09a7757f91d5ba2a240b493bf9b8f4e3",
-      "reason": "no certified record",
-      "scope": "zig"
-    },
     "proficiency-trials--c": {
       "fingerprint": "4ecc13fa184e6f06d5e970461819e39a982f3e2a08a263afce3ed914d264c68a",
       "reason": "no certified record",
@@ -28771,7 +28359,7 @@
       "scope": "zig"
     }
   },
-  "paid_api_required_unit_count": 84,
+  "paid_api_required_unit_count": 52,
   "paid_api_required_units": [
     {
       "assigned_languages": [
@@ -29175,286 +28763,6 @@
     },
     {
       "assigned_languages": [
-        "TypeScript"
-      ],
-      "estimated_uncached_usd": 1.013136,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-3--typescript",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Kotlin"
-      ],
-      "estimated_uncached_usd": 1.013094,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-3--kotlin",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Swift"
-      ],
-      "estimated_uncached_usd": 1.013082,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-3--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Java"
-      ],
-      "estimated_uncached_usd": 1.013076,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-3--java",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Rust"
-      ],
-      "estimated_uncached_usd": 1.013076,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-3--rust",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Zig"
-      ],
-      "estimated_uncached_usd": 1.013064,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-3--zig",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Go"
-      ],
-      "estimated_uncached_usd": 1.013052,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-3--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "TypeScript"
-      ],
-      "estimated_uncached_usd": 1.013046,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-2--typescript",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "TypeScript"
-      ],
-      "estimated_uncached_usd": 1.01304,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-1--typescript",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "TypeScript"
-      ],
-      "estimated_uncached_usd": 1.01304,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--typescript",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Kotlin"
-      ],
-      "estimated_uncached_usd": 1.013004,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-2--kotlin",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Kotlin"
-      ],
-      "estimated_uncached_usd": 1.012998,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-1--kotlin",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Kotlin"
-      ],
-      "estimated_uncached_usd": 1.012998,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--kotlin",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Swift"
-      ],
-      "estimated_uncached_usd": 1.012992,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-1--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Swift"
-      ],
-      "estimated_uncached_usd": 1.012992,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-2--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Swift"
-      ],
-      "estimated_uncached_usd": 1.012992,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Java"
-      ],
-      "estimated_uncached_usd": 1.012986,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-2--java",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Rust"
-      ],
-      "estimated_uncached_usd": 1.012986,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-2--rust",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Java"
-      ],
-      "estimated_uncached_usd": 1.01298,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-1--java",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Rust"
-      ],
-      "estimated_uncached_usd": 1.01298,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-1--rust",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Java"
-      ],
-      "estimated_uncached_usd": 1.01298,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--java",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Rust"
-      ],
-      "estimated_uncached_usd": 1.01298,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--rust",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Zig"
-      ],
-      "estimated_uncached_usd": 1.012974,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-2--zig",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Zig"
-      ],
-      "estimated_uncached_usd": 1.012968,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-1--zig",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Zig"
-      ],
-      "estimated_uncached_usd": 1.012968,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--zig",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Go"
-      ],
-      "estimated_uncached_usd": 1.012962,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-2--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Go"
-      ],
-      "estimated_uncached_usd": 1.012956,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-1--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Go"
-      ],
-      "estimated_uncached_usd": 1.012956,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
         "C++"
       ],
       "estimated_uncached_usd": 0.983046,
@@ -29471,16 +28779,6 @@
       "evaluation": "language_quality",
       "planned_calls_estimate": 3,
       "work_unit_id": "lq-language-development--part-1--python",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.983046,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-1--quidra",
       "worker_mode": "sandbox-agent"
     },
     {
@@ -29505,16 +28803,6 @@
     },
     {
       "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.983046,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-2--quidra",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
         "C++"
       ],
       "estimated_uncached_usd": 0.983046,
@@ -29535,16 +28823,6 @@
     },
     {
       "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.983046,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-3--quidra",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
         "C++"
       ],
       "estimated_uncached_usd": 0.983046,
@@ -29561,16 +28839,6 @@
       "evaluation": "language_quality",
       "planned_calls_estimate": 3,
       "work_unit_id": "lq-language-development--part-4--python",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.983046,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--quidra",
       "worker_mode": "sandbox-agent"
     },
     {
@@ -29615,16 +28883,16 @@
     }
   ],
   "provider_cost": {
-    "estimated_uncached_usd": 478.74614,
-    "expected_paid_api_calls_upper_bound": 15420,
-    "planned_paid_api_calls_estimate": 1404,
-    "recommended_budget_usd": 598.432675,
-    "retry_ceiling_uncached_usd": 5230.32586
+    "estimated_uncached_usd": 446.449598,
+    "expected_paid_api_calls_upper_bound": 11580,
+    "planned_paid_api_calls_estimate": 1308,
+    "recommended_budget_usd": 558.061998,
+    "retry_ceiling_uncached_usd": 3938.46418
   },
   "recertification_pass_cache": {
-    "hits": 600,
+    "hits": 632,
     "invalidated": 0,
-    "misses": 72
+    "misses": 44
   },
   "schema_version": 3,
   "semantic_compression_reused_unit_ids": [

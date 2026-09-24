@@ -1,0 +1,223 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "current_validator_revalidated": true,
+    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+    "language_quality_snapshot_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "d61c361c646bf936bc15e29b857f8b3ddc8a1f2ceca5c8e8f994b437a557b5a8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "abe57c1eca6394415046eed88cc1e247a974fdb3b403ddec184da6dcdda6165c",
+    "language_quality_rubric_set_id": "language-quality-design-runner-rubric-v1",
+    "network_allowed": false,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality/design_rubrics.json": "8919eccdc1d6643f1409f0ebeb2413bfbd28769bd778c814f17bd4591bc95f70",
+      "template/programs/kotlin/adversarial": "de5b117e0810d3665550f22b97f7718ed622fcd3d140269208a07dfe63cf3212",
+      "template/programs/kotlin/micro": "114ff79a792311f46b64a6ea97eb88183ec526fa18c34e40bbdf03992e85029f",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.ffi_interoperability_design",
+      "metric.concurrency"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-design-rubric-v1",
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b51952dd4ddf0ccb28171f2a2805e5f1eb56ada80576ca6381ec57ae170694d6",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "work_unit_id": "lq-language-development--part-4--kotlin",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+    "migration_rule": "language-quality-design-rubric-v1-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+    "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "abe57c1eca6394415046eed88cc1e247a974fdb3b403ddec184da6dcdda6165c",
+    "run_id": "cache-recertify-13feb35",
+    "work_unit_id": "lq-language-development--part-4--kotlin"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "language_quality_design_runner_scoring": {
+        "language": "Kotlin",
+        "metrics": {
+          "metric.concurrency": {
+            "component_levels": {
+              "async_structured": 4,
+              "error_cancel_propagation": 4,
+              "parallel_execution": 4,
+              "race_safety": 1,
+              "synchronization_channels": 4
+            },
+            "evidence_refs": [
+              "template/programs/kotlin/micro",
+              "template/programs/kotlin/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.concurrency.v1",
+            "score_0_100": 85
+          },
+          "metric.ffi_interoperability_design": {
+            "component_levels": {
+              "abi_calling_control": 3,
+              "bidirectional_callbacks": 4,
+              "foreign_declaration": 4,
+              "ownership_lifetime_boundary": 3,
+              "type_layout_mapping": 3
+            },
+            "evidence_refs": [
+              "template/programs/kotlin/micro",
+              "template/programs/kotlin/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.ffi-design.v1",
+            "score_0_100": 85
+          }
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1"
+      },
+      "language_quality_snapshot_recertification": {
+        "new_paid_benchmark_provider_call": false,
+        "recertifier": {
+          "engine": "GPT-5.6 Sol",
+          "mode": "evidence-reprojection/current-rubric-adjudication",
+          "new_paid_benchmark_provider_call": false,
+          "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1",
+        "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+        "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+      },
+      "metric.concurrency": {
+        "component_findings": {
+          "async_structured": "Recertified level 4 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Kotlin | Kotlin's core concurrency model is structured concurrency via coroutines: suspend functions, CoroutineScope, Job hierarchies, and cancellation propagate automatically through parent/child scopes, which is a language/library-level (not just runtime) design feature baked into the type system (suspend modifier) and standard library (kotlinx.coroutines is the de-facto standard, though technically a library not the language core). | Structured concurrency gives compile-time-checked suspension points (suspend keyword) preventing accidental blocking calls in non-blocking contexts, and coroutine cancellation/exception propagation is well-defined (SupervisorJob vs Job semantics, CancellationException handling). | Coroutines are lightweight (many thousands can run on a small thread pool via dispatchers: Dispatchers.Default/IO/Main), giving cheap concurrency without OS-thread-per-task overhead, comparable in spirit to Go's goroutines though implemented via CPS-transformed suspend functions rather than a runtime-managed stack-switching scheduler. | Structured primitives: async/await (via async{} + await()), select{} expressions for multiplexing channels/deferreds, Channel/Flow for producer-consumer and reactive streams, Mutex for coroutine-safe locking \u2014 a fairly complete and coherent toolkit comparable to or exceeding Java's traditional java.util.concurrent while staying more com\u2026",
+          "error_cancel_propagation": "Recertified level 4 under the current criterion: Errors, cancellation and task termination propagate predictably across concurrent work instead of being silently detached or lost. Evidence basis: Kotlin | Kotlin's core concurrency model is structured concurrency via coroutines: suspend functions, CoroutineScope, Job hierarchies, and cancellation propagate automatically through parent/child scopes, which is a language/library-level (not just runtime) design feature baked into the type system (suspend modifier) and standard library (kotlinx.coroutines is the de-facto standard, though technically a library not the language core). | Structured concurrency gives compile-time-checked suspension points (suspend keyword) preventing accidental blocking calls in non-blocking contexts, and coroutine cancellation/exception propagation is well-defined (SupervisorJob vs Job semantics, CancellationException handling). | Coroutines are lightweight (many thousands can run on a small thread pool via dispatchers: Dispatchers.Default/IO/Main), giving cheap concurrency without OS-thread-per-task overhead, comparable in spirit to Go's goroutines though implemented via CPS-transformed suspend functions rather than a runtime-managed stack-switching scheduler. | Structured primitives: async/await (via async{} + await()), select{} expressions for multiplexing channels/deferreds, Channel/Flow for producer-consumer and reactive streams, Mutex for coroutine-safe locking \u2014 a fairly complete and coherent toolkit comparable to or exceeding Java's traditional java.util.concurrent while staying more com\u2026",
+          "parallel_execution": "Recertified level 4 under the current criterion: The normal language/runtime model supports genuine parallel execution for applicable workloads without a fundamental default bottleneck or undocumented caveat. Evidence basis: Kotlin | Kotlin's core concurrency model is structured concurrency via coroutines: suspend functions, CoroutineScope, Job hierarchies, and cancellation propagate automatically through parent/child scopes, which is a language/library-level (not just runtime) design feature baked into the type system (suspend modifier) and standard library (kotlinx.coroutines is the de-facto standard, though technically a library not the language core). | Structured concurrency gives compile-time-checked suspension points (suspend keyword) preventing accidental blocking calls in non-blocking contexts, and coroutine cancellation/exception propagation is well-defined (SupervisorJob vs Job semantics, CancellationException handling). | Coroutines are lightweight (many thousands can run on a small thread pool via dispatchers: Dispatchers.Default/IO/Main), giving cheap concurrency without OS-thread-per-task overhead, comparable in spirit to Go's goroutines though implemented via CPS-transformed suspend functions rather than a runtime-managed stack-switching scheduler. | Structured primitives: async/await (via async{} + await()), select{} expressions for multiplexing channels/deferreds, Channel/Flow for producer-consumer and reactive streams, Mutex for coroutine-safe locking \u2014 a fairly complete and coherent toolkit comparable to or exceeding Java's traditional java.util.concurrent while staying more com\u2026",
+          "race_safety": "Recertified level 1 under the current criterion: The language provides strong static or runtime mechanisms to prevent/detect data races and unsafe concurrent access, with unsafe escape hatches explicit. Evidence basis: Kotlin | Kotlin's core concurrency model is structured concurrency via coroutines: suspend functions, CoroutineScope, Job hierarchies, and cancellation propagate automatically through parent/child scopes, which is a language/library-level (not just runtime) design feature baked into the type system (suspend modifier) and standard library (kotlinx.coroutines is the de-facto standard, though technically a library not the language core). | Structured concurrency gives compile-time-checked suspension points (suspend keyword) preventing accidental blocking calls in non-blocking contexts, and coroutine cancellation/exception propagation is well-defined (SupervisorJob vs Job semantics, CancellationException handling). | Coroutines are lightweight (many thousands can run on a small thread pool via dispatchers: Dispatchers.Default/IO/Main), giving cheap concurrency without OS-thread-per-task overhead, comparable in spirit to Go's goroutines though implemented via CPS-transformed suspend functions rather than a runtime-managed stack-switching scheduler. | Structured primitives: async/await (via async{} + await()), select{} expressions for multiplexing channels/deferreds, Channel/Flow for producer-consumer and reactive streams, Mutex for coroutine-safe locking \u2014 a fairly complete and coherent toolkit comparable to or exceeding Java's traditional java.util.concurrent while staying more com\u2026",
+          "synchronization_channels": "Recertified level 4 under the current criterion: Core primitives for synchronization/message passing/shared-state coordination are coherent, documented and practical. Evidence basis: Kotlin | Kotlin's core concurrency model is structured concurrency via coroutines: suspend functions, CoroutineScope, Job hierarchies, and cancellation propagate automatically through parent/child scopes, which is a language/library-level (not just runtime) design feature baked into the type system (suspend modifier) and standard library (kotlinx.coroutines is the de-facto standard, though technically a library not the language core). | Structured concurrency gives compile-time-checked suspension points (suspend keyword) preventing accidental blocking calls in non-blocking contexts, and coroutine cancellation/exception propagation is well-defined (SupervisorJob vs Job semantics, CancellationException handling). | Coroutines are lightweight (many thousands can run on a small thread pool via dispatchers: Dispatchers.Default/IO/Main), giving cheap concurrency without OS-thread-per-task overhead, comparable in spirit to Go's goroutines though implemented via CPS-transformed suspend functions rather than a runtime-managed stack-switching scheduler. | Structured primitives: async/await (via async{} + await()), select{} expressions for multiplexing channels/deferreds, Channel/Flow for producer-consumer and reactive streams, Mutex for coroutine-safe locking \u2014 a fairly complete and coherent toolkit comparable to or exceeding Java's traditional java.util.concurrent while staying more com\u2026"
+        },
+        "component_levels": {
+          "async_structured": 4,
+          "error_cancel_propagation": 4,
+          "parallel_execution": 4,
+          "race_safety": 1,
+          "synchronization_channels": 4
+        },
+        "evidence_refs": [
+          "template/programs/kotlin/micro",
+          "template/programs/kotlin/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 88,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "8aac3ff36024a58b6d3238d3b312854d84ba88b453abe2d8edadc95d084b5e17",
+          "source_record": "benchmark/cache/v1/language-quality/kotlin/6eb685d7bee496783ded570f73e4e2585b96a70e43d3d07f1e90a7827c1baecf.json",
+          "source_record_sha256": "81c6ef26c367cadc68c1fb997f270c6eebf88db4e9d8b6735a8edbafa681c647",
+          "source_result_sha256": "2b0ec3398f4585b8b3fd3634e4dbc662b4d6d662aff9ff5f816b618a8bbefa9b",
+          "source_run_id": "2026-09-22-62bb50a-gh2"
+        },
+        "rubric_id": "language-quality.concurrency.v1",
+        "runner_score_0_100": 85,
+        "selection_rule": "Judge intrinsic concurrency/parallelism semantics and core runtime primitives. External frameworks and debugger/tool maturity are out of scope."
+      },
+      "metric.ffi_interoperability_design": {
+        "component_findings": {
+          "abi_calling_control": "Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Kotlin | Kotlin/JVM interoperates directly and bidirectionally with Java: any Java library, class, or interface can be called with essentially zero-cost, idiomatic syntax (no wrapper generation step), and Kotlin classes are usable from Java with @JvmStatic/@JvmOverloads/@JvmName annotations for ergonomic exposure. | Kotlin/Native exposes a C interop tool (cinterop) that consumes .def files describing a C header and generates Kotlin bindings; this supports calling native C libraries but requires an extra build-time codegen step and .def authoring, unlike Java interop which is seamless. | Kotlin/Native can also export its own APIs to C via generated headers for embedding in C/C++/Swift/Obj-C hosts (used heavily for Kotlin Multiplatform iOS targets), giving two-way native interop, but the calling-convention and memory-model bridging (Kotlin/Native's object model, refcounting, frozen/thread-affinity rules pre-1.7.20) adds real cognitive and correctness overhead absent from the JVM path. | There is no equivalent of Rust's zero-overhead #[repr(C)] + extern \"C\" direct ABI compatibility, nor Zig's seamless direct C-header inclusion; Kotlin's non-JVM native interop is mediated through generated bindings and runtime shims. | JNI is still needed for JVM-side calls into native code (Kotlin does not remove this JVM/native boundary cost); Project Panama/Foreign Function Interface adoption in\u2026",
+          "bidirectional_callbacks": "Recertified level 4 under the current criterion: Embedding, callbacks/function pointers or equivalent bidirectional interoperation are supported by a coherent language design rather than only bespoke glue. Evidence basis: Kotlin | Kotlin/JVM interoperates directly and bidirectionally with Java: any Java library, class, or interface can be called with essentially zero-cost, idiomatic syntax (no wrapper generation step), and Kotlin classes are usable from Java with @JvmStatic/@JvmOverloads/@JvmName annotations for ergonomic exposure. | Kotlin/Native exposes a C interop tool (cinterop) that consumes .def files describing a C header and generates Kotlin bindings; this supports calling native C libraries but requires an extra build-time codegen step and .def authoring, unlike Java interop which is seamless. | Kotlin/Native can also export its own APIs to C via generated headers for embedding in C/C++/Swift/Obj-C hosts (used heavily for Kotlin Multiplatform iOS targets), giving two-way native interop, but the calling-convention and memory-model bridging (Kotlin/Native's object model, refcounting, frozen/thread-affinity rules pre-1.7.20) adds real cognitive and correctness overhead absent from the JVM path. | There is no equivalent of Rust's zero-overhead #[repr(C)] + extern \"C\" direct ABI compatibility, nor Zig's seamless direct C-header inclusion; Kotlin's non-JVM native interop is mediated through generated bindings and runtime shims. | JNI is still needed for JVM-side calls into native code (Kotlin does not remove this JVM/native boundary cost); Project Panama/Foreign Function Interface adoption in\u2026",
+          "foreign_declaration": "Recertified level 4 under the current criterion: Foreign symbols/functions/types can be declared or imported with explicit, understandable boundary syntax. Evidence basis: Kotlin | Kotlin/JVM interoperates directly and bidirectionally with Java: any Java library, class, or interface can be called with essentially zero-cost, idiomatic syntax (no wrapper generation step), and Kotlin classes are usable from Java with @JvmStatic/@JvmOverloads/@JvmName annotations for ergonomic exposure. | Kotlin/Native exposes a C interop tool (cinterop) that consumes .def files describing a C header and generates Kotlin bindings; this supports calling native C libraries but requires an extra build-time codegen step and .def authoring, unlike Java interop which is seamless. | Kotlin/Native can also export its own APIs to C via generated headers for embedding in C/C++/Swift/Obj-C hosts (used heavily for Kotlin Multiplatform iOS targets), giving two-way native interop, but the calling-convention and memory-model bridging (Kotlin/Native's object model, refcounting, frozen/thread-affinity rules pre-1.7.20) adds real cognitive and correctness overhead absent from the JVM path. | There is no equivalent of Rust's zero-overhead #[repr(C)] + extern \"C\" direct ABI compatibility, nor Zig's seamless direct C-header inclusion; Kotlin's non-JVM native interop is mediated through generated bindings and runtime shims. | JNI is still needed for JVM-side calls into native code (Kotlin does not remove this JVM/native boundary cost); Project Panama/Foreign Function Interface adoption in\u2026",
+          "ownership_lifetime_boundary": "Recertified level 3 under the current criterion: Ownership, lifetime, allocation and error responsibilities across the foreign boundary can be expressed explicitly enough to avoid hidden hazards. Evidence basis: Kotlin | Kotlin/JVM interoperates directly and bidirectionally with Java: any Java library, class, or interface can be called with essentially zero-cost, idiomatic syntax (no wrapper generation step), and Kotlin classes are usable from Java with @JvmStatic/@JvmOverloads/@JvmName annotations for ergonomic exposure. | Kotlin/Native exposes a C interop tool (cinterop) that consumes .def files describing a C header and generates Kotlin bindings; this supports calling native C libraries but requires an extra build-time codegen step and .def authoring, unlike Java interop which is seamless. | Kotlin/Native can also export its own APIs to C via generated headers for embedding in C/C++/Swift/Obj-C hosts (used heavily for Kotlin Multiplatform iOS targets), giving two-way native interop, but the calling-convention and memory-model bridging (Kotlin/Native's object model, refcounting, frozen/thread-affinity rules pre-1.7.20) adds real cognitive and correctness overhead absent from the JVM path. | There is no equivalent of Rust's zero-overhead #[repr(C)] + extern \"C\" direct ABI compatibility, nor Zig's seamless direct C-header inclusion; Kotlin's non-JVM native interop is mediated through generated bindings and runtime shims. | JNI is still needed for JVM-side calls into native code (Kotlin does not remove this JVM/native boundary cost); Project Panama/Foreign Function Interface adoption in\u2026",
+          "type_layout_mapping": "Recertified level 3 under the current criterion: Primitive/aggregate/string/pointer or equivalent boundary representations have clear mapping rules and layout control where needed. Evidence basis: Kotlin | Kotlin/JVM interoperates directly and bidirectionally with Java: any Java library, class, or interface can be called with essentially zero-cost, idiomatic syntax (no wrapper generation step), and Kotlin classes are usable from Java with @JvmStatic/@JvmOverloads/@JvmName annotations for ergonomic exposure. | Kotlin/Native exposes a C interop tool (cinterop) that consumes .def files describing a C header and generates Kotlin bindings; this supports calling native C libraries but requires an extra build-time codegen step and .def authoring, unlike Java interop which is seamless. | Kotlin/Native can also export its own APIs to C via generated headers for embedding in C/C++/Swift/Obj-C hosts (used heavily for Kotlin Multiplatform iOS targets), giving two-way native interop, but the calling-convention and memory-model bridging (Kotlin/Native's object model, refcounting, frozen/thread-affinity rules pre-1.7.20) adds real cognitive and correctness overhead absent from the JVM path. | There is no equivalent of Rust's zero-overhead #[repr(C)] + extern \"C\" direct ABI compatibility, nor Zig's seamless direct C-header inclusion; Kotlin's non-JVM native interop is mediated through generated bindings and runtime shims. | JNI is still needed for JVM-side calls into native code (Kotlin does not remove this JVM/native boundary cost); Project Panama/Foreign Function Interface adoption in\u2026"
+        },
+        "component_levels": {
+          "abi_calling_control": 3,
+          "bidirectional_callbacks": 4,
+          "foreign_declaration": 4,
+          "ownership_lifetime_boundary": 3,
+          "type_layout_mapping": 3
+        },
+        "evidence_refs": [
+          "template/programs/kotlin/micro",
+          "template/programs/kotlin/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 78,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "9a89a04f4031b728c0efd8fb11d3dce90f489dd06c1c78ef78360c7af51f931f",
+          "source_record": "benchmark/cache/v1/language-quality/kotlin/6eb685d7bee496783ded570f73e4e2585b96a70e43d3d07f1e90a7827c1baecf.json",
+          "source_record_sha256": "81c6ef26c367cadc68c1fb997f270c6eebf88db4e9d8b6735a8edbafa681c647",
+          "source_result_sha256": "2b0ec3398f4585b8b3fd3634e4dbc662b4d6d662aff9ff5f816b618a8bbefa9b",
+          "source_run_id": "2026-09-22-62bb50a-gh2"
+        },
+        "rubric_id": "language-quality.ffi-design.v1",
+        "runner_score_0_100": 85,
+        "selection_rule": "Judge intrinsic FFI/ABI boundary design, not breadth of existing third-party bindings (Ecosystem)."
+      }
+    },
+    "requirements": {
+      "metric.concurrency": {
+        "Kotlin": 85.0
+      },
+      "metric.ffi_interoperability_design": {
+        "Kotlin": 85.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "295d543538e9e450407abb03bfafb2a0e0e06ec7acbb480daa17d853774e4dcc",
+  "schema_version": 1
+}

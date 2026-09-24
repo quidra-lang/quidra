@@ -1,0 +1,221 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "current_validator_revalidated": true,
+    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+    "language_quality_snapshot_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "1dedc28229800654b15921c8a0e43cbb831b95cab4defc948560464dc33cc3b4",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "77e34eb38aae0b0c608dceba223cccade5f7cd5d61eb08e7c60e514b53ae7334",
+    "language_quality_rubric_set_id": "language-quality-design-runner-rubric-v1",
+    "network_allowed": false,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality/design_rubrics.json": "8919eccdc1d6643f1409f0ebeb2413bfbd28769bd778c814f17bd4591bc95f70",
+      "template/programs/zig/adversarial": "a6f8d87331b2ae10c959b6e2323af134de6d1d13e7fde90abca3e071d933da47",
+      "template/programs/zig/micro": "1ba105ba990e494756e0c0678e13e77a0a83d2a7b0cb4de077a4333183cc7a66",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.ffi_interoperability_design",
+      "metric.concurrency"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-design-rubric-v1",
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b51952dd4ddf0ccb28171f2a2805e5f1eb56ada80576ca6381ec57ae170694d6",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "work_unit_id": "lq-language-development--part-4--zig",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+    "migration_rule": "language-quality-design-rubric-v1-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+    "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "77e34eb38aae0b0c608dceba223cccade5f7cd5d61eb08e7c60e514b53ae7334",
+    "run_id": "cache-recertify-13feb35",
+    "work_unit_id": "lq-language-development--part-4--zig"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "language_quality_design_runner_scoring": {
+        "language": "Zig",
+        "metrics": {
+          "metric.concurrency": {
+            "component_levels": {
+              "async_structured": 2,
+              "error_cancel_propagation": 2,
+              "parallel_execution": 4,
+              "race_safety": 1,
+              "synchronization_channels": 4
+            },
+            "evidence_refs": [
+              "template/programs/zig/micro",
+              "template/programs/zig/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.concurrency.v1",
+            "score_0_100": 65
+          },
+          "metric.ffi_interoperability_design": {
+            "component_levels": {
+              "abi_calling_control": 4,
+              "bidirectional_callbacks": 4,
+              "foreign_declaration": 4,
+              "ownership_lifetime_boundary": 3,
+              "type_layout_mapping": 4
+            },
+            "evidence_refs": [
+              "template/programs/zig/micro",
+              "template/programs/zig/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.ffi-design.v1",
+            "score_0_100": 95
+          }
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1"
+      },
+      "language_quality_snapshot_recertification": {
+        "new_paid_benchmark_provider_call": false,
+        "recertifier": {
+          "engine": "GPT-5.6 Sol",
+          "mode": "evidence-reprojection/current-rubric-adjudication",
+          "new_paid_benchmark_provider_call": false,
+          "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1",
+        "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+        "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+      },
+      "metric.concurrency": {
+        "component_findings": {
+          "async_structured": "Recertified level 2 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: The Io-based concurrency redesign was still in flux at the evaluated Zig version, so ergonomics and stability of structured async are lower than in languages with a settled concurrency story. | Static language-design analysis based on Zig's std.Thread, std.Io (evolving async I/O abstraction visible in mb09.zig via std.Io.Threaded.init_single_threaded and threaded.io()), and absence of language-level async/await syntax as of the evaluated Zig version. | mb09.zig demonstrates the std.Io abstraction: an explicit Io interface object (threaded.io()) is passed to I/O calls, and std.Io.Threaded.init_single_threaded is used to select a concrete (currently single-threaded) execution strategy -- this shows Zig's concurrency model is being redesigned around an explicit, allocator-like Io capability rather than implicit async keywords. | Zig provides std.Thread for OS threads, std.Thread.Mutex, Condition, RwLock for synchronization primitives, and std.atomic for lock-free primitives, all as ordinary library code with no special compiler magic -- consistent with Zig's no-hidden-control-flow philosophy. | There is no built-in colorless async/await language keyword pipeline stabilized at the evaluated version (Zig's async/await was removed and is being replaced by the Io interface pattern seen above), so structured concurrency and cooperative scheduling are not yet a stable first-class langua\u2026",
+          "error_cancel_propagation": "Recertified level 2 under the current criterion: Errors, cancellation and task termination propagate predictably across concurrent work instead of being silently detached or lost. Evidence basis: The Io-based concurrency redesign was still in flux at the evaluated Zig version, so ergonomics and stability of structured async are lower than in languages with a settled concurrency story. | Static language-design analysis based on Zig's std.Thread, std.Io (evolving async I/O abstraction visible in mb09.zig via std.Io.Threaded.init_single_threaded and threaded.io()), and absence of language-level async/await syntax as of the evaluated Zig version. | mb09.zig demonstrates the std.Io abstraction: an explicit Io interface object (threaded.io()) is passed to I/O calls, and std.Io.Threaded.init_single_threaded is used to select a concrete (currently single-threaded) execution strategy -- this shows Zig's concurrency model is being redesigned around an explicit, allocator-like Io capability rather than implicit async keywords. | Zig provides std.Thread for OS threads, std.Thread.Mutex, Condition, RwLock for synchronization primitives, and std.atomic for lock-free primitives, all as ordinary library code with no special compiler magic -- consistent with Zig's no-hidden-control-flow philosophy. | There is no built-in colorless async/await language keyword pipeline stabilized at the evaluated version (Zig's async/await was removed and is being replaced by the Io interface pattern seen above), so structured concurrency and cooperative scheduling are not yet a stable first-class langua\u2026",
+          "parallel_execution": "Recertified level 4 under the current criterion: The normal language/runtime model supports genuine parallel execution for applicable workloads without a fundamental default bottleneck or undocumented caveat. Evidence basis: The Io-based concurrency redesign was still in flux at the evaluated Zig version, so ergonomics and stability of structured async are lower than in languages with a settled concurrency story. | Static language-design analysis based on Zig's std.Thread, std.Io (evolving async I/O abstraction visible in mb09.zig via std.Io.Threaded.init_single_threaded and threaded.io()), and absence of language-level async/await syntax as of the evaluated Zig version. | mb09.zig demonstrates the std.Io abstraction: an explicit Io interface object (threaded.io()) is passed to I/O calls, and std.Io.Threaded.init_single_threaded is used to select a concrete (currently single-threaded) execution strategy -- this shows Zig's concurrency model is being redesigned around an explicit, allocator-like Io capability rather than implicit async keywords. | Zig provides std.Thread for OS threads, std.Thread.Mutex, Condition, RwLock for synchronization primitives, and std.atomic for lock-free primitives, all as ordinary library code with no special compiler magic -- consistent with Zig's no-hidden-control-flow philosophy. | There is no built-in colorless async/await language keyword pipeline stabilized at the evaluated version (Zig's async/await was removed and is being replaced by the Io interface pattern seen above), so structured concurrency and cooperative scheduling are not yet a stable first-class langua\u2026",
+          "race_safety": "Recertified level 1 under the current criterion: The language provides strong static or runtime mechanisms to prevent/detect data races and unsafe concurrent access, with unsafe escape hatches explicit. Evidence basis: The Io-based concurrency redesign was still in flux at the evaluated Zig version, so ergonomics and stability of structured async are lower than in languages with a settled concurrency story. | Static language-design analysis based on Zig's std.Thread, std.Io (evolving async I/O abstraction visible in mb09.zig via std.Io.Threaded.init_single_threaded and threaded.io()), and absence of language-level async/await syntax as of the evaluated Zig version. | mb09.zig demonstrates the std.Io abstraction: an explicit Io interface object (threaded.io()) is passed to I/O calls, and std.Io.Threaded.init_single_threaded is used to select a concrete (currently single-threaded) execution strategy -- this shows Zig's concurrency model is being redesigned around an explicit, allocator-like Io capability rather than implicit async keywords. | Zig provides std.Thread for OS threads, std.Thread.Mutex, Condition, RwLock for synchronization primitives, and std.atomic for lock-free primitives, all as ordinary library code with no special compiler magic -- consistent with Zig's no-hidden-control-flow philosophy. | There is no built-in colorless async/await language keyword pipeline stabilized at the evaluated version (Zig's async/await was removed and is being replaced by the Io interface pattern seen above), so structured concurrency and cooperative scheduling are not yet a stable first-class langua\u2026",
+          "synchronization_channels": "Recertified level 4 under the current criterion: Core primitives for synchronization/message passing/shared-state coordination are coherent, documented and practical. Evidence basis: The Io-based concurrency redesign was still in flux at the evaluated Zig version, so ergonomics and stability of structured async are lower than in languages with a settled concurrency story. | Static language-design analysis based on Zig's std.Thread, std.Io (evolving async I/O abstraction visible in mb09.zig via std.Io.Threaded.init_single_threaded and threaded.io()), and absence of language-level async/await syntax as of the evaluated Zig version. | mb09.zig demonstrates the std.Io abstraction: an explicit Io interface object (threaded.io()) is passed to I/O calls, and std.Io.Threaded.init_single_threaded is used to select a concrete (currently single-threaded) execution strategy -- this shows Zig's concurrency model is being redesigned around an explicit, allocator-like Io capability rather than implicit async keywords. | Zig provides std.Thread for OS threads, std.Thread.Mutex, Condition, RwLock for synchronization primitives, and std.atomic for lock-free primitives, all as ordinary library code with no special compiler magic -- consistent with Zig's no-hidden-control-flow philosophy. | There is no built-in colorless async/await language keyword pipeline stabilized at the evaluated version (Zig's async/await was removed and is being replaced by the Io interface pattern seen above), so structured concurrency and cooperative scheduling are not yet a stable first-class langua\u2026"
+        },
+        "component_levels": {
+          "async_structured": 2,
+          "error_cancel_propagation": 2,
+          "parallel_execution": 4,
+          "race_safety": 1,
+          "synchronization_channels": 4
+        },
+        "evidence_refs": [
+          "template/programs/zig/micro",
+          "template/programs/zig/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 62,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "a57113d41323b5bb04732940680e0f0cd69c7bf08baefdb6b61824bc412a925e",
+          "source_record": "benchmark/cache/v1/language-quality/zig/310c0a0cb111a930df7e645d563e7531edcf1f216d8620bac5732c6662dfefc1.json",
+          "source_record_sha256": "7245a48a8a183ecca385de19bc3ec0ad6f53b8c9cc402533a81444a2ca5f5b09",
+          "source_result_sha256": "d8a18f1b9f0faf9d0fae10dc5071d161c5998a8b2262318fd4db76d18159c51b",
+          "source_run_id": "2026-09-22-62bb50a-gh2"
+        },
+        "rubric_id": "language-quality.concurrency.v1",
+        "runner_score_0_100": 65,
+        "selection_rule": "Judge intrinsic concurrency/parallelism semantics and core runtime primitives. External frameworks and debugger/tool maturity are out of scope."
+      },
+      "metric.ffi_interoperability_design": {
+        "component_findings": {
+          "abi_calling_control": "Recertified level 4 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: C++ name-mangled symbols and templates are not interoperable without an extern C shim, matching common practice in comparable systems languages; this is a design constraint, not unique to Zig. | Static language-design analysis of Zig's C interoperability model, informed by reading assigned micro/adversarial program sources (e.g. mb09.zig using std.heap.c_allocator, std.process.Init.Minimal, std.Io.File for OS-level syscall interfacing) which demonstrate native, zero-wrapper access to C ABI facilities directly from idiomatic Zig code. | Zig can directly @cImport C headers with no binding-generation step and no separate IDL, translating C declarations into native Zig types at compile time. | Zig structs/enums/unions can be declared extern to guarantee C-compatible ABI layout, and functions can be declared export or callconv(.C) to be called from C or to call into C with zero overhead (no marshalling layer, no runtime boxing). | c_allocator (seen used directly in mb09.zig) demonstrates first-class direct use of libc malloc/free as an Allocator, evidencing that Zig treats C interop as a built-in language citizen rather than a bolted-on FFI library. | Zig has no hidden runtime (no GC, no exception unwinding ABI mismatch, no implicit stack frames) so crossing the C boundary requires no runtime shims -- calling convention and layout compatibility is sufficient. | Cross-language safety\u2026",
+          "bidirectional_callbacks": "Recertified level 4 under the current criterion: Embedding, callbacks/function pointers or equivalent bidirectional interoperation are supported by a coherent language design rather than only bespoke glue. Evidence basis: C++ name-mangled symbols and templates are not interoperable without an extern C shim, matching common practice in comparable systems languages; this is a design constraint, not unique to Zig. | Static language-design analysis of Zig's C interoperability model, informed by reading assigned micro/adversarial program sources (e.g. mb09.zig using std.heap.c_allocator, std.process.Init.Minimal, std.Io.File for OS-level syscall interfacing) which demonstrate native, zero-wrapper access to C ABI facilities directly from idiomatic Zig code. | Zig can directly @cImport C headers with no binding-generation step and no separate IDL, translating C declarations into native Zig types at compile time. | Zig structs/enums/unions can be declared extern to guarantee C-compatible ABI layout, and functions can be declared export or callconv(.C) to be called from C or to call into C with zero overhead (no marshalling layer, no runtime boxing). | c_allocator (seen used directly in mb09.zig) demonstrates first-class direct use of libc malloc/free as an Allocator, evidencing that Zig treats C interop as a built-in language citizen rather than a bolted-on FFI library. | Zig has no hidden runtime (no GC, no exception unwinding ABI mismatch, no implicit stack frames) so crossing the C boundary requires no runtime shims -- calling convention and layout compatibility is sufficient. | Cross-language safety\u2026",
+          "foreign_declaration": "Recertified level 4 under the current criterion: Foreign symbols/functions/types can be declared or imported with explicit, understandable boundary syntax. Evidence basis: C++ name-mangled symbols and templates are not interoperable without an extern C shim, matching common practice in comparable systems languages; this is a design constraint, not unique to Zig. | Static language-design analysis of Zig's C interoperability model, informed by reading assigned micro/adversarial program sources (e.g. mb09.zig using std.heap.c_allocator, std.process.Init.Minimal, std.Io.File for OS-level syscall interfacing) which demonstrate native, zero-wrapper access to C ABI facilities directly from idiomatic Zig code. | Zig can directly @cImport C headers with no binding-generation step and no separate IDL, translating C declarations into native Zig types at compile time. | Zig structs/enums/unions can be declared extern to guarantee C-compatible ABI layout, and functions can be declared export or callconv(.C) to be called from C or to call into C with zero overhead (no marshalling layer, no runtime boxing). | c_allocator (seen used directly in mb09.zig) demonstrates first-class direct use of libc malloc/free as an Allocator, evidencing that Zig treats C interop as a built-in language citizen rather than a bolted-on FFI library. | Zig has no hidden runtime (no GC, no exception unwinding ABI mismatch, no implicit stack frames) so crossing the C boundary requires no runtime shims -- calling convention and layout compatibility is sufficient. | Cross-language safety\u2026",
+          "ownership_lifetime_boundary": "Recertified level 3 under the current criterion: Ownership, lifetime, allocation and error responsibilities across the foreign boundary can be expressed explicitly enough to avoid hidden hazards. Evidence basis: C++ name-mangled symbols and templates are not interoperable without an extern C shim, matching common practice in comparable systems languages; this is a design constraint, not unique to Zig. | Static language-design analysis of Zig's C interoperability model, informed by reading assigned micro/adversarial program sources (e.g. mb09.zig using std.heap.c_allocator, std.process.Init.Minimal, std.Io.File for OS-level syscall interfacing) which demonstrate native, zero-wrapper access to C ABI facilities directly from idiomatic Zig code. | Zig can directly @cImport C headers with no binding-generation step and no separate IDL, translating C declarations into native Zig types at compile time. | Zig structs/enums/unions can be declared extern to guarantee C-compatible ABI layout, and functions can be declared export or callconv(.C) to be called from C or to call into C with zero overhead (no marshalling layer, no runtime boxing). | c_allocator (seen used directly in mb09.zig) demonstrates first-class direct use of libc malloc/free as an Allocator, evidencing that Zig treats C interop as a built-in language citizen rather than a bolted-on FFI library. | Zig has no hidden runtime (no GC, no exception unwinding ABI mismatch, no implicit stack frames) so crossing the C boundary requires no runtime shims -- calling convention and layout compatibility is sufficient. | Cross-language safety\u2026",
+          "type_layout_mapping": "Recertified level 4 under the current criterion: Primitive/aggregate/string/pointer or equivalent boundary representations have clear mapping rules and layout control where needed. Evidence basis: C++ name-mangled symbols and templates are not interoperable without an extern C shim, matching common practice in comparable systems languages; this is a design constraint, not unique to Zig. | Static language-design analysis of Zig's C interoperability model, informed by reading assigned micro/adversarial program sources (e.g. mb09.zig using std.heap.c_allocator, std.process.Init.Minimal, std.Io.File for OS-level syscall interfacing) which demonstrate native, zero-wrapper access to C ABI facilities directly from idiomatic Zig code. | Zig can directly @cImport C headers with no binding-generation step and no separate IDL, translating C declarations into native Zig types at compile time. | Zig structs/enums/unions can be declared extern to guarantee C-compatible ABI layout, and functions can be declared export or callconv(.C) to be called from C or to call into C with zero overhead (no marshalling layer, no runtime boxing). | c_allocator (seen used directly in mb09.zig) demonstrates first-class direct use of libc malloc/free as an Allocator, evidencing that Zig treats C interop as a built-in language citizen rather than a bolted-on FFI library. | Zig has no hidden runtime (no GC, no exception unwinding ABI mismatch, no implicit stack frames) so crossing the C boundary requires no runtime shims -- calling convention and layout compatibility is sufficient. | Cross-language safety\u2026"
+        },
+        "component_levels": {
+          "abi_calling_control": 4,
+          "bidirectional_callbacks": 4,
+          "foreign_declaration": 4,
+          "ownership_lifetime_boundary": 3,
+          "type_layout_mapping": 4
+        },
+        "evidence_refs": [
+          "template/programs/zig/micro",
+          "template/programs/zig/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 92,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "913d0b00c5bbcd17f526bcf8f702e19177a4231234b41feaece90e3f689c5021",
+          "source_record": "benchmark/cache/v1/language-quality/zig/310c0a0cb111a930df7e645d563e7531edcf1f216d8620bac5732c6662dfefc1.json",
+          "source_record_sha256": "7245a48a8a183ecca385de19bc3ec0ad6f53b8c9cc402533a81444a2ca5f5b09",
+          "source_result_sha256": "d8a18f1b9f0faf9d0fae10dc5071d161c5998a8b2262318fd4db76d18159c51b",
+          "source_run_id": "2026-09-22-62bb50a-gh2"
+        },
+        "rubric_id": "language-quality.ffi-design.v1",
+        "runner_score_0_100": 95,
+        "selection_rule": "Judge intrinsic FFI/ABI boundary design, not breadth of existing third-party bindings (Ecosystem)."
+      }
+    },
+    "requirements": {
+      "metric.concurrency": {
+        "Zig": 65.0
+      },
+      "metric.ffi_interoperability_design": {
+        "Zig": 95.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "dac40783d4512f50fb1fd6ec240591c69d1fd674035bdaeb65a35b5f1dffbae6",
+  "schema_version": 1
+}

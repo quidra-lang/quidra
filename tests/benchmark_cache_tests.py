@@ -1327,6 +1327,61 @@ def assert_evaluation_scoped_primary_cache() -> None:
 
 
 
+
+def assert_ecosystem_snapshot_recertifies_under_current_validator() -> None:
+    """Legacy Ecosystem evidence can become a v2 hit without another provider call."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        snapshot_source = (
+            ROOT
+            / "benchmark/cache/snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+        )
+        snapshot_dest = (
+            root / "cache/snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+        )
+        snapshot_dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(snapshot_source, snapshot_dest)
+        run = benchmark.json_load(root / "run.json")
+        run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
+        benchmark.json_dump(root / "run.json", run)
+
+        unit, task = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+        pair = benchmark.cache_fingerprint(root, unit, task)
+        assert pair is not None
+        fingerprint, payload = pair
+
+        snapshot_path, record, problem = (
+            benchmark.ecosystem_snapshot_recertification_record(
+                root, unit, task, payload
+            )
+        )
+        assert problem is None and snapshot_path is not None and record is not None
+        assert record["fingerprint"] == fingerprint
+        assert record["certification"][
+            "ecosystem_snapshot_recertification_candidate"
+        ] is True
+
+        hits = benchmark.hydrate_certified_cache(root, "ecosystem")
+        assert hits == 1
+        result = benchmark.json_load(
+            root / "work/agents/worker-cache-test--python/result.json"
+        )
+        snapshot = benchmark.json_load(snapshot_dest)
+        expected = snapshot["languages"]["Python"]["metrics"][
+            "metric.documentation_quality"
+        ]["score_0_100"]
+        assert result["requirements"]["metric.documentation_quality"]["Python"] == expected
+        receipt = benchmark.json_load(
+            root / "work/agents/worker-cache-test--python/cache_receipt.json"
+        )
+        assert (
+            receipt["compatibility_mode"]
+            == "ecosystem-runner-rubric-v2-snapshot"
+        )
+        assert receipt["certification"]["current_validator_revalidated"] is True
+
+
 def assert_semantic_validator_recertification_is_narrow() -> None:
     """Old SC evidence may cross an epoch only by passing today's validator."""
     with tempfile.TemporaryDirectory() as td:
@@ -1940,6 +1995,7 @@ def main() -> None:
     assert_packet_paid_response_commit_is_replayable()
     assert_empty_cache_impact_is_a_valid_first_run()
     assert_evaluation_scoped_primary_cache()
+    assert_ecosystem_snapshot_recertifies_under_current_validator()
     assert_semantic_validator_recertification_is_narrow()
     assert_semantic_recertification_requires_exact_canonical_fragments()
     assert_budget_plan_excludes_complete_units()

@@ -101,3 +101,8 @@ Production requests may also be evaluation-scoped. When `benchmark/.run-producti
 contains `evaluation: <primary_id>`, only that Primary is dispatched. Its validated units are checkpointed here without requiring a global finalize; a later
 full run can hydrate them and pay only for cache misses. Quidra work is reused too when its declared versions, exact Task Packet, and trusted compiler/runtime execution identity remain compatible.
 Use `evaluation: all` (or omit the field) for a normal full benchmark.
+
+
+## Ecosystem v2 snapshot recertification
+
+The trusted snapshot under `snapshots/ecosystem/` centrally re-adjudicates preserved paid evidence under the current runner-owned rubric. It is validated again during ordinary hydration and never copies the legacy language-local normalized score.

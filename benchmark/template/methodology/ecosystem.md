@@ -100,6 +100,23 @@ The trusted runner validates this structure and mechanically computes the 0–10
 
 A missing applicable capability is scored through the frozen rubric rather than silently changed to `N/A`. If a worker changes the rubric, omits a component, uses a non-integer/out-of-range level, or provides no evidence source, its result is invalid and must be retried rather than scored.
 
+### Certified evidence recertification
+
+A rubric revision does not require throwing away already-paid evidence. Historical
+Ecosystem worker results may be used only as **evidence sources**, never as authoritative
+normalized scores, when their language-local rubric differs from the current runner-owned
+rubric. A trusted, frozen recertification snapshot may centrally classify that preserved
+evidence into the current five component levels. During a run, the snapshot is only a
+candidate cache source: the runner synthesizes the ordinary current evidence shape and
+passes it through this section's complete current validator and score arithmetic before a
+leaf may become COMPLETE or be checkpointed under the current exact fingerprint.
+
+The snapshot is bound to the same rubric set, evidence snapshot date and declared
+Ecosystem epoch. Its Quidra rows are additionally bound to the exact compiler/runtime
+execution identity. If any of those identities change, the affected row is not reused and
+ordinary current evidence collection runs instead. This mechanism reduces repeated paid
+retrieval without weakening the frozen v2 rubric or allowing a legacy score to bypass it.
+
 ### Predeclared sampling
 
 Do not select evidence by "first search result", "first alphabetical hit", or any other retrieval-order accident.

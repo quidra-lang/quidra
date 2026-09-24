@@ -7064,6 +7064,217 @@ def find_validator_recertifiable_cache_record(
             return None, None, "semantic recertification projection produced no record"
     return path, projected, None
 
+
+def ecosystem_snapshot_recertification_record(
+    root: Path,
+    unit: dict[str, Any],
+    task: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    """Synthesize current Ecosystem evidence from the trusted v2 snapshot cache.
+
+    Historical workers gathered valuable evidence but some used language-local
+    rubrics.  This bridge never reuses those legacy normalized scores.  The
+    centrally reviewed snapshot stores only current-v2 component judgments and
+    provenance back to the preserved paid work.  We synthesize the ordinary
+    current worker shape, then hydrate_certified_cache runs the full current
+    validator/runner arithmetic before the leaf may complete or be checkpointed
+    under today's exact fingerprint.
+    """
+    if str(unit.get("evaluation") or "") != "ecosystem":
+        return None, None, None
+    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+    requirement_ids = [
+        str(value) for value in (unit.get("requirement_ids") or [])
+        if str(value).startswith("metric.")
+    ]
+    if len(assigned) != 1 or not requirement_ids:
+        return None, None, None
+
+    cfg = (
+        (cache_policy(root).get("reuse_conditions") or {})
+        .get("ecosystem_snapshot_recertification")
+    )
+    if not isinstance(cfg, dict):
+        return None, None, None
+    relative = str(cfg.get("path") or "")
+    rel_path = PurePosixPath(relative)
+    if (
+        not relative
+        or rel_path.is_absolute()
+        or any(part in {"", ".", ".."} for part in rel_path.parts)
+    ):
+        return None, None, "invalid Ecosystem snapshot-cache path in cache policy"
+    path = require_under(root / "cache" / rel_path, root)
+    if not path.is_file():
+        return None, None, None
+    try:
+        snapshot = json_load(path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        return None, None, (
+            "Ecosystem snapshot cache is unreadable/corrupt: "
+            f"{type(exc).__name__}: {exc}"
+        )
+    if snapshot.get("schema_version") != 1 or snapshot.get("frozen") is not True:
+        return None, None, "Ecosystem snapshot cache must be frozen schema_version 1"
+
+    asset = ecosystem_rubric_asset(root)
+    expected_date = str((asset.get("evidence_policy") or {}).get("snapshot_date") or "")
+    if snapshot.get("rubric_set_id") != asset.get("rubric_set_id"):
+        return None, None, "Ecosystem snapshot rubric_set_id differs from current frozen rubric"
+    if snapshot.get("snapshot_date") != expected_date:
+        return None, None, "Ecosystem snapshot date differs from current frozen evidence date"
+    if snapshot.get("cache_epoch") != cache_epoch(root, "ecosystem"):
+        return None, None, "Ecosystem snapshot epoch differs from current cache epoch"
+
+    language = assigned[0]
+    if language == str(cache_policy(root).get("target_language") or "Quidra"):
+        current_identity = current_quidra_execution_identity(root)
+        snapshot_identity = snapshot.get("quidra_execution_identity")
+        if current_identity is None or snapshot_identity != current_identity:
+            # A changed target is not a corrupt snapshot.  It simply needs fresh
+            # Quidra evidence; comparison-language snapshot rows remain reusable.
+            return None, None, None
+
+    language_row = (snapshot.get("languages") or {}).get(language)
+    if not isinstance(language_row, dict):
+        return None, None, f"Ecosystem snapshot has no row for {language}"
+    snapshot_metrics = language_row.get("metrics")
+    if not isinstance(snapshot_metrics, dict):
+        return None, None, f"Ecosystem snapshot metrics are missing for {language}"
+
+    evidence: dict[str, Any] = {
+        "snapshot_recertification": {
+            "snapshot_id": snapshot.get("snapshot_id"),
+            "rubric_set_id": snapshot.get("rubric_set_id"),
+            "source": path.relative_to(root / "cache").as_posix(),
+            "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        }
+    }
+    requirements: dict[str, dict[str, float]] = {}
+    points = asset["scoring"]["level_points"]
+    for rid in requirement_ids:
+        rubric = asset["metrics"].get(rid)
+        row = snapshot_metrics.get(rid)
+        if not isinstance(rubric, dict) or not isinstance(row, dict):
+            return None, None, f"Ecosystem snapshot is missing {language}/{rid}"
+        component_ids = [str(item["id"]) for item in rubric["components"]]
+        levels = row.get("component_levels")
+        findings = row.get("component_findings")
+        if not isinstance(levels, dict) or set(levels) != set(component_ids):
+            return None, None, (
+                f"Ecosystem snapshot {language}/{rid} component_levels differ "
+                "from the current rubric"
+            )
+        if not isinstance(findings, dict) or set(findings) != set(component_ids):
+            return None, None, (
+                f"Ecosystem snapshot {language}/{rid} component_findings differ "
+                "from the current rubric"
+            )
+        expected_score = 0
+        normalized_levels: dict[str, int] = {}
+        for cid in component_ids:
+            level = levels[cid]
+            if (
+                isinstance(level, bool)
+                or not isinstance(level, int)
+                or level not in {0, 1, 2, 3, 4}
+            ):
+                return None, None, (
+                    f"Ecosystem snapshot {language}/{rid}/{cid} has invalid level"
+                )
+            if not isinstance(findings[cid], str) or not findings[cid].strip():
+                return None, None, (
+                    f"Ecosystem snapshot {language}/{rid}/{cid} has empty finding"
+                )
+            normalized_levels[cid] = level
+            expected_score += int(points[str(level)])
+        if row.get("score_0_100") != expected_score:
+            return None, None, (
+                f"Ecosystem snapshot {language}/{rid} score does not match "
+                "current runner arithmetic"
+            )
+        sources = row.get("sources")
+        if (
+            not isinstance(sources, list)
+            or not sources
+            or not all(isinstance(value, str) and value.strip() for value in sources)
+        ):
+            return None, None, f"Ecosystem snapshot {language}/{rid} has no sources"
+        candidate_universe = row.get("candidate_universe")
+        if not isinstance(candidate_universe, str) or not candidate_universe.strip():
+            return None, None, (
+                f"Ecosystem snapshot {language}/{rid} has no candidate universe"
+            )
+        limitations = row.get("limitations")
+        if not isinstance(limitations, str):
+            return None, None, (
+                f"Ecosystem snapshot {language}/{rid} limitations must be a string"
+            )
+        evidence[rid] = {
+            "rubric_id": rubric["rubric_id"],
+            "component_levels": normalized_levels,
+            "component_findings": dict(findings),
+            "sources": list(sources),
+            "snapshot_date": expected_date,
+            "limitations": limitations,
+            "candidate_universe": candidate_universe,
+            "selection_rule": rubric["selection_rule"],
+            "retrieval_route": "provider-brokered web search",
+            "legacy_score_0_100": row.get("legacy_score_0_100"),
+            "source_work_unit_id": row.get("source_work_unit_id"),
+        }
+        requirements[rid] = {language: float(expected_score)}
+
+    result = {
+        "schema_version": 1,
+        "evaluation": "ecosystem",
+        "requirements": requirements,
+        "evidence": evidence,
+    }
+    result_raw = json.dumps(
+        result, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    fingerprint = sha256_bytes(
+        json.dumps(
+            current_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    compatibility: dict[str, Any] = {}
+    if language == str(cache_policy(root).get("target_language") or "Quidra"):
+        compatibility["quidra_execution_identity"] = snapshot.get(
+            "quidra_execution_identity"
+        )
+    record = {
+        "schema_version": 1,
+        "fingerprint": fingerprint,
+        "fingerprint_payload": current_payload,
+        "evaluation": "ecosystem",
+        "assigned_languages": assigned,
+        "result": result,
+        "result_sha256": sha256_bytes(result_raw),
+        "certification": {
+            "unit_complete": True,
+            "primary_complete": False,
+            "validator_pass": False,
+            "ecosystem_snapshot_recertification_candidate": True,
+            "ecosystem_snapshot_id": snapshot.get("snapshot_id"),
+        },
+        "provenance": {
+            "run_id": f"snapshot:{snapshot.get('snapshot_id')}",
+            "work_unit_id": unit.get("id"),
+            "prompt_sha256": task.get("prompt_sha256"),
+            "projection_source_fingerprint": sha256_file(path),
+        },
+    }
+    if compatibility:
+        record["compatibility"] = compatibility
+    return path, record, None
+
+
 def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
     payload = record.get("fingerprint_payload")
     if record.get("schema_version") != 1 or not isinstance(payload, dict):
@@ -7518,41 +7729,58 @@ def hydrate_certified_cache(
             if compatible_path is not None and record is not None:
                 compatibility_mode = "scoped-input-projection"
             else:
-                compatible_path, record, recertification_problem = (
-                    find_validator_recertifiable_cache_record(
-                        root, unit, payload, task
+                compatible_path, record, ecosystem_problem = (
+                    ecosystem_snapshot_recertification_record(
+                        root, unit, task, payload
                     )
                 )
-                if recertification_problem:
+                if ecosystem_problem:
                     record_miss(
                         uid,
                         fingerprint,
                         unit,
-                        recertification_problem,
+                        ecosystem_problem,
                         invalidated=True,
                     )
                     continue
                 if compatible_path is not None and record is not None:
-                    compatibility_mode = "validator-recertification"
+                    compatibility_mode = "ecosystem-runner-rubric-v2-snapshot"
                 else:
-                    compatible_path, record, projection_problem = (
-                        find_adversarial_language_projection_cache_record(
-                            root, unit, payload
+                    compatible_path, record, recertification_problem = (
+                        find_validator_recertifiable_cache_record(
+                            root, unit, payload, task
                         )
                     )
-                    if projection_problem:
+                    if recertification_problem:
                         record_miss(
                             uid,
                             fingerprint,
                             unit,
-                            projection_problem,
+                            recertification_problem,
                             invalidated=True,
                         )
                         continue
                     if compatible_path is not None and record is not None:
-                        compatibility_mode = (
-                            "legacy-adversarial-cohort-to-language-shard"
+                        compatibility_mode = "validator-recertification"
+                    else:
+                        compatible_path, record, projection_problem = (
+                            find_adversarial_language_projection_cache_record(
+                                root, unit, payload
+                            )
                         )
+                        if projection_problem:
+                            record_miss(
+                                uid,
+                                fingerprint,
+                                unit,
+                                projection_problem,
+                                invalidated=True,
+                            )
+                            continue
+                        if compatible_path is not None and record is not None:
+                            compatibility_mode = (
+                                "legacy-adversarial-cohort-to-language-shard"
+                            )
             if compatible_path is None or record is None:
                 record_miss(
                     uid,
@@ -14706,7 +14934,54 @@ def cache_impact(source: Path) -> dict[str, Any]:
     }
     hash_cache: dict[str, str | None] = {}
     invalid: list[dict[str, Any]] = []
-    valid = 0
+    superseded: list[dict[str, Any]] = []
+    ecosystem_snapshot_cfg = (
+        (policy.get("reuse_conditions") or {}).get(
+            "ecosystem_snapshot_recertification"
+        )
+    )
+    ecosystem_snapshot: dict[str, Any] | None = None
+    ecosystem_snapshot_path: Path | None = None
+    ecosystem_snapshot_common_ok = False
+    ecosystem_snapshot_quidra_ok = False
+    if isinstance(ecosystem_snapshot_cfg, dict):
+        relative = str(ecosystem_snapshot_cfg.get("path") or "")
+        rel_path = PurePosixPath(relative)
+        if (
+            relative
+            and not rel_path.is_absolute()
+            and not any(part in {"", ".", ".."} for part in rel_path.parts)
+        ):
+            candidate = source / "benchmark" / "cache" / rel_path
+            if candidate.is_file():
+                try:
+                    ecosystem_snapshot = json_load(candidate)
+                    ecosystem_snapshot_path = candidate
+                    rubric_asset = json_load(
+                        template / "methodology-assets" / "ecosystem" / "rubrics.json"
+                    )
+                    ecosystem_snapshot_common_ok = bool(
+                        ecosystem_snapshot.get("schema_version") == 1
+                        and ecosystem_snapshot.get("frozen") is True
+                        and ecosystem_snapshot.get("rubric_set_id")
+                        == rubric_asset.get("rubric_set_id")
+                        and ecosystem_snapshot.get("snapshot_date")
+                        == (rubric_asset.get("evidence_policy") or {}).get(
+                            "snapshot_date"
+                        )
+                        and ecosystem_snapshot.get("cache_epoch")
+                        == declared.get("ecosystem")
+                    )
+                    ecosystem_snapshot_quidra_ok = bool(
+                        ecosystem_snapshot_common_ok
+                        and ecosystem_snapshot.get("quidra_execution_identity")
+                        == current_target_execution
+                    )
+                except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                    ecosystem_snapshot = None
+                    ecosystem_snapshot_path = None
+                    ecosystem_snapshot_common_ok = False
+                    ecosystem_snapshot_quidra_ok = False
     for record_path in record_paths:
         try:
             record = json_load(record_path)
@@ -14739,6 +15014,26 @@ def cache_impact(source: Path) -> dict[str, Any]:
             if name in unit_hashes and path.is_file() and sha256_file(path) != unit_hashes[name]:
                 changed.append(name)
         evaluation = str(payload.get("evaluation") or record.get("evaluation") or "")
+        if evaluation == "ecosystem" and ecosystem_snapshot_common_ok:
+            assigned = [str(value) for value in (payload.get("assigned_languages") or [])]
+            snapshot_covers_record = (
+                target_language not in assigned or ecosystem_snapshot_quidra_ok
+            )
+            if snapshot_covers_record:
+                superseded.append({
+                    "record": record_path.relative_to(source).as_posix(),
+                    "work_unit_id": (record.get("provenance") or {}).get("work_unit_id"),
+                    "evaluation": evaluation,
+                    "reason": "covered by frozen runner-rubric-v2 snapshot recertification",
+                    "snapshot": (
+                        ecosystem_snapshot_path.relative_to(
+                            source / "benchmark" / "cache"
+                        ).as_posix()
+                        if ecosystem_snapshot_path is not None
+                        else None
+                    ),
+                })
+                continue
         if "primary_config" in unit_hashes:
             current_primary = primary_config_projection_from_data(
                 json_load(template / "config" / "primary.json"), evaluation
@@ -14813,9 +15108,13 @@ def cache_impact(source: Path) -> dict[str, Any]:
         "schema_version": 1,
         "valid": valid,
         "invalid": invalid,
+        "superseded": superseded,
+        "superseded_count": len(superseded),
         "note": "exact_task_packet_sha256 is not recomputed here; scoped methodology "
                 "or assigned-requirement prompt changes show up in the synthetic run, "
-                "while legacy scoped records are revalidated during cache hydration",
+                "while legacy scoped records are revalidated during cache hydration. "
+                "Historical Ecosystem records covered by the frozen v2 snapshot are "
+                "reported as superseded rather than paid misses.",
     }
 
 

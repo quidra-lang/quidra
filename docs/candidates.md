@@ -2,17 +2,10 @@
 
 These are proposed language changes, not current specification.
 
-## Tensor `!=` should negate `==`
+## Separate array equality from tensor comparisons
 
 **Status:** Candidate
 
-Current tensor `!=` is true only when every corresponding element is unequal. This breaks the usual invariant that `a != b` means `!(a == b)`.
-
-Proposed semantics for equal-shaped tensors:
-
-- `a == b`: true iff every corresponding element is equal.
-- `a != b`: exactly `!(a == b)`; true iff at least one corresponding element differs.
-- Empty equal-shaped tensors therefore satisfy `a == b` and not `a != b`.
-- Other relational operators remain unchanged unless reconsidered separately.
-
-If an “all corresponding elements are unequal” operation is useful, expose it explicitly rather than overloading `!=`.
+- Array `==` / `!=` remain whole-value comparisons returning one `bool`; `a != b` is exactly `!(a == b)`.
+- Tensor `==`, `!=`, `<`, `<=`, `>`, and `>=` are elementwise and return a same-shaped boolean tensor.
+- Whole-tensor predicates should use explicit reductions such as `all` / `any`, rather than changing comparison-operator meaning.

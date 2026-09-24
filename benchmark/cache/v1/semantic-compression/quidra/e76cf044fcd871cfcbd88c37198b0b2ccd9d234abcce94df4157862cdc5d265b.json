@@ -1,0 +1,379 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "e76cf044fcd871cfcbd88c37198b0b2ccd9d234abcce94df4157862cdc5d265b",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "892fe8689b08bfa22cbafd54659dedaf95b211b02127f6f836dad4eaed36a1d4",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.1",
+      "version": "0.2.1"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "afb9ca0a2199e5b4cf4afc93e71da2db1910b069f157eac8ac9b0bc2e3aaae60",
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.semantic_locality"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-local--part-2--quidra",
+    "work_unit_id": "sc-metrics-local--part-2--quidra",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "892fe8689b08bfa22cbafd54659dedaf95b211b02127f6f836dad4eaed36a1d4",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "sc-metrics-local--part-2--quidra"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.semantic_locality": {
+        "basis": "all-fragments (Quidra-only; this worker reports Quidra's own basis, the runner performs any required common-basis realignment across the 10 languages)",
+        "excluded_none_probe_count": 7,
+        "final_normalized_score_Quidra": 98.4,
+        "language": "Quidra",
+        "locality_advantage_notes": {
+          "F05.P1_aliasing_writable_aliasing": "0 hops (notable Quidra-specific locality strength): Quidra's call-argument grammar requires an explicit leading '&' at the call site for any reference/writable-alias argument ('argument = \"&\", identifier, \"=\", \"&\", expression | identifier, \"=\", expression | [\"&\"], expression'), and reference passing is 'explicit at both declaration and call sites'. Consequently a bare call f(x) with no '&' is, by local call-site syntax alone, provably by-value with no possible writable aliasing -- no consultation of f's parameter declaration is required to resolve this fact, unlike languages whose call syntax does not distinguish by-value from by-reference passing."
+        },
+        "method": "For each of the 44 frozen probes in capability_universe.json / semantic_site_matrix.json, the Quidra fragment implied by the canonical_task was constructed from the embedded Quidra language/architecture/diagnostics/grammar/LLM-guide documents. For each frozen site_id belonging to a supported (FULL or PARTIAL) probe, the number of required non-local lookups (callee signature, variable/type declaration, overload set, trait/interface implementation, imported definition, or global compiler mode) needed to resolve that site's semantic fact from the measured_fragment alone was recorded as an integer hop count >= 0. Probes for which Quidra has no documented supporting mechanism are recorded as NONE (support_factor 0) and are excluded from the locality basis per the interaction_with_quality_metrics rule (capability absence is scored exclusively through metric.capability_coverage, not through metric.semantic_locality).",
+        "none_probes": {
+          "F05.P3": "Quidra function values are explicitly capture-free ('It captures no local, receiver, top-level, or hidden environment'); a closure capturing enclosing local k is unsupported. N-1.",
+          "F09.P2": "The documented array 'sorted()' facility has no comparator/key/reverse-descriptor parameter in the given spec; only ascending order is documented for numeric/bool/string arrays. No standard explicit-descending facility exists. N-1.",
+          "F11.P2": "No documented sub-range/slice operation exists for ordinary growable T[] arrays in the given spec (slicing is documented only for bin, string, and tensor). N-1.",
+          "F14.P3": "Quidra classes have no inheritance/interface/open-extension mechanism ('Classes do not have a parent-class form ... no planned inheritance or dynamic-dispatch hierarchy'); enum alternative sets are also closed and cannot be extended from a separate unit. N-1.",
+          "F15.P3": "Quidra has no trait/interface/abstract-element-type mechanism enabling runtime dispatch across heterogeneous concrete types in one homogeneous sequence ('Method selection is static rather than dynamically dispatched'). N-1.",
+          "F17.P2": "No user-facing deterministic end-of-lifetime hook (destructor/deinit/drop) is documented for user-defined classes, and no general scoped close/dispose construct is documented beyond the standard-library file.Handle special case. N-1.",
+          "F20.P2": "No documented mechanism exists for a Quidra source function to be exported with C ABI and a stable unmangled symbol name; only inbound extern declarations are documented, and Quidra functions are always compiler-mangled under the n_* namespace. N-1."
+        },
+        "nonzero_hop_sites": {
+          "F05.P1:control_flow_effect": {
+            "hops": 1,
+            "reason": "The probe's own rule explicitly excludes callee f's declaration from the measured fragment ('f's own declaration is explicitly excluded from the token count and is counted as a non-local lookup for metric C'). Whether the bare call f(x) can propagate failure/non-return requires consulting f's signature (T | error, or an internal non-continuing fact), which is outside the fragment: 1 callee-signature lookup."
+          },
+          "F05.P1:externally_visible_side_effects": {
+            "hops": 1,
+            "reason": "Whether f performs I/O or other externally visible effects cannot be determined from the bare call-site syntax alone; it requires consulting f's declaration/body, which is outside the measured fragment: 1 lookup."
+          },
+          "F17.P1:lifetime_resource_effect": {
+            "hops": 1,
+            "reason": "Quidra guarantees deterministic release of file.Handle at end of lifetime including on the failure path ('If close() is not called, that owned handle closes its native file deterministically when the handle leaves its lifetime ... no defer or manual cleanup is required'), but this guarantee is a property of the standard-library type declaration for file.Handle rather than something stated in the local fragment text itself: 1 type-declaration lookup."
+          }
+        },
+        "per_probe_site_and_hop_table": [
+          {
+            "hops_sum": 0,
+            "probe_id": "F01.P1",
+            "sites": 4,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F01.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F02.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F02.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F03.P1",
+            "sites": 4,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F03.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F04.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F04.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F04.P3",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 2,
+            "note": "control_flow_effect=1, externally_visible_side_effects=1, all other sites=0",
+            "probe_id": "F05.P1",
+            "sites": 6,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "note": "put's full declaration is inside the measured fragment, so no external lookup is needed",
+            "probe_id": "F05.P2",
+            "sites": 6,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F06.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "note": "no native tuple/multi-binding form; substituted a small class with field access, fully local",
+            "p_letter": "P-a",
+            "probe_id": "F06.P2",
+            "sites": 5,
+            "support": "PARTIAL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F07.P1",
+            "sites": 4,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F07.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F08.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F08.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F09.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "excluded": true,
+            "probe_id": "F09.P2",
+            "support": "NONE"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F10.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F10.P2",
+            "sites": 4,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F11.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "excluded": true,
+            "probe_id": "F11.P2",
+            "support": "NONE"
+          },
+          {
+            "hops_sum": 0,
+            "note": "named substitution probe; hand-written match instead of a coalescing operator, still fully local",
+            "p_letter": "P-a",
+            "probe_id": "F12.P1",
+            "sites": 5,
+            "support": "PARTIAL"
+          },
+          {
+            "hops_sum": 0,
+            "note": "named substitution probe; hand-written match instead of optional-map, still fully local",
+            "p_letter": "P-a",
+            "probe_id": "F12.P2",
+            "sites": 4,
+            "support": "PARTIAL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F13.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F13.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F14.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F14.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "excluded": true,
+            "probe_id": "F14.P3",
+            "support": "NONE"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F15.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F15.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "excluded": true,
+            "probe_id": "F15.P3",
+            "support": "NONE"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F16.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F16.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 1,
+            "note": "lifetime_resource_effect=1, all other sites=0",
+            "probe_id": "F17.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "excluded": true,
+            "probe_id": "F17.P2",
+            "support": "NONE"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F18.P1",
+            "sites": 4,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "note": "privacy achieved via class-level private method rather than a module-level visibility modifier (Quidra has no free-function module-private form); both units are inside the measured fragment so no external lookup",
+            "p_letter": "P-a",
+            "probe_id": "F18.P2",
+            "sites": 5,
+            "support": "PARTIAL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F19.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F19.P2",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "hops_sum": 0,
+            "probe_id": "F20.P1",
+            "sites": 5,
+            "support": "FULL"
+          },
+          {
+            "excluded": true,
+            "probe_id": "F20.P2",
+            "support": "NONE"
+          }
+        ],
+        "supported_probe_count": 37,
+        "totals": {
+          "computed_score": 98.369,
+          "normalization_formula": "score = 100 / (1 + raw_average_hops_per_site)",
+          "normalization_rationale": "Lower average non-local lookup cost is better per methodology section C. This inverse mapping is monotone decreasing in raw hops, bounded in (0,100], equals exactly 100 at zero hops, and applies the same fixed formula regardless of language.",
+          "raw_average_hops_per_site": 0.016575829383886,
+          "total_lookup_hops": 3,
+          "total_sites_in_basis": 181
+        }
+      }
+    },
+    "requirements": {
+      "metric.semantic_locality": {
+        "Quidra": 98.4
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "2a04e9880c68908c0a26d7c318976fcb14dbbc2958e8f22c02e4035c73297f7e",
+  "schema_version": 1
+}

@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "frozen": true,
+  "rubric_set_id": "language-quality-design-runner-rubric-v1",
+  "purpose": "Freeze the intrinsic language/design metrics that cannot be reduced to direct execution measurements. The LLM classifies evidence into fixed component levels; the runner owns all arithmetic. Ecosystem maturity, popularity and present-day adoption are explicitly out of scope.",
+  "scoring": {
+    "component_count_per_metric": 5,
+    "component_weight_points": 20,
+    "allowed_levels": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "level_points": {
+      "0": 0,
+      "1": 5,
+      "2": 10,
+      "3": 15,
+      "4": 20
+    },
+    "level_definitions": {
+      "0": "Absent, fundamentally hostile to the criterion, or contradicted by the language/runtime's normal documented semantics.",
+      "1": "Rudimentary or high-friction: possible only through substantial ceremony, weak guarantees, ad-hoc conventions, or major semantic caveats.",
+      "2": "Usable baseline capability with meaningful limitations, ambiguity, ceremony, or gaps that ordinary users must manage.",
+      "3": "Strong, predictable and idiomatic capability with only moderate limitations or clearly bounded tradeoffs.",
+      "4": "First-class, explicit and low-friction design for the criterion, with strong guarantees and no material intrinsic gap under the frozen scope."
+    },
+    "metric_score_formula": "sum(level_points[component_level]) across the five fixed components; range 0..100",
+    "runner_owned": true
+  },
+  "evidence_policy": {
+    "network_allowed": false,
+    "source_priority": [
+      "language specification / official language reference present in the frozen inputs",
+      "documented standard/runtime semantics present in the frozen inputs",
+      "frozen representative programs/workloads",
+      "mechanically observed diagnostics or behavior already present in readable evidence"
+    ],
+    "symmetry_rule": "Use the same five components, generic level definitions and intrinsic-language boundary for every language. Do not reward language age, community size, package count, editor maturity, production adoption, or realized platform breadth; those belong to Ecosystem.",
+    "source_size_boundary": "Code Efficiency / Conciseness evaluates mandatory ceremony and semantic work per construct, not raw bytes/LOC/tokens; raw source size is already a separate runner-owned metric and must not be counted twice.",
+    "diagnostics_boundary": "Diagnostics evaluates the language/compiler/runtime diagnostic design exposed by normal use. Debugging-tool product maturity belongs to Ecosystem, while adversarial detection outcomes and Debuggability remain runner-owned Language Quality safety metrics.",
+    "na_rule": "A capability intentionally tested by a component is not N/A merely because the language lacks it; score the absence through the rubric. Use N/A only under the benchmark-wide genuine-inapplicability rule."
+  },
+  "metrics": {
+    "metric.code_efficiency_conciseness": {
+      "rubric_id": "language-quality.conciseness.v1",
+      "selection_rule": "Judge intrinsic mandatory ceremony for the same kinds of ordinary programs. Do not reuse raw LOC/bytes/tokens as the score and do not reward external libraries.",
+      "components": [
+        {
+          "id": "declaration_ceremony",
+          "criterion": "Routine variables, functions, parameters and returns can be expressed without disproportionate mandatory boilerplate.",
+          "weight_points": 20
+        },
+        {
+          "id": "control_data_ceremony",
+          "criterion": "Common control flow and collection/data manipulation avoid repetitive structural ceremony unrelated to the algorithm.",
+          "weight_points": 20
+        },
+        {
+          "id": "abstraction_ceremony",
+          "criterion": "Reusable abstractions such as types, interfaces/traits/generics or equivalent mechanisms can be declared and consumed without excessive scaffolding.",
+          "weight_points": 20
+        },
+        {
+          "id": "error_resource_ceremony",
+          "criterion": "Ordinary error/resource handling expresses intent without pervasive mandatory boilerplate while retaining clear semantics.",
+          "weight_points": 20
+        },
+        {
+          "id": "semantic_work_ratio",
+          "criterion": "Idiomatic source spends most syntax on domain/algorithm meaning rather than language-mandated plumbing; this is a qualitative ceremony judgment, not a second source-size measurement.",
+          "weight_points": 20
+        }
+      ]
+    },
+    "metric.readability": {
+      "rubric_id": "language-quality.readability.v1",
+      "selection_rule": "Judge readability of idiomatic code under the frozen corpus and documented syntax/semantics, without inventing human-study results.",
+      "components": [
+        {
+          "id": "local_intent_visibility",
+          "criterion": "A local expression/statement makes its operation and important effects reasonably apparent without unrelated context.",
+          "weight_points": 20
+        },
+        {
+          "id": "structural_clarity",
+          "criterion": "Blocks, declarations, calls and data construction have visually and syntactically clear structure.",
+          "weight_points": 20
+        },
+        {
+          "id": "consistency_regular_forms",
+          "criterion": "Similar concepts use regular forms with few special-case spellings or context-dependent surface rules.",
+          "weight_points": 20
+        },
+        {
+          "id": "name_type_signal",
+          "criterion": "The language permits names/types/signatures to communicate intent without forcing distracting noise or hiding essential information.",
+          "weight_points": 20
+        },
+        {
+          "id": "control_effect_traceability",
+          "criterion": "Control flow, mutation and exceptional/effectful behavior can be followed from ordinary idiomatic source with bounded cognitive indirection.",
+          "weight_points": 20
+        }
+      ]
+    },
+    "metric.functionality_expressiveness": {
+      "rubric_id": "language-quality.expressiveness.v1",
+      "selection_rule": "Judge intrinsic general-purpose expressive power available in the language/core runtime, not third-party package breadth.",
+      "components": [
+        {
+          "id": "data_modeling",
+          "criterion": "The language can model structured data and domain variants/invariants with practical first-class constructs.",
+          "weight_points": 20
+        },
+        {
+          "id": "abstraction_reuse",
+          "criterion": "Functions, modules/types and generic/polymorphic abstraction support reusable composition across ordinary programs.",
+          "weight_points": 20
+        },
+        {
+          "id": "higher_order_composition",
+          "criterion": "The language supports practical higher-order/compositional programming patterns where applicable without unnatural escape hatches.",
+          "weight_points": 20
+        },
+        {
+          "id": "systems_runtime_control",
+          "criterion": "The language exposes sufficient control over execution, resources, errors and interoperability for its claimed general-purpose scope.",
+          "weight_points": 20
+        },
+        {
+          "id": "feature_composability",
+          "criterion": "Major language features compose predictably rather than becoming unavailable or fragile when used together.",
+          "weight_points": 20
+        }
+      ]
+    },
+    "metric.diagnostics": {
+      "rubric_id": "language-quality.diagnostics.v1",
+      "selection_rule": "Judge built-in compiler/checker/runtime diagnostic design from normal language use; do not count external IDE/debugger maturity.",
+      "components": [
+        {
+          "id": "location_context",
+          "criterion": "Diagnostics identify the relevant source location and enough local context to find the failing construct.",
+          "weight_points": 20
+        },
+        {
+          "id": "cause_specificity",
+          "criterion": "Diagnostics distinguish meaningful error categories/root causes instead of collapsing failures into generic messages.",
+          "weight_points": 20
+        },
+        {
+          "id": "expected_actual",
+          "criterion": "Type/value/syntax contract failures report useful expected-versus-actual information or an equivalent precise explanation.",
+          "weight_points": 20
+        },
+        {
+          "id": "machine_stability",
+          "criterion": "Diagnostics expose stable structured codes/categories or otherwise predictable forms suitable for tooling and automated reasoning.",
+          "weight_points": 20
+        },
+        {
+          "id": "actionability",
+          "criterion": "Messages normally provide enough precise information to correct the issue without requiring unrelated guesswork; suggested fixes count only when semantically reliable.",
+          "weight_points": 20
+        }
+      ]
+    },
+    "metric.dependency_simplicity": {
+      "rubric_id": "language-quality.dependency-simplicity.v1",
+      "selection_rule": "Judge language/module dependency semantics and intrinsic project dependency model. Registry size, package-manager maturity and community conventions belong to Ecosystem.",
+      "components": [
+        {
+          "id": "module_import_model",
+          "criterion": "Module/import semantics are small, explicit and predictable from source.",
+          "weight_points": 20
+        },
+        {
+          "id": "resolution_determinism",
+          "criterion": "Ordinary dependency/name resolution has deterministic, documented precedence with limited ambient search-path surprises.",
+          "weight_points": 20
+        },
+        {
+          "id": "dependency_declaration",
+          "criterion": "Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state.",
+          "weight_points": 20
+        },
+        {
+          "id": "isolation_namespacing",
+          "criterion": "The language/project model provides clear namespace/version/isolation boundaries that reduce accidental coupling.",
+          "weight_points": 20
+        },
+        {
+          "id": "transitive_visibility",
+          "criterion": "Transitive dependency visibility and import exposure are controlled and understandable rather than silently leaking arbitrary dependencies.",
+          "weight_points": 20
+        }
+      ]
+    },
+    "metric.portability_design_platform_neutrality": {
+      "rubric_id": "language-quality.portability-design.v1",
+      "selection_rule": "Judge the language/runtime design for writing portable source. Actual number of currently implemented targets belongs to Ecosystem.",
+      "components": [
+        {
+          "id": "specified_core_semantics",
+          "criterion": "Core language semantics avoid unnecessary dependence on one OS/CPU/ABI and specify portable behavior for ordinary constructs.",
+          "weight_points": 20
+        },
+        {
+          "id": "platform_abstraction",
+          "criterion": "Core/standard runtime interfaces provide portable abstractions for common OS/runtime needs with explicit platform escape hatches.",
+          "weight_points": 20
+        },
+        {
+          "id": "data_numeric_portability",
+          "criterion": "Primitive data/numeric behavior needed for portable programs is sufficiently specified across targets, with implementation-defined behavior clearly bounded.",
+          "weight_points": 20
+        },
+        {
+          "id": "conditional_platform_mechanism",
+          "criterion": "When platform-specific behavior is necessary, the language/project model exposes explicit, localized conditional mechanisms rather than implicit divergence.",
+          "weight_points": 20
+        },
+        {
+          "id": "artifact_source_separation",
+          "criterion": "Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption.",
+          "weight_points": 20
+        }
+      ]
+    },
+    "metric.ffi_interoperability_design": {
+      "rubric_id": "language-quality.ffi-design.v1",
+      "selection_rule": "Judge intrinsic FFI/ABI boundary design, not breadth of existing third-party bindings (Ecosystem).",
+      "components": [
+        {
+          "id": "foreign_declaration",
+          "criterion": "Foreign symbols/functions/types can be declared or imported with explicit, understandable boundary syntax.",
+          "weight_points": 20
+        },
+        {
+          "id": "abi_calling_control",
+          "criterion": "ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases.",
+          "weight_points": 20
+        },
+        {
+          "id": "type_layout_mapping",
+          "criterion": "Primitive/aggregate/string/pointer or equivalent boundary representations have clear mapping rules and layout control where needed.",
+          "weight_points": 20
+        },
+        {
+          "id": "ownership_lifetime_boundary",
+          "criterion": "Ownership, lifetime, allocation and error responsibilities across the foreign boundary can be expressed explicitly enough to avoid hidden hazards.",
+          "weight_points": 20
+        },
+        {
+          "id": "bidirectional_callbacks",
+          "criterion": "Embedding, callbacks/function pointers or equivalent bidirectional interoperation are supported by a coherent language design rather than only bespoke glue.",
+          "weight_points": 20
+        }
+      ]
+    },
+    "metric.concurrency": {
+      "rubric_id": "language-quality.concurrency.v1",
+      "selection_rule": "Judge intrinsic concurrency/parallelism semantics and core runtime primitives. External frameworks and debugger/tool maturity are out of scope.",
+      "components": [
+        {
+          "id": "parallel_execution",
+          "criterion": "The normal language/runtime model supports genuine parallel execution for applicable workloads without a fundamental default bottleneck or undocumented caveat.",
+          "weight_points": 20
+        },
+        {
+          "id": "async_structured",
+          "criterion": "Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model.",
+          "weight_points": 20
+        },
+        {
+          "id": "synchronization_channels",
+          "criterion": "Core primitives for synchronization/message passing/shared-state coordination are coherent, documented and practical.",
+          "weight_points": 20
+        },
+        {
+          "id": "race_safety",
+          "criterion": "The language provides strong static or runtime mechanisms to prevent/detect data races and unsafe concurrent access, with unsafe escape hatches explicit.",
+          "weight_points": 20
+        },
+        {
+          "id": "error_cancel_propagation",
+          "criterion": "Errors, cancellation and task termination propagate predictably across concurrent work instead of being silently detached or lost.",
+          "weight_points": 20
+        }
+      ]
+    }
+  }
+}

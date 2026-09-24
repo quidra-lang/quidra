@@ -1,0 +1,187 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "e0f124834e43addecb38f7eda889af8870ade852dc26005d0067fbd608c917bd",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "af5c8e88281baea0b55acc626e8200d71d8d967dd2293f0ae31c5ce0b19fc44f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.core_tooling_availability_quality",
+      "metric.package_dependency_management_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-1--go",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "af5c8e88281baea0b55acc626e8200d71d8d967dd2293f0ae31c5ce0b19fc44f",
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "ecosystem-tooling--part-1--go"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.core_tooling_availability_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--go; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "build_execute": "Preserved paid evidence (ecosystem-tooling--part-1--go): go1.27.1 (released 2026-09-01) includes fixes to cgo, the compiler, the runtime, the go fix command, and the database/sql, debug/elf, encoding/json, net/http, os, simd, and simd/archsimd packages. Go 1.26.0 is a major release of Go.",
+          "diagnostic_quality": "Preserved paid evidence (ecosystem-tooling--part-1--go): pprof and trace are built-in official profiling tools distributed with the Go toolchain.",
+          "docs_package": "Preserved paid evidence (ecosystem-tooling--part-1--go): go fix (rewritten in Go 1.26) builds on the same official analysis framework as go vet, extending first-party static-analysis tooling.",
+          "format_lint": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go scores near-ceiling because build/format/vet/test/profiling are first-party and bundled in a single `go` command with a disciplined, frequent release/patch cadence (D1=20). gofmt is a universally adopted official formatter (D2=20, well-established, no counter-evidence found). D3 is capped below 20 because deep static analysis beyond go vet (staticcheck, golangci-lint) is mature but third-party rather than bundled. D4 is capped slightly below 20 because `go test` is built-in and highly capable but some advanced assertion/mocking ergonomics still rely on third-party libraries. D5 is capped further because the standard debugger (Delve) is third-party, even though profiling (pprof/trace) is f",
+          "test": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go scores near-ceiling because build/format/vet/test/profiling are first-party and bundled in a single `go` command with a disciplined, frequent release/patch cadence (D1=20). gofmt is a universally adopted official formatter (D2=20, well-established, no counter-evidence found). D3 is capped below 20 because deep static analysis beyond go vet (staticcheck, golangci-lint) is mature but third-party rather than bundled. D4 is capped slightly below 20 because `go test` is built-in and highly capable but some advanced assertion/mocking ergonomics still rely on third-party libraries. D5 is capped further because the standard debugger (Delve) is third-party, even though profiling (pprof/trace) is f"
+        },
+        "component_levels": {
+          "build_execute": 4,
+          "diagnostic_quality": 4,
+          "docs_package": 4,
+          "format_lint": 4,
+          "test": 4
+        },
+        "legacy_score_0_100": 94,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.core-tooling.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate the maintained first-party/de-facto core developer toolchain actually available today; score implemented capability, not planned design.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-1--go",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/go/7a3124599e227a3c23c4dc104c1beb84009d0e7d7a5e56311ba05ecce1c1f28d.json"
+        ]
+      },
+      "metric.package_dependency_management_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--go; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "manifest_constraints": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go modules, managed via the built-in go mod tooling, are the official first-party dependency management system.",
+          "publish_version": "Preserved paid evidence (ecosystem-tooling--part-1--go): The go command tries to authenticate every downloaded module, checking that the bits downloaded for a specific module version today match bits downloaded yesterday.",
+          "registry_security": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go modules, managed via the built-in go mod tooling, are the official first-party dependency management system.",
+          "resolver_lock": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go scores near-ceiling because module management is fully first-party and integrated into the `go` command with no separate installation (D1=20), and reproducibility/integrity is enforced by default via go.sum plus an independently auditable, cryptographically tamper-evident checksum database since Go 1.13 (D2=20). D3 is capped slightly below 20 because reliability of the official proxy/index/checksum trio is well documented but represents centralized Google-operated infrastructure rather than a fully decentralized guarantee. D4 is capped further because multi-module workspace support (go.work, introduced Go 1.18) and workspace vendoring are functional and actively maintained but have docume",
+          "workspace_multi": "Preserved paid evidence (ecosystem-tooling--part-1--go): Workspace-aware vendoring (go work vendor) extends single-module vendoring to multi-module workspaces for reproducible, network-independent builds."
+        },
+        "component_levels": {
+          "manifest_constraints": 4,
+          "publish_version": 4,
+          "registry_security": 4,
+          "resolver_lock": 4,
+          "workspace_multi": 4
+        },
+        "legacy_score_0_100": 94,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.package-management.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate the standard/de-facto package workflow using official documentation and current registry/tool behavior; ecosystem size is scored elsewhere.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-1--go",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/go/7a3124599e227a3c23c4dc104c1beb84009d0e7d7a5e56311ba05ecce1c1f28d.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Go",
+        "metrics": {
+          "metric.core_tooling_availability_quality": {
+            "component_levels": {
+              "build_execute": 4,
+              "diagnostic_quality": 4,
+              "docs_package": 4,
+              "format_lint": 4,
+              "test": 4
+            },
+            "rubric_id": "ecosystem.core-tooling.v1",
+            "score_0_100": 100
+          },
+          "metric.package_dependency_management_quality": {
+            "component_levels": {
+              "manifest_constraints": 4,
+              "publish_version": 4,
+              "registry_security": 4,
+              "resolver_lock": 4,
+              "workspace_multi": 4
+            },
+            "rubric_id": "ecosystem.package-management.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.core_tooling_availability_quality": {
+        "Go": 100.0
+      },
+      "metric.package_dependency_management_quality": {
+        "Go": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "b8c39a44b5a929f5c40fb18fce304355080296730523aacc7851913de573deee",
+  "schema_version": 1
+}

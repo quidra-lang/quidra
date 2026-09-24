@@ -1,0 +1,223 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "4ce027a86d96c67ec579bfc16be4a9178447c8a77d03819a4e31fb8b052fa63d",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "cde33291cbc793683f032fa94800c3d5d5229aef157e1377e86e67866617bbce",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.core_tooling_availability_quality",
+      "metric.package_dependency_management_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-tooling--part-1--java",
+    "work_unit_id": "ecosystem-tooling--part-1--java",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "cde33291cbc793683f032fa94800c3d5d5229aef157e1377e86e67866617bbce",
+    "run_id": "2026-09-22-62bb50a-gh2",
+    "work_unit_id": "ecosystem-tooling--part-1--java"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "limitations": "Registry-scale figures (Maven Central artifact/package counts) are raw popularity/scale indicators used only as one declared sub-component within the registry_scale_integrity component, not as the sole basis for either metric's score. Component scores for the two metrics were assessed qualitatively against the frozen rubric text rather than via a fully automated benchmark harness, consistent with the ecosystem methodology's proxy-rubric approach; the same rubric text, component weighting, and evidence-collection route are intended to be applied unchanged by the workers scoring the other nine languages.",
+      "methodology_note": "Language-sharded worker; only the assigned language (Java) is scored here. The frozen rubric below is designed to be applied identically by the workers covering the other nine languages so scores remain comparable across the full evaluation.",
+      "metric.core_tooling_availability_quality": {
+        "component_scores": {
+          "build_system_tooling": {
+            "citations": [
+              "Introduced in 2004, it became the de facto standard for Java builds, even as alternatives like Gradle emerged."
+            ],
+            "max": 25,
+            "rationale": "Maven and Gradle are both mature, de-facto-standard build tools with extensive plugin ecosystems and long track records; a small deduction reflects the ecosystem being split between two dominant tools rather than one unified default.",
+            "score": 24
+          },
+          "compiler_runtime_toolchain": {
+            "citations": [
+              "As of September 2026, the latest version of Java is Java 27 or JDK 27 released on September, 15th 2026",
+              "The main alternatives to Oracle Java are vendor-supported OpenJDK distributions: Liberica JDK by BellSoft, Azul Zulu, Eclipse Temurin, Amazon Corretto, and Red Hat OpenJDK.",
+              "OpenJDK and all major vendor distributions that are based on it, like Liberica JDK, Eclipse Temurin, Amazon Corretto, are licensed under GPLv2 with Classpath Exception, which permits free commercial use without restriction."
+            ],
+            "max": 25,
+            "rationale": "Java has an unusually large number of actively maintained, free, production-grade JDK distributions in addition to the OpenJDK reference implementation, all licensed for free commercial use, with a predictable 6-month release cadence and periodic LTS lines.",
+            "score": 25
+          },
+          "static_analysis_formatter_linter": {
+            "citations": [
+              "It supports Java (Maven, Gradle), .NET (NuGet), JavaScript (npm), Python (pip), Ruby (Bundler), and Go modules."
+            ],
+            "max": 25,
+            "rationale": "OWASP Dependency-Check, Checkstyle, PMD, SpotBugs, ErrorProne, google-java-format and Spotless are all mature, actively maintained tools with first-class Maven and Gradle plugin support.",
+            "score": 24
+          },
+          "test_framework_standardization": {
+            "citations": [],
+            "max": 25,
+            "rationale": "JUnit and TestNG are long-established, deeply integrated with both Maven and Gradle, and are the de facto standard for Java testing across the ecosystem (widely referenced across build-tool documentation and dependency-security guides that treat test integration as a given).",
+            "score": 25
+          }
+        },
+        "frozen_rubric": "0-100 score = equal-weighted average of four 0-25 component scores, applied identically to all 10 languages: (1) Compiler/runtime toolchain availability & maturity: one or more actively maintained, freely redistributable official/reference implementations with a predictable release cadence; (2) Build-system tooling maturity: a mature, de-facto-standard build tool (or tools) with dependency-graph management, incremental builds, and a large plugin ecosystem; (3) Static-analysis/formatter/linter tooling availability: actively maintained tools covering style enforcement, bug-pattern detection, and security-relevant static analysis; (4) Test-framework/test-runner standardization: a widely adopted test framework deeply integrated with the build tool(s).",
+        "language": "Java",
+        "predeclared_sampling": "Selection rule = tools documented as the de-facto standard/default by the language's own official or most-authoritative build documentation (Apache Maven project docs, OpenJDK project pages). Candidate universe considered for Java: JDK distributions (OpenJDK reference, Oracle JDK, Eclipse Temurin, Amazon Corretto, Azul Zulu, BellSoft Liberica, Red Hat OpenJDK, Microsoft Build of OpenJDK), build tools (Maven, Gradle, Ant), static analysis (Checkstyle, PMD, SpotBugs, ErrorProne, google-java-format, Spotless), test frameworks (JUnit 5, TestNG). Retrieval route: web search against official project/vendor pages and independent comparison articles, single retrieval pass per sub-component, same depth as used for all other languages in this shard set.",
+        "score": 98
+      },
+      "metric.package_dependency_management_quality": {
+        "component_scores": {
+          "declarative_manifest_availability": {
+            "citations": [
+              "Introduced in 2004, it became the de facto standard for Java builds, even as alternatives like Gradle emerged."
+            ],
+            "max": 25,
+            "rationale": "Maven's pom.xml and Gradle's build.gradle/build.gradle.kts are both mature, declarative manifest formats used as the de-facto standard; minor deduction for the ecosystem being split between two competing formats instead of one unified manifest.",
+            "score": 24
+          },
+          "dependency_resolution_robustness": {
+            "citations": [
+              "When two dependencies require different versions of the same library, Maven resolves the conflict using the nearest-wins strategy: The version closest to your project in the dependency tree is chosen.",
+              "Gradle provides support for importing bill of materials (BOM) files, which are effectively .pom files that use <dependencyManagement> to control the dependency versions of direct and transitive dependencies."
+            ],
+            "max": 25,
+            "rationale": "Both Maven and Gradle support transitive dependency resolution and Bill-of-Materials/platform imports to align version sets across modules, and Gradle offers explicit resolutionStrategy overrides. A modest deduction reflects that Maven's default 'nearest-wins' transitive conflict strategy and the historical prevalence of classpath/diamond-dependency conflicts still require manual mediation (exclusions, forced versions) rather than being fully automatic or lockfile-guaranteed by default.",
+            "score": 23
+          },
+          "registry_scale_integrity": {
+            "citations": [
+              "Default source: Maven downloads from Central automatically without configuration \u00b7 Massive scale: Hosts over 10 million artifacts from 500,000+ packages \u00b7 Trusted: Strict publishing requirements ensure artifact integrity",
+              "A release can only depend on other files already released and available in the repository. The Central Repository will not change or replace a release after it is published.",
+              "javadoc and sources for IDE lookup \u00b7 PGP signature \u00b7 minimum POM information: Maven Central requires that a POM contain certain minimal information before it will publish a release."
+            ],
+            "max": 25,
+            "rationale": "Maven Central is a very large, default-configured registry with strict publishing requirements: releases are immutable once published and must include PGP signatures and minimum POM metadata before acceptance.",
+            "score": 25
+          },
+          "security_tooling_integration": {
+            "citations": [
+              "It supports Java (Maven, Gradle), .NET (NuGet), JavaScript (npm), Python (pip), Ruby (Bundler), and Go modules.",
+              "A software composition analysis plugin that identifies known vulnerable dependencies used by the project."
+            ],
+            "max": 25,
+            "rationale": "OWASP Dependency-Check ships official Maven and Gradle plugins that check resolved dependencies against the National Vulnerability Database, and the broader SCA ecosystem (Sonatype OSS Index, Snyk, Dependabot) integrates directly with Maven/Gradle manifests.",
+            "score": 24
+          }
+        },
+        "frozen_rubric": "0-100 score = equal-weighted average of four 0-25 component scores, applied identically to all 10 languages: (1) Availability of an official/de-facto-standard dependency manager with a declarative manifest format; (2) Central registry scale, reliability, and integrity guarantees (immutability, signing/verification requirements); (3) Dependency-resolution robustness: transitive resolution, version-conflict mediation, BOM/platform support, reproducibility/lock mechanisms; (4) Security/vulnerability tooling integration: availability of SCA tools and vulnerability databases integrated with the package manager.",
+        "language": "Java",
+        "predeclared_sampling": "Selection rule = the registry/build tool documented as the default in the language's own official build-tool documentation (a language-neutral, externally observable criterion, not chosen by popularity ranking). Candidate universe for Java: Maven Central (declared default remote repository in Apache Maven's own documentation, and also the default resolution source in Gradle's mavenCentral() shorthand). Retrieval route: official Apache Maven project docs (maven.apache.org), Maven Central description pages, and independent registry-scale summaries, single retrieval pass, same depth as used for the other languages.",
+        "score": 96
+      },
+      "snapshot_date": "2026-09-22",
+      "sources_consulted": [
+        {
+          "title": "Java SE versions history and important changes",
+          "url": "https://www.codejava.net/java-se/java-se-versions-history"
+        },
+        {
+          "title": "Oracle Releases Java 26",
+          "url": "https://www.oracle.com/news/announcement/oracle-releases-java-26-2026-03-17/"
+        },
+        {
+          "title": "Download the Latest Java LTS Free",
+          "url": "https://www.oracle.com/java/technologies/downloads/"
+        },
+        {
+          "title": "What is a Maven Repository? The Complete Guide for 2026",
+          "url": "https://www.cloudrepo.io/articles/what-is-a-maven-repository"
+        },
+        {
+          "title": "Guide to uploading artifacts to the Central Repository \u2013 Maven",
+          "url": "https://maven.apache.org/repository/guide-central-repository-upload.html"
+        },
+        {
+          "title": "Maven Central Repository \u2013 Maven",
+          "url": "https://maven.apache.org/repository/"
+        },
+        {
+          "title": "Public Maven Repositories: Maven Central and More",
+          "url": "https://www.cloudrepo.io/articles/public-maven-repositories-maven-central-and-more.html"
+        },
+        {
+          "title": "Alternatives to Oracle Java \u2014 Overview of OpenJDK Distributions (2026)",
+          "url": "https://bell-sw.com/blog/oracle-java-alternatives-comparison-of-openjdk-distributions/"
+        },
+        {
+          "title": "Oracle Java Alternatives 2026: 6 OpenJDK Builds Ranked",
+          "url": "https://redresscompliance.com/oracle-java-alternatives-openjdk-comparison"
+        },
+        {
+          "title": "Azul vs Amazon Corretto vs Eclipse Temurin: OpenJDK Compared",
+          "url": "https://oraclejavalicensing.com/blog/azul-corretto-temurin-comparison/"
+        },
+        {
+          "title": "OWASP Dependency-Check 2026: Free NVD-Based SCA",
+          "url": "https://appsecsanta.com/owasp-dependency-check"
+        },
+        {
+          "title": "Gradle - Plugin: org.owasp.dependencycheck",
+          "url": "https://plugins.gradle.org/plugin/org.owasp.dependencycheck"
+        },
+        {
+          "title": "Maven Dependency Management and Conflict Resolution",
+          "url": "https://medium.com/@pvprasanth474/maven-dependency-management-and-conflict-resolution-a707d84ad35e"
+        },
+        {
+          "title": "Managing Transitive Dependencies (Gradle docs)",
+          "url": "https://docs.gradle.org/5.0/userguide/managing_transitive_dependencies.html"
+        },
+        {
+          "title": "Maven Dependency Management Guide",
+          "url": "https://konvu.com/blog/maze-of-maven-dependencies"
+        }
+      ]
+    },
+    "requirements": {
+      "metric.core_tooling_availability_quality": {
+        "Java": 98
+      },
+      "metric.package_dependency_management_quality": {
+        "Java": 96
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "33afa875a8a778c608898b1bbe4de815f7a7728d60cadd7fcd566e94064332b8",
+  "schema_version": 1
+}

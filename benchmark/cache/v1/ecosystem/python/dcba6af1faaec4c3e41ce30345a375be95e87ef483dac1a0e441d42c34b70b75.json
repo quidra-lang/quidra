@@ -1,0 +1,234 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "dcba6af1faaec4c3e41ce30345a375be95e87ef483dac1a0e441d42c34b70b75",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "79d26b5120f6ace4fff346f7c01888f3719f06ef4a3e3f26028afba87fe8c763",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.core_tooling_availability_quality",
+      "metric.package_dependency_management_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "ecosystem-tooling--part-1--python",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "79d26b5120f6ace4fff346f7c01888f3719f06ef4a3e3f26028afba87fe8c763",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-1--python"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "integrity_note": "One retrieved search snippet (python.org 3.14.0 release notes mirror) contained an anomalous, unrelated poetic text fragment embedded mid-content, inconsistent with the rest of that page's release-notes material. This is flagged as a likely data-quality/injection artifact in the source mirror and was excluded from all evidence and citations used in this result.",
+      "metric.core_tooling_availability_quality": {
+        "Python": {
+          "citations": [
+            {
+              "claim": "CPython has a documented, official platform-support tier policy covering Linux, macOS and Windows.",
+              "quote_index": "40-4",
+              "source": "Wikipedia CPython"
+            },
+            {
+              "claim": "CPython release artifacts are officially signed and distributed via python.org, with the same source tree used to build Windows/Mac/other-platform ports.",
+              "quote_index": "38-13",
+              "source": "python.org downloads"
+            },
+            {
+              "claim": "Ruff has become the recommended unified linter+formatter for new Python projects, replacing the Flake8/Black/isort/pyupgrade patchwork.",
+              "quote_index": "19-1,19-2",
+              "source": "dev.to Python tooling 2026"
+            },
+            {
+              "claim": "Ruff implements the rule sets of Flake8 and many of its plugins but runs far faster because it is written in Rust.",
+              "quote_index": "19-14,19-15",
+              "source": "dev.to Python tooling 2026"
+            },
+            {
+              "claim": "Ruff ships an official editor extension for VS Code and integrates with other editors via a built-in language server.",
+              "quote_index": "23-6,23-8",
+              "source": "pydevtools.com Ruff guide"
+            },
+            {
+              "claim": "pytest's fixture system and plugin ecosystem have made it the de-facto standard over the built-in unittest module for new projects.",
+              "quote_index": "19-7,19-8",
+              "source": "dev.to Python tooling 2026"
+            },
+            {
+              "claim": "mypy performs static type-annotation checking to catch type errors before runtime, and the type system has matured with newer typing constructs.",
+              "quote_index": "19-21,19-22",
+              "source": "dev.to Python tooling 2026"
+            },
+            {
+              "claim": "By 2026 the toolchain has consolidated around fast Rust-based tools (uv, Ruff) for performance-critical parts alongside mature Python libraries (pytest, mypy) for the rest.",
+              "quote_index": "19-18",
+              "source": "dev.to Python tooling 2026"
+            },
+            {
+              "claim": "New type checkers (ty, Pyrefly) have joined mypy/pyright, expanding the static type-checking tooling space.",
+              "quote_index": "20-1",
+              "source": "rajpoot.dev modern Python tooling 2026"
+            }
+          ],
+          "limitations": "Scores reflect a single analyst's reading of the frozen sub-criteria against 2026 secondary-source writeups plus one primary source (python.org/Wikipedia CPython) rather than a full independent hands-on tooling audit; multiple competing tools (mypy vs pyright vs ty) were credited as ecosystem strength but also reflect some fragmentation, reflected in the lower static-type-checking sub-score.",
+          "score": 96,
+          "sub_scores": {
+            "build_tooling_standardization": 95,
+            "formatter_tooling": 96,
+            "linter_tooling": 97,
+            "official_interpreter_runtime": 98,
+            "static_type_checking_tooling": 93,
+            "test_framework": 97
+          }
+        },
+        "frozen_rubric": {
+          "definition": "Measures maturity, availability, and quality of the core first-party/de-facto-standard developer tooling stack that is NOT already covered by the separate Debugger/Profiler Support metric or the separate Package/Dependency Management metric: (1) official interpreter/runtime implementation, (2) standardized build/compile tooling, (3) linter tooling, (4) formatter tooling, (5) test framework, (6) static type-checking tooling. Excludes debugger/profiler products (scored under metric.debugger_profiler_support) and excludes the package manager / registry (scored under metric.package_dependency_management_quality) to avoid double counting per the Ecosystem spec's mixed-concept split.",
+          "evidence_sources_used": "python.org official downloads/release pages, Wikipedia CPython article, packaging.python.org, and multiple independent 2026 'state of Python tooling' writeups (dev.to, pydevtools.com, rajpoot.dev, softaims.com) describing ruff/mypy/pytest/uv adoption.",
+          "scale": "Each sub-criterion scored 0-100 by an analyst reading the frozen evidence set (0 = capability absent/abandoned, 50 = present but fragmented/immature, 100 = mature, actively maintained, broadly adopted, well-integrated). Metric score = arithmetic mean of the six sub-criteria, rounded to nearest integer.",
+          "sub_criteria_equal_weight": [
+            "Official interpreter/runtime: existence of a canonical, officially maintained implementation; documented tier-1/tier-2/tier-3 platform support policy; release engineering rigor (signed artifacts, install managers).",
+            "Build tooling standardization: presence of a standardized, tool-agnostic build interface (e.g. PEP 517/518) and multiple interoperable build backends.",
+            "Linter tooling: existence of a fast, actively maintained, widely adopted linter with broad rule coverage and editor/IDE plugin availability.",
+            "Formatter tooling: existence of a widely adopted automatic code formatter, ideally unified with the linter.",
+            "Test framework: existence of a mature, actively maintained, de-facto-standard test framework plus a built-in/standard-library fallback.",
+            "Static type-checking tooling: existence of one or more actively maintained static type checkers integrated with editors/CI."
+          ]
+        }
+      },
+      "metric.package_dependency_management_quality": {
+        "Python": {
+          "citations": [
+            {
+              "claim": "PyPI's own live counter reported 763,130 projects, 8,242,611 releases, 17,726,325 files and over one million users.",
+              "quote_index": "17-12",
+              "source": "pypi.org (via Scribd mirror of the live page)"
+            },
+            {
+              "claim": "An independent 2026 statistical analysis found PyPI contains 736,344 packages with at least one version, up from 311,063 in 2021.",
+              "quote_index": "10-2",
+              "source": "piwheels.org PyPI stats 2026"
+            },
+            {
+              "claim": "pyproject.toml has become the standard project-metadata format and lock files are now an expected part of the workflow.",
+              "quote_index": "8-1,8-2",
+              "source": "andrewodendaal.com Python packaging 2026"
+            },
+            {
+              "claim": "Poetry manages dependency installation, virtual environments, package building and publishing, reading configuration from pyproject.toml.",
+              "quote_index": "6-8,6-9",
+              "source": "pydevtools.com Poetry reference"
+            },
+            {
+              "claim": "uv acts as a single fast binary replacing pip, pip-tools, pyenv, pipx, virtualenv and Poetry.",
+              "quote_index": "6-2",
+              "source": "pydevtools.com Poetry reference"
+            },
+            {
+              "claim": "pip's dependency resolution can be less sophisticated on complex dependency graphs, and environment management typically requires separate tools like venv or virtualenv.",
+              "quote_index": "7-8",
+              "source": "adhdecode.com packaging comparison"
+            },
+            {
+              "claim": "A plain pip freeze / requirements.txt is not a true lockfile since it snapshots installed packages including unrequested transitive dependencies, and resolution can differ silently on another machine or later date.",
+              "quote_index": "2-11,2-12",
+              "source": "dzone.com uv vs Poetry vs pip 2026"
+            },
+            {
+              "claim": "uv only re-runs dependency installation when pyproject.toml or the uv.lock lockfile changes, giving reproducible, cached installs.",
+              "quote_index": "1-1",
+              "source": "datacamp.com Python uv guide"
+            },
+            {
+              "claim": "PyPI has required two-factor authentication to publish packages since the beginning of 2024.",
+              "quote_index": "29-1",
+              "source": "PyPI blog incident report (LiteLLM/Telnyx)"
+            },
+            {
+              "claim": "PyPI's Trusted Publishers feature binds releases to specific CI/CD workflows via OIDC, and PEP 740 provides a standard for attaching digital signatures/attestations to uploaded distributions.",
+              "quote_index": "33-1,33-2",
+              "source": "loginsoft.com PyPI/npm supply chain writeup"
+            },
+            {
+              "claim": "PyPI introduced a quarantine system that can freeze suspected malware while preserving it for investigation rather than deleting it immediately.",
+              "quote_index": "30-2",
+              "source": "bernat.tech Python supply chain security guide"
+            },
+            {
+              "claim": "Mandatory 2FA and trusted publishing controls are associated with PyPI and NuGet malware volume declining 43% and 60% respectively, in contrast to npm where malware more than doubled.",
+              "quote_index": "28-6",
+              "source": "phoenix.security 2026 supply chain report"
+            }
+          ],
+          "limitations": "Registry package-count figures vary across sources within 2026 (roughly 736k-899k depending on snapshot date and counting method); the range rather than a single cherry-picked figure is used as declared evidence, consistent with the requirement not to rely on a single raw popularity number as the sole proxy. Tooling fragmentation across pip/Poetry/uv/conda (multiple coexisting package managers) is reflected as a moderate deduction in the resolution/reproducibility and package-manager-maturity sub-scores rather than being ignored.",
+          "score": 91,
+          "sub_scores": {
+            "dependency_resolution_and_reproducibility": 86,
+            "package_manager_tooling_maturity": 92,
+            "registry_scale_and_availability": 95,
+            "supply_chain_security_posture": 92
+          }
+        },
+        "frozen_rubric": {
+          "definition": "Measures the maturity, activity, and quality of the package registry and dependency-management tooling: registry scale/availability, package-manager tool maturity and standardization, dependency resolution/reproducibility (lockfile support), and supply-chain security posture. Package-manager-agnostic dependency *semantics* (e.g. version-range syntax simplicity) are scored under Language Quality, not here; this metric scores the surrounding tool/registry maturity.",
+          "evidence_sources_used": "pypi.org live counters, piwheels.org 2026 PyPI stats post, packaging.python.org pyproject.toml guide, PyPI blog incident report, third-party 2026 uv/Poetry/pip comparison writeups, pydevtools.com handbook, PyPI security best-practices writeups.",
+          "scale": "Each sub-criterion scored 0-100 (0 = absent/broken, 50 = present but with known material gaps, 100 = mature and broadly relied upon). Metric score = arithmetic mean of the four sub-criteria, rounded to nearest integer.",
+          "sub_criteria_equal_weight": [
+            "Central registry scale and availability: size, growth, and operational reliability of the canonical package index.",
+            "Package manager tooling maturity: quality and standardization of the officially sanctioned and de-facto-standard package managers, including standardized project-metadata format adoption.",
+            "Dependency resolution and reproducibility: quality of dependency resolvers and native lockfile support for reproducible installs.",
+            "Supply-chain security posture: registry-level protections such as mandatory MFA, signed/attested releases, and malware detection/quarantine."
+          ]
+        }
+      },
+      "scope_note": "This is a language-sharded worker for the Ecosystem evaluation, assigned language set = {Python} only. Only the Python key is populated for each metric; the runner is responsible for merging this shard with the other language shards. The rubric below is written to be reusable verbatim (same criteria, weights, thresholds, evidence sources, snapshot window) for every other language shard so the same scoring contract can be applied symmetrically, per Section 26/worker_core.md rule 2.",
+      "snapshot_window": "Evidence collected 2026-09-22 via web search of official project sites, packaging.python.org, PyPI, and third-party 2026 state-of-tooling writeups. Where sources disagree on exact figures (e.g. PyPI package counts ranging ~736k-899k across March-June 2026 snapshots), the range is recorded rather than a single cherry-picked number."
+    },
+    "requirements": {
+      "metric.core_tooling_availability_quality": {
+        "Python": 96
+      },
+      "metric.package_dependency_management_quality": {
+        "Python": 91
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "15bcb452eab9f1fefa0d28bfde232d04bbd48c3ae8576293ef162ab5add1e850",
+  "schema_version": 1
+}

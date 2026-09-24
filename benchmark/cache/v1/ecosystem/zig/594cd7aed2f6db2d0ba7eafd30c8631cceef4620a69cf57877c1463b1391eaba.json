@@ -1,0 +1,180 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "594cd7aed2f6db2d0ba7eafd30c8631cceef4620a69cf57877c1463b1391eaba",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "4c5218d1705c0fc1fcbabe2c77c4415edc50c6a543280832df7d709e6a2a9d2f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.third_party_library_availability_domain_coverage",
+      "metric.package_ecosystem_activity_maintenance"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-external--part-1--zig",
+    "work_unit_id": "ecosystem-external--part-1--zig",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "4c5218d1705c0fc1fcbabe2c77c4415edc50c6a543280832df7d709e6a2a9d2f",
+    "run_id": "2026-09-22-62bb50a-gh2",
+    "work_unit_id": "ecosystem-external--part-1--zig"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "methodology_note": "Packet-only worker (network allowed). Evidence collected via web_search on 2026-09-22 (snapshot time for all retrievals below). Predeclared sampling: a fixed, language-neutral domain list was chosen before evidence collection (the same list is intended to be applied identically to every language in this evaluation): (1) HTTP client, (2) HTTP server / web framework, (3) JSON / data serialization, (4) relational database driver (Postgres reference target), (5) CLI argument parsing, (6) testing framework, (7) structured logging, (8) async/concurrent I/O runtime (event loop). Selection rule per domain: prefer a library named in official Zig documentation; otherwise the library most frequently recommended in the official community forum (Ziggit) thread dedicated to that domain; otherwise the top-listed/most-starred entry appearing in the community-maintained Zigistry registry or an actively-tracked awesome-zig list for that domain category. Candidate universe used: zigcc/awesome-zig and catdevnull/awesome-zig curated lists, Zigistry.dev registry, and the Ziggit.dev 'Frameworks and libraries for web-dev?' forum thread. Retrieval route: web search snippets of GitHub READMEs, Zigistry package pages, Ziggit forum threads, and one third-party ecosystem-analysis article (nesbitt.io, Jan/Jul 2026). Same retrieval depth (multiple search queries, top organic results, no result-order-only selection) was used as for other languages in this shard set.",
+      "metric.package_ecosystem_activity_maintenance": {
+        "key_findings": [
+          {
+            "evidence": "Zig shipped a built-in package manager in version 0.11 in August 2023. It uses build.zig.zon files for manifests and fetches dependencies directly from URLs, usually tarballs on GitHub. There's no central registry yet, though the community runs unofficial indexes like zpm and aquila.",
+            "finding": "No central package registry exists; Zig's built-in package manager fetches dependencies directly from URLs (typically GitHub tarballs), verified by content hash, with no official index.",
+            "source": "https://nesbitt.io/2026/01/29/zig-and-the-mxn-supply-chain-problem.html"
+          },
+          {
+            "evidence": "The Zig Software Foundation governs the language and the tool, funded by donations, but package hosting and name authority are outside its remit since there's no registry for it to operate. Without a central index there's no canonical count, though Zigistry scrapes GitHub for repos with a build.zig.zon and indexes what it finds.",
+            "finding": "The Zig Software Foundation explicitly stays out of package hosting/name-authority governance, and there is no dependency-resolution/download-count transparency comparable to mature registries (npm, crates.io, PyPI).",
+            "source": "https://nesbitt.io/2026/07/09/unboxed-zig.html"
+          },
+          {
+            "evidence": "GYRO IS NOW ARCHIVED, THANK YOU EVERYONE FOR YOUR FEEDBACK AND TIME. ZIG NOW HAS AN OFFICIAL PACKAGE MANAGER AND DAMN IT'S GOOD. A separate zigmod-based index (Aquila) reports: Join the 221 users and 73 packages already on Aquila to get started today!",
+            "finding": "Prior community package managers with their own indexes (gyro/astrolabe.pm, zigmod/aquila.red) have been superseded/archived after the official package manager shipped, and the surviving successor community indexes (Zigistry, ZPI, aquila.red-for-zigmod) remain small, unofficial, and fragmented rather than consolidated.",
+            "source": "https://huggingface.co/datasets/Zigistry/programs/viewer/default/train?p=5 ; https://aquila.red/"
+          },
+          {
+            "evidence": "Zap uses the latest stable zig release (0.16.0), so you don't have to keep up with frequent breaking changes; separately, http.zig states: The library will track Zig master. As of the same period, Zig's own latest stable release is 0.16.0, shipped April 14, 2026, with 0.17.0 in active development, illustrating the pace packages must track.",
+            "finding": "Leading individual libraries in the ecosystem do show active maintenance, but must continually track a fast-moving, breaking-change-prone pre-1.0 compiler, which is itself a maintenance burden reflected across the ecosystem.",
+            "source": "https://github.com/zigzap/zap ; https://github.com/karlseguin/http.zig ; https://tech-insider.org/zig-vs-rust-2026/"
+          },
+          {
+            "evidence": "Zigistry is your go-to registry for Zig programming language libraries and packages... a simple, static website that serves as an open index of Zig packages... ZPI does not host packages itself.",
+            "finding": "Community-maintained discovery tooling (Zigistry) is a scraper-based, best-effort catalog rather than an authoritative or complete package activity signal, and multiple redundant/competing community indexes exist simultaneously (Zigistry, ZPI, Aquila, zpm), diluting any single maintenance-activity signal.",
+            "source": "https://medium.com/@rohanprogrammer1/i-built-zigistry-a-package-registry-for-zig-with-no-money-except-3-domain-name-heres-how-b8259fa1bac2 ; https://github.com/nandisomnath/zig-pkg-index"
+          }
+        ],
+        "limitations": "No canonical, language-neutral 'total active packages' or 'percent of packages updated in last 12 months' statistic exists for Zig because there is no central registry (explicitly confirmed by multiple sources), so this metric relies on qualitative synthesis of multiple corroborating community sources rather than a single quantitative index, applied with the same retrieval depth as used for domain coverage above.",
+        "raw_score": 45,
+        "scale": "0-100, 100 = highly active, well-maintained, infrastructure-mature package ecosystem",
+        "scoring_rationale": "Score reflects a mixed picture: (a) positive signal - flagship libraries (zap, http.zig, pg.zig, libxev) show genuine, recent, ongoing maintenance activity and explicitly track compiler releases; (b) negative signal - the ecosystem lacks the infrastructure maturity (single registry, download/dependency telemetry, yank/deprecation mechanisms, SBOM/tooling parity) found in longer-established ecosystems, multiple historical package managers were abandoned (gyro, effectively zigmod's original momentum), and package discovery is fragmented across several small, unofficial, scraper-based catalogs rather than one authoritative source. This combination is scored as moderate-low (45/100) rather than low, because core-library activity is real even though ecosystem-wide maintenance infrastructure is weak."
+      },
+      "metric.third_party_library_availability_domain_coverage": {
+        "aggregate_calculation": "(0.7+0.6+0.7+0.8+0.85+0.4+0.7+0.8)/8 = 0.694 -> rounded to nearest 5 for reporting stability = 70",
+        "formula": "mean of per-domain coverage weights (0.0-1.0), each weight reflecting whether a genuinely third-party (non-stdlib) library exists for the domain and how production-ready/maturely-recommended it is, x100",
+        "limitations": "GitHub star counts and forum mentions are used only as declared, consistently-collected corroborating signals per domain, not as the sole proxy for the whole metric; no single popularity number was used standalone. Absence of a central Zig package registry (see package_ecosystem_activity_maintenance evidence) means domain coverage was assessed via community-curated lists (awesome-zig, Zigistry) rather than an authoritative catalog, which is a coverage-measurement limitation shared by this whole metric for Zig.",
+        "per_domain_evidence": [
+          {
+            "domain": "HTTP client",
+            "evidence": "Project maturity: This project is production-ready and actively maintained. It provides a comprehensive HTTP client and server implementation. Zig's standard library does not provide HTTP/2, HTTP/3, or QUIC support (per httpx.zig README), so third-party libraries fill an acknowledged std-lib gap.",
+            "selected_library": "httpx.zig (cataggar/httpx.zig)",
+            "selection_rule_applied": "top actively-promoted candidate found via Zigistry/GitHub search for the domain; std.http.Client exists but is standard library, not third-party",
+            "source": "https://github.com/cataggar/httpx.zig",
+            "weight": 0.7
+          },
+          {
+            "domain": "HTTP server / web framework",
+            "evidence": "Official Ziggit forum thread title: 'Frameworks and libraries for web-dev?' with the asker stating: There're no mature frameworks or even libraries? and naming zap, jetzig, and http.zig as the only known options. zap itself notes it wraps a C library (facil.io) rather than being pure Zig, and states: I would still love for other, pure-zig HTTP frameworks to eventually make Zap obsolete.",
+            "selected_library": "zap (zigzap/zap), with http.zig, Jetzig, Tokamak as alternatives",
+            "selection_rule_applied": "most-referenced library in the official Ziggit community forum thread on web-dev",
+            "source": "https://ziggit.dev/t/frameworks-and-libraries-for-web-dev/5307 ; https://github.com/zigzap/zap",
+            "weight": 0.6
+          },
+          {
+            "domain": "JSON / serialization",
+            "evidence": "EzequielRamis/zimdjson (~138 stars) described as Parsing gigabytes of JSON per second, a Zig port of simdjson; a second third-party option, Himujjal/zig-json5, provides a JSON5 parser resembling the std.json APIs.",
+            "selected_library": "zimdjson (EzequielRamis/zimdjson)",
+            "selection_rule_applied": "top-starred non-stdlib JSON library in awesome-zig list under the parsing category (std.json exists but is standard library)",
+            "source": "https://www.trackawesomelist.com/catdevnull/awesome-zig/readme/",
+            "weight": 0.7
+          },
+          {
+            "domain": "Relational database driver (Postgres)",
+            "evidence": "karlseguin/pg.zig (~390 stars) - Native PostgreSQL client, also appearing on GitLab's Zig topic listing as a Native PostgresQL client library.",
+            "selected_library": "pg.zig (karlseguin/pg.zig)",
+            "selection_rule_applied": "awesome-zig-listed native Postgres client, cross-checked against Zigistry registry hits for Postgres",
+            "source": "https://www.trackawesomelist.com/catdevnull/awesome-zig/week/ ; https://gitlab.com/explore/projects/topics/zig",
+            "weight": 0.8
+          },
+          {
+            "domain": "CLI argument parsing",
+            "evidence": "Hejsil/zig-clap (~1.3k stars) - Simple command line argument parsing library, alongside 00JCIV00/cova (~130 stars) and sam701/zig-cli (~285 stars) as active alternatives.",
+            "selected_library": "zig-clap (Hejsil/zig-clap)",
+            "selection_rule_applied": "top-starred CLI parsing entry in awesome-zig list",
+            "source": "https://www.trackawesomelist.com/catdevnull/awesome-zig/readme/",
+            "weight": 0.85
+          },
+          {
+            "domain": "Testing framework",
+            "evidence": "No distinct, widely-recommended third-party BDD/assertion-style test framework surfaced in the awesome-zig lists or Zigistry search results reviewed; testing support in the ecosystem is dominated by the compiler's built-in `zig test`, which is standard-library/tooling rather than a third-party package.",
+            "selected_library": "built-in `zig test` (no widely-adopted distinct third-party test framework identified)",
+            "selection_rule_applied": "searched awesome-zig / Zigistry categories for a dedicated third-party test-framework entry; none rose to the same prominence as the built-in test runner",
+            "source": "https://www.trackawesomelist.com/catdevnull/awesome-zig/readme/ ; https://zigistry.dev/",
+            "weight": 0.4
+          },
+          {
+            "domain": "Structured logging",
+            "evidence": "emekoi/log.zig (~28 stars) - A thread-safe logging library; a GitLab-hosted entry describes slogz as a high-performance structured logging library for Zig, inspired by Go's slog with text/JSON handlers, async buffering, network sinks (TCP/UDP/HTTP), syslog RFC5424 support, and secret redaction.",
+            "selected_library": "log.zig (emekoi/log.zig), with logly.zig and slogz as active alternatives",
+            "selection_rule_applied": "awesome-zig / recent GitLab-topic listing entries for logging",
+            "source": "https://www.trackawesomelist.com/catdevnull/awesome-zig/week/ ; https://gitlab.com/explore/projects/topics/zig",
+            "weight": 0.7
+          },
+          {
+            "domain": "Async/concurrent I/O runtime (event loop)",
+            "evidence": "mitchellh/libxev (~2.9k stars) - Cross-platform event-loop, filling a gap since Zig's own native async/await was removed from the language pending a planned revival described elsewhere as expected in mid-2026 releases.",
+            "selected_library": "libxev (mitchellh/libxev)",
+            "selection_rule_applied": "top-starred cross-platform event-loop entry in awesome-zig list",
+            "source": "https://www.trackawesomelist.com/catdevnull/awesome-zig/week/ ; https://medium.com/@jolalf/zig-better-c-1-0-push-c-case-study-dc201c041036",
+            "weight": 0.8
+          }
+        ],
+        "raw_score": 70,
+        "scale": "0-100, 100 = full mature third-party coverage across all predeclared domains"
+      }
+    },
+    "requirements": {
+      "metric.package_ecosystem_activity_maintenance": {
+        "Zig": 45
+      },
+      "metric.third_party_library_availability_domain_coverage": {
+        "Zig": 70
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "8738e23e9e5911a0a3a6a4e66e0ccbed08931fb3d9405d8af2a5dc7903efdf57",
+  "schema_version": 1
+}

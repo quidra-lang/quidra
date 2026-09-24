@@ -1,0 +1,219 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "d5eeb7909c7609e939f9574765784ccd448bd1efe74a00dac5f782741ec43e9d",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "cc356209de914f31c9ac74e76540e797c6fdcc892ffc314d33747490c32a6842",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.installation_distribution_experience",
+      "metric.toolchain_stability_release_maturity"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-4--python",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "cc356209de914f31c9ac74e76540e797c6fdcc892ffc314d33747490c32a6842",
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "ecosystem-tooling--part-4--python"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.installation_distribution_experience": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--python; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "artifact_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--python): C4 Artifact integrity: code signing / checksums / provenance attestation on official release artifacts - 20 pts",
+          "channel_breadth": "Preserved paid evidence (ecosystem-tooling--part-4--python): Multiple independently maintained install/version-manager channels exist beyond the base installer: the new Python Install Manager and Microsoft Store on Windows, Homebrew on macOS, apt/yum/pacman on Linux, and version managers pyenv, conda/Anaconda/Miniconda, and uv (which 'can install and manage Python versions directly, replacing the need for tools like pyenv' and pulls 'prebuilt CPython binaries from python-build-standalone' with installs that 'don\u2019t need admin privileges'). uv itself ships via a standalone shell/PowerShell installer, pip/pipx, Homebrew, Chocolatey, WinGet and Scoop. Score: 20/20.",
+          "install_docs": "Preserved paid evidence (ecosystem-tooling--part-4--python): Official documentation (python.org/downloads, docs.python.org/3/using/windows.html, wiki.python.org BeginnersGuide) gives per-OS install guidance, and third-party tutorials (Real Python) closely mirror and extend it with platform-specific nuance (Store vs. traditional installer vs. WSL on Windows; Homebrew vs. official installer on macOS; package manager vs. source build on Linux). Score: 19/20.",
+          "installers": "Preserved paid evidence (ecosystem-tooling--part-4--python): Python.org provides dedicated Windows and macOS installer pages; per search evidence, 'On Windows the most stable build is available from the official download page' and users 'should download and run the installer from that page' (wiki.python.org/BeginnersGuide). macOS installer packages are versioned and dated on python.org/downloads/macos/ (e.g. Python 3.14.7 - Aug. 5, 2026). Linux has no single official one-click binary installer; Real Python notes 'you won\u2019t find an official installer that you can execute on your Linux system to install Python like you can on macOS and Windows,' but nearly universal availability via distro package managers and rolling-release repos compensates. Score: 1",
+          "package_version_manager": "Preserved paid evidence (ecosystem-tooling--part-4--python): pip ships bundled with the interpreter (Wikipedia: 'Most distributions of Python come with pip preinstalled... Python 2.7.9 and later... and Python 3.4 and later include pip by default'). The wheel binary format (PEP 427) lets pip and uv install pre-built packages without compilation ('pip and uv prefer wheels over source distributions whenever a compatible build exists on PyPI'), and manylinux wheels give near-universal binary installs across Linux variants (Real Python: manylinux wheels give a 'hassle-free installation of the package regardless of your specific Linux variant'). PyPI hosts a very large, actively growing package/version corpus. Score: 20/20."
+        },
+        "component_levels": {
+          "artifact_integrity": 4,
+          "channel_breadth": 4,
+          "install_docs": 4,
+          "installers": 4,
+          "package_version_manager": 4
+        },
+        "legacy_score_0_100": 97,
+        "limitations": "Component weighting and thresholds are proxy judgments made once and intended to be reused unchanged for the other 9 languages by sibling shards; raw popularity/download counts were not used as a standalone score input.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.install-distribution.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate current official/de-facto installation paths on the same major desktop/server platforms and use only documented distribution channels.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-4--python",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/python/10aca8f2c22fced6ce7dcaea4726ddf251b68d38b008c95d4d0cf18d0726c6c9.json",
+          "https://www.python.org/downloads/",
+          "https://www.python.org/downloads/windows/",
+          "https://www.python.org/downloads/macos/",
+          "https://realpython.com/installing-python/",
+          "https://pypi.org/project/wheel/",
+          "https://packaging.python.org/en/latest/discussions/package-formats/",
+          "https://pydevtools.com/handbook/reference/wheel/",
+          "https://docs.astral.sh/uv/concepts/python-versions/",
+          "https://pypi.org/p/uv",
+          "https://en.wikipedia.org/wiki/Pip_(package_manager",
+          "https://peps.python.org/pep-0602/",
+          "https://peps.python.org/pep-2026/",
+          "https://hidekazu-konishi.com/entry/python_version_support_and_eol_timeline.html",
+          "https://www.herodevs.com/blog-posts/python-end-of-life-dates-every-versions-support-timeline",
+          "https://peps.python.org/pep-0779/",
+          "https://pydevtools.com/handbook/explanation/what-is-pep-779/"
+        ]
+      },
+      "metric.toolchain_stability_release_maturity": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--python; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "compat_deprecation": "Preserved paid evidence (ecosystem-tooling--part-4--python): Python maintains a documented deprecation/removal policy (PEP 387) with warnings issued at least one release ahead of removal, and stdlib/runtime changes are gated through the PEP process; however, real behavioral changes occur release-over-release (e.g. removals of previously deprecated stdlib modules, and multi-year phased rollout of free-threading changes to the C API surface), which is a modest compatibility-stability cost, though it is a governed rather than ad hoc process, as shown by the phased PEP 703/PEP 779 rollout ('Phase II would make the free-threaded build officially supported but still optional'). Score: 18/20.",
+          "governance_change": "Preserved paid evidence (ecosystem-tooling--part-4--python): A concrete recent test of governance stability: PEP 2026 proposed switching CPython to calendar versioning ('Python 3.26 will be the first version after this change, released in 2026'), went through the full PEP process, and was ultimately not adopted \u2014 external tracking confirms 'the Steering Council rejected it on 2025-02-06' and 'Python continues with the existing 3.x numbering.' This shows disruptive scheme changes are filtered through formal deliberation rather than applied unilaterally, preserving existing versioning continuity. Similarly, the multi-year, criteria-gated PEP 703/PEP 779 process for free-threading ('this PEP establishes clear expectations and requirements for moving to P",
+          "release_cadence": "Preserved paid evidence (ecosystem-tooling--part-4--python): D1 Documented, predictable release cadence actually followed in practice - 20 pts",
+          "release_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--python): Release artifacts carry verifiable provenance: Sigstore signing (from 3.9.14/3.10.7/3.11.0 onward), Apple Developer ID-signed macOS installers, and Authenticode/Azure Trusted Signing-signed Windows binaries, all documented on the official downloads page. Score: 19/20.",
+          "support_policy": "Preserved paid evidence (ecosystem-tooling--part-4--python): PEP 602 documents an explicit five-year lifecycle per release: 'After the release of Python 3.X.0, the 3.X series is maintained for five years,' with roughly two years of full bugfix support followed by three years of security-only, source-only fixes ('For the next thirty six months (3 years) it receives security updates and source-only releases are made on an as-needed basis'). Concrete EOL dates are published and tracked (e.g. 'Python 3.10 reaches end of life on October 31, 2026'). Score: 20/20."
+        },
+        "component_levels": {
+          "compat_deprecation": 4,
+          "governance_change": 4,
+          "release_cadence": 4,
+          "release_integrity": 4,
+          "support_policy": 4
+        },
+        "legacy_score_0_100": 95,
+        "limitations": "Compatibility-policy and governance-track-record components involve qualitative judgment about the severity/frequency of breaking changes and are intended to be applied with the same rubric and threshold language to the other 9 languages by sibling shards; language age/first-release year were excluded from scoring per the frozen instruction.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.toolchain-stability.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Score current observable release/support practices. Language age and first-release date are context only and never directly score.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-4--python",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/python/10aca8f2c22fced6ce7dcaea4726ddf251b68d38b008c95d4d0cf18d0726c6c9.json",
+          "https://peps.python.org/pep-0602/",
+          "https://peps.python.org/pep-2026/",
+          "https://hidekazu-konishi.com/entry/python_version_support_and_eol_timeline.html",
+          "https://www.herodevs.com/blog-posts/python-end-of-life-dates-every-versions-support-timeline",
+          "https://www.python.org/downloads/",
+          "https://peps.python.org/pep-0779/",
+          "https://pydevtools.com/handbook/explanation/what-is-pep-779/",
+          "https://py-free-threading.github.io/",
+          "https://www.python.org/downloads/windows/",
+          "https://www.python.org/downloads/macos/",
+          "https://realpython.com/installing-python/",
+          "https://pypi.org/project/wheel/",
+          "https://packaging.python.org/en/latest/discussions/package-formats/",
+          "https://pydevtools.com/handbook/reference/wheel/",
+          "https://docs.astral.sh/uv/concepts/python-versions/",
+          "https://pypi.org/p/uv"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Python",
+        "metrics": {
+          "metric.installation_distribution_experience": {
+            "component_levels": {
+              "artifact_integrity": 4,
+              "channel_breadth": 4,
+              "install_docs": 4,
+              "installers": 4,
+              "package_version_manager": 4
+            },
+            "rubric_id": "ecosystem.install-distribution.v1",
+            "score_0_100": 100
+          },
+          "metric.toolchain_stability_release_maturity": {
+            "component_levels": {
+              "compat_deprecation": 4,
+              "governance_change": 4,
+              "release_cadence": 4,
+              "release_integrity": 4,
+              "support_policy": 4
+            },
+            "rubric_id": "ecosystem.toolchain-stability.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.installation_distribution_experience": {
+        "Python": 100.0
+      },
+      "metric.toolchain_stability_release_maturity": {
+        "Python": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "5151a6c7a88ce63a2aa18c33d4717d0efd29ca1172757d0bafc0e4235f37e2fd",
+  "schema_version": 1
+}

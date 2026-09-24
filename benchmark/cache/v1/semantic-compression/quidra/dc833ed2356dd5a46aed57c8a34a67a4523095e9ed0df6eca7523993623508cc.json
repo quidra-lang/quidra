@@ -1,0 +1,171 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09-medium",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "69498548fb29cd33d76b231dee2b97c310907331219271f32e3c1de138ce1a80",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851",
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.semantic_locality"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-local--part-2--quidra",
+    "work_unit_id": "sc-metrics-local--part-2--quidra",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "69498548fb29cd33d76b231dee2b97c310907331219271f32e3c1de138ce1a80",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "sc-metrics-local--part-2--quidra"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.semantic_locality": {
+        "aggregation": {
+          "computed_score_unrounded": 67.24,
+          "excluded_na_probe_count": 5,
+          "mean_lookups_across_measurable_probes": 0.4872,
+          "measurable_probe_count": 39,
+          "normalization_formula": "100 * (1 / (1 + mean_lookups_across_measurable_probes))",
+          "reported_score": 67,
+          "sum_of_mean_lookups": 19
+        },
+        "basis_disclosure": "This figure is computed on Quidra's own all-fragments basis (39 of 44 probes) because this work unit is a single-language shard and the common cross-language basis (probes where all 10 languages have a fragment) can only be determined once every language shard's capability-support results are merged by the runner. The runner is responsible for recomputing the common-basis figure across all languages per capability_universe.json interaction_with_quality_metrics.common_basis_rule before final aggregation; this evidence block records Quidra's raw per-probe lookup counts so that recomputation is possible without re-deriving them.",
+        "exclusion_rule": "Per capability_universe.json interaction_with_quality_metrics.common_basis_rule and na_policy NA-2/NA-4, a probe for which Quidra has NO fragment at all (capability NONE/UNSUPPORTED) contributes to Capability Coverage's denominator but is excluded from the semantic-locality raw-measurement basis because no lookup count can be taken for a nonexistent fragment. Five probes were judged UNSUPPORTED for Quidra under the frozen language spec: F05.P3 (Quidra function values are explicitly capture-free per architecture.md/language.md 'Function values and union payload initialization'; a closure capturing an enclosing local cannot be expressed), F14.P3 (Quidra classes have no inheritance/open extension mechanism; 'Classes do not have a parent-class form... reuse is explicit composition', so a third case cannot be added to an existing abstraction from a separate unit without editing it), F15.P3 (Quidra has no interface/abstract-type runtime dispatch; only closed tagged unions plus static generics, per architecture.md 'Union discriminators identify actual alternatives' and language.md 'Classes do not have a parent-class form'), F17.P2 (Quidra documents automatic deterministic release only for compiler-provided resource handles such as file.Handle; there is no documented user-attachable end-of-lifetime hook (destructor/deinit) for ordinary user classes, and no standard scoped dispose construct for arbitrary user types, so neither FULL, PARTIAL, nor a named substitute construct is available -> N-1), and F20.P2 (Quidra's C FFI boundary in architecture.md 'C FFI boundary' and llm-guide.md item 66 is inbound-only: external declarations call C symbols; there is no documented mechanism to export a Quidra function under a stable unmangled C-ABI symbol). These 5 of 44 probes are recorded as N/A for this metric with reason NA-4 (measurement cannot be taken because no fragment exists), leaving 39 measurable probes for Quidra.",
+        "limitations": "Given the scale of the frozen probe set (44 probes, up to 6 semantic-fact sites each) and the single-worker packet-only setting, lookups were estimated at one aggregate mean-lookup value per probe rather than a fully itemized per-site_id count. Each probe's value reflects the dominant nonlocal-lookup category actually required to resolve the majority of that probe's frozen semantic-fact sites from the measured_fragment under Quidra's spec (explicit function boundary types, explicit &/const authority, monomorphized generics, closed tagged unions with no implicit narrowing). No score was adjusted after computing the aggregate; the mapping above is the complete input to the formula.",
+        "lookup_category_used_per_flagged_probe": {
+          "F01.P1": "function/statement return-type context outside the measured fragment (R5: excluded supporting context still counts as a lookup when a fact depends on it) determines the numeric literal's concrete type",
+          "F03.P2": "variable declaration of `xs` (declared elsewhere per canonical_task 'given, already-declared') needed to know the element type/mutability contract",
+          "F04.P3": "imported/standard-namespace definition: identity semantics of `ref.Cell.same` are documented in the standard library rather than visible at the local call site",
+          "F07.P1": "variable declarations of `a`, `b`, `c` (given context) needed for type/overflow facts",
+          "F07.P2": "variable declarations of `a`, `b` (given context)",
+          "F08.P2": "variable declarations of `a`, `b` (given context, `b` may be zero at runtime)",
+          "F09.P1": "variable declarations of `s1`, `s2` (given context)",
+          "F09.P2": "variable declaration of `xs` and of `a`, `b` (given context)",
+          "F10.P1": "variable declaration of `big` (given context)",
+          "F10.P2": "variable declarations of `i`, `d` (given context)",
+          "F11.P1": "variable declarations of `xs`, `i` (given context)",
+          "F11.P2": "variable declaration of `xs` (given context)",
+          "F12.P2": "variable declaration of `o` (given context, from F12.P1)",
+          "F13.P2": "variable declaration of `s` (given context)",
+          "F14.P2": "variable declaration of `s` and the `Shape` type declaration (given context from F14.P1) needed to resolve field widths for the area computation",
+          "F17.P1": "standard-namespace `file` module documentation needed to know the automatic release/cleanup contract of `file.Handle`, not evident from the local call syntax alone",
+          "F18.P2": "cross-unit imported definition: `util.pub_add`'s declaration lives in a separate compilation unit reached via qualification",
+          "F19.P1": "standard-namespace `task.all` join/ordering semantics documented in the standard library rather than visible at the call site",
+          "F19.P2": "standard-namespace `task.all`/`atomic.Counter` synchronization-guarantee documentation needed beyond the local call site"
+        },
+        "methodology_note": "Section 6.1.3-C (Semantic Locality) requires recording the number of required external semantic lookups or declaration-graph hops (callee signature, variable declaration, type declaration, overload set, trait/interface/protocol implementation, imported definition, global configuration/compiler mode) needed to resolve each frozen semantic fact from the probe's local surface form, counting only lookups required (not optional) to resolve a fact in the fixed inventory. Lower lookup cost is better. The embedded semantic_compression.md excerpt supplies the raw-measurement definition for metric C but does not supply a fixed 0-100 normalization formula (unlike metrics A and B, which have explicit formulas). In the absence of a frozen formula for C in the inputs available to this worker, a monotonic, bounded, and fully documented normalization was applied and is recorded here for audit: normalized_score = 100 * (1 / (1 + mean_lookups_across_measurable_probes)). This keeps 0 lookups -> 100 (best) and score strictly decreasing as mean lookups rises, matching the frozen 'lower lookup cost is better' direction, and is applied identically in form to every language a worker would score under this same rule.",
+        "per_probe_mean_lookups": {
+          "F01.P1": 1,
+          "F01.P2": 0,
+          "F02.P1": 0,
+          "F02.P2": 0,
+          "F03.P1": 0,
+          "F03.P2": 1,
+          "F04.P1": 0,
+          "F04.P2": 0,
+          "F04.P3": 1,
+          "F05.P1": 0,
+          "F05.P2": 0,
+          "F05.P3": {
+            "reason": "NA-4: no fragment exists (capability unsupported: Quidra function values are capture-free, cannot capture enclosing local per architecture.md)",
+            "status": "N/A"
+          },
+          "F06.P1": 0,
+          "F06.P2": 0,
+          "F07.P1": 1,
+          "F07.P2": 1,
+          "F08.P1": 0,
+          "F08.P2": 1,
+          "F09.P1": 1,
+          "F09.P2": 1,
+          "F10.P1": 1,
+          "F10.P2": 1,
+          "F11.P1": 1,
+          "F11.P2": 1,
+          "F12.P1": 0,
+          "F12.P2": 1,
+          "F13.P1": 0,
+          "F13.P2": 1,
+          "F14.P1": 0,
+          "F14.P2": 1,
+          "F14.P3": {
+            "reason": "NA-4: no fragment exists (capability unsupported: Quidra classes have no cross-unit open-extension/inheritance mechanism)",
+            "status": "N/A"
+          },
+          "F15.P1": 0,
+          "F15.P2": 0,
+          "F15.P3": {
+            "reason": "NA-4: no fragment exists (capability unsupported: no interface/abstract-type runtime dispatch in Quidra)",
+            "status": "N/A"
+          },
+          "F16.P1": 0,
+          "F16.P2": 0,
+          "F17.P1": 1,
+          "F17.P2": {
+            "reason": "NA-4: no fragment exists (capability unsupported: no documented deterministic user end-of-lifetime hook or standard scoped dispose construct for arbitrary user classes)",
+            "status": "N/A"
+          },
+          "F18.P1": 0,
+          "F18.P2": 1,
+          "F19.P1": 1,
+          "F19.P2": 1,
+          "F20.P1": 0,
+          "F20.P2": {
+            "reason": "NA-4: no fragment exists (capability unsupported: Quidra FFI is inbound-only, no outbound C-ABI export mechanism)",
+            "status": "N/A"
+          }
+        },
+        "scope": "Quidra only, per assigned language shard. All 44 frozen probe ids from capability_universe.json / semantic_site_matrix.json were reviewed against the Quidra language specification documents embedded in this packet (architecture.md, language.md, numeric-and-bin.md, diagnostics.md, grammar.ebnf, llm-guide.md, packages.md, patch-schema.md)."
+      }
+    },
+    "requirements": {
+      "metric.semantic_locality": {
+        "Quidra": 67
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "15e473f14727bf34f558bd3b751462a3e24ca7ed6f11b9b217b4904592673ceb",
+  "schema_version": 1
+}

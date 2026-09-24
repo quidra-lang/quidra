@@ -1,0 +1,463 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "07740d95f40b5cd3e5be5e4283211f9a7b92470156e6cbc79d890509f4d5f1f1",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-medium",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "736d834abda63bdb914d249f512cb4a5f227545a58f35c2279e0389b101fe5c7",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_efficiency"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-hidden-coverage--part-3--rust",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--rust",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "736d834abda63bdb914d249f512cb4a5f227545a58f35c2279e0389b101fe5c7",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--rust"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "assigned_language": "Rust",
+      "counting_methodology_frozen_before_counting": {
+        "basis": "all-fragments (Rust-only shard; this worker did not have access to the other nine languages' fragments needed to compute the common basis intersection). This must be flagged by the runner: per interaction_with_quality_metrics.common_basis_rule, primary A-D/E figures should be computed on the common basis across all ten languages once all fragments exist; this shard supplies Rust's all-fragments raw material only.",
+        "capability_points_denominator_note": "supported_capability_points = sum over the 44 probes of capability_points(=2) * support_factor(Rust). Rust was assessed FULL (support_factor=1) on every one of the 44 probes based on documented standard-library/language mechanisms (see support_determinations below), giving 44*2*1 = 88.",
+        "categories": [
+          "SF = distinct syntax forms required to express/interpret the probe's supported fragment (counting rule: one count per distinct token-level construct not already counted for this probe, e.g. a keyword, operator, macro invocation, attribute, or standard-library call form)",
+          "CD = context-dependent rules (a rule whose meaning depends on where/how the construct is used, e.g. borrow-checker admissibility, trait-bound resolution, move-vs-borrow inferred from callee signature)",
+          "IM = implicit rules (behavior triggered without local written syntax, e.g. default integer type inference, implicit Drop call at scope end, deref coercion, closure capture-mode inference)",
+          "EX = documented semantic exceptions (a specific documented deviation from the 'normal' rule for this construct, e.g. panic-on-out-of-range, checked-vs-release overflow behavior, HashMap iteration order left unspecified)"
+        ],
+        "unknown_vs_zero_rule": "Per spec 6.1.4.E and section 20, a sub-count is recorded 'unknown' rather than 0 only when no specification text exists to count against. For every probe below, Rust's language reference / std documentation exists and was consultable in principle for all four categories, so 0 was only ever recorded as an actual observed absence of that category for that specific probe (e.g. F08.P2 has no additional documented exception beyond the checked-division API itself), never as a stand-in for missing documentation."
+      },
+      "limitations_and_caveats": [
+        "This is a single-worker, packet-only, no-toolchain-execution estimate. Per V1 (pre_measurement_validation), every fragment scored FULL or PARTIAL must actually build/run under the frozen recipe; this worker had no compiler access and could not execute rustc. The support determinations and complexity counts above are reasoned from documented, well-established Rust language/std-library semantics but are NOT yet backed by an executed build/run evidence record (build command, exit status, observed stdout) as V1 requires. This is recorded as an infrastructure limitation of this packet-only worker, not a finding that Rust lacks the capability.",
+        "The complexity-unit itemization (SF/CD/IM/EX) is this worker's frozen-before-counting categorical breakdown applied consistently probe-by-probe; it is auditable via the per_probe_complexity_units table and the mechanisms table, but was not cross-checked against an independently authored R10 alternative-form record with token counts and documentation citations, which the full methodology also requires for each probe.",
+        "Only Rust was assigned to this shard; no comparative data for the other nine languages is available here. The placeholder_normalized_score (100/(1+E)) is NOT the spec's true cross-language-normalized Capability Efficiency score and must be replaced by the runner once all ten languages' raw E values are merged."
+      ],
+      "metric": "capability_efficiency",
+      "normalization_note": "This packet is a single-language shard (per primary.json max_requirement_ids_per_multi_language_agent / language-sharded assignment). Per spec 6.1.4.E, Capability Efficiency = counted semantic-complexity units / supported capability points, counted on the same basis as metrics A-D. The frozen methodology does not specify a self-contained 0-100 normalization for a single language in isolation; final normalization (spec 6.1.7, 27.1 table 'higher = better') requires min-max or comparable scaling across all ten languages' raw E values, which is runner-only aggregation (primary.json runner.aggregation = 'runner_only'). This worker reports (a) the raw, fully-itemized E value for Rust and (b) a documented monotonic placeholder transform so the schema's 0-100 slot is populated pending merge: normalized_placeholder = 100 / (1 + E). The runner must replace this placeholder with the true cross-language-normalized score once all language shards for metric.capability_efficiency are merged; this value must not be hand-copied into the final ranking (rule 11 of worker_core.md).",
+      "per_probe_complexity_units": {
+        "F01.P1": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 1,
+          "SF": 1,
+          "total": 2
+        },
+        "F01.P2": {
+          "CD": 1,
+          "EX": 1,
+          "IM": 0,
+          "SF": 2,
+          "total": 4
+        },
+        "F02.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F02.P2": {
+          "CD": 1,
+          "EX": 1,
+          "IM": 0,
+          "SF": 3,
+          "total": 5
+        },
+        "F03.P1": {
+          "CD": 0,
+          "EX": 1,
+          "IM": 0,
+          "SF": 1,
+          "total": 2
+        },
+        "F03.P2": {
+          "CD": 1,
+          "EX": 1,
+          "IM": 0,
+          "SF": 1,
+          "total": 3
+        },
+        "F04.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F04.P2": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 1,
+          "SF": 1,
+          "total": 3
+        },
+        "F04.P3": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 3,
+          "total": 4
+        },
+        "F05.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 1,
+          "total": 2
+        },
+        "F05.P2": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F05.P3": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 1,
+          "SF": 2,
+          "total": 4
+        },
+        "F06.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 1,
+          "total": 2
+        },
+        "F06.P2": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 2
+        },
+        "F07.P1": {
+          "CD": 0,
+          "EX": 1,
+          "IM": 1,
+          "SF": 1,
+          "total": 3
+        },
+        "F07.P2": {
+          "CD": 1,
+          "EX": 1,
+          "IM": 0,
+          "SF": 3,
+          "total": 5
+        },
+        "F08.P1": {
+          "CD": 0,
+          "EX": 1,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F08.P2": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 0,
+          "SF": 1,
+          "total": 1
+        },
+        "F09.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 1,
+          "total": 2
+        },
+        "F09.P2": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F10.P1": {
+          "CD": 0,
+          "EX": 1,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F10.P2": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 2
+        },
+        "F11.P1": {
+          "CD": 0,
+          "EX": 1,
+          "IM": 0,
+          "SF": 1,
+          "total": 2
+        },
+        "F11.P2": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 1,
+          "total": 2
+        },
+        "F12.P1": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 0,
+          "SF": 3,
+          "total": 3
+        },
+        "F12.P2": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 0,
+          "SF": 3,
+          "total": 3
+        },
+        "F13.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 1,
+          "SF": 2,
+          "total": 4
+        },
+        "F13.P2": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 2
+        },
+        "F14.P1": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 2
+        },
+        "F14.P2": {
+          "CD": 1,
+          "EX": 1,
+          "IM": 0,
+          "SF": 1,
+          "total": 3
+        },
+        "F14.P3": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 3,
+          "total": 4
+        },
+        "F15.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 1,
+          "total": 2
+        },
+        "F15.P2": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 1,
+          "total": 2
+        },
+        "F15.P3": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 3,
+          "total": 4
+        },
+        "F16.P1": {
+          "CD": 0,
+          "EX": 1,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F16.P2": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 3,
+          "total": 4
+        },
+        "F17.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 1,
+          "SF": 3,
+          "total": 5
+        },
+        "F17.P2": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 1,
+          "SF": 1,
+          "total": 3
+        },
+        "F18.P1": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 1,
+          "SF": 1,
+          "total": 2
+        },
+        "F18.P2": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F19.P1": {
+          "CD": 1,
+          "EX": 1,
+          "IM": 0,
+          "SF": 2,
+          "total": 4
+        },
+        "F19.P2": {
+          "CD": 1,
+          "EX": 1,
+          "IM": 0,
+          "SF": 3,
+          "total": 5
+        },
+        "F20.P1": {
+          "CD": 1,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 3
+        },
+        "F20.P2": {
+          "CD": 0,
+          "EX": 0,
+          "IM": 0,
+          "SF": 2,
+          "total": 2
+        }
+      },
+      "raw_E": {
+        "formula": "E = total_counted_semantic_complexity_units / supported_capability_points",
+        "placeholder_formula": "100 / (1 + E)",
+        "placeholder_normalized_score": 40.2,
+        "supported_capability_points": 88,
+        "total_counted_semantic_complexity_units": 131,
+        "value": 1.4886363636
+      },
+      "status": "PROVISIONAL_UNNORMALIZED_PER_SHARD",
+      "sum_check": {
+        "count_of_probes": 44,
+        "sum_of_totals": 131
+      },
+      "support_determinations_rust": {
+        "mechanisms": {
+          "F01.P1": "let binding, default i32 inference",
+          "F01.P2": "static mut + const",
+          "F02.P1": "declaration without initializer + compiler definite-assignment analysis",
+          "F02.P2": "core::mem::MaybeUninit + assume_init (unsafe)",
+          "F03.P1": "+= compound assignment",
+          "F03.P2": "IndexMut on Vec",
+          "F04.P1": "&mut reference + deref assignment",
+          "F04.P2": "&[T] non-copying slice view (deref coercion from Vec)",
+          "F04.P3": "Rc::new / Rc::clone / Rc::ptr_eq object identity",
+          "F05.P1": "bare call f(x); move/borrow determined by f's signature",
+          "F05.P2": "&mut parameter + &mut argument at call site",
+          "F05.P3": "closure literal + captured local + Iterator::map",
+          "F06.P1": "function returning indexed element; binding via let",
+          "F06.P2": "tuple return + tuple destructuring let (q, r)",
+          "F07.P1": "a * b + c with default precedence",
+          "F07.P2": "/ , % , and `as f64` cast",
+          "F08.P1": "i32::MAX + checked_add",
+          "F08.P2": "checked_div",
+          "F09.P1": "== on String/str (PartialEq, content comparison)",
+          "F09.P2": "Vec::sort_by(|a,b| b.cmp(a)); < operator",
+          "F10.P1": "i32::try_from(big) + unwrap_or(0)",
+          "F10.P2": "`i as f64` + addition",
+          "F11.P1": "xs[i] indexing (panics on out-of-range)",
+          "F11.P2": "&xs[1..4] slicing (borrows, no copy)",
+          "F12.P1": "Option<i32>, None, unwrap_or(0)",
+          "F12.P2": "Option::map + unwrap_or(0)",
+          "F13.P1": "str::parse::<i32>() + ? operator propagation",
+          "F13.P2": "parse().unwrap_or(0)",
+          "F14.P1": "enum Shape { Circle { r: f64 }, Rect { w: f64, h: f64 } }",
+          "F14.P2": "exhaustive match with no wildcard arm",
+          "F14.P3": "trait Named { fn area... } implemented for Tri in a separate module + dyn dispatch",
+          "F15.P1": "generic fn head<T>(xs: &[T]) -> T",
+          "F15.P2": "generic fn max_of<T: PartialOrd>(a: T, b: T) -> T",
+          "F15.P3": "Vec<Box<dyn Named>> + dynamic dispatch",
+          "F16.P1": "vec![1,2,3] + Iterator::sum",
+          "F16.P2": "HashMap + values().sum() + get(...).copied().unwrap_or(0)",
+          "F17.P1": "File::open + read_to_string + ? + RAII Drop of File",
+          "F17.P2": "impl Drop for Handle",
+          "F18.P1": "println! macro (in prelude, no explicit import needed)",
+          "F18.P2": "mod util { pub fn pub_add ... fn secret ... } + qualified call",
+          "F19.P1": "std::thread::spawn x2 + JoinHandle::join",
+          "F19.P2": "Arc<Mutex<i64>> + lock() across two threads (documented mutual exclusion)",
+          "F20.P1": "extern \"C\" { fn abs(x: i32) -> i32; } + unsafe call",
+          "F20.P2": "#[no_mangle] pub extern \"C\" fn add2"
+        },
+        "note": "FULL on all 44 probes for Rust, each with the specific documented standard mechanism relied on. Support level is assigned independently of determinacy per support_rubric.determinacy_is_not_a_support_criterion; hidden/indeterminate facts are NOT counted here again if already reflected as an EX or CD unit for the same underlying rule (no-double-penalty / no double counting across categories for one probe)."
+      }
+    },
+    "requirements": {
+      "metric.capability_efficiency": {
+        "Rust": 40.2
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "2dcbb02c99e160434c6c0a12dff46b651be3b47380a686cfcd6bb154f69f2282",
+  "schema_version": 1
+}

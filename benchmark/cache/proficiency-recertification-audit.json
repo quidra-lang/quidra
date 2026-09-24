@@ -1,0 +1,1334 @@
+{
+  "category_D_candidate_trials": 0,
+  "category_E_trials": 122,
+  "current_certified_trial_count": 0,
+  "hidden_feedback_detected_trials": 0,
+  "migration_rule": "llm-proficiency-current-contract-trial-audit",
+  "migration_rule_version": 1,
+  "note": "D is only a candidate state. Promotion additionally requires deterministic replay with the current trusted verifier, current validator PASS, and construction of a current-fingerprint record. E is never migrated.",
+  "records": [
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "C++",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "f00795ecaeba0c5c4ff93eb8b096178da29f4db74b45e2b07f64f28be0998408",
+      "source_record": "benchmark/cache/v1/llm-proficiency/c/f00795ecaeba0c5c4ff93eb8b096178da29f4db74b45e2b07f64f28be0998408.json",
+      "source_record_sha256": "7ba6859091243797d124976b93cbc272e5e946f26f21f9f55c603f2b92810bca",
+      "source_run_id": "2026-09-22-56f2c65-gh3",
+      "trial_count": 21,
+      "trial_id_mismatch_count": 21,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-port-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-port-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-port-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t3"
+        },
+        {
+          "call_count": 2,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-port-t1"
+        },
+        {
+          "call_count": 2,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-port-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-port-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-v1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-v2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-v3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-port-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-port-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-port-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t3"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--c"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Go",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "27d724099a73b61cfe7ea220e3c72fed5b659afdf41af7de2760eb83c945648c",
+      "source_record": "benchmark/cache/v1/llm-proficiency/go/27d724099a73b61cfe7ea220e3c72fed5b659afdf41af7de2760eb83c945648c.json",
+      "source_record_sha256": "7588da4df57aab886b0ff5355eb774576d6a26938dcb1eb3360e29c958ff75da",
+      "source_run_id": "2026-09-22-56f2c65-gh3",
+      "trial_count": 8,
+      "trial_id_mismatch_count": 8,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "mb01-badspec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "mb01-repair-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "mb01-robust-v1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "mb01-robust-v2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "mb01-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "mb01-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "mb01-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "mb01-unseen-t1"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--go"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Java",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "ef6b7e18b4ca4d027fe33567917aed85e7523870fd79df0cfc5e702959ca1e19",
+      "source_record": "benchmark/cache/v1/llm-proficiency/java/ef6b7e18b4ca4d027fe33567917aed85e7523870fd79df0cfc5e702959ca1e19.json",
+      "source_record_sha256": "bf6790946c91d1e8d28c4bda60c0b4dc6fd1c2fc9cb10bf911994bebcd119801",
+      "source_run_id": "2026-09-23-fce5cfa-gh16",
+      "trial_count": 9,
+      "trial_id_mismatch_count": 9,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-a-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-a-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-a-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-a-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-a-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-a-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-a-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-a-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-a-t3"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--java"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Kotlin",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "e3a1c0b54713aeda4d599d58854a09c267da2301463d34c5e17bfa195c670bf3",
+      "source_record": "benchmark/cache/v1/llm-proficiency/kotlin/e3a1c0b54713aeda4d599d58854a09c267da2301463d34c5e17bfa195c670bf3.json",
+      "source_record_sha256": "b760ebfef465ed45718ee7a018fef5d4e037d0c0c120d1018e92880b6fbe2ad6",
+      "source_run_id": "2026-09-23-1231af5-gh12",
+      "trial_count": 12,
+      "trial_id_mismatch_count": 12,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-port-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lightgrad-port-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lightgrad-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lightgrad-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lightgrad-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-port-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t3"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--kotlin"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Python",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "84d34d636a1235fd33beb2fe2b1cefdb119143399c8e68a78e31dc7af26ec680",
+      "source_record": "benchmark/cache/v1/llm-proficiency/python/84d34d636a1235fd33beb2fe2b1cefdb119143399c8e68a78e31dc7af26ec680.json",
+      "source_record_sha256": "8c7ae357e878eee95aaf6965aef82a96e52d106f39eeae5242fca1c6e29969b2",
+      "source_run_id": "2026-09-22-56f2c65-gh3",
+      "trial_count": 9,
+      "trial_id_mismatch_count": 9,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-a-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-a-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-a-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-a-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-a-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-a-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-a-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-a-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-a-t3"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--python"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Quidra",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "d96d0f73277237e1465ea19d2d76536d53e3c89c8c4e22b366cf140483f44760",
+      "source_record": "benchmark/cache/v1/llm-proficiency/quidra/d96d0f73277237e1465ea19d2d76536d53e3c89c8c4e22b366cf140483f44760.json",
+      "source_record_sha256": "417632dba4d5c10740ef5ea4bede104c03ec4039679b0d265b9a9975a285fe37",
+      "source_run_id": "2026-09-23-fce5cfa-gh16",
+      "trial_count": 14,
+      "trial_id_mismatch_count": 14,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "halluc-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lightgrad-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lightgrad-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lightgrad-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-wording-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-wording-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-wording-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "unseen-case-t1"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--quidra"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "quidra_target",
+        "proficiency_workload_contract_sha256",
+        "quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Quidra",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "e7455ef8466c4c6dae1bdec1d9aa42f840bdf4a0f6463bbe8297f2219028158b",
+      "source_record": "benchmark/cache/v1/llm-proficiency/quidra/e7455ef8466c4c6dae1bdec1d9aa42f840bdf4a0f6463bbe8297f2219028158b.json",
+      "source_record_sha256": "3aac510f0360f745e9ee96b35b8e0266b75ddfb506b6ef371120fed4912ad463",
+      "source_run_id": "2026-09-22-56f2c65-gh3",
+      "trial_count": 18,
+      "trial_id_mismatch_count": 18,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "gmm-port-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "gmm-port-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "gmm-port-t3"
+        },
+        {
+          "call_count": 2,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "gmm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "gmm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "gmm-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "lg-port-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "lg-port-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "lg-port-t3"
+        },
+        {
+          "call_count": 2,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "lg-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "lg-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "lg-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "svm-port-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "svm-port-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "svm-port-t3"
+        },
+        {
+          "call_count": 2,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "svm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "svm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:quidra_target,proficiency_workload_contract_sha256,quidra_execution_identity:legacy Quidra cache has no execution identity and its source commit was not verified for migration"
+          ],
+          "trial_id": "svm-spec-t3"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--quidra"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Rust",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "565a1ff93558e6704178246c5a82fbf2040209fcb4557191486d6644dd3caa13",
+      "source_record": "benchmark/cache/v1/llm-proficiency/rust/565a1ff93558e6704178246c5a82fbf2040209fcb4557191486d6644dd3caa13.json",
+      "source_record_sha256": "8c2c9a37093e52eedb23f317a243dd59d5bdba01b7962d1d4366b9018f6d8878",
+      "source_run_id": "2026-09-23-fce5cfa-gh16",
+      "trial_count": 6,
+      "trial_id_mismatch_count": 6,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lightgrad-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "prompt-robust-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "prompt-robust-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t1"
+        },
+        {
+          "call_count": 2,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "unseen-case-t1"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--rust"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Swift",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "5c54df74d97be02099cbb4dbf3280e7d7ca49a9eb29da7136b57cd17bd053e3b",
+      "source_record": "benchmark/cache/v1/llm-proficiency/swift/5c54df74d97be02099cbb4dbf3280e7d7ca49a9eb29da7136b57cd17bd053e3b.json",
+      "source_record_sha256": "54c1d647530844dc911753586d08cf9b4c17a5d13dd0f8227cb4fb386da7cfa1",
+      "source_run_id": "2026-09-22-56f2c65-gh3",
+      "trial_count": 9,
+      "trial_id_mismatch_count": 9,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-t3"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--swift"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "TypeScript",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "238decbf7051799ed07c0c8e34e62e4df037a81e5c8e6de2e72f94836d943f3e",
+      "source_record": "benchmark/cache/v1/llm-proficiency/typescript/238decbf7051799ed07c0c8e34e62e4df037a81e5c8e6de2e72f94836d943f3e.json",
+      "source_record_sha256": "c4aae6929f67008e47f29193e6887b5e47cfb20d3ad95df8a4975fec622c30e5",
+      "source_run_id": "2026-09-22-56f2c65-gh3",
+      "trial_count": 13,
+      "trial_id_mismatch_count": 13,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "gmm-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "lg-spec-t3"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-reorder-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-terse-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "robust-verbose-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t3"
+        },
+        {
+          "call_count": 2,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "unseen-t1"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--typescript"
+    },
+    {
+      "candidate_trial_count": 0,
+      "classification": "E",
+      "dependency_mismatches": [
+        "proficiency_workload_contract_sha256"
+      ],
+      "hidden_feedback_detected_trial_count": 0,
+      "language": "Zig",
+      "prompt_mismatch_trial_count": 0,
+      "reason": "one or more trials change the scored experimental input/identity and cannot be recertified",
+      "source_fingerprint": "395698415e33e91d494438334572e6670a61712b29a389a53d77918ca6d42d73",
+      "source_record": "benchmark/cache/v1/llm-proficiency/zig/395698415e33e91d494438334572e6670a61712b29a389a53d77918ca6d42d73.json",
+      "source_record_sha256": "56f906103ab251ab8d7291fdc9e5e4bd547ab94fafa58bb165e2a7931ef55aa8",
+      "source_run_id": "2026-09-23-fce5cfa-gh16",
+      "trial_count": 3,
+      "trial_id_mismatch_count": 3,
+      "trials": [
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t1"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t2"
+        },
+        {
+          "call_count": 1,
+          "classification": "E",
+          "reasons": [
+            "trial_id_not_in_current_frozen_allocation",
+            "nontrajectory_dependency_mismatch:proficiency_workload_contract_sha256"
+          ],
+          "trial_id": "svm-spec-t3"
+        }
+      ],
+      "work_unit_id": "proficiency-trials--zig"
+    }
+  ],
+  "schema_version": 1,
+  "source_record_count": 11,
+  "source_trial_count": 122
+}

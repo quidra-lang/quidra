@@ -1,0 +1,98 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "a2e4e27839512f02db2b9c38f2269515c003599a3c8c0e1ec0e830b6c718fc13",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "460a4d236e1364d22ca4b07c38c0e429e66e7fef24a68d01fae53b9077837905",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/programs/java/adversarial": "8d8b771e2788305b80f47a2c8c853ee6232778e8f5c910ceb225b513dce0a1ce",
+      "template/programs/java/micro": "4b3258d0c3989b4ca04cf51b22a1536b8f7c82b32481fc66b2e4fcf1c02499ef",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.functionality_expressiveness",
+      "metric.diagnostics"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-lq-language-development--part-2--java",
+    "work_unit_id": "lq-language-development--part-2--java",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "460a4d236e1364d22ca4b07c38c0e429e66e7fef24a68d01fae53b9077837905",
+    "run_id": "2026-09-22-62bb50a-gh2",
+    "work_unit_id": "lq-language-development--part-2--java"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "metric.diagnostics": {
+        "method": "Reviewed Java compiler/runtime diagnostic behavior as exercised by adversarial programs (compile-error variants _C, runtime-error variants _R) under javac/java.",
+        "observations": [
+          "javac produces precise compile-time diagnostics with file/line/column; since JDK 14+ helpful NullPointerException messages give improved runtime diagnostics.",
+          "Runtime exceptions provide full stack traces with class/method/line info by default, aiding debuggability across ADV-*_R cases (StackOverflowError for deep recursion, ArrayIndexOutOfBoundsException, ClassCastException, etc. carry descriptive messages).",
+          "Checked exceptions force call-site acknowledgment of failure modes at compile time, a diagnostics-relevant design property, though it can add boilerplate.",
+          "Weaknesses: type erasure means some generic-related mistakes surface only as runtime ClassCastException rather than compile-time errors; unchecked exception misuse paths are not enforced by the compiler."
+        ],
+        "score_rationale": "Score 83/100: mature, detailed compiler diagnostics and stack traces, improved further by helpful NPE messages and checked-exception enforcement; deductions for generics type-erasure diagnostic gaps and boilerplate-heavy exception model."
+      },
+      "metric.functionality_expressiveness": {
+        "method": "Qualitative review of Java language feature set against template micro/adversarial programs (java/micro mb00-mb11, java/adversarial ADV-01..ADV-26) covering numeric overflow, mutation-during-iteration, recursion depth, generics, collections.",
+        "observations": [
+          "Java offers a mature generics system (type erasure limits reification), a large standard collections/streams API, lambdas, records, sealed classes, and pattern matching (switch expressions, instanceof patterns) in recent LTS releases.",
+          "Expressiveness reduced by verbosity: checked exceptions require explicit throws/catch boilerplate, no native tuples, no algebraic data type sugar beyond sealed interfaces plus records, no first-class union types.",
+          "Concurrency primitives (java.util.concurrent, virtual threads) are expressive but require explicit API usage rather than language-level async syntax.",
+          "ADV-15 shows ArrayList mutation during for-each iteration behaves per iterator contract; ADV-01_C shows narrowing long-to-int casts silently truncate per spec, requiring explicit casts rather than range-checked conversions."
+        ],
+        "score_rationale": "Score 78/100: strong general-purpose expressiveness (generics, streams, modern pattern matching, records) offset by verbosity, type erasure limitations, and lack of algebraic/value-type sugar found in newer languages."
+      }
+    },
+    "requirements": {
+      "metric.diagnostics": {
+        "Java": 83
+      },
+      "metric.functionality_expressiveness": {
+        "Java": 78
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "b4bad719b63acabb60518c6fd20610c4cc0b75ba3d8b061f75f32e2137c3eb2a",
+  "schema_version": 1
+}

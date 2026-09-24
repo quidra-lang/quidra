@@ -1,0 +1,219 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "a95e7157429ad03ee03dba6a2ff5030b22154fbcea228120627a8847e474a04e",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "e2e6cdb5e8460aaa60999fa96de2b3e8ec65e639997a18d7f0e73a38cf1a5401",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.build_test_integration",
+      "metric.documentation_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-3--python",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "e2e6cdb5e8460aaa60999fa96de2b3e8ec65e639997a18d7f0e73a38cf1a5401",
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "ecosystem-tooling--part-3--python"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.build_test_integration": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--python; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "build_system": "Preserved paid evidence (ecosystem-tooling--part-3--python): Frozen 5-criterion rubric (20 points each, 0-100 total), applied identically to all 10 languages in this evaluation. Measures maturity of the build-to-test-to-CI pipeline: (1) standard/native build tooling and its integration with the packaging system; (2) maturity/adoption of standard or de-facto test framework(s); (3) ease of CI integration incl. multi-version matrix testing; (4) coverage tooling integration and CI-gate support; (5) ability to unify build/test/coverage/lint config in one place.",
+          "ci_matrix": "Preserved paid evidence (ecosystem-tooling--part-3--python): tox and nox provide first-class multi-Python-version matrix testing, with documented GitHub Actions recipes (setup-python + tox) and native uv acceleration paths.",
+          "config_integration": "Preserved paid evidence (ecosystem-tooling--part-3--python): Frozen 5-criterion rubric (20 points each, 0-100 total), applied identically to all 10 languages in this evaluation. Measures maturity of the build-to-test-to-CI pipeline: (1) standard/native build tooling and its integration with the packaging system; (2) maturity/adoption of standard or de-facto test framework(s); (3) ease of CI integration incl. multi-version matrix testing; (4) coverage tooling integration and CI-gate support; (5) ability to unify build/test/coverage/lint config in one place.",
+          "coverage": "Preserved paid evidence (ecosystem-tooling--part-3--python): coverage.py integrates with pytest via pytest-cov with minimal setup, supports branch coverage, and multiple report formats (term, term-missing, html, xml) usable for CI gating via --cov-fail-under.",
+          "test_framework": "Preserved paid evidence (ecosystem-tooling--part-3--python): Standard or de-facto test framework maturity and adoption (stdlib unittest + de-facto pytest)"
+        },
+        "component_levels": {
+          "build_system": 4,
+          "ci_matrix": 4,
+          "config_integration": 4,
+          "coverage": 4,
+          "test_framework": 4
+        },
+        "legacy_score_0_100": 94,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.build-test.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate the standard/de-facto build-to-test-to-CI path with official tool documentation plus current integration evidence.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-3--python",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/python/600ad58a6c7e6199a67b5bde5f99892165229530d72b1104a7a1e3c0222eef39.json",
+          "https://medium.com/@inprogrammer/best-python-testing-tools-2026-updated-884dcb78b115",
+          "https://coverage.readthedocs.io/en/latest/contributing.html",
+          "https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/test-coverage/python-test-coverage",
+          "https://inventivehq.com/blog/python-package-testing-guide",
+          "https://pydevtools.com/handbook/reference/nox/",
+          "https://pydevtools.com/handbook/reference/tox/",
+          "https://pypi.org/project/pytest-cov/",
+          "https://docs.python.org/3/",
+          "https://www.sphinx-doc.org/",
+          "https://github.com/sphinx-doc/sphinx",
+          "https://peps.python.org/pep-0257/",
+          "https://peps.python.org/pep-0008/",
+          "https://devguide.python.org/documentation/translations/translating/",
+          "https://devguide.python.org/documentation/translations/coordinating/",
+          "https://peps.python.org/pep-0545/",
+          "https://translations.python.org/"
+        ]
+      },
+      "metric.documentation_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--python; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "examples_guides": "Preserved paid evidence (ecosystem-tooling--part-3--python): The official docs have a dedicated, PEP-545-governed translation program with a public dashboard and multiple in-production language translations reachable via a language switcher, plus a large surrounding community documentation ecosystem (Real Python, countless guides).",
+          "generation_localization": "Preserved paid evidence (ecosystem-tooling--part-3--python): Frozen 5-criterion rubric (20 points each, 0-100 total), applied identically to all 10 languages. Measures the maturity and completeness of the documentation ecosystem: (1) official reference/tutorial completeness and currency; (2) standard-library API reference completeness; (3) maturity of auto-doc-generation tooling (docstring-to-published-docs pipeline); (4) consistency/officiality of a docstring/comment convention; (5) breadth of supplementary community documentation and internationalization.",
+          "language_reference": "Preserved paid evidence (ecosystem-tooling--part-3--python): The official docs cover the language reference, tutorial, and full standard library API reference as a single maintained corpus licensed under the PSF License, with examples additionally under a permissive license.",
+          "library_api": "Preserved paid evidence (ecosystem-tooling--part-3--python): The official docs cover the language reference, tutorial, and full standard library API reference as a single maintained corpus licensed under the PSF License, with examples additionally under a permissive license.",
+          "version_navigation": "Preserved paid evidence (ecosystem-tooling--part-3--python): Sphinx, originally built for Python's own docs, provides mature autodoc extraction from docstrings into multi-format output (HTML, PDF, EPUB) and is the tool used for Python's official documentation itself as well as major libraries."
+        },
+        "component_levels": {
+          "examples_guides": 4,
+          "generation_localization": 4,
+          "language_reference": 4,
+          "library_api": 4,
+          "version_navigation": 4
+        },
+        "legacy_score_0_100": 93,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.documentation.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Prioritize official current-version documentation, then independently maintained supplementary material; community size alone is not documentation quality.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-3--python",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/python/600ad58a6c7e6199a67b5bde5f99892165229530d72b1104a7a1e3c0222eef39.json",
+          "https://docs.python.org/3/",
+          "https://www.sphinx-doc.org/",
+          "https://github.com/sphinx-doc/sphinx",
+          "https://peps.python.org/pep-0257/",
+          "https://peps.python.org/pep-0008/",
+          "https://devguide.python.org/documentation/translations/translating/",
+          "https://devguide.python.org/documentation/translations/coordinating/",
+          "https://peps.python.org/pep-0545/",
+          "https://translations.python.org/",
+          "https://medium.com/@inprogrammer/best-python-testing-tools-2026-updated-884dcb78b115",
+          "https://coverage.readthedocs.io/en/latest/contributing.html",
+          "https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/test-coverage/python-test-coverage",
+          "https://inventivehq.com/blog/python-package-testing-guide",
+          "https://pydevtools.com/handbook/reference/nox/",
+          "https://pydevtools.com/handbook/reference/tox/",
+          "https://pypi.org/project/pytest-cov/"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Python",
+        "metrics": {
+          "metric.build_test_integration": {
+            "component_levels": {
+              "build_system": 4,
+              "ci_matrix": 4,
+              "config_integration": 4,
+              "coverage": 4,
+              "test_framework": 4
+            },
+            "rubric_id": "ecosystem.build-test.v1",
+            "score_0_100": 100
+          },
+          "metric.documentation_quality": {
+            "component_levels": {
+              "examples_guides": 4,
+              "generation_localization": 4,
+              "language_reference": 4,
+              "library_api": 4,
+              "version_navigation": 4
+            },
+            "rubric_id": "ecosystem.documentation.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.build_test_integration": {
+        "Python": 100.0
+      },
+      "metric.documentation_quality": {
+        "Python": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "20a97df1735f2015210343cdcd6a7cdadbf268c827cc7b473cf01b730fbb5726",
+  "schema_version": 1
+}

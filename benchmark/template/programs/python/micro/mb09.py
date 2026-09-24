@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""MB-09 -- Statistics: two-pass moments, Pearson, histogram. N = 2000000, R = 30.
+
+Frozen workload definition: methodology/06_micro_workloads.md section 4, MB-09.
+Two-pass (stable) formulas exactly as pinned: no `statistics` module, no numpy,
+no Welford, no single-pass correlation form, no merging of the five passes, and
+no `sum()` reduction (that would move the accumulation out of the pinned loop).
+The histogram bin is floor(x * 0.64) with the two clamps, never a division.
+Data container: `array('d')` -- the binary64 array pinned for the `python`
+configuration by the binding table in section 4.12(a). Not the implementer's
+choice.
+"""
+
+import sys
+import time
+from array import array
+from math import floor, sqrt
+
+N = 2000000
+R = 30
+SEED = 20269917
+
+
+class Lehmer:
+    """Park-Miller minimal-standard LCG: state = (48271 * state) mod 2147483647."""
+
+    __slots__ = ("state",)
+
+    def __init__(self, seed):
+        self.state = seed
+
+    def next_int(self):
+        self.state = (48271 * self.state) % 2147483647
+        return self.state
+
+    def next_unit(self):
+        return self.next_int() / 2147483647.0
+
+
+def workload():
+    g = Lehmer(SEED)
+    x = array("d", [g.next_unit() * 100.0 for _ in range(N)])
+    y = array("d", [g.next_unit() * 100.0 for _ in range(N)])
+
+    mean = var = sd = mn = mx = mad = pearson = 0.0
+    hist_chk = 0
+    for r in range(R):
+        x[r] = x[r] + 1.0e-9
+
+        s = 0.0
+        mn = x[0]
+        mx = x[0]
+        for i in range(N):
+            v = x[i]
+            s = s + v
+            if v < mn:
+                mn = v
+            if v > mx:
+                mx = v
+        mean = s / N
+
+        sq = 0.0
+        ad = 0.0
+        for i in range(N):
+            d = x[i] - mean
+            sq = sq + d * d
+            ad = ad + (-d if d < 0 else d)
+        var = sq / N
+        sd = sqrt(var)
+        mad = ad / N
+
+        sy = 0.0
+        for i in range(N):
+            sy = sy + y[i]
+        meany = sy / N
+
+        sxy = 0.0
+        sxx = 0.0
+        syy = 0.0
+        for i in range(N):
+            dx = x[i] - mean
+            dy = y[i] - meany
+            sxy = sxy + dx * dy
+            sxx = sxx + dx * dx
+            syy = syy + dy * dy
+        pearson = sxy / sqrt(sxx * syy)
+
+        hist = [0] * 64
+        for i in range(N):
+            b = floor(x[i] * 0.64)
+            if b < 0:
+                b = 0
+            if b > 63:
+                b = 63
+            hist[b] = hist[b] + 1
+
+        hist_chk = 0
+        for b in range(64):
+            hist_chk = hist_chk + (b + 1) * hist[b]
+    return mean, var, sd, mn, mx, mad, pearson, hist_chk
+
+
+def main():
+    mode = sys.argv[1] if len(sys.argv) > 1 else "once"
+    if mode == "steady":
+        k_count = int(sys.argv[2]) if len(sys.argv) > 2 else 7
+        for k in range(k_count):
+            start = time.perf_counter_ns()
+            result = workload()
+            elapsed = time.perf_counter_ns() - start
+            print("ITER %d %d" % (k, elapsed), flush=True)
+    else:
+        result = workload()
+    mean, var, sd, mn, mx, mad, pearson, hist_chk = result
+    print("MB09 mean=%.16e var=%.16e sd=%.16e min=%.16e max=%.16e mad=%.16e "
+          "pearson=%.16e hist_chk=%d"
+          % (mean, var, sd, mn, mx, mad, pearson, hist_chk))
+
+
+if __name__ == "__main__":
+    main()

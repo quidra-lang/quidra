@@ -1,0 +1,95 @@
+// MB-06 - Matrix multiplication: classical i-j-k order over flat row-major storage.
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
+
+// Lehmer / MINSTD generator, frozen for every language in the suite.
+class Lcg {
+public:
+    explicit Lcg(std::int64_t seed) : state_(seed) {}
+
+    std::int64_t next_int() {
+        state_ = (48271 * state_) % 2147483647;
+        return state_;
+    }
+
+    double next_unit() { return static_cast<double>(next_int()) / 2147483647.0; }
+
+private:
+    std::int64_t state_;
+};
+
+struct Result {
+    double sum_c;
+    double c_first;
+    double c_last;
+};
+
+static Result workload() {
+    constexpr int n = 512;
+    constexpr int R = 3;
+
+    Lcg gen(20266917);
+    std::vector<double> a(n * n);
+    std::vector<double> b(n * n);
+    std::vector<double> c(n * n);
+    for (int i = 0; i < n * n; ++i) a[i] = gen.next_unit();
+    for (int i = 0; i < n * n; ++i) b[i] = gen.next_unit();
+
+    for (int r = 0; r < R; ++r) {
+        a[r] = a[r] + 1.0e-9;  // anti-elimination, part of the algorithm
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                double s = 0.0;
+                for (int k = 0; k < n; ++k) {
+                    s = s + a[i * n + k] * b[k * n + j];
+                }
+                c[i * n + j] = s;
+            }
+        }
+    }
+
+    double sum_c = 0.0;
+    for (int i = 0; i < n * n; ++i) {
+        sum_c = sum_c + c[i];
+    }
+
+    return Result{sum_c, c[0], c[n * n - 1]};
+}
+
+// Steady-mode anti-elimination sink. The workload body is a pure function of no
+// arguments, so without an observable use of its result on every iteration clang
+// treats the call as loop-invariant and sinks it out of the steady loop: verified
+// on the frozen recipe, mb01 then reported 42 ns for six of seven iterations while
+// the work ran once after the loop. One volatile store per iteration, outside
+// every pinned computation, keeps each iteration doing the whole workload.
+static volatile double g_steady_sink;
+
+int main(int argc, char** argv) {
+    // Section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K (default 7).
+    // Each steady iteration re-seeds the generator to 20266917 and regenerates a and b.
+    const char* mode = argc > 1 ? argv[1] : "once";
+    Result res{};
+    if (std::strcmp(mode, "steady") == 0) {
+        int K = argc > 2 ? std::atoi(argv[2]) : 7;
+        if (K < 1) K = 7;
+        for (int k = 0; k < K; ++k) {
+            const auto t0 = std::chrono::steady_clock::now();
+            res = workload();
+            g_steady_sink = res.sum_c;
+            const auto t1 = std::chrono::steady_clock::now();
+            std::printf("ITER %d %lld\n", k,
+                        static_cast<long long>(
+                            std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()));
+            std::fflush(stdout);
+        }
+    } else {
+        res = workload();
+    }
+
+    std::printf("MB06 sumC=%.16e c_first=%.16e c_last=%.16e\n", res.sum_c, res.c_first, res.c_last);
+    return 0;
+}

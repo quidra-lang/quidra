@@ -1,0 +1,188 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "0f6ae14d965f10c444b7e411a8d3d8aca3dc80dba2ba2b697ab55118e88bf5b6",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "0e750ef6a9c8a3016481843b638c2bb1f04521be34d588a11938f8812bc1cd56",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.installation_distribution_experience",
+      "metric.toolchain_stability_release_maturity"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-4--java",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "0e750ef6a9c8a3016481843b638c2bb1f04521be34d588a11938f8812bc1cd56",
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "ecosystem-tooling--part-4--java"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.installation_distribution_experience": {
+        "candidate_universe": "Official Adoptium (the OpenJDK build recommended by dev.java / most-widely-adopted open-source distribution per independent guides) FAQ/docs plus vendor-neutral how-to guides covering all three major OS families (Windows, macOS, Linux) and all three installation paths (native installer, system package manager, version manager) were used as the fixed retrieval route, identical in structure to the route used for every other language's installation metric in this evaluation family.",
+        "component_findings": {
+          "artifact_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--java): <cite index=\"6-8,6-9\">Users verify SHA256 checksums against the Adoptium download page and run the MSI installer on Windows.</cite>",
+          "channel_breadth": "Preserved paid evidence (ecosystem-tooling--part-4--java): Multiple independently maintained, drop-in-compatible OpenJDK builds (Temurin, Corretto, Zulu, Liberica, Microsoft Build, Semeru, Oracle) eliminate single-vendor lock-in.",
+          "install_docs": "Preserved paid evidence (ecosystem-tooling--part-4--java): <cite index=\"29-1,29-2\">The actions/setup-java action is the recommended way to install Eclipse Temurin in GitHub Actions workflows, and it handles downloading, caching, and configuring the JDK on the runner.</cite>",
+          "installers": "Preserved paid evidence (ecosystem-tooling--part-4--java): Official platform installers (.pkg/.dmg for macOS, .msi for Windows, .deb/.rpm for Linux) are distributed both by Oracle and by open-source vendors such as Adoptium.",
+          "package_version_manager": "Preserved paid evidence (ecosystem-tooling--part-4--java): Official Adoptium (the OpenJDK build recommended by dev.java / most-widely-adopted open-source distribution per independent guides) FAQ/docs plus vendor-neutral how-to guides covering all three major OS families (Windows, macOS, Linux) and all three installation paths (native installer, system package manager, version manager) were used as the fixed retrieval route, identical in structure to the route used for every other language's installation metric in this evaluation family."
+        },
+        "component_levels": {
+          "artifact_integrity": 4,
+          "channel_breadth": 4,
+          "install_docs": 4,
+          "installers": 4,
+          "package_version_manager": 4
+        },
+        "legacy_score_0_100": 96,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.install-distribution.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate current official/de-facto installation paths on the same major desktop/server platforms and use only documented distribution channels.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-4--java",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/java/8a8348d7ccc02be7bfe7ee8169e2951bf62758db94973eaa3abcb9a520792ebd.json"
+        ]
+      },
+      "metric.toolchain_stability_release_maturity": {
+        "candidate_universe": "Official Oracle release-notes/support-roadmap pages, the OpenJDK project's own patch-update announcements, and independent vendor (Azul/Adoptium) and press (JRebel, ADTmag, javacodegeeks) coverage of the six-month/LTS cadence were used, matching the fixed retrieval-route structure (official primary source + vendor + independent press) applied to every other language's toolchain-stability metric in this evaluation family.",
+        "component_findings": {
+          "compat_deprecation": "Preserved paid evidence (ecosystem-tooling--part-4--java): Strong documented bytecode/class-file backward compatibility, with narrow, disclosed exceptions for preview features and forward-compatibility policy adjustments over time.",
+          "governance_change": "Preserved paid evidence (ecosystem-tooling--part-4--java): Strong documented bytecode/class-file backward compatibility, with narrow, disclosed exceptions for preview features and forward-compatibility policy adjustments over time.",
+          "release_cadence": "Preserved paid evidence (ecosystem-tooling--part-4--java): A predictable, published quarterly (moving toward monthly) security patch cadence is documented and announced far in advance.",
+          "release_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--java): Reproducible, checksum-verifiable artifacts are published across multiple independently maintained vendor builds, with stable download URLs.",
+          "support_policy": "Preserved paid evidence (ecosystem-tooling--part-4--java): Same 6-criterion weighted checklist (100 pts total) applied identically to all 10 languages: (1) documented predictable versioning/release scheme [20], (2) published LTS/support policy with concrete end dates [20], (3) documented backward-compatibility guarantee [20], (4) reproducible, multi-vendor supported build-artifact availability [15], (5) regular maintenance/patch cadence [15], (6) multiple independent vendors providing redundant long-term maintenance [10]. Language age/first-release date is recorded as context only and is not scored."
+        },
+        "component_levels": {
+          "compat_deprecation": 4,
+          "governance_change": 4,
+          "release_cadence": 4,
+          "release_integrity": 4,
+          "support_policy": 4
+        },
+        "legacy_score_0_100": 97,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.toolchain-stability.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Score current observable release/support practices. Language age and first-release date are context only and never directly score.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-4--java",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/java/8a8348d7ccc02be7bfe7ee8169e2951bf62758db94973eaa3abcb9a520792ebd.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Java",
+        "metrics": {
+          "metric.installation_distribution_experience": {
+            "component_levels": {
+              "artifact_integrity": 4,
+              "channel_breadth": 4,
+              "install_docs": 4,
+              "installers": 4,
+              "package_version_manager": 4
+            },
+            "rubric_id": "ecosystem.install-distribution.v1",
+            "score_0_100": 100
+          },
+          "metric.toolchain_stability_release_maturity": {
+            "component_levels": {
+              "compat_deprecation": 4,
+              "governance_change": 4,
+              "release_cadence": 4,
+              "release_integrity": 4,
+              "support_policy": 4
+            },
+            "rubric_id": "ecosystem.toolchain-stability.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.installation_distribution_experience": {
+        "Java": 100.0
+      },
+      "metric.toolchain_stability_release_maturity": {
+        "Java": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "20b36433069123d304ba983ff01d70e89111536b359dc591840f31d6c7f07e74",
+  "schema_version": 1
+}

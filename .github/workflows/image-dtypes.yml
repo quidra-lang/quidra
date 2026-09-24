@@ -1,0 +1,27 @@
+name: image-dtypes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  image-dtypes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ github.workflow }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ github.workflow }}-
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ccache llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Image dtype tests
+        run: bash tests/image_dtype_tests.sh "$GITHUB_WORKSPACE/build/quidra"

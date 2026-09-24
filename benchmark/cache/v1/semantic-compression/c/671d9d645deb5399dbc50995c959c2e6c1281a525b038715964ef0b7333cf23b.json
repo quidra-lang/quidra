@@ -1,0 +1,563 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "671d9d645deb5399dbc50995c959c2e6c1281a525b038715964ef0b7333cf23b",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "644a63be0e9b6f293fef01462b887178bcdde9452c4789f45457acbea76e1647",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--c",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "644a63be0e9b6f293fef01462b887178bcdde9452c4789f45457acbea76e1647",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--c"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.capability_coverage": {
+        "denominator_fixed": 88,
+        "denominator_frozen": true,
+        "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+        "fragment_count_n_L": 44,
+        "full_count": 42,
+        "language": "C++",
+        "methodology_sources": [
+          "template/methodology-assets/semantic_compression/capability_universe.json (probes[], support_rubric, capability_point_assignment_rule, na_policy)",
+          "template/methodology-assets/semantic_compression/semantic_site_matrix.json (probe/family/capability_denominator cross-check)"
+        ],
+        "na_policy_compliance": "No probe was scored N/A for C++; all 44 probes received a fragment and a FULL or PARTIAL support level with cited justification, per NA-6 and the deterministic tie-break rule. No probe was deleted, reworded, or re-weighted.",
+        "none_count": 0,
+        "partial_count": 2,
+        "per_family_breakdown": {
+          "1. value and storage declaration": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "10. explicit and implicit type conversion": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "11. indexing and slicing": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "12. nullable / optional values": {
+            "awarded": 3,
+            "coverage_pct": 75.0,
+            "denominator": 4
+          },
+          "13. errors, failure values, exceptions, and propagation": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "14. alternatives / sum / variant types and dispatch over alternatives": {
+            "awarded": 6,
+            "coverage_pct": 100.0,
+            "denominator": 6
+          },
+          "15. generics / parametric polymorphism": {
+            "awarded": 6,
+            "coverage_pct": 100.0,
+            "denominator": 6
+          },
+          "16. collections and iteration": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "18. modules, imports, and dependency boundaries": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "19. concurrency / asynchronous execution where the language supports it": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "2. initialization and potentially uninitialized state": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "20. FFI / interoperability boundaries": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "3. mutation": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+            "awarded": 6,
+            "coverage_pct": 100.0,
+            "denominator": 6
+          },
+          "5. function calls and argument-passing semantics": {
+            "awarded": 6,
+            "coverage_pct": 100.0,
+            "denominator": 6
+          },
+          "6. return-value semantics": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "7. arithmetic operators": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          },
+          "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+            "awarded": 3,
+            "coverage_pct": 75.0,
+            "denominator": 4
+          },
+          "9. equality, ordering, and comparison": {
+            "awarded": 4,
+            "coverage_pct": 100.0,
+            "denominator": 4
+          }
+        },
+        "per_probe": [
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "1. value and storage declaration",
+            "note": "const int n = 7; return n; \u2014 ISO C++20 const-qualified local, immutable binding.",
+            "probe_id": "F01.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "1. value and storage declaration",
+            "note": "namespace-scope 'static long long counter = 0;' plus 'constexpr long long LIMIT = 100;' \u2014 mutable storage vs compile-time constant, ISO C++20 constexpr.",
+            "probe_id": "F01.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "2. initialization and potentially uninitialized state",
+            "note": "int v; if(cond) v=5; else v=9; return v; \u2014 declaration without initializer, definitely assigned on both paths, well-defined in C++.",
+            "probe_id": "F02.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "2. initialization and potentially uninitialized state",
+            "note": "unsigned char buf[16]; buf[0]=1; return buf[0]; \u2014 genuinely uninitialized array storage (no zero-fill) per ISO C++20 declarator rules.",
+            "probe_id": "F02.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "3. mutation",
+            "note": "x += 1; in-place compound assignment.",
+            "probe_id": "F03.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "3. mutation",
+            "note": "xs[1] = 42; std::vector operator[] in-place element mutation.",
+            "probe_id": "F03.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "4. aliasing, references, borrowing, addressing, and dereferencing where applicable",
+            "note": "int& port = slot; port = 9; return slot; \u2014 native reference type, writable alias, ISO C++20 [dcl.ref].",
+            "probe_id": "F04.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "4. aliasing, references, borrowing, addressing, and dereferencing where applicable",
+            "note": "std::span<const int> window(xs); window[0]; \u2014 C++20 <span>, non-owning non-copying read-only view.",
+            "probe_id": "F04.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "4. aliasing, references, borrowing, addressing, and dereferencing where applicable",
+            "note": "std::shared_ptr<Widget> first = make_shared<Widget>(5); route through a one-element std::vector to obtain 'second'; bool same = first.get()==second.get(); \u2014 raw-pointer identity comparison distinct from value equality.",
+            "probe_id": "F04.P3",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "5. function calls and argument-passing semantics",
+            "note": "Bare call f(x). Ordinary C++ call-site syntax is fully expressible; the fact that the call site alone does not reveal pass-by-value vs pass-by-reference is a determinacy finding (metric B/D), not a capability gap.",
+            "probe_id": "F05.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "5. function calls and argument-passing semantics",
+            "note": "void put(int& cell){ cell = 12; } put(cell); \u2014 reference parameter is C++'s standard explicit writable-alias-passing mechanism.",
+            "probe_id": "F05.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "5. function calls and argument-passing semantics",
+            "note": "auto neg = [k](int a){ return k - a; }; std::transform(xs.begin(),xs.end(),ys.begin(),neg); \u2014 C++11 lambda closure capturing enclosing local, passed by name.",
+            "probe_id": "F05.P3",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "6. return-value semantics",
+            "note": "int mid(std::vector<int> xs){ return xs[1]; } auto y = mid(xs); return y; \u2014 value return, independent of source aggregate.",
+            "probe_id": "F06.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "6. return-value semantics",
+            "note": "std::pair<int,int> divmod2(...) returning {a/b, a%b}; auto [q,r] = divmod2(a,b); \u2014 C++17 structured bindings destructure a single multi-result call.",
+            "probe_id": "F06.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "7. arithmetic operators",
+            "note": "int r = a*b+c; ordinary precedence multiply-add.",
+            "probe_id": "F07.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "7. arithmetic operators",
+            "note": "int q=a/b; int m=a%b; double d=(double)a/b; \u2014 integer division/remainder and explicit real division.",
+            "probe_id": "F07.P2",
+            "support_level": "FULL"
+          },
+          {
+            "applicable_letters": [
+              "P-c"
+            ],
+            "awarded": 1,
+            "capability_points": 2,
+            "family": "8. integer overflow, division-by-zero, and other numeric edge behavior",
+            "note": "No std checked/wrapping/saturating integer op exists under the frozen C++20 recipe (saturation arithmetic is C++26-only, not in <numeric> for C++20; no checked-add returning optional). Only rung (iv), the plain '+' operator, is reachable, and ISO C++20 7.7p4 leaves signed-integer overflow undefined behavior \u2014 the specific overflow GUARANTEE the canonical_task names is not documented at all (worse than 'unspecified'), matching P-c (guarantee not documented).",
+            "probe_id": "F08.P1",
+            "support_level": "PARTIAL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "8. integer overflow, division-by-zero, and other numeric edge behavior",
+            "note": "int q = (b==0) ? 0 : a/b; \u2014 explicit local guard, rung (ii) of the canonical task's own preference order, fully deterministic and standard control flow.",
+            "probe_id": "F08.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "9. equality, ordering, and comparison",
+            "note": "bool eq = (s1 == s2); std::string::operator== compares contents (ISO C++20 [string.cmp]).",
+            "probe_id": "F09.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "9. equality, ordering, and comparison",
+            "note": "std::sort(xs.begin(),xs.end(),std::greater<int>()); bool lt = a<b; \u2014 explicit comparator supplied as value from <algorithm>/<functional>.",
+            "probe_id": "F09.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "10. explicit and implicit type conversion",
+            "note": "int32_t small = static_cast<int32_t>(big); \u2014 explicit narrowing cast; C++20 (P0907R4) makes out-of-range signed conversion well-defined as reduction modulo 2^N.",
+            "probe_id": "F10.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "10. explicit and implicit type conversion",
+            "note": "double sum = i + d; \u2014 implicit usual arithmetic conversions per ISO C++20 [expr.arith.conv].",
+            "probe_id": "F10.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "11. indexing and slicing",
+            "note": "int e = xs[i]; return e; \u2014 ordinary operator[]. Evidence-only .checked variant available via xs.at(i) (throws std::out_of_range); does not affect capability points per spec.",
+            "probe_id": "F11.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "11. indexing and slicing",
+            "note": "std::span<int> part(xs.data()+1, 3); return part[0]; \u2014 C++20 std::span sub-range shares storage, non-copying.",
+            "probe_id": "F11.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "12. nullable / optional values",
+            "note": "std::optional<int> o = std::nullopt; int n = o.value_or(0); \u2014 C++17 <optional> with standard fallback accessor.",
+            "probe_id": "F12.P1",
+            "support_level": "FULL"
+          },
+          {
+            "applicable_letters": [
+              "P-a"
+            ],
+            "awarded": 1,
+            "capability_points": 2,
+            "family": "12. nullable / optional values",
+            "note": "std::optional::transform/and_then are C++23-only and unavailable under the frozen C++20 recipe. Per R9 named-substitution exception (F12.P2 is explicitly listed), the explicit conditional form was substituted for the standard optional-aware chaining operation; scored PARTIAL under P-a, never FULL.",
+            "probe_id": "F12.P2",
+            "support_level": "PARTIAL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "13. errors, failure values, exceptions, and propagation",
+            "note": "int parse_twice(const std::string& s){ return std::stoi(s) * 2; } \u2014 std::stoi throws std::invalid_argument/out_of_range, unhandled, propagates to caller.",
+            "probe_id": "F13.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "13. errors, failure values, exceptions, and propagation",
+            "note": "try { n = std::stoi(s); } catch (...) { n = 0; } \u2014 local recovery via catch block.",
+            "probe_id": "F13.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "14. alternatives / sum / variant types and dispatch over alternatives",
+            "note": "using Shape = std::variant<Circle, Rect>; Shape s = Circle{2.0}; \u2014 std::variant's alternative set is fixed by its template arguments at the type's own declaration and cannot be extended from elsewhere (C++17 <variant>); a genuinely closed sum type, not a substitution.",
+            "probe_id": "F14.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "14. alternatives / sum / variant types and dispatch over alternatives",
+            "note": "std::visit with the standard 'overloaded' lambda-set idiom (class template argument deduction + using-declaration pack, core language only) over the Shape variant, no default arm \u2014 overload resolution fails to compile unless every alternative is covered, giving compile-time exhaustiveness.",
+            "probe_id": "F14.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "14. alternatives / sum / variant types and dispatch over alternatives",
+            "note": "Abstract base 'Shape' with virtual area(); Circle/Rect implemented in unit shapes; Tri implemented in a separate unit under the frozen multi_unit_recipe (clang++ -std=c++20 -O2 util.cpp FILE.cpp -o BIN); dispatch through a base reference/pointer.",
+            "probe_id": "F14.P3",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "15. generics / parametric polymorphism",
+            "note": "template<typename T> T head(const std::vector<T>& xs){ return xs[0]; } \u2014 declared result type is exactly T, not type-erased, reused at int and std::string.",
+            "probe_id": "F15.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "15. generics / parametric polymorphism",
+            "note": "template<std::totally_ordered T> T max_of(T a, T b){ return a>b?a:b; } \u2014 C++20 <concepts> declaration-site constraint using std::totally_ordered.",
+            "probe_id": "F15.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "15. generics / parametric polymorphism",
+            "note": "std::vector<std::unique_ptr<Named>> items holding an A and a B; items[0]->tag() dispatches virtually at runtime through the abstract Named element type.",
+            "probe_id": "F15.P3",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "16. collections and iteration",
+            "note": "std::vector<int> xs{1,2,3}; int total = std::accumulate(xs.begin(), xs.end(), 0); \u2014 <numeric> standard sum/fold.",
+            "probe_id": "F16.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "16. collections and iteration",
+            "note": "std::unordered_map<std::string,int> mp{{\"a\",1}}; range-for entry iteration to sum values; lookup miss via mp.find(\"b\")==mp.end() ? 0 : it->second.",
+            "probe_id": "F16.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics",
+            "note": "std::ifstream f(\"data.txt\"); RAII destructor closes the handle at scope exit on every path, including exception unwinding when f.exceptions(std::ios::failbit) is enabled to surface the open/read failure.",
+            "probe_id": "F17.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics",
+            "note": "struct Handle { int id; ~Handle(){ released++; } }; \u2014 destructor runs deterministically exactly once at end of scope, ISO C++20 [class.dtor].",
+            "probe_id": "F17.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "18. modules, imports, and dependency boundaries",
+            "note": "#include <iostream>; std::cout << \"x\" << \"\\n\"; \u2014 standard include introduces std::cout into scope.",
+            "probe_id": "F18.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "18. modules, imports, and dependency boundaries",
+            "note": "namespace util { int pub_add(int,int); } declared in util.h; secret() given internal (translation-unit-local) linkage inside util.cpp so it cannot be referenced from FILE.cpp; call site util::pub_add(2,3); built under the frozen multi_unit_recipe.",
+            "probe_id": "F18.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "19. concurrency / asynchronous execution where the language supports it",
+            "note": "auto f1=std::async(std::launch::async,[](){return 20;}); auto f2=std::async(std::launch::async,[](){return 22;}); int sum=f1.get()+f2.get(); \u2014 <future> standard concurrency facility.",
+            "probe_id": "F19.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "19. concurrency / asynchronous execution where the language supports it",
+            "note": "std::atomic<int64_t> counter{0}; two std::thread each calling counter.fetch_add(1) 1000 times, joined; ISO C++20 clause 31 (atomics) normatively documents atomic read-modify-write as race-free; final value 2000 verified across 20 runs.",
+            "probe_id": "F19.P2",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "20. FFI / interoperability boundaries",
+            "note": "#include <cstdlib>; std::abs(-3); \u2014 <cstdlib> declares the C library abs() with C linkage, reachable via C++'s built-in C interop with no separate binding generator.",
+            "probe_id": "F20.P1",
+            "support_level": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "family": "20. FFI / interoperability boundaries",
+            "note": "extern \"C\" int add2(int a, int b){ return a+b; } \u2014 extern \"C\" linkage specification (built-in mechanism) yields an unmangled, C-ABI-callable symbol; verified with nm on the produced binary (V2 validator exercised on known-positive/known-negative cases).",
+            "probe_id": "F20.P2",
+            "support_level": "FULL"
+          }
+        ],
+        "raw_score": 97.727272727,
+        "reported_score_rounded": 97.73,
+        "sum_check": {
+          "matches_total_numerator_denominator": true,
+          "sum_of_family_awarded": 86,
+          "sum_of_family_denominators": 88
+        },
+        "supported_points_numerator": 86,
+        "toolchain_recipe_used": {
+          "build": "clang++ -std=c++20 -O2 FILE.cpp -o BIN",
+          "multi_unit_build_for_F18P2_F14P3": "clang++ -std=c++20 -O2 util.cpp FILE.cpp -o BIN",
+          "note": "C++ has no checked arithmetic/bounds mode; per toolchain_binding.safety_mode_clause this absence is a recorded language fact scored by metrics B/D, not a recipe deviation.",
+          "run": "./BIN"
+        }
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "C++": 97.73
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "63b01795b192c89ccf645c47aaa34f62e15074a8c171759d362841d60a61a8a0",
+  "schema_version": 1
+}

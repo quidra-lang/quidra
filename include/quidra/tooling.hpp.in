@@ -1,0 +1,51 @@
+#pragma once
+
+#include <string_view>
+
+namespace quidra {
+
+// Generated from docs/spec/grammar.ebnf at configure time so the grammar served
+// to machine clients cannot silently drift from the checked-in specification.
+inline constexpr std::string_view grammar_ebnf = R"QUIDRA_EBNF(@QUIDRA_GRAMMAR_EBNF@)QUIDRA_EBNF";
+
+// Compact discovery document for code-generation and repair clients. Detailed
+// language semantics remain in the manifest/specification; this describes the
+// deterministic compiler interfaces a client should use rather than asking it
+// to infer a workflow from prose.
+inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
+  "schema_version": 1,
+  "language": "@QUIDRA_PROJECT_NAME@",
+  "source_extension": "@QUIDRA_PROJECT_EXTENSION@",
+  "generation": {
+    "grammar_command": "@QUIDRA_PROJECT_CLI@ describe grammar",
+    "format_command": "@QUIDRA_PROJECT_CLI@ fmt FILE@QUIDRA_PROJECT_EXTENSION@",
+    "check_command": "@QUIDRA_PROJECT_CLI@ check FILE@QUIDRA_PROJECT_EXTENSION@ --json"
+  },
+  "inspection": {
+    "command": "@QUIDRA_PROJECT_CLI@ inspect FILE@QUIDRA_PROJECT_EXTENSION@ --no-source",
+    "fields": ["revision", "node_id", "kind", "source_hash", "parent_id", "depth", "inferred_type", "authority", "effects"],
+    "type_contracts": {
+      "tensor": "tensor<T> | tensor<T><D0, D1, ...>",
+      "tensor_rank": "the second angle group is an exact-rank shape contract; unconstrained tensor<T> rank may still be compiler-inferred as flow metadata",
+      "tensor_shape": "each D axis is _ or an integer expression; runtime expressions are evaluated once and captured at binding creation; inferred shape() may return fixed int[N]"
+    }
+  },
+  "repair": {
+    "schema_command": "@QUIDRA_PROJECT_CLI@ describe patch-schema",
+    "preferred_schema_version": 2,
+    "apply_command": "@QUIDRA_PROJECT_CLI@ patch FILE@QUIDRA_PROJECT_EXTENSION@ PATCH.json --write",
+    "operations": ["replace_node", "insert_before", "insert_after", "delete_node"]
+  },
+  "calls": {
+    "argument_order": "positional_then_named",
+    "named_syntax": "name = value",
+    "reference_syntax": "&value; named: &name = &value",
+    "rejected": ["positional_after_named", "unknown_argument", "duplicate_parameter", "missing_required"]
+  },
+  "validation_sequence": [
+    "@QUIDRA_PROJECT_CLI@ fmt FILE@QUIDRA_PROJECT_EXTENSION@ --check",
+    "@QUIDRA_PROJECT_CLI@ check FILE@QUIDRA_PROJECT_EXTENSION@ --json"
+  ]
+})QUIDRA_JSON";
+
+} // namespace quidra

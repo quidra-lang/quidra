@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "purpose": "Required Primary evaluation coverage. The deterministic runner assigns every ID to frozen work units before manifest freeze.",
+  "evaluations": {
+    "semantic_compression": {
+      "required": [
+        "gate.capability_universe",
+        "gate.semantic_site_matrix",
+        "gate.matrix_validator",
+        "gate.semantic_premeasurement_validation",
+        "gate.comparability_audit",
+        "coverage.all_frozen_probes",
+        "metric.semantic_density",
+        "metric.semantic_determinacy",
+        "metric.semantic_locality",
+        "metric.hidden_semantic_cost",
+        "metric.capability_efficiency",
+        "metric.capability_coverage"
+      ]
+    },
+    "llm_learnability": {
+      "required": [
+        "gate.infrastructure_preflight",
+        "gate.reference_pack_leakage",
+        "coverage.all_10_languages",
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization",
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization",
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ]
+    },
+    "language_quality": {
+      "required": [
+        "coverage.all_10_languages",
+        "gate.language_quality_design_rubrics_frozen",
+        "gate.quidra_programs_current",
+        "metric.native_execution_performance",
+        "metric.long_running_performance",
+        "metric.compile_build_performance",
+        "metric.startup_latency",
+        "metric.memory_efficiency",
+        "metric.source_code_size",
+        "metric.binary_artifact_size",
+        "metric.runtime_overhead",
+        "metric.code_efficiency_conciseness",
+        "metric.readability",
+        "metric.functionality_expressiveness",
+        "metric.diagnostics",
+        "metric.dependency_simplicity",
+        "metric.portability_design_platform_neutrality",
+        "metric.ffi_interoperability_design",
+        "metric.concurrency",
+        "metric.type_safety",
+        "metric.memory_safety",
+        "metric.runtime_safety",
+        "metric.boundary_value_safety",
+        "metric.adversarial_input_robustness",
+        "metric.early_error_detection",
+        "metric.debuggability",
+        "metric.silent_bug_resistance",
+        "metric.implementation_robustness"
+      ]
+    },
+    "ecosystem": {
+      "required": [
+        "gate.objective_rubrics_frozen",
+        "gate.evidence_window_frozen",
+        "coverage.all_10_languages",
+        "metric.third_party_library_availability_domain_coverage",
+        "metric.package_ecosystem_activity_maintenance",
+        "metric.third_party_tool_availability",
+        "metric.production_adoption_deployment_evidence",
+        "metric.community_public_knowledge_availability",
+        "metric.core_tooling_availability_quality",
+        "metric.package_dependency_management_quality",
+        "metric.ide_editor_support_quality",
+        "metric.debugger_profiler_support",
+        "metric.build_test_integration",
+        "metric.documentation_quality",
+        "metric.installation_distribution_experience",
+        "metric.toolchain_stability_release_maturity",
+        "metric.implemented_platform_coverage",
+        "metric.external_integration_coverage"
+      ]
+    },
+    "llm_proficiency": {
+      "required": [
+        "gate.fixed_model_configuration",
+        "gate.prompt_preservation",
+        "coverage.all_10_languages",
+        "gate.proficiency_workload_contract",
+        "metric.generation_success_rate",
+        "metric.compile_parse_success_rate",
+        "metric.correct_at_1",
+        "metric.correct_at_n",
+        "metric.test_pass_rate",
+        "metric.repair_success_rate",
+        "metric.repair_efficiency",
+        "metric.diagnosis_efficiency",
+        "metric.silent_bug_resistance",
+        "metric.syntax_hallucination_resistance",
+        "metric.specification_compliance",
+        "metric.prompt_robustness",
+        "metric.unseen_case_generalization",
+        "metric.source_token_efficiency",
+        "metric.total_token_efficiency",
+        "metric.generated_code_performance",
+        "metric.generated_code_memory_efficiency",
+        "metric.generated_code_compile_performance"
+      ]
+    }
+  }
+}

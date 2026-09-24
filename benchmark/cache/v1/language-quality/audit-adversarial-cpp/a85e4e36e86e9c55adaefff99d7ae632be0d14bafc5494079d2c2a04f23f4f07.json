@@ -1,0 +1,266 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "a85e4e36e86e9c55adaefff99d7ae632be0d14bafc5494079d2c2a04f23f4f07",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "9e65e25f7a5792c9e2e037ff3fc934e2034145c55ea3b1b713b29f0d11f3e7db",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/programs/cpp/adversarial": "73217bc7fa600c7fc828119058c0a5b7be3aa9609d7d949e82a0c030d3b24847"
+    },
+    "requirement_ids": [],
+    "result_kind": "audit",
+    "reuse_audit_for": [
+      "adversarial-cpp"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "artifact_git_object": "d6bc2db35a6ff2b5bb0fa50472c87e669751f922"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-audit-adversarial-cpp",
+    "work_unit_id": "audit-adversarial-cpp",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "9e65e25f7a5792c9e2e037ff3fc934e2034145c55ea3b1b713b29f0d11f3e7db",
+    "run_id": "2026-09-22-c184325-gh8",
+    "work_unit_id": "audit-adversarial-cpp"
+  },
+  "result": {
+    "artifact": "adversarial-cpp",
+    "artifact_path": "/quidra-benchmark/template/programs/cpp/adversarial",
+    "assumed_toolchain": "GCC 16.2 (stable, Aug 2026) and Clang/LLVM 23.1.0 (stable, Aug 2026) as the current representative mainstream C++ toolchains",
+    "audit_pass": true,
+    "audit_scope": "Reusable-artifact currency audit only. No Primary requirement IDs assigned (assigned_requirements.json: assigned=[]). No measurements were taken or reused; this is a semantic-validity review of source against current mainstream C++ toolchains.",
+    "caveats_non_blocking": [
+      "ADV-18's missing-return case yields only a warning (not a hard compile error) under default GCC/Clang flags; achieving a 'Compile-time Detection' classification for it requires the harness to build with -Wall -Werror=return-type (or /W4 /WX equivalents) \u2014 this is a harness build-configuration matter external to the source files themselves.",
+      "ADV-21's three depth variants may not differentiate under Clang's default -fbracket-depth=256 ceiling (all three would hit the same fatal diagnostic); GCC has no equivalent default ceiling and would need much larger, stack-size-dependent depths to crash the compiler itself. Recommend recording outcomes per-toolchain rather than assuming one universal classification for this case.",
+      "ADV-23 depends on an external binary fixture ('inputs/ADV-23.bin') not present in the audited readable path; its existence/content could not be verified from this packet alone and should be confirmed by the harness maintainers.",
+      "ADV-19/20's crash reproducibility depends on the harness's configured stack ulimit; recommend the harness pin an explicit stack size for reproducibility across repeated runs and across languages being compared."
+    ],
+    "conclusion": "All 34 reviewed C++ adversarial source files remain syntactically and semantically valid against current mainstream C++ toolchains (GCC 16.2 / Clang 23.1.0, Aug 2026). Every hazard category required by the Language Quality specification's adversarial/edge-case testing section is represented, intentionally-malformed files behave as designed (compile-time rejection), and the previously-uncertain literal-parsing and deep-nesting behaviors were confirmed as well-documented, longstanding, still-current toolchain behaviors rather than defects introduced by drift. No fatal defects were found; audit_pass=true. The non-blocking caveats above should be carried forward to the harness/runner configuration and to per-toolchain result recording, not treated as artifact defects.",
+    "coverage_against_spec_section_17": {
+      "array_lower_bound_violation": [
+        "ADV-09_C.cpp",
+        "ADV-09_R.cpp"
+      ],
+      "array_upper_bound_violation": [
+        "ADV-10_C.cpp",
+        "ADV-10_R.cpp"
+      ],
+      "divide_by_zero": [
+        "ADV-08_C.cpp",
+        "ADV-08_R.cpp",
+        "ADV-06_R.cpp",
+        "ADV-07_R.cpp"
+      ],
+      "excessive_recursion_depth": [
+        "ADV-20_single.cpp"
+      ],
+      "extreme_parser_nesting": [
+        "ADV-21_single.cpp",
+        "ADV-21_single_depth1000.cpp",
+        "ADV-21_single_depth10000.cpp"
+      ],
+      "huge_allocation": [
+        "ADV-11_R.cpp"
+      ],
+      "huge_numeric_literal": [
+        "ADV-24_single.cpp"
+      ],
+      "infinite_recursion": [
+        "ADV-19_single.cpp"
+      ],
+      "infinity": [
+        "ADV-07_R.cpp"
+      ],
+      "integer_overflow": [
+        "ADV-02_C.cpp",
+        "ADV-02_R.cpp"
+      ],
+      "integer_underflow": [
+        "ADV-03_C.cpp",
+        "ADV-03_R.cpp"
+      ],
+      "invalid_cast": [
+        "ADV-13_single.cpp"
+      ],
+      "invalid_external_input": [
+        "ADV-25_R.cpp",
+        "ADV-26_R.cpp"
+      ],
+      "invalid_mutation_mutation_of_immutable": [
+        "ADV-15_single.cpp",
+        "ADV-16_single.cpp"
+      ],
+      "malformed_source_code": [
+        "ADV-22a_single.cpp",
+        "ADV-22b_single.cpp"
+      ],
+      "malformed_utf8": [
+        "ADV-23_single.cpp"
+      ],
+      "missing_return": [
+        "ADV-18_single.cpp"
+      ],
+      "nan": [
+        "ADV-06_R.cpp"
+      ],
+      "null_none_misuse": [
+        "ADV-17_single.cpp"
+      ],
+      "out_of_range_float_to_integer_conversion": [
+        "ADV-05_C.cpp",
+        "ADV-05_R.cpp"
+      ],
+      "signed_unsigned_boundaries": [
+        "ADV-04a_C.cpp",
+        "ADV-04a_R.cpp",
+        "ADV-04b_C.cpp",
+        "ADV-04b_R.cpp"
+      ],
+      "type_mismatch": [
+        "ADV-14_R.cpp"
+      ],
+      "uninitialized_value": [
+        "ADV-12_single.cpp"
+      ],
+      "valid_baseline_control": [
+        "ADV-22_single-valid.cpp"
+      ],
+      "very_large_int64_to_int32_narrowing": [
+        "ADV-01_C.cpp",
+        "ADV-01_R.cpp"
+      ]
+    },
+    "coverage_gaps_found": "none \u2014 every hazard category enumerated in spec Section 17's mandatory list has at least one corresponding program; a valid-baseline control case (ADV-22_single-valid.cpp) is also present for calibration.",
+    "evaluation": "language_quality",
+    "files_reviewed_count": 34,
+    "per_file_findings": [
+      {
+        "finding": "int64_t->int32_t narrowing via copy-initialization compiles (possible -Wnarrowing/-Wconversion warning only, not an error) and truncates at runtime as intended. Semantically valid.",
+        "id": "ADV-01"
+      },
+      {
+        "finding": "Signed integer overflow/underflow via arithmetic on long long is classic UB but reliably wraps two's-complement on GCC/Clang without -ftrapv/-fsanitize=undefined. ADV-03's literal `-9223372036854775808` relies on the well-documented decimal-literal-too-large-for-signed-type conforming extension: the unsuffixed literal 9223372036854775808 does not fit signed long long, so GCC/Clang (and MSVC) treat it as unsigned (or __int128 in GCC where available) with a warning, not a hard error, and unary negation then yields the intended INT64_MIN bit pattern on two's-complement targets.",
+        "id": "ADV-02/03"
+      },
+      {
+        "finding": "Unsigned subtraction underflow and signed/unsigned comparison compile cleanly (at most -Wsign-compare) and exhibit the intended boundary behavior.",
+        "id": "ADV-04a/04b"
+      },
+      {
+        "finding": "Out-of-range double->int32_t conversion is UB per the standard; compiles fine, runtime result is implementation-defined. Valid test.",
+        "id": "ADV-05"
+      },
+      {
+        "finding": "NaN self-inequality and Infinity arithmetic (division by zero on floating types, inf-inf) are well-defined IEEE-754 behaviors on all mainstream targets; compiles and runs deterministically. Valid.",
+        "id": "ADV-06/07"
+      },
+      {
+        "finding": "Integer division by zero is UB and reliably raises SIGFPE (hardware trap) on x86/ARM Linux \u2014 a genuine crash test, not a compile issue.",
+        "id": "ADV-08"
+      },
+      {
+        "finding": "Unchecked vector::operator[] with an out-of-range (including underflowed size_t) index is UB; no bounds check fires unless built with a hardened libstdc++/libc++ (_GLIBCXX_ASSERTIONS) or ASan. Matches intended silent/UB classification.",
+        "id": "ADV-09/10"
+      },
+      {
+        "finding": "vector<int64_t> sized from unvalidated stdin input can throw std::length_error/bad_alloc or trigger OOM-kill depending on requested size; valid huge-allocation probe.",
+        "id": "ADV-11"
+      },
+      {
+        "finding": "Reading an uninitialized local is UB but compiles (at most -Wuninitialized/-Wmaybe-uninitialized warning). Valid.",
+        "id": "ADV-12"
+      },
+      {
+        "finding": "static_cast<B*> of a void* that actually points to an unrelated struct A is UB (strict-aliasing/layout violation) but compiles without error. Valid invalid-cast probe.",
+        "id": "ADV-13"
+      },
+      {
+        "finding": "scale(std::string) called where scale expects int64_t has no implicit conversion path in C++; this is expected to fail at compile time ('no matching function'), which is the correct, by-design outcome for a statically-typed language's 'type mismatch' case (Compile-time Detection). Not a defect.",
+        "id": "ADV-14"
+      },
+      {
+        "finding": "push_back inside a range-for over the same vector can invalidate the iterator pair mid-loop (UB) if reallocation occurs; compiles cleanly, runtime behavior is implementation-dependent. Valid invalid-mutation probe.",
+        "id": "ADV-15"
+      },
+      {
+        "finding": "Assigning to a constexpr variable is ill-formed and is rejected by every conforming compiler at compile time. Correct by-design 'mutation of immutable value' compile-time-detection case.",
+        "id": "ADV-16"
+      },
+      {
+        "finding": "Dereferencing a null std::string* via ->size() compiles and reliably SIGSEGVs at runtime on mainstream platforms. Valid crash probe.",
+        "id": "ADV-17"
+      },
+      {
+        "finding": "pick(bool) with a missing return on the false path compiles under default flags (GCC/Clang emit only a -Wreturn-type warning, not an error) and is UB at runtime when the omitted path executes. Correctly represents the 'missing return' hazard; classification as Compile-time Detection vs. Runtime/Silent-Bug in the harness depends on whether the build enables -Werror=return-type \u2014 this is a build-flag/harness-configuration detail, not a defect in the source file itself.",
+        "id": "ADV-18"
+      },
+      {
+        "finding": "Non-tail-recursive functions (post-call arithmetic) reliably grow the call stack; f(n)=1+f(n+1) is genuinely unbounded and f bounded at 1,000,000 is large enough to exceed a typical 8MB default stack on Linux at realistic per-frame sizes, producing the intended stack-overflow crash. Runtime outcome is stack-size-dependent, which is expected and part of what the metric measures, not a source defect.",
+        "id": "ADV-19/20"
+      },
+      {
+        "finding": "IMPORTANT TOOLCHAIN-SPECIFIC BEHAVIOR CONFIRMED: Clang enforces a default -fbracket-depth limit of 256 for nested parentheses/brackets/braces, producing a clean, non-crashing fatal compile-time diagnostic ('bracket nesting level exceeded maximum of 256') once nesting exceeds that threshold. GCC has no such default limit and has been empirically shown to compile expressions with up to ~1024 nested levels without issue, only failing via an actual compiler stack overflow at a much higher, stack-size-dependent depth (analogous unbounded recursive-descent-parser stack overflows have been documented across many other parsers). Consequence for this artifact: under Clang, ALL THREE graduated depth variants (the default file, depth1000, and depth10000) will hit the identical 256-level fatal diagnostic and therefore cannot differentiate compiler behavior across depths on Clang alone; under GCC they may differentiate (e.g., depth1000 may compile fine while a much deeper variant may eventually stack-overflow the compiler). This does not invalidate the source files \u2014 they remain syntactically well-formed (parentheses balanced) and functionally serve the 'extreme parser nesting' hazard \u2014 but the harness/runner should record per-toolchain outcomes separately rather than assuming a single classification, and should recognize Clang's structured 'bracket nesting level exceeded' fatal_error as a Compile-time Detection outcome rather than a Crash.",
+        "id": "ADV-21 (3 variants)"
+      },
+      {
+        "finding": "Trivial, unambiguous valid baseline control program; compiles and runs correctly. No issue.",
+        "id": "ADV-22_single-valid"
+      },
+      {
+        "finding": "File is intentionally truncated mid-statement (ends after 'std::cout' with no terminator, no closing braces). This is a legitimate 'malformed source code' probe expected to produce a compile-time syntax error (unexpected end of file). By design, not a defect.",
+        "id": "ADV-22a"
+      },
+      {
+        "finding": "Contains invalid characters ('@#$') embedded inside what should be an identifier token ('std::int64_@#$t'). This will fail lexing/parsing with a compile-time diagnostic. By design, not a defect.",
+        "id": "ADV-22b"
+      },
+      {
+        "finding": "Reads an external fixture file at the relative path 'inputs/ADV-23.bin' to probe malformed-UTF-8 handling. This file's bytes were not included in the audited readable path (only the .cpp sources were provided), so this audit could not directly verify the fixture's existence/content. FLAG: recommend the harness confirm 'inputs/ADV-23.bin' is present and contains genuinely invalid UTF-8 byte sequences before this case is scored; the .cpp source itself compiles and runs correctly regardless.",
+        "id": "ADV-23"
+      },
+      {
+        "finding": "The literal 9223372036854775809 exceeds LLONG_MAX and is assigned to a plain 'long long'. Per the same conforming-extension behavior confirmed for ADV-03, GCC/Clang will treat the over-large decimal literal as unsigned (or __int128 in GCC) with a warning, not a hard compile error, then narrow it into long long with wraparound \u2014 correctly exercising the intended 'huge numeric literal' probe rather than a hard build failure.",
+        "id": "ADV-24"
+      },
+      {
+        "finding": "stoll() on invalid/unbounded external input throws std::invalid_argument/std::out_of_range; if unhandled this calls std::terminate and crashes the process \u2014 a valid 'invalid external input' probe. ADV-26's binary search over a fixed 7-element array read from stdin is algorithmically correct and exercises boundary/array-access behavior under adversarial target values.",
+        "id": "ADV-25/26"
+      }
+    ],
+    "schema_version": 1
+  },
+  "result_sha256": "e4550a1e69ee1559e2f75c77d9e1d24414db8863cdefd7fd2cfe8491c04d2453",
+  "schema_version": 1
+}

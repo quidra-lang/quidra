@@ -1,0 +1,125 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "a2cb17a20c623f43154681c7fc21f34413ad1c842539e746a8566a745c96f861",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "d972dba39c5ae0507b284b2f85d002e5e81247112469baa2a65393c16913afc0",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.community_public_knowledge_availability"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "ecosystem-external--part-3--swift",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "d972dba39c5ae0507b284b2f85d002e5e81247112469baa2a65393c16913afc0",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-external--part-3--swift"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.community_public_knowledge_availability": {
+        "candidate_universe_and_selection_rule": "Selection rule fixed before collection: examine (1) the official Swift Forums at swift.org/community as the canonical official discussion channel (language-neutral criterion: every assigned language's official/primary community hub is checked identically), (2) Stack Overflow 'swift' tag and historical Stack Overflow Trends/Developer Survey data as the largest general-purpose public Q&A source, (3) Apple Developer Forums 'Swift' tag as the vendor-run official Q&A channel, (4) the top independently-documented third-party tutorial/book ecosystem for the language (identified via search rather than picked by the benchmark), and (5) StackShare's per-language discussion/follower counts, used only as one proxy among several, never standalone.",
+        "findings": [
+          {
+            "citation_support": "The Swift forums are the official discussion channel for the Swift community and the best place to connect with other Swift developers (swift.org/community); forum migrated from mailing lists with dedicated subcategories for Compiler, Standard Library, Core Libraries, Package Manager, LLDB, Server, etc.",
+            "claim": "Official Swift Forums exist and are positioned as the primary community discussion channel, spanning Evolution, Development, Using Swift, and other categories.",
+            "source": "swift.org/community"
+          },
+          {
+            "citation_support": "The Swift community is growing and Swift Forums are growing with it; the number of projects in the Swift ecosystem keeps expanding.",
+            "claim": "Community and ecosystem-project discussion volume on the official forums has grown over time, with a dedicated 'Related Projects' category added to accommodate ecosystem growth, and recurring community events (e.g., Embedded Swift Community Hour).",
+            "source": "forums.swift.org / swift.org blog"
+          },
+          {
+            "claim": "Apple's official developer forums maintain an active, current 'Swift' tag with recent (multi-day-old) technical Q&A threads, indicating an actively used vendor-run public knowledge channel distinct from the community-run forums.",
+            "source": "developer.apple.com/forums/tags/swift"
+          },
+          {
+            "claim": "Swift won first place for 'Most Loved Programming Language' in a Stack Overflow Developer Survey, indicating strong historical public sentiment and engagement on the largest general Q&A site's own survey instrument.",
+            "source": "Wikipedia - Swift (programming language)"
+          },
+          {
+            "claim": "Among the 500 largest Stack Overflow tags, the 'swift3' tag was noted as one of the fastest-growing tags in the year following TensorFlow's introduction, evidencing very high public Q&A volume/growth for Swift historically on the dominant programming Q&A platform. Secondary sourcing places Swift's 'Most Loved' Stack Overflow Developer Survey win in 2015 and second place in 2016.",
+            "source": "Stack Overflow Blog (Stack Overflow Trends, 2017) / secondary sourcing (tms-outsource.com)"
+          },
+          {
+            "claim": "Swift shows sustained cross-platform community engagement on a third-party technology-stack discussion site: 21.9k stacks, 17 discussion threads, and 13.6k followers.",
+            "limitation": "StackShare stack/follower counts are a raw popularity proxy and are not used standalone; they corroborate but do not independently establish the score.",
+            "source": "stackshare.io/swift"
+          },
+          {
+            "claim": "Swift has an unusually large independent third-party learning-content ecosystem: Kodeco offers extensive free content plus books and high-quality tutorials, and Hacking with Swift's author is described as one of the most prolific iOS educators, continuously publishing and updating a library of books; additional community-run resources include the Try Swift conference series and Swift by Sundell.",
+            "source": "Kodeco (formerly Ray Wenderlich) and Hacking with Swift (via gallaugher.medium.com secondary listing)"
+          },
+          {
+            "claim": "Community members consistently point newcomers toward a converging, well-known set of free/paid learning resources (Hacking with Swift's 100 Days of SwiftUI, Swift by Sundell, Kodeco/raywenderlich.com, Apple's own SwiftUI tutorials), indicating a mature, well-known public knowledge base rather than fragmented or scarce resources.",
+            "source": "Apple Developer Forums thread (developer.apple.com/forums/thread/649728)"
+          }
+        ],
+        "language": "Swift",
+        "limitations_and_caveats": [
+          "Swift's public knowledge base is more concentrated around Apple-platform (iOS/macOS) use cases than general-purpose programming discourse, so breadth outside that domain (e.g., server-side/embedded Swift) is comparatively thinner, though growing (per Embedded Swift Community Hour activity).",
+          "Raw counts (StackShare followers, historical SO tag growth) are proxies with known limitations per methodology and are corroborating evidence only, not the sole basis for the score.",
+          "Some evidence (e.g., exact current Stack Overflow 'swift' tag question count) could not be retrieved as a precise current figure within the search budget; qualitative/comparative indicators (tag growth trends, survey placement) were used instead and are flagged as such."
+        ],
+        "methodology_note": "Predeclared sampling per Ecosystem spec: evidence collected via a fixed, deterministic route across (a) official language forum/discussion channel, (b) largest general-purpose public Q&A site (Stack Overflow) tag/topic presence, (c) vendor/official developer forum presence, (d) independent third-party learning-content ecosystem (books/tutorials/courses), and (e) one cross-language popularity-proxy site (StackShare) for consistency across the assigned language set. Same retrieval depth (2 web searches then 1 targeted follow-up) applied as for other languages in this shard batch.",
+        "normalized_score": 85,
+        "raw_score_rationale": "Swift scores high (85/100) reflecting: (a) a mature, official, well-structured community forum; (b) a second, actively used vendor (Apple) Q&A channel; (c) a historically very large and fast-growing Stack Overflow presence plus a top developer-sentiment survey result; and (d) an unusually deep, independently corroborated third-party tutorial/book/course ecosystem. It is not scored at the very top of the range because its public knowledge base is more platform-concentrated (Apple ecosystem) than the most universally-discussed general-purpose languages, and because some precise current-volume figures (exact live SO tag count) were not obtainable within the retrieval budget, so qualitative/trend evidence was relied upon for part of the assessment.",
+        "retrieval_route": "Web search via provider-brokered search tool, 3 total queries executed for this metric: (1) 'Swift programming language Stack Overflow questions tag count', (2) 'Swift Forums swift.org community discussion activity', (3) 'Hacking with Swift raywenderlich Kodeco Swift tutorials number of readers'. Snapshot time: 2026-09-22 (session date).",
+        "scale": "0-100, 100=best; rubric-based low score used when evidence intentionally absent, not N/A",
+        "strengths": [
+          "Dedicated official language forum (swift.org) with structured categories and active proposal/evolution discussion, distinct from and complementary to a large vendor forum (Apple Developer Forums).",
+          "Large historical Stack Overflow footprint with a documented top-tier growth/sentiment record (fastest-growing tag cohort in 2016-17; 'Most Loved Language' win).",
+          "Unusually rich independent tutorial/book/course ecosystem (Kodeco, Hacking with Swift, Swift by Sundell, Try Swift conferences) that is repeatedly and independently recommended across multiple unrelated sources, indicating durable, non-fragmented public knowledge availability.",
+          "Official interactive Apple tutorials (SwiftUI/DocC-based) supplement community content with vendor-maintained public learning material."
+        ]
+      }
+    },
+    "requirements": {
+      "metric.community_public_knowledge_availability": {
+        "Swift": 85
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "1bb5eda04b1138cc7d3f2d10bca68deedab8356f0ba0be83a804ddb038d6636a",
+  "schema_version": 1
+}

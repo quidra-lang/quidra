@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "image": {
+    "repository": "quidra-benchmark/runtime",
+    "tag": "ubuntu24.04-v1",
+    "base": "ubuntu:24.04",
+    "architectures": [
+      "amd64",
+      "arm64"
+    ],
+    "user": "benchmark",
+    "uid": 1000,
+    "workspace_mountpoint": "/quidra-benchmark"
+  },
+  "toolchains": {
+    "CLANG_MAJOR": "18",
+    "CMAKE_PIN": "3.28.3",
+    "PYTHON_PIN": "3.12.3",
+    "CLANG_PIN": "18.1.3",
+    "RUST_PIN": "1.95.0",
+    "GO_PIN": "1.26.3",
+    "JAVA_PIN": "26.0.1",
+    "JAVA_BUILD": "8",
+    "KOTLIN_PIN": "2.3.21",
+    "NODE_PIN": "24.2.0",
+    "TYPESCRIPT_PIN": "7.0.2",
+    "SWIFT_PIN": "6.2.3",
+    "ZIG_PIN": "0.16.0"
+  },
+  "quidra_build_dependencies": [
+    "build-essential",
+    "cmake",
+    "ninja-build",
+    "make",
+    "pkg-config",
+    "llvm-18",
+    "llvm-18-dev",
+    "clang-18",
+    "lld-18",
+    "libcurl4-openssl-dev",
+    "libpng-dev",
+    "libjpeg-dev",
+    "libtiff-dev",
+    "libwebp-dev",
+    "ffmpeg",
+    "libavformat-dev",
+    "libavcodec-dev",
+    "libavutil-dev",
+    "libswscale-dev",
+    "zlib1g-dev"
+  ],
+  "install_sources": {
+    "Python": "ubuntu 24.04 archive (python3)",
+    "C++": "ubuntu 24.04 archive (clang-18); /usr/local/bin/c++ points at clang++-18 so the recorded fingerprint is the compiler actually used",
+    "Rust": "static.rust-lang.org rustup with an exact --default-toolchain pin",
+    "Go": "go.dev/dl pinned archive",
+    "Java": "api.adoptium.net exact-build tarball jdk-JAVA_PIN+JAVA_BUILD. The Adoptium apt repository already carries revisions newer than the pin, and apt would install the newest, so the repository cannot express a reproducible pin.",
+    "Kotlin": "github.com/JetBrains/kotlin pinned release archive",
+    "TypeScript": "nodejs.org pinned archive plus npm typescript@TYPESCRIPT_PIN",
+    "Swift": "download.swift.org pinned ubuntu24.04 release archive",
+    "Zig": "ziglang.org pinned release archive"
+  },
+  "note": "These pins are the image's declared toolchain identity. verify_toolchains.py asserts at build time that every installed toolchain reports exactly the pinned version and records the observed fingerprints at /opt/quidra-benchmark/toolchains-observed.json. The Quidra compiler is deliberately absent: it is built during the run from the evaluated snapshot at /quidra-benchmark/repo. These Linux versions are not expected to equal the macOS fingerprints recorded in reuse/catalog.json; that difference is resolved by the existing toolchain currency audit (reuse-status -> AUDIT_REQUIRED -> audit work units), never by editing either side to match."
+}

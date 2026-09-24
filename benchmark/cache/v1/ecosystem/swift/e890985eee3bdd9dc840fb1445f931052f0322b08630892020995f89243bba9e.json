@@ -1,0 +1,213 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "e890985eee3bdd9dc840fb1445f931052f0322b08630892020995f89243bba9e",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "7667e0fac1394761042702f5fb35920dc8997abd57b7cf8f73b9be9ad118314f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.core_tooling_availability_quality",
+      "metric.package_dependency_management_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-1--swift",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "7667e0fac1394761042702f5fb35920dc8997abd57b7cf8f73b9be9ad118314f",
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "ecosystem-tooling--part-1--swift"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.core_tooling_availability_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--swift; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "build_execute": "Preserved paid evidence (ecosystem-tooling--part-1--swift): Swift ships a single official toolchain distribution validated end-to-end (compiler, package manager, syntax tooling, LSP, debugger) via the project's own integration test suite.",
+          "diagnostic_quality": "Preserved paid evidence (ecosystem-tooling--part-1--swift): ships as a standalone binary with 82 tools spanning builds, tests, simulator control, LLDB debugging, and UI automation",
+          "docs_package": "Preserved paid evidence (ecosystem-tooling--part-1--swift): Swift ships a single official toolchain distribution validated end-to-end (compiler, package manager, syntax tooling, LSP, debugger) via the project's own integration test suite.",
+          "format_lint": "Preserved paid evidence (ecosystem-tooling--part-1--swift): Swift 6 (included with Xcode 16) and above include swift-format in the toolchain.",
+          "test": "Preserved paid evidence (ecosystem-tooling--part-1--swift): SwiftPM's swift build/test commands are the standard, first-party build driver and are also what editor integrations (e.g. VS Code) invoke directly."
+        },
+        "component_levels": {
+          "build_execute": 4,
+          "diagnostic_quality": 4,
+          "docs_package": 4,
+          "format_lint": 4,
+          "test": 4
+        },
+        "legacy_score_0_100": 90,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.core-tooling.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate the maintained first-party/de-facto core developer toolchain actually available today; score implemented capability, not planned design.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-1--swift",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/swift/483b341e09b91be631808dd395173543f654fd1f6bdb490d5c2c9d02d5a34e91.json",
+          "https://code.visualstudio.com/docs/languages/swift",
+          "https://codex.danielvaughan.com/2026/05/24/codex-cli-swift-swiftui-development-xcode-mcp-servers-agent-skills-workflows/",
+          "https://github.com/nikivdev/swift-format",
+          "https://github.com/realm/SwiftLint/issues/3840",
+          "https://deepwiki.com/swiftlang/swift-integration-tests",
+          "https://swiftpackageindex.com/blog/swift-package-index-joins-apple",
+          "https://www.swift.org/blog/swift-package-index-update/",
+          "https://byteiota.com/apple-acquires-swift-package-index-what-devs-must-know/",
+          "https://oneuptime.com/blog/post/2026-02-02-swift-package-manager/view",
+          "https://medium.com/@emadrazo/building-with-confidence-how-package-resolved-ensures-swift-build-stability-dbbf0bbf1445",
+          "https://forums.swift.org/t/pitch-swiftpm-treating-package-resolved-as-a-lock-file/68475",
+          "https://jfrog.com/blog/swiftpm-cocoapods-enterprise-development-apple-platforms/",
+          "https://github.com/swiftlang/swift-package-manager/blob/main/Documentation/PackageRegistry/PackageRegistryUsage.md"
+        ]
+      },
+      "metric.package_dependency_management_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--swift; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "manifest_constraints": "Preserved paid evidence (ecosystem-tooling--part-1--swift): This file provides a snapshot of the current dependency graph, locking down: Exact version numbers of each package.",
+          "publish_version": "Preserved paid evidence (ecosystem-tooling--part-1--swift): This file provides a snapshot of the current dependency graph, locking down: Exact version numbers of each package.",
+          "registry_security": "Preserved paid evidence (ecosystem-tooling--part-1--swift): The Swift Package Index (recently brought under Apple) is a mature, actively-maintained de facto discovery/compatibility layer indexing over 10,000 packages and running large-scale automated cross-platform compatibility builds, but it functions as a search/metadata index layered on top of Git-hosted packages rather than a native package-manager-integrated registry, so discovery and installation still route through raw repository URLs.",
+          "resolver_lock": "Preserved paid evidence (ecosystem-tooling--part-1--swift): Package.swift plus the SwiftPM resolver is the official, mandatory dependency-management path, integrated with both the CLI and Xcode.",
+          "workspace_multi": "Preserved paid evidence (ecosystem-tooling--part-1--swift): Swift Package Index has grown alongside the Swift project's multi-platform expansion, extending its compatibility testing to encompass Linux, Android, and WebAssembly."
+        },
+        "component_levels": {
+          "manifest_constraints": 4,
+          "publish_version": 4,
+          "registry_security": 3,
+          "resolver_lock": 4,
+          "workspace_multi": 3
+        },
+        "legacy_score_0_100": 78,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.package-management.v1",
+        "runner_score_0_100": 90,
+        "selection_rule": "Evaluate the standard/de-facto package workflow using official documentation and current registry/tool behavior; ecosystem size is scored elsewhere.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-1--swift",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/swift/483b341e09b91be631808dd395173543f654fd1f6bdb490d5c2c9d02d5a34e91.json",
+          "https://swiftpackageindex.com/blog/swift-package-index-joins-apple",
+          "https://www.swift.org/blog/swift-package-index-update/",
+          "https://byteiota.com/apple-acquires-swift-package-index-what-devs-must-know/",
+          "https://oneuptime.com/blog/post/2026-02-02-swift-package-manager/view",
+          "https://medium.com/@emadrazo/building-with-confidence-how-package-resolved-ensures-swift-build-stability-dbbf0bbf1445",
+          "https://forums.swift.org/t/pitch-swiftpm-treating-package-resolved-as-a-lock-file/68475",
+          "https://jfrog.com/blog/swiftpm-cocoapods-enterprise-development-apple-platforms/",
+          "https://github.com/swiftlang/swift-package-manager/blob/main/Documentation/PackageRegistry/PackageRegistryUsage.md",
+          "https://code.visualstudio.com/docs/languages/swift",
+          "https://codex.danielvaughan.com/2026/05/24/codex-cli-swift-swiftui-development-xcode-mcp-servers-agent-skills-workflows/",
+          "https://github.com/nikivdev/swift-format",
+          "https://github.com/realm/SwiftLint/issues/3840",
+          "https://deepwiki.com/swiftlang/swift-integration-tests"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Swift",
+        "metrics": {
+          "metric.core_tooling_availability_quality": {
+            "component_levels": {
+              "build_execute": 4,
+              "diagnostic_quality": 4,
+              "docs_package": 4,
+              "format_lint": 4,
+              "test": 4
+            },
+            "rubric_id": "ecosystem.core-tooling.v1",
+            "score_0_100": 100
+          },
+          "metric.package_dependency_management_quality": {
+            "component_levels": {
+              "manifest_constraints": 4,
+              "publish_version": 4,
+              "registry_security": 3,
+              "resolver_lock": 4,
+              "workspace_multi": 3
+            },
+            "rubric_id": "ecosystem.package-management.v1",
+            "score_0_100": 90
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.core_tooling_availability_quality": {
+        "Swift": 100.0
+      },
+      "metric.package_dependency_management_quality": {
+        "Swift": 90.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "aea6ce8c25776c71b5568b74ef7197829a338e73e3c8e803a25401e090252a24",
+  "schema_version": 1
+}

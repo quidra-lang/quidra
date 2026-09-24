@@ -1,0 +1,185 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "600ad58a6c7e6199a67b5bde5f99892165229530d72b1104a7a1e3c0222eef39",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "b6cd109ae5a74193a934b66891b92c75e013c858971ff2c2d146841d515625fb",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.build_test_integration",
+      "metric.documentation_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-tooling--part-3--python",
+    "work_unit_id": "ecosystem-tooling--part-3--python",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "b6cd109ae5a74193a934b66891b92c75e013c858971ff2c2d146841d515625fb",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-3--python"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "methodology_notes": {
+        "predeclared_sampling": "No domain/library sampling cell was required for these two metrics; evidence was drawn from official Python documentation (docs.python.org, peps.python.org, devguide.python.org), the primary test/coverage/build tool project pages and their official docs (pytest-cov/PyPI, coverage.py, tox, nox, Sphinx/GitHub), and current (2026) third-party technical guides describing standard CI recipes, using the same retrieval depth (targeted web search) as would be used for other languages in this evaluation.",
+        "rubric_freeze_statement": "The 5-criterion, 20-point-each rubrics above were defined before evidence collection for this work unit and are intended to be applied unchanged across all 10 languages in the full evaluation; this packet reports only the Python measurements against that rubric.",
+        "scope": "This worker is assigned only the Python language column for metric.build_test_integration and metric.documentation_quality under the Ecosystem evaluation's Toolchain/Developer Ecosystem Maturity category. It does not compute or publish any aggregate Ecosystem Score or ranking; that is runner-only per the frozen spec.",
+        "snapshot_date": "2026-09-22"
+      },
+      "metric.build_test_integration": {
+        "language": "Python",
+        "measurements": {
+          "build_tooling": {
+            "citations": [
+              "tox.ini/pyproject.toml examples in current guides configure build, lint, and doc sessions alongside test commands in one declarative file."
+            ],
+            "notes": "PEP 517/518 standardized build backends (setuptools, build, hatchling) are the norm; pyproject.toml is the standard build config surface referenced throughout current tooling examples.",
+            "score": 19
+          },
+          "ci_matrix_integration": {
+            "evidence_quote": "nox manages Python virtual environments and runs tests across multiple Python versions and configurations.",
+            "notes": "tox and nox provide first-class multi-Python-version matrix testing, with documented GitHub Actions recipes (setup-python + tox) and native uv acceleration paths.",
+            "score": 19
+          },
+          "config_unification": {
+            "evidence_quote": "[testenv:docs] basepython = python3.11 deps = sphinx>=7.0 sphinx-rtd-theme>=1.0 commands = sphinx-build -W -b html docs docs/_build",
+            "notes": "Modern tox/nox/pytest/coverage configuration can be centralized in pyproject.toml, and tox.ini itself can chain lint (black/ruff/mypy), test, coverage, and docs (Sphinx) environments in one file.",
+            "score": 18
+          },
+          "coverage_integration": {
+            "evidence_quote": "The tool connects smoothly with pytest through the pytest-cov plugin, allowing coverage tracking with very little setup.",
+            "notes": "coverage.py integrates with pytest via pytest-cov with minimal setup, supports branch coverage, and multiple report formats (term, term-missing, html, xml) usable for CI gating via --cov-fail-under.",
+            "score": 18
+          },
+          "test_framework": {
+            "evidence_quote": "pytest has become the main choice for unit and integration testing due to its easy syntax and strong features.",
+            "notes": "pytest is documented as the dominant standard test runner for the ecosystem, on top of the always-available stdlib unittest.",
+            "score": 20
+          }
+        },
+        "normalized_score_0_100": 94,
+        "raw_score_sum_of_5_criteria": 94,
+        "rubric": {
+          "criteria": [
+            "Native/standard build tooling exists and integrates with packaging (PEP 517/518 backends, e.g. setuptools/build/hatchling)",
+            "Standard or de-facto test framework maturity and adoption (stdlib unittest + de-facto pytest)",
+            "CI integration ease: matrix testing across versions (tox/nox), official CI actions, documented recipes",
+            "Coverage tooling integration (coverage.py/pytest-cov) with multiple report formats and CI-gating support",
+            "Config unification: build/test/coverage/lint configurable together (e.g. single pyproject.toml)"
+          ],
+          "description": "Frozen 5-criterion rubric (20 points each, 0-100 total), applied identically to all 10 languages in this evaluation. Measures maturity of the build-to-test-to-CI pipeline: (1) standard/native build tooling and its integration with the packaging system; (2) maturity/adoption of standard or de-facto test framework(s); (3) ease of CI integration incl. multi-version matrix testing; (4) coverage tooling integration and CI-gate support; (5) ability to unify build/test/coverage/lint config in one place."
+        },
+        "sources": [
+          "https://medium.com/@inprogrammer/best-python-testing-tools-2026-updated-884dcb78b115",
+          "https://coverage.readthedocs.io/en/latest/contributing.html",
+          "https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/test-coverage/python-test-coverage",
+          "https://inventivehq.com/blog/python-package-testing-guide",
+          "https://pydevtools.com/handbook/reference/nox/",
+          "https://pydevtools.com/handbook/reference/tox/",
+          "https://pypi.org/project/pytest-cov/"
+        ]
+      },
+      "metric.documentation_quality": {
+        "language": "Python",
+        "measurements": {
+          "autodoc_tooling": {
+            "evidence_quote": "Generate API documentation for Python, C++ and other software domains, manually or automatically from docstrings, ensuring your code documentation stays up-to-date with minimal effort.",
+            "notes": "Sphinx, originally built for Python's own docs, provides mature autodoc extraction from docstrings into multi-format output (HTML, PDF, EPUB) and is the tool used for Python's official documentation itself as well as major libraries.",
+            "score": 20
+          },
+          "community_and_i18n": {
+            "evidence_quote": "Several documentation translations are already in production and can be found in the language switcher; others are works in progress.",
+            "notes": "The official docs have a dedicated, PEP-545-governed translation program with a public dashboard and multiple in-production language translations reachable via a language switcher, plus a large surrounding community documentation ecosystem (Real Python, countless guides).",
+            "score": 18
+          },
+          "docstring_convention": {
+            "evidence_quote": "The aim of this PEP is to standardize the high-level structure of docstrings: what they should contain, and how to say it",
+            "notes": "PEP 257 is an official, PSF-endorsed convention for docstring structure (referenced from PEP 8), giving Python a standardized baseline, though it explicitly leaves markup style open, resulting in multiple competing styles (Google, NumPy, reST) in practice rather than one single enforced format.",
+            "score": 16
+          },
+          "official_reference": {
+            "evidence_quote": "Last updated on Sep 20, 2026 (10:30 UTC).",
+            "notes": "docs.python.org is the official, actively updated documentation for the current release, built with Sphinx and refreshed frequently.",
+            "score": 20
+          },
+          "stdlib_api_reference": {
+            "evidence_quote": "This page is licensed under the Python Software Foundation License Version 2.",
+            "notes": "The official docs cover the language reference, tutorial, and full standard library API reference as a single maintained corpus licensed under the PSF License, with examples additionally under a permissive license.",
+            "score": 19
+          }
+        },
+        "normalized_score_0_100": 93,
+        "raw_score_sum_of_5_criteria": 93,
+        "rubric": {
+          "criteria": [
+            "Official language reference/tutorial exists, versioned, and actively maintained",
+            "Standard library API reference completeness and currency",
+            "Auto-doc-generation tooling maturity (docstring extraction -> published docs pipeline)",
+            "Existence and adoption level of an official/standard docstring or comment convention",
+            "Breadth of community documentation and internationalization/translation support"
+          ],
+          "description": "Frozen 5-criterion rubric (20 points each, 0-100 total), applied identically to all 10 languages. Measures the maturity and completeness of the documentation ecosystem: (1) official reference/tutorial completeness and currency; (2) standard-library API reference completeness; (3) maturity of auto-doc-generation tooling (docstring-to-published-docs pipeline); (4) consistency/officiality of a docstring/comment convention; (5) breadth of supplementary community documentation and internationalization."
+        },
+        "sources": [
+          "https://docs.python.org/3/",
+          "https://www.sphinx-doc.org/",
+          "https://github.com/sphinx-doc/sphinx",
+          "https://peps.python.org/pep-0257/",
+          "https://peps.python.org/pep-0008/",
+          "https://devguide.python.org/documentation/translations/translating/",
+          "https://devguide.python.org/documentation/translations/coordinating/",
+          "https://peps.python.org/pep-0545/",
+          "https://translations.python.org/"
+        ]
+      }
+    },
+    "requirements": {
+      "metric.build_test_integration": {
+        "Python": 94
+      },
+      "metric.documentation_quality": {
+        "Python": 93
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "cc5928fffc54308c91a5f7b0db5f13c63c89e05a72c48b7809175b50767b1b23",
+  "schema_version": 1
+}

@@ -1,0 +1,20 @@
+/build*/
+/dist/
+/stage/
+/package-root/
+/.cache/
+*.ll
+*.o
+*.obj
+*.exe
+.DS_Store
+__pycache__/
+*.pyc
+/.quidra-benchmark/
+
+# Local synthetic benchmark workspaces written by the end-to-end rehearsal
+# scripts. Both sit at the repository root while they run, so an `add -A` after
+# a local rehearsal would commit thousands of generated files carrying the
+# operator's own paths.
+.benchmark-template-e2e/
+.benchmark-template-test/

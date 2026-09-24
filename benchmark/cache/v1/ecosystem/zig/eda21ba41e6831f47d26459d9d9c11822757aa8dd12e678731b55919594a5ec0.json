@@ -1,0 +1,125 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "eda21ba41e6831f47d26459d9d9c11822757aa8dd12e678731b55919594a5ec0",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "c5a5ae584aef989ae97a9b25a34a1762c8753ea3283dcacff5e955aa4ef0b3de",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.ide_editor_support_quality",
+      "metric.debugger_profiler_support"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "ecosystem-tooling--part-2--zig",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "c5a5ae584aef989ae97a9b25a34a1762c8753ea3283dcacff5e955aa4ef0b3de",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-2--zig"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "Zig": {
+        "metric.debugger_profiler_support": {
+          "key_evidence": [
+            "Standard guidance confirms 'Since Zig is a low-level language, you can use either GDB (GNU Debugger), or LLDB (LLVM Project Debugger) as your debugger... Both debuggers can work with Zig code.'",
+            "A general Zig debugging tutorial states 'While Zig doesn\u2019t have a built-in debugger, you can integrate external debuggers like LLDB or GDB to step through your Zig code, set breakpoints, inspect variables, and analyze memory state at runtime.'",
+            "A VS Code walkthrough shows debugging is wired up by installing the generic 'Native Debug' extension and choosing the 'C++ (GDB/LLDB)' launch.json template, i.e. reusing C/C++ tooling rather than a Zig-specific debug adapter.",
+            "A 2025/2026-era blog post building an LLDB plugin for Zig states plainly: 'If you\u2019ve ever dropped into LLDB while debugging Zig, you already know the pain: slices look like random structs, optionals are unreadable, error unions feel hostile, and expressions like slice[0] just\u2026 don\u2019t work,' motivating the zdb LLDB plugin as a fix.",
+            "The JetBrains ZigBrains plugin release notes explicitly list 'Supported debuggers: LLDB, GDB' as an integrated IDE feature, and note the plugin 'allows running individual tests in files and debugging test at the cost of not using build.zig for them.'",
+            "A dedicated survey of profiling on Apple Silicon states the constraints stem from incompatible tooling: 'perf: Linux-exclusive (kernel-dependent) - valgrind: No macOS/arm64 support - tracy: Limited callstack sampling,' requiring workaround tools such as Samply and an unofficial fork of Andrew Kelley's 'poop' that 'taps into Apple\u2019s private kperf framework via an experimental fork,' with the caveat that 'Andrew will not be accepting mac support for the tool' upstream.",
+            "Tracy, the most commonly cited general-purpose profiler used with Zig, documents that direct first-class support is only for C, C++ and (in some builds) Lua/Python, while 'third-party bindings to many other languages exist on the internet, such as Rust, Zig, C#, OCaml, Odin, etc.' \u2014 i.e. Zig integration is community-maintained, not first-party."
+          ],
+          "pillar_breakdown": {
+            "ide_debugger_integration": "16/25 - Works via generic C/C++-oriented VS Code extensions (webfreak.debug, CodeLLDB) reusing 'C++ (GDB/LLDB)' launch templates, plus a JetBrains plugin with native LLDB/GDB integration and community Neovim DAP recipes; none of this is Zig-native tooling built specifically for the language.",
+            "language_native_ergonomics": "6/25 - out-of-the-box LLDB/GDB rendering of Zig's own slice/optional/error-union types is poor enough that a dedicated third-party LLDB plugin (zdb) had to be built to fix it.",
+            "native_debugger_compatibility": "20/25 - GDB and LLDB both attach to and step through Zig binaries built with debug info; this is standard, well-documented practice.",
+            "profiler_breadth_and_consistency": "10/25 - no official, cross-platform first-party profiler; Linux users get perf/valgrind/tracy (all general C/C++-ecosystem tools with only third-party Zig bindings), while macOS/Apple Silicon users face a documented 'profiling desert' requiring unofficial forks relying on private Apple APIs."
+          },
+          "score": 52
+        },
+        "metric.ide_editor_support_quality": {
+          "key_evidence": [
+            "ZLS is described in its own repository as 'a non-official implementation of the Language Server Protocol for Zig in Zig' that 'provides developers with IDE features in their editor.'",
+            "ZLS's own feature list states it 'supports most language features, including simple type function support, payload capture type resolution, custom packages, and others' but that 'Support for comptime and semantic analysis is Work-in-Progress.'",
+            "The official vscode-zig extension 'enables developers to write, build, test, and debug Zig code with integrated toolchain management, syntax highlighting, and optional language server features,' using a dual-provider architecture so 'the extension can operate without ZLS by using direct Zig compiler invocations, but enabling ZLS unlocks features like code completion, go-to-definition, hover information, and semantic highlighting.'",
+            "The vscode-zig extension automatically resolves and installs a compatible ZLS build by querying a version-selection service, reflecting the need to keep the fast-moving compiler and language server in lockstep.",
+            "A JetBrains plugin (ZigBrains) exists with an active 2026 release cadence (version dated 4 Aug 2026) and integrates ZLS plus native debuggers into the IDE, requiring the user to 'select or download the Zig toolchain and language server in Settings' before use.",
+            "Community guidance from 2026 states Zig code is 'almost unreadable without ZLS (Zig Language Server)', underscoring how central (and thus how load-bearing) this single third-party server is to the entire IDE experience."
+          ],
+          "pillar_breakdown": {
+            "editor_plugin_breadth": "19/25 - Official VS Code extension (ziglang/vscode-zig) plus a JetBrains plugin (ZigBrains) and community Neovim/Sublime integrations exist and are actively updated, but none are bundled/first-party the way e.g. Go's or Rust's tooling is inside major IDEs by default.",
+            "language_server_maintenance": "20/25 - ZLS (zigtools) is the de-facto standard server, actively developed and versioned in lockstep with the compiler, but it is a community project (not literally shipped by core ziglang.org), and its README explicitly still flags gaps in core semantic understanding.",
+            "lsp_feature_completeness": "18/25 - Broad LSP surface is implemented.",
+            "maturity_reliability": "13/25 - comptime and full semantic analysis remain explicitly Work-in-Progress, and the fast-moving pre-1.0 compiler forces frequent ZLS/compiler version syncing."
+          },
+          "score": 70
+        }
+      },
+      "frozen_rubric": {
+        "metric.debugger_profiler_support": {
+          "definition": "0-100 proxy score built from four equally-weighted 0-25 pillars: (1) whether mainstream native debuggers (GDB/LLDB) can load and step through the language's compiled binaries; (2) breadth of IDE/editor debugger integration (launch-config templates, dedicated DAP adapters, first-party or well-adopted third-party IDE plugins); (3) out-of-the-box debugging ergonomics for the language's own data model (e.g. whether composite/optional/tagged types print legibly without extra tooling); (4) breadth, official status and cross-platform consistency of profiler tooling (CPU/memory/allocation profilers, hardware-counter tools, flamegraph/tracing integration).",
+          "observation_window": "snapshot as of September 2026",
+          "query_rule": "same retrieval methodology as above metric: official docs, marketplace/plugin registries, and recent (2024-2026) technical blog posts/GitHub issues describing debugger and profiler usage with the language's toolchain"
+        },
+        "metric.ide_editor_support_quality": {
+          "definition": "0-100 proxy score built from four equally-weighted 0-25 pillars, applied identically to every language in the fixed 10-language set: (1) existence and maintenance status of a first-party or de-facto-official language server (LSP); (2) breadth of major editor/IDE plugin coverage (VS Code, JetBrains, Neovim/Vim, Sublime or equivalent); (3) LSP feature completeness (completion, hover, go-to-definition/declaration, find references, rename, formatting, semantic highlighting, inlay hints, code actions, folding); (4) maturity/reliability, i.e. whether core language semantics (not just syntax) are fully understood by tooling, and whether the toolchain's fast-moving release cadence causes frequent breakage requiring manual server/compiler version syncing.",
+          "observation_window": "snapshot as of September 2026, using currently available extension/plugin listings and project documentation",
+          "query_rule": "official ziglang.org / zigtools sources, marketplace listings for VS Code and JetBrains, and community-authored setup guides dated within the last ~12 months were used with a single retrieval route (web search) per language, same examination depth (up to 3 queries) as used for the other assigned metric"
+        }
+      },
+      "methodology_notes": {
+        "scope": "This shard evaluates only Zig for metric.ide_editor_support_quality and metric.debugger_profiler_support, per the assigned-languages restriction in the task packet. Sibling shards are expected to apply the identical frozen rubric above to the other nine languages so the runner can merge disjoint per-language keys without overlap.",
+        "unavailable_evidence": "No evidence gaps were treated as N/A; every pillar had at least partial, sourced evidence, so both metrics received rubric-derived numeric scores rather than an N/A designation."
+      }
+    },
+    "requirements": {
+      "metric.debugger_profiler_support": {
+        "Zig": 52
+      },
+      "metric.ide_editor_support_quality": {
+        "Zig": 70
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "80938a2f73b3e630407b2cf339fa39d5b81d2589997f8f14c3e44358c6846edf",
+  "schema_version": 1
+}

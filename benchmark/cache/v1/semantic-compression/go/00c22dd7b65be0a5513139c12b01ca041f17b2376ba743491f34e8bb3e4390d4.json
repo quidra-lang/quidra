@@ -1,0 +1,318 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "00c22dd7b65be0a5513139c12b01ca041f17b2376ba743491f34e8bb3e4390d4",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "d1c5b7c44c320eb9efadd1941401023e2a8bcd7f907ed7bdd6786dc2303270db",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.semantic_locality"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-local--part-2--go",
+    "work_unit_id": "sc-metrics-local--part-2--go",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "d1c5b7c44c320eb9efadd1941401023e2a8bcd7f907ed7bdd6786dc2303270db",
+    "run_id": "2026-09-22-ed37eaf-gh5",
+    "work_unit_id": "sc-metrics-local--part-2--go"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.semantic_locality": {
+        "Go": {
+          "average_normalized_score": 67.8,
+          "basis": "all-fragments (Go-only, n_L=44). Go was found to have at least a PARTIAL fragment for all 44 probes under the support rubric (no NONE fragments identified for Go across the fixed probe set: nullable/closed-sum-type/deterministic-destructor gaps are covered by documented P-a substitutions per R9, not by NONE). The COMMON BASIS figure (restricted to probes where all 10 languages have a fragment) requires a cross-language merge that this single-language shard cannot perform; the runner must recompute the common-basis figure once all language shards for metric.semantic_locality are merged, per capability_universe.json support_rubric.interaction_with_quality_metrics.common_basis_rule. This all-fragments figure is reported as Go's raw contribution for that merge.",
+          "limitations_and_scope_notes": [
+            "This shard covers only the Go column of metric.semantic_locality, per the assigned language set. The requirement is a language-sharded numeric map; the runner is responsible for merging this Go value with the other nine language shards before computing any common-basis figure or cross-language ranking.",
+            "Support-level determinations mentioned in the per-probe rationale (e.g. Go's substitutions for optional types, closed sum types, and deterministic destructors) are Capability Coverage facts reported here only as context for why a fragment exists at all; they are not re-scored by this metric, per capability_universe.json's determinacy_is_not_a_support_criterion / observation_target_clauses rules, which apply symmetrically to Semantic Locality as well.",
+            "No probe was found to be NONE (unsupported) for Go across the fixed 44-probe universe; all 44 probes contributed a measured lookup count. If a future audit determines a specific probe should be NONE for Go, that probe must be dropped from this all-fragments average and the figure recomputed, per the interaction_with_quality_metrics rule that only probes with an actual (FULL or PARTIAL) fragment enter the A-D numerator/denominator.",
+            "The normalization formula (100/(1+L), arithmetic mean) is recorded explicitly here so it can be applied identically, without modification, to every other language's semantic_locality shard, satisfying the requirement that one frozen contract be applied symmetrically across all ten languages."
+          ],
+          "method": "For each of the 44 frozen probes (F01.P1..F20.P2), the idiomatic Go fragment satisfying that probe's canonical_task under R2/R3/R10 was constructed mentally and each frozen semantic-site fact for that probe (per semantic_site_matrix.json) was checked against the rule: a fact counts as requiring a non-local lookup only if resolving it from the measured fragment's own text requires consulting (a) a pre-declared/'given elsewhere' variable's declaration to learn its concrete type, (b) a callee's signature not included in the measured fragment, (c) a type/interface declaration (including cross-package/cross-unit declarations), or (d) an imported stdlib package's documented behavior/build-mode configuration not evident from local syntax alone. Facts resolvable purely from Go's own local syntax/keyword semantics (e.g. `:=`, `var`, `const`, pointer `&`/`*`, slicing, goroutines/channels, generics syntax, interface literals declared within the fragment) were scored as EXPLICIT_LOCAL (0 lookups) per the site matrix's evidence-state definitions. Distinct external declarations/packages needed were counted once each per probe (union across that probe's frozen facts, not summed per fact) to produce a raw lookup count L per probe.",
+          "n_L": 44,
+          "normalization_formula": "For each probe, normalized_probe = 100 / (1 + L), where L is the raw non-local lookup count for that probe (L=0 -> 100, best; higher L monotonically lowers the score, floor approaches 0). The language's Semantic Locality figure is the arithmetic mean of normalized_probe over the probe set in scope. This formula is applied identically to every language and documented here because the frozen methodology (spec 6.1.3.C / capability_universe.json) fixes the raw-count definition and the 'lower is better' direction but leaves the specific 0-100 normalization to be fixed once, symmetrically, before per-language scoring; it is recorded so it can be audited and re-applied unchanged to every other language shard.",
+          "per_probe": {
+            "F01.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`n := 7; return n` \u2014 value/storage, mutability, initialization and Go's default int type are all determined by local `:=` syntax under the language spec; no external declaration consulted."
+            },
+            "F01.P2": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`var counter int64 = 0` and `const LIMIT int64 = 100` at package scope \u2014 mutability, initialization, type and package-lifetime are explicit from the two declarations themselves."
+            },
+            "F02.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`var v int32` (Go always zero-initializes) plus a two-arm branch assigning v \u2014 all facts explicit from local declaration/branch text; zero-value rule is universal spec knowledge, not a program lookup."
+            },
+            "F02.P2": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "Go has no true uninitialized storage; substituted `var buf [16]uint8` fragment is fully self-contained (array size, index literal both local)."
+            },
+            "F03.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`x++` \u2014 addressability/mutability guaranteed by the operator itself; Go's silent-wrap overflow behavior is universal across integer widths, not width-dependent, so x's given-elsewhere declaration need not be consulted."
+            },
+            "F03.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`xs[1] = 42` \u2014 whether the write is visible via other aliases (slice vs array value semantics) depends on xs's declared type, which is given elsewhere: 1 hop to xs's declaration."
+            },
+            "F04.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`slot := 4; port := &slot; *port = 9; return slot` \u2014 pointer creation/dereference and all facts are fully explicit within the fragment."
+            },
+            "F04.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`window := xs[:]` (or similar) \u2014 confirming non-copying view semantics requires knowing xs is a slice (as opposed to array/string), declared elsewhere: 1 hop."
+            },
+            "F04.P3": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "Struct box, pointer allocation, container round-trip, and `first == second` pointer identity \u2014 Go has no operator overloading, so pointer `==` always compares addresses regardless of any external type declaration; fully local."
+            },
+            "F05.P1": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "Bare call `f(x)` \u2014 per the probe's own binding note, f's signature is explicitly excluded from the fragment and must be consulted to know slice-parameter aliasing/mutation outcomes: 1 mandated lookup."
+            },
+            "F05.P2": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`put`'s full pointer-parameter declaration and body are inside the measured fragment for this probe; nothing external needed."
+            },
+            "F05.P3": {
+              "L": 2,
+              "normalized": 33.33,
+              "rationale": "Closure `neg` captures k by reference (needs k's given-elsewhere declaration) and iterates xs via `range`/`make` (needs xs's given-elsewhere slice declaration): 2 distinct hops."
+            },
+            "F06.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`mid`'s full declaration, the call, and the return are all in the fragment; int32 result type visible directly, so copy-not-shared fact is local."
+            },
+            "F06.P2": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`divmod2`'s parameters a,b are declared in its own signature inside the fragment; nothing external needed."
+            },
+            "F07.P1": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`r := a*b + c` \u2014 a,b,c are given-elsewhere same-type locals; their joint declaration must be consulted to fix r's inferred type/width for overflow reasoning: 1 hop."
+            },
+            "F07.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "q,m,d computed from given-elsewhere a,b (int32); 1 hop to their declaration to confirm width/signedness for rounding/remainder-sign/overflow facts."
+            },
+            "F08.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`m` is declared and initialized to math.MaxInt32 within the fragment; `m+1` wrap behavior is Go's universal, always-on rule; fully self-contained."
+            },
+            "F08.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "a,b given elsewhere; b's possible-zero value/type must be checked via its declaration for the guard/checked-division rung selection: 1 hop."
+            },
+            "F09.P1": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`eq := s1 == s2` \u2014 Go has no operator overloading, so `==` compares contents once s1/s2 are known to be `string`; that type must be confirmed via their given-elsewhere declaration: 1 hop."
+            },
+            "F09.P2": {
+              "L": 2,
+              "normalized": 33.33,
+              "rationale": "`sort.Slice(xs, ...)` requires (1) xs's given-elsewhere slice declaration and (2) the `sort` package's documented in-place-mutation contract (imported definition) to answer the aliasing/allocation fact; the `lt := a < b` statement contributes no additional frozen fact needing lookup."
+            },
+            "F10.P1": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`small := int32(big)` \u2014 big's given-elsewhere int64 declaration must be checked to confirm the source width for the (silent-truncate) conversion fact: 1 hop."
+            },
+            "F10.P2": {
+              "L": 2,
+              "normalized": 33.33,
+              "rationale": "`sum := float64(i) + d` \u2014 i (int32) and d (float64) are two separately given-elsewhere declarations, both needed to fix which operand converts: 2 hops."
+            },
+            "F11.P1": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`e := xs[i]` \u2014 panics-on-out-of-range is universal for Go slice indexing once xs's given-elsewhere type is confirmed to be a slice (vs map, which has different miss semantics): 1 hop."
+            },
+            "F11.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`part := xs[1:4]` \u2014 shared-backing-array (non-copy) semantics require confirming xs's given-elsewhere slice type: 1 hop."
+            },
+            "F12.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "Go substitute uses a locally declared `*int32` sentinel and explicit nil-check/fallback, all within the fragment; no external lookup."
+            },
+            "F12.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`o`'s given-elsewhere pointer-optional declaration (from F12.P1) must be consulted to confirm the nil-check semantics used by the substitute conditional: 1 hop."
+            },
+            "F13.P1": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`strconv.Atoi(s)` \u2014 the (int, error) failure-surfacing contract is documented by the imported `strconv` package, not derivable from the call site's syntax alone: 1 hop."
+            },
+            "F13.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "Same `strconv.Atoi` dependency as F13.P1 for the local `if err != nil` handling construct: 1 hop."
+            },
+            "F14.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "Go substitute (interface + two implementing structs) is declared entirely within the fragment per its measured_fragment definition; nothing external."
+            },
+            "F14.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "Dispatch via `switch v := s.(type)` over the Shape alternatives requires consulting Shape's declaration (from F14.P1, outside this fragment) to know the full alternative set: 1 hop."
+            },
+            "F14.P3": {
+              "L": 2,
+              "normalized": 33.33,
+              "rationale": "Cross-unit extensibility: the calling unit must consult the `shapes` package's exported Shape interface declaration and its method set to confirm Tri satisfies it structurally: 2 hops (import + interface method-set confirmation) even though both units are jointly measured under the frozen multi-unit recipe."
+            },
+            "F15.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "Generic `head[T any]` declaration and both call sites are all within the fragment; fully local."
+            },
+            "F15.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`max_of[T cmp.Ordered]` relies on the stdlib `cmp.Ordered` constraint interface (imported definition) to fix what operations T supports: 1 hop."
+            },
+            "F15.P3": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "Interface Named, both implementations A/B, the heterogeneous slice, and the dispatching call are all within the measured fragment; fully local."
+            },
+            "F16.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "Slice literal plus explicit summation loop (no stdlib generic Sum exists in Go's standard library) \u2014 fully self-contained."
+            },
+            "F16.P2": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "Map literal, range-based value summation, and the comma-ok idiom for the missing key are all local, built-in language syntax; unspecified iteration order is a universal spec fact, not a program lookup."
+            },
+            "F17.P1": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`os.Open`/`defer f.Close()`/`io.ReadAll` \u2014 confirming that Close() deterministically releases the OS handle on every exit path (including the failure path) requires the `os` package's documented contract (imported definition): 1 hop."
+            },
+            "F17.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "Go substitute uses `defer h.release()` inside a scope block, all declared locally, but the given-elsewhere module-level `released` counter's declaration must be checked to confirm its type/initial value: 1 hop."
+            },
+            "F18.P1": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "`import \"fmt\"; fmt.Println(\"x\")` \u2014 the newline-appending/stdout-writing contract is documented by the imported `fmt` package rather than visible from the call syntax alone: 1 hop."
+            },
+            "F18.P2": {
+              "L": 1,
+              "normalized": 50.0,
+              "rationale": "External call `util.pub_add(2, 3)` requires consulting the util package's exported declaration/signature (a separate compilation unit under the frozen multi-unit recipe): 1 hop."
+            },
+            "F19.P1": {
+              "L": 0,
+              "normalized": 100.0,
+              "rationale": "`go func(){...}()` plus unbuffered channels for the join are Go language-level primitives (not a stdlib import); fully local."
+            },
+            "F19.P2": {
+              "L": 2,
+              "normalized": 33.33,
+              "rationale": "Race-freedom relies on the documented normative guarantees of two separate stdlib packages: `sync/atomic` (atomic increment) and `sync` (WaitGroup join): 2 hops."
+            },
+            "F20.P1": {
+              "L": 2,
+              "normalized": 33.33,
+              "rationale": "cgo call to C's `abs` requires (1) the foreign C signature surfaced through the cgo preamble/header and (2) the cgo/CGO_ENABLED global build-mode configuration required for the call to be meaningful: 2 hops."
+            },
+            "F20.P2": {
+              "L": 2,
+              "normalized": 33.33,
+              "rationale": "`//export add2` requires (1) understanding cgo's export-directive semantics (imported pseudo-package `C` mechanism) and (2) the global build-mode configuration (cgo enabled, appropriate buildmode) needed to actually emit the unmangled symbol: 2 hops."
+            }
+          },
+          "raw_lookup_count_summary": {
+            "distribution": {
+              "L=0": 18,
+              "L=1": 19,
+              "L=2": 7,
+              "L=3_or_more": 0
+            },
+            "mean_L": 0.75,
+            "sum_of_L_over_44_probes": 33
+          }
+        }
+      }
+    },
+    "requirements": {
+      "metric.semantic_locality": {
+        "Go": 67.8
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "793ea7508536d29650424ffc123c8deccd11f7ac13c2be2c21ee22513451a9ad",
+  "schema_version": 1
+}

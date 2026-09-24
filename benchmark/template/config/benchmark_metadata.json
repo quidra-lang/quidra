@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "purpose": "Single source of truth for the five Primary evaluation identities and the fixed evaluated-language set. Order is load-bearing: evaluation order is the Primary numbering, language order drives ranking and table column order.",
+  "evaluations": [
+    {
+      "id": "semantic_compression",
+      "display_name": "Semantic Compression"
+    },
+    {
+      "id": "llm_learnability",
+      "display_name": "LLM Learnability"
+    },
+    {
+      "id": "language_quality",
+      "display_name": "Language Quality"
+    },
+    {
+      "id": "ecosystem",
+      "display_name": "Ecosystem"
+    },
+    {
+      "id": "llm_proficiency",
+      "display_name": "LLM Proficiency"
+    }
+  ],
+  "languages": [
+    "Quidra",
+    "Python",
+    "C++",
+    "Rust",
+    "Go",
+    "Java",
+    "TypeScript",
+    "Kotlin",
+    "Swift",
+    "Zig"
+  ],
+  "evaluated_target_language": "Quidra"
+}

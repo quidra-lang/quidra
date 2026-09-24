@@ -1,0 +1,169 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "0c105d4977ed38e5d9f8763b75a941179dfe469e92b603a22f034ab9c749223d",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "87c253296363d97e869e2b78c6626059e1597398519e37d3f5bc0463ee995907",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.build_test_integration",
+      "metric.documentation_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-tooling--part-3--c",
+    "work_unit_id": "ecosystem-tooling--part-3--c",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "87c253296363d97e869e2b78c6626059e1597398519e37d3f5bc0463ee995907",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-3--c"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.build_test_integration": {
+        "cpp_findings": [
+          {
+            "citation": "CMake provides direct integration with CTest via the enable_testing() and add_test() commands.",
+            "point": "Dimension 1 (native test-runner integration): CMake ships CTest as part of the same suite, wired in with two commands."
+          },
+          {
+            "citation": "CTest integrates well with all major testing frameworks, such as google test (gtest), but if you can't be bothered, just write a simple C++ source file with a single main() function",
+            "point": "CTest is framework-agnostic and integrates well with popular unit-test frameworks, or plain assert-based executables."
+          },
+          {
+            "citation": "This option allows CTest to resume a test set execution that was previously interrupted.",
+            "point": "Dimension 3 (advanced execution features): parallel job-server integration, resumable/failover runs, and randomized ordering to catch implicit test-order dependencies are built into ctest(1)."
+          },
+          {
+            "citation": "CTest also has advanced mechanisms for scripting, fixtures, sanitizers, job servers, metric reportings, and much more.",
+            "point": "CTest also supports fixtures, sanitizers, job servers and metric reporting beyond the basic pass/fail model."
+          },
+          {
+            "citation": "This action wraps the ctest\ncommand for testing CMake projects.",
+            "point": "Dimension 2 (CI integration): dedicated, actively used GitHub Actions marketplace actions wrap ctest directly for CI pipelines."
+          },
+          {
+            "citation": "Include this module in the top CMakeLists.txt file of a project to enable testing with CTest and dashboard submissions to CDash",
+            "point": "Dimension 2 continued: CMake/CTest also has first-class dashboard submission support via CDash, separate from generic CI."
+          },
+          {
+            "citation": "This integration enables users to: Discover tests defined in CMake projects via CTest.",
+            "point": "IDE integration: VS Code's official CMake Tools extension provides deep, structured integration between CTest and the editor's native Test Explorer, including result parsing and coverage."
+          },
+          {
+            "citation": "Both integrate seamlessly with CMake and handle the complex task of building C++ libraries with correct compiler flags, architectures, and linkage options.",
+            "point": "Dimension 4 (coherence penalty): package managers (vcpkg, Conan) are separate tools from the build/test system and require explicit toolchain-file or generator wiring into CMake rather than being unified out of the box."
+          }
+        ],
+        "rubric": {
+          "description": "Frozen 0-100 rubric applied identically to all 10 languages (this shard scores only C++; other language shards score the remaining languages against the same rubric so the runner can merge disjoint keys). Score is a qualitative composite of four equally-weighted dimensions, each 0-25 points: (1) existence of a de-facto-standard build tool with native/first-class test-runner integration (not a bolted-on third-party wrapper); (2) breadth/turnkey-ness of CI system integration (official or widely-used marketplace actions, dashboard/report submission); (3) advanced test-execution feature depth (parallel execution, filtering/regex selection, fixtures, coverage hooks, resumability, randomized ordering, sanitizer integration); (4) coherence/unification of the build+test+dependency story (single dominant toolchain vs. fragmented competing tools requiring manual glue).",
+          "evidence_sources": [
+            "https://cmake.org/cmake/help/latest/guide/tutorial/Testing%20and%20CTest.html",
+            "https://cmake.org/cmake/help/latest/manual/ctest.1.html",
+            "https://cmake.org/cmake/help/latest/module/CTest.html",
+            "https://coderefinery.github.io/cmake-workshop/testing/",
+            "https://cfd.university/learn/automating-cfd-solver-and-library-compilation-using-cmake/how-to-automate-testing-with-cmake-ctest-and-gtest/",
+            "https://deepwiki.com/microsoft/vscode-cmake-tools/5-testing-integration",
+            "https://github.com/marketplace/actions/ctest-action",
+            "https://github.com/threeal/ctest-action",
+            "https://hackingcpp.com/cpp/tools/package_managers",
+            "https://kindatechnical.com/c-plus-plus/package-management-vcpkg-conan.html"
+          ],
+          "snapshot_date": "2026-09-22"
+        },
+        "score_derivation": "Dimension 1: 24/25 (CTest is the mature, native, de-facto-standard test runner shipped with CMake, the dominant C++ build system). Dimension 2: 23/25 (turnkey GitHub Actions support plus CDash dashboards; slightly behind languages with a single official first-party CI-integrated test command). Dimension 3: 23/25 (parallelism, fixtures, sanitizers, resumability, randomized ordering all present). Dimension 4: 17/25 (build system, test runner and package manager are three separately maintained projects needing manual glue, unlike languages with one unified toolchain command). Total = 87/100."
+      },
+      "metric.documentation_quality": {
+        "cpp_findings": [
+          {
+            "citation": "a more convenient version of the C and C++ standards",
+            "point": "cppreference.com is the community's de-facto complete reference for the language and standard library, explicitly designed to substitute for a plain reading of the ISO standard text."
+          },
+          {
+            "citation": "C++23 is the most recently published C++ Standard (and C++26 is on the way), so that is the main focus of this site.",
+            "point": "Dimension 2 (currency): the site actively documents the latest published standard plus in-progress drafts of the next one."
+          },
+          {
+            "citation": "Also see cppreference.com, which is not authoritative but also can be used for general unofficial reference to answer basic questions about C++.",
+            "point": "cppreference explicitly is not the authoritative source; the ISO committee's own portal states it is unofficial."
+          },
+          {
+            "citation": "Purchase the C++23 official standard.",
+            "point": "Dimension 3 (spec + best practices): the formal ISO standard requires purchase, and the official isocpp.org site instead redirects learners to third-party books and the community-maintained C++ Core Guidelines."
+          },
+          {
+            "citation": "C++ Core Guidelines \u2014 By Bjarne Stroustrup and Herb Sutter.",
+            "point": "The C++ Core Guidelines provide curated best-practice documentation, authored by the language's original designer and a standards leader."
+          },
+          {
+            "citation": "GNU libstdc++ \u2014 Reference manual for the GNU implementation of the C++ library.",
+            "point": "Dimension 4 (fragmentation penalty): the standard library has multiple divergent implementation-specific reference manuals (MSVC, GNU libstdc++, LLVM libc++, plus historical Dinkumware/SGI docs) that cppreference's own resource page lists as separate authorities a developer may need to consult."
+          }
+        ],
+        "rubric": {
+          "description": "Frozen 0-100 rubric applied identically to all 10 languages. Four equally-weighted dimensions, each 0-25 points: (1) existence and completeness of an authoritative or de-facto-standard reference covering the full language plus standard library; (2) currency -- documentation actively tracks the latest language/standard version and drafts of the next one; (3) availability of the formal specification text and curated best-practice/style guidance; (4) coherence -- a single unified official documentation portal vs. fragmentation across multiple non-canonical or implementation-specific references that a learner must reconcile.",
+          "evidence_sources": [
+            "https://en.cppreference.com/Cppreference:About",
+            "https://en.cppreference.com/cpp/resources",
+            "https://en.cppreference.com/cpp/23",
+            "https://isocpp.org/std/the-standard",
+            "https://www.developerindian.com/articles/official-cpp-documentation-a-complete-guide",
+            "https://hackingcpp.com/cpp/language_references"
+          ],
+          "snapshot_date": "2026-09-22"
+        },
+        "score_derivation": "Dimension 1: 23/25 (cppreference is comprehensive and effectively the standard community reference, but is explicitly a non-authoritative substitute for the real standard). Dimension 2: 22/25 (kept current with newest and draft standards). Dimension 3: 17/25 (formal standard text is paywalled -- unlike languages with a free official spec -- though the Core Guidelines partially compensate). Dimension 4: 20/25 (fragmentation across libstdc++/libc++/MSVC-STL/cplusplus.com references, no single official government-of-truth portal analogous to some other languages' unified official doc sites). Total = 82/100."
+      }
+    },
+    "requirements": {
+      "metric.build_test_integration": {
+        "C++": 87
+      },
+      "metric.documentation_quality": {
+        "C++": 82
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d21179b60b49c1a37301a8c69cb2bec9d9f54fdafd57aaaeb7bbcb474cedd7dc",
+  "schema_version": 1
+}

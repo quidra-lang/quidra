@@ -1,0 +1,122 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "c354f541f178a6e43ab2a08b1c5c2cd3877e5c9dd9850653db858e1caf42ad99",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "bf5dfb8d2244061d1d25b2c826fce2ab6dba46eab2a3e7ed116aba3b2f87990e",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.1",
+      "version": "0.2.1"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "afb9ca0a2199e5b4cf4afc93e71da2db1910b069f157eac8ac9b0bc2e3aaae60"
+    },
+    "requirement_ids": [
+      "metric.installation_distribution_experience",
+      "metric.toolchain_stability_release_maturity"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-tooling--part-4--quidra",
+    "work_unit_id": "ecosystem-tooling--part-4--quidra",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "bf5dfb8d2244061d1d25b2c826fce2ab6dba46eab2a3e7ed116aba3b2f87990e",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-4--quidra"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "assigned_language": "Quidra",
+      "limitations": "No system-package-manager (apt/brew/choco/winget) or container-registry presence could be confirmed for Quidra as of the snapshot; absence was treated as a rubric-defined low sub-score rather than N/A. Release-cadence evidence covers only the short observed history in the live repository; it is recorded as descriptive cadence data per the frozen spec's prohibition on using elapsed time/age as a direct threshold or bonus/penalty.",
+      "metric.installation_distribution_experience": {
+        "raw_findings": [
+          "Packaging is produced by CPack per platform: Linux DEB/TGZ, macOS TGZ, Windows ZIP, confirmed on the quidra-lang/quidra README build section.",
+          "GitHub Releases are created automatically by a CI workflow ('github-actions released this') for v0.1.0, v0.2.0, v0.3.0 (6 assets each) and v0.3.1 (4 assets), i.e. multiple platform artifacts are actually published per tagged release, not just source tarballs.",
+          "docs/development.md step 7-8 requires the release workflow to 'create the GitHub Release and all supported platform artifacts' before a release counts as complete, and step 9 requires the release tag, main version metadata, packaged 'quidra --version', and published assets to all agree.",
+          "README build-from-source instructions give explicit CMake commands and exact native dependency list (Clang 15+, libcurl, libpng/libjpeg/libtiff/libwebp dev files) for Linux, with a separate Windows (vcpkg-based) path.",
+          "No evidence was found of Quidra being distributed through a hosted system/community package-manager channel (apt repository, Homebrew formula, Chocolatey/winget, Docker Hub image, or a language-native registry such as npm/cargo/pip) as of the snapshot date; the DEB artifact is a local install package, not a hosted apt feed.",
+          "docs/packages.md: the first-party library installer ('quidra install ...') resolves only immutable exact 'vMAJOR.MINOR.PATCH' git tags, never main/develop/feature branches, checks each tag's manifest before cloning, and never executes an install script.",
+          "Asset-backed package installs are HTTPS-only, require curl/tar, and the installer 'inspects the archive before extraction, rejects absolute/traversing paths, links, and attempts to replace main.qui, quidra.package, .git, or quidra.lock' before an atomic publish.",
+          "quidra.lock version 3 records distribution name, import name, version, and a SHA-256 content hash for every direct/transitive package, and compilation checks both version and hash, giving reproducible, verifiable installs of the package ecosystem (not the compiler itself).",
+          "docs/development.md's single-source-of-truth metadata check (sync_metadata.py --check, run in CI and again before tagging) verifies that the CMake/Debian toolchain minimums, README build-requirement prose, and 'the repository the installer script downloads from' all agree with project.toml, reducing drift between documented and actual install requirements."
+        ],
+        "rubric": "Frozen 5-part rubric (20 pts each, same criteria intended for all 10 languages): (1) availability of automated prebuilt/installable artifacts across major desktop OSes; (2) presence in third-party/system package-manager channels (apt repo, Homebrew, Chocolatey/winget, Docker, language-native registries); (3) quality/clarity of documented build-from-source path incl. explicit dependency versions; (4) maturity/safety of the project's own package/dependency installer UX; (5) release-artifact verifiability and consistency automation.",
+        "score": 73,
+        "score_rationale": "Quidra scores above the rubric midpoint: it has automated, verifiable multi-platform release artifacts (DEB/TGZ/ZIP via CPack, produced by a CI-driven GitHub Release workflow with consistency checks across README/manifest/CLI/tag) and a genuinely mature, security-conscious first-party package installer (tag-only resolution, no arbitrary script execution, HTTPS-only signed-shape asset merging, SHA-256 lockfile verification). It loses points because there is no evidence of presence in any hosted system/community package-manager channel (no apt repo, Homebrew, Chocolatey/winget, or container image), so most non-expert users must either build from source or manually fetch a GitHub Release asset rather than using a familiar one-line installer or OS package manager."
+      },
+      "metric.toolchain_stability_release_maturity": {
+        "raw_findings": [
+          "docs/development.md defines an explicit SemVer policy for the pre-1.0 language: 'X.0 is appropriate for new language features... X.Y is appropriate for compatible fixes... 1.0.0 is reserved for the first explicitly stable language contract', and states a `-dev`/`-rc` suffix is rejected by the parser and CMake.",
+          "The release procedure (docs/development.md) requires green CI on develop (full test suite), merging into main, re-verified main CI, and only then an automated 'release' workflow on push to main that re-checks derived metadata, refuses to continue if the tag already exists, and creates/pushes the immutable tag itself \u2014 tags are explicitly never created by hand or from develop/feature branches.",
+          "Release checks required before a release counts as complete include GCC and Clang builds, Linux/macOS/Windows CI, sanitizer and warnings-as-errors builds, ctest, parser/checker negative tests, native runtime smoke tests, package/version/lockfile tests, REPL/CLI tests, packaging tests, the metadata SSOT check, and version-consistency checks.",
+          "'The release tag is immutable. Never force-move, delete/recreate, or reuse a published vX.Y.Z tag for different source... superseded by a new... release, never by retargeting the existing tag.'",
+          "Format versions (device ABI, typed IR, package-manifest schema, lockfile schema) are declared independently in project.toml and are deliberately decoupled from the product release version; a package's declared requires.abi is enforced exactly against the compiler's abi_version via the PACKAGE_COMPATIBILITY diagnostic, and requires.quidra semver ranges are enforced at install/compile time.",
+          "quidra.lock format itself evolved (v1/v2/v3) while remaining backward-readable: 'Version-1 and version-2 lockfiles remain readable for compatibility; rewriting the lockfile upgrades it to version 3', showing a documented compatibility-preserving migration path rather than a breaking change.",
+          "Observed actual releases (quidra-lang/quidra GitHub Releases) as of the snapshot: v0.1.0, v0.2.0 (with a documented PR trail showing the develop HEAD passed 'the repository CI matrix, including GCC/Clang, sanitizers, macOS, Windows, packaging and image dtype coverage' before promotion), v0.3.0, and a v0.3.1 patch release, each produced by an automated github-actions release with a linked Full Changelog and, for v0.2.0, a GitHub-verified signed commit.",
+          "A dedicated first-party-package compatibility CI ('Add first-party package compatibility CI') continuously tests the released vision/dnn packages against core changes before they land in develop/main, so downstream package breakage is caught pre-release rather than discovered post-release.",
+          "The four observed releases occurred within a span of days rather than months, showing an active but very young release history; this is recorded as descriptive cadence evidence (not used as an age penalty) and slightly tempers confidence in long-run stability despite the strong process controls."
+        ],
+        "rubric": "Frozen 5-part rubric (20 pts each): (1) documented, followed Semantic Versioning policy with explicit meaning per version segment; (2) release reproducibility/CI gating strength (compilers, OSes, sanitizers, negative tests, packaging tests) required before a tag exists; (3) immutability/non-retargeting guarantees for published releases; (4) explicit compatibility contracts (ABI/IR/schema versioning, package compatibility enforcement) independent of the product version; (5) observed maintenance/release cadence and consistency across actual releases. Language age/first-release date are excluded as scoring inputs per the frozen ecosystem spec.",
+        "score": 76,
+        "score_rationale": "Quidra scores well above the rubric midpoint on process-based release maturity: it has a clearly documented, consistently followed SemVer policy, an unusually strict CI-gated and fully automated tag/release procedure with explicit tag-immutability guarantees, and independently versioned/enforced ABI-IR-schema compatibility contracts plus a backward-compatible lockfile-format migration path. It is not scored at the top of the rubric because the only observable release history is four releases within a few days, which demonstrates active automation and gating but not yet a long-run track record of sustained cadence, support windows for older minor lines, or a stable (post-1.0) compatibility contract."
+      },
+      "snapshot_date": "2026-09-22",
+      "sources": [
+        "/quidra-benchmark/repo/docs/development.md",
+        "/quidra-benchmark/repo/docs/packages.md",
+        "/quidra-benchmark/repo/docs/spec/architecture.md",
+        "https://github.com/quidra-lang/quidra (README, root)",
+        "https://github.com/quidra-lang/quidra/releases/tag/v0.1.0",
+        "https://github.com/quidra-lang/quidra/releases/tag/v0.2.0",
+        "https://github.com/quidra-lang/quidra/releases/tag/v0.3.0",
+        "https://github.com/quidra-lang/quidra/releases/tag/v0.3.1",
+        "https://github.com/quidra-lang/quidra/pull/3",
+        "https://github.com/quidra-lang/dnn"
+      ]
+    },
+    "requirements": {
+      "metric.installation_distribution_experience": {
+        "Quidra": 73
+      },
+      "metric.toolchain_stability_release_maturity": {
+        "Quidra": 76
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "735596e5d0236e151b2d407d3cdf4aecf10b69ce176918d09713431c0665503d",
+  "schema_version": 1
+}

@@ -1,0 +1,105 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "75c6512e56798278fb4ed90bc986b0b0af2df9955a3ec2452c116310638b3871",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "3c3485fed1cfc880044d2225076e1c943eb938c2a6b2e0f76e84e8612fe5ddc0",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851"
+    },
+    "requirement_ids": [
+      "metric.core_tooling_availability_quality",
+      "metric.package_dependency_management_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-tooling--part-1--quidra",
+    "work_unit_id": "ecosystem-tooling--part-1--quidra",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "3c3485fed1cfc880044d2225076e1c943eb938c2a6b2e0f76e84e8612fe5ddc0",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "ecosystem-tooling--part-1--quidra"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.core_tooling_availability_quality": {
+        "observations": [
+          "The CLI exposes structured diagnostics: quidra check program.qui --json with stable codes, spans, and messages, plus a configurable --max-errors limit.",
+          "A dedicated formatter exists and is documented as idempotent and role-unambiguous: \"quidra fmt FILE.qui --check\" is described as the non-writing canonical-form check used by automation, per the architecture spec.",
+          "A REPL is a first-class client of the same compiler pipeline (not a second interpreter), with session-safety handling (REPL_REPLAY_UNSAFE) documented in the diagnostics spec.",
+          "Machine-oriented tooling is unusually deep for a young language: quidra inspect / quidra patch / quidra describe (patch-schema, grammar, llm) provide structural source inspection and revision/hash-checked patching, per patch-schema.md and architecture.md.",
+          "Release checks (docs/development.md) enumerate GCC/Clang builds, Linux/macOS/Windows CI, sanitizer and warnings-as-errors builds, ctest, parser/checker negative tests, native runtime smoke tests, standard-library/module tests, package/version/lockfile tests, REPL/CLI tests, and packaging tests as release gates, indicating a real (if internally-defined) build/test integration discipline.",
+          "There is exactly one first-party implementation (a C++20 compiler emitting LLVM IR via Clang); no independent third-party compiler, alternate build tool, or competing toolchain is described anywhere in the corpus.",
+          "There is no described dedicated debugger or profiler product beyond a 'quidra debug' build/run mode and sanitizer instrumentation; that gap is scored under the separate Debugger/Profiler metric rather than penalizing this metric twice, but it caps how far 'core tooling' completeness can be judged from this evidence alone.",
+          "The language is explicitly pre-1.0 (Semantic Versioning with 0.X.Y, '1.0.0 is reserved for the first explicitly stable language contract'), so tooling stability/maturity signals remain young by the project's own account (scored contextually, not as an automatic penalty per the Ecosystem methodology)."
+        ],
+        "rubric": "Frozen proxy: score the availability and functional quality of the core first-party developer tool surface (compiler CLI, diagnostics, formatter, REPL, source-introspection/patch tooling, build/link integration) as observable from the frozen repository documentation snapshot. Sub-scores: (a) compiler CLI completeness/diagnostics quality, (b) formatter presence/determinism, (c) REPL/interactive tooling, (d) machine-tooling (inspect/patch/describe) for programmatic editing, (e) build/link integration and cross-platform CI coverage, (f) project maturity signal (single vs multiple implementations, versioning discipline). Same weighting is applied to every language in this evaluation; this shard reports only Quidra.",
+        "score_rationale": "Quidra ships a coherent, well-documented, first-party core tool surface (compiler+diagnostics, formatter, REPL, inspect/patch, describe) that is unusually strong for LLM-oriented tooling, which supports a mid score rather than a low one. However availability/quality here is bounded by there being a single implementation, no external/third-party tool ecosystem, and pre-1.0 status, which keeps the score in the middle of the scale rather than high.",
+        "status": "Executed"
+      },
+      "metric.package_dependency_management_quality": {
+        "observations": [
+          "Quidra has a built-in package manager with install/remove/list/package-info/package-path/lock subcommands, documented in docs/packages.md.",
+          "Packages are resolved only from immutable Git release tags: \"Quidra never installs from main, develop, feature, or another moving branch. It enumerates exact stable release tags\".",
+          "The manifest format is disciplined: released packages declare requires.quidra as a Semantic Versioning range, and a separate ABI number requires an exact match rather than a range, per docs/packages.md and architecture.md.",
+          "The lockfile format (quidra.lock v3) records distribution name, import name, version, and a SHA-256 content hash per package, and compilation checks both version and hash, giving strong reproducibility guarantees per docs/packages.md.",
+          "Dependency resolution is explicitly manual/non-transitive today: \"For a dependency other than Quidra, the current installer requires an already installed compatible package and reports the required range when it is missing or incompatible. Dependency resolution can become more automatic later without changing the manifest format.\"",
+          "There is no package registry/index; discovery is limited to a fixed first-party quidra- namespace (resolving to specific GitHub repositories) or explicit owner/repository / Git URLs, per docs/packages.md.",
+          "The only named packages anywhere in the corpus are the official quidra-dnn and quidra-vision libraries, referenced repeatedly (e.g. architecture.md's core/library release-order section and language.md's dnn/vision descriptions); no third-party package ecosystem or count is documented.",
+          "No package install scripts are ever executed, which is a safety property but does not offset the near-absence of an active third-party package ecosystem for this metric."
+        ],
+        "rubric": "Frozen proxy: score (a) package-manager mechanism maturity (manifest schema, versioning semantics, lockfile integrity, compatibility checks) and (b) package ecosystem activity/breadth (registry existence, number and diversity of available packages, automatic dependency resolution) as observable from the frozen repository documentation snapshot. Same weighting is applied to every language in this evaluation; this shard reports only Quidra.",
+        "score_rationale": "The package-manager mechanism itself (manifest schema, semver ranges, ABI-vs-version separation, hashed lockfiles, immutable-tag-only installs) is comparatively well engineered and would score well in isolation. But package/dependency management quality per the Ecosystem methodology also requires package-manager maturity and package ecosystem activity together: Quidra has no registry, no automatic transitive dependency resolution (a core capability of mature package managers), and an ecosystem consisting of only two known first-party packages. That combination places the language in the low range of the scale rather than the middle, reflecting a mechanically sound but ecosystem-thin and functionally incomplete (non-transitive) dependency manager.",
+        "status": "Executed"
+      }
+    },
+    "requirements": {
+      "metric.core_tooling_availability_quality": {
+        "Quidra": 55
+      },
+      "metric.package_dependency_management_quality": {
+        "Quidra": 27
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "828636bce534fc0316db9f1de6714cdf46565e53c30ae05c7098ce6438b695b5",
+  "schema_version": 1
+}

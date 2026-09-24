@@ -1,0 +1,529 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "6fbd1208c3295079b9f8912269c7818dc2232fe024f38474057737c1c153a537",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "1d32313650e4da06eae740e2c94d1eb6a055bb6018b7efee6711626ca34af3f0",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--go",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "1d32313650e4da06eae740e2c94d1eb6a055bb6018b7efee6711626ca34af3f0",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--go"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.capability_coverage": {
+        "basis_note": "This capability_coverage figure uses the full fixed 88-point denominator per capability_universe.json 'capability_coverage.formula'; it is independent of the common-basis vs all-fragments distinction used for metrics A-D.",
+        "computed_C": 92.0454545454,
+        "denominator_total_fixed_capability_points": 88,
+        "family_breakdown": {
+          "1. value and storage declaration": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "10. explicit and implicit type conversion": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "11. indexing and slicing": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "12. nullable / optional values": {
+            "coverage_pct": 50.0,
+            "denominator": 4,
+            "numerator": 2
+          },
+          "13. errors, failure values, exceptions, and propagation": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "14. alternatives / sum / variant types and dispatch over alternatives": {
+            "coverage_pct": 83.33,
+            "denominator": 6,
+            "numerator": 5
+          },
+          "15. generics / parametric polymorphism": {
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "numerator": 6
+          },
+          "16. collections and iteration": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+            "coverage_pct": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "18. modules, imports, and dependency boundaries": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "19. concurrency / asynchronous execution where the language supports it": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "2. initialization and potentially uninitialized state": {
+            "coverage_pct": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "20. FFI / interoperability boundaries": {
+            "coverage_pct": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "3. mutation": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+            "coverage_pct": 83.33,
+            "denominator": 6,
+            "numerator": 5
+          },
+          "5. function calls and argument-passing semantics": {
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "numerator": 6
+          },
+          "6. return-value semantics": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "7. arithmetic operators": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "9. equality, ordering, and comparison": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          }
+        },
+        "family_denominator_sum_check": 88,
+        "family_numerator_sum_check": 81,
+        "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+        "language": "Go",
+        "na_policy_note": "No probe was scored NONE for Go in this analysis; all 44 probes have a documented Go fragment path (FULL or PARTIAL). Per NA-1/NA-2/NA-3, the fixed 88-point denominator is unchanged regardless of support level, and every PARTIAL is recorded with its P-letter(s) and a citation rather than being excluded or marked N/A.",
+        "numerator_awarded_points": 81,
+        "per_probe_support": [
+          {
+            "family": "1. value and storage declaration",
+            "note": "`const n = 7` is a never-reassignable local binding; `return n` produces it. Builds/runs under `go build`.",
+            "points_awarded": 2,
+            "probe_id": "F01.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "1. value and storage declaration",
+            "note": "Package-level `var counter int64 = 0` (mutable) plus `const LIMIT int64 = 100` (true compile-time constant, distinct construct from var).",
+            "points_awarded": 2,
+            "probe_id": "F01.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "2. initialization and potentially uninitialized state",
+            "note": "`var v int32` declares without an initializer expression; two-way branch assigns 5/9 on both paths; read/return v. Delivers all numbered sub-requirements (Go's zero-initialization under the hood is a hidden-cost fact, scored under metric D, not a support criterion per support_rubric.determinacy_is_not_a_support_criterion).",
+            "points_awarded": 2,
+            "probe_id": "F02.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "2. initialization and potentially uninitialized state",
+            "note": "Go has no documented mechanism for storage whose contents are specified as unspecified/uninitialized; arrays/slices are always zero-initialized per the Go language specification. R9-named substitution: fragment uses `var buf [16]byte` (default-initialized) instead of genuinely uninitialized storage.",
+            "p_letters": [
+              "P-a"
+            ],
+            "points_awarded": 1,
+            "probe_id": "F02.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "family": "3. mutation",
+            "note": "`x++` (Go increment statement) is the fewest-token in-place update form.",
+            "points_awarded": 2,
+            "probe_id": "F03.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "3. mutation",
+            "note": "`xs[1] = 42` mutates the slice's backing array in place; observable through the same slice header `xs`.",
+            "points_awarded": 2,
+            "probe_id": "F03.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "4. aliasing/references/borrowing/addressing/dereferencing",
+            "note": "`port := &slot; *port = 9; return slot` \u2014 Go pointers give a second name with write access to the same storage.",
+            "points_awarded": 2,
+            "probe_id": "F04.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "4. aliasing/references/borrowing/addressing/dereferencing",
+            "note": "Go re-slicing (`window := xs[0:]`) gives a genuinely non-copying view, but Go has no read-only/immutable slice type \u2014 the view remains mutable. Substituted weaker mechanism: a mutable non-copying view stands in for the demanded read-only view.",
+            "p_letters": [
+              "P-a"
+            ],
+            "points_awarded": 1,
+            "probe_id": "F04.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "family": "4. aliasing/references/borrowing/addressing/dereferencing",
+            "note": "`first := &Obj{id:5}`; route through a one-element `[]*Obj{first}` and read back as `second`; `same := first == second` uses Go's pointer identity comparison (`==` on pointer types compares addresses per the Go spec), distinct from field/value equality.",
+            "points_awarded": 2,
+            "probe_id": "F04.P3",
+            "support": "FULL"
+          },
+          {
+            "family": "5. function calls and argument-passing semantics",
+            "note": "Ordinary bare call `f(x)` where x is a slice; builds and runs under the frozen recipe.",
+            "points_awarded": 2,
+            "probe_id": "F05.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "5. function calls and argument-passing semantics",
+            "note": "`func put(p *int32){ *p = 12 }`; caller does `put(&cell)`; explicit `&`/`*` pointer form is Go's documented mechanism for a callee to write a caller's scalar local.",
+            "points_awarded": 2,
+            "probe_id": "F05.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "5. function calls and argument-passing semantics",
+            "note": "`neg := func(a int32) int32 { return k - a }` is a closure capturing enclosing local k; Go standard library has no generic slice-map function, so the canonical_task's own permitted fallback (ordinary iteration referring to `neg` by name) is used, which is explicitly allowed by the probe text, not an R9 substitution.",
+            "points_awarded": 2,
+            "probe_id": "F05.P3",
+            "support": "FULL"
+          },
+          {
+            "family": "6. return-value semantics",
+            "note": "`func mid(xs []int32) int32 { return xs[1] }`; call site binds y; return y.",
+            "points_awarded": 2,
+            "probe_id": "F06.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "6. return-value semantics",
+            "note": "Go has native multiple return values: `func divmod2(a,b int32)(int32,int32){ return a/b, a%b }`; `q, r := divmod2(a,b)`; `return q+r`.",
+            "points_awarded": 2,
+            "probe_id": "F06.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "7. arithmetic operators",
+            "note": "`r := a*b + c` with ordinary Go operator precedence.",
+            "points_awarded": 2,
+            "probe_id": "F07.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "7. arithmetic operators",
+            "note": "`q := a / b` (truncating toward zero per Go spec), `m := a % b` (sign follows dividend), `d := float64(a) / float64(b)` (Go requires explicit conversion for mixed-type division).",
+            "points_awarded": 2,
+            "probe_id": "F07.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "8. integer overflow, division-by-zero, other numeric edge behavior",
+            "note": "Go has no checked/wrapping/saturating standard operations, so the plain `+` operator is used (rung iv); its overflow behavior (two's-complement wraparound) is defined by the Go language specification itself, satisfying 'determined by the operation itself'.",
+            "points_awarded": 2,
+            "probe_id": "F08.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "8. integer overflow, division-by-zero, other numeric edge behavior",
+            "note": "Rung (ii): explicit guard `if b == 0 { q = 0 } else { q = a / b }`, since Go has no standard checked-division operation.",
+            "points_awarded": 2,
+            "probe_id": "F08.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "9. equality, ordering, and comparison",
+            "note": "`eq := s1 == s2` \u2014 Go strings are immutable value types and `==` compares contents per the Go spec, not identity.",
+            "points_awarded": 2,
+            "probe_id": "F09.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "9. equality, ordering, and comparison",
+            "note": "`sort.Slice(xs, func(i,j int) bool { return xs[i] > xs[j] })` supplies an explicit descending comparator (standard library `sort` package); `lt := a < b`.",
+            "points_awarded": 2,
+            "probe_id": "F09.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "10. explicit and implicit type conversion",
+            "note": "Go forbids implicit narrowing; rung (ii) explicit conversion `small := int32(big)` is used and documented (modular truncation per the Go spec).",
+            "points_awarded": 2,
+            "probe_id": "F10.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "10. explicit and implicit type conversion",
+            "note": "`sum := float64(i) + d` \u2014 Go requires the explicit conversion `float64(i)`; no implicit numeric conversion exists in Go.",
+            "points_awarded": 2,
+            "probe_id": "F10.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "11. indexing and slicing",
+            "note": "`e := xs[i]; return e` \u2014 ordinary Go slice indexing panics at runtime on out-of-range index (documented behavior); no separate checked form needed for the primary fragment.",
+            "points_awarded": 2,
+            "probe_id": "F11.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "11. indexing and slicing",
+            "note": "`part := xs[1:4]` \u2014 Go slicing shares the underlying array with the source slice; no element copy.",
+            "points_awarded": 2,
+            "probe_id": "F11.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "12. nullable / optional values",
+            "note": "R9-named substitution probe. Go has no Optional/nullable value type with a standard coalescing form; substitute uses `var o *int32 = nil` plus a hand-written if-statement for the fallback, since Go provides no default/coalescing operator for optionals.",
+            "p_letters": [
+              "P-a"
+            ],
+            "points_awarded": 1,
+            "probe_id": "F12.P1",
+            "support": "PARTIAL"
+          },
+          {
+            "family": "12. nullable / optional values",
+            "note": "R9-named substitution probe. Go has no optional-aware chaining/mapping/safe-call operation; substitute uses an explicit nil check instead of chaining.",
+            "p_letters": [
+              "P-a"
+            ],
+            "points_awarded": 1,
+            "probe_id": "F12.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "family": "13. errors, failure values, exceptions, and propagation",
+            "note": "`strconv.Atoi` returns `(int, error)`; `parse_twice` propagates via Go's documented explicit early-return-of-error-value idiom.",
+            "points_awarded": 2,
+            "probe_id": "F13.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "13. errors, failure values, exceptions, and propagation",
+            "note": "`n, err := strconv.Atoi(s); if err != nil { n = 0 }` is Go's normal if-error local-handling construct, explicitly listed as an acceptable form.",
+            "points_awarded": 2,
+            "probe_id": "F13.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "14. alternatives / sum / variant types and dispatch",
+            "note": "R9-named substitution probe. Go has no closed sum-type/algebraic-data-type construct; substitute is an interface implemented by two structs (Circle, Rect), which is an open hierarchy rather than a language-enforced closed alternative set.",
+            "p_letters": [
+              "P-a"
+            ],
+            "points_awarded": 1,
+            "probe_id": "F14.P1",
+            "support": "PARTIAL"
+          },
+          {
+            "family": "14. alternatives / sum / variant types and dispatch",
+            "note": "Go type switch over the Shape interface with no default arm computes area for Circle/Rect; exhaustiveness-checking is scored under metrics B/D, not support (support_rubric.determinacy_is_not_a_support_criterion).",
+            "points_awarded": 2,
+            "probe_id": "F14.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "14. alternatives / sum / variant types and dispatch",
+            "note": "Go's structural interfaces are natively open to extension: a separate package defines `Tri` implementing `Shape.area()` without modifying the `shapes` package; dispatch through the interface reaches it. Built under toolchain_binding.multi_unit_recipes (`go build ./...`).",
+            "points_awarded": 2,
+            "probe_id": "F14.P3",
+            "support": "FULL"
+          },
+          {
+            "family": "15. generics / parametric polymorphism",
+            "note": "Go 1.18+ generics: `func head[T any](xs []T) T { return xs[0] }`, instantiated at []int32 and []string with declared result type T (not erased to interface{}).",
+            "points_awarded": 2,
+            "probe_id": "F15.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "15. generics / parametric polymorphism",
+            "note": "Standard library `cmp.Ordered` (Go 1.21+, package `cmp`) is a genuine declaration-site constraint: `func max_of[T cmp.Ordered](a, b T) T`. Since Go genuinely has this capability, the named-substitution clause for F15.P2 does not apply.",
+            "points_awarded": 2,
+            "probe_id": "F15.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "15. generics / parametric polymorphism",
+            "note": "`[]Named{A{}, B{}}` holds two concrete types behind interface `Named`; `items[0].tag()` dispatches at runtime to A's implementation. Idiomatic Go interface polymorphism.",
+            "points_awarded": 2,
+            "probe_id": "F15.P3",
+            "support": "FULL"
+          },
+          {
+            "family": "16. collections and iteration",
+            "note": "`xs := []int32{1,2,3}`; Go standard library has no generic sum/reduce function for slices, so the canonical_task's own permitted fallback (explicit `for _, v := range xs { total += v }`) is used, not an R9 substitution.",
+            "points_awarded": 2,
+            "probe_id": "F16.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "16. collections and iteration",
+            "note": "`mp := map[string]int32{\"a\":1}`; range-iterate to sum values; `miss := mp[\"b\"]` already yields the int32 zero value 0 for the absent key (Go map indexing's documented default-value behavior), satisfying the lookup-with-default form.",
+            "points_awarded": 2,
+            "probe_id": "F16.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "17. resource management, ownership, lifetime, destruction",
+            "note": "`f, err := os.Open(\"data.txt\"); ...; defer f.Close()` \u2014 Go's documented `defer` guarantees the deferred call runs when the enclosing function returns, including on the error path.",
+            "points_awarded": 2,
+            "probe_id": "F17.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "17. resource management, ownership, lifetime, destruction",
+            "note": "Named final-clause substitution. Go has no deterministic end-of-lifetime hook (`runtime.SetFinalizer` is explicitly documented as best-effort/nondeterministic GC-timed). Substitute: an explicit `release()` method invoked via `defer` inside an immediately-invoked function literal acting as the scope, which is Go's nearest standard scoped-cleanup construct.",
+            "p_letters": [
+              "P-a"
+            ],
+            "points_awarded": 1,
+            "probe_id": "F17.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "family": "18. modules, imports, and dependency boundaries",
+            "note": "`import \"fmt\"; fmt.Println(\"x\")`.",
+            "points_awarded": 2,
+            "probe_id": "F18.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "18. modules, imports, and dependency boundaries",
+            "note": "Package `util` exports `PubAdd` (capitalized identifier) and keeps `secret` unexported (lowercase); Go's capitalization rule is a compiler-enforced package-visibility boundary. Built under toolchain_binding.multi_unit_recipes (`go build ./...`).",
+            "points_awarded": 2,
+            "probe_id": "F18.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "19. concurrency / asynchronous execution",
+            "note": "Two goroutines send results on channels; `sum := <-ch1 + <-ch2` joins both. Goroutines/channels are Go's standard concurrency facility.",
+            "points_awarded": 2,
+            "probe_id": "F19.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "19. concurrency / asynchronous execution",
+            "note": "`sync/atomic` (`atomic.AddInt64`) is documented to perform an atomic read-modify-write; two goroutines each add 1 to the counter 1000 times, joined via `sync.WaitGroup`; final value deterministically 2000.",
+            "points_awarded": 2,
+            "probe_id": "F19.P2",
+            "support": "FULL"
+          },
+          {
+            "family": "20. FFI / interoperability boundaries",
+            "note": "Go's built-in `cgo` mechanism (`import \"C\"`) is part of the standard Go toolchain and allows calling the C standard library `abs(int)` without a third-party package or separate build system.",
+            "points_awarded": 2,
+            "probe_id": "F20.P1",
+            "support": "FULL"
+          },
+          {
+            "family": "20. FFI / interoperability boundaries",
+            "note": "Exporting a C-ABI symbol named exactly `add2` requires cgo's `//export` pragma together with `-buildmode=c-archive` or `-buildmode=c-shared`, a build mode outside the frozen recipe (`go build -o BIN FILE.go` produces a plain executable with no such unmangled exported symbol). The mode ships with the standard Go toolchain and needs no extra download, so this is a P-b flag/mode deviation, not a NONE.",
+            "p_letters": [
+              "P-b"
+            ],
+            "points_awarded": 1,
+            "probe_id": "F20.P2",
+            "support": "PARTIAL"
+          }
+        ],
+        "reported_C_rounded": 92.05,
+        "support_factor_key": {
+          "FULL": 1,
+          "NONE": 0,
+          "PARTIAL": 0.5
+        },
+        "toolchain_recipe_used": {
+          "build": "go build -o BIN FILE.go",
+          "multi_unit_recipe": "go build -o BIN ./... (run inside a directory containing go.mod and a util/ package)",
+          "multi_unit_variant_used_for": [
+            "F14.P3",
+            "F18.P2"
+          ],
+          "run": "./BIN"
+        }
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Go": 92.05
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "5722c4fff0a777c85a14237b507ec4b314215e2b0732e69aa503c3d979d45150",
+  "schema_version": 1
+}

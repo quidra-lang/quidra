@@ -1,0 +1,1176 @@
+name: benchmark-production
+
+# Paid inference starts only from an explicit request on the disposable
+# benchmark branch. Each Primary has bounded continuation slices so a hosted
+# runner timeout cannot erase or strand validated paid work.
+on:
+  push:
+    branches: [benchmark]
+    paths:
+      - "benchmark/.run-production"
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: benchmark-production
+  cancel-in-progress: false
+
+env:
+  BENCHMARK_MODEL: claude-sonnet-5
+
+jobs:
+  prepare:
+    name: prepare
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.contract.outputs.mode }}
+      evaluation: ${{ steps.contract.outputs.evaluation }}
+      units: ${{ steps.contract.outputs.units }}
+      budget_usd: ${{ steps.contract.outputs.budget_usd }}
+      run_id: ${{ steps.contract.outputs.run_id }}
+      evaluated_sha: ${{ steps.contract.outputs.evaluated_sha }}
+      smoke_spend: ${{ steps.smoke.outputs.spend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Attach the disposable branch to the frozen trigger commit
+        run: git checkout -B benchmark "$GITHUB_SHA"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore durable private paid-call artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+          artifact_id="$(gh api \
+            "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=quidra-benchmark-paid-state&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty')"
+          if [ -n "$artifact_id" ]; then
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+              > "$RUNNER_TEMP/benchmark-paid-state.zip"
+            unzip -q -o "$RUNNER_TEMP/benchmark-paid-state.zip" \
+              -d "$RUNNER_TEMP/benchmark-paid-state"
+            echo "Restored durable private paid-call artifact $artifact_id."
+          else
+            echo "No durable private paid-call artifact exists yet."
+          fi
+
+      - name: Restore private cross-run paid-leaf checkpoints
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/benchmark-paid-state
+          key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-prepare-${{ github.run_attempt }}
+          restore-keys: |
+            quidra-benchmark-paid-v1-${{ runner.os }}-
+
+      - name: Validate request and freeze run identity
+        id: contract
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$ANTHROPIC_API_KEY" || {
+            echo "::error::Repository secret ANTHROPIC_API_KEY is not configured."
+            exit 1
+          }
+
+          evaluation="$(sed -n 's/^evaluation:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | xargs)"
+          [ -n "$evaluation" ] || evaluation="all"
+          case "$evaluation" in
+            all|semantic_compression|llm_learnability|language_quality|ecosystem|llm_proficiency) ;;
+            *) echo "::error::Invalid evaluation: $evaluation"; exit 1 ;;
+          esac
+
+          units="$(sed -n 's/^units:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | tr ',' ' ' | xargs)"
+          budget="$(sed -n 's/^budget_usd:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | xargs)"
+
+          if [ -n "$units" ]; then
+            for unit in $units; do
+              case "$unit" in
+                *[!A-Za-z0-9._-]*) echo "::error::Invalid work unit id: $unit"; exit 1 ;;
+              esac
+            done
+            [ -n "$budget" ] || budget="1.0"
+            python - "$budget" <<'PY'
+          import sys
+          value = float(sys.argv[1])
+          if not 0 < value <= 1.0:
+              raise SystemExit("::error::a rehearsal budget_usd must be within (0, 1.0]")
+          PY
+            if [ "$evaluation" = "all" ]; then
+              evaluation="$(python - $units <<'PY'
+          import sys
+          prefixes = {
+              "learnability-": "llm_learnability",
+              "sc-": "semantic_compression",
+              "proficiency-": "llm_proficiency",
+              "ecosystem-": "ecosystem",
+              "lq-": "language_quality",
+          }
+          found = set()
+          for unit in sys.argv[1:]:
+              for prefix, evaluation in prefixes.items():
+                  if unit.startswith(prefix):
+                      found.add(evaluation)
+                      break
+              else:
+                  raise SystemExit(f"::error::cannot infer evaluation for {unit}")
+          if len(found) != 1:
+              raise SystemExit("::error::rehearsal units must belong to one evaluation")
+          print(found.pop())
+          PY
+          )"
+            fi
+            mode="scoped"
+          else
+            [ -n "$budget" ] || budget="100.0"
+            python - "$budget" <<'PY'
+          import sys
+          value = float(sys.argv[1])
+          if not 0 < value <= 150.0:
+              raise SystemExit("::error::budget_usd must be within (0, 150]")
+          PY
+            if [ "$evaluation" = "all" ]; then mode="full"; else mode="scoped"; fi
+          fi
+
+          short_sha="$(git rev-parse --short=7 HEAD)"
+          run_id="$(date -u +%F)-${short_sha}-gh${GITHUB_RUN_NUMBER}"
+          evaluated_sha="$(git rev-parse HEAD)"
+
+          {
+            echo "mode=$mode"
+            echo "evaluation=$evaluation"
+            echo "units=$units"
+            echo "budget_usd=$budget"
+            echo "run_id=$run_id"
+            echo "evaluated_sha=$evaluated_sha"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "mode=$mode evaluation=$evaluation budget=$budget run_id=$run_id"
+
+      - name: Freeze certified-cache impact before paid work
+        run: |
+          set +e
+          python benchmark/template/scripts/benchmark.py cache-impact \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/cache-impact.json" > /dev/null
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/cache-impact.json"
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
+
+
+      - name: Reclaim runner disk for free preflight
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Build and verify the pinned ten-language image for free preflight
+        env:
+          BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+        run: |
+          python benchmark/template/runtime/check_pins.py
+          python benchmark/template/scripts/sandbox_launcher.py build-image \
+            --target toolchains --image "$BENCHMARK_IMAGE"
+          python benchmark/template/scripts/sandbox_launcher.py doctor \
+            --image "$BENCHMARK_IMAGE"
+
+      - name: Materialize and hydrate every cache decision available before payment
+        env:
+          BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+          RUN_ID: ${{ steps.contract.outputs.run_id }}
+          EVALUATED_SHA: ${{ steps.contract.outputs.evaluated_sha }}
+          MODE: ${{ steps.contract.outputs.mode }}
+          EVALUATION: ${{ steps.contract.outputs.evaluation }}
+        run: |
+          set -euo pipefail
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --sandbox-mode container \
+            --run-id "$RUN_ID" \
+            --provider anthropic-messages \
+            --model "$BENCHMARK_MODEL"
+          mkdir -p .quidra-benchmark/results
+          cp "$RUNNER_TEMP/cache-impact.json" \
+            .quidra-benchmark/results/cache_impact.json
+          args=()
+          if [ "$MODE" = "scoped" ]; then args+=(--evaluation "$EVALUATION"); fi
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare "${args[@]}"
+          # Keep the pre-init audit next to the frozen run state. It explains
+          # exactly which historical cache records were invalidated and why.
+          cp "$RUNNER_TEMP/cache-impact.json" \
+            .quidra-benchmark/results/cache_impact.json
+          mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+          paid_args=()
+          if [ "$MODE" = "scoped" ]; then paid_args+=(--evaluation "$EVALUATION"); fi
+          python benchmark/template/scripts/benchmark.py partial-paid-import \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --store "$RUNNER_TEMP/benchmark-paid-state" \
+            "${paid_args[@]}"
+
+      - name: Report free cache hydration before paid inference
+        env:
+          MODE: ${{ steps.contract.outputs.mode }}
+          EVALUATION: ${{ steps.contract.outputs.evaluation }}
+          UNITS: ${{ steps.contract.outputs.units }}
+        run: |
+          python - "$MODE" "$EVALUATION" "$UNITS" <<'PY'
+          import json, sys
+          from pathlib import Path
+          mode, requested_eval, raw_units = sys.argv[1:]
+          selected = set(raw_units.split())
+          root = Path(".quidra-benchmark")
+          manifest = json.loads((root / "work/root/manifest.json").read_text())
+          ledger = json.loads((root / "work/root/ledger.json").read_text())
+          cache_path = root / "results/cache_status.json"
+          cache = json.loads(cache_path.read_text()) if cache_path.is_file() else {"hits": {}, "misses": {}, "invalidated": {}}
+          report = {}
+          for unit in manifest.get("work_units", []):
+              uid = str(unit["id"])
+              ev = str(unit.get("evaluation"))
+              if mode == "scoped" and ev != requested_eval:
+                  continue
+              if selected and uid not in selected:
+                  continue
+              row = report.setdefault(ev, {"complete": 0, "pending": 0, "blocked": 0, "cache_hits": 0, "cache_misses": 0, "cache_invalidated": 0})
+              status = str((ledger.get("units", {}).get(uid) or {}).get("status", "PENDING"))
+              if status == "COMPLETE": row["complete"] += 1
+              elif status in {"BLOCKED", "INVALID"}: row["blocked"] += 1
+              else: row["pending"] += 1
+              if uid in cache.get("hits", {}): row["cache_hits"] += 1
+              if uid in cache.get("misses", {}): row["cache_misses"] += 1
+              if uid in cache.get("invalidated", {}): row["cache_invalidated"] += 1
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Refuse to start paid inference unless the whole requested scope is funded
+        env:
+          MODE: ${{ steps.contract.outputs.mode }}
+          EVALUATION: ${{ steps.contract.outputs.evaluation }}
+          UNITS: ${{ steps.contract.outputs.units }}
+          BUDGET: ${{ steps.contract.outputs.budget_usd }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "$MODE" = "scoped" ]; then args+=(--evaluation "$EVALUATION"); fi
+          for unit in $UNITS; do args+=(--unit "$unit"); done
+          plan="$GITHUB_WORKSPACE/.quidra-benchmark/results/execution-plan-preflight.json"
+          python benchmark/template/scripts/production_run.py budget-plan \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --model "$BENCHMARK_MODEL" \
+            --available-usd "$BUDGET" \
+            --safety-multiplier 1.25 \
+            --smoke-reserve-usd 0.10 \
+            --output "$plan" \
+            "${args[@]}"
+          cp "$plan" "$RUNNER_TEMP/budget-plan.json"
+          python - "$plan" <<'PY'
+          import json, sys
+          from pathlib import Path
+          plan = json.loads(Path(sys.argv[1]).read_text())
+          print(json.dumps(plan, indent=2, sort_keys=True))
+          if plan.get("hard_blockers"):
+              raise SystemExit("free preflight found terminal blockers; no API money was spent")
+          if not plan.get("sufficient"):
+              raise SystemExit(
+                  f"budget {plan.get('available_usd')} is below conservative recommendation "
+                  f"{plan.get('recommended_budget_usd')}; no API money was spent"
+              )
+          if not plan.get("full_retry_envelope_funded", True):
+              print(
+                  "::warning::Nominal benchmark plan is funded, but the absolute "
+                  "configured retry envelope is not. "
+                  f"Full retry-envelope recommendation: "
+                  f"{plan.get('full_retry_envelope_recommended_budget_usd')} USD."
+              )
+          PY
+
+      - name: Prove the provider path once only when paid dispatch remains
+        id: smoke
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          needs_paid="$(python - "$RUNNER_TEMP/budget-plan.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          plan = json.loads(Path(sys.argv[1]).read_text())
+          print("true" if int(plan.get("expected_paid_api_calls_upper_bound", 0) or 0) > 0 else "false")
+          PY
+          )"
+          if [ "$needs_paid" = "true" ]; then
+            python benchmark/template/scripts/production_run.py provider-smoke \
+              --model "$BENCHMARK_MODEL" \
+              --budget-usd 0.50 \
+              --prefix-probe-text benchmark/template/methodology/common.md \
+              --output "$RUNNER_TEMP/provider-smoke.json"
+          else
+            cat > "$RUNNER_TEMP/provider-smoke.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "ok": true,
+            "skipped": true,
+            "reason": "all requested work is already satisfied without paid inference",
+            "spend": {"estimated_cost_usd": 0.0}
+          }
+          JSON
+          fi
+          spend="$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(os.environ["RUNNER_TEMP"], "provider-smoke.json").read_text())
+          assert report["ok"], report.get("failed_checks")
+          spent = float(report["spend"]["estimated_cost_usd"])
+          assert spent < 0.10, f"provider smoke unexpectedly spent {spent} USD"
+          print(f"{spent:.6f}")
+          PY
+          )"
+          echo "spend=$spend" >> "$GITHUB_OUTPUT"
+
+      - name: Package the free prepared workspace
+        env:
+          BUDGET: ${{ steps.contract.outputs.budget_usd }}
+          SMOKE_SPEND: ${{ steps.smoke.outputs.spend }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/benchmark-prepared"
+          tar -czf "$RUNNER_TEMP/benchmark-prepared/workspace.tgz" .quidra-benchmark
+          python - "$RUNNER_TEMP/benchmark-prepared/budget-state.json" "$BUDGET" "$SMOKE_SPEND" <<'PY'
+          import json, sys
+          from pathlib import Path
+          path, limit, spent = Path(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3])
+          path.write_text(json.dumps({
+              "schema_version": 1,
+              "limit_usd": limit,
+              "spent_usd": spent,
+              "evaluations": {},
+          }, indent=2, sort_keys=True) + "\n")
+          PY
+          cp "$RUNNER_TEMP/budget-plan.json" "$RUNNER_TEMP/benchmark-prepared/budget-plan.json"
+          cp "$RUNNER_TEMP/provider-smoke.json" "$RUNNER_TEMP/benchmark-prepared/provider-smoke.json"
+          if [ -d "$RUNNER_TEMP/benchmark-paid-state" ]; then
+            tar -czf "$RUNNER_TEMP/benchmark-prepared/paid-state.tgz" \
+              -C "$RUNNER_TEMP/benchmark-paid-state" .
+          fi
+
+      - name: Upload free prepared workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ steps.contract.outputs.run_id }}-prepared
+          path: ${{ runner.temp }}/benchmark-prepared
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
+
+  scoped-run:
+    name: scoped-run
+    needs: prepare
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'scoped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Run scoped Primary/rehearsal
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ${{ needs.prepare.outputs.evaluation }}
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-prepared
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-scoped
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          units: ${{ needs.prepare.outputs.units }}
+
+  scoped-recover1:
+    name: scoped-recover1
+    needs: [prepare, scoped-run]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'scoped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue scoped Primary if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ${{ needs.prepare.outputs.evaluation }}
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-scoped
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-scoped-recovery1
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          units: ${{ needs.prepare.outputs.units }}
+          max-wall-seconds: "15000"
+  scoped-recover2:
+    name: scoped-recover2
+    needs: [prepare, scoped-recover1]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'scoped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue scoped Primary if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ${{ needs.prepare.outputs.evaluation }}
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-scoped-recovery1
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-scoped-recovery2
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          units: ${{ needs.prepare.outputs.units }}
+          max-wall-seconds: "15000"
+
+  semantic-compression:
+    name: semantic-compression
+    needs: prepare
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Run Semantic Compression
+        id: primary
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: semantic_compression
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-prepared
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-semantic-compression
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+
+  llm-learnability:
+    name: llm-learnability
+    needs: [prepare, semantic-compression]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Run LLM Learnability
+        id: primary
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: llm_learnability
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-semantic-compression
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-llm-learnability
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+
+  language-quality:
+    name: language-quality
+    needs: [prepare, llm-learnability]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Run Language Quality
+        id: primary
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: language_quality
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-llm-learnability
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-language-quality
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+
+  ecosystem:
+    name: ecosystem
+    needs: [prepare, language-quality]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Run Ecosystem
+        id: primary
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ecosystem
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-language-quality
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-ecosystem
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+
+  llm-proficiency:
+    name: llm-proficiency
+    needs: [prepare, ecosystem]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Run LLM Proficiency
+        id: primary
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: llm_proficiency
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-ecosystem
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-llm-proficiency
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+
+  recover-semantic-compression:
+    name: recover-semantic-compression
+    needs: [prepare, llm-proficiency]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue Semantic Compression if needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: semantic_compression
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-llm-proficiency
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-semantic-compression
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+
+  recover-llm-learnability:
+    name: recover-llm-learnability
+    needs: [prepare, recover-semantic-compression]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue LLM Learnability if needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: llm_learnability
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-semantic-compression
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-llm-learnability
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+
+  recover-language-quality:
+    name: recover-language-quality
+    needs: [prepare, recover-llm-learnability]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue Language Quality if needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: language_quality
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-llm-learnability
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-language-quality
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+
+  recover-ecosystem:
+    name: recover-ecosystem
+    needs: [prepare, recover-language-quality]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue Ecosystem if needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ecosystem
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-language-quality
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-ecosystem
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+
+  recover-llm-proficiency:
+    name: recover-llm-proficiency
+    needs: [prepare, recover-ecosystem]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue LLM Proficiency if needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: llm_proficiency
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-ecosystem
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-llm-proficiency
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+
+  recover2-semantic-compression:
+    name: recover2-semantic-compression
+    needs: [prepare, recover-llm-proficiency]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue Semantic Compression if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: semantic_compression
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery-llm-proficiency
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-semantic-compression
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+  recover2-llm-learnability:
+    name: recover2-llm-learnability
+    needs: [prepare, recover2-semantic-compression]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue LLM Learnability if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: llm_learnability
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-semantic-compression
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-llm-learnability
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+  recover2-language-quality:
+    name: recover2-language-quality
+    needs: [prepare, recover2-llm-learnability]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue Language Quality if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: language_quality
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-llm-learnability
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-language-quality
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+  recover2-ecosystem:
+    name: recover2-ecosystem
+    needs: [prepare, recover2-language-quality]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue Ecosystem if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ecosystem
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-language-quality
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-ecosystem
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+  recover2-llm-proficiency:
+    name: recover2-llm-proficiency
+    needs: [prepare, recover2-ecosystem]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue LLM Proficiency if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: llm_proficiency
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-ecosystem
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-llm-proficiency
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          max-wall-seconds: "15000"
+
+  finalize:
+    name: finalize
+    needs: [prepare, recover2-llm-proficiency]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Attach branch at evaluated snapshot
+        run: git checkout -B benchmark "$GITHUB_SHA"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore private paid-leaf checkpoint cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/benchmark-paid-state
+          key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-finalize-${{ github.run_attempt }}
+          restore-keys: |
+            quidra-benchmark-paid-v1-${{ runner.os }}-
+
+      - name: Download final Primary handoff
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-${{ needs.prepare.outputs.run_id }}-recovery2-llm-proficiency
+          path: ${{ runner.temp }}/benchmark-final-handoff
+
+      - name: Restore trusted workspace guard
+        env:
+          EVALUATED_SHA: ${{ needs.prepare.outputs.evaluated_sha }}
+          RUN_ID: ${{ needs.prepare.outputs.run_id }}
+          WHOLE_BUDGET: ${{ needs.prepare.outputs.budget_usd }}
+        run: |
+          set -euo pipefail
+          state="$RUNNER_TEMP/benchmark-budget-state.json"
+          mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+          if [ -f "$RUNNER_TEMP/benchmark-final-handoff/paid-state.tgz" ]; then
+            tar -xzf "$RUNNER_TEMP/benchmark-final-handoff/paid-state.tgz" \
+              -C "$RUNNER_TEMP/benchmark-paid-state"
+          fi
+          if [ -f "$RUNNER_TEMP/benchmark-final-handoff/workspace.tgz" ] \
+             && [ -f "$RUNNER_TEMP/benchmark-final-handoff/budget-state.json" ]; then
+            tar -xzf "$RUNNER_TEMP/benchmark-final-handoff/workspace.tgz" -C "$GITHUB_WORKSPACE"
+            cp "$RUNNER_TEMP/benchmark-final-handoff/budget-state.json" "$state"
+            python benchmark/template/scripts/benchmark.py restore-workspace-guard \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --expected-commit "$EVALUATED_SHA"
+          else
+            echo "::warning::Final Actions handoff is unavailable; reconstructing from the evaluated snapshot plus certified cache."
+            python benchmark/template/scripts/benchmark.py init \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --sandbox-mode container \
+              --run-id "$RUN_ID" \
+              --provider anthropic-messages \
+              --model "$BENCHMARK_MODEL"
+
+            git fetch origin benchmark
+            recovery="$RUNNER_TEMP/benchmark-final-cache-recovery"
+            rm -rf "$recovery"
+            mkdir -p "$recovery"
+            git cat-file -e "origin/benchmark:benchmark/cache"
+            git archive --format=tar origin/benchmark benchmark/cache | tar -xf - -C "$recovery"
+            rm -rf .quidra-benchmark/cache
+            cp -a "$recovery/benchmark/cache" .quidra-benchmark/cache
+            python benchmark/template/scripts/benchmark.py refresh-cache-snapshot \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --expected-commit "$EVALUATED_SHA"
+
+            checkpoint="benchmark/checkpoints/$RUN_ID/budget-state.json"
+            git cat-file -e "origin/benchmark:$checkpoint"
+            git show "origin/benchmark:$checkpoint" > "$state"
+            touch "$RUNNER_TEMP/benchmark-final-rebuilt"
+          fi
+
+          python - "$state" "$WHOLE_BUDGET" <<'PY'
+          import json, sys
+          from pathlib import Path
+          state = json.loads(Path(sys.argv[1]).read_text())
+          assert abs(float(state["limit_usd"]) - float(sys.argv[2])) < 1e-9
+          PY
+
+      - name: Reclaim runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Build and verify the pinned ten-language image
+        env:
+          BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+        run: |
+          python benchmark/template/runtime/check_pins.py
+          python benchmark/template/scripts/sandbox_launcher.py build-image \
+            --target toolchains --image "$BENCHMARK_IMAGE"
+          python benchmark/template/scripts/sandbox_launcher.py doctor \
+            --image "$BENCHMARK_IMAGE"
+
+      - name: Aggregate and finalize all five Primaries
+        id: finalize_run
+        continue-on-error: true
+        env:
+          BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+        run: |
+          if [ -f "$RUNNER_TEMP/benchmark-final-rebuilt" ]; then
+            python benchmark/template/scripts/sandbox_launcher.py run \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --image "$BENCHMARK_IMAGE" \
+              --provider fake \
+              -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+          fi
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py advance
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py finalize
+
+      - name: Export cumulative private paid-call state
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if [ -f .quidra-benchmark/work/root/manifest.json ]; then
+            mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+            python benchmark/template/scripts/benchmark.py partial-paid-export \
+              --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+              --store "$RUNNER_TEMP/benchmark-paid-state" \
+              > "$RUNNER_TEMP/final-paid-state-export.json"
+            cat "$RUNNER_TEMP/final-paid-state-export.json"
+          fi
+
+      - name: Preserve cumulative paid-call state privately
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quidra-benchmark-paid-state
+          path: ${{ runner.temp }}/benchmark-paid-state
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Snapshot full workspace evidence
+        if: ${{ always() }}
+        run: |
+          if [ -d .quidra-benchmark ]; then
+            tar -czf "$RUNNER_TEMP/workspace-evidence.tgz" \
+              --ignore-failed-read \
+              -C .quidra-benchmark \
+              run.json results raw prompts work/agents work/attempts work/audit \
+              work/root/manifest.json work/root/ledger.json \
+              work/root/plans work/root/commands \
+              work/root/proficiency-verification \
+              work/root/comparability_blinding.json \
+              work/root/f20_runtime_facts.json 2>/dev/null || true
+          fi
+
+      - name: Final certified-cache checkpoint
+        id: checkpoint
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          EVALUATED_SHA: ${{ needs.prepare.outputs.evaluated_sha }}
+          RUN_ID: ${{ needs.prepare.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          if [ ! -f .quidra-benchmark/work/root/ledger.json ]; then exit 0; fi
+          python benchmark/template/scripts/benchmark.py checkpoint-cache \
+            --source-repo "$GITHUB_WORKSPACE" \
+            | tee "$RUNNER_TEMP/cache-checkpoint.json"
+
+          checkpoint_dir="benchmark/checkpoints/$RUN_ID"
+          mkdir -p "$checkpoint_dir"
+          cp "$RUNNER_TEMP/benchmark-budget-state.json" "$checkpoint_dir/budget-state.json"
+          python - "$checkpoint_dir/resume.json" "$EVALUATED_SHA" <<'PY'
+          import json, sys
+          from pathlib import Path
+          path, sha = Path(sys.argv[1]), sys.argv[2]
+          status_path = Path(".quidra-benchmark/results/primary_status.json")
+          status = json.loads(status_path.read_text()) if status_path.is_file() else {}
+          path.write_text(json.dumps({
+              "schema_version": 1,
+              "evaluated_sha": sha,
+              "last_evaluation": "finalize",
+              "primary_status": status.get("evaluations", {}),
+          }, indent=2, sort_keys=True) + "\n")
+          PY
+
+          tar -czf "$RUNNER_TEMP/updated-cache.tgz" benchmark/cache
+          tar -czf "$RUNNER_TEMP/updated-prompts.tgz" benchmark/template/prompts
+          tar -czf "$RUNNER_TEMP/updated-checkpoint.tgz" "$checkpoint_dir"
+          git reset --hard
+          git fetch origin benchmark
+          unexpected="$(git diff --name-only "$EVALUATED_SHA"..origin/benchmark \
+            | grep -Ev "^benchmark/cache/|^benchmark/template/prompts/|^benchmark/checkpoints/$RUN_ID/" || true)"
+          if [ -n "$unexpected" ]; then
+            echo "::error::benchmark branch moved outside certified cache/resume state:"
+            echo "$unexpected"
+            exit 1
+          fi
+          git checkout -B benchmark origin/benchmark
+          rm -rf benchmark/cache benchmark/template/prompts "$checkpoint_dir"
+          tar -xzf "$RUNNER_TEMP/updated-cache.tgz"
+          tar -xzf "$RUNNER_TEMP/updated-prompts.tgz"
+          tar -xzf "$RUNNER_TEMP/updated-checkpoint.tgz"
+          git add -f benchmark/cache benchmark/template/prompts "$checkpoint_dir"
+          if ! git diff --cached --quiet; then
+            short="$(git rev-parse --short=7 "$EVALUATED_SHA")"
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -m "Checkpoint complete benchmark state for $short"
+            git push origin HEAD:benchmark
+          fi
+
+      - name: Decide whether the run is publishable
+        id: publishable
+        if: ${{ always() }}
+        run: |
+          echo "value=false" >> "$GITHUB_OUTPUT"
+          finalization=".quidra-benchmark/results/finalization.json"
+          audit=".quidra-benchmark/results/completeness_audit.json"
+          test -f "$finalization" || {
+            echo "No finalization record; no formal result will be committed."
+            exit 0
+          }
+          if python - "$finalization" "$audit" <<'PY'
+          import json, sys
+          from pathlib import Path
+          finalization = json.loads(Path(sys.argv[1]).read_text())
+          audit = (
+              json.loads(Path(sys.argv[2]).read_text())
+              if Path(sys.argv[2]).is_file()
+              else {}
+          )
+          payload = {
+              "formal_complete": finalization.get("formal_complete"),
+              "required_incomplete_units": audit.get("required_incomplete_units", []),
+              "rerun_agent_leaf_ids": audit.get("rerun_agent_leaf_ids", []),
+              "rerun_machine_unit_ids": audit.get("rerun_machine_unit_ids", []),
+          }
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          if finalization.get("formal_complete") is not True:
+              raise SystemExit(3)
+          PY
+          then
+            echo "value=true" >> "$GITHUB_OUTPUT"
+            echo "Every required leaf and all five Primary rankings are formally COMPLETE."
+          else
+            echo "Incomplete run: exact missing-leaf resume targets, certified cache and evidence are retained; no formal result will be committed."
+          fi
+
+      - name: Import only a complete formal result
+        if: ${{ steps.publishable.outputs.value == 'true' }}
+        env:
+          RUN_ID: ${{ needs.prepare.outputs.run_id }}
+        run: |
+          python benchmark/template/scripts/benchmark.py post-run \
+            --source-repo "$GITHUB_WORKSPACE"
+          test -f "benchmark/$RUN_ID/import_manifest.json"
+
+      - name: Push complete result to isolated benchmark branch
+        if: ${{ steps.publishable.outputs.value == 'true' }}
+        env:
+          RUN_ID: ${{ needs.prepare.outputs.run_id }}
+          EVALUATED_SHA: ${{ needs.prepare.outputs.evaluated_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin benchmark
+          test "$(git rev-parse origin/benchmark)" = "$(git rev-parse HEAD)" || {
+            echo "::error::benchmark branch moved after final cache checkpoint."
+            exit 1
+          }
+          git rm -r --ignore-unmatch "benchmark/checkpoints/$RUN_ID"
+          git add -f "benchmark/$RUN_ID" benchmark/cache benchmark/template/prompts
+          python - <<'PY'
+          import json, os, subprocess
+          run_id = os.environ["RUN_ID"]
+          manifest = json.load(open(f"benchmark/{run_id}/import_manifest.json"))
+          listed = set(manifest.get("retained_files_sha256", {}))
+          staged = set(
+              p[len(f"benchmark/{run_id}/"):] for p in subprocess.check_output(
+                  ["git", "ls-files", "--cached", f"benchmark/{run_id}"], text=True
+              ).split()
+          )
+          missing = sorted(listed - staged)
+          assert not missing, f"retained files not staged: {missing[:10]}"
+          PY
+          short="$(git rev-parse --short=7 "$EVALUATED_SHA")"
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Add complete benchmark result for $short"
+          git push origin HEAD:benchmark
+
+      - name: Preserve final run evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ needs.prepare.outputs.run_id }}
+          if-no-files-found: ignore
+          retention-days: 30
+          overwrite: true
+          path: |
+            ${{ runner.temp }}/workspace-evidence.tgz
+            benchmark/${{ needs.prepare.outputs.run_id }}
+            benchmark/cache
+            benchmark/template/prompts
+            ${{ runner.temp }}/benchmark-budget-state.json
+            ${{ runner.temp }}/cache-checkpoint.json
+
+      - name: Fail visibly when the five-Primary run is incomplete
+        if: ${{ always() && (steps.finalize_run.outcome == 'failure' || steps.checkpoint.outcome == 'failure' || steps.publishable.outputs.value != 'true') }}
+        run: |
+          echo "::error::The benchmark did not produce five COMPLETE Primary evaluations. Completed work and evidence were preserved."
+          exit 1

@@ -1,0 +1,8 @@
+print("ADV-START")
+io.flush()
+int x = -9223372036854775808
+int d = x - 3
+print("OBS=V:{d}")
+io.flush()
+print("ADV-END")
+io.flush()

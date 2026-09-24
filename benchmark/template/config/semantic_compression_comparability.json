@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "purpose": "Frozen, language-neutral rules for reconciling Semantic Compression support annotations before the blinded comparability audit.",
+  "authoritative_support_record": {
+    "rule": "When a cohort adjudication or comparability repair exists for a sampled (probe, language) pair, that complete record is the sole support source for the comparability sample. Stale support-level prose from single-language metric shards is discarded rather than treated as a second vote.",
+    "required_fields": [
+      "level",
+      "fragment",
+      "partial_reasons",
+      "none_reason",
+      "justification",
+      "citation"
+    ],
+    "full": {
+      "fragment": "required exact selected fragment",
+      "partial_reasons": [],
+      "none_reason": null
+    },
+    "partial": {
+      "fragment": "required exact selected fragment",
+      "partial_reasons": "one or more of P-a, P-b, P-c, P-d, P-e",
+      "none_reason": null
+    },
+    "none": {
+      "fragment": null,
+      "partial_reasons": [],
+      "none_reason": "exactly one of N-1, N-2, N-3, N-4"
+    }
+  },
+  "symmetry_rules": [
+    {
+      "id": "standard-library-is-standard",
+      "rule": "A documented module or facility shipped in the frozen language distribution is not disqualified merely because it is a library wrapper rather than syntax. Whether it earns FULL, PARTIAL or NONE is decided only by the numbered canonical_task sub-requirements and the frozen support rubric."
+    },
+    {
+      "id": "canonical-fallback-is-not-probe-substitution",
+      "rule": "A fallback, preference rung, or replacement value explicitly required inside a probe's own canonical_task is part of that probe, not an R9 substitution and not P-a by itself. In particular, F08.P1's exceptional fallback value and the preference orders in F08.P1/F08.P2/F10.P1 are canonical-task mechanics. P-a is available only for the probe substitutions explicitly enumerated by R9."
+    },
+    {
+      "id": "same-mechanism-same-threshold",
+      "rule": "If the same documented standard mechanism is credited as delivering at least one numbered sub-requirement on one sampled probe, another sampled probe may classify it as NONE only when that probe's numbered requirements make the mechanism deliver none of them. The justification must name that observable distinction."
+    },
+    {
+      "id": "partial-reason-is-mandatory",
+      "rule": "Every PARTIAL record must name the applicable frozen P-letter(s). A PARTIAL without a P-letter is incomplete evidence, not a comparable annotation."
+    },
+    {
+      "id": "none-reason-is-mandatory",
+      "rule": "Every NONE record must name one frozen N-reason and cite the language rule or observed build/run evidence that makes the capability unavailable."
+    },
+    {
+      "id": "observation-target-is-not-support",
+      "rule": "Determinacy, locality and other OBSERVATION TARGET text never changes FULL/PARTIAL/NONE. Those facts belong to their own Semantic Compression metrics."
+    },
+    {
+      "id": "ffi-built-in-vs-external",
+      "rule": "For FFI probes, distinguish a language/toolchain's documented built-in interoperability facility from a third-party package, binding generator or separate build system. A built-in facility that misses a numbered requirement may be PARTIAL with the matching P-letter; absence of any built-in facility satisfying a numbered requirement is NONE with the matching N-reason."
+    },
+    {
+      "id": "r9-overrides-generic-substitution",
+      "rule": "Authoring rule R9 is authoritative over the generic P-a description. A weaker substitute can earn PARTIAL under P-a only when that probe's canonical_task explicitly permits the substitute as enumerated by R9. For every other probe, do not convert a forbidden easier task into PARTIAL merely because it is a standard mechanism."
+    }
+  ],
+  "repair_loop": {
+    "max_comparability_attempts": 3,
+    "rule": "A failed blinded comparability audit may propose complete support-record repairs for only the disputed sampled pairs. The runner applies changed repairs, rebuilds the blinded sample and reruns the same audit. If no directive changes the canonical record, the gate remains failed and no further paid retry is made.",
+    "anti_gaming": "Repairs are limited to the predeclared sampled annotations and frozen rubric; rankings and aggregate scores are unavailable to the repair decision."
+  }
+}

@@ -1,0 +1,238 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "measured_at_utc": null,
+    "mechanical": true,
+    "primary_complete": false,
+    "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
+    "raw_evidence_sha256": {
+      "micro_raw.json": "f1813c155f84de3c22a335f44e01ae26c7d503908537fd8d37c14036554b808b"
+    },
+    "runner_action": "micro-measure",
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "a47881a6b4cf6ef7ccf6e12fa9edce477f57f0ff8ef6c3bff999e38201bfb1fd",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra",
+      "Python",
+      "C++",
+      "Rust",
+      "Go",
+      "Java",
+      "TypeScript",
+      "Kotlin",
+      "Swift",
+      "Zig"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": null,
+    "frozen_sampling": null,
+    "measurement_script_hashes": {
+      "adversarial_measure.py": "c0c357f3a45117f89ee4f3200a11ad510bbb51d16ff85c456d8ea94a0d9e316c",
+      "micro_measure.py": "905324d09a7f4612d5df9e17b11a64ade59eef8b8d17bd1dbaa1afde1b2b44be"
+    },
+    "model": null,
+    "network_allowed": false,
+    "provider": null,
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/tests/benchmark/quidra": "1d18949efdca414105d423f73f250cd6d7ef7043ad5199b2f185efdfbfd172b2",
+      "template/fixtures": "e1ed425ab09a1dd75ff0dc48293a8b7ef92e949dca828bcfd439e0be1cae4ac7",
+      "template/methodology-assets/scoring": "a3be91ff162f3411462bb19e1858b517d5d21301795cd2a728344d9a1c35dd58",
+      "template/programs": "f6cfbcc22f73fcbd3ae819d6f59b54545b00c337bd8ca1a2b5b74113d2e2f581",
+      "template/validators/micro": "e1eab465ec9ccef45e60cb201130b8e4cfd079acd03d28889455cde47d097c68",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.native_execution_performance",
+      "metric.long_running_performance",
+      "metric.compile_build_performance",
+      "metric.memory_efficiency",
+      "metric.binary_artifact_size",
+      "metric.startup_latency",
+      "metric.source_code_size",
+      "metric.runtime_overhead"
+    ],
+    "result_kind": "mechanical",
+    "runner_action": "micro-measure",
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      },
+      "Go": {
+        "GO_PIN": "1.26.3"
+      },
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      },
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      },
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      },
+      "Quidra": {},
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      },
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      },
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      },
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3",
+      "Go": "1.26.3",
+      "Java": "26.0.1",
+      "Kotlin": "2.3.21",
+      "Python": "3.12.3",
+      "Rust": "1.95.0",
+      "Swift": "6.2.3",
+      "TypeScript": "tsc 7.0.2; node 24.2.0",
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py command-result-check --workspace /quidra-benchmark --id lq-micro-mechanical",
+    "work_unit_id": "lq-micro-mechanical",
+    "worker_mode": "runner-command"
+  },
+  "provenance": {
+    "prompt_sha256": null,
+    "run_id": "2026-09-22-bc3d9dd-gh9",
+    "work_unit_id": "lq-micro-mechanical"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "artifact_epsilon_bytes": 4096,
+      "compile_epsilon_seconds": 0.001,
+      "raw": "/quidra-benchmark/work/root/commands/lq-micro-mechanical/micro_raw.json",
+      "target_compiler": "/quidra-benchmark/work/root/target-build/quidra"
+    },
+    "requirements": {
+      "metric.binary_artifact_size": {
+        "C++": 17.093396553028622,
+        "Go": 0.16838941015754597,
+        "Java": 52.777492427922255,
+        "Kotlin": 0.07497306402726307,
+        "Python": 100.0,
+        "Quidra": 1.6979470759426256,
+        "Rust": 0.09367268807077704,
+        "Swift": 11.359637312271925,
+        "TypeScript": 55.90366236706581,
+        "Zig": 0.11172137527986752
+      },
+      "metric.compile_build_performance": {
+        "C++": 0.06917687008372606,
+        "Go": 0.7677612577752368,
+        "Java": 0.1614804841046564,
+        "Kotlin": 0.018629241448785246,
+        "Python": 100.0,
+        "Quidra": 0.6040738336021833,
+        "Rust": 0.5562088937812052,
+        "Swift": 0.14106995622062338,
+        "TypeScript": 0.30477252696132273,
+        "Zig": 0.006683134778318426
+      },
+      "metric.long_running_performance": {
+        "C++": 85.84723768803984,
+        "Go": 74.33890793421742,
+        "Java": 74.55343234922556,
+        "Kotlin": 70.53543288553966,
+        "Python": 3.6788169108144797,
+        "Quidra": 61.805898894612525,
+        "Rust": 82.04414036745156,
+        "Swift": 69.53477115213029,
+        "TypeScript": 41.437131219725956,
+        "Zig": 95.31510542794736
+      },
+      "metric.memory_efficiency": {
+        "C++": 92.06839980451444,
+        "Go": 83.54749664591755,
+        "Java": 21.87094200135576,
+        "Kotlin": 21.348624869680776,
+        "Python": 64.83945757649803,
+        "Quidra": 75.17123573736917,
+        "Rust": 95.93133920926942,
+        "Swift": 75.93754097713023,
+        "TypeScript": 21.87484324091208,
+        "Zig": 97.81231629149595
+      },
+      "metric.native_execution_performance": {
+        "C++": 87.20582225301507,
+        "Go": 76.26331790371606,
+        "Java": 62.82123824092956,
+        "Kotlin": 61.42903044314583,
+        "Python": 3.7683981598009564,
+        "Quidra": 63.02439997248359,
+        "Rust": 84.00013935030809,
+        "Swift": 71.07678054868727,
+        "TypeScript": 42.16226412489814,
+        "Zig": 97.00573372682808
+      },
+      "metric.runtime_overhead": {
+        "C++": 99.64850615114236,
+        "Go": 99.68354430379746,
+        "Java": 26.19421602143583,
+        "Kotlin": 24.270182347401764,
+        "Python": 99.71860710517059,
+        "Quidra": 100.0,
+        "Rust": 99.68354430379746,
+        "Swift": 99.71860710517059,
+        "TypeScript": 22.103539685014812,
+        "Zig": 99.68354430379746
+      },
+      "metric.source_code_size": {
+        "C++": 63.239319809540845,
+        "Go": 91.21125309783056,
+        "Java": 75.04834901992784,
+        "Kotlin": 84.04429842884576,
+        "Python": 95.1332412974984,
+        "Quidra": 92.3214558700235,
+        "Rust": 79.87066355750797,
+        "Swift": 71.10568491276356,
+        "TypeScript": 60.86609888740987,
+        "Zig": 61.20180465495751
+      },
+      "metric.startup_latency": {
+        "C++": 63.07922498800326,
+        "Go": 64.76168128232976,
+        "Java": 4.049493448124837,
+        "Kotlin": 2.4900226375311707,
+        "Python": 11.074014307549644,
+        "Quidra": 64.09522199609202,
+        "Rust": 92.44420598950074,
+        "Swift": 33.46287845541584,
+        "TypeScript": 4.949053984396135,
+        "Zig": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "84ff136284a31d498c5c72c13fd52e4bf3b226dbb1e960a6f8deb554c86e6c0c",
+  "schema_version": 1
+}

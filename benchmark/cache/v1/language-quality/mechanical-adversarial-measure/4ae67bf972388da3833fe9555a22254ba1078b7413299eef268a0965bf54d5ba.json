@@ -1,0 +1,122 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "measured_at_utc": null,
+    "mechanical": true,
+    "primary_complete": false,
+    "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
+    "raw_evidence_sha256": {
+      "adversarial_raw.json": "2bac8d2254f2b50cd06f85a2dd2c03dd65f4eca8c9b3f6ce79e14b832c457839",
+      "cells/": "babad80b9657147f137bc9ba20116743f93a923c8b38cd6c2efd36ee8dda194a"
+    },
+    "runner_action": "adversarial-measure",
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "4ae67bf972388da3833fe9555a22254ba1078b7413299eef268a0965bf54d5ba",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": null,
+    "frozen_sampling": null,
+    "measurement_script_hashes": {
+      "adversarial_measure.py": "bb861c0bbb8390820aae577560f2109b90b0faa76db9ac6bb53b06aa67b1314b",
+      "micro_measure.py": "905324d09a7f4612d5df9e17b11a64ade59eef8b8d17bd1dbaa1afde1b2b44be"
+    },
+    "model": null,
+    "network_allowed": false,
+    "provider": null,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality": "538847ef64cef3ab9a27f0fd76ba32fa0df952dcd11c9f2719a1067e3ee37723",
+      "template/methodology-assets/scoring": "a3be91ff162f3411462bb19e1858b517d5d21301795cd2a728344d9a1c35dd58",
+      "template/programs/rust/adversarial": "6146d3338572181c436d4d9c91395b33d366da3ebd1f3ad3bb77b25418f34eed",
+      "template/programs/rust/micro": "477bed528952f34f4bf68318001bdc4e3f4ca15d102fac1abd391c817886f96d"
+    },
+    "requirement_ids": [
+      "metric.type_safety",
+      "metric.memory_safety",
+      "metric.runtime_safety",
+      "metric.boundary_value_safety",
+      "metric.adversarial_input_robustness",
+      "metric.early_error_detection",
+      "metric.debuggability",
+      "metric.silent_bug_resistance",
+      "metric.implementation_robustness"
+    ],
+    "result_kind": "mechanical",
+    "runner_action": "adversarial-measure",
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "59f63312c6f2bf3a4bda671cdd23d3f4c4b1b0d27e7a9a3ac35ddd8b304eb21d",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py command-result-check --workspace /quidra-benchmark --id lq-adversarial-mechanical--rust",
+    "work_unit_id": "lq-adversarial-mechanical--rust",
+    "worker_mode": "runner-command"
+  },
+  "provenance": {
+    "prompt_sha256": null,
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "lq-adversarial-mechanical--rust"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "assigned_languages": [
+        "Rust"
+      ],
+      "programs_per_language": 37,
+      "quidra_na_reason": null,
+      "raw": "/quidra-benchmark/work/root/commands/lq-adversarial-mechanical--rust/adversarial_raw.json",
+      "scorer": "adversarial_measure.py (mechanical replay of D0..D7)"
+    },
+    "requirements": {
+      "metric.adversarial_input_robustness": {
+        "Rust": 69.29
+      },
+      "metric.boundary_value_safety": {
+        "Rust": 51.93
+      },
+      "metric.debuggability": {
+        "Rust": 54.49
+      },
+      "metric.early_error_detection": {
+        "Rust": 64.47
+      },
+      "metric.implementation_robustness": {
+        "Rust": 97.06
+      },
+      "metric.memory_safety": {
+        "Rust": 77.78
+      },
+      "metric.runtime_safety": {
+        "Rust": 39.02
+      },
+      "metric.silent_bug_resistance": {
+        "Rust": 75.0
+      },
+      "metric.type_safety": {
+        "Rust": 51.67
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "61914b69bbda95782daf3fb6da1939f6f983587da3b51f42bb7813765821156e",
+  "schema_version": 1
+}

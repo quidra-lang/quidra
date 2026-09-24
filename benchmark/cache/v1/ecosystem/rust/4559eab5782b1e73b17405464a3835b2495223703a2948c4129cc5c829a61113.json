@@ -1,0 +1,191 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "4559eab5782b1e73b17405464a3835b2495223703a2948c4129cc5c829a61113",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "af5a27e0d9472ac4f4b14cde5128a55a9e31b6c3d8ed52d7611390a15de048d2",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.installation_distribution_experience",
+      "metric.toolchain_stability_release_maturity"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-4--rust",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "af5a27e0d9472ac4f4b14cde5128a55a9e31b6c3d8ed52d7611390a15de048d2",
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "ecosystem-tooling--part-4--rust"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.installation_distribution_experience": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--rust; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "artifact_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Archived rustup-init and toolchain builds are retrievable by exact version/date, and SHA-256 checksums are published for installer artifacts.",
+          "channel_breadth": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Linux users should generally install GCC or Clang, according to their distribution\u2019s documentation.",
+          "install_docs": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Official install docs (rust-lang.org/tools/install, the Rustup book, and the Rust Book's installation chapter) give explicit per-OS steps, verification commands, and pointers to build-tool prerequisites (e.g. MSVC linker on Windows), though a native C toolchain prerequisite on some platforms is an extra manual step.",
+          "installers": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Official install docs (rust-lang.org/tools/install, the Rustup book, and the Rust Book's installation chapter) give explicit per-OS steps, verification commands, and pointers to build-tool prerequisites (e.g. MSVC linker on Windows), though a native C toolchain prerequisite on some platforms is an extra manual step.",
+          "package_version_manager": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Official install docs (rust-lang.org/tools/install, the Rustup book, and the Rust Book's installation chapter) give explicit per-OS steps, verification commands, and pointers to build-tool prerequisites (e.g. MSVC linker on Windows), though a native C toolchain prerequisite on some platforms is an extra manual step."
+        },
+        "component_levels": {
+          "artifact_integrity": 4,
+          "channel_breadth": 4,
+          "install_docs": 4,
+          "installers": 4,
+          "package_version_manager": 4
+        },
+        "legacy_score_0_100": 95,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.install-distribution.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate current official/de-facto installation paths on the same major desktop/server platforms and use only documented distribution channels.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-4--rust",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/rust/0a3959f552bcd2f41f6dfeeb8088f219329318206e987fb920219104e9088ac1.json",
+          "https://www.rust-lang.org/tools/install",
+          "https://static.rust-lang.org/rustup/archive/{rustup-version}/{target-tuple}/rustup-init[.exe"
+        ]
+      },
+      "metric.toolchain_stability_release_maturity": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--rust; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "compat_deprecation": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Rust has shipped on a strict, publicly documented 6-week 'release train' since 1.0 (2015): stable, beta and nightly channels move in lockstep, and a new stable release is produced every six weeks.",
+          "governance_change": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Rust has shipped on a strict, publicly documented 6-week 'release train' since 1.0 (2015): stable, beta and nightly channels move in lockstep, and a new stable release is produced every six weeks.",
+          "release_cadence": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Rust has shipped on a strict, publicly documented 6-week 'release train' since 1.0 (2015): stable, beta and nightly channels move in lockstep, and a new stable release is produced every six weeks.",
+          "release_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Deterministic versioning and availability of exact historical release artifacts for reproducible builds.",
+          "support_policy": "Preserved paid evidence (ecosystem-tooling--part-4--rust): July 9, 2026 \u00b7 The Rust Release Team \u00b7 The Rust team is happy to announce a new version of Rust, 1.97.0."
+        },
+        "component_levels": {
+          "compat_deprecation": 4,
+          "governance_change": 4,
+          "release_cadence": 4,
+          "release_integrity": 4,
+          "support_policy": 3
+        },
+        "legacy_score_0_100": 92,
+        "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.toolchain-stability.v1",
+        "runner_score_0_100": 95,
+        "selection_rule": "Score current observable release/support practices. Language age and first-release date are context only and never directly score.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-4--rust",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/rust/0a3959f552bcd2f41f6dfeeb8088f219329318206e987fb920219104e9088ac1.json",
+          "https://www.rust-lang.org/tools/install",
+          "https://static.rust-lang.org/rustup/archive/{rustup-version}/{target-tuple}/rustup-init[.exe"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Rust",
+        "metrics": {
+          "metric.installation_distribution_experience": {
+            "component_levels": {
+              "artifact_integrity": 4,
+              "channel_breadth": 4,
+              "install_docs": 4,
+              "installers": 4,
+              "package_version_manager": 4
+            },
+            "rubric_id": "ecosystem.install-distribution.v1",
+            "score_0_100": 100
+          },
+          "metric.toolchain_stability_release_maturity": {
+            "component_levels": {
+              "compat_deprecation": 4,
+              "governance_change": 4,
+              "release_cadence": 4,
+              "release_integrity": 4,
+              "support_policy": 3
+            },
+            "rubric_id": "ecosystem.toolchain-stability.v1",
+            "score_0_100": 95
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.installation_distribution_experience": {
+        "Rust": 100.0
+      },
+      "metric.toolchain_stability_release_maturity": {
+        "Rust": 95.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "0548ffd7024d8f887f29e63637f2f2892fdaac5e2e0392f03d6cc24aaf875d60",
+  "schema_version": 1
+}

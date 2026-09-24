@@ -1,0 +1,121 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "cap_truncated_trial_calls": 0,
+    "learnability_integrity": true,
+    "max_trial_output_tokens": 240,
+    "primary_complete": true,
+    "scored_output_cap": 16384,
+    "trial_calls": 3,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "072fb5d4e347a3d856425563d3a592d071ce8f2a44cf4f0f3b4a3bee3c74ace1",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "e810f8dcb76785410e88c51ef65dcb23fd60a99a9de8da92ea3576bfb01570c8",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "condition.i3_structural_surface_perturbation",
+      "condition.i4_novel_rule_generalization"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--typescript",
+    "work_unit_id": "learnability-i3-i4--typescript",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "e810f8dcb76785410e88c51ef65dcb23fd60a99a9de8da92ea3576bfb01570c8",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "learnability-i3-i4--typescript"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "condition.i3_structural_surface_perturbation": {
+        "description": "Two independently generated transformation sets (Set A seed=101: statement terminator, function keyword, argument separator perturbed; Set B seed=202: block markers, declaration separator, return keyword perturbed) applied with equal transformation budget (3 substitutions each) per llm_learnability.structural_surface_transformation_sets=2. Model under test (fresh session per trial) was given only the pseudo-grammar description and had to translate to real TypeScript.",
+        "score_basis": "Both primary transformation sets produced compiling, semantically faithful TypeScript translations on first attempt (Correct@1=1.0, Compile Success=1.0 across both sets); condition score normalized to 100 on the 0-100 scale using the weighted metric definitions in section 10.6 (Compile/Parse Success, Correct@1, Test Pass Rate all satisfied for both sets; no repairs needed so Repair metrics are vacuously satisfied).",
+        "trials": [
+          {
+            "compile_check": "tsc --ignoreConfig --strict --noEmit verify/i3a.ts exit_code=0",
+            "correct_at_1": true,
+            "semantics_preserved": true,
+            "trial_id": "i3-setA-t1"
+          },
+          {
+            "compile_check": "tsc --ignoreConfig --strict --noEmit verify/i3b.ts exit_code=0",
+            "correct_at_1": true,
+            "semantics_preserved": true,
+            "trial_id": "i3-setB-t1"
+          }
+        ]
+      },
+      "condition.i4_novel_rule_generalization": {
+        "description": "Synthetic overlay rule NR-1 (seed=7), defined only in learnability_reference_pack.md and never part of real TypeScript: functions returning number must be prefixed qz_ iff they contain an internal mutable let. Rule mechanically validated via scripts/check_nr1.py, and removal of the prefix leaves semantics unchanged (per llm_learnability.novel_rule_generalization_trials_per_language=1).",
+        "score_basis": "Model correctly inferred and applied the novel NR-1 naming rule to both the mutable-state function (added qz_ prefix) and the pure/const-only function (withheld qz_ prefix) on the first attempt, with code compiling under tsc --strict; condition score normalized to 100 on the 0-100 scale (Compile/Parse Success=1.0, Correct@1=1.0, Specification Compliance=1.0 for the single primary trial per language).",
+        "trials": [
+          {
+            "compile_check": "tsc --ignoreConfig --strict --noEmit verify/i4.ts exit_code=0",
+            "correct_at_1": true,
+            "mechanical_rule_check": "scripts/check_nr1.py verify/i4.ts -> qz_runningTotal:(has_let=True,has_prefix=True,ok=True), average:(has_let=False,has_prefix=False,ok=True)",
+            "rule_applied_correctly_to_both_functions": true,
+            "trial_id": "i4-nr1-t1"
+          }
+        ]
+      },
+      "note": "Primary counts used: structural_surface_transformation_sets=2 (i3), novel_rule_generalization_trials_per_language=1 (i4), matching primary.json llm_learnability frozen configuration. Assigned language TypeScript only; no other language keys present per assigned_requirements.json.",
+      "preflight_and_leakage": {
+        "learnability_leakage_file": "learnability_leakage.json",
+        "learnability_preflight_file": "learnability_preflight.json",
+        "toolchain_evidence": [
+          "run node -e \"console.log('node-ok')\" exit_code=0",
+          "run tsc --version exit_code=0 (Version 7.0.2)"
+        ]
+      },
+      "raw_trial_artifacts": "trials/i3-setA-t1/, trials/i3-setB-t1/, trials/i4-nr1-t1/ (prompt_01.txt, completion_01.txt, session.json each)",
+      "reference_pack": "learnability_reference_pack.md"
+    },
+    "requirements": {
+      "condition.i3_structural_surface_perturbation": {
+        "TypeScript": 100
+      },
+      "condition.i4_novel_rule_generalization": {
+        "TypeScript": 100
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "8391a8ef8f16fa4b346a8a8f34cf7d6c552d8ad20d6871c8a4ca83b6ad3d06d7",
+  "schema_version": 1
+}

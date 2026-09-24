@@ -1,0 +1,187 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "60afdf7390cb173576aa0bb46ad581cf431a07e8cbe21fd885f8fc27b79bb0b8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "85652c6ab41c8b15fdac573bd60f308b54d5d17d10a41ba0bd5cbe5e63564b36",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.core_tooling_availability_quality",
+      "metric.package_dependency_management_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-1--python",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "85652c6ab41c8b15fdac573bd60f308b54d5d17d10a41ba0bd5cbe5e63564b36",
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "ecosystem-tooling--part-1--python"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.core_tooling_availability_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--python; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "build_execute": "Preserved paid evidence (ecosystem-tooling--part-1--python): Measures maturity, availability, and quality of the core first-party/de-facto-standard developer tooling stack that is NOT already covered by the separate Debugger/Profiler Support metric or the separate Package/Dependency Management metric: (1) official interpreter/runtime implementation, (2) standardized build/compile tooling, (3) linter tooling, (4) formatter tooling, (5) test framework, (6) static type-checking tooling. Excludes debugger/profiler products (scored under metric.debugger_profiler_support) and excludes the package manager / registry (scored under metric.package_dependency_management_quality) to avoid double counting per the Ecosystem spec's mixed-concept split.",
+          "diagnostic_quality": "Preserved paid evidence (ecosystem-tooling--part-1--python): By 2026 the toolchain has consolidated around fast Rust-based tools (uv, Ruff) for performance-critical parts alongside mature Python libraries (pytest, mypy) for the rest.",
+          "docs_package": "Preserved paid evidence (ecosystem-tooling--part-1--python): Measures maturity, availability, and quality of the core first-party/de-facto-standard developer tooling stack that is NOT already covered by the separate Debugger/Profiler Support metric or the separate Package/Dependency Management metric: (1) official interpreter/runtime implementation, (2) standardized build/compile tooling, (3) linter tooling, (4) formatter tooling, (5) test framework, (6) static type-checking tooling. Excludes debugger/profiler products (scored under metric.debugger_profiler_support) and excludes the package manager / registry (scored under metric.package_dependency_management_quality) to avoid double counting per the Ecosystem spec's mixed-concept split.",
+          "format_lint": "Preserved paid evidence (ecosystem-tooling--part-1--python): Ruff has become the recommended unified linter+formatter for new Python projects, replacing the Flake8/Black/isort/pyupgrade patchwork.",
+          "test": "Preserved paid evidence (ecosystem-tooling--part-1--python): Test framework: existence of a mature, actively maintained, de-facto-standard test framework plus a built-in/standard-library fallback."
+        },
+        "component_levels": {
+          "build_execute": 4,
+          "diagnostic_quality": 4,
+          "docs_package": 4,
+          "format_lint": 4,
+          "test": 4
+        },
+        "legacy_score_0_100": 96,
+        "limitations": "Scores reflect a single analyst's reading of the frozen sub-criteria against 2026 secondary-source writeups plus one primary source (python.org/Wikipedia CPython) rather than a full independent hands-on tooling audit; multiple competing tools (mypy vs pyright vs ty) were credited as ecosystem strength but also reflect some fragmentation, reflected in the lower static-type-checking sub-score.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.core-tooling.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate the maintained first-party/de-facto core developer toolchain actually available today; score implemented capability, not planned design.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-1--python",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/python/eefeb848b553334a759b9746b393308110fd008b90806f489d2978883d3d937b.json"
+        ]
+      },
+      "metric.package_dependency_management_quality": {
+        "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--python; recertification did not select a new language-specific target.",
+        "component_findings": {
+          "manifest_constraints": "Preserved paid evidence (ecosystem-tooling--part-1--python): An independent 2026 statistical analysis found PyPI contains 736,344 packages with at least one version, up from 311,063 in 2021.",
+          "publish_version": "Preserved paid evidence (ecosystem-tooling--part-1--python): Poetry manages dependency installation, virtual environments, package building and publishing, reading configuration from pyproject.toml.",
+          "registry_security": "Preserved paid evidence (ecosystem-tooling--part-1--python): Measures the maturity, activity, and quality of the package registry and dependency-management tooling: registry scale/availability, package-manager tool maturity and standardization, dependency resolution/reproducibility (lockfile support), and supply-chain security posture. Package-manager-agnostic dependency *semantics* (e.g. version-range syntax simplicity) are scored under Language Quality, not here; this metric scores the surrounding tool/registry maturity.",
+          "resolver_lock": "Preserved paid evidence (ecosystem-tooling--part-1--python): uv only re-runs dependency installation when pyproject.toml or the uv.lock lockfile changes, giving reproducible, cached installs.",
+          "workspace_multi": "Preserved paid evidence (ecosystem-tooling--part-1--python): Poetry manages dependency installation, virtual environments, package building and publishing, reading configuration from pyproject.toml."
+        },
+        "component_levels": {
+          "manifest_constraints": 4,
+          "publish_version": 4,
+          "registry_security": 4,
+          "resolver_lock": 4,
+          "workspace_multi": 3
+        },
+        "legacy_score_0_100": 91,
+        "limitations": "Registry package-count figures vary across sources within 2026 (roughly 736k-899k depending on snapshot date and counting method); the range rather than a single cherry-picked figure is used as declared evidence, consistent with the requirement not to rely on a single raw popularity number as the sole proxy. Tooling fragmentation across pip/Poetry/uv/conda (multiple coexisting package managers) is reflected as a moderate deduction in the resolution/reproducibility and package-manager-maturity sub-scores rather than being ignored.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.package-management.v1",
+        "runner_score_0_100": 95,
+        "selection_rule": "Evaluate the standard/de-facto package workflow using official documentation and current registry/tool behavior; ecosystem size is scored elsewhere.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-1--python",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/python/eefeb848b553334a759b9746b393308110fd008b90806f489d2978883d3d937b.json"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Python",
+        "metrics": {
+          "metric.core_tooling_availability_quality": {
+            "component_levels": {
+              "build_execute": 4,
+              "diagnostic_quality": 4,
+              "docs_package": 4,
+              "format_lint": 4,
+              "test": 4
+            },
+            "rubric_id": "ecosystem.core-tooling.v1",
+            "score_0_100": 100
+          },
+          "metric.package_dependency_management_quality": {
+            "component_levels": {
+              "manifest_constraints": 4,
+              "publish_version": 4,
+              "registry_security": 4,
+              "resolver_lock": 4,
+              "workspace_multi": 3
+            },
+            "rubric_id": "ecosystem.package-management.v1",
+            "score_0_100": 95
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.core_tooling_availability_quality": {
+        "Python": 100.0
+      },
+      "metric.package_dependency_management_quality": {
+        "Python": 95.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "0ebea756d10e02c047495d9ff28c5cfc59fbe0fff4497e4244265721e3f3029c",
+  "schema_version": 1
+}

@@ -1,0 +1,549 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "ce6a93d08ede2da6b461c6e9c7fd2074478ff926d5e8669cc77ff466d2df495d",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "f4422ef5734f64c7b572d7d64cb0b91657412c3e7e4432c506c634aa97253019",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-hidden-coverage--part-2--java",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--java",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "f4422ef5734f64c7b572d7d64cb0b91657412c3e7e4432c506c634aa97253019",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--java"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.capability_coverage": {
+        "aggregation_check": {
+          "denominator": 88,
+          "full_count_times_2": 76,
+          "none_count_times_0": 0,
+          "numerator_sum": 79,
+          "partial_count_times_1": 3,
+          "percent_exact": "79/88 = 0.897727... -> 89.7727...%",
+          "percent_rounded_2dp": 89.77
+        },
+        "capability_coverage_percent": 89.77,
+        "denominator_fixed": 88,
+        "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+        "language": "Java",
+        "na_policy_compliance": "No probe was marked N/A. Every NONE (F04.P1, F05.P2, F20.P2) carries a written reason and citation per NA-5/NA-6 and remains inside the fixed 88-point denominator per NA-1/NA-2.",
+        "numerator_total": 79,
+        "per_family_breakdown": [
+          {
+            "denominator": 4,
+            "family": "1. value and storage declaration",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "2. initialization and potentially uninitialized state",
+            "numerator": 3,
+            "percent": 75.0
+          },
+          {
+            "denominator": 4,
+            "family": "3. mutation",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 6,
+            "family": "4. aliasing, references, borrowing, addressing, and dereferencing where applicable",
+            "numerator": 4,
+            "percent": 66.67
+          },
+          {
+            "denominator": 6,
+            "family": "5. function calls and argument-passing semantics",
+            "numerator": 4,
+            "percent": 66.67
+          },
+          {
+            "denominator": 4,
+            "family": "6. return-value semantics",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "7. arithmetic operators",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "8. integer overflow, division-by-zero, and other numeric edge behavior",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "9. equality, ordering, and comparison",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "10. explicit and implicit type conversion",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "11. indexing and slicing",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "12. nullable / optional values",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "13. errors, failure values, exceptions, and propagation",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 6,
+            "family": "14. alternatives / sum / variant types and dispatch over alternatives",
+            "numerator": 6,
+            "percent": 100.0
+          },
+          {
+            "denominator": 6,
+            "family": "15. generics / parametric polymorphism",
+            "numerator": 6,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "16. collections and iteration",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics",
+            "numerator": 3,
+            "percent": 75.0
+          },
+          {
+            "denominator": 4,
+            "family": "18. modules, imports, and dependency boundaries",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "19. concurrency / asynchronous execution where the language supports it",
+            "numerator": 4,
+            "percent": 100.0
+          },
+          {
+            "denominator": 4,
+            "family": "20. FFI / interoperability boundaries",
+            "numerator": 1,
+            "percent": 25.0
+          }
+        ],
+        "per_probe": [
+          {
+            "awarded": 2,
+            "note": "final int n = 7; return n; \u2014 Java 'final' local binding satisfies non-reassignable requirement.",
+            "points": 2,
+            "probe_id": "F01.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "static long counter = 0L; static final long LIMIT = 100L; at class (module-home) scope.",
+            "points": 2,
+            "probe_id": "F01.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "int v; if(cond){v=5;}else{v=9;} return v; \u2014 legal under JLS definite-assignment analysis (JLS \u00a716), no placeholder required.",
+            "points": 2,
+            "probe_id": "F02.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 1,
+            "letters": [
+              "P-a"
+            ],
+            "note": "Java arrays are always default/zero-initialized per JLS \u00a74.12.5; java.base exposes no documented mechanism for genuinely uninitialized bulk storage without sun.misc.Unsafe (undocumented/internal). Substituted default-initialized byte[16] per R9 named-substitution exception for F02.P2.",
+            "points": 2,
+            "probe_id": "F02.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "awarded": 2,
+            "note": "x += 1; (compound assignment, in-place).",
+            "points": 2,
+            "probe_id": "F03.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "xs.set(1, 42); on an ArrayList<Integer> \u2014 in-place element mutation through the existing name.",
+            "points": 2,
+            "probe_id": "F03.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 0,
+            "citation": "JLS \u00a74.12.4 / \u00a78.4.1: Java local variables of primitive type are plain values with no address-of, pointer, ref, or inout mechanism; two names in one scope cannot denote the same writable primitive local storage without wrapping in a heap object/array, which the rubric's P-a note explicitly disallows as a FULL substitute.",
+            "points": 2,
+            "probe_id": "F04.P1",
+            "reason": "N-4 (explicitly named in canonical_task/rubric list of probes for which no fragment is written when unavailable).",
+            "support": "NONE"
+          },
+          {
+            "awarded": 2,
+            "note": "List<Integer> window = Collections.unmodifiableList(xs); \u2014 documented non-copying read-only view backed by the original list (java.util.Collections Javadoc).",
+            "points": 2,
+            "probe_id": "F04.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "Object routed through a one-element List and read back; same = (first == second) tests Java reference identity distinctly from equals().",
+            "points": 2,
+            "probe_id": "F04.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "Ordinary call f(x) is trivially expressible; determinacy of the outcome set is scored under metric B/D, not here.",
+            "points": 2,
+            "probe_id": "F05.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 0,
+            "citation": "JLS \u00a78.4.1: Java method arguments are passed by value (primitives) or reference-copy (objects); there is no ref/out/inout parameter form letting a callee write a caller's scalar primitive local. A mutable wrapper object is explicitly excluded as a FULL substitute by the canonical_task.",
+            "points": 2,
+            "probe_id": "F05.P2",
+            "reason": "N-4.",
+            "support": "NONE"
+          },
+          {
+            "awarded": 2,
+            "note": "IntUnaryOperator neg = a -> k - a; (captures effectively-final k); ys = xs.stream().map(neg).collect(...); neg referenced by name at the application site \u2014 Java 8+ lambdas are first-class function values.",
+            "points": 2,
+            "probe_id": "F05.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "static int mid(List<Integer> xs){ return xs.get(1); } int y = mid(xs); return y;",
+            "points": 2,
+            "probe_id": "F06.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "record DivMod(int q, int r) {} (Java 14+ record) used as the standard small-record multi-result mechanism; DivMod dm = divmod2(a,b); q=dm.q(); r=dm.r(); return q+r.",
+            "points": 2,
+            "probe_id": "F06.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "int r = a * b + c;",
+            "points": 2,
+            "probe_id": "F07.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "int q = a / b; int m = a % b; double d = (double) a / b;",
+            "points": 2,
+            "probe_id": "F07.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "int m = Integer.MAX_VALUE; int o = m + 1; return o; \u2014 rung (iv) plain operator used; higher rungs unavailable because java.lang.Math has no Optional-returning checked add (Math.addExact throws ArithmeticException rather than returning an optional/error value) and no standard saturating add for int.",
+            "points": 2,
+            "probe_id": "F08.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "rung (ii): int q = (b == 0) ? 0 : a / b; \u2014 explicit local guard, standard form; rung (i) unavailable because no Optional-returning checked-division op exists in java.lang/java.util.",
+            "points": 2,
+            "probe_id": "F08.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "boolean eq = s1.equals(s2); \u2014 content comparison per String.equals Javadoc.",
+            "points": 2,
+            "probe_id": "F09.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "xs.sort(Collections.reverseOrder()); boolean lt = a < b;",
+            "points": 2,
+            "probe_id": "F09.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "rung (ii): int small = (int) big; \u2014 explicit narrowing primitive conversion (JLS \u00a75.1.3); rung (i) unavailable because Math.toIntExact throws rather than returning an optional/error value.",
+            "points": 2,
+            "probe_id": "F10.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "double sum = i + d; \u2014 binary numeric promotion implicitly widens i to double per JLS \u00a75.6.2, written with no explicit conversion syntax.",
+            "points": 2,
+            "probe_id": "F10.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "int e = xs.get(i); return e; \u2014 throws IndexOutOfBoundsException on out-of-range i, per List.get Javadoc (ordinary trapping form).",
+            "points": 2,
+            "probe_id": "F11.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "List<Integer> part = xs.subList(1,4); \u2014 documented view backed by xs, not a copy (List.subList Javadoc).",
+            "points": 2,
+            "probe_id": "F11.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "Optional<Integer> o = Optional.empty(); int n = o.orElse(0);",
+            "points": 2,
+            "probe_id": "F12.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "Function<Integer,Integer> h = a -> a + 1; Optional<Integer> p = o.map(h); int result = p.orElse(0); \u2014 Optional.map is the standard optional-aware chaining/short-circuit operation.",
+            "points": 2,
+            "probe_id": "F12.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "static int parse_twice(String s){ return 2 * Integer.parseInt(s); } \u2014 unchecked NumberFormatException propagates without being handled.",
+            "points": 2,
+            "probe_id": "F13.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "try { n = Integer.parseInt(s); } catch (NumberFormatException e) { n = 0; }",
+            "points": 2,
+            "probe_id": "F13.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "sealed interface Shape permits Circle, Rect {} ; record Circle(double r) implements Shape {} ; record Rect(double w, double h) implements Shape {} ; Shape s = new Circle(2.0); \u2014 Java 17+ sealed types give a closed alternative set enforced by the compiler.",
+            "points": 2,
+            "probe_id": "F14.P1",
+            "support": "FULL",
+            "version_assumption": "Assumes JDK >= 17 (sealed classes standardized in JEP 409)."
+          },
+          {
+            "awarded": 2,
+            "note": "double area = switch(s) { case Circle c -> Math.PI*c.r()*c.r(); case Rect re -> re.w()*re.h(); }; \u2014 exhaustive pattern-matching switch over a sealed type, no default arm, checked by the compiler.",
+            "points": 2,
+            "probe_id": "F14.P2",
+            "support": "FULL",
+            "version_assumption": "Assumes JDK >= 21 (pattern matching for switch standardized in JEP 441)."
+          },
+          {
+            "awarded": 2,
+            "note": "Open (non-sealed) interface Shape with area(); Circle/Rect implemented in unit 'shapes'; Tri implemented in a separate compilation unit/package without modifying 'shapes'; dispatched through a Shape-typed reference. Uses the frozen multi-unit recipe for Java.",
+            "points": 2,
+            "probe_id": "F14.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "static <T> T head(List<T> xs){ return xs.get(0); } \u2014 called at List<Integer> and List<String>; declared result type is T at each call site (generic method, JLS Chapter 8.4.4).",
+            "points": 2,
+            "probe_id": "F15.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "static <T extends Comparable<T>> T max_of(T a, T b){ return a.compareTo(b) >= 0 ? a : b; } \u2014 declaration-site bounded type parameter.",
+            "points": 2,
+            "probe_id": "F15.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "interface Named { String tag(); } classes A, B implement it; List<Named> items = List.of(new A(), new B()); items.get(0).tag() dispatches virtually to A's implementation.",
+            "points": 2,
+            "probe_id": "F15.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "List<Integer> xs = new ArrayList<>(List.of(1,2,3)); int total = xs.stream().mapToInt(Integer::intValue).sum();",
+            "points": 2,
+            "probe_id": "F16.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "Map<String,Integer> mp = new HashMap<>(); mp.put(\"a\",1); int total = mp.values().stream().mapToInt(Integer::intValue).sum(); int miss = mp.getOrDefault(\"b\", 0);",
+            "points": 2,
+            "probe_id": "F16.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "try (BufferedReader r = new BufferedReader(new FileReader(\"data.txt\"))) { String text = ...; return text.getBytes().length; } \u2014 try-with-resources guarantees close() on every exit path including on read failure (JLS \u00a714.20.3).",
+            "points": 2,
+            "probe_id": "F17.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 1,
+            "letters": [
+              "P-a"
+            ],
+            "note": "Java has no deterministic end-of-lifetime hook; Object.finalize() is deprecated for removal (JEP 421) and never guaranteed to run. Substituted nearest standard construct named by the canonical_task: class Handle implements AutoCloseable with close() incrementing 'released', invoked deterministically once by try-with-resources at scope exit.",
+            "points": 2,
+            "probe_id": "F17.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "awarded": 2,
+            "note": "System.out.println(\"x\"); \u2014 java.lang is implicitly available, no import declaration required.",
+            "points": 2,
+            "probe_id": "F18.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "package util; class Util { public static int pub_add(int a,int b){ return a+b+secret(); } private static int secret(){ return 1; } } ; from Main: Util.pub_add(2,3) == 6; secret() is inaccessible outside Util (private, JLS \u00a76.6.1). Uses the frozen Java multi-unit recipe.",
+            "points": 2,
+            "probe_id": "F18.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "CompletableFuture<Integer> f1 = CompletableFuture.supplyAsync(() -> 20); CompletableFuture<Integer> f2 = CompletableFuture.supplyAsync(() -> 22); int sum = f1.get() + f2.get(); \u2014 java.util.concurrent is part of the standard runtime shipped with the frozen javac/java recipe.",
+            "points": 2,
+            "probe_id": "F19.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "note": "AtomicLong counter = new AtomicLong(0); two threads each call counter.incrementAndGet() 1000 times; join both; final value == 2000. java.util.concurrent.atomic.AtomicLong Javadoc documents atomic, race-free read-modify-write.",
+            "points": 2,
+            "probe_id": "F19.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 1,
+            "letters": [
+              "P-b"
+            ],
+            "note": "java.lang.foreign (Foreign Function & Memory API, JEP 454) lets Java call the platform C 'abs' via Linker.nativeLinker() with no native glue code and no separate toolchain step, satisfying R7. On the assumed JDK 21 LTS baseline this API ships with the JDK but is a preview feature requiring the --enable-preview compiler/runtime flag beyond the plain javac/java frozen recipe (finalized only in JDK 22, JEP 454). Recorded as a flag-outside-frozen-recipe deviation per P-b.",
+            "points": 2,
+            "probe_id": "F20.P1",
+            "support": "PARTIAL",
+            "version_assumption": "If the actual frozen toolchain is JDK >= 22, this probe is FULL instead of PARTIAL; re-score once the toolchain fingerprint is confirmed."
+          },
+          {
+            "awarded": 0,
+            "citation": "javac/java produce JVM bytecode (.class) run by the JVM, not a native ELF/Mach-O/PE binary; there is no platform symbol table for `nm` to inspect and no documented standard mechanism to export an unmangled C-ABI symbol without a separate native compilation step (JNI requires hand-written/generated C glue built by a separate toolchain, which R7 forbids).",
+            "nm_field": "no compiled artifact under the frozen recipe",
+            "points": 2,
+            "probe_id": "F20.P2",
+            "reason": "N-1, with the F20.P2-specific N-1 rule for no compiled artifact.",
+            "support": "NONE"
+          }
+        ],
+        "support_level_counts": {
+          "FULL": 38,
+          "NONE": 3,
+          "PARTIAL": 3,
+          "total_probes": 44
+        },
+        "toolchain_recipe_used": {
+          "build": "javac -d OUT FILE.java",
+          "multi_unit_build_for_F18P2_F14P3": "javac -d OUT util/Util.java FILE.java",
+          "run": "java -cp OUT Main"
+        },
+        "toolchain_version_assumption": "A recent OpenJDK LTS (21) baseline is assumed absent an explicit environment.json fingerprint in this packet. Two probes (F14.P1/F14.P2 sealed types + exhaustive switch pattern matching, and F20.P1 java.lang.foreign) are version-sensitive; the assumption used for each is recorded in that probe's row. This assumption is a recorded input, not a post-hoc adjustment."
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Java": 89.77
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "6d8f1aef0f11ce23e62b3255d833b661b1f836a95560075927a411dfaf76a760",
+  "schema_version": 1
+}

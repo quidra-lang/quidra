@@ -1,0 +1,212 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "current_validator_revalidated": true,
+    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+    "ecosystem_snapshot_recertification_candidate": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "c2ec6e7531649a2ab4f26d496f0221c555be62ff8215570d2f3bcea4e5d6630c",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-runner-rubric-v2",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "2f854fe2e2ee7a47f08881213417c418e6d02329da997b8620f14f5449c11765",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/ecosystem/rubrics.json": "9e2837c23cea1759e5264d705644a2416d33be59b278a4ba3a5b028efe9df1ca"
+    },
+    "requirement_ids": [
+      "metric.ide_editor_support_quality",
+      "metric.debugger_profiler_support"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "95d2b97141c1cf511f39defe5361f875516d38286dff85df9b70563450a8b7c8",
+      "primary_config": "0b2b720ae80cd3e56a401be76bb738f9e9970f91ef762d14e50f3c3092dc3bbb"
+    },
+    "work_unit_id": "ecosystem-tooling--part-2--java",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
+    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
+    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "2f854fe2e2ee7a47f08881213417c418e6d02329da997b8620f14f5449c11765",
+    "run_id": "cache-recertify-584269b",
+    "work_unit_id": "ecosystem-tooling--part-2--java"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.debugger_profiler_support": {
+        "candidate_universe": "For each metric, evidence targets were selected by (a) the officially documented/standardized protocol or interface for the language runtime (JDWP, JVMTI, JFR) where one exists, and (b) the IDEs/tools most consistently cited across independent, dated 2025-2026 comparison sources and official project documentation as the dominant options for the language, rather than first-search-result order. The same retrieval depth (multiple independent web searches per metric) and the same examination approach (official docs + independent comparison articles) is intended to be applied uniformly across all 10 languages by the respective shards.",
+        "component_findings": {
+          "advanced_debug": "Preserved paid evidence (ecosystem-tooling--part-2--java): JDWP is a component of the Java Platform Debugger Architecture (JPDA) defining communication between a debugger and a JVM, used to set breakpoints, step through code, and inspect variables, and supports remote debugging.",
+          "basic_debug": "Preserved paid evidence (ecosystem-tooling--part-2--java): JDWP is a component of the Java Platform Debugger Architecture (JPDA) defining communication between a debugger and a JVM, used to set breakpoints, step through code, and inspect variables, and supports remote debugging.",
+          "cpu_profile": "Preserved paid evidence (ecosystem-tooling--part-2--java): JProfiler offers CPU and memory profiling, a heap walker for memory leaks, HTTP call profiling, real-time monitoring, and IDE plugin integration.",
+          "integration_platforms": "Preserved paid evidence (ecosystem-tooling--part-2--java): Java defines a standardized, vendor-neutral wire debugging protocol (JDWP) as part of the Java Platform Debugger Architecture (JPDA), consumed by every major IDE debugger. Below that, the JVM Tool Interface (JVMTI) is a native instrumentation API that underlies essentially the entire third-party profiling and diagnostics tool ecosystem. The JVM also ships a built-in, near-zero-overhead production profiler (Java Flight Recorder / JFR, paired with Java Mission Control), and there are multiple independent mature profilers spanning free/open-source (VisualVM, async-profiler, JMC) and commercial (JProfiler, YourKit) options. This breadth and standardization is best-in-class.",
+          "memory_profile": "Preserved paid evidence (ecosystem-tooling--part-2--java): JProfiler offers CPU and memory profiling, a heap walker for memory leaks, HTTP call profiling, real-time monitoring, and IDE plugin integration."
+        },
+        "component_levels": {
+          "advanced_debug": 4,
+          "basic_debug": 4,
+          "cpu_profile": 4,
+          "integration_platforms": 4,
+          "memory_profile": 4
+        },
+        "legacy_score_0_100": 98,
+        "limitations": "No raw popularity counts (stars/downloads) were used as a standalone proxy; scoring rests on documented protocol standardization, native tool-interface breadth, and the count/maturity of independently sourced profiling tools (built-in and third-party, free and commercial). | Third-party usage-share surveys (JRebel Java Developer Productivity Report, Stack Overflow) are self-reported and not independently audited; they are used only as corroborating, non-sole evidence for the breadth/adoption of IDE options, not as the entire basis for the score. The core scoring basis is the documented existence, maturity, and feature completeness of the IDE/editor options and the standardized language server infrastructure.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.debug-profile.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Evaluate implemented, documented debugging/profiling workflows on current supported toolchains; generic OS tools count only when language-aware use is documented.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-2--java",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/java/c54184bfc8acc02e17de54393cbf0bd6833c59dbac870c32380b93d77faffce5.json",
+          "https://medium.com/@mbanaee61/java-debug-wire-protocol-jdwp-791645aa5f4a",
+          "https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/index.html",
+          "https://geekworkbench.com/blog/technical/jvmti-agents/",
+          "https://cw.fel.cvut.cz/b192/courses/b4m36esw/labs/lab02",
+          "https://www.infoq.com/articles/open-source-java-profilers/",
+          "https://bell-sw.com/blog/a-guide-to-java-profiling-tools-techniques-best-practices/",
+          "https://www.javacodegeeks.com/2025/09/unleash-the-power-of-open-source-java-profilers-comparing-visualvm-jmc-and-async-profiler.html",
+          "https://www.jrebel.com/blog/best-java-ide",
+          "https://www.globaltechcouncil.org/java/best-java-ides-eclipse-intellij-idea-vs-code/",
+          "https://static.rainfocus.com/oracle/oow18/sess/1526583844565001AUe4/PF/vscode-java-code-one_1540505639715001Qj4D.pdf",
+          "https://github.com/redhat-developer/eclipseide-jdtls/",
+          "https://toolradar.com/blog/intellij-idea-vs-eclipse"
+        ]
+      },
+      "metric.ide_editor_support_quality": {
+        "candidate_universe": "For each metric, evidence targets were selected by (a) the officially documented/standardized protocol or interface for the language runtime (JDWP, JVMTI, JFR) where one exists, and (b) the IDEs/tools most consistently cited across independent, dated 2025-2026 comparison sources and official project documentation as the dominant options for the language, rather than first-search-result order. The same retrieval depth (multiple independent web searches per metric) and the same examination approach (official docs + independent comparison articles) is intended to be applied uniformly across all 10 languages by the respective shards.",
+        "component_findings": {
+          "breadth_maintenance": "Preserved paid evidence (ecosystem-tooling--part-2--java): Multiple first-class, actively maintained IDEs/editors (dedicated commercial + open-source + lightweight LSP-based) with deep language-aware completion, refactoring, navigation, integrated debugging, and broad plugin ecosystems; consistently ranked top-tier for professional development.",
+          "completion_types": "Preserved paid evidence (ecosystem-tooling--part-2--java): Java has one of the most mature multi-IDE ecosystems of any language: a dominant full-featured commercial/free IDE (IntelliJ IDEA), a long-standing free open-source full IDE (Eclipse) built on the Java Development Tools (JDT), and first-class lightweight editor support in VS Code via an actively maintained extension pack backed by a standardized, independently reusable language server (Eclipse JDT Language Server / jdt.ls). This combination of depth (refactoring, navigation, framework-aware tooling) and breadth (heavyweight, free/open-source, and LSP-based lightweight options) places Java at the top band.",
+          "debug_integration": "Preserved paid evidence (ecosystem-tooling--part-2--java): JDWP defines the format of information and requests transferred between the debugged process and the debugger front end, which implements the Java Debug Interface (JDI).",
+          "refactor_actions": "Preserved paid evidence (ecosystem-tooling--part-2--java): Java has one of the most mature multi-IDE ecosystems of any language: a dominant full-featured commercial/free IDE (IntelliJ IDEA), a long-standing free open-source full IDE (Eclipse) built on the Java Development Tools (JDT), and first-class lightweight editor support in VS Code via an actively maintained extension pack backed by a standardized, independently reusable language server (Eclipse JDT Language Server / jdt.ls). This combination of depth (refactoring, navigation, framework-aware tooling) and breadth (heavyweight, free/open-source, and LSP-based lightweight options) places Java at the top band.",
+          "syntax_navigation": "Preserved paid evidence (ecosystem-tooling--part-2--java): Basic single-editor support with limited features (syntax highlighting only, no refactoring/navigation)."
+        },
+        "component_levels": {
+          "breadth_maintenance": 4,
+          "completion_types": 4,
+          "debug_integration": 4,
+          "refactor_actions": 4,
+          "syntax_navigation": 4
+        },
+        "legacy_score_0_100": 97,
+        "limitations": "No raw popularity counts (stars/downloads) were used as a standalone proxy; scoring rests on documented protocol standardization, native tool-interface breadth, and the count/maturity of independently sourced profiling tools (built-in and third-party, free and commercial). | Third-party usage-share surveys (JRebel Java Developer Productivity Report, Stack Overflow) are self-reported and not independently audited; they are used only as corroborating, non-sole evidence for the breadth/adoption of IDE options, not as the entire basis for the score. The core scoring basis is the documented existence, maturity, and feature completeness of the IDE/editor options and the standardized language server infrastructure.",
+        "retrieval_route": "provider-brokered web search",
+        "rubric_id": "ecosystem.ide-editor.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Inspect the same editor capabilities across at least the dominant general-purpose editor and any major dedicated IDE when available.",
+        "snapshot_date": "2026-09-23",
+        "source_work_unit_id": "ecosystem-tooling--part-2--java",
+        "sources": [
+          "certified-cache-record:benchmark/cache/v1/ecosystem/java/c54184bfc8acc02e17de54393cbf0bd6833c59dbac870c32380b93d77faffce5.json",
+          "https://medium.com/@mbanaee61/java-debug-wire-protocol-jdwp-791645aa5f4a",
+          "https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/index.html",
+          "https://geekworkbench.com/blog/technical/jvmti-agents/",
+          "https://cw.fel.cvut.cz/b192/courses/b4m36esw/labs/lab02",
+          "https://www.infoq.com/articles/open-source-java-profilers/",
+          "https://bell-sw.com/blog/a-guide-to-java-profiling-tools-techniques-best-practices/",
+          "https://www.javacodegeeks.com/2025/09/unleash-the-power-of-open-source-java-profilers-comparing-visualvm-jmc-and-async-profiler.html",
+          "https://www.jrebel.com/blog/best-java-ide",
+          "https://www.globaltechcouncil.org/java/best-java-ides-eclipse-intellij-idea-vs-code/",
+          "https://static.rainfocus.com/oracle/oow18/sess/1526583844565001AUe4/PF/vscode-java-code-one_1540505639715001Qj4D.pdf",
+          "https://github.com/redhat-developer/eclipseide-jdtls/",
+          "https://toolradar.com/blog/intellij-idea-vs-eclipse"
+        ]
+      },
+      "runner_scoring": {
+        "language": "Java",
+        "metrics": {
+          "metric.debugger_profiler_support": {
+            "component_levels": {
+              "advanced_debug": 4,
+              "basic_debug": 4,
+              "cpu_profile": 4,
+              "integration_platforms": 4,
+              "memory_profile": 4
+            },
+            "rubric_id": "ecosystem.debug-profile.v1",
+            "score_0_100": 100
+          },
+          "metric.ide_editor_support_quality": {
+            "component_levels": {
+              "breadth_maintenance": 4,
+              "completion_types": 4,
+              "debug_integration": 4,
+              "refactor_actions": 4,
+              "syntax_navigation": 4
+            },
+            "rubric_id": "ecosystem.ide-editor.v1",
+            "score_0_100": 100
+          }
+        },
+        "rubric_set_id": "ecosystem-runner-rubric-v2"
+      },
+      "snapshot_recertification": {
+        "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+        "rubric_set_id": "ecosystem-runner-rubric-v2",
+        "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+        "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+      }
+    },
+    "requirements": {
+      "metric.debugger_profiler_support": {
+        "Java": 100.0
+      },
+      "metric.ide_editor_support_quality": {
+        "Java": 100.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "78d91d57049281d5bc711e96f72eebc06a948105c0adc6e94b13d926cd728f23",
+  "schema_version": 1
+}

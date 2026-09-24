@@ -1,0 +1,37 @@
+// MB-01 - Fibonacci: naive double recursion, n = 30..37 inclusive.
+// Methodology 06 section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K.
+cli args
+    string mode = argument(default = "once")
+    int iterations = argument(default = 7)
+
+int fib(int n)
+    if n < 2
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+// The whole workload body (methodology 06 section 4, MB-01).
+int workload()
+    int total = 0
+    for n in range(30, 38)
+        total = total + fib(n)
+    return total
+
+int timed(int index)
+    time.Instant start = time.now()
+    int result = workload()
+    time.Duration elapsed = time.since(start)
+    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    print("ITER {index} {elapsed_ns}")
+    io.flush()
+    return result
+
+int total
+if args.mode == "steady"
+    int k = math.max(args.iterations, 1)
+    total = timed(0)
+    for i in range(1, k)
+        total = timed(i)
+else
+    total = workload()
+
+print("MB01 {total}")

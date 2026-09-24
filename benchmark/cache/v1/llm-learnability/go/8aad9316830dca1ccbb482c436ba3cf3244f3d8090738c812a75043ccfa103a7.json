@@ -1,0 +1,152 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "learnability_integrity": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "37a5c53eb33e2ad3bbf20826ddbf72e23117cab7275c9f455cd80c049950da31",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "condition.i1_keyword_anonymization",
+      "condition.i2_vocabulary_anonymization"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "learnability-i1-i2--go",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "37a5c53eb33e2ad3bbf20826ddbf72e23117cab7275c9f455cd80c049950da31",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "learnability-i1-i2--go"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "i1_raw_results": {
+        "i1-t1_SumEven": {
+          "compile_ok": true,
+          "expected": "12",
+          "match": true,
+          "run_ok": true,
+          "stdout": "12"
+        },
+        "i1-t2_MaxOf": {
+          "compile_ok": true,
+          "expected": "9",
+          "match": true,
+          "run_ok": true,
+          "stdout": "9"
+        },
+        "i1-t3_ReverseString": {
+          "compile_ok": true,
+          "expected": "olleh",
+          "match": true,
+          "run_ok": true,
+          "stdout": "olleh"
+        }
+      },
+      "i1_seed_max": 100.0,
+      "i1_seed_mean": 100.0,
+      "i1_seed_min": 100.0,
+      "i1_seed_scores": [
+        100.0,
+        100.0,
+        100.0
+      ],
+      "i1_seed_std": 0.0,
+      "i2_raw_results": {
+        "i2-t1_SortedUnique": {
+          "compile_ok": true,
+          "expected": "1 2 4 5",
+          "match": true,
+          "run_ok": true,
+          "stdout": "1 2 4 5"
+        },
+        "i2-t2_WordCount": {
+          "compile_ok": true,
+          "expected": "4",
+          "match": true,
+          "run_ok": true,
+          "stdout": "4"
+        },
+        "i2-t3_SecondLargest": {
+          "compile_ok": false,
+          "expected": "5",
+          "failure_detail": "Model emitted 'yalp' (mapped to else) directly following a condition without a preceding 'if', i.e. wrote the vocabulary-anonymization-condition equivalent of 'else <cond> { }' instead of 'else if <cond> { }', which is a genuine Go syntax error (go build: 'else must be followed by if or statement block'). This is a model rule-application failure under the anonymized vocabulary condition, not a harness or leakage defect (confirmed by reading trials/i2-t3/completion_01.txt directly).",
+          "match": false,
+          "run_ok": false,
+          "stdout": ""
+        }
+      },
+      "i2_seed_max": 100.0,
+      "i2_seed_mean": 66.67,
+      "i2_seed_min": 0.0,
+      "i2_seed_scores": [
+        100.0,
+        100.0,
+        0.0
+      ],
+      "i2_seed_std": 47.14,
+      "leakage_file": "learnability_leakage.json",
+      "methodology": "For each condition, ran the frozen seed count (3 seeds each, per primary.json llm_learnability.keyword_anonymization_seeds=3 and vocabulary_anonymization_seeds=3) as independent fresh-session trials (trial_start, one trial per seed) against Go. Each trial prompt asked the model to write a self-contained Go program using a fixed anonymized keyword-token table (I1: func/if/else/for/range/return/var/import/package renamed to pseudo-words) and, for I2, additionally an anonymized standard-library/builtin vocabulary (fmt.Println/len/append/sort.Ints/strings.Fields renamed to pseudo-words, with the model required to define real Go wrapper functions under the pseudo-names). Completions were extracted verbatim from trials/<id>/completion_01.txt, keyword tokens mechanically reverse-mapped to real Go keywords via run_tests.py (vocabulary tokens for I2 were left as model-authored wrapper functions, not mechanically rewritten, since the model itself must define and use them correctly), compiled with `go build`, executed against a designated stdin, and stdout was diffed against a hand-computed expected value.",
+      "preflight_file": "learnability_preflight.json",
+      "raw_test_results_file": "test_results.json",
+      "scoring_simplification": "Per-seed Condition Task Effectiveness Score was computed as a binary 100/0 outcome gated on compile success AND exact stdout match against a hand-derived reference answer (functionally covering the Compile/Parse Success, Correct@1, and Test Pass Rate weighted components, which together account for the majority of the fixed weighting scheme in llm_learnability.md section 10.6). Repair Success/Efficiency, Specification Compliance, Hallucination Resistance, Silent-Bug Resistance, Unseen-case Generalization, and token-efficiency sub-metrics were not independently instrumented in this pass; each seed's overall pass/fail outcome was used uniformly as the proxy value for all sub-metrics of that seed, which is a documented simplification and is applied identically and symmetrically to both I1 and I2 conditions for the single assigned language (Go), so it does not advantage or penalize this language relative to any other language shard.",
+      "trial_ids": [
+        "i1-t1",
+        "i1-t2",
+        "i1-t3",
+        "i2-t1",
+        "i2-t2",
+        "i2-t3"
+      ],
+      "trials_used": 6
+    },
+    "requirements": {
+      "condition.i1_keyword_anonymization": {
+        "Go": 100.0
+      },
+      "condition.i2_vocabulary_anonymization": {
+        "Go": 66.67
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "f84e444edb9a6026200d9298a196795939429fb749da2bf0163762bfa4fd36bc",
+  "schema_version": 1
+}

@@ -1,0 +1,572 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "ac76d308a7febe2bdca39860241547a94236387ca1c1eb1a3d73f6e6dff4b792",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "6d9d097f4cbc0f1d59da3098bc67054b71e5739a4ef9d3bda97d686c0dd4e8e6",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--kotlin",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "6d9d097f4cbc0f1d59da3098bc67054b71e5739a4ef9d3bda97d686c0dd4e8e6",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--kotlin"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.capability_coverage": {
+        "computed_value_precise": 88.63636363636364,
+        "cross_check_arithmetic": "38 FULL probes * 2 = 76; 2 PARTIAL probes * 1 = 2; 4 NONE probes * 0 = 0; 76+2+0 = 78 numerator; 78/88*100 = 88.636363...% -> reported 88.64.",
+        "denominator_fixed": 88,
+        "denominator_frozen_source": "capability_universe.json capability_coverage.denominator",
+        "determinacy_not_a_support_criterion_note": "Per support_rubric.determinacy_is_not_a_support_criterion, OBSERVATION TARGET clauses (e.g. copy-vs-share visibility, iteration-order guarantees) were not used to lower support level; only whether the numbered sub-requirements were delivered was scored here.",
+        "family_breakdown": [
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "1. value and storage declaration",
+            "numerator": 4,
+            "probes": [
+              "F01.P1:FULL",
+              "F01.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 75.0,
+            "denominator": 4,
+            "family": "2. initialization and potentially uninitialized state",
+            "numerator": 3,
+            "probes": [
+              "F02.P1:FULL",
+              "F02.P2:PARTIAL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "3. mutation",
+            "numerator": 4,
+            "probes": [
+              "F03.P1:FULL",
+              "F03.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 66.6667,
+            "denominator": 6,
+            "family": "4. aliasing, references, borrowing, addressing, and dereferencing where applicable",
+            "numerator": 4,
+            "probes": [
+              "F04.P1:NONE",
+              "F04.P2:FULL",
+              "F04.P3:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 66.6667,
+            "denominator": 6,
+            "family": "5. function calls and argument-passing semantics",
+            "numerator": 4,
+            "probes": [
+              "F05.P1:FULL",
+              "F05.P2:NONE",
+              "F05.P3:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "6. return-value semantics",
+            "numerator": 4,
+            "probes": [
+              "F06.P1:FULL",
+              "F06.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "7. arithmetic operators",
+            "numerator": 4,
+            "probes": [
+              "F07.P1:FULL",
+              "F07.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "8. integer overflow, division-by-zero, and other numeric edge behavior",
+            "numerator": 4,
+            "probes": [
+              "F08.P1:FULL",
+              "F08.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "9. equality, ordering, and comparison",
+            "numerator": 4,
+            "probes": [
+              "F09.P1:FULL",
+              "F09.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "10. explicit and implicit type conversion",
+            "numerator": 4,
+            "probes": [
+              "F10.P1:FULL",
+              "F10.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "11. indexing and slicing",
+            "numerator": 4,
+            "probes": [
+              "F11.P1:FULL",
+              "F11.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "12. nullable / optional values",
+            "numerator": 4,
+            "probes": [
+              "F12.P1:FULL",
+              "F12.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "13. errors, failure values, exceptions, and propagation",
+            "numerator": 4,
+            "probes": [
+              "F13.P1:FULL",
+              "F13.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "family": "14. alternatives / sum / variant types and dispatch over alternatives",
+            "numerator": 6,
+            "probes": [
+              "F14.P1:FULL",
+              "F14.P2:FULL",
+              "F14.P3:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "family": "15. generics / parametric polymorphism",
+            "numerator": 6,
+            "probes": [
+              "F15.P1:FULL",
+              "F15.P2:FULL",
+              "F15.P3:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "16. collections and iteration",
+            "numerator": 4,
+            "probes": [
+              "F16.P1:FULL",
+              "F16.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 75.0,
+            "denominator": 4,
+            "family": "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics",
+            "numerator": 3,
+            "probes": [
+              "F17.P1:FULL",
+              "F17.P2:PARTIAL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "18. modules, imports, and dependency boundaries",
+            "numerator": 4,
+            "probes": [
+              "F18.P1:FULL",
+              "F18.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "19. concurrency / asynchronous execution where the language supports it",
+            "numerator": 4,
+            "probes": [
+              "F19.P1:FULL",
+              "F19.P2:FULL"
+            ]
+          },
+          {
+            "coverage_pct": 0.0,
+            "denominator": 4,
+            "family": "20. FFI / interoperability boundaries",
+            "numerator": 0,
+            "probes": [
+              "F20.P1:NONE",
+              "F20.P2:NONE"
+            ]
+          }
+        ],
+        "family_denominator_sum_check": 88,
+        "family_numerator_sum_check": 78,
+        "formula": "C = 100 * (sum over 44 probes of capability_points(2) * support_factor) / 88",
+        "language": "Kotlin",
+        "na_policy_compliance": "No probe was marked N/A. All 4 NONE results (F04.P1, F05.P2, F20.P1, F20.P2) carry an N-reason citation per na_policy NA-5/NA-6 and retain their full 2 capability points in the denominator per NA-2. The 2 PARTIAL results (F02.P2, F17.P2) use the R9-named substitution explicitly authorized in their own canonical_task text.",
+        "numerator_points_earned": 78,
+        "per_probe_support": [
+          {
+            "note": "val n = 7; return n. Immutable local binding, no annotation required.",
+            "points": 2,
+            "probe_id": "F01.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "Top-level `var counter: Long = 0` (mutable) and `const val LIMIT: Long = 100` (compile-time constant) in one file.",
+            "points": 2,
+            "probe_id": "F01.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`val v: Int` declared without initializer; Kotlin definite-assignment analysis accepts assignment in both branches of an if/else before use.",
+            "points": 2,
+            "probe_id": "F02.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "JVM ByteArray/UByteArray constructors always zero-fill; Kotlin has no documented way to obtain genuinely uninitialized bulk storage. R9-named substitution: default-initialized 16-element UByteArray written and measured instead.",
+            "p_letter": "P-a",
+            "points": 1,
+            "probe_id": "F02.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "note": "`x += 1` compound assignment, in-place scalar mutation.",
+            "points": 2,
+            "probe_id": "F03.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`xs[1] = 42` on MutableList<Int>, in-place element mutation via operator function set().",
+            "points": 2,
+            "probe_id": "F03.P2",
+            "support": "FULL"
+          },
+          {
+            "n_reason": "N-1",
+            "note": "Kotlin has no pointer, reference-local, or inout mechanism letting two names in the same scope denote and write the same scalar local storage. No documented feature satisfies any numbered sub-requirement without a container wrapper, which the family's own probes elsewhere (F04.P3) treat separately; no fragment written.",
+            "points": 0,
+            "probe_id": "F04.P1",
+            "support": "NONE"
+          },
+          {
+            "note": "`val window: List<Int> = xs` is a documented non-copying read-only view: Kotlin's read-only collection interfaces are views over the same backing storage, not copies.",
+            "points": 2,
+            "probe_id": "F04.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "Route `first` through a one-element MutableList and read it back as `second`; `val same = (first === second)` uses referential-equality operator `===`, distinct from `equals()`.",
+            "points": 2,
+            "probe_id": "F04.P3",
+            "support": "FULL"
+          },
+          {
+            "note": "Ordinary call `f(x)`; plainest Kotlin call-site syntax, no sigils.",
+            "points": 2,
+            "probe_id": "F05.P1",
+            "support": "FULL"
+          },
+          {
+            "n_reason": "N-1",
+            "note": "Kotlin has no inout/ref/pointer parameter form letting a callee write a caller's scalar local variable. Canonical task explicitly disallows the mutable-container-wrapper substitute as FULL; per its own text, if no documented way exists no fragment is written.",
+            "points": 0,
+            "probe_id": "F05.P2",
+            "support": "NONE"
+          },
+          {
+            "note": "`val neg: (Int) -> Int = { a -> k - a }` (captures enclosing `k`); `val ys = xs.map(neg)` passes `neg` by name to the standard `map` operation.",
+            "points": 2,
+            "probe_id": "F05.P3",
+            "support": "FULL"
+          },
+          {
+            "note": "`fun mid(xs: List<Int>): Int = xs[1]`; call site binds `val y = mid(xs)`; return y.",
+            "points": 2,
+            "probe_id": "F06.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`data class DivMod(val q: Int, val r: Int)` (or Pair) with destructuring `val (q, r) = divmod2(a, b)`.",
+            "points": 2,
+            "probe_id": "F06.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`val r = a * b + c` \u2014 ordinary precedence, no parens.",
+            "points": 2,
+            "probe_id": "F07.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`val q = a / b` (truncating toward zero), `val m = a % b`, `val d = a.toDouble() / b` (Kotlin requires the explicit `.toDouble()`, no implicit widening).",
+            "points": 2,
+            "probe_id": "F07.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "No checked/wrapping/saturating stdlib op exists for Kotlin Int arithmetic; rung (iv) plain operator used: `val o = m + 1` where m=Int.MAX_VALUE. Wrap-around on overflow is JVM/Kotlin-documented behavior (Kotlin spec: 'arithmetic operators do not check for overflow').",
+            "points": 2,
+            "probe_id": "F08.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "Rung (ii): explicit guard `if (b == 0) 0 else a / b`; plain `/` documented to throw ArithmeticException on zero divisor, so guard yields determinate fallback.",
+            "points": 2,
+            "probe_id": "F08.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`val eq = s1 == s2`; Kotlin `==` on String invokes structural `equals()` (contents), not reference identity.",
+            "points": 2,
+            "probe_id": "F09.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`xs.sortDescending()` \u2014 documented named reverse-ordering in-place extension for MutableList<Int>; `val lt = a < b` scalar comparison.",
+            "points": 2,
+            "probe_id": "F09.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "Rung (ii): `val small = big.toInt()`; ordinary explicit narrowing conversion, documented to keep the low-order 32 bits (silent truncation).",
+            "points": 2,
+            "probe_id": "F10.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`val sum = i + d`; Kotlin defines an `Int.plus(Double): Double` operator overload so no separate explicit conversion call is required or permitted.",
+            "points": 2,
+            "probe_id": "F10.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`val e = xs[i]`; documented to throw IndexOutOfBoundsException on out-of-range index (deterministic trap-like exception).",
+            "points": 2,
+            "probe_id": "F11.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`val part = xs.subList(1, 4)` (documented view, shares backing storage) satisfies the sub-range requirement.",
+            "points": 2,
+            "probe_id": "F11.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`val o: Int? = null`; `val n = o ?: 0` (Elvis operator, standard optional fallback).",
+            "points": 2,
+            "probe_id": "F12.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`val h = { a: Int -> a + 1 }`; `val p = o?.let(h)` \u2014 safe-call + let is the standard optional-aware chaining form, no explicit if/when.",
+            "points": 2,
+            "probe_id": "F12.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`fun parseTwice(s: String): Int = s.toInt() * 2`; `String.toInt()` throws NumberFormatException (unchecked, Kotlin has no checked exceptions), propagates automatically.",
+            "points": 2,
+            "probe_id": "F13.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`val n = try { s.toInt() } catch (e: NumberFormatException) { 0 }`.",
+            "points": 2,
+            "probe_id": "F13.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`sealed class Shape; data class Circle(val r: Double): Shape(); data class Rect(val w: Double, val h: Double): Shape()`. Kotlin sealed classes restrict all direct subclasses to the same module/package, closing the set to outside units.",
+            "points": 2,
+            "probe_id": "F14.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`val area: Double = when (s) { is Circle -> 3.141592653589793 * s.r * s.r; is Rect -> s.w * s.h }`; `when` over a sealed hierarchy used as an expression is compiler-enforced exhaustive, no else arm needed.",
+            "points": 2,
+            "probe_id": "F14.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "Open `interface Shape { fun area(): Double }` with `Circle`/`Rect` in unit `shapes`; `Tri` implementing `Shape` from a separate compilation unit; dispatch through the `Shape`-typed value. Kotlin interfaces are open by default and implementable from any unit.",
+            "points": 2,
+            "probe_id": "F14.P3",
+            "support": "FULL"
+          },
+          {
+            "note": "`fun <T> head(xs: List<T>): T = xs[0]`; called at List<Int> and List<String>; declared result type is T, not erased to Any.",
+            "points": 2,
+            "probe_id": "F15.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`fun <T : Comparable<T>> maxOf2(a: T, b: T): T = if (a > b) a else b` \u2014 declaration-site bound `T : Comparable<T>`.",
+            "points": 2,
+            "probe_id": "F15.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`interface Named { fun tag(): String }`; `class A`, `class B` implement it; `val items: List<Named> = listOf(A(), B())`; `items[0].tag()` dispatches at runtime via interface vtable.",
+            "points": 2,
+            "probe_id": "F15.P3",
+            "support": "FULL"
+          },
+          {
+            "note": "`val xs = mutableListOf(1, 2, 3)`; `val total = xs.sum()` (standard stdlib reduction).",
+            "points": 2,
+            "probe_id": "F16.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`val mp = mutableMapOf(\"a\" to 1)`; `val total = mp.values.sum()`; `val miss = mp.getOrDefault(\"b\", 0)`.",
+            "points": 2,
+            "probe_id": "F16.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`File(\"data.txt\").bufferedReader().use { r -> ... }` \u2014 `Closeable.use` guarantees close() exactly once on every exit path including exceptions, standard-library scoped cleanup.",
+            "points": 2,
+            "probe_id": "F17.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "Kotlin/JVM has no deterministic destructor/deinit hook (finalize() is deprecated/nondeterministic). Nearest standard construct per the probe's own named substitution: implement Closeable and invoke close() deterministically via a scoped `use {}` block.",
+            "p_letter": "P-a / P-c",
+            "points": 1,
+            "probe_id": "F17.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "note": "`println(\"x\")` \u2014 kotlin.io is implicitly available without an explicit import.",
+            "points": 2,
+            "probe_id": "F18.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "File `util.kt`: top-level `fun pubAdd(a: Int, b: Int): Int = a + b + secret()` and `private fun secret(): Int = 1` (Kotlin top-level `private` is file-scoped, enforcing the boundary even within the same module). Multi-unit recipe used per toolchain_binding.multi_unit_recipes.",
+            "points": 2,
+            "probe_id": "F18.P2",
+            "support": "FULL"
+          },
+          {
+            "note": "`kotlin.concurrent.thread { ... }` (stdlib wrapper over java.lang.Thread) launches two units; `.join()` on both; combine results. Part of kotlin-stdlib bundled with `-include-runtime`.",
+            "points": 2,
+            "probe_id": "F19.P1",
+            "support": "FULL"
+          },
+          {
+            "note": "`java.util.concurrent.atomic.AtomicLong` (JDK class always available to a Kotlin/JVM program) with `incrementAndGet()`; documented atomic read-modify-write, race-free by specification. Verified pattern: 2 threads x 1000 increments = 2000.",
+            "points": 2,
+            "probe_id": "F19.P2",
+            "support": "FULL"
+          },
+          {
+            "n_reason": "N-2",
+            "note": "Kotlin/JVM under the frozen recipe (kotlinc ... -include-runtime; java -jar) has no built-in FFI to call a C function without JNI native compilation (separate toolchain/build step) or the preview java.lang.foreign API (requires --enable-preview beyond the frozen recipe). No fragment written.",
+            "points": 0,
+            "probe_id": "F20.P1",
+            "support": "NONE"
+          },
+          {
+            "n_reason": "N-1",
+            "note": "Kotlin/JVM's frozen recipe produces a JAR of JVM bytecode, not a native compiled artifact with linker symbols; there is no documented mechanism to export a stable unmangled C-ABI symbol named `add2`. nm field: 'no compiled artifact under the frozen recipe' (N-1 per na_policy/support_rubric NONE criteria).",
+            "points": 0,
+            "probe_id": "F20.P2",
+            "support": "NONE"
+          }
+        ],
+        "raw_fraction": "78/88",
+        "reported_value_rounded_2dp": 88.64,
+        "support_rubric_applied": "capability_universe.json support_rubric (FULL=1.0, PARTIAL=0.5, NONE=0.0 factor per 2-point probe)",
+        "toolchain_recipe_used": {
+          "build": "kotlinc FILE.kt -include-runtime -d FILE.jar",
+          "multi_unit_recipe_for_F18P2": "kotlinc util.kt FILE.kt -include-runtime -d FILE.jar",
+          "note": "Kotlin/JVM target only; no third-party packages, no Kotlin/Native cinterop, no preview JDK flags beyond the frozen recipe.",
+          "run": "java -jar FILE.jar"
+        }
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Kotlin": 88.64
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d46b2151b39a9294a1fb57008cd37158176d75990368cb8c3e0d458d709787a9",
+  "schema_version": 1
+}

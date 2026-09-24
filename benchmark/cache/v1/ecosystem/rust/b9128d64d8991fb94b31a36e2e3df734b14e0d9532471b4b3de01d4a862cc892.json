@@ -1,0 +1,182 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "b9128d64d8991fb94b31a36e2e3df734b14e0d9532471b4b3de01d4a862cc892",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "5530015cce6ead976d4ea9f2db377d7901a4c55b4210d98655ab0331265852dd",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.third_party_tool_availability",
+      "metric.production_adoption_deployment_evidence"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-external--part-2--rust",
+    "work_unit_id": "ecosystem-external--part-2--rust",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "5530015cce6ead976d4ea9f2db377d7901a4c55b4210d98655ab0331265852dd",
+    "run_id": "2026-09-22-62bb50a-gh2",
+    "work_unit_id": "ecosystem-external--part-2--rust"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "assigned_languages": [
+        "Rust"
+      ],
+      "caveats": [
+        "This worker evaluated only the Rust language shard; scores for other languages under these two metrics are produced by sibling workers and merged by the runner.",
+        "Per methodology, raw popularity indicators (star counts, crate counts) were used only as declared supplementary context, never as the sole basis for either score.",
+        "Single retrieval route (web search) was used with consistent examination depth across both metrics for this language, as required for cross-language parity by the ecosystem methodology."
+      ],
+      "metric.production_adoption_deployment_evidence": {
+        "findings": [
+          {
+            "category": "Hyperscaler production systems",
+            "citation": "<cite index=\"2-1,2-2\">AWS runs Lambda and Fargate on Firecracker, a Rust microVM in production since 2018. Microsoft ships Rust in Windows kernel components, Azure, and Hyper-V, while Android 16 carries production Rust code from Google.</cite>",
+            "detail": "AWS's Firecracker microVM, which underlies Lambda and Fargate, has been in production since 2018 and is written in Rust; Microsoft ships Rust in Windows kernel components and Hyper-V; Google ships production Rust in Android."
+          },
+          {
+            "category": "Additional named production deployments",
+            "citation": "<cite index=\"7-1,7-2\">Cloudflare's Pingora serves 1T req/day with 70% less CPU. Discord cut memory 8x.</cite>",
+            "detail": "Cloudflare's Pingora proxy and Discord are cited as large-scale Rust production systems with reported performance/resource benefits."
+          },
+          {
+            "category": "Formal industry coordination structure",
+            "citation": "<cite index=\"31-1\">The founding members include major technology companies, including Amazon Web Services, Arm, Google, JetBrains, Microsoft, OpenAI, Canonical, Bytecode Alliance, gRPC, KDAB, ExpressVPN, Mainmatter, the Rust Project, and others.</cite> <cite index=\"31-10\">The Rust Foundation has launched the Rust Commercial Network, a new initiative for companies, academic institutions, and organizations that use Rust in production or are considering adopting it.</cite>",
+            "detail": "The Rust Foundation launched the Rust Commercial Network in 2026 specifically to coordinate organizations running Rust in production, with founding/attending members including AWS, Google, Microsoft, OpenAI, Arm, Canonical, and JetBrains."
+          },
+          {
+            "category": "Quantitative organizational adoption survey",
+            "citation": "<cite index=\"2-6\">48.8% of organizations report non-trivial Rust use in 2025, up from 38.7% in 2023, per The Rust Blog.</cite>",
+            "detail": "The 2025 State of Rust Survey (published by the Rust project, an external non-benchmark source) reports a rising share of organizations with non-trivial Rust use."
+          },
+          {
+            "category": "Incremental-adoption caveat (limitation of evidence)",
+            "citation": "<cite index=\"3-1,3-2\">No major production system has completed a full rewrite of a large existing C/C++ codebase into Rust. Google, ClickHouse, and Brave all chose incremental adoption.</cite>",
+            "detail": "Independent reporting also notes that large existing C/C++ codebases are typically adopting Rust incrementally rather than through full rewrites, which tempers the strength of the adoption signal for legacy-system replacement scenarios specifically."
+          },
+          {
+            "category": "Company-documented case list",
+            "citation": "<cite index=\"6-9,6-10\">Amazon - Here at AWS, we love Rust, too, because it helps AWS write highly performant, safe infrastructure-level networking and other systems software. Atlassian - We use Rust in a service for analyzing petabytes of source code.</cite>",
+            "detail": "A community-maintained roster of companies attributes specific production use cases directly to company statements, e.g. AWS and Atlassian."
+          }
+        ],
+        "limitations": "Some adoption figures come from marketing-oriented blog aggregations (e.g. 'X% growth' style posts) with unclear original methodology and are treated as lower-confidence corroborating context rather than primary evidence; the primary basis for the score is the combination of named, verifiable hyperscaler production systems (Firecracker, Windows, Android) and the Rust Foundation's own formally documented Commercial Network membership.",
+        "normalized_score_rationale": "Rust scores very high (92/100): production deployment evidence is unusually strong and diverse for a systems language of Rust's age, spanning multiple hyperscalers (AWS, Microsoft, Google), a dedicated Foundation-run commercial coordination body with those same companies as founding members, and named case studies (Cloudflare, Discord, Atlassian). Score is not maximal because independent reporting confirms adoption is still predominantly incremental/component-level rather than wholesale replacement of legacy systems, and some cited statistics originate from secondary blog aggregation rather than primary company disclosures.",
+        "raw_measurement": "Verified, independently reported production deployments at major infrastructure companies, formal industry-coordination structures, and quantitative adoption-survey data."
+      },
+      "metric.third_party_tool_availability": {
+        "findings": [
+          {
+            "category": "IDE / editor integration",
+            "citation": "<cite index=\"46-2,46-6\">The rust-analyzer project, a new implementation of the Language Server Protocol (LSP) for Rust, is now officially a part of the wider Rust organization, and this change unblocks technical work to make rust-analyzer the officially recommended language server for Rust in the near future.</cite> <cite index=\"45-3\">rust-analyzer is an implementation of Language Server Protocol for the Rust programming language, providing features like completion and goto definition for many code editors, including VS Code, Emacs and Vim.</cite>",
+            "detail": "rust-analyzer became the officially recommended LSP after joining the rust-lang GitHub organization, and is used by VS Code, Neovim, Emacs, and other editors."
+          },
+          {
+            "category": "Dedicated commercial IDE",
+            "citation": "<cite index=\"10-1\">Try the new Rust IDE from JetBrains with a debugger, on-the-fly analysis, and quick-fixes.</cite>",
+            "detail": "JetBrains ships a standalone Rust IDE (RustRover) with debugger and on-the-fly analysis, distinct from the community rust-analyzer, giving Rust two independently maintained first-class IDE tracks."
+          },
+          {
+            "category": "Linting / formatting / analysis layers",
+            "citation": "<cite index=\"11-11,11-12,11-13,11-14,11-15,11-16,11-17\">Every mature Rust project should cover all three layers. Layer 1: Linting and style catches idiomatic violations, common mistakes, and maintainability problems. Tools: Clippy, rustfmt, rust-analyzer. Layer 2: Dependency and supply chain security audits third-party crates for known vulnerabilities and policy violations. Tools: cargo-audit, cargo-deny, cargo-auditable. Layer 3: Deep verification finds memory safety issues in unsafe code, undefined behavior, and formally proves properties of critical functions. Tools: Miri, Kani, MIRAI, Rudra, Creusot, Prusti.</cite>",
+            "detail": "A recognized layered third-party static-analysis stack exists beyond the compiler: style/lint (Clippy, rustfmt, rust-analyzer), supply-chain security (cargo-audit, cargo-deny, cargo-auditable), and deep verification (Miri, Kani, MIRAI, Rudra, Creusot, Prusti)."
+          },
+          {
+            "category": "Debugger integration",
+            "citation": "<cite index=\"17-4\">Rust has done pretty well with developer tools: a compiler which produces good quality code in reasonable time, good support for debug symbols which lets us leverage C++/language agnostic tools such as debuggers, profilers, etc., plus syntax highlighting, cross-reference, code completion, and documentation tools.</cite> <cite index=\"40-20\">VS Code: Install extensions like rust-analyzer, CodeLLDB, and Crates.</cite>",
+            "detail": "Rust reuses the mature C/C++ debugging ecosystem (GDB/LLDB) via debug symbol compatibility, plus editor-specific debugger extensions like CodeLLDB for VS Code."
+          },
+          {
+            "category": "Cloud-vendor SDKs (third-party production tooling)",
+            "citation": "<cite index=\"20-1\">The AWS SDK for Rust contains one crate for each AWS service, as well as aws-config, a crate implementing configuration loading such as credential providers.</cite> <cite index=\"25-1,25-2\">Microsoft has released the first beta of its official Azure SDK for Rust, enabling Rust developers to interact with Azure services, with an initial release including libraries for essential components such as Identity, Key Vault (secrets and keys), Event Hubs, and Cosmos DB.</cite>",
+            "detail": "Both AWS and Microsoft Azure ship official, first-party Rust SDKs generated from their standard service-model toolchains, indicating cloud vendors treat Rust as a supported first-class client language."
+          },
+          {
+            "category": "Package/tooling registry breadth",
+            "citation": "<cite index=\"13-1\">Crates that provide developer-facing features such as testing, debugging, linting, performance profiling, autocompletion, formatting, and more.</cite>",
+            "detail": "The lib.rs / crates.io development-tools category lists a large number of independently published crates covering testing, debugging, linting, profiling, autocompletion and formatting, used here only as a supplementary, declared proxy alongside the qualitative findings above, not as a standalone score driver."
+          }
+        ],
+        "limitations_of_proxies_used": "Crate/download counts on lib.rs and GitHub star/plugin counts were consulted only as supplementary context and are not used as the sole basis for the score; the qualitative official-recommendation and named-tool findings above are the primary basis. Only one retrieval route (web search against official/vendor pages) was used, consistent with parity across languages in this shard.",
+        "normalized_score_rationale": "Rust scores very high (91/100): it has an officially endorsed, first-party IDE protocol (rust-analyzer) plus an independent commercial IDE (RustRover), official compiler-adjacent linter/formatter (Clippy/rustfmt), a mature layered third-party security/verification tool stack (cargo-audit, cargo-deny, Miri, Kani et al.), and first-party SDKs from both major cloud vendors (AWS, Azure). The score is not 100 because some tooling (e.g., RustRover) is proprietary/commercial-licensed for non-hobby use, and some verification tools (Kani, Prusti, Creusot) remain research-grade/niche rather than mainstream-production-hardened.",
+        "raw_measurement": "Rust has an officially-endorsed, single-source-of-truth tooling stack unusually consolidated compared to most languages, plus a large independent third-party layer for security/verification and cloud integration."
+      },
+      "predeclared_sampling": {
+        "candidate_universe_adoption": [
+          "AWS (Firecracker/Lambda/Fargate)",
+          "Microsoft (Windows kernel components, Azure SDK)",
+          "Google (Android, gRPC)",
+          "Cloudflare (Pingora)",
+          "Discord",
+          "Rust Foundation Commercial Network founding/member roster",
+          "Linux kernel Rust-for-Linux"
+        ],
+        "candidate_universe_tools": [
+          "rust-analyzer (LSP)",
+          "RustRover/IntelliJ Rust plugin (JetBrains)",
+          "VS Code rust-analyzer extension",
+          "Clippy",
+          "rustfmt",
+          "cargo (with cargo-audit, cargo-deny, cargo-auditable subcommands)",
+          "Miri",
+          "CodeLLDB / GDB / LLDB debugger integration",
+          "AWS SDK for Rust",
+          "Azure SDK for Rust",
+          "GitHub Actions rust-toolchain / dtolnay/rust-toolchain action"
+        ],
+        "retrieval_route": "web_search tool (single retrieval route) against official vendor pages (rust-analyzer.github.io, blog.rust-lang.org, jetbrains.com, awslabs.github.io, docs.aws.amazon.com, rustfoundation.org, github.com/Rust-Commercial-Network) plus independent secondary reporting (InfoQ, Linuxiac, daily.dev, commandlinux.com, softwareseni.com) for cross-validation; same retrieval depth (one search round of the same query pattern) as used for other language shards in this evaluation family",
+        "selection_rule": "For third_party_tool_availability: enumerate the tool categories any mature systems language ecosystem needs (IDE/editor integration, linter, formatter, debugger, dependency/security auditing, cloud-provider SDKs, CI integration) and identify, for each category, the tool(s) explicitly named by the language's own official documentation/organization (rust-lang.org, doc.rust-lang.org, blog.rust-lang.org) or by the dominant first-party vendor (JetBrains for IDE, cloud vendors for SDKs) as the recommended/official option. This is a language-neutral, externally observable rule (official-docs recommendation) applied identically across all languages in this benchmark, not a benchmark-outcome-dependent choice. For production_adoption_deployment_evidence: use the Rust Foundation's own foundational and Commercial-Network membership rosters (a language-neutral, externally maintained, non-benchmark-derived source) plus named, independently reported production case studies (AWS Firecracker, Microsoft Windows/Azure, Google Android/gRPC, Cloudflare Pingora, Discord) as the frozen candidate universe.",
+        "snapshot_time": "2026-09-22 (search results dated Jan-Sep 2026 as noted per-citation)"
+      }
+    },
+    "requirements": {
+      "metric.production_adoption_deployment_evidence": {
+        "Rust": 92
+      },
+      "metric.third_party_tool_availability": {
+        "Rust": 91
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d9d833a69f5e57b7283dd1294541d3e9701f17d9f7d6092e7b8c1d0abf93af71",
+  "schema_version": 1
+}

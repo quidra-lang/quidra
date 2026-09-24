@@ -10378,7 +10378,7 @@
   "historical_cache_before": {
     "invalid": 154,
     "superseded": 240,
-    "valid": 137
+    "valid": 146
   },
   "legacy_invalid_record_classifications": [
     {
@@ -14331,9 +14331,9 @@
     "retry_ceiling_uncached_usd": 5375.556376
   },
   "recertification_pass_cache": {
-    "hits": 80,
+    "hits": 89,
     "invalidated": 0,
-    "misses": 91
+    "misses": 82
   },
   "schema_version": 3,
   "semantic_compression_reused_unit_ids": [],

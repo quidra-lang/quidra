@@ -1,0 +1,1178 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "canonical_catalog_sha256": "d524701650204cbb3dfa8fd2074413ce72f6d785a239180bf49def27c8e7cf9b",
+    "compatibility_migration": "semantic-legacy-llm-recertification",
+    "current_validator_revalidated": true,
+    "current_validator_revalidation_required": true,
+    "primary_complete": false,
+    "semantic_legacy_owner_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "36efbf5a5411867cdc8f4a8d4a9edecc1cf9ae06b00feb6c91911be693b17fc6",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--c",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "Historical paid Semantic Compression evidence was re-adjudicated against the current frozen rubric by the trusted GPT-5.6 Sol recertifier. The result is bound to a frozen provenance snapshot containing the exact legacy source hashes and current canonical fragments. This mode never claims that legacy fragments were mechanically compiled when the retained run did not perform that verification.",
+    "migration_rule": "semantic-legacy-llm-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277",
+    "source_record": "v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json",
+    "source_record_sha256": "7b41cfe9d9830cb97364b98841a5589b2f28ee12eb1c4895c19e63c922070c94",
+    "source_result_sha256": "23a1a92118b425e4d164e875d38f3b0c067592462ef2b954238987ee427fdd6a",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification",
+      "canonical_fragments",
+      "canonical_verification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "36efbf5a5411867cdc8f4a8d4a9edecc1cf9ae06b00feb6c91911be693b17fc6",
+    "run_id": "cache-recertify-7c43dba",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--c"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F01.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F01.P1",
+          "fragment": "const int n = 7;\nreturn n;",
+          "justification": "const int n = 7; return n; \u2014 const local binding, no annotation needed.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F01.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F01.P2",
+          "fragment": "long long counter = 0;\nconstexpr long long LIMIT = 100;",
+          "justification": "namespace-scope `int64_t counter = 0;` (mutable, reassignable) and `constexpr int64_t LIMIT = 100;` (compile-time constant).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F02.P1",
+          "fragment": "int v;\nif (cond) { v = 5; } else { v = 9; }\nreturn v;",
+          "justification": "`int32_t v; if(cond){v=5;}else{v=9;} return v;` \u2014 C++ permits declaration without initializer; definite assignment on both branches makes subsequent read well-defined.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F02.P2",
+          "fragment": "unsigned char buf[16];\nbuf[0] = 1;\nreturn buf[0];",
+          "justification": "`unsigned char buf[16]; buf[0]=1; return buf[0];` \u2014 local array of trivial type is default-initialized (indeterminate value) without an initializer per [dcl.init].",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F03.P1",
+          "fragment": "++x;",
+          "justification": "`x += 1;` in-place compound assignment, fewest-token form per R10.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F03.P2",
+          "fragment": "xs[1] = 42;",
+          "justification": "`xs[1] = 42;` in-place element mutation via std::vector::operator[].",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F04.P1",
+          "fragment": "int slot = 4;\nint& port = slot;\nport = 9;\nreturn slot;",
+          "justification": "`int slot=4; int& port = slot; port=9; return slot;` \u2014 lvalue reference is a writable alias.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F04.P2",
+          "fragment": "std::span<const int> window(xs);\nreturn window[0];",
+          "justification": "`std::span<const int> window(xs); return window[0];` \u2014 C++20 std::span is a non-owning, non-copying read-only view.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F04.P3",
+          "fragment": "struct Obj { int id; };\nauto first = std::make_shared<Obj>(Obj{5});\nstd::vector<std::shared_ptr<Obj>> box{first};\nauto second = box[0];\nbool same = (first == second);\nreturn same;",
+          "justification": "Heap-allocated object via `new`, second handle obtained by routing through a one-element `std::vector<Obj*>`, identity compared with pointer equality `first==second` (reference/pointer identity, not value equality).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F05.P1",
+          "fragment": "std::vector<int> x{1, 2, 3};\nf(x);\nreturn x[0];",
+          "justification": "`f(x)` bare call, `x` a std::vector<int> passed with no sigil \u2014 plainest ordinary call-site form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F05.P2",
+          "fragment": "void put(int& x) { x = 12; }\nint cell = 3;\nput(cell);\nreturn cell;",
+          "justification": "`void put(int& c){c=12;} ... put(cell); return cell;` \u2014 reference parameter is C++'s dedicated writable-alias-passing form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F05.P3",
+          "fragment": "auto neg = [k](int a) { return k - a; };\nstd::vector<int> ys(xs.size());\nstd::transform(xs.begin(), xs.end(), ys.begin(), neg);\nreturn ys[0];",
+          "justification": "Lambda `auto neg = [k](int a){return k-a;};` captures enclosing local `k`, passed by name to `std::transform` (standard higher-order sequence operation).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F06.P1",
+          "fragment": "int mid(std::vector<int> xs) { return xs[1]; }\nstd::vector<int> xs{1, 2, 3};\nauto y = mid(xs);\nreturn y;",
+          "justification": "`int mid(const std::vector<int>& xs){return xs[1];} auto y = mid(xs); return y;`",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F06.P2",
+          "fragment": "std::pair<int, int> divmod2(int a, int b) { return {a / b, a % b}; }\nauto [q, r] = divmod2(a, b);\nreturn q + r;",
+          "justification": "`std::pair<int,int> divmod2(int a,int b){return {a/b,a%b};} auto [q,r]=divmod2(a,b); return q+r;` \u2014 structured bindings destructure the pair at the call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F07.P1",
+          "fragment": "int r = a * b + c;",
+          "justification": "`auto r = a*b+c;` ordinary precedence, no redundant parens.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F07.P2",
+          "fragment": "int q = a / b;\nint m = a % b;\ndouble d = static_cast<double>(a) / b;",
+          "justification": "`auto q=a/b; auto m=a%b; double d = (double)a/b;` \u2014 truncating integer division, C++ % takes sign of dividend, explicit cast for real division.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F08.P1",
+          "fragment": "int m = std::numeric_limits<int>::max();\nint o = m + 1;\nreturn o;",
+          "justification": "No std checked/wrapping/saturating integer op exists in C++20 (rungs i-iii unavailable); rung iv (plain `m+1` operator) used per canonical_task's own explicit preference order, which permits this fallback. C++ has no checked arithmetic mode (toolchain_binding.safety_mode_clause records this as a language fact, not a recipe deviation); overflow is UB, scored by metrics B/D not by support level.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F08.P2",
+          "fragment": "int q = (b == 0) ? 0 : a / b;",
+          "justification": "Rung ii used: `int q; if(b==0){q=0;}else{q=a/b;}` \u2014 no std checked-division operation exists in C++20 std lib (rung i unavailable).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F09.P1",
+          "fragment": "bool eq = (s1 == s2);",
+          "justification": "`bool eq = (s1==s2);` \u2014 std::string operator== compares contents.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F09.P2",
+          "fragment": "std::sort(xs.begin(), xs.end(), std::greater<int>());\nbool lt = (a < b);",
+          "justification": "`std::sort(xs.begin(),xs.end(),std::greater<int>());` explicit descending comparator (in-place, mutates xs); `bool lt = a<b;`",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F10.P1",
+          "fragment": "int small = static_cast<int>(big);\nreturn small;",
+          "justification": "`int32_t small = static_cast<int32_t>(big);` explicit narrowing conversion (rung ii); C++20 `std::in_range<int32_t>(big)` also available for a checked-style guard.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F10.P2",
+          "fragment": "auto sum = i + d;",
+          "justification": "`double sum = i + d;` \u2014 implicit usual-arithmetic-conversion promotes `i` to double, no explicit cast required or written.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F11.P1",
+          "fragment": "int e = xs[i];\nreturn e;",
+          "justification": "`int e = xs[i]; return e;` \u2014 std::vector::operator[] ordinary indexed read (UB on out-of-range, unchecked).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F11.P2",
+          "fragment": "std::span<int> part(xs.data() + 1, 3);\nreturn part[0];",
+          "justification": "`std::vector<int> part(xs.begin()+1, xs.begin()+4); return part[0];` \u2014 range-constructor sub-range (copies elements).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F12.P1",
+          "fragment": "std::optional<int> o = std::nullopt;\nint n = o.value_or(0);\nreturn n;",
+          "justification": "`std::optional<int> o = std::nullopt; int n = o.value_or(0); return n;` \u2014 std::optional (C++17) is a documented type-level absent-value construct with standard fallback form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F12.P2",
+          "fragment": "auto h = [](int x) { return x + 1; };\nstd::optional<int> p = o.has_value() ? std::optional<int>(h(o.value())) : std::nullopt;\nint result = p.value_or(0);",
+          "justification": "C++20 std::optional has no monadic and_then/transform (added only in C++23; frozen recipe is c++20). No standard optional-aware chaining/mapping operation is available, so per R9/na named-substitution rule the explicit conditional is written instead: `int p_val; if(o.has_value()) p_val=h(o.value()); else { /*absent*/ } int result = o.has_value()? h(o.value()) : 0;`. Scored PARTIAL under P-a (substituted weaker mechanism), never FULL, per canonical_task's own named substitution clause.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F13.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F13.P1",
+          "fragment": "int parse_twice(const std::string& s) {\n    return std::stoi(s) * 2;\n}",
+          "justification": "`int parse_twice(const std::string& s){ return std::stoi(s)*2; }` \u2014 std::stoi throws std::invalid_argument/std::out_of_range on failure; unhandled, it propagates automatically to the caller.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F13.P2",
+          "fragment": "int n;\ntry { n = std::stoi(s); } catch (...) { n = 0; }\nreturn n;",
+          "justification": "`int n; try { n = std::stoi(s); } catch(...) { n = 0; } return n;` \u2014 try/catch is C++'s local-handling construct.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F14.P1",
+          "fragment": "struct Circle { double r; };\nstruct Rect { double w, h; };\nusing Shape = std::variant<Circle, Rect>;\nShape s = Circle{2.0};",
+          "justification": "`using Shape = std::variant<Circle,Rect>; Shape s = Circle{2.0};` \u2014 std::variant (C++17) is a closed alternative set fixed at the type's declaration; no code elsewhere can add a third alternative to this Shape alias.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F14.P2",
+          "fragment": "double area = std::visit([](auto&& sh) -> double {\n  using T = std::decay_t<decltype(sh)>;\n  if constexpr (std::is_same_v<T, Circle>) return 3.141592653589793 * sh.r * sh.r;\n  else return sh.w * sh.h;\n}, s);",
+          "justification": "`double area = std::visit(AreaVisitor{}, s);` with a visitor struct providing `operator()` overloads for both Circle and Rect, no default arm; std::visit requires the visitor be callable for every alternative in the variant, so an unhandled alternative is a compile error (exhaustiveness enforced statically).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F14.P3",
+          "fragment": "[shapes unit] struct Shape { virtual double area() const = 0; virtual ~Shape() = default; }; struct Circle : Shape {...}; struct Rect : Shape {...};\n[separate unit] struct Tri : Shape { double b, h; double area() const override { return 0.5 * b * h; } };\nstd::unique_ptr<Shape> t = std::make_unique<Tri>(Tri{3.0,4.0});\ndouble result = t->area();",
+          "justification": "Abstract base `struct ShapeBase { virtual double area() const = 0; };` with Circle/Rect implementations in unit `shapes`; a new `Tri : ShapeBase` implementing area() is added in a separate translation unit without editing `shapes`, called through `ShapeBase&`/pointer. Uses the frozen multi-unit recipe (toolchain_binding.multi_unit_recipes).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F15.P1",
+          "fragment": "template<typename T> T head(const std::vector<T>& xs) { return xs[0]; }\nauto a = head(std::vector<int>{4, 5, 6});\nauto b = head(std::vector<std::string>{\"p\", \"q\"});\nstd::string result = std::to_string(a) + b;",
+          "justification": "`template<typename T> T head(const std::vector<T>& xs){ return xs[0]; }` \u2014 template result type is exactly T, not erased/boxed; used at int and std::string.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F15.P2",
+          "fragment": "template<typename T> requires std::totally_ordered<T>\nT max_of(T a, T b) { return a > b ? a : b; }\nauto m = max_of(3, 5);\nreturn m;",
+          "justification": "`template<std::totally_ordered T> T max_of(T a, T b){ return a>b?a:b; }` \u2014 C++20 concept `std::totally_ordered` is a declaration-site constraint.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F15.P3",
+          "fragment": "struct Named { virtual std::string tag() const = 0; virtual ~Named() = default; };\nstruct A : Named { std::string tag() const override { return \"a\"; } };\nstruct B : Named { std::string tag() const override { return \"b\"; } };\nstd::vector<std::unique_ptr<Named>> items;\nitems.push_back(std::make_unique<A>());\nitems.push_back(std::make_unique<B>());\nstd::string result = items[0]->tag();",
+          "justification": "Abstract `struct Named { virtual std::string tag() const = 0; };`, concrete A/B, `std::vector<std::unique_ptr<Named>> items` holding one of each, `items[0]->tag()` dispatched at runtime via vtable, concrete type not recoverable from the declared element type Named.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F16.P1",
+          "fragment": "std::vector<int> xs{1, 2, 3};\nint total = std::accumulate(xs.begin(), xs.end(), 0);\nreturn total;",
+          "justification": "`std::vector<int> xs{1,2,3}; int total = std::accumulate(xs.begin(),xs.end(),0); return total;` \u2014 std::accumulate is the standard fold/sum operation (documented in <numeric>).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F16.P2",
+          "fragment": "std::unordered_map<std::string, int> mp{{\"a\", 1}};\nint total = 0;\nfor (const auto& [k, v] : mp) { total += v; }\nint miss = mp.count(\"b\") ? mp.at(\"b\") : 0;\nreturn total + miss;",
+          "justification": "`std::map<std::string,int> mp{{\"a\",1}}; int total=0; for(auto&[k,v]:mp) total+=v; auto it=mp.find(\"b\"); int miss = it!=mp.end()? it->second : 0; return total+miss;` \u2014 std::map has a documented sorted iteration order (unlike std::unordered_map).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F17.P1",
+          "fragment": "size_t read_all() {\n    std::ifstream f(\"data.txt\");\n    std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());\n    return text.size();\n}",
+          "justification": "`int read_all(){ std::ifstream f(\"data.txt\"); std::string text((std::istreambuf_iterator<char>(f)),std::istreambuf_iterator<char>()); return (int)text.size(); }` \u2014 std::ifstream's destructor (RAII) closes the handle on every scope exit, including exceptions.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F17.P2",
+          "fragment": "int released = 0;\nstruct Handle {\n    int id;\n    ~Handle() { released++; }\n};\n{\n    Handle h{1};\n}\nreturn released;",
+          "justification": "`struct Handle{ int id; ~Handle(){ ++released; } }; { Handle h{1}; } return released;` \u2014 C++ destructors run deterministically and exactly once at end of object lifetime.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F18.P1",
+          "fragment": "#include <iostream>\nstd::cout << \"x\" << std::endl;",
+          "justification": "`#include <iostream>` then `std::cout << \"x\\n\";` \u2014 include makes std::cout available; iostream's the standard console facility.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F18.P2",
+          "fragment": "namespace util {\n    namespace { int secret() { return 1; } }\n    int pub_add(int a, int b) { return a + b + secret(); }\n}\nint result = util::pub_add(2, 3);",
+          "justification": "Unit `util.cpp`: `int secret(){return 1;}` given internal linkage via an anonymous namespace or `static`, plus exported `int pub_add(int a,int b){return a+b+secret();}` declared in util.hpp; external call `util::pub_add(2,3)` (or free-function form) from a separate translation unit using the frozen multi-unit recipe. Internal linkage prevents `secret` from being referenced outside its translation unit ([basic.link]).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F19.P1",
+          "fragment": "auto fut1 = std::async(std::launch::async, [] { return 20; });\nauto fut2 = std::async(std::launch::async, [] { return 22; });\nint sum = fut1.get() + fut2.get();\nreturn sum;",
+          "justification": "`auto fut1=std::async(std::launch::async,[]{return 20;}); auto fut2=std::async(std::launch::async,[]{return 22;}); int sum=fut1.get()+fut2.get();` \u2014 std::async/std::future (<future>) is the standard concurrency facility.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F19.P2",
+          "fragment": "std::atomic<long long> counter{0};\nauto worker = [&counter] { for (int i = 0; i < 1000; i++) counter++; };\nstd::thread t1(worker), t2(worker);\nt1.join(); t2.join();\nreturn counter.load();",
+          "justification": "`std::atomic<int64_t> counter{0};` incremented via `counter.fetch_add(1, std::memory_order_relaxed)` from two `std::thread`s, 1000 times each, then joined; std::atomic's read-modify-write operations are documented atomic and race-free ([atomics.types.generic]).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F20.P1",
+          "fragment": "#include <cstdlib>\nint result = std::abs(-3);",
+          "justification": "`#include <cstdlib> ... int r = abs(-3); return r;` \u2014 <cstdlib>'s `abs` is a C-linkage (extern \"C\") declaration; C++ calls C functions natively without a separate binding-generator step, satisfying the built-in FFI mechanism requirement.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F20.P2",
+          "fragment": "extern \"C\" int add2(int a, int b) { return a + b; }",
+          "justification": "`extern \"C\" int add2(int a,int b){ return a+b; }` \u2014 extern \"C\" gives C calling convention and an unmangled external symbol `add2` (verifiable with `nm`).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F01.P1": {
+          "canonical_fragment_sha256": "659a785677d0494bb5c61afd3e1b55df7a25bc7da86f3da0d6f12c1ee5a2e082",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F01.P2": {
+          "canonical_fragment_sha256": "115f3febce0ba50023e234e284d824ca798c19dea17a9cc2b5c4bc6c3671ef9d",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F02.P1": {
+          "canonical_fragment_sha256": "cfb919acce654b47c81f53cc390ae9280de7023cde5253555e20eb93c274f114",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F02.P2": {
+          "canonical_fragment_sha256": "8137609bfc34d654853b615ac3ab1ca8e8635ec3b30a311200bc2aa46bf27afa",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F03.P1": {
+          "canonical_fragment_sha256": "557a6f2978407a0fc648eb0885e4d9b1c70cca930bc7ac9a42c436a52f6cd522",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F03.P2": {
+          "canonical_fragment_sha256": "15b9ca274997545366320922ddf30b0418199f9b854f11fab48c336650795e50",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P1": {
+          "canonical_fragment_sha256": "f048542bbc23888fd68321335479dacfc77d053811a3af8a30cea5e18a581b4b",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P2": {
+          "canonical_fragment_sha256": "6e9cc77d757c264d0650aab59ffd35c7fda243e68a146f61af77bf779266195a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P3": {
+          "canonical_fragment_sha256": "f6417341c46d7bd6659ff83f744be500d713ed0bb79e32cdec3d90bb375cd032",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P1": {
+          "canonical_fragment_sha256": "b0b3df217e0329d7d7923430fbe4b57dc5f6efa8e811b03e853f0bca852912a8",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P2": {
+          "canonical_fragment_sha256": "7ca30f12a9d3a8dddc48cf40e330c0060b2a5aac9c2994b5498df402d315ba2e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P3": {
+          "canonical_fragment_sha256": "31dc2d0651f1826d29cb452b5fcb5ae53ce93150bba81c7dc97c709e7129b8ea",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F06.P1": {
+          "canonical_fragment_sha256": "c583410ea4299809697fde3053cd4f047dc20ce3d1b82d7da82d075f18a778b8",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F06.P2": {
+          "canonical_fragment_sha256": "8dac543c86b389f1f790e4babccc950ed3e0b563910130a3ec5c92f137c72418",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F07.P1": {
+          "canonical_fragment_sha256": "baab5a393c68a41243de6a8dda4be41f15f2d63e376831ceb7a90f5421123a9f",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F07.P2": {
+          "canonical_fragment_sha256": "0d204543542e0aa662c71e8ff7ded51326fff75120e2af16e80b3b30db35d183",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F08.P1": {
+          "canonical_fragment_sha256": "6138881757f5e79c274cf52c75feae7c73696cdb84dc95f30d74bd0327a222b1",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F08.P2": {
+          "canonical_fragment_sha256": "fd83fb9702ff285f446e596f73137562cd78f104e89b8df16e24f15c8308c3fb",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F09.P1": {
+          "canonical_fragment_sha256": "087404682d60b0818650aa2c3ca421dd596685ce65cbfb3d22af11dd1a75a61e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F09.P2": {
+          "canonical_fragment_sha256": "ad81d799a4123b5a1693d179a8440936c864e61583cd3e11f6b3e51f3f17e632",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F10.P1": {
+          "canonical_fragment_sha256": "faec0d5d02c8a9c9bb67577349a4b48efd780ae4317642408c7262fcf41d2e79",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F10.P2": {
+          "canonical_fragment_sha256": "a7c7a085c8171a217d5883e0848f0e3a0737743dfb73147d94ea9f7d8b7d9f15",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F11.P1": {
+          "canonical_fragment_sha256": "1542fbf4ee1785ce25235740fdabf74aaff767a99fb971216c49f367bbb69810",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F11.P2": {
+          "canonical_fragment_sha256": "e66d89edb27e9147e2e417a583fec19b0e00b24b906f14e9c21c33c766b6c1c1",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F12.P1": {
+          "canonical_fragment_sha256": "a15dbf30fc9d69e2ba99d2900d6e791a6e2bbd0af7e944e97843e8661b964ad1",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F12.P2": {
+          "canonical_fragment_sha256": "9bf8da90c4369c25c5afc59ca235f413a0aaaafab58d1357aaf51a84936c53bf",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F13.P1": {
+          "canonical_fragment_sha256": "18d6dbd0cb3635ea73162b5546600df470fc472e4b2d1cf2636d53c0a7c69e5c",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F13.P2": {
+          "canonical_fragment_sha256": "1f8162781462a6a1e8f967c17efccc42edf3d3a6a31240affbfa505088c9b1ba",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P1": {
+          "canonical_fragment_sha256": "c1e9c6b020db95d2d56b46ae2b30a20e5516158b09d3231548f42bc53eeee02e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P2": {
+          "canonical_fragment_sha256": "e44827ba25aa5b560a44918b005483afa0ff25a9568f1d4bdaabfb3cda932eff",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P3": {
+          "canonical_fragment_sha256": "66c8b98dcedaea8f7a320b67f20d4e7294c3fcebcf69db0e895d9e5ee11f758c",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P1": {
+          "canonical_fragment_sha256": "0c5d0c0047423ff863b85640e0afa96fa9033df71b6e2d126e22fc5f0d5f2a78",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P2": {
+          "canonical_fragment_sha256": "df1d4ffa07add90f42300b72b0ab82fa088b3fa8da122676c15bc60db0a6adf2",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P3": {
+          "canonical_fragment_sha256": "df4fb6da11cd72ec025e56dff261e06a1fb73d90dac6cc40cf43bc81a003866a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F16.P1": {
+          "canonical_fragment_sha256": "b641cbbbbefdbc1636ea86df4aee12eb260ac977c3286d0bb6f93b7a6016f089",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F16.P2": {
+          "canonical_fragment_sha256": "2b1ee06b48e894c8642e18ece4ba64fe037ca2e9adf0c5223c9bfcb82baa7945",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F17.P1": {
+          "canonical_fragment_sha256": "d8508879581b0d61604792ba28970f779a1fbd490b2e8dccababa8f929410e51",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F17.P2": {
+          "canonical_fragment_sha256": "ac9c66d54aa92afa4f6e4cf09559d7bd678ef9f4b6433197566b39c4eb045340",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F18.P1": {
+          "canonical_fragment_sha256": "9a027a3c4b0dbfca5f334997e996ba0b8fe60d90f9441641970b9d17f4c9a984",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F18.P2": {
+          "canonical_fragment_sha256": "c289e741a0f10172fb9adaaa7b01ab397556fd33eedf80a79657c46b4914915c",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F19.P1": {
+          "canonical_fragment_sha256": "5bff1b99c75b20a10fca4f7df79aa2897cea794f7216467fcee22d782c25fe78",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F19.P2": {
+          "canonical_fragment_sha256": "9e26eade8cdcaf13aa888b8fcc3d5969d0efc1b55e97743247bada47eef94309",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F20.P1": {
+          "canonical_fragment_sha256": "e3e2ee6f226a1a8e47372a3ef4629150abc32a79f34005fec8b20db22a92037d",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F20.P2": {
+          "canonical_fragment_sha256": "9da7748c45a84b6d638666564aae4f34a1a901142f705779d15a47db1dfa20bb",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "legacy_recertification": {
+        "canonical_catalog_sha256": "d524701650204cbb3dfa8fd2074413ce72f6d785a239180bf49def27c8e7cf9b",
+        "current_rubric_sha256": "fcfffe7e6819402b05c62283c25d79a1d79b7cf69197122c3560b9b395a48450",
+        "current_sc_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+        "density_source_selection": "same-run",
+        "migration_rule": "semantic-legacy-llm-recertification",
+        "migration_rule_version": 1,
+        "mode": "paid-evidence-current-schema-v1",
+        "policy": "Support judgments are recovered from the preserved paid Capability Coverage record and re-checked against the current rubric. Fragments come from the same scientific experiment's Semantic Density evidence (same-run preferred; cross-run only after exact shared-identity proof), with only the small reviewed fragment-override table filling historical omissions. Current trusted runtime facts own F20.P1 for Python/Go/Java/Kotlin. This is legacy LLM recertification and never claims that the historical run mechanically compiled or executed these reconstructed fixtures.",
+        "recertifier": "GPT-5.6 Sol",
+        "schema_version": 1,
+        "scientific_identity_sha256": "76afce9780fd044b18935a7f0a18b0dbf21b18d45b9e98e59af755ff65d4ea5c",
+        "source_density_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+        "source_density_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+        "source_density_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_density_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "source_owner_record": "v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json",
+        "source_owner_record_sha256": "7b41cfe9d9830cb97364b98841a5589b2f28ee12eb1c4895c19e63c922070c94",
+        "source_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "support_re_adjudications": {},
+        "verdict": "PASS"
+      },
+      "metric.capability_coverage": {
+        "blockers": [],
+        "coverage_formula": "C = 100 * numerator / denominator",
+        "coverage_score": 98.8636363636,
+        "coverage_score_rounded": 98.86,
+        "denominator": 88,
+        "denominator_note": "44 probes x 2 capability points, frozen per capability_universe.json capability_point_assignment_rule",
+        "family_breakdown": {
+          "1. value and storage declaration": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "10. explicit and implicit type conversion": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "11. indexing and slicing": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "12. nullable / optional values": {
+            "coverage": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "13. errors, failure values, exceptions, and propagation": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "14. alternatives / sum / variant types and dispatch over alternatives": {
+            "coverage": 100.0,
+            "denominator": 6,
+            "numerator": 6
+          },
+          "15. generics / parametric polymorphism": {
+            "coverage": 100.0,
+            "denominator": 6,
+            "numerator": 6
+          },
+          "16. collections and iteration": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "18. modules, imports, and dependency boundaries": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "19. concurrency / asynchronous execution where the language supports it": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "2. initialization and potentially uninitialized state": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "20. FFI / interoperability boundaries": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "3. mutation": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+            "coverage": 100.0,
+            "denominator": 6,
+            "numerator": 6
+          },
+          "5. function calls and argument-passing semantics": {
+            "coverage": 100.0,
+            "denominator": 6,
+            "numerator": 6
+          },
+          "6. return-value semantics": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "7. arithmetic operators": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "9. equality, ordering, and comparison": {
+            "coverage": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          }
+        },
+        "language": "C++",
+        "limitations": "This evidence was produced by static analysis of the frozen probe/toolchain specification against documented C++20/clang++ semantics (no live compiler/execution environment was available inside this packet-only worker). Per spec 6.1.7/V1, an implementation-mechanical pass should still build and run each FULL/PARTIAL fragment under the frozen recipe (clang++ -std=c++20 -O2) and record exact stdout/exit status before this figure is treated as fully audited; in particular F19.P2's MANDATORY 20-consecutive-run verification (value 2000) was not executed here and should be performed by a mechanical/build-capable worker to close that evidence gap.",
+        "na_policy_compliance": "No probe scored N/A for C++; all 44 probes carry a FULL or PARTIAL determination with a written justification per NA-6/NA-5. Zero NONE results for C++, so V4 (language with NONE on more than one third of probes) does not trigger.",
+        "numerator": 87,
+        "per_probe_support": {
+          "F01.P1": {
+            "level": "FULL",
+            "note": "const int n = 7; return n; \u2014 const local binding, no annotation needed.",
+            "points": 2
+          },
+          "F01.P2": {
+            "level": "FULL",
+            "note": "namespace-scope `int64_t counter = 0;` (mutable, reassignable) and `constexpr int64_t LIMIT = 100;` (compile-time constant).",
+            "points": 2
+          },
+          "F02.P1": {
+            "level": "FULL",
+            "note": "`int32_t v; if(cond){v=5;}else{v=9;} return v;` \u2014 C++ permits declaration without initializer; definite assignment on both branches makes subsequent read well-defined.",
+            "points": 2
+          },
+          "F02.P2": {
+            "level": "FULL",
+            "note": "`unsigned char buf[16]; buf[0]=1; return buf[0];` \u2014 local array of trivial type is default-initialized (indeterminate value) without an initializer per [dcl.init].",
+            "points": 2
+          },
+          "F03.P1": {
+            "level": "FULL",
+            "note": "`x += 1;` in-place compound assignment, fewest-token form per R10.",
+            "points": 2
+          },
+          "F03.P2": {
+            "level": "FULL",
+            "note": "`xs[1] = 42;` in-place element mutation via std::vector::operator[].",
+            "points": 2
+          },
+          "F04.P1": {
+            "level": "FULL",
+            "note": "`int slot=4; int& port = slot; port=9; return slot;` \u2014 lvalue reference is a writable alias.",
+            "points": 2
+          },
+          "F04.P2": {
+            "level": "FULL",
+            "note": "`std::span<const int> window(xs); return window[0];` \u2014 C++20 std::span is a non-owning, non-copying read-only view.",
+            "points": 2
+          },
+          "F04.P3": {
+            "level": "FULL",
+            "note": "Heap-allocated object via `new`, second handle obtained by routing through a one-element `std::vector<Obj*>`, identity compared with pointer equality `first==second` (reference/pointer identity, not value equality).",
+            "points": 2
+          },
+          "F05.P1": {
+            "level": "FULL",
+            "note": "`f(x)` bare call, `x` a std::vector<int> passed with no sigil \u2014 plainest ordinary call-site form.",
+            "points": 2
+          },
+          "F05.P2": {
+            "level": "FULL",
+            "note": "`void put(int& c){c=12;} ... put(cell); return cell;` \u2014 reference parameter is C++'s dedicated writable-alias-passing form.",
+            "points": 2
+          },
+          "F05.P3": {
+            "level": "FULL",
+            "note": "Lambda `auto neg = [k](int a){return k-a;};` captures enclosing local `k`, passed by name to `std::transform` (standard higher-order sequence operation).",
+            "points": 2
+          },
+          "F06.P1": {
+            "level": "FULL",
+            "note": "`int mid(const std::vector<int>& xs){return xs[1];} auto y = mid(xs); return y;`",
+            "points": 2
+          },
+          "F06.P2": {
+            "level": "FULL",
+            "note": "`std::pair<int,int> divmod2(int a,int b){return {a/b,a%b};} auto [q,r]=divmod2(a,b); return q+r;` \u2014 structured bindings destructure the pair at the call site.",
+            "points": 2
+          },
+          "F07.P1": {
+            "level": "FULL",
+            "note": "`auto r = a*b+c;` ordinary precedence, no redundant parens.",
+            "points": 2
+          },
+          "F07.P2": {
+            "level": "FULL",
+            "note": "`auto q=a/b; auto m=a%b; double d = (double)a/b;` \u2014 truncating integer division, C++ % takes sign of dividend, explicit cast for real division.",
+            "points": 2
+          },
+          "F08.P1": {
+            "level": "FULL",
+            "note": "No std checked/wrapping/saturating integer op exists in C++20 (rungs i-iii unavailable); rung iv (plain `m+1` operator) used per canonical_task's own explicit preference order, which permits this fallback. C++ has no checked arithmetic mode (toolchain_binding.safety_mode_clause records this as a language fact, not a recipe deviation); overflow is UB, scored by metrics B/D not by support level.",
+            "points": 2
+          },
+          "F08.P2": {
+            "level": "FULL",
+            "note": "Rung ii used: `int q; if(b==0){q=0;}else{q=a/b;}` \u2014 no std checked-division operation exists in C++20 std lib (rung i unavailable).",
+            "points": 2
+          },
+          "F09.P1": {
+            "level": "FULL",
+            "note": "`bool eq = (s1==s2);` \u2014 std::string operator== compares contents.",
+            "points": 2
+          },
+          "F09.P2": {
+            "level": "FULL",
+            "note": "`std::sort(xs.begin(),xs.end(),std::greater<int>());` explicit descending comparator (in-place, mutates xs); `bool lt = a<b;`",
+            "points": 2
+          },
+          "F10.P1": {
+            "level": "FULL",
+            "note": "`int32_t small = static_cast<int32_t>(big);` explicit narrowing conversion (rung ii); C++20 `std::in_range<int32_t>(big)` also available for a checked-style guard.",
+            "points": 2
+          },
+          "F10.P2": {
+            "level": "FULL",
+            "note": "`double sum = i + d;` \u2014 implicit usual-arithmetic-conversion promotes `i` to double, no explicit cast required or written.",
+            "points": 2
+          },
+          "F11.P1": {
+            "level": "FULL",
+            "note": "`int e = xs[i]; return e;` \u2014 std::vector::operator[] ordinary indexed read (UB on out-of-range, unchecked).",
+            "points": 2
+          },
+          "F11.P2": {
+            "level": "FULL",
+            "note": "`std::vector<int> part(xs.begin()+1, xs.begin()+4); return part[0];` \u2014 range-constructor sub-range (copies elements).",
+            "points": 2
+          },
+          "F12.P1": {
+            "level": "FULL",
+            "note": "`std::optional<int> o = std::nullopt; int n = o.value_or(0); return n;` \u2014 std::optional (C++17) is a documented type-level absent-value construct with standard fallback form.",
+            "points": 2
+          },
+          "F12.P2": {
+            "level": "PARTIAL",
+            "note": "C++20 std::optional has no monadic and_then/transform (added only in C++23; frozen recipe is c++20). No standard optional-aware chaining/mapping operation is available, so per R9/na named-substitution rule the explicit conditional is written instead: `int p_val; if(o.has_value()) p_val=h(o.value()); else { /*absent*/ } int result = o.has_value()? h(o.value()) : 0;`. Scored PARTIAL under P-a (substituted weaker mechanism), never FULL, per canonical_task's own named substitution clause.",
+            "p_letters": [
+              "P-a"
+            ],
+            "points": 1
+          },
+          "F13.P1": {
+            "level": "FULL",
+            "note": "`int parse_twice(const std::string& s){ return std::stoi(s)*2; }` \u2014 std::stoi throws std::invalid_argument/std::out_of_range on failure; unhandled, it propagates automatically to the caller.",
+            "points": 2
+          },
+          "F13.P2": {
+            "level": "FULL",
+            "note": "`int n; try { n = std::stoi(s); } catch(...) { n = 0; } return n;` \u2014 try/catch is C++'s local-handling construct.",
+            "points": 2
+          },
+          "F14.P1": {
+            "level": "FULL",
+            "note": "`using Shape = std::variant<Circle,Rect>; Shape s = Circle{2.0};` \u2014 std::variant (C++17) is a closed alternative set fixed at the type's declaration; no code elsewhere can add a third alternative to this Shape alias.",
+            "points": 2
+          },
+          "F14.P2": {
+            "level": "FULL",
+            "note": "`double area = std::visit(AreaVisitor{}, s);` with a visitor struct providing `operator()` overloads for both Circle and Rect, no default arm; std::visit requires the visitor be callable for every alternative in the variant, so an unhandled alternative is a compile error (exhaustiveness enforced statically).",
+            "points": 2
+          },
+          "F14.P3": {
+            "level": "FULL",
+            "note": "Abstract base `struct ShapeBase { virtual double area() const = 0; };` with Circle/Rect implementations in unit `shapes`; a new `Tri : ShapeBase` implementing area() is added in a separate translation unit without editing `shapes`, called through `ShapeBase&`/pointer. Uses the frozen multi-unit recipe (toolchain_binding.multi_unit_recipes).",
+            "points": 2
+          },
+          "F15.P1": {
+            "level": "FULL",
+            "note": "`template<typename T> T head(const std::vector<T>& xs){ return xs[0]; }` \u2014 template result type is exactly T, not erased/boxed; used at int and std::string.",
+            "points": 2
+          },
+          "F15.P2": {
+            "level": "FULL",
+            "note": "`template<std::totally_ordered T> T max_of(T a, T b){ return a>b?a:b; }` \u2014 C++20 concept `std::totally_ordered` is a declaration-site constraint.",
+            "points": 2
+          },
+          "F15.P3": {
+            "level": "FULL",
+            "note": "Abstract `struct Named { virtual std::string tag() const = 0; };`, concrete A/B, `std::vector<std::unique_ptr<Named>> items` holding one of each, `items[0]->tag()` dispatched at runtime via vtable, concrete type not recoverable from the declared element type Named.",
+            "points": 2
+          },
+          "F16.P1": {
+            "level": "FULL",
+            "note": "`std::vector<int> xs{1,2,3}; int total = std::accumulate(xs.begin(),xs.end(),0); return total;` \u2014 std::accumulate is the standard fold/sum operation (documented in <numeric>).",
+            "points": 2
+          },
+          "F16.P2": {
+            "level": "FULL",
+            "note": "`std::map<std::string,int> mp{{\"a\",1}}; int total=0; for(auto&[k,v]:mp) total+=v; auto it=mp.find(\"b\"); int miss = it!=mp.end()? it->second : 0; return total+miss;` \u2014 std::map has a documented sorted iteration order (unlike std::unordered_map).",
+            "points": 2
+          },
+          "F17.P1": {
+            "level": "FULL",
+            "note": "`int read_all(){ std::ifstream f(\"data.txt\"); std::string text((std::istreambuf_iterator<char>(f)),std::istreambuf_iterator<char>()); return (int)text.size(); }` \u2014 std::ifstream's destructor (RAII) closes the handle on every scope exit, including exceptions.",
+            "points": 2
+          },
+          "F17.P2": {
+            "level": "FULL",
+            "note": "`struct Handle{ int id; ~Handle(){ ++released; } }; { Handle h{1}; } return released;` \u2014 C++ destructors run deterministically and exactly once at end of object lifetime.",
+            "points": 2
+          },
+          "F18.P1": {
+            "level": "FULL",
+            "note": "`#include <iostream>` then `std::cout << \"x\\n\";` \u2014 include makes std::cout available; iostream's the standard console facility.",
+            "points": 2
+          },
+          "F18.P2": {
+            "level": "FULL",
+            "note": "Unit `util.cpp`: `int secret(){return 1;}` given internal linkage via an anonymous namespace or `static`, plus exported `int pub_add(int a,int b){return a+b+secret();}` declared in util.hpp; external call `util::pub_add(2,3)` (or free-function form) from a separate translation unit using the frozen multi-unit recipe. Internal linkage prevents `secret` from being referenced outside its translation unit ([basic.link]).",
+            "points": 2
+          },
+          "F19.P1": {
+            "level": "FULL",
+            "note": "`auto fut1=std::async(std::launch::async,[]{return 20;}); auto fut2=std::async(std::launch::async,[]{return 22;}); int sum=fut1.get()+fut2.get();` \u2014 std::async/std::future (<future>) is the standard concurrency facility.",
+            "points": 2
+          },
+          "F19.P2": {
+            "level": "FULL",
+            "note": "`std::atomic<int64_t> counter{0};` incremented via `counter.fetch_add(1, std::memory_order_relaxed)` from two `std::thread`s, 1000 times each, then joined; std::atomic's read-modify-write operations are documented atomic and race-free ([atomics.types.generic]).",
+            "points": 2
+          },
+          "F20.P1": {
+            "level": "FULL",
+            "note": "`#include <cstdlib> ... int r = abs(-3); return r;` \u2014 <cstdlib>'s `abs` is a C-linkage (extern \"C\") declaration; C++ calls C functions natively without a separate binding-generator step, satisfying the built-in FFI mechanism requirement.",
+            "points": 2
+          },
+          "F20.P2": {
+            "level": "FULL",
+            "note": "`extern \"C\" int add2(int a,int b){ return a+b; }` \u2014 extern \"C\" gives C calling convention and an unmangled external symbol `add2` (verifiable with `nm`).",
+            "points": 2
+          }
+        },
+        "support_rubric_applied": "capability_universe.json support_rubric levels FULL(1.0)/PARTIAL(0.5)/NONE(0). C++ has 43 FULL probes and 1 PARTIAL probe (F12.P2), zero NONE.",
+        "toolchain_recipe": "clang++ -std=c++20 -O2 FILE.cpp -o BIN (multi-unit recipe for F14.P3/F18.P2: clang++ -std=c++20 -O2 util.cpp FILE.cpp -o BIN)"
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "C++": 98.863636
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+  "schema_version": 1
+}

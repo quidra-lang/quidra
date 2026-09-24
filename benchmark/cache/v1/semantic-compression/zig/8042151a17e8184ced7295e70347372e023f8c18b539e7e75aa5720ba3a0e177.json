@@ -1,0 +1,1148 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "canonical_catalog_sha256": "121c47bc24543783dd9df9f5d7cfe3a6d89307f142372f1159ab873f56850d51",
+    "compatibility_migration": "semantic-legacy-llm-recertification",
+    "current_validator_revalidated": true,
+    "current_validator_revalidation_required": true,
+    "primary_complete": false,
+    "semantic_legacy_owner_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "6e429799ce24d29b82068c549408bd18793113fc3273e9eed13c6afd590deb20",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--zig",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "Historical paid Semantic Compression evidence was re-adjudicated against the current frozen rubric by the trusted GPT-5.6 Sol recertifier. The result is bound to a frozen provenance snapshot containing the exact legacy source hashes and current canonical fragments. This mode never claims that legacy fragments were mechanically compiled when the retained run did not perform that verification.",
+    "migration_rule": "semantic-legacy-llm-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18",
+    "source_record": "v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json",
+    "source_record_sha256": "271fef1abab329c7edd761e01597b3f3ffa610ba46e273c7c10bb0acb67ee4ea",
+    "source_result_sha256": "e6c60baf16da1705bd99af51c45979264faa6f25ecdc0f4895342fd2abb5e6c3",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification",
+      "canonical_fragments",
+      "canonical_verification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "6e429799ce24d29b82068c549408bd18793113fc3273e9eed13c6afd590deb20",
+    "run_id": "cache-recertify-7c43dba",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--zig"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F01.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F01.P1",
+          "fragment": "const n = 7;\nreturn n;",
+          "justification": "const n: i32 = 7; return n; \u2014 immutable binding, no annotation needed beyond literal typing.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F01.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F01.P2",
+          "fragment": "var counter: i64 = 0;\nconst LIMIT: i64 = 100;",
+          "justification": "var counter: i64 = 0; const LIMIT: i64 = 100; at file scope \u2014 mutable var vs immutable const clearly distinguished.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F02.P1",
+          "fragment": "var v: i32 = undefined;\nif (cond) { v = 5; } else { v = 9; }\nreturn v;",
+          "justification": "var v: i32 = undefined; then definite assignment on both branches of an if; Zig's `undefined` is the documented explicit uninitialized-storage marker satisfying R9's non-placeholder requirement (uninitialized is a first-class concept, not a hidden zero-fill).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F02.P2",
+          "fragment": "var buf: [16]u8 = undefined;\nbuf[0] = 1;\nreturn buf[0];",
+          "justification": "var buf: [16]u8 = undefined; \u2014 genuinely uninitialized buffer, documented Zig mechanism distinct from zero-init.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F03.P1",
+          "fragment": "x += 1;",
+          "justification": "x += 1; \u2014 compound assignment, checked-overflow in ReleaseSafe (ub/trap semantics documented).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F03.P2",
+          "fragment": "xs.items[1] = 42;",
+          "justification": "xs.items[1] = 42; on std.ArrayList(i32) mutates backing slice in place.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F04.P1",
+          "fragment": "var slot: i32 = 4;\nconst port = &slot;\nport.* = 9;\nreturn slot;",
+          "justification": "const port = &slot; port.* = 9; \u2014 explicit pointer alias with write-through, dereference required by syntax.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F04.P2",
+          "fragment": "const window = xs.items;\nreturn window[0];",
+          "justification": "const window = xs.items[0..]; \u2014 non-copying slice view over existing storage; slices are documented as non-owning views.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F04.P3",
+          "fragment": "const first = try allocator.create(Handle);\nfirst.id = 5;\nvar box = [1]*Handle{first};\nconst second = box[0];\nconst same = first == second;\nreturn same;",
+          "justification": "Pointer/reference equality via `==` on pointers to a heap-allocated struct \u2014 distinguishes identity from value equality; routing through a one-element array-list and reading back preserves the pointer for the identity test.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F05.P1",
+          "fragment": "var x = ArrayList(i32) with 1,2,3;\nf(x);\nreturn x.items[0];",
+          "justification": "f(x) bare call \u2014 Zig has no implicit reference passing for aggregate value types at an ordinary call site; ArrayList passed by value is a struct copy of the descriptor, elements are heap-shared depending on type, expressible and buildable.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F05.P2",
+          "fragment": "fn put(cell: *i32) void { cell.* = 12; }\nvar cell: i32 = 3;\nput(&cell);\nreturn cell;",
+          "justification": "fn put(cell: *i32) void { cell.* = 12; } \u2014 explicit pointer parameter required by the language for caller-writable scalar access.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F05.P3",
+          "fragment": null,
+          "justification": "Zig has no lexical closures: a nested function cannot capture a variable (`k`) from its enclosing function scope; only top-level/comptime-parameterized functions exist, and capturing state requires passing it explicitly as an argument/struct field, which the canonical_task's numbered sub-requirement (2) explicitly forbids (capture, not parameter passing). No documented mechanism satisfies sub-requirement (1); citation: Zig language reference, functions section \u2014 no closures/anonymous capturing functions are supported.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F06.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F06.P1",
+          "fragment": "fn mid(xs: []const i32) i32 { return xs[1]; }\nconst xs = ...;\nconst y = mid(xs);\nreturn y;",
+          "justification": "fn mid(xs: []const i32) i32 { return xs[1]; } \u2014 returns a value (i32), independent of the slice, buildable.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F06.P2",
+          "fragment": "fn divmod2(a:i32,b:i32) struct{q:i32,r:i32} { return .{.q=@divTrunc(a,b),.r=@mod(a,b)}; }\nconst res = divmod2(a,b);\nreturn res.q+res.r;",
+          "justification": "Zig supports returning an anonymous struct/tuple-like aggregate: fn divmod2(a,b: i32) struct{q:i32,r:i32} \u2014 destructure at call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F07.P1",
+          "fragment": "const r = a * b + c;",
+          "justification": "const r = a * b + c; ordinary precedence, checked-overflow semantics under ReleaseSafe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F07.P2",
+          "fragment": "const q=@divTrunc(a,b);\nconst m=@rem(a,b);\nconst d=@as(f64,@floatFromInt(a))/@as(f64,@floatFromInt(b));",
+          "justification": "Zig requires explicit @divTrunc/@mod builtins for integer division/remainder (no bare `/` on ints without exactness guarantee) and @as(f64,...) conversions for float division \u2014 all explicit, buildable.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F08.P1",
+          "fragment": "const m: i32 = std.math.maxInt(i32);\nconst ov=@addWithOverflow(m,1);\nconst o: i32 = if (ov[1]==1) 0 else ov[0];",
+          "justification": "@addWithOverflow(m, 1) returns a struct with overflow flag (rung akin to (i), substituting 0 on overflow) \u2014 behavior fully determinable from the construct; ReleaseSafe plain `+` traps deterministically as a fallback rung (iv).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F08.P2",
+          "fragment": "const q: i32 = if (b == 0) 0 else @divTrunc(a, b);",
+          "justification": "The unchanged canonical task explicitly makes a local b == 0 guard preference rung (ii). The retained guard therefore delivers every numbered requirement and is FULL, not a P-a substitution.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F09.P1",
+          "fragment": "const eq = std.mem.eql(u8, s1, s2);",
+          "justification": "std.mem.eql(u8, s1, s2) \u2014 documented contents comparison, unambiguously not identity comparison.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F09.P2",
+          "fragment": "std.sort.sort(i32, xs, {}, std.sort.desc(i32));\nconst lt = a < b;",
+          "justification": "std.sort.sort/std.mem.sort with an explicit descending comparator function value sorts the slice in place (documented in-place mutation, no allocation).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F10.P1",
+          "fragment": "const small: i32 = std.math.cast(i32, big) orelse 0;",
+          "justification": "std.math.cast(i32, big) returns ?i32 (rung i, checked conversion yielding optional) \u2014 explicit, documented.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F10.P2",
+          "fragment": "const sum = @as(f64, @floatFromInt(i)) + d;",
+          "justification": "Zig requires explicit @as(f64, i) / @floatFromInt(i) conversion before adding to a float; no implicit int-to-float promotion exists.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F11.P1",
+          "fragment": "const e = xs[i];\nreturn e;",
+          "justification": "xs[i] traps deterministically on out-of-range index under the frozen ReleaseSafe recipe (documented bounds-check behavior); std.mem provides no separate checked-optional indexed read as a competing form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F11.P2",
+          "fragment": "const part = xs[1..4];\nreturn part[0];",
+          "justification": "xs[1..4] slice syntax shares storage with the original array/slice (documented non-copying view).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F12.P1",
+          "fragment": "var o: ?i32 = null;\nconst n: i32 = o orelse 0;\nreturn n;",
+          "justification": "var o: ?i32 = null; const n = o orelse 0; \u2014 optional type in the type signature and standard coalescing operator `orelse`.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F12.P2",
+          "fragment": "fn h(a:i32) i32 { return a+1; }\nvar p: ?i32 = if (o) |v| h(v) else null;\nconst result: i32 = p orelse 0;",
+          "justification": "P-a: Zig's std library has no Optional.map/andThen chaining combinator; the canonical_task's non-if requirement can only be met by writing the explicit `if (o) |v| ... else null` unwrap form, the named R9 substitution.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F13.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F13.P1",
+          "fragment": "fn parse_twice(s: []const u8) !i32 { const v = try std.fmt.parseInt(i32, s, 10); return v * 2; }",
+          "justification": "std.fmt.parseInt returns an error union (![]u8->!i32); `try` propagates the failure to the caller, and the function's own return type (!i32) documents fallibility.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F13.P2",
+          "fragment": "const n: i32 = std.fmt.parseInt(i32, s, 10) catch 0;",
+          "justification": "std.fmt.parseInt(...) catch 0; \u2014 standard local error-handling operator with an explicit fallback value.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F14.P1",
+          "fragment": "const Shape = union(enum) { Circle: struct{r:f64}, Rect: struct{w:f64,h:f64} };\nconst s: Shape = .{.Circle = .{.r=2.0}};",
+          "justification": "union(enum) { Circle: f64, Rect: struct{w:f64,h:f64} } is a closed, exhaustive tagged union; the compiler forbids adding a case elsewhere.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F14.P2",
+          "fragment": "const area: f64 = switch (s) { .Circle => |c| 3.141592653589793*c.r*c.r, .Rect => |r| r.w*r.h };",
+          "justification": "switch (s) on the tagged union with no else arm is compiler-checked for exhaustiveness (compile error on missing case).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F14.P3",
+          "fragment": "manual vtable pattern: shapes unit declares Shape interface struct with fn ptr; Circle/Rect implement it; separate unit adds Tri implementing the same shape; dispatch through function pointer.",
+          "justification": "The current canonical task requires an extensible abstract operation across a separate unit; it does not require a built-in nominal interface keyword. Zig's documented type-erasure/vtable idiom using *anyopaque plus function pointers lets the shapes unit define the abstract Shape value while a separate unit adds Tri without editing shapes and dispatches area at runtime. All numbered requirements are therefore delivered without an R9 substitution.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F15.P1",
+          "fragment": "fn head(comptime T: type, xs: []const T) T { return xs[0]; }\nconst a = head(i32, .{4,5,6});\nconst b = head([]const u8, .{\"p\",\"q\"});",
+          "justification": "fn head(comptime T: type, xs: []const T) T { return xs[0]; } \u2014 declaration-level parametric type T with a statically recoverable T->T result relationship, reused at i32 and []const u8.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F15.P2",
+          "fragment": "fn max_of(comptime T: type, a: T, b: T) T { return if (a > b) a else b; }",
+          "justification": "P-a/P-c: Zig has no declaration-site trait/interface constraint syntax; a generic function's requirements are enforced only structurally at instantiation via comptime duck-typing, so misuse is diagnosed at the call/instantiation site, not at the generic's own declaration as the canonical_task requires.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a",
+            "P-c"
+          ]
+        },
+        "F15.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F15.P3",
+          "fragment": "manual vtable/fat-pointer pattern for Named interface with A/B implementations and a heterogeneous []Named-like slice of tagged pointers, dispatched at runtime.",
+          "justification": "The current canonical task asks for one declared abstract element type that can hold A and B and dispatch tag at runtime; it does not require a built-in interface construct. A Zig type-erased Named value with *anyopaque context plus a tag function pointer is one declared element type, can populate a heterogeneous sequence, and dispatches to the concrete implementation. The legacy PARTIAL/P-a classification therefore treated the ordinary vtable idiom as a substitute when it actually satisfies every numbered requirement.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F16.P1",
+          "fragment": "var xs = std.ArrayList(i32).init(allocator);\ntry xs.appendSlice(&[_]i32{1,2,3});\nvar total: i32 = 0;\nfor (xs.items) |v| total += v;\nreturn total;",
+          "justification": "std.ArrayList(i32) literal-style init plus a for-loop summing elements (no single-call fold/sum combinator in std, so the explicit iteration form is the R10-selected minimal form).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F16.P2",
+          "fragment": "var mp = std.StringHashMap(i32).init(allocator);\ntry mp.put(\"a\",1);\nvar total: i32 = 0;\nvar it = mp.iterator();\nwhile (it.next()) |entry| total += entry.value_ptr.*;\nconst miss: i32 = mp.get(\"b\") orelse 0;\nreturn total + miss;",
+          "justification": "std.StringHashMap(i32) with an iterator for entries, and .get(\"b\") orelse 0 for the missing-key fallback lookup.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F17.P1",
+          "fragment": "fn read_all() !usize { const file = try std.fs.cwd().openFile(\"data.txt\", .{}); defer file.close(); const text = try file.readToEndAlloc(allocator, 1<<20); return text.len; }",
+          "justification": "defer file.close(); immediately after a successful open guarantees release on every exit path including the failure path of the subsequent read, per Zig's documented defer semantics (always runs at scope exit, LIFO).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F17.P2",
+          "fragment": "var released: i32 = 0;\nconst Handle = struct { id: i32, fn deinit(self:*Handle) void { released += 1; } };\n{ var h = Handle{.id=1}; defer h.deinit(); }\nreturn released;",
+          "justification": "P-a: Zig has no automatic end-of-lifetime hook (no destructors/drop); a user type's cleanup (incrementing `released`) must be invoked explicitly via `defer h.deinit();` at the call site rather than triggered automatically by the language at scope exit, the named R9-style substitution for a deterministic destructor.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F18.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F18.P1",
+          "fragment": "const std = @import(\"std\");\nstd.debug.print(\"x\\n\", .{});",
+          "justification": "const std = @import(\"std\"); std.debug.print(\"x\\n\", .{}); \u2014 import introduces `std` into scope, output statement is standard.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F18.P2",
+          "fragment": "util.zig: pub fn pub_add(a:i32,b:i32) i32 { return a+b+secret(); } fn secret() i32 { return 1; }\nmain: util.pub_add(2,3)",
+          "justification": "`pub fn pub_add` vs a non-`pub` `fn secret` in a `util.zig` module/file; `secret` is compiler-enforced unreachable outside the file; external call via `util.pub_add(2,3)` after `@import(\"util.zig\")`, using the frozen multi-unit recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F19.P1",
+          "fragment": "two std.Thread.spawn calls computing 20 and 22 into pointers, t1.join(); t2.join(); return sum.",
+          "justification": "std.Thread.spawn for two threads computing 20 and 22, .join() on both, summing results \u2014 Zig's current (post-async-removal) standard concurrency facility is OS threads via std.Thread, which is a standard, toolchain-shipped mechanism.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F19.P2",
+          "fragment": "std.atomic.Value(i64) counter; two std.Thread.spawn workers each looping fetchAdd(1,.SeqCst) 1000 times; join both; return counter.load(.SeqCst).",
+          "justification": "std.Thread.Mutex guarding the shared i64 counter across two threads each incrementing 1000 times, joined before reading the final value \u2014 documented race-free discipline via an explicit lock, verifiable in principle by repeated runs.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F20.P1",
+          "fragment": "const c = @cImport(@cInclude(\"stdlib.h\"));\nconst r: i32 = c.abs(-3);\nreturn r;",
+          "justification": "extern fn abs(x: c_int) c_int; declared and linked against libc per the frozen recipe (Zig's built-in C FFI, no third-party binding generator).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F20.P2",
+          "fragment": "export fn add2(a: i32, b: i32) callconv(.C) i32 { return a + b; }",
+          "justification": "export fn add2(a: c_int, b: c_int) c_int { return a + b; } \u2014 Zig's `export` keyword produces a C-ABI, unmangled external symbol directly, per language documentation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F01.P1": {
+          "canonical_fragment_sha256": "17a214f2f09db605c02a73ecf709f9cd967ffc183b89b259b2d89ec7589b70b4",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F01.P2": {
+          "canonical_fragment_sha256": "c91517e5d1b445bdced893dab887967bd09ad8d4772613b721dd8a4116d1532f",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F02.P1": {
+          "canonical_fragment_sha256": "e22a32d70004e0094419d5ce5e881d7ec6222b05ad7c7b112026d67774a4ad2b",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F02.P2": {
+          "canonical_fragment_sha256": "599952a189786f920fba25ee985a1d877dfa73f925e95766c6da98c74ba18e3c",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F03.P1": {
+          "canonical_fragment_sha256": "fdbf18e39a1bba8bab33b05050d1bfc1c1b3bd05fe5ce0baddd56c58fdc53ce5",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F03.P2": {
+          "canonical_fragment_sha256": "340028a1de0082f01b4529d1e27f2f30f9f5c08d4d1fdf238b279b45fa1e8918",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P1": {
+          "canonical_fragment_sha256": "ba4d8161997e3b579510a8163f141bc19c4b633c3e4f40e166d7cc8f3099befd",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P2": {
+          "canonical_fragment_sha256": "7177befd53c2c3c33b98e12b1ef3d59a0784f6c630e072fc44b0eb7711f50c2d",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P3": {
+          "canonical_fragment_sha256": "ebcd2b4682be552695092ec9555f778343eb45cdd75c91d87e14465ce4b0f88a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P1": {
+          "canonical_fragment_sha256": "7a0c316ef3d999f685510440f5e1a1df3ffb81f3bfbf0752085255edf182cdfc",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P2": {
+          "canonical_fragment_sha256": "e211faf5eba620453ba00b672f5bdf8b776af913c0ef94f6b89bf579aef55e0b",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F06.P1": {
+          "canonical_fragment_sha256": "1388a4589915f77ba5fdb7d39131516354651647de93b855dce652e0c142f532",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F06.P2": {
+          "canonical_fragment_sha256": "a1138cc0c6aa2d07732b735f205ed34db728be803541f7d96ce259307e1712e9",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F07.P1": {
+          "canonical_fragment_sha256": "21d64c5cb79a5faa4188bb0452f5724044edba8065f953f507af0b5db02d2fff",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F07.P2": {
+          "canonical_fragment_sha256": "5441a74933846fdc9877ece04f090fdba4ce514bbda075a93bdd850697b76994",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F08.P1": {
+          "canonical_fragment_sha256": "cac3918dad20519ebfcd931cf438ce3d89907148ce7427f36b52a7ec9c98a903",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F08.P2": {
+          "canonical_fragment_sha256": "ce72426f905250da0886a486300cf57a483fe1fd4415da94b3a946319b8f143b",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F09.P1": {
+          "canonical_fragment_sha256": "7b8ef8e6d37a6ffaed37d7b36ed9bb318d1362ff5f2df17b5793e077a62710ea",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F09.P2": {
+          "canonical_fragment_sha256": "93670a1e02bef0a90a7ac6cf343f9f96823c80a9003d27374a659d9af3c2cc77",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F10.P1": {
+          "canonical_fragment_sha256": "f7e8e62dad9e5d6d25aef467901479d210a8164a0e4cee5583a4b3465892d5dd",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F10.P2": {
+          "canonical_fragment_sha256": "48b50914ccdd8f2b1c2c92b0b8c1c2debf1a9949275b4274794f774f2455a186",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F11.P1": {
+          "canonical_fragment_sha256": "0faa4d1d1d2cce6c55209df7ba76d8d9fe1c745a02fd4d94797dfbbba6e3e33a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F11.P2": {
+          "canonical_fragment_sha256": "334ade6ca379520cf6dcd4e6cb3a087d561dc01376b4265f667f021533006bd5",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F12.P1": {
+          "canonical_fragment_sha256": "3818dda76a20b97a63813bc3df86d71dd7ded40ab2998ae27b38d0e1b14018ad",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F12.P2": {
+          "canonical_fragment_sha256": "ca9e98d1d5909e271eb4ba71b199f987df1f6c0d7a3f3a97da63ac8171d90327",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F13.P1": {
+          "canonical_fragment_sha256": "68227aa4355c6f438324bd9f2868c6c8cc61b18bf72de706b9703cb06bf09a27",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F13.P2": {
+          "canonical_fragment_sha256": "3d45b406c66e15c5caad974850488b1db9dd9f9e3ddff23d42a6f47ad8a31a70",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P1": {
+          "canonical_fragment_sha256": "3ddacc1a2d46a438f6b184b392a197fc04f260030d4b7183ef063ece77267df3",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P2": {
+          "canonical_fragment_sha256": "7694cc57e96b2042e4fb2961594c133062c4fe4ebbed8d5bc80a21850828085a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P3": {
+          "canonical_fragment_sha256": "10a18b80959020b57c3563a3ef9f7aa4fbfb44371d566a54fc986940e8b6dece",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P1": {
+          "canonical_fragment_sha256": "f7ba78af2d768d12c5a946195492cde0aae4b872b35469d8d9a624c83982217f",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P2": {
+          "canonical_fragment_sha256": "30c1193b0bccbd90b840ac3b0d1f0dfc76ee69739135e3953404dd2cf1edf903",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P3": {
+          "canonical_fragment_sha256": "20bc0baa779fcd69ccd2c6347e33d6cc109c5363e492bebcaf9ecd876edb425f",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F16.P1": {
+          "canonical_fragment_sha256": "c2a8ec9cc8ae2fe56d3e035e1166f57528a3401d576dafb61133024581a2b254",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F16.P2": {
+          "canonical_fragment_sha256": "f9a88859888dcc60d77acbbe4d43ca654c9474a4e926d3da7d612a43c46aa59b",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F17.P1": {
+          "canonical_fragment_sha256": "6803d2e2fa809e8b6aee5a3dcad628efcbd121b422b9b86b811d6c8efd6b9bfb",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F17.P2": {
+          "canonical_fragment_sha256": "7d4339018b42fd68381a1f62939bb6d20779d0d0165841b5646e292e1e952f2a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F18.P1": {
+          "canonical_fragment_sha256": "db685e6463079b25bfd4dca388d864478fe3f5ed8456a92a751cb24b3cfc46b1",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F18.P2": {
+          "canonical_fragment_sha256": "1b1ad6f5c645b0dff4b19fc6ffca76176526357db618e94a0e186ae94a6f7adf",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F19.P1": {
+          "canonical_fragment_sha256": "f2d83f3cc28b46c20086efd81d14c3061b58002242487326a90737513d27697c",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F19.P2": {
+          "canonical_fragment_sha256": "266ad43dd4789ba37b375588ca290c6872caaa1228399bcca1bd7bf322e1ea4f",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F20.P1": {
+          "canonical_fragment_sha256": "321af5f76896de016a99fd13ce9138addae30006bed5c7d1d25b2341b7b5fd76",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F20.P2": {
+          "canonical_fragment_sha256": "a319ad0fb9ebe2c8d28207056fdb0f00b614e50885fd2b0b4e2fe9c10b68cee5",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "legacy_recertification": {
+        "canonical_catalog_sha256": "121c47bc24543783dd9df9f5d7cfe3a6d89307f142372f1159ab873f56850d51",
+        "current_rubric_sha256": "fcfffe7e6819402b05c62283c25d79a1d79b7cf69197122c3560b9b395a48450",
+        "current_sc_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+        "density_source_selection": "same-run",
+        "migration_rule": "semantic-legacy-llm-recertification",
+        "migration_rule_version": 1,
+        "mode": "paid-evidence-current-schema-v1",
+        "policy": "Support judgments are recovered from the preserved paid Capability Coverage record and re-checked against the current rubric. Fragments come from the same scientific experiment's Semantic Density evidence (same-run preferred; cross-run only after exact shared-identity proof), with only the small reviewed fragment-override table filling historical omissions. Current trusted runtime facts own F20.P1 for Python/Go/Java/Kotlin. This is legacy LLM recertification and never claims that the historical run mechanically compiled or executed these reconstructed fixtures.",
+        "recertifier": "GPT-5.6 Sol",
+        "schema_version": 1,
+        "scientific_identity_sha256": "d0024c75806a81ab0be07dea8c6b95b3d87fdde745704c42a504fba080680a0d",
+        "source_density_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+        "source_density_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+        "source_density_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_density_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "source_owner_record": "v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json",
+        "source_owner_record_sha256": "271fef1abab329c7edd761e01597b3f3ffa610ba46e273c7c10bb0acb67ee4ea",
+        "source_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "support_re_adjudications": {
+          "F08.P2": {
+            "level": "FULL",
+            "reason": "The unchanged canonical task explicitly makes a local b == 0 guard preference rung (ii). The retained guard therefore delivers every numbered requirement and is FULL, not a P-a substitution."
+          },
+          "F14.P3": {
+            "level": "FULL",
+            "reason": "The current canonical task requires an extensible abstract operation across a separate unit; it does not require a built-in nominal interface keyword. Zig's documented type-erasure/vtable idiom using *anyopaque plus function pointers lets the shapes unit define the abstract Shape value while a separate unit adds Tri without editing shapes and dispatches area at runtime. All numbered requirements are therefore delivered without an R9 substitution."
+          },
+          "F15.P3": {
+            "level": "FULL",
+            "reason": "The current canonical task asks for one declared abstract element type that can hold A and B and dispatch tag at runtime; it does not require a built-in interface construct. A Zig type-erased Named value with *anyopaque context plus a tag function pointer is one declared element type, can populate a heterogeneous sequence, and dispatches to the concrete implementation. The legacy PARTIAL/P-a classification therefore treated the ordinary vtable idiom as a substitute when it actually satisfies every numbered requirement."
+          }
+        },
+        "verdict": "PASS"
+      },
+      "metric.capability_coverage": {
+        "counts_summary": {
+          "FULL": 37,
+          "NONE": 1,
+          "PARTIAL": 6,
+          "denominator": 88,
+          "numerator_points_recomputation": "37*2 + 6*1 + 1*0 = 74 + 6 + 0 = 80",
+          "total_probes": 44
+        },
+        "denominator": 88,
+        "formula": "C = 100 * (sum over 44 probes of capability_points(2) * support_factor) / 88",
+        "language": "Zig",
+        "measurement_basis_caveat": "packet-only worker: no live toolchain execution (V1 build/run gate) was available in this environment. Support levels below are a desk assessment against documented Zig language/std-library semantics (as of the Zig versions implied by the frozen recipe `zig build-exe -OReleaseSafe`), applying the frozen support rubric (FULL/PARTIAL/NONE) and R9 substitution rules from capability_universe.json. This is recorded as an infrastructure limitation, not a genuine N/A: the coverage value is a real, reproducible analytical estimate and should be re-validated against actual `zig build-exe -OReleaseSafe` build/run evidence before final publication (pre_measurement_validation V1).",
+        "na_policy_compliance": "No probe was excluded, deleted, or reweighted for Zig. F05.P3 is scored NONE (not N/A) per NA-2/NA-6, and its full 2 capability points remain in the fixed 88-point denominator.",
+        "numerator_points": 80,
+        "outstanding_items_for_full_gate": [
+          "V1 (build/run against the frozen `zig build-exe -OReleaseSafe` recipe) has not been executed in this packet-only environment; scores above should be reconciled against actual build/run evidence before the semantic-site comparability gate and COMPLETE status are asserted for Semantic Compression.",
+          "This worker covers only metric.capability_coverage for Zig; Semantic Density/Determinacy/Locality/Hidden-Cost/Capability-Efficiency and the common-basis cross-language comparability gate are out of scope for this work unit."
+        ],
+        "per_family_coverage": {
+          "1. value and storage declaration": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "10. explicit and implicit type conversion": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "11. indexing and slicing": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "12. nullable / optional values": {
+            "denominator": 4,
+            "numerator": 3,
+            "score": 75.0
+          },
+          "13. errors, failure values, exceptions, and propagation": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "14. alternatives / sum / variant types and dispatch over alternatives": {
+            "denominator": 6,
+            "numerator": 5,
+            "score": 83.33
+          },
+          "15. generics / parametric polymorphism": {
+            "denominator": 6,
+            "numerator": 4,
+            "score": 66.67
+          },
+          "16. collections and iteration": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+            "denominator": 4,
+            "numerator": 3,
+            "score": 75.0
+          },
+          "18. modules, imports, and dependency boundaries": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "19. concurrency / asynchronous execution where the language supports it": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "2. initialization and potentially uninitialized state": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "20. FFI / interoperability boundaries": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "3. mutation": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+            "denominator": 6,
+            "numerator": 6,
+            "score": 100.0
+          },
+          "5. function calls and argument-passing semantics": {
+            "denominator": 6,
+            "numerator": 4,
+            "score": 66.67
+          },
+          "6. return-value semantics": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "7. arithmetic operators": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          },
+          "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+            "denominator": 4,
+            "numerator": 3,
+            "score": 75.0
+          },
+          "9. equality, ordering, and comparison": {
+            "denominator": 4,
+            "numerator": 4,
+            "score": 100.0
+          }
+        },
+        "per_probe_support": {
+          "F01.P1": {
+            "note": "const n: i32 = 7; return n; \u2014 immutable binding, no annotation needed beyond literal typing.",
+            "support": "FULL"
+          },
+          "F01.P2": {
+            "note": "var counter: i64 = 0; const LIMIT: i64 = 100; at file scope \u2014 mutable var vs immutable const clearly distinguished.",
+            "support": "FULL"
+          },
+          "F02.P1": {
+            "note": "var v: i32 = undefined; then definite assignment on both branches of an if; Zig's `undefined` is the documented explicit uninitialized-storage marker satisfying R9's non-placeholder requirement (uninitialized is a first-class concept, not a hidden zero-fill).",
+            "support": "FULL"
+          },
+          "F02.P2": {
+            "note": "var buf: [16]u8 = undefined; \u2014 genuinely uninitialized buffer, documented Zig mechanism distinct from zero-init.",
+            "support": "FULL"
+          },
+          "F03.P1": {
+            "note": "x += 1; \u2014 compound assignment, checked-overflow in ReleaseSafe (ub/trap semantics documented).",
+            "support": "FULL"
+          },
+          "F03.P2": {
+            "note": "xs.items[1] = 42; on std.ArrayList(i32) mutates backing slice in place.",
+            "support": "FULL"
+          },
+          "F04.P1": {
+            "note": "const port = &slot; port.* = 9; \u2014 explicit pointer alias with write-through, dereference required by syntax.",
+            "support": "FULL"
+          },
+          "F04.P2": {
+            "note": "const window = xs.items[0..]; \u2014 non-copying slice view over existing storage; slices are documented as non-owning views.",
+            "support": "FULL"
+          },
+          "F04.P3": {
+            "note": "Pointer/reference equality via `==` on pointers to a heap-allocated struct \u2014 distinguishes identity from value equality; routing through a one-element array-list and reading back preserves the pointer for the identity test.",
+            "support": "FULL"
+          },
+          "F05.P1": {
+            "note": "f(x) bare call \u2014 Zig has no implicit reference passing for aggregate value types at an ordinary call site; ArrayList passed by value is a struct copy of the descriptor, elements are heap-shared depending on type, expressible and buildable.",
+            "support": "FULL"
+          },
+          "F05.P2": {
+            "note": "fn put(cell: *i32) void { cell.* = 12; } \u2014 explicit pointer parameter required by the language for caller-writable scalar access.",
+            "support": "FULL"
+          },
+          "F05.P3": {
+            "note": "Zig has no lexical closures: a nested function cannot capture a variable (`k`) from its enclosing function scope; only top-level/comptime-parameterized functions exist, and capturing state requires passing it explicitly as an argument/struct field, which the canonical_task's numbered sub-requirement (2) explicitly forbids (capture, not parameter passing). No documented mechanism satisfies sub-requirement (1); citation: Zig language reference, functions section \u2014 no closures/anonymous capturing functions are supported.",
+            "support": "NONE"
+          },
+          "F06.P1": {
+            "note": "fn mid(xs: []const i32) i32 { return xs[1]; } \u2014 returns a value (i32), independent of the slice, buildable.",
+            "support": "FULL"
+          },
+          "F06.P2": {
+            "note": "Zig supports returning an anonymous struct/tuple-like aggregate: fn divmod2(a,b: i32) struct{q:i32,r:i32} \u2014 destructure at call site.",
+            "support": "FULL"
+          },
+          "F07.P1": {
+            "note": "const r = a * b + c; ordinary precedence, checked-overflow semantics under ReleaseSafe.",
+            "support": "FULL"
+          },
+          "F07.P2": {
+            "note": "Zig requires explicit @divTrunc/@mod builtins for integer division/remainder (no bare `/` on ints without exactness guarantee) and @as(f64,...) conversions for float division \u2014 all explicit, buildable.",
+            "support": "FULL"
+          },
+          "F08.P1": {
+            "note": "@addWithOverflow(m, 1) returns a struct with overflow flag (rung akin to (i), substituting 0 on overflow) \u2014 behavior fully determinable from the construct; ReleaseSafe plain `+` traps deterministically as a fallback rung (iv).",
+            "support": "FULL"
+          },
+          "F08.P2": {
+            "note": "P-a: no standard checked-division-returning-optional exists in Zig's std library; only an explicit local `if (b == 0)` guard (rung ii) is available, substituting a weaker mechanism than a first-class optional-returning divide.",
+            "support": "PARTIAL"
+          },
+          "F09.P1": {
+            "note": "std.mem.eql(u8, s1, s2) \u2014 documented contents comparison, unambiguously not identity comparison.",
+            "support": "FULL"
+          },
+          "F09.P2": {
+            "note": "std.sort.sort/std.mem.sort with an explicit descending comparator function value sorts the slice in place (documented in-place mutation, no allocation).",
+            "support": "FULL"
+          },
+          "F10.P1": {
+            "note": "std.math.cast(i32, big) returns ?i32 (rung i, checked conversion yielding optional) \u2014 explicit, documented.",
+            "support": "FULL"
+          },
+          "F10.P2": {
+            "note": "Zig requires explicit @as(f64, i) / @floatFromInt(i) conversion before adding to a float; no implicit int-to-float promotion exists.",
+            "support": "FULL"
+          },
+          "F11.P1": {
+            "note": "xs[i] traps deterministically on out-of-range index under the frozen ReleaseSafe recipe (documented bounds-check behavior); std.mem provides no separate checked-optional indexed read as a competing form.",
+            "support": "FULL"
+          },
+          "F11.P2": {
+            "note": "xs[1..4] slice syntax shares storage with the original array/slice (documented non-copying view).",
+            "support": "FULL"
+          },
+          "F12.P1": {
+            "note": "var o: ?i32 = null; const n = o orelse 0; \u2014 optional type in the type signature and standard coalescing operator `orelse`.",
+            "support": "FULL"
+          },
+          "F12.P2": {
+            "note": "P-a: Zig's std library has no Optional.map/andThen chaining combinator; the canonical_task's non-if requirement can only be met by writing the explicit `if (o) |v| ... else null` unwrap form, the named R9 substitution.",
+            "support": "PARTIAL"
+          },
+          "F13.P1": {
+            "note": "std.fmt.parseInt returns an error union (![]u8->!i32); `try` propagates the failure to the caller, and the function's own return type (!i32) documents fallibility.",
+            "support": "FULL"
+          },
+          "F13.P2": {
+            "note": "std.fmt.parseInt(...) catch 0; \u2014 standard local error-handling operator with an explicit fallback value.",
+            "support": "FULL"
+          },
+          "F14.P1": {
+            "note": "union(enum) { Circle: f64, Rect: struct{w:f64,h:f64} } is a closed, exhaustive tagged union; the compiler forbids adding a case elsewhere.",
+            "support": "FULL"
+          },
+          "F14.P2": {
+            "note": "switch (s) on the tagged union with no else arm is compiler-checked for exhaustiveness (compile error on missing case).",
+            "support": "FULL"
+          },
+          "F14.P3": {
+            "note": "P-a: Zig's tagged unions are closed by design and cannot be extended from a separate unit; the only standard substitute for open extension is a hand-written vtable pattern (a struct of function pointers implemented per-type), which is a weaker, manually maintained mechanism rather than a first-class extensible dispatch construct.",
+            "support": "PARTIAL"
+          },
+          "F15.P1": {
+            "note": "fn head(comptime T: type, xs: []const T) T { return xs[0]; } \u2014 declaration-level parametric type T with a statically recoverable T->T result relationship, reused at i32 and []const u8.",
+            "support": "FULL"
+          },
+          "F15.P2": {
+            "note": "P-a/P-c: Zig has no declaration-site trait/interface constraint syntax; a generic function's requirements are enforced only structurally at instantiation via comptime duck-typing, so misuse is diagnosed at the call/instantiation site, not at the generic's own declaration as the canonical_task requires.",
+            "support": "PARTIAL"
+          },
+          "F15.P3": {
+            "note": "P-a: Zig has no interface/abstract-type runtime dispatch mechanism; heterogeneous runtime dispatch over two concrete types behind one declared element type must be hand-built with an explicit vtable struct (function pointers + opaque/erased pointer), a substituted weaker mechanism rather than a first-class abstract element type.",
+            "support": "PARTIAL"
+          },
+          "F16.P1": {
+            "note": "std.ArrayList(i32) literal-style init plus a for-loop summing elements (no single-call fold/sum combinator in std, so the explicit iteration form is the R10-selected minimal form).",
+            "support": "FULL"
+          },
+          "F16.P2": {
+            "note": "std.StringHashMap(i32) with an iterator for entries, and .get(\"b\") orelse 0 for the missing-key fallback lookup.",
+            "support": "FULL"
+          },
+          "F17.P1": {
+            "note": "defer file.close(); immediately after a successful open guarantees release on every exit path including the failure path of the subsequent read, per Zig's documented defer semantics (always runs at scope exit, LIFO).",
+            "support": "FULL"
+          },
+          "F17.P2": {
+            "note": "P-a: Zig has no automatic end-of-lifetime hook (no destructors/drop); a user type's cleanup (incrementing `released`) must be invoked explicitly via `defer h.deinit();` at the call site rather than triggered automatically by the language at scope exit, the named R9-style substitution for a deterministic destructor.",
+            "support": "PARTIAL"
+          },
+          "F18.P1": {
+            "note": "const std = @import(\"std\"); std.debug.print(\"x\\n\", .{}); \u2014 import introduces `std` into scope, output statement is standard.",
+            "support": "FULL"
+          },
+          "F18.P2": {
+            "note": "`pub fn pub_add` vs a non-`pub` `fn secret` in a `util.zig` module/file; `secret` is compiler-enforced unreachable outside the file; external call via `util.pub_add(2,3)` after `@import(\"util.zig\")`, using the frozen multi-unit recipe.",
+            "support": "FULL"
+          },
+          "F19.P1": {
+            "note": "std.Thread.spawn for two threads computing 20 and 22, .join() on both, summing results \u2014 Zig's current (post-async-removal) standard concurrency facility is OS threads via std.Thread, which is a standard, toolchain-shipped mechanism.",
+            "support": "FULL"
+          },
+          "F19.P2": {
+            "note": "std.Thread.Mutex guarding the shared i64 counter across two threads each incrementing 1000 times, joined before reading the final value \u2014 documented race-free discipline via an explicit lock, verifiable in principle by repeated runs.",
+            "support": "FULL"
+          },
+          "F20.P1": {
+            "note": "extern fn abs(x: c_int) c_int; declared and linked against libc per the frozen recipe (Zig's built-in C FFI, no third-party binding generator).",
+            "support": "FULL"
+          },
+          "F20.P2": {
+            "note": "export fn add2(a: c_int, b: c_int) c_int { return a + b; } \u2014 Zig's `export` keyword produces a C-ABI, unmangled external symbol directly, per language documentation.",
+            "support": "FULL"
+          }
+        },
+        "rounded_value": 90.91,
+        "support_rubric_applied": "capability_universe.json support_rubric levels/support_factor (FULL=1, PARTIAL=0.5, NONE=0), deterministic_tie_break question, and R9 named-substitution list.",
+        "value": 90.9090909090909
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Zig": 94.318182
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324",
+  "schema_version": 1
+}

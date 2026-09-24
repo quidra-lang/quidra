@@ -1,0 +1,1133 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "canonical_catalog_sha256": "f10303fb89af7e886bdc54cb132761d8a43472bbcb4b52bfb76c5545b09ec338",
+    "compatibility_migration": "semantic-legacy-llm-recertification",
+    "current_validator_revalidated": true,
+    "current_validator_revalidation_required": true,
+    "primary_complete": false,
+    "semantic_legacy_owner_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "de957162ece2f602cf403577658afb3084b7bc131cc9f331f1c3aa250b725c57",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--swift",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "Historical paid Semantic Compression evidence was re-adjudicated against the current frozen rubric by the trusted GPT-5.6 Sol recertifier. The result is bound to a frozen provenance snapshot containing the exact legacy source hashes and current canonical fragments. This mode never claims that legacy fragments were mechanically compiled when the retained run did not perform that verification.",
+    "migration_rule": "semantic-legacy-llm-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40",
+    "source_record": "v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json",
+    "source_record_sha256": "069a7e177d435045b8e77bb91e1e0acf1cf3d09d4c7ea5cdc0549e5e95f6831c",
+    "source_result_sha256": "6f836f6e56cab2d4abf59da7a9c778effc288586e4e31ce1351d3eb04fbafb9b",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification",
+      "canonical_fragments",
+      "canonical_verification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "de957162ece2f602cf403577658afb3084b7bc131cc9f331f1c3aa250b725c57",
+    "run_id": "cache-recertify-7c43dba",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--swift"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F01.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F01.P1",
+          "fragment": "let n = 7\nreturn n",
+          "justification": "let n = 7; return n \u2014 immutable local binding is the canonical Swift form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F01.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F01.P2",
+          "fragment": "var counter: Int64 = 0\nlet LIMIT: Int64 = 100",
+          "justification": "top-level/global var counter: Int64 = 0; let LIMIT: Int64 = 100 \u2014 global mutable var vs global immutable let, both standard.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F02.P1",
+          "fragment": "var v: Int32\nif cond { v = 5 } else { v = 9 }\nreturn v",
+          "justification": "var v: Int32; if cond { v = 5 } else { v = 9 }; return v \u2014 Swift's definite-initialization analysis accepts this on all-paths-assigned patterns.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F02.P2",
+          "fragment": "let buf = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: 16)\nbuf[0] = 1\nreturn buf[0]",
+          "justification": "UnsafeMutableBufferPointer<UInt8>.allocate(capacity: 16) yields genuinely uninitialized documented storage (first-class, opt-in unsafe stdlib API; F-6 permits documented unsafe facilities).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F03.P1",
+          "fragment": "x += 1",
+          "justification": "x += 1 \u2014 in-place compound assignment, checked-mode traps on overflow per frozen recipe (-O, traps retained).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F03.P2",
+          "fragment": "xs[1] = 42",
+          "justification": "xs[1] = 42 \u2014 Array subscript-assign mutates in place through the existing binding.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F04.P1",
+          "fragment": "var slot: Int32 = 4\nwithUnsafeMutablePointer(to: &slot) { port in\n    port.pointee = 9\n}\nreturn slot",
+          "justification": "withUnsafeMutablePointer(to:) gives a documented writable pointer to the same scalar storage, but it requires a closure-scope scaffold not requested by F04.P1. The retained mechanism therefore remains PARTIAL under P-e only; P-a is not permitted for this probe.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-e"
+          ]
+        },
+        "F04.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F04.P2",
+          "fragment": "let window = xs[0...]\nreturn window[0]",
+          "justification": "ArraySlice (xs[1...3] or a slicing view) shares storage with the original Array via copy-on-write without an eager copy; window[0]... reads without copying.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F04.P3",
+          "fragment": "class Box { var id: Int32 = 5 }\nlet first = Box()\nlet second = [first][0]\nlet same = (first === second)\nreturn same",
+          "justification": "=== is Swift's standard reference-identity operator for class instances, distinct from ==.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F05.P1",
+          "fragment": "let x = [1, 2, 3]\nf(x)\nreturn x[0]",
+          "justification": "f(x) \u2014 ordinary bare call syntax; Array has value semantics (COW) so no sigil is required or available at the call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F05.P2",
+          "fragment": "func put(_ cell: inout Int32) {\n    cell = 12\n}\nvar cell: Int32 = 3\nput(&cell)\nreturn cell",
+          "justification": "func put(_ cell: inout Int32) { cell = 12 }; put(&cell) \u2014 inout is Swift's dedicated explicit writable-parameter-passing form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F05.P3",
+          "fragment": "let neg = { (a: Int32) -> Int32 in k - a }\nlet ys = xs.map(neg)\nreturn ys[0]",
+          "justification": "let neg: (Int32) -> Int32 = { a in k - a }; let ys = xs.map(neg) \u2014 closures are first-class values capturing k, referenced by name at the map call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F06.P1",
+          "fragment": "func mid(_ s: [Int32]) -> Int32 { return s[1] }\nlet xs = [1, 2, 3]\nlet y = mid(xs)\nreturn y",
+          "justification": "func mid(_ xs: [Int32]) -> Int32 { xs[1] }; let y = mid(xs); return y \u2014 returned Int32 is an independent value.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F06.P2",
+          "fragment": "func divmod2(_ a: Int32, _ b: Int32) -> (Int32, Int32) { return (a / b, a % b) }\nlet (q, r) = divmod2(a, b)\nreturn q + r",
+          "justification": "func divmod2(_ a: Int32, _ b: Int32) -> (Int32, Int32) { (a/b, a%b) }; let (q, r) = divmod2(a,b) \u2014 tuple is Swift's normal multiple-result mechanism.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F07.P1",
+          "fragment": "let r = a * b + c",
+          "justification": "let r = a * b + c \u2014 ordinary precedence, checked arithmetic per frozen recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F07.P2",
+          "fragment": "let q = a / b\nlet m = a % b\nlet d = Double(a) / Double(b)",
+          "justification": "let q = a / b; let m = a % b; let d = Double(a) / Double(b) \u2014 Swift integer division truncates toward zero, % follows dividend sign, explicit Double() conversion required for real division.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F08.P1",
+          "fragment": "let m = Int32.max\nlet o = m &+ 1\nreturn o",
+          "justification": "let (o, overflowed) = m.addingReportingOverflow(1) \u2014 rung (i) checked reporting-overflow operation is standard library; substituting 0 on overflow.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F08.P2",
+          "fragment": "let q = b == 0 ? 0 : a / b",
+          "justification": "let q = b == 0 ? 0 : a / b \u2014 rung (ii) explicit local guard, since Swift's stdlib has no optional-returning division; plain / traps on zero divisor (documented).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F09.P1",
+          "fragment": "let eq = s1 == s2",
+          "justification": "let eq = s1 == s2 \u2014 String == compares Unicode canonical content equivalence, not identity, by documented default.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F09.P2",
+          "fragment": "xs.sort(by: >)\nlet lt = a < b",
+          "justification": "xs.sorted(by: >) explicitly supplies the descending comparator (a new array is produced, not an in-place reorder); let lt = a < b.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F10.P1",
+          "fragment": "let small = Int32(exactly: big) ?? 0\nreturn small",
+          "justification": "let small = Int32(exactly: big) ?? 0 \u2014 rung (i) failable initializer reports out-of-range as nil.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F10.P2",
+          "fragment": "let sum = Double(i) + d",
+          "justification": "let sum = Double(i) + d \u2014 Swift requires an explicit widening conversion for mixed-type arithmetic; no implicit conversion exists.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F11.P1",
+          "fragment": "let e = xs[i]\nreturn e",
+          "justification": "let e = xs[i]; return e \u2014 ordinary Array subscript traps (fatalError) on out-of-range index, a documented behavior.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F11.P2",
+          "fragment": "let part = Array(xs[1..<4])\nreturn part[0]",
+          "justification": "let part = xs[1..<4]; return part[1] \u2014 ArraySlice shares storage with xs (documented COW sharing) rather than eagerly copying.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F12.P1",
+          "fragment": "let o: Int32? = nil\nlet n = o ?? 0\nreturn n",
+          "justification": "var o: Int32? = nil; let n = o ?? 0 \u2014 Optional is a first-class type-level distinction; ?? is the standard nil-coalescing fallback form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F12.P2",
+          "fragment": "let h = { (x: Int32) -> Int32 in x + 1 }\nlet p = o.map(h)\nreturn p ?? 0",
+          "justification": "let h: (Int32) -> Int32 = { $0 + 1 }; let p = o.map(h); let result = p ?? 0 \u2014 Optional.map is the documented optional-preserving chaining operation, no explicit if/switch needed.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F13.P1",
+          "fragment": "enum ParseError: Error { case invalid }\nfunc parseTwice(_ s: String) throws -> Int32 {\n    guard let v = Int32(s) else { throw ParseError.invalid }\n    return v * 2\n}",
+          "justification": "func parse_twice(_ s: String) throws -> Int32 { guard let v = Int32(s) else { throw ParseError.invalid }; return v * 2 } \u2014 throws in the declared signature and propagation via throw is Swift's normal, visible mechanism.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F13.P2",
+          "fragment": "let n = Int32(s) ?? 0\nreturn n",
+          "justification": "do { n = try parse(s) } catch { n = 0 } \u2014 do/catch is Swift's normal local-handling construct with a visible protected region.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F14.P1",
+          "fragment": "enum Shape {\n    case circle(r: Double)\n    case rect(w: Double, h: Double)\n}\nlet s: Shape = .circle(r: 2.0)",
+          "justification": "enum Shape { case circle(r: Double); case rect(w: Double, h: Double) } \u2014 enum is a closed, exhaustively-checked sum type; language rules forbid adding a case from elsewhere.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F14.P2",
+          "fragment": "let area: Double\nswitch s {\ncase .circle(let r): area = 3.141592653589793 * r * r\ncase .rect(let w, let h): area = w * h\n}",
+          "justification": "switch s { case .circle(let r): ...; case .rect(let w, let h): ... } with no default \u2014 the Swift compiler statically requires exhaustive coverage of enum cases.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F14.P3",
+          "fragment": "// shapes.swift\nprotocol Shape { func area() -> Double }\nstruct Circle: Shape { let r: Double\n    func area() -> Double { return 3.141592653589793 * r * r }\n}\nstruct Rect: Shape { let w: Double; let h: Double\n    func area() -> Double { return w * h }\n}\n// main.swift\nstruct Tri: Shape { let b: Double; let h: Double\n    func area() -> Double { return 0.5 * b * h }\n}\nlet shape: Shape = Tri(b: 3, h: 4)\nlet result = shape.area()",
+          "justification": "protocol Shape { func area() -> Double }; struct Circle/Rect in unit shapes, struct Tri: Shape in a separate unit dispatched through the Shape existential \u2014 protocol-based extensibility across units, scored under the frozen multi-unit recipe (toolchain_binding.multi_unit_recipes).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F15.P1",
+          "fragment": "func head<T>(_ xs: [T]) -> T { return xs[0] }\nlet a = head([4, 5, 6])\nlet b = head([\"p\", \"q\"])\nreturn \"\\(a)\" + b",
+          "justification": "func head<T>(_ xs: [T]) -> T { xs[0] } reused at Int32 and String \u2014 Swift generics preserve the T -> T static relationship (no type erasure to Any).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F15.P2",
+          "fragment": "func maxOf<T: Comparable>(_ a: T, _ b: T) -> T { return a > b ? a : b }\nlet m = maxOf(3, 5)\nreturn m",
+          "justification": "func max_of<T: Comparable>(_ a: T, _ b: T) -> T { a > b ? a : b } \u2014 Comparable constraint is stated at the generic declaration and checked there.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F15.P3",
+          "fragment": "protocol Named { func tag() -> String }\nstruct A: Named { func tag() -> String { \"a\" } }\nstruct B: Named { func tag() -> String { \"b\" } }\nlet items: [Named] = [A(), B()]\nlet result = items[0].tag()",
+          "justification": "protocol Named { func tag() -> String }; let items: [Named] = [A(), B()]; items[0].tag() \u2014 existential array dispatches to the concrete implementation at runtime without static knowledge of the concrete type.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F16.P1",
+          "fragment": "let xs = [1, 2, 3]\nlet total = xs.reduce(0, +)\nreturn total",
+          "justification": "let xs = [1, 2, 3]; let total = xs.reduce(0, +) \u2014 reduce is the standard-library summation form (fewer tokens than a manual for-loop).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F16.P2",
+          "fragment": "let mp = [\"a\": 1]\nlet total = mp.values.reduce(0, +)\nlet miss = mp[\"b\"] ?? 0\nreturn total + miss",
+          "justification": "let mp = [\"a\": 1]; let total = mp.values.reduce(0, +); let miss = mp[\"b\"] ?? 0 \u2014 Dictionary iteration order is documented as unspecified; subscript lookup of an absent key yields nil, handled via ??.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F17.P1",
+          "fragment": "func readAll() throws -> Int {\n    let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: \"data.txt\"))\n    defer { handle.closeFile() }\n    let text = handle.readDataToEndOfFile()\n    return text.count\n}",
+          "justification": "func read_all() throws -> Int { let fh = try FileHandle(forReadingFrom: url); defer { fh.closeFile() }; let text = ...; return text.count } \u2014 defer runs on every exit path including the throwing path, and the release point is visible at the defer statement.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F17.P2",
+          "fragment": "class Handle {\n    let id: Int32\n    init(id: Int32) { self.id = id }\n    deinit { released += 1 }\n}\ndo {\n    let h = Handle(id: 1)\n}\nreturn released",
+          "justification": "class Handle { let id: Int32; deinit { released += 1 } } \u2014 deinit is Swift's documented end-of-lifetime hook, run deterministically when ARC drops the last strong reference in the non-cyclic case exercised here.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F18.P1",
+          "fragment": "print(\"x\")",
+          "justification": "print(\"x\") \u2014 Swift.print is available without any import in a normal Swift program; no declaration is required.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F18.P2",
+          "fragment": "// util.swift\npublic func pubAdd(_ a: Int32, _ b: Int32) -> Int32 { return a + b + secret() }\nprivate func secret() -> Int32 { return 1 }\n// main.swift\nlet result = pubAdd(2, 3)",
+          "justification": "module util { public func pub_add(...) { ... secret() }; private func secret() -> Int32 { 1 } }; external call util.pub_add(2,3) \u2014 access control (public/private) and module boundaries are enforced by the compiler, scored under the frozen multi-unit recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F19.P1",
+          "fragment": "async let x = 20\nasync let y = 22\nlet sum = await x + y\nreturn sum",
+          "justification": "async let a = compute20(); async let b = compute22(); let sum = await a + await b \u2014 Swift structured concurrency (async/await, async let) is the standard shipped facility as of the frozen toolchain.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F19.P2",
+          "fragment": "actor Counter { var value: Int64 = 0\n    func inc() { value += 1 }\n}\nlet counter = Counter()\nasync let t1: Void = { for _ in 0..<1000 { await counter.inc() } }()\nasync let t2: Void = { for _ in 0..<1000 { await counter.inc() } }()\n_ = await (t1, t2)\nreturn await counter.value",
+          "justification": "actor Counter { var count: Int64 = 0; func inc() { count += 1 } } incremented 1000 times each from two Tasks awaiting inc() \u2014 actor isolation is documented by Swift to serialize access and eliminate data races on the actor's state.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F20.P1",
+          "fragment": "import Glibc\nlet result = abs(Int32(-3))\nreturn result",
+          "justification": "import Glibc/Darwin; let r = abs(Int32(-3)) \u2014 Swift's built-in C-interop module exposes libc functions directly with no third-party binding generator.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F20.P2",
+          "fragment": "@_cdecl(\"add2\")\npublic func add2(_ a: Int32, _ b: Int32) -> Int32 { return a + b }",
+          "justification": "@_cdecl(\"add2\") func add2(_ a: Int32, _ b: Int32) -> Int32 { a + b } is the only mechanism Swift ships for a stable unmangled C-ABI export, but @_cdecl is an underscored, documented-as-unstable/internal compiler attribute rather than a fully public, non-experimental API.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-d"
+          ]
+        }
+      },
+      "canonical_verification": {
+        "F01.P1": {
+          "canonical_fragment_sha256": "7ba99375e3dccd972b1f02528ad35ebc8a620febae0cca483eed7563e2a10b4c",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F01.P2": {
+          "canonical_fragment_sha256": "aa540652f0c646f011de0c005094d1457a1546398dc1883a70b0858818612599",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F02.P1": {
+          "canonical_fragment_sha256": "808f1e58d0c8b91aca2208a68e71e48adca4da4854780491e478c07133a5494e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F02.P2": {
+          "canonical_fragment_sha256": "95bc7804b5b9052a30efc3521dd57cd9dbe382c2adc3d57f5565f9c11d75a115",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F03.P1": {
+          "canonical_fragment_sha256": "57704168a5cc3bcda0170590a14d99d6f6f348ff56ac3cd1c1b5b1123d38ff84",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F03.P2": {
+          "canonical_fragment_sha256": "02f47e532c55019f556aea8d210d281b5e1b0d2467b05492179cbd8f2d8e02ec",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P1": {
+          "canonical_fragment_sha256": "3ea0d93ddd2f9189dd4c70c421589d5196874d4abed994c13956ffd0ebea7386",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P2": {
+          "canonical_fragment_sha256": "5d04e4a0748e509581d96c7408ebb68361a0cd5cb52d8ca5c27691215b865e16",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P3": {
+          "canonical_fragment_sha256": "cd033a62e8044fce70f8f6d3780cae3bdc2ee914f8887b63065ec3615178d942",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P1": {
+          "canonical_fragment_sha256": "c54941c084e0228b62ab59ced76d2888f56084da5888e218588014b09bcc2ccb",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P2": {
+          "canonical_fragment_sha256": "4bf0c5b1535d1a16f9ec8765acee903e1bab961eaee287ecb8c4db0ca2059393",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P3": {
+          "canonical_fragment_sha256": "f82e472b3ca7f0eb48fd075ed9448dc24a3f0fba5c4cfd08a120222b15de8815",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F06.P1": {
+          "canonical_fragment_sha256": "7ab7e6486c8290c4c77fa2f249e9d5fdd2f48c53fb33b02864fc994872e34887",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F06.P2": {
+          "canonical_fragment_sha256": "7ac8d1a576e42cb172bbc5195d7e8119ab54dcf3ad627cdc2dccfa6db0514550",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F07.P1": {
+          "canonical_fragment_sha256": "c2de028b64b674685b83c53e22f9e54c056668f06199522c6148444e0d9b85db",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F07.P2": {
+          "canonical_fragment_sha256": "f596540cc79d8516fa62e3374c1e28bcb37aa3a8bf109231ec27e2117955fea9",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F08.P1": {
+          "canonical_fragment_sha256": "ca59e6938979e997435688fc27b75abfde775c03c74fb8b7d6dbfcc20285157b",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F08.P2": {
+          "canonical_fragment_sha256": "03c183167578c7ad7a7be6ff37dde7dba9a22c27c5aa617e8eab39eceff7c9b6",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F09.P1": {
+          "canonical_fragment_sha256": "19ce7e6470ffa3231ffff7f538b58fa0a9d5b1113e1b225338ebc5da594b3359",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F09.P2": {
+          "canonical_fragment_sha256": "bd4904af430aace1c03aae38f09d1cdcf875aa6ab9b6043a3c74549ea049c6d2",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F10.P1": {
+          "canonical_fragment_sha256": "13a8398b6e8540a2bad3384032312b548e81e355f485325c927c9d75ce4e01d3",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F10.P2": {
+          "canonical_fragment_sha256": "a1a9a009c7df4789c023326d28d10e605ebabd68623011080586bd8f73c942f3",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F11.P1": {
+          "canonical_fragment_sha256": "84deeebb25f22e92e8a9f2cf51c1bce9f2f5cfc7aa1df0fec581c57a2e56c9a7",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F11.P2": {
+          "canonical_fragment_sha256": "0a26517ae97c58d4eaab20267f132caa4637f3e834e30d5e2332c0807b0fa799",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F12.P1": {
+          "canonical_fragment_sha256": "0ed0f6b924d127f5953d631da56b6c1053625919af50eb253a400819ede11a70",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F12.P2": {
+          "canonical_fragment_sha256": "61f4f1298709a388b879bcf8f4014406418a3638e4ae1a92810e3463f6b178ae",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F13.P1": {
+          "canonical_fragment_sha256": "c9275818841d480c989d487c6591b8d74dbbd4c8f8e135a7652ac892dcc2bacc",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F13.P2": {
+          "canonical_fragment_sha256": "1308553c9aabdd0cc3efb4dc4d89a9ebed0d5da0f791d731870cd00a20f719c3",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P1": {
+          "canonical_fragment_sha256": "0dc4301299c28187989936696699f924d3a4024242eb610d6ec6acad80c2315d",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P2": {
+          "canonical_fragment_sha256": "23cb92754c7c257416f83a9ebd32bb664338fd22656a7179804400ea605d2924",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P3": {
+          "canonical_fragment_sha256": "7b341df9904f3e18a972ace6c9c5c124e8a366b1fa247f94861a889733b14c19",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P1": {
+          "canonical_fragment_sha256": "0cdcecc2ba1b0f8dd9d05fa5d25bab35197ff5c43b2c9b4f39b3f20a43fb3396",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P2": {
+          "canonical_fragment_sha256": "db704f3aad02ba2d5103c05a94a0fb8347debf0ed5000156f42fb9f610ad7b7e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P3": {
+          "canonical_fragment_sha256": "dc11da13763800ac2bd5462e4f86b6d52ac72cce76932f6be4ce766ba6c23486",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F16.P1": {
+          "canonical_fragment_sha256": "4d300a42e7b12637646d3569513e5d6962a4aba1653da36c0ccb94ede9e9f1ae",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F16.P2": {
+          "canonical_fragment_sha256": "29b2e630dd8274fe0c1f63507935efd64b1f0d2ead95a7f9cf2fc0e489fd7ce7",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F17.P1": {
+          "canonical_fragment_sha256": "7e00a6f93f8969eb2aeb18a33bef9fe858c4868e80e7e4fc5d0e26feca6a1ba6",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F17.P2": {
+          "canonical_fragment_sha256": "ecf17fbdfea27accfcdf419bebc1102de087d58ebf959aa272db46664fd2d820",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F18.P1": {
+          "canonical_fragment_sha256": "4ae34b57cc34b25eda914ff93d8101dab31a4db871fbd8860dd51464f82309cd",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F18.P2": {
+          "canonical_fragment_sha256": "9a5e4a46c9bb3fa14815500b507576e7dc711fedadd6c556c5462219c80e3aa6",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F19.P1": {
+          "canonical_fragment_sha256": "55fe8aa8f8b77373fafaf0aed3a6a95ec12d93ae333d098efaf9c6893673c667",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F19.P2": {
+          "canonical_fragment_sha256": "236936250c0105ff181231fd1d418b9a1fa5a070caf1f189bafdfee86290fd4a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F20.P1": {
+          "canonical_fragment_sha256": "9b8b5702a727dfeb70c293da20c83f8ac34b2b8ad204edacb73dde272cf41e33",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F20.P2": {
+          "canonical_fragment_sha256": "5cb5ec28506611f50081fc60b013054f3020c4af2965bab774f3607c2bd737f5",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "legacy_recertification": {
+        "canonical_catalog_sha256": "f10303fb89af7e886bdc54cb132761d8a43472bbcb4b52bfb76c5545b09ec338",
+        "current_rubric_sha256": "fcfffe7e6819402b05c62283c25d79a1d79b7cf69197122c3560b9b395a48450",
+        "current_sc_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+        "density_source_selection": "same-run",
+        "migration_rule": "semantic-legacy-llm-recertification",
+        "migration_rule_version": 1,
+        "mode": "paid-evidence-current-schema-v1",
+        "policy": "Support judgments are recovered from the preserved paid Capability Coverage record and re-checked against the current rubric. Fragments come from the same scientific experiment's Semantic Density evidence (same-run preferred; cross-run only after exact shared-identity proof), with only the small reviewed fragment-override table filling historical omissions. Current trusted runtime facts own F20.P1 for Python/Go/Java/Kotlin. This is legacy LLM recertification and never claims that the historical run mechanically compiled or executed these reconstructed fixtures.",
+        "recertifier": "GPT-5.6 Sol",
+        "schema_version": 1,
+        "scientific_identity_sha256": "d5d4adc59b695318889be140cb6ad813c48dbb2b9e6a2031e90d7f4b6b454b0b",
+        "source_density_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+        "source_density_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+        "source_density_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_density_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "source_owner_record": "v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json",
+        "source_owner_record_sha256": "069a7e177d435045b8e77bb91e1e0acf1cf3d09d4c7ea5cdc0549e5e95f6831c",
+        "source_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "support_re_adjudications": {
+          "F04.P1": {
+            "level": "PARTIAL",
+            "partial_reasons": [
+              "P-e"
+            ],
+            "reason": "withUnsafeMutablePointer(to:) gives a documented writable pointer to the same scalar storage, but it requires a closure-scope scaffold not requested by F04.P1. The retained mechanism therefore remains PARTIAL under P-e only; P-a is not permitted for this probe."
+          }
+        },
+        "verdict": "PASS"
+      },
+      "metric.capability_coverage": {
+        "Swift": {
+          "C": 97.73,
+          "basis_note": "This capability_coverage measurement is taken against the full fixed 88-point denominator (spec 6.1.5 / na_policy NA-1..NA-6); it is independent of the common-basis vs all-fragments distinction used for metrics A-D.",
+          "denominator": 88,
+          "limitations": "Assessed from documented Swift language/stdlib behavior (Swift reference, standard library docs, and Swift Evolution proposals for async/await, actors, @_cdecl) under the frozen toolchain_binding.recipes; this packet-only worker could not mechanically execute the frozen build/run/nm commands (V1/V2/V5 evidence), so per-probe build transcripts are not attached here and must be reconciled against actual toolchain-scan evidence before final publication.",
+          "none_probes_summary": [],
+          "numerator": 86,
+          "partial_probes_summary": [
+            "F04.P1",
+            "F20.P2"
+          ],
+          "per_family_breakdown": {
+            "1. value and storage declaration": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "10. explicit and implicit type conversion": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "11. indexing and slicing": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "12. nullable / optional values": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "13. errors, failure values, exceptions, and propagation": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "14. alternatives / sum / variant types and dispatch over alternatives": {
+              "denominator": 6,
+              "numerator": 6
+            },
+            "15. generics / parametric polymorphism": {
+              "denominator": 6,
+              "numerator": 6
+            },
+            "16. collections and iteration": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "18. modules, imports, and dependency boundaries": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "19. concurrency / asynchronous execution where the language supports it": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "2. initialization and potentially uninitialized state": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "20. FFI / interoperability boundaries": {
+              "denominator": 4,
+              "numerator": 3
+            },
+            "3. mutation": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+              "denominator": 6,
+              "numerator": 5
+            },
+            "5. function calls and argument-passing semantics": {
+              "denominator": 6,
+              "numerator": 6
+            },
+            "6. return-value semantics": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "7. arithmetic operators": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+              "denominator": 4,
+              "numerator": 4
+            },
+            "9. equality, ordering, and comparison": {
+              "denominator": 4,
+              "numerator": 4
+            }
+          },
+          "per_probe_support": {
+            "F01.P1": {
+              "level": "FULL",
+              "note": "let n = 7; return n \u2014 immutable local binding is the canonical Swift form."
+            },
+            "F01.P2": {
+              "level": "FULL",
+              "note": "top-level/global var counter: Int64 = 0; let LIMIT: Int64 = 100 \u2014 global mutable var vs global immutable let, both standard."
+            },
+            "F02.P1": {
+              "level": "FULL",
+              "note": "var v: Int32; if cond { v = 5 } else { v = 9 }; return v \u2014 Swift's definite-initialization analysis accepts this on all-paths-assigned patterns."
+            },
+            "F02.P2": {
+              "level": "FULL",
+              "note": "UnsafeMutableBufferPointer<UInt8>.allocate(capacity: 16) yields genuinely uninitialized documented storage (first-class, opt-in unsafe stdlib API; F-6 permits documented unsafe facilities)."
+            },
+            "F03.P1": {
+              "level": "FULL",
+              "note": "x += 1 \u2014 in-place compound assignment, checked-mode traps on overflow per frozen recipe (-O, traps retained)."
+            },
+            "F03.P2": {
+              "level": "FULL",
+              "note": "xs[1] = 42 \u2014 Array subscript-assign mutates in place through the existing binding."
+            },
+            "F04.P1": {
+              "applicable_letters": [
+                "P-a",
+                "P-e"
+              ],
+              "level": "PARTIAL",
+              "note": "Swift has no free-standing writable-alias/reference local in the same block; the nearest documented mechanism is withUnsafeMutablePointer(to:) { port in port.pointee = 9 }, which substitutes a pointer for a reference and forces a closure-scope scaffold not requested by the canonical_task."
+            },
+            "F04.P2": {
+              "level": "FULL",
+              "note": "ArraySlice (xs[1...3] or a slicing view) shares storage with the original Array via copy-on-write without an eager copy; window[0]... reads without copying."
+            },
+            "F04.P3": {
+              "level": "FULL",
+              "note": "=== is Swift's standard reference-identity operator for class instances, distinct from ==."
+            },
+            "F05.P1": {
+              "level": "FULL",
+              "note": "f(x) \u2014 ordinary bare call syntax; Array has value semantics (COW) so no sigil is required or available at the call site."
+            },
+            "F05.P2": {
+              "level": "FULL",
+              "note": "func put(_ cell: inout Int32) { cell = 12 }; put(&cell) \u2014 inout is Swift's dedicated explicit writable-parameter-passing form."
+            },
+            "F05.P3": {
+              "level": "FULL",
+              "note": "let neg: (Int32) -> Int32 = { a in k - a }; let ys = xs.map(neg) \u2014 closures are first-class values capturing k, referenced by name at the map call site."
+            },
+            "F06.P1": {
+              "level": "FULL",
+              "note": "func mid(_ xs: [Int32]) -> Int32 { xs[1] }; let y = mid(xs); return y \u2014 returned Int32 is an independent value."
+            },
+            "F06.P2": {
+              "level": "FULL",
+              "note": "func divmod2(_ a: Int32, _ b: Int32) -> (Int32, Int32) { (a/b, a%b) }; let (q, r) = divmod2(a,b) \u2014 tuple is Swift's normal multiple-result mechanism."
+            },
+            "F07.P1": {
+              "level": "FULL",
+              "note": "let r = a * b + c \u2014 ordinary precedence, checked arithmetic per frozen recipe."
+            },
+            "F07.P2": {
+              "level": "FULL",
+              "note": "let q = a / b; let m = a % b; let d = Double(a) / Double(b) \u2014 Swift integer division truncates toward zero, % follows dividend sign, explicit Double() conversion required for real division."
+            },
+            "F08.P1": {
+              "level": "FULL",
+              "note": "let (o, overflowed) = m.addingReportingOverflow(1) \u2014 rung (i) checked reporting-overflow operation is standard library; substituting 0 on overflow."
+            },
+            "F08.P2": {
+              "level": "FULL",
+              "note": "let q = b == 0 ? 0 : a / b \u2014 rung (ii) explicit local guard, since Swift's stdlib has no optional-returning division; plain / traps on zero divisor (documented)."
+            },
+            "F09.P1": {
+              "level": "FULL",
+              "note": "let eq = s1 == s2 \u2014 String == compares Unicode canonical content equivalence, not identity, by documented default."
+            },
+            "F09.P2": {
+              "level": "FULL",
+              "note": "xs.sorted(by: >) explicitly supplies the descending comparator (a new array is produced, not an in-place reorder); let lt = a < b."
+            },
+            "F10.P1": {
+              "level": "FULL",
+              "note": "let small = Int32(exactly: big) ?? 0 \u2014 rung (i) failable initializer reports out-of-range as nil."
+            },
+            "F10.P2": {
+              "level": "FULL",
+              "note": "let sum = Double(i) + d \u2014 Swift requires an explicit widening conversion for mixed-type arithmetic; no implicit conversion exists."
+            },
+            "F11.P1": {
+              "level": "FULL",
+              "note": "let e = xs[i]; return e \u2014 ordinary Array subscript traps (fatalError) on out-of-range index, a documented behavior."
+            },
+            "F11.P2": {
+              "level": "FULL",
+              "note": "let part = xs[1..<4]; return part[1] \u2014 ArraySlice shares storage with xs (documented COW sharing) rather than eagerly copying."
+            },
+            "F12.P1": {
+              "level": "FULL",
+              "note": "var o: Int32? = nil; let n = o ?? 0 \u2014 Optional is a first-class type-level distinction; ?? is the standard nil-coalescing fallback form."
+            },
+            "F12.P2": {
+              "level": "FULL",
+              "note": "let h: (Int32) -> Int32 = { $0 + 1 }; let p = o.map(h); let result = p ?? 0 \u2014 Optional.map is the documented optional-preserving chaining operation, no explicit if/switch needed."
+            },
+            "F13.P1": {
+              "level": "FULL",
+              "note": "func parse_twice(_ s: String) throws -> Int32 { guard let v = Int32(s) else { throw ParseError.invalid }; return v * 2 } \u2014 throws in the declared signature and propagation via throw is Swift's normal, visible mechanism."
+            },
+            "F13.P2": {
+              "level": "FULL",
+              "note": "do { n = try parse(s) } catch { n = 0 } \u2014 do/catch is Swift's normal local-handling construct with a visible protected region."
+            },
+            "F14.P1": {
+              "level": "FULL",
+              "note": "enum Shape { case circle(r: Double); case rect(w: Double, h: Double) } \u2014 enum is a closed, exhaustively-checked sum type; language rules forbid adding a case from elsewhere."
+            },
+            "F14.P2": {
+              "level": "FULL",
+              "note": "switch s { case .circle(let r): ...; case .rect(let w, let h): ... } with no default \u2014 the Swift compiler statically requires exhaustive coverage of enum cases."
+            },
+            "F14.P3": {
+              "level": "FULL",
+              "note": "protocol Shape { func area() -> Double }; struct Circle/Rect in unit shapes, struct Tri: Shape in a separate unit dispatched through the Shape existential \u2014 protocol-based extensibility across units, scored under the frozen multi-unit recipe (toolchain_binding.multi_unit_recipes)."
+            },
+            "F15.P1": {
+              "level": "FULL",
+              "note": "func head<T>(_ xs: [T]) -> T { xs[0] } reused at Int32 and String \u2014 Swift generics preserve the T -> T static relationship (no type erasure to Any)."
+            },
+            "F15.P2": {
+              "level": "FULL",
+              "note": "func max_of<T: Comparable>(_ a: T, _ b: T) -> T { a > b ? a : b } \u2014 Comparable constraint is stated at the generic declaration and checked there."
+            },
+            "F15.P3": {
+              "level": "FULL",
+              "note": "protocol Named { func tag() -> String }; let items: [Named] = [A(), B()]; items[0].tag() \u2014 existential array dispatches to the concrete implementation at runtime without static knowledge of the concrete type."
+            },
+            "F16.P1": {
+              "level": "FULL",
+              "note": "let xs = [1, 2, 3]; let total = xs.reduce(0, +) \u2014 reduce is the standard-library summation form (fewer tokens than a manual for-loop)."
+            },
+            "F16.P2": {
+              "level": "FULL",
+              "note": "let mp = [\"a\": 1]; let total = mp.values.reduce(0, +); let miss = mp[\"b\"] ?? 0 \u2014 Dictionary iteration order is documented as unspecified; subscript lookup of an absent key yields nil, handled via ??."
+            },
+            "F17.P1": {
+              "level": "FULL",
+              "note": "func read_all() throws -> Int { let fh = try FileHandle(forReadingFrom: url); defer { fh.closeFile() }; let text = ...; return text.count } \u2014 defer runs on every exit path including the throwing path, and the release point is visible at the defer statement."
+            },
+            "F17.P2": {
+              "level": "FULL",
+              "note": "class Handle { let id: Int32; deinit { released += 1 } } \u2014 deinit is Swift's documented end-of-lifetime hook, run deterministically when ARC drops the last strong reference in the non-cyclic case exercised here."
+            },
+            "F18.P1": {
+              "level": "FULL",
+              "note": "print(\"x\") \u2014 Swift.print is available without any import in a normal Swift program; no declaration is required."
+            },
+            "F18.P2": {
+              "level": "FULL",
+              "note": "module util { public func pub_add(...) { ... secret() }; private func secret() -> Int32 { 1 } }; external call util.pub_add(2,3) \u2014 access control (public/private) and module boundaries are enforced by the compiler, scored under the frozen multi-unit recipe."
+            },
+            "F19.P1": {
+              "level": "FULL",
+              "note": "async let a = compute20(); async let b = compute22(); let sum = await a + await b \u2014 Swift structured concurrency (async/await, async let) is the standard shipped facility as of the frozen toolchain."
+            },
+            "F19.P2": {
+              "level": "FULL",
+              "note": "actor Counter { var count: Int64 = 0; func inc() { count += 1 } } incremented 1000 times each from two Tasks awaiting inc() \u2014 actor isolation is documented by Swift to serialize access and eliminate data races on the actor's state."
+            },
+            "F20.P1": {
+              "level": "FULL",
+              "note": "import Glibc/Darwin; let r = abs(Int32(-3)) \u2014 Swift's built-in C-interop module exposes libc functions directly with no third-party binding generator."
+            },
+            "F20.P2": {
+              "applicable_letters": [
+                "P-d"
+              ],
+              "level": "PARTIAL",
+              "note": "@_cdecl(\"add2\") func add2(_ a: Int32, _ b: Int32) -> Int32 { a + b } is the only mechanism Swift ships for a stable unmangled C-ABI export, but @_cdecl is an underscored, documented-as-unstable/internal compiler attribute rather than a fully public, non-experimental API."
+            }
+          },
+          "support_factor_levels": {
+            "FULL": 1,
+            "NONE": 0,
+            "PARTIAL": 0.5
+          }
+        },
+        "denominator_frozen": 88,
+        "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88"
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Swift": 97.727273
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "6ed5cdb79513b4f83b539dda7e842742badcf57d1f1bb522dcabb19dc1662678",
+  "schema_version": 1
+}

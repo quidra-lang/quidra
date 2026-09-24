@@ -1,0 +1,1122 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "canonical_catalog_sha256": "3c4b1b4f084c74edb3a79bca1259f35aa0f3c24b433e1a43725b987bf88a3450",
+    "compatibility_migration": "semantic-legacy-llm-recertification",
+    "current_validator_revalidated": true,
+    "current_validator_revalidation_required": true,
+    "primary_complete": false,
+    "semantic_legacy_owner_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "fc740465aa6d46cdfdd0e00f39d86a2cd10ca6943a92c33c6cadd8b3b6fbe831",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--java",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "Historical paid Semantic Compression evidence was re-adjudicated against the current frozen rubric by the trusted GPT-5.6 Sol recertifier. The result is bound to a frozen provenance snapshot containing the exact legacy source hashes and current canonical fragments. This mode never claims that legacy fragments were mechanically compiled when the retained run did not perform that verification.",
+    "migration_rule": "semantic-legacy-llm-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f",
+    "source_record": "v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json",
+    "source_record_sha256": "254ce403a3d69376ee7ad89ed231138d44de5e807c2f3583103afab16ea9d02c",
+    "source_result_sha256": "d88aec928b17f2913fc089ad49b2d0976653ef664da88c6cef00178fe194239e",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification",
+      "canonical_fragments",
+      "canonical_verification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "fc740465aa6d46cdfdd0e00f39d86a2cd10ca6943a92c33c6cadd8b3b6fbe831",
+    "run_id": "cache-recertify-7c43dba",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--java"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F01.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F01.P1",
+          "fragment": "final int n = 7;\nreturn n;",
+          "justification": "final int n = 7; return n; \u2014 standard immutable local binding.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F01.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F01.P2",
+          "fragment": "static long counter = 0;\nstatic final long LIMIT = 100;",
+          "justification": "static long counter = 0; static final long LIMIT = 100; at class/file scope.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F02.P1",
+          "fragment": "int v;\nif (cond) { v = 5; } else { v = 9; }\nreturn v;",
+          "justification": "Java definite-assignment analysis permits declare-without-initializer then assign on both branches of an if/else, exactly the pattern required.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F02.P2",
+          "fragment": "byte[] buf = new byte[16];\nbuf[0] = 1;\nreturn buf[0];",
+          "justification": "Java arrays are always zero/default-initialized; no documented mechanism for genuinely uninitialized bulk storage. Named substitution per R9: byte[] b = new byte[16]; b[0]=1; return b[0];",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F03.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F03.P1",
+          "fragment": "x++;",
+          "justification": "x++; (or x += 1;) in-place compound update.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F03.P2",
+          "fragment": "xs.set(1, 42);",
+          "justification": "xs.set(1, 42); on a java.util.List (e.g. ArrayList) mutates in place through the existing name.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F04.P1",
+          "fragment": null,
+          "justification": "Java has no documented mechanism for a second name to alias-and-write an existing local scalar variable's storage (no references/pointers/inout to locals); wrapping in a mutable object changes identity of what's aliased, not the local itself, and is excluded by the probe's own rubric elsewhere (F05.P2).",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F04.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F04.P2",
+          "fragment": "List<Integer> window = Collections.unmodifiableList(xs);\nreturn window.get(0);",
+          "justification": "List<Integer> window = Collections.unmodifiableList(xs); \u2014 documented non-copying read-only view; window.get(0) reads without copying elements.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F04.P3",
+          "fragment": "Obj first = new Obj(5);\nList<Obj> box = List.of(first);\nObj second = box.get(0);\nboolean same = first == second;\nreturn same;",
+          "justification": "Reference identity via ==. Route `first` through a one-element List, retrieve as `second`, test `first == second` (documented reference-equality operator distinct from .equals()).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F05.P1",
+          "fragment": "List<Integer> x = new ArrayList<>(List.of(1, 2, 3));\nf(x);\nreturn x.get(0);",
+          "justification": "Ordinary call f(x) on a List argument passes the reference by value; callee can read/write/resize elements of the same underlying object, observable through x afterward.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F05.P2",
+          "fragment": null,
+          "justification": "Java has no documented mechanism for a callee to write a caller's scalar (primitive int) local variable; no ref/out/inout parameters, no address-of. The rubric explicitly disallows a mutable-container substitution as FULL for this probe.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F05.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F05.P3",
+          "fragment": "Function<Integer,Integer> neg = a -> k - a;\nList<Integer> ys = xs.stream().map(neg).toList();\nreturn ys.get(0);",
+          "justification": "Function<Integer,Integer> neg = a -> k - a; (k captured, effectively final) then xs.stream().map(neg)... \u2014 lambda captures enclosing local and is passed by name to Stream.map.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F06.P1",
+          "fragment": "static int mid(List<Integer> xs) { return xs.get(1); }\nList<Integer> xs = List.of(1, 2, 3);\nint y = mid(xs);\nreturn y;",
+          "justification": "mid(List<Integer> xs){ return xs.get(1); } \u2014 returns an autoboxed Integer, a call-site binding, and return of y.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F06.P2",
+          "fragment": "record Pair(int q, int r) {}\nstatic Pair divmod2(int a, int b) { return new Pair(a / b, a % b); }\nPair p = divmod2(a, b);\nreturn p.q() + p.r();",
+          "justification": "record Pair(int q, int r) {} (Java 16+ record) used as the standard multiple-result mechanism; divmod2 returns new Pair(a/b, a%b).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F07.P1",
+          "fragment": "int r = a * b + c;",
+          "justification": "int r = a * b + c; ordinary precedence and operators.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F07.P2",
+          "fragment": "int q = a / b;\nint m = a % b;\ndouble d = (double) a / b;",
+          "justification": "int q = a / b; int m = a % b; double d = (double) a / b; \u2014 Java int division truncates toward zero, % follows dividend sign, explicit cast for real division.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F08.P1",
+          "fragment": "int m = Integer.MAX_VALUE;\nint o = m + 1;\nreturn o;",
+          "justification": "int m = Integer.MAX_VALUE; int o = m + 1; \u2014 Java has no checked/wrapping/saturating standard arithmetic ops returning an optional; the plain + silently wraps (two's complement), which is the checked-mode-equivalent, deterministic, documented behavior for this recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F08.P2",
+          "fragment": "int q = (b == 0) ? 0 : a / b;\nreturn q;",
+          "justification": "int q = (b == 0) ? 0 : a / b; \u2014 Java has no checked-division-to-optional standard op; explicit guard is the documented next rung.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F09.P1",
+          "fragment": "boolean eq = s1.equals(s2);",
+          "justification": "boolean eq = s1.equals(s2); \u2014 content comparison via String.equals.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F09.P2",
+          "fragment": "xs.sort(Comparator.reverseOrder());\nboolean lt = a < b;",
+          "justification": "xs.sort(Comparator.reverseOrder()); boolean lt = a < b; \u2014 explicit descending order supplied, in-place sort of the List.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F10.P1",
+          "fragment": "int small;\ntry { small = Math.toIntExact(big); } catch (ArithmeticException e) { small = 0; }\nreturn small;",
+          "justification": "int small; try { small = Math.toIntExact(big); } catch (ArithmeticException e) { small = 0; } \u2014 Math.toIntExact is the standard checked narrowing operation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F10.P2",
+          "fragment": "double sum = i + d;",
+          "justification": "double sum = i + d; \u2014 implicit widening of int to double at the + operator, no explicit conversion syntax needed or permitted.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F11.P1",
+          "fragment": "int e = xs.get(i);\nreturn e;",
+          "justification": "int e = xs.get(i); \u2014 ordinary indexed read on List, throws IndexOutOfBoundsException on out-of-range i.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F11.P2",
+          "fragment": "List<Integer> part = xs.subList(1, 4);\nreturn part.get(0);",
+          "justification": "List<Integer> part = xs.subList(1, 4); \u2014 documented view sharing backing storage with xs (not a copy).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F12.P1",
+          "fragment": "Optional<Integer> o = Optional.empty();\nint n = o.orElse(0);\nreturn n;",
+          "justification": "Optional<Integer> o = Optional.empty(); int n = o.orElse(0); \u2014 type-level optionality via java.util.Optional and its standard fallback operation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F12.P2",
+          "fragment": "Function<Integer,Integer> h = a -> a + 1;\nOptional<Integer> p = o.map(h);\nint result = p.orElse(0);\nreturn result;",
+          "justification": "Function<Integer,Integer> h = a -> a + 1; Optional<Integer> p = o.map(h); int result = p.orElse(0); \u2014 Optional.map is the standard optional-aware chaining operation, no explicit if/switch.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F13.P1",
+          "fragment": "static int parseTwice(String s) { return Integer.parseInt(s) * 2; }",
+          "justification": "int parse_twice(String s) { return Integer.parseInt(s) * 2; } \u2014 Integer.parseInt throws unchecked NumberFormatException which propagates automatically without explicit handling.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F13.P2",
+          "fragment": "int n;\ntry { n = Integer.parseInt(s); } catch (NumberFormatException e) { n = 0; }\nreturn n;",
+          "justification": "int n; try { n = Integer.parseInt(s); } catch (NumberFormatException e) { n = 0; } \u2014 standard local catch-based recovery.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F14.P1",
+          "fragment": "sealed interface Shape permits Circle, Rect {}\nrecord Circle(double r) implements Shape {}\nrecord Rect(double w, double h) implements Shape {}\nShape s = new Circle(2.0);",
+          "justification": "sealed interface Shape permits Circle, Rect {} ; record Circle(double r) implements Shape {} ; record Rect(double w, double h) implements Shape {} \u2014 sealed hierarchy is a closed alternative set enforced by the compiler (Java 17+ sealed classes).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F14.P2",
+          "fragment": "double area = switch (s) {\ncase Circle c -> Math.PI * c.r() * c.r();\ncase Rect r -> r.w() * r.h();\n};",
+          "justification": "double area = switch (s) { case Circle c -> Math.PI * c.r() * c.r(); case Rect r -> r.w() * r.h(); }; \u2014 pattern-matching switch over a sealed hierarchy is checked exhaustively by the compiler with no default arm required (Java 21+).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F14.P3",
+          "fragment": "interface Shape { double area(); }\nclass Tri implements Shape { public double area() { return 6.0; } }\nShape s = new Tri();\ndouble result = s.area();",
+          "justification": "Plain (unsealed) interface Shapes.area() in unit `shapes`, implemented by Circle/Rect there and by Tri in a separate compilation unit, dispatched through the abstract type \u2014 uses the multi-unit javac recipe frozen in toolchain_binding.multi_unit_recipes.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F15.P1",
+          "fragment": "static <T> T head(List<T> xs) { return xs.get(0); }\nint a = head(List.of(4, 5, 6));\nString b = head(List.of(\"p\", \"q\"));\nString result = Integer.toString(a) + b;",
+          "justification": "static <T> T head(List<T> xs) { return xs.get(0); } \u2014 declared result type T is statically recoverable from the generic signature even though erased at runtime; used at Integer and String call sites.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F15.P2",
+          "fragment": "static <T extends Comparable<T>> T maxOf(T a, T b) { return a.compareTo(b) > 0 ? a : b; }\nint m = maxOf(3, 5);\nreturn m;",
+          "justification": "static <T extends Comparable<T>> T max_of(T a, T b) { return a.compareTo(b) > 0 ? a : b; } \u2014 declaration-site bound via extends Comparable<T>.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F15.P3",
+          "fragment": "interface Named { String tag(); }\nclass A implements Named { public String tag() { return \"a\"; } }\nclass B implements Named { public String tag() { return \"b\"; } }\nList<Named> items = List.of(new A(), new B());\nreturn items.get(0).tag();",
+          "justification": "interface Named { String tag(); } with A, B implementing it; List<Named> items holding one of each; items.get(0).tag() dispatched at runtime to A's implementation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F16.P1",
+          "fragment": "List<Integer> xs = List.of(1, 2, 3);\nint total = xs.stream().mapToInt(Integer::intValue).sum();\nreturn total;",
+          "justification": "List<Integer> xs = new ArrayList<>(List.of(1,2,3)); int total = xs.stream().mapToInt(Integer::intValue).sum(); \u2014 standard sum/stream operation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F16.P2",
+          "fragment": "Map<String,Integer> mp = new HashMap<>();\nmp.put(\"a\", 1);\nint total = 0;\nfor (var e : mp.entrySet()) total += e.getValue();\nint miss = mp.getOrDefault(\"b\", 0);\nreturn total + miss;",
+          "justification": "Map<String,Integer> mp = new HashMap<>(); mp.put(\"a\",1); iterate mp.entrySet() to sum values; int miss = mp.getOrDefault(\"b\", 0); \u2014 HashMap's unspecified iteration order and getOrDefault's documented absent-key fallback.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F17.P1",
+          "fragment": "try (FileReader r = new FileReader(\"data.txt\")) {\n    return r.read();\n}",
+          "justification": "try (FileReader r = new FileReader(\"data.txt\")) { ... } \u2014 try-with-resources guarantees close() runs on every exit path including exceptions (AutoCloseable).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F17.P2",
+          "fragment": "class Handle implements AutoCloseable { public void close() { released++; } }\ntry (Handle h = new Handle()) { }\nreturn released;",
+          "justification": "Java has no deterministic end-of-lifetime hook (finalize() is deprecated/nondeterministic/removed in recent releases; Cleaner is GC-driven and nondeterministic). Nearest standard substitute per the probe's own named exception: an explicit close() invoked by a try-with-resources scoped construct, incrementing `released` deterministically exactly once at scope exit.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F18.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F18.P1",
+          "fragment": "System.out.println(\"x\");",
+          "justification": "System.out.println(\"x\"); \u2014 java.lang is implicitly available with no import declaration required.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F18.P2",
+          "fragment": "class Util { public static int pubAdd(int a, int b) { return a + b + secret(); } private static int secret() { return 1; } }\nint result = Util.pubAdd(2, 3);",
+          "justification": "package util; class Util { public static int pub_add(int a,int b){ return a+b+secret(); } private static int secret(){ return 1; } } called from outside as Util.pub_add(2,3) \u2014 Java access modifiers (public/private) enforce the boundary; uses the multi-unit javac recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F19.P1",
+          "fragment": "Future<Integer> a = pool.submit(() -> 20);\nFuture<Integer> b = pool.submit(() -> 22);\nint sum = a.get() + b.get();\nreturn sum;",
+          "justification": "ExecutorService with two Callable<Integer> tasks (or two Thread instances) computing 20 and 22, Future.get() on both, sum = 42 \u2014 java.util.concurrent is the standard shipped concurrency facility.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F19.P2",
+          "fragment": "AtomicLong counter = new AtomicLong();\nThread a = new Thread(() -> { for (int i = 0; i < 1000; i++) counter.incrementAndGet(); });\nThread b = new Thread(() -> { for (int i = 0; i < 1000; i++) counter.incrementAndGet(); });\na.start(); b.start(); a.join(); b.join();\nreturn counter.get();",
+          "justification": "java.util.concurrent.atomic.AtomicLong counter; two threads each call counter.incrementAndGet() 1000 times; join both; counter.get() == 2000 \u2014 AtomicLong's read-modify-write is documented by the JDK as atomic/race-free.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F20.P1",
+          "fragment": "Linker linker = Linker.nativeLinker();\nMemorySegment symbol = linker.defaultLookup().findOrThrow(\"abs\");\nMethodHandle abs = linker.downcallHandle(symbol, FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));\nint result = (int) abs.invokeExact(-3);\nreturn result;",
+          "justification": "The Java Foreign Function & Memory API (java.lang.foreign) can declare and call C `abs(int)` using only the standard library, but on many currently-common JDK versions this requires an --enable-preview flag or is only fully finalized in the newest LTS (Java 22+); absent a confirmed toolchain fingerprint in this packet, this is recorded as requiring a flag/mode outside the strict frozen recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F20.P2",
+          "fragment": null,
+          "justification": "javac/java produces JVM bytecode (.class files), not a native compiled artifact with linker-visible symbols; there is no way to produce an nm-visible unmangled `add2` symbol under the frozen recipe.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F01.P1": {
+          "canonical_fragment_sha256": "37d2a7b9cedc5584ed298aa978d1193ca8cb9748cc4705e894cadc90672dce5c",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F01.P2": {
+          "canonical_fragment_sha256": "d6a7aceef254d0fa1fb74fbb3b60c7d008e5ba9a7964530a3f1c2a4b4f43e61f",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F02.P1": {
+          "canonical_fragment_sha256": "cfb919acce654b47c81f53cc390ae9280de7023cde5253555e20eb93c274f114",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F02.P2": {
+          "canonical_fragment_sha256": "d93ca9144ef3475aeeccec6ca4870680384a5a06cb1ab73fd96564ceac2ba071",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F03.P1": {
+          "canonical_fragment_sha256": "dd0c8ed5bd7d4771faada464b2a19494f3b0dc10be475be4a8f438500f8678af",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F03.P2": {
+          "canonical_fragment_sha256": "ac1929baa5b22dbae637930c70f9648b2996e45faa69487135b8a4601da1207f",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F04.P2": {
+          "canonical_fragment_sha256": "e42405c324dcf666c165528b65f05d3767ef8be54de4dc4da9d200f352e3cb00",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F04.P3": {
+          "canonical_fragment_sha256": "ca5178ab3a1bacbdb1ec9529e32dfc7dd6b2faf5f43e33fccae3c2af09b3c879",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F05.P1": {
+          "canonical_fragment_sha256": "7b2b87e9f55e237380084ebcfc87f0116381da702d2e8cf185f25383385eec61",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F05.P3": {
+          "canonical_fragment_sha256": "50e83e061ee01130ece462d342dff6199bb28777a1b13f7d3a50573a46d88ccd",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F06.P1": {
+          "canonical_fragment_sha256": "cbed4389ded169600a46d8905938b3beebb6d13facb0859ca2fec0e3b97930ec",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F06.P2": {
+          "canonical_fragment_sha256": "4d771e11f84a1d59dcc3f447031e1f18c1783f1fd97f5c5acd32b0be53e100ba",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F07.P1": {
+          "canonical_fragment_sha256": "baab5a393c68a41243de6a8dda4be41f15f2d63e376831ceb7a90f5421123a9f",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F07.P2": {
+          "canonical_fragment_sha256": "e396a6d423790b0618e24e7860126c0d0cd5a58116755ccea1b3dabc03c222f8",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F08.P1": {
+          "canonical_fragment_sha256": "cc37fcb6d75135be9bc99d11466f28947a3a6e97416720561f7015c94681dc1b",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F08.P2": {
+          "canonical_fragment_sha256": "a61629663a5ec92b246bbe3ec938b172da5055c49ed549c7451c1a3acb4c8346",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F09.P1": {
+          "canonical_fragment_sha256": "89244c6a2b094583c27c7ed78e39771409de329ef9a7fc06d8509865e5f20de7",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F09.P2": {
+          "canonical_fragment_sha256": "075afbaea8ded35a9a8e70b9e3d5b9fd4e46fe8154712c0da744ebe8fa65c3e3",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F10.P1": {
+          "canonical_fragment_sha256": "05bf9ca53858a455fa8a934cdf6ee2938727dfd7dfa89fd9c4d3f86cc005c2f6",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F10.P2": {
+          "canonical_fragment_sha256": "0501b74d9a2970ddea4ab2a8594b71532905f60b5c15b2221a4ea30a6eada043",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F11.P1": {
+          "canonical_fragment_sha256": "dbc37a434673a8074ab54543cd836ba95a3602fbe7dfd93f73f644b33b472d96",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F11.P2": {
+          "canonical_fragment_sha256": "4aaacc6b9be5b99e6a6f36dd6aed3bcdabd5e3843074498e37a576980e914996",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F12.P1": {
+          "canonical_fragment_sha256": "57f66c8b51edec7c3ebf61600fa179d72201d3c83a5c002da63a777df181bd6b",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F12.P2": {
+          "canonical_fragment_sha256": "3c92c4781c2e5e0c3522d40d0a2844dc5e83d1190e3a08a948eba06d3930343d",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F13.P1": {
+          "canonical_fragment_sha256": "8b02b167f91ee32ebe9b3470e7f2b0f7a810865d6b50079c2c22fe82c3792ef4",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F13.P2": {
+          "canonical_fragment_sha256": "f1dbd134b9d1926b90e983e3da61547f588ddae40400e109e4473d708708793f",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F14.P1": {
+          "canonical_fragment_sha256": "2649de7fa38b6aca6d8597bd77fd28d8dac947f1cb3dd8e83aeba5d0378432e8",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F14.P2": {
+          "canonical_fragment_sha256": "58bbd57efa7205dc4b9e2aa457c6693d85ac3c2e99f239c47e8b9603ed4a5dd1",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F14.P3": {
+          "canonical_fragment_sha256": "ffdbdee338fb413dd166c16a713bd79c98ee0f3a2cf3b7d21ddd838ead362914",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F15.P1": {
+          "canonical_fragment_sha256": "8fa2fd94f38687ebed42f51387c8229ad590249d947cad558154704afdde4310",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F15.P2": {
+          "canonical_fragment_sha256": "a716d17c77f2a7fd2fd3c0690d1cc71f0a432bf44dd423e1a651c7dc05c8f1b5",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F15.P3": {
+          "canonical_fragment_sha256": "ec6124dbed62d9d76f51fcaaed38ea79c638c5ca2743b8cd52c8d0116e2674ba",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F16.P1": {
+          "canonical_fragment_sha256": "e1b721db0c91b139282822be87111b633660edd8775b7a7212a9d26e75c1351b",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F16.P2": {
+          "canonical_fragment_sha256": "f4961012a27cde86e07f0918080cc2e926a056a8e06a2239b7b8f0342974c11c",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F17.P1": {
+          "canonical_fragment_sha256": "fc2bef1f32413612c99da3717a74de463c5e549f1781dded2ee739cbbdb388c9",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F17.P2": {
+          "canonical_fragment_sha256": "3c332dbfa9d029cc2057000f9e2c657189a19d9b8e2c5843036a01bbcc4fdb7d",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F18.P1": {
+          "canonical_fragment_sha256": "0fb48b3b69aac07256ea4b26782795990ca91985fa0f8f5e06e570e69611008e",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F18.P2": {
+          "canonical_fragment_sha256": "8b0e1f9862c2dfd979c519c63f69c699c9436f8241b64e074beb5192626e589f",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F19.P1": {
+          "canonical_fragment_sha256": "b535e70377499578a2c73bae0c4f6f3677eadafc08a43f7323b4f33598be1a88",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F19.P2": {
+          "canonical_fragment_sha256": "a0f51b6e2b23f369b906796e94bc099e6202785ab2d4cbd4e0b9e158d39ceda6",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        },
+        "F20.P1": {
+          "canonical_fragment_sha256": "a28be95808f890e72c004bfefb483939630b8c226829d1c0d8f23c25dfbd9525",
+          "fragment_origin": "reviewed-current-recertification-override",
+          "mode": "legacy-evidence-recertification",
+          "recertifier": "GPT-5.6 Sol",
+          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+        }
+      },
+      "legacy_recertification": {
+        "canonical_catalog_sha256": "3c4b1b4f084c74edb3a79bca1259f35aa0f3c24b433e1a43725b987bf88a3450",
+        "current_rubric_sha256": "fcfffe7e6819402b05c62283c25d79a1d79b7cf69197122c3560b9b395a48450",
+        "current_sc_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+        "density_source_selection": "same-run",
+        "migration_rule": "semantic-legacy-llm-recertification",
+        "migration_rule_version": 1,
+        "mode": "paid-evidence-current-schema-v1",
+        "policy": "Support judgments are recovered from the preserved paid Capability Coverage record and re-checked against the current rubric. Fragments come from the same scientific experiment's Semantic Density evidence (same-run preferred; cross-run only after exact shared-identity proof), with only the small reviewed fragment-override table filling historical omissions. Current trusted runtime facts own F20.P1 for Python/Go/Java/Kotlin. This is legacy LLM recertification and never claims that the historical run mechanically compiled or executed these reconstructed fixtures.",
+        "recertifier": "GPT-5.6 Sol",
+        "schema_version": 1,
+        "scientific_identity_sha256": "d12beef09a8c742a954f2cbaed5f167e4c565d2677f6eae55422d299c9a73e01",
+        "source_density_record": "v1/semantic-compression/java/956d0f4caea8fc4b07f3631a8814c60772178d4a98a9a742652a8eac3b34cb64.json",
+        "source_density_record_sha256": "f38a04a479587e64bd59b2a85e1328b99cb20092ca4c60a85be621e9340ed4da",
+        "source_density_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_density_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "source_owner_record": "v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json",
+        "source_owner_record_sha256": "254ce403a3d69376ee7ad89ed231138d44de5e807c2f3583103afab16ea9d02c",
+        "source_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "support_re_adjudications": {},
+        "verdict": "PASS"
+      },
+      "metric.capability_coverage": {
+        "C_percent": 89.77,
+        "denominator_fixed": 88,
+        "family_breakdown": {
+          "1. value and storage declaration": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "10. explicit and implicit type conversion": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "11. indexing and slicing": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "12. nullable / optional values": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "13. errors, failure values, exceptions, and propagation": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "14. alternatives / sum / variant types and dispatch over alternatives": {
+            "coverage_percent": 100.0,
+            "denominator": 6,
+            "numerator": 6
+          },
+          "15. generics / parametric polymorphism": {
+            "coverage_percent": 100.0,
+            "denominator": 6,
+            "numerator": 6
+          },
+          "16. collections and iteration": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+            "coverage_percent": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "18. modules, imports, and dependency boundaries": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "19. concurrency / asynchronous execution where the language supports it": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "2. initialization and potentially uninitialized state": {
+            "coverage_percent": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "20. FFI / interoperability boundaries": {
+            "coverage_percent": 25.0,
+            "denominator": 4,
+            "numerator": 1
+          },
+          "3. mutation": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+            "coverage_percent": 66.67,
+            "denominator": 6,
+            "numerator": 4
+          },
+          "5. function calls and argument-passing semantics": {
+            "coverage_percent": 66.67,
+            "denominator": 6,
+            "numerator": 4
+          },
+          "6. return-value semantics": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "7. arithmetic operators": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "9. equality, ordering, and comparison": {
+            "coverage_percent": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          }
+        },
+        "family_numerator_sum_check": "4+3+4+4+4+4+4+4+4+4+4+4+4+6+6+4+3+4+4+1 = 79 (matches aggregate numerator)",
+        "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+        "language": "Java",
+        "limitations_and_flags_for_runner": [
+          "This shard measures only the Java column of the fixed 44-probe universe; the run-wide comparability gate (V1-V5, cross-language common-basis metrics A-D) is out of scope for this work unit and must be composed by the runner from all language shards.",
+          "F20.P1's PARTIAL rests on an assumption about the exact JDK version in the frozen toolchain, which was not supplied in this packet's embedded inputs; the runner should confirm against environment.json -> frozen_toolchain_recipes (V5) and update this single cell if the confirmed JDK is 22+ with FFM API finalized (would become FULL) or pre-21 (would remain PARTIAL/could become NONE if JNI-only).",
+          "Fragment source text, build/run transcripts and R10 alternative-form token counts referenced by capability_universe.json's evidence_required_per_pair were not separately authored as standalone files in this shard; the per_probe_support notes above give the R10-selected form for each probe so the aggregator/reviewer can reconstruct and verify them mechanically."
+        ],
+        "na_policy_compliance": "No probe was scored N/A. Every NONE (F04.P1, F05.P2, F20.P2) and every PARTIAL (F02.P2, F17.P2, F20.P1) carries a written justification per NA-5/NA-6; all NONEs retain their full 2 capability points in the fixed 88-point denominator per NA-2.",
+        "numerator_raw_points": 79,
+        "per_probe_support": {
+          "F01.P1": {
+            "note": "final int n = 7; return n; \u2014 standard immutable local binding.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F01.P2": {
+            "note": "static long counter = 0; static final long LIMIT = 100; at class/file scope.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F02.P1": {
+            "note": "Java definite-assignment analysis permits declare-without-initializer then assign on both branches of an if/else, exactly the pattern required.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F02.P2": {
+            "note": "Java arrays are always zero/default-initialized; no documented mechanism for genuinely uninitialized bulk storage. Named substitution per R9: byte[] b = new byte[16]; b[0]=1; return b[0];",
+            "p_letter": "P-a",
+            "points_awarded": 1,
+            "support": "PARTIAL"
+          },
+          "F03.P1": {
+            "note": "x++; (or x += 1;) in-place compound update.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F03.P2": {
+            "note": "xs.set(1, 42); on a java.util.List (e.g. ArrayList) mutates in place through the existing name.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F04.P1": {
+            "n_reason": "N-1",
+            "note": "Java has no documented mechanism for a second name to alias-and-write an existing local scalar variable's storage (no references/pointers/inout to locals); wrapping in a mutable object changes identity of what's aliased, not the local itself, and is excluded by the probe's own rubric elsewhere (F05.P2).",
+            "points_awarded": 0,
+            "support": "NONE"
+          },
+          "F04.P2": {
+            "note": "List<Integer> window = Collections.unmodifiableList(xs); \u2014 documented non-copying read-only view; window.get(0) reads without copying elements.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F04.P3": {
+            "note": "Reference identity via ==. Route `first` through a one-element List, retrieve as `second`, test `first == second` (documented reference-equality operator distinct from .equals()).",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F05.P1": {
+            "note": "Ordinary call f(x) on a List argument passes the reference by value; callee can read/write/resize elements of the same underlying object, observable through x afterward.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F05.P2": {
+            "n_reason": "N-1",
+            "note": "Java has no documented mechanism for a callee to write a caller's scalar (primitive int) local variable; no ref/out/inout parameters, no address-of. The rubric explicitly disallows a mutable-container substitution as FULL for this probe.",
+            "points_awarded": 0,
+            "support": "NONE"
+          },
+          "F05.P3": {
+            "note": "Function<Integer,Integer> neg = a -> k - a; (k captured, effectively final) then xs.stream().map(neg)... \u2014 lambda captures enclosing local and is passed by name to Stream.map.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F06.P1": {
+            "note": "mid(List<Integer> xs){ return xs.get(1); } \u2014 returns an autoboxed Integer, a call-site binding, and return of y.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F06.P2": {
+            "note": "record Pair(int q, int r) {} (Java 16+ record) used as the standard multiple-result mechanism; divmod2 returns new Pair(a/b, a%b).",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F07.P1": {
+            "note": "int r = a * b + c; ordinary precedence and operators.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F07.P2": {
+            "note": "int q = a / b; int m = a % b; double d = (double) a / b; \u2014 Java int division truncates toward zero, % follows dividend sign, explicit cast for real division.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F08.P1": {
+            "note": "int m = Integer.MAX_VALUE; int o = m + 1; \u2014 Java has no checked/wrapping/saturating standard arithmetic ops returning an optional; the plain + silently wraps (two's complement), which is the checked-mode-equivalent, deterministic, documented behavior for this recipe.",
+            "points_awarded": 2,
+            "rung_used": "iv (plain operator)",
+            "support": "FULL"
+          },
+          "F08.P2": {
+            "note": "int q = (b == 0) ? 0 : a / b; \u2014 Java has no checked-division-to-optional standard op; explicit guard is the documented next rung.",
+            "points_awarded": 2,
+            "rung_used": "ii (explicit guard)",
+            "support": "FULL"
+          },
+          "F09.P1": {
+            "note": "boolean eq = s1.equals(s2); \u2014 content comparison via String.equals.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F09.P2": {
+            "note": "xs.sort(Comparator.reverseOrder()); boolean lt = a < b; \u2014 explicit descending order supplied, in-place sort of the List.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F10.P1": {
+            "note": "int small; try { small = Math.toIntExact(big); } catch (ArithmeticException e) { small = 0; } \u2014 Math.toIntExact is the standard checked narrowing operation.",
+            "points_awarded": 2,
+            "rung_used": "i (checked, exception mapped to fallback 0)",
+            "support": "FULL"
+          },
+          "F10.P2": {
+            "note": "double sum = i + d; \u2014 implicit widening of int to double at the + operator, no explicit conversion syntax needed or permitted.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F11.P1": {
+            "note": "int e = xs.get(i); \u2014 ordinary indexed read on List, throws IndexOutOfBoundsException on out-of-range i.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F11.P2": {
+            "note": "List<Integer> part = xs.subList(1, 4); \u2014 documented view sharing backing storage with xs (not a copy).",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F12.P1": {
+            "note": "Optional<Integer> o = Optional.empty(); int n = o.orElse(0); \u2014 type-level optionality via java.util.Optional and its standard fallback operation.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F12.P2": {
+            "note": "Function<Integer,Integer> h = a -> a + 1; Optional<Integer> p = o.map(h); int result = p.orElse(0); \u2014 Optional.map is the standard optional-aware chaining operation, no explicit if/switch.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F13.P1": {
+            "note": "int parse_twice(String s) { return Integer.parseInt(s) * 2; } \u2014 Integer.parseInt throws unchecked NumberFormatException which propagates automatically without explicit handling.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F13.P2": {
+            "note": "int n; try { n = Integer.parseInt(s); } catch (NumberFormatException e) { n = 0; } \u2014 standard local catch-based recovery.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F14.P1": {
+            "note": "sealed interface Shape permits Circle, Rect {} ; record Circle(double r) implements Shape {} ; record Rect(double w, double h) implements Shape {} \u2014 sealed hierarchy is a closed alternative set enforced by the compiler (Java 17+ sealed classes).",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F14.P2": {
+            "note": "double area = switch (s) { case Circle c -> Math.PI * c.r() * c.r(); case Rect r -> r.w() * r.h(); }; \u2014 pattern-matching switch over a sealed hierarchy is checked exhaustively by the compiler with no default arm required (Java 21+).",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F14.P3": {
+            "note": "Plain (unsealed) interface Shapes.area() in unit `shapes`, implemented by Circle/Rect there and by Tri in a separate compilation unit, dispatched through the abstract type \u2014 uses the multi-unit javac recipe frozen in toolchain_binding.multi_unit_recipes.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F15.P1": {
+            "note": "static <T> T head(List<T> xs) { return xs.get(0); } \u2014 declared result type T is statically recoverable from the generic signature even though erased at runtime; used at Integer and String call sites.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F15.P2": {
+            "note": "static <T extends Comparable<T>> T max_of(T a, T b) { return a.compareTo(b) > 0 ? a : b; } \u2014 declaration-site bound via extends Comparable<T>.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F15.P3": {
+            "note": "interface Named { String tag(); } with A, B implementing it; List<Named> items holding one of each; items.get(0).tag() dispatched at runtime to A's implementation.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F16.P1": {
+            "note": "List<Integer> xs = new ArrayList<>(List.of(1,2,3)); int total = xs.stream().mapToInt(Integer::intValue).sum(); \u2014 standard sum/stream operation.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F16.P2": {
+            "note": "Map<String,Integer> mp = new HashMap<>(); mp.put(\"a\",1); iterate mp.entrySet() to sum values; int miss = mp.getOrDefault(\"b\", 0); \u2014 HashMap's unspecified iteration order and getOrDefault's documented absent-key fallback.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F17.P1": {
+            "note": "try (FileReader r = new FileReader(\"data.txt\")) { ... } \u2014 try-with-resources guarantees close() runs on every exit path including exceptions (AutoCloseable).",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F17.P2": {
+            "note": "Java has no deterministic end-of-lifetime hook (finalize() is deprecated/nondeterministic/removed in recent releases; Cleaner is GC-driven and nondeterministic). Nearest standard substitute per the probe's own named exception: an explicit close() invoked by a try-with-resources scoped construct, incrementing `released` deterministically exactly once at scope exit.",
+            "p_letter": "P-a",
+            "points_awarded": 1,
+            "support": "PARTIAL"
+          },
+          "F18.P1": {
+            "note": "System.out.println(\"x\"); \u2014 java.lang is implicitly available with no import declaration required.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F18.P2": {
+            "note": "package util; class Util { public static int pub_add(int a,int b){ return a+b+secret(); } private static int secret(){ return 1; } } called from outside as Util.pub_add(2,3) \u2014 Java access modifiers (public/private) enforce the boundary; uses the multi-unit javac recipe.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F19.P1": {
+            "note": "ExecutorService with two Callable<Integer> tasks (or two Thread instances) computing 20 and 22, Future.get() on both, sum = 42 \u2014 java.util.concurrent is the standard shipped concurrency facility.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F19.P2": {
+            "note": "java.util.concurrent.atomic.AtomicLong counter; two threads each call counter.incrementAndGet() 1000 times; join both; counter.get() == 2000 \u2014 AtomicLong's read-modify-write is documented by the JDK as atomic/race-free.",
+            "points_awarded": 2,
+            "support": "FULL"
+          },
+          "F20.P1": {
+            "note": "The Java Foreign Function & Memory API (java.lang.foreign) can declare and call C `abs(int)` using only the standard library, but on many currently-common JDK versions this requires an --enable-preview flag or is only fully finalized in the newest LTS (Java 22+); absent a confirmed toolchain fingerprint in this packet, this is recorded as requiring a flag/mode outside the strict frozen recipe.",
+            "p_letter": "P-b",
+            "points_awarded": 1,
+            "support": "PARTIAL"
+          },
+          "F20.P2": {
+            "n_reason": "N-1",
+            "nm_field": "no compiled artifact under the frozen recipe",
+            "note": "javac/java produces JVM bytecode (.class files), not a native compiled artifact with linker-visible symbols; there is no way to produce an nm-visible unmangled `add2` symbol under the frozen recipe.",
+            "points_awarded": 0,
+            "support": "NONE"
+          }
+        },
+        "toolchain_assumption": "Recipe per capability_universe.json: javac -d OUT FILE.java / java -cp OUT Main. For probes assuming newer language features (sealed classes/records F14.P1-P3, pattern-matching switch F14.P2, java.util.concurrent atomics F19.P2, Foreign Function & Memory API F20.P1) a modern LTS toolchain (Java 21+) is assumed since no environment.json toolchain fingerprint was embedded in this packet; this assumption is flagged as an evidence gap for V5 recipe-agreement cross-check by the runner."
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Java": 90.909091
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90",
+  "schema_version": 1
+}

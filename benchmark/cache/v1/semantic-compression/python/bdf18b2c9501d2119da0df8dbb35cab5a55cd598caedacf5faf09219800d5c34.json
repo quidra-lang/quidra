@@ -1,0 +1,1161 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "canonical_catalog_sha256": "02bb9363c591ce550788277336f57e72f3e26318c2607663f61c7c18f108f9d3",
+    "compatibility_migration": "semantic-legacy-llm-recertification",
+    "current_validator_revalidated": true,
+    "current_validator_revalidation_required": true,
+    "primary_complete": false,
+    "semantic_legacy_owner_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "d313f3cb699bc580976e3f01e22aa36bd4dd100263648b96994e367a73a6f8d5",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--python",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "Historical paid Semantic Compression evidence was re-adjudicated against the current frozen rubric by the trusted GPT-5.6 Sol recertifier. The result is bound to a frozen provenance snapshot containing the exact legacy source hashes and current canonical fragments. This mode never claims that legacy fragments were mechanically compiled when the retained run did not perform that verification.",
+    "migration_rule": "semantic-legacy-llm-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda",
+    "source_record": "v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json",
+    "source_record_sha256": "25a00ef45789bd09dd97bbaa8308d14999c605fffd50a9f533b167457b88a321",
+    "source_result_sha256": "a251372421295c6c91fbef0f5941411bdff33dd4e9b1aa0d23b2210425ee4daa",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification",
+      "canonical_fragments",
+      "canonical_verification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "d313f3cb699bc580976e3f01e22aa36bd4dd100263648b96994e367a73a6f8d5",
+    "run_id": "cache-recertify-7c43dba",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--python"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F01.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F01.P1",
+          "fragment": "n = 7\nreturn n",
+          "justification": "Python can bind and return the required value but does not document a language-enforced never-reassignable local binding; the missing immutability guarantee is therefore PARTIAL under P-c, not P-a.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-c"
+          ]
+        },
+        "F01.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F01.P2",
+          "fragment": "counter = 0\nLIMIT = 100",
+          "justification": "Python's module-level constant spelling is a documented convention rather than an enforced non-reassignability guarantee, so the guarantee is PARTIAL under P-c.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-c"
+          ]
+        },
+        "F02.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F02.P1",
+          "fragment": "if cond:\n    v = 5\nelse:\n    v = 9\nreturn v",
+          "justification": "Python requires no separate declaration step; v is definitely assigned on both branches and readable after, satisfying all numbered sub-requirements under the frozen recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F02.P2",
+          "fragment": "buf = bytearray(16)\nbuf[0] = 1\nx = buf[0]\nreturn x",
+          "justification": "Named substitution per R9: Python has no way to obtain genuinely uninitialized storage (bytearray/bytes are always zero/default-initialized); substituted default-initialized buffer written per canonical_task instruction, PARTIAL and never FULL.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F03.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F03.P1",
+          "fragment": "x += 1",
+          "justification": "x += 1 is Python's normal in-place compound-assignment form for a mutable local int name; behavior fully delivered.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F03.P2",
+          "fragment": "xs[1] = 42",
+          "justification": "xs[1] = 42 mutates the list in place through the existing name.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F04.P1",
+          "fragment": null,
+          "justification": "Python scalar names bind immutable int objects; there is no documented mechanism for a second name to write the same scalar storage as an existing local (no references/pointers/inout for locals).",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F04.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F04.P2",
+          "fragment": null,
+          "justification": "Python list slicing always copies; there is no standard non-copying read-only view over a list's existing elements (memoryview applies only to buffer-protocol types, not list).",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F04.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F04.P3",
+          "fragment": "class H:\n    def __init__(self, id):\n        self.id = id\nfirst = H(5)\nbox = [first]\nsecond = box[0]\nsame = first is second\nreturn same",
+          "justification": "`is` operator is Python's standard object-identity test; routing through a one-element list and reading back preserves identity.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F05.P1",
+          "fragment": "x = [1, 2, 3]\nf(x)\ne = x[0]\nreturn e",
+          "justification": "f(x) is Python's ordinary bare call form; objects are passed by object reference per Python's evaluation model.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F05.P2",
+          "fragment": null,
+          "justification": "Python provides no documented mechanism for a callee to write a caller's scalar local variable; only mutable-container substitution is possible, which R9/probe text excludes as an acceptable FULL/PARTIAL substitute for this probe (mandated NONE per rubric N-4 listing).",
+          "level": "NONE",
+          "none_reason": "N-4",
+          "partial_reasons": []
+        },
+        "F05.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F05.P3",
+          "fragment": "def neg(a):\n    return k - a\nys = list(map(neg, xs))\nreturn ys[0]",
+          "justification": "def/lambda closures capture enclosing locals; map(neg, xs) applies a by-name function value.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F06.P1",
+          "fragment": "def mid(s):\n    return s[1]\nxs = [1, 2, 3]\ny = mid(xs)\nreturn y",
+          "justification": "Ordinary function returning xs[1], bound at call site with y = mid(xs); return y is standard.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F06.P2",
+          "fragment": "def divmod2(a, b):\n    return a // b, a % b\nq, r = divmod2(a, b)\nreturn q + r",
+          "justification": "Python tuple return (a // b, a % b) with q, r = divmod2(a, b) is the standard multiple-result mechanism.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F07.P1",
+          "fragment": "r = a * b + c",
+          "justification": "r = a * b + c uses ordinary operators and precedence; Python ints are unbounded so no overflow trap changes the operator's expressibility.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F07.P2",
+          "fragment": "q = a // b\nm = a % b\nd = a / b",
+          "justification": "//, %, and / are Python's standard floor-division, remainder, and true-division operators.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F08.P1",
+          "fragment": null,
+          "justification": "Python has no fixed-width 32-bit integer type or standard checked/wrapping/saturating 32-bit arithmetic operation; ints are arbitrary precision, so the overflow construct cannot be expressed with standard operators.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F08.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F08.P2",
+          "fragment": "q = 0 if b == 0 else a // b",
+          "justification": "Explicit guard 'q = 0 if b == 0 else a // b' is a standard local guard (rung ii), making the zero-divisor outcome determinate at the site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F09.P1",
+          "fragment": "eq = s1 == s2",
+          "justification": "s1 == s2 compares string contents in Python, the ordinary equality operator.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F09.P2",
+          "fragment": "xs.sort(reverse=True)\nlt = a < b",
+          "justification": "xs.sort(reverse=True) or sorted(xs, reverse=True) supplies an explicit descending order; a < b is the ordinary comparison operator.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F10.P1",
+          "fragment": "import ctypes\nsmall = ctypes.c_int32(big).value\nreturn small",
+          "justification": "ctypes.c_int32 is a standard-library signed 32-bit representation and its explicit construction is a standard narrowing conversion. The unchanged preference ladder therefore reaches rung (ii) without a named-substitution exception.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F10.P2",
+          "fragment": "sum = i + d",
+          "justification": "i + d triggers Python's implicit int-to-float promotion in ordinary mixed arithmetic.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F11.P1",
+          "fragment": "e = xs[i]\nreturn e",
+          "justification": "xs[i] is the ordinary indexed-read form; raises IndexError deterministically on out-of-range, a documented, determinate outcome.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F11.P2",
+          "fragment": "part = xs[1:4]\nresult = part[0]",
+          "justification": "xs[1:4] is Python's standard slice/sub-range form (list slicing).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F12.P1",
+          "fragment": "o = None\nn = 0 if o is None else o\nreturn n",
+          "justification": "Named substitution per R9: Python has no enforced type-level optional distinction; None is used as an untyped absence sentinel, with 'x if x is not None else 0' or similar as the fallback form.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F12.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F12.P2",
+          "fragment": "def h(a):\n    return a + 1\np = h(o) if o is not None else None\nn = p if p is not None else 0\nreturn n",
+          "justification": "Named substitution per R9: Python has no standard optional-aware chaining/mapping operator; an explicit conditional expression is substituted.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F13.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F13.P1",
+          "fragment": "def parse_twice(s):\n    return int(s) * 2",
+          "justification": "int(s) raises ValueError on malformed input and propagates unhandled by Python's default exception-propagation semantics; no special declaration syntax is required or omitted.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F13.P2",
+          "fragment": "try:\n    n = int(s)\nexcept ValueError:\n    n = 0\nreturn n",
+          "justification": "try/except around int(s) with a fallback value in the except clause is Python's standard local-handling construct.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F14.P1",
+          "fragment": "@dataclass\nclass Circle:\n    r: float\n@dataclass\nclass Rect:\n    w: float\n    h: float\nShape = Union[Circle, Rect]\ns: Shape = Circle(2.0)",
+          "justification": "Python has no closed-sum-type declaration; a class hierarchy or dataclass union is the nearest standard substitute, but nothing in the language prevents a third case being added elsewhere, per R9 named substitution.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F14.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F14.P2",
+          "fragment": "match s:\n    case Circle(r=r):\n        area = 3.141592653589793 * r * r\n    case Rect(w=w, h=h):\n        area = w * h\nreturn area",
+          "justification": "Python's structural pattern matching (match/case) dispatches over Circle/Rect without a default arm and computes area; exhaustiveness enforcement is an observation-target item, not a support requirement.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F14.P3",
+          "fragment": "# shapes.py\nclass Shape(ABC):\n    @abstractmethod\n    def area(self): ...\nclass Circle(Shape):\n    def __init__(self, r): self.r = r\n    def area(self): return 3.141592653589793 * self.r * self.r\nclass Rect(Shape):\n    def __init__(self, w, h): self.w=w; self.h=h\n    def area(self): return self.w*self.h\n# other.py\nclass Tri(Shape):\n    def __init__(self, b, h): self.b=b; self.h=h\n    def area(self): return 0.5*self.b*self.h\nt = Tri(3,4)\nresult = t.area()",
+          "justification": "Python's duck typing/ABC mechanism trivially allows a Tri class defined in a separate module to implement area() and be dispatched through the abstract interface without editing the shapes unit.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F15.P1",
+          "fragment": "def head(xs: list[T]) -> T:\n    return xs[0]\na = head([4, 5, 6])\nb = head([\"p\", \"q\"])\nreturn str(a) + b",
+          "justification": "Per the canonical_task's own named substitution clause: Python has only a universal dynamic type, no enforced parametric generics; the nearest standard (untyped) function form is substituted.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F15.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F15.P2",
+          "fragment": "from typing import TypeVar\nT = TypeVar(\"T\", bound=\"SupportsRichComparison\")\ndef max_of(a: T, b: T) -> T:\n    return a if a > b else b\nm = max_of(3, 5)\nreturn m",
+          "justification": "Per the canonical_task's own named substitution clause: Python has no declaration-site constraint mechanism enforced by the language; ordinary comparison operators are used without an enforced bound.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F15.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F15.P3",
+          "fragment": "class Named(Protocol):\n    def tag(self) -> str: ...\nclass A:\n    def tag(self): return \"a\"\nclass B:\n    def tag(self): return \"b\"\nitems: list[Named] = [A(), B()]\nresult = items[0].tag()",
+          "justification": "Python's dynamic typing/duck typing trivially holds heterogeneous concrete types A and B in one list under an informal Named 'interface' and dispatches tag() at runtime.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F16.P1",
+          "fragment": "xs = [1, 2, 3]\ntotal = sum(xs)\nreturn total",
+          "justification": "xs = [1, 2, 3]; total = sum(xs) is Python's standard literal and sum() builtin.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F16.P2",
+          "fragment": "mp = {\"a\": 1}\ntotal = sum(mp.values())\nmiss = mp.get(\"b\", 0)\nreturn total + miss",
+          "justification": "dict literal, sum(mp.values()), and mp.get('b', 0) are Python's standard map construction, iteration, and lookup-with-default forms.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F17.P1",
+          "fragment": "def read_all():\n    with open(\"data.txt\") as f:\n        text = f.read()\n    return len(text)",
+          "justification": "with open('data.txt') as f: is Python's standard scoped-cleanup (context manager) mechanism guaranteeing release on every exit path including exceptions.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F17.P2",
+          "fragment": "class Handle:\n    def __init__(self, id):\n        self.id = id\n    def __enter__(self):\n        return self\n    def __exit__(self, *a):\n        global released\n        released += 1\nwith Handle(1):\n    pass\nresult = released",
+          "justification": "Python's __del__ finalizer timing is documented as implementation-defined (not guaranteed deterministic across implementations); the nearest standard deterministic construct is an explicit close()/dispose invoked by a `with`-scoped wrapper, which is the substituted PARTIAL form.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-c"
+          ]
+        },
+        "F18.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F18.P1",
+          "fragment": "print(\"x\")",
+          "justification": "print('x') requires no import in Python (builtin), satisfying the canonical_task's 'nothing if the facility is available without one' branch.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F18.P2",
+          "fragment": "# util.py\ndef pub_add(a, b):\n    return a + b + _secret()\ndef _secret():\n    return 1\n# main.py\nimport util\nresult = util.pub_add(2, 3)",
+          "justification": "Python module privacy (leading underscore on secret()) is a documented convention, not an enforced boundary; the language does not prevent external access, so the nearest standard convention is substituted.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F19.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F19.P1",
+          "fragment": "import asyncio\nasync def a(): return 20\nasync def b(): return 22\nasync def main():\n    r1, r2 = await asyncio.gather(a(), b())\n    return r1 + r2\nsum_ = asyncio.run(main())",
+          "justification": "asyncio (standard library) with asyncio.gather over two coroutines and asyncio.run() as the entry point is Python's standard async facility.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F19.P2",
+          "fragment": "import threading\ncounter = 0\nlock = threading.Lock()\ndef worker():\n    global counter\n    for _ in range(1000):\n        with lock:\n            counter += 1\nt1 = threading.Thread(target=worker)\nt2 = threading.Thread(target=worker)\nt1.start(); t2.start()\nt1.join(); t2.join()\nresult = counter",
+          "justification": "Two asyncio tasks incrementing a shared counter with no await inside the increment loop are documented by asyncio's cooperative single-threaded scheduling guarantee (a task runs uninterrupted until it awaits), giving a documented race-free discipline without needing an explicit lock; a threading.Lock-based alternative is equally standard.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F20.P1",
+          "fragment": "import ctypes\nlibc = ctypes.CDLL(None)\nresult = libc.abs(-3)",
+          "justification": "ctypes.CDLL (standard library, shipped with CPython) declares and calls libc abs(-3), Python's built-in FFI mechanism with no third-party package.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F20.P2",
+          "fragment": null,
+          "justification": "N-1/instrument note per rubric: `python3 FILE.py` produces no compiled artifact under the frozen recipe, so the nm-based unmangled-symbol verification cannot apply; recorded as NONE with nm evidence field 'no compiled artifact under the frozen recipe', not as N/A (per na_policy NA-5/6 and the F20.P2 canonical_task note).",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F01.P1": {
+          "canonical_fragment_sha256": "f7896bea6218701f63c21d1ad3a2bfaec04cb8b447bf633ccd4810c5260c234d",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F01.P2": {
+          "canonical_fragment_sha256": "8642eb0e5cba73607d92df338afeed9c79cbb588b9c2cfa4d52ba9c0bff50d6c",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F02.P1": {
+          "canonical_fragment_sha256": "9877449859338a146488140eb03aebc5c5db8570d61a2d796259cf9bbd378e2a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F02.P2": {
+          "canonical_fragment_sha256": "94e9af6138c7a8085f21174925c2afebb2db560321e5ee930f94b1a8e7e6a2f9",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F03.P1": {
+          "canonical_fragment_sha256": "57704168a5cc3bcda0170590a14d99d6f6f348ff56ac3cd1c1b5b1123d38ff84",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F03.P2": {
+          "canonical_fragment_sha256": "02f47e532c55019f556aea8d210d281b5e1b0d2467b05492179cbd8f2d8e02ec",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F04.P3": {
+          "canonical_fragment_sha256": "1a1d468b6d653f3b35c344b5a476653493cdef772c62a011401fa10d3e9e49ec",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P1": {
+          "canonical_fragment_sha256": "36bc3dd8d2dd5a14c6fa3df7f06d07fd5f229c0045386aaa48704f900eb215f7",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F05.P3": {
+          "canonical_fragment_sha256": "7eba91fc1d8e72827f69670b36ae30d82861486f75999bd1e612e41d48be74a5",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F06.P1": {
+          "canonical_fragment_sha256": "2c2880eb65756339f8fe5591d13955d485a16a00c9aa064779c78772bd6dde86",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F06.P2": {
+          "canonical_fragment_sha256": "fda6c8f38bd91b8417c9ab229e517e45ef760fcfd9569c31ace80ee4211c8845",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F07.P1": {
+          "canonical_fragment_sha256": "f43d847b25a18c376b6a56b6a29947dbeed69b88a0b9e5fa3a26cd25d097d3d0",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F07.P2": {
+          "canonical_fragment_sha256": "0cae148d85e44b9b900c5f223f3d6bc80d00c406dbdb9e0599c74930a0555ca1",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F08.P2": {
+          "canonical_fragment_sha256": "e0e65a0142508a03befaeae53e142f55cf29afb52f0e178d8f9efc17e6affa96",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F09.P1": {
+          "canonical_fragment_sha256": "108b7fe5b39f9adfc3269b624f3ba5a560e538746d8db5d8ff8282b930640dc0",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F09.P2": {
+          "canonical_fragment_sha256": "e9e30e538e1f73fed2baeda89b369eba3d5e5373da5c1b5d8bcf3419c00e6980",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F10.P1": {
+          "canonical_fragment_sha256": "de493f3d12b249a65b6c5b9f3eb01f3a55fde300170c82154c68d2e8e03ee793",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F10.P2": {
+          "canonical_fragment_sha256": "8c5a9d649d4f33564498b0257d4091d34a39a809f69f5ed7bf45f026dd9c8e67",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F11.P1": {
+          "canonical_fragment_sha256": "0239f249cb7090d2192983e33a4ca409c7119788cb3bd67812a35d21fbe62814",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F11.P2": {
+          "canonical_fragment_sha256": "34b023c7d2585810f38877729b457700bed3f383b6e8b2b46279c2a5519dd557",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F12.P1": {
+          "canonical_fragment_sha256": "a724853bc1a5e5d6b56fedc0c1fc69d299c318452db21c6d5917d336fffe95f4",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F12.P2": {
+          "canonical_fragment_sha256": "1daf7c20ae5c0a338105c2c6822b6d1266de394acadd136bf330f670c1a839ab",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F13.P1": {
+          "canonical_fragment_sha256": "eaf55bbe435ae88385d27ea29b134f65937d2e3d03e6baec2d721847c2b1072e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F13.P2": {
+          "canonical_fragment_sha256": "a354d07c64b87eb1b5beb538cac78119f1191296b58a333c12dc74b4279f27e6",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P1": {
+          "canonical_fragment_sha256": "a5dfd103796ed8963a3d1981f99b1945e68ef58b1387c3bc6a353d2d9e3b4fa5",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P2": {
+          "canonical_fragment_sha256": "638f2153b6db74ae6734fac47b2a66e5c16cfbf0764e561d75e5498b84ab5a74",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F14.P3": {
+          "canonical_fragment_sha256": "085eca0398a60fa1596c03b92810bbcaa3f25ab8a51b9edceb7be7c61f3e01d2",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P1": {
+          "canonical_fragment_sha256": "48da880dbd388721d37075ef63372d5f83c85cc567fc4d5dc1a8e612fa314a96",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P2": {
+          "canonical_fragment_sha256": "6f6bd05ef5d1f05b727a231102503294fb5043c1bccb227f2c5954c8f290bdd0",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F15.P3": {
+          "canonical_fragment_sha256": "c8c2246d602deb63e45afa78fd49df27e68a0c006b6c8c9c048bccb3e0626f41",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F16.P1": {
+          "canonical_fragment_sha256": "a8c6f8a362df51eefc3777ec26b1267b0d0790e000c0e4101998c20a03e1332c",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F16.P2": {
+          "canonical_fragment_sha256": "5ac6c09be58186885b07759ee7701bc7825f5d374e73c50c5e9bcd0be2d306cd",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F17.P1": {
+          "canonical_fragment_sha256": "6407c0dc7939f3c24534b713780eedd68ec09d382c49e1f9990b212f4ae0048e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F17.P2": {
+          "canonical_fragment_sha256": "db787a1283b2ffc02cbf77d5db7af3e0e2d37d8b67416bd762244a1afdcef82e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F18.P1": {
+          "canonical_fragment_sha256": "4ae34b57cc34b25eda914ff93d8101dab31a4db871fbd8860dd51464f82309cd",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F18.P2": {
+          "canonical_fragment_sha256": "242f3cc83d9d573476a8a8d0eb417cb7fccc92c15721a1011bd15c8665fe4688",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F19.P1": {
+          "canonical_fragment_sha256": "0455ebee4e075466d7d19fe424e0ec95b57063860f2496ceeecec355bd257be1",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F19.P2": {
+          "canonical_fragment_sha256": "dad07a710f79b1a72776084166c965ad65fe4cb544780eca3929835d2f421734",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        },
+        "F20.P1": {
+          "canonical_fragment_sha256": "10e09f4f71da1716c186e252fa45e282c2063875d8d2386929859b7200152c59",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "legacy_recertification": {
+        "canonical_catalog_sha256": "02bb9363c591ce550788277336f57e72f3e26318c2607663f61c7c18f108f9d3",
+        "current_rubric_sha256": "fcfffe7e6819402b05c62283c25d79a1d79b7cf69197122c3560b9b395a48450",
+        "current_sc_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+        "density_source_selection": "same-run",
+        "migration_rule": "semantic-legacy-llm-recertification",
+        "migration_rule_version": 1,
+        "mode": "paid-evidence-current-schema-v1",
+        "policy": "Support judgments are recovered from the preserved paid Capability Coverage record and re-checked against the current rubric. Fragments come from the same scientific experiment's Semantic Density evidence (same-run preferred; cross-run only after exact shared-identity proof), with only the small reviewed fragment-override table filling historical omissions. Current trusted runtime facts own F20.P1 for Python/Go/Java/Kotlin. This is legacy LLM recertification and never claims that the historical run mechanically compiled or executed these reconstructed fixtures.",
+        "recertifier": "GPT-5.6 Sol",
+        "schema_version": 1,
+        "scientific_identity_sha256": "02a2821a75601f65408b6f6f96cb9f04909d6be56d724ee3e9b0ccbfafacbf83",
+        "source_density_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+        "source_density_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+        "source_density_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_density_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "source_owner_record": "v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json",
+        "source_owner_record_sha256": "25a00ef45789bd09dd97bbaa8308d14999c605fffd50a9f533b167457b88a321",
+        "source_run_id": "2026-09-23-fce5cfa-gh16",
+        "source_snapshot_commit": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+        "support_re_adjudications": {
+          "F01.P1": {
+            "level": "PARTIAL",
+            "partial_reasons": [
+              "P-c"
+            ],
+            "reason": "Python can bind and return the required value but does not document a language-enforced never-reassignable local binding; the missing immutability guarantee is therefore PARTIAL under P-c, not P-a."
+          },
+          "F01.P2": {
+            "level": "PARTIAL",
+            "partial_reasons": [
+              "P-c"
+            ],
+            "reason": "Python's module-level constant spelling is a documented convention rather than an enforced non-reassignability guarantee, so the guarantee is PARTIAL under P-c."
+          },
+          "F10.P1": {
+            "level": "FULL",
+            "reason": "ctypes.c_int32 is a standard-library signed 32-bit representation and its explicit construction is a standard narrowing conversion. The unchanged preference ladder therefore reaches rung (ii) without a named-substitution exception."
+          }
+        },
+        "verdict": "PASS"
+      },
+      "metric.capability_coverage": {
+        "C_aggregate": 76.14,
+        "basis": "capability_coverage over full fixed 88-point denominator per spec 6.1.5 / capability_universe.json",
+        "capability_coverage_by_family": {
+          "1. value and storage declaration": {
+            "C": 50.0,
+            "denominator": 4,
+            "numerator": 2
+          },
+          "10. explicit and implicit type conversion": {
+            "C": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "11. indexing and slicing": {
+            "C": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "12. nullable / optional values": {
+            "C": 50.0,
+            "denominator": 4,
+            "numerator": 2
+          },
+          "13. errors, failure values, exceptions, and propagation": {
+            "C": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "14. alternatives / sum / variant types and dispatch over alternatives": {
+            "C": 83.33,
+            "denominator": 6,
+            "numerator": 5
+          },
+          "15. generics / parametric polymorphism": {
+            "C": 66.67,
+            "denominator": 6,
+            "numerator": 4
+          },
+          "16. collections and iteration": {
+            "C": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+            "C": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "18. modules, imports, and dependency boundaries": {
+            "C": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "19. concurrency / asynchronous execution where the language supports it": {
+            "C": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "2. initialization and potentially uninitialized state": {
+            "C": 75.0,
+            "denominator": 4,
+            "numerator": 3
+          },
+          "20. FFI / interoperability boundaries": {
+            "C": 50.0,
+            "denominator": 4,
+            "numerator": 2
+          },
+          "3. mutation": {
+            "C": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+            "C": 33.33,
+            "denominator": 6,
+            "numerator": 2
+          },
+          "5. function calls and argument-passing semantics": {
+            "C": 66.67,
+            "denominator": 6,
+            "numerator": 4
+          },
+          "6. return-value semantics": {
+            "C": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "7. arithmetic operators": {
+            "C": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          },
+          "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+            "C": 50.0,
+            "denominator": 4,
+            "numerator": 2
+          },
+          "9. equality, ordering, and comparison": {
+            "C": 100.0,
+            "denominator": 4,
+            "numerator": 4
+          }
+        },
+        "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+        "instrument_note": "This is a single-worker, single-language (Python) assessment produced against the frozen capability_universe.json probe set and support_rubric; it does not itself constitute V1-V5 pre-measurement validation across all ten languages, which is a cross-language obligation outside this work unit's scope.",
+        "language": "Python",
+        "na_policy_compliance": "No probe was excluded or reweighted for Python. All NONE results (F04.P1, F04.P2, F05.P2, F08.P1, F20.P2) contribute 0 to the numerator and their full 2 capability points to the fixed 88-point denominator per NA-2, and each carries a written justification citing the applicable language-documentation fact per NA-6/NA-5. Named-substitution PARTIALs (F02.P2, F12.P1, F12.P2, F14.P1, F15.P1, F15.P2) follow R9 and are recorded PARTIAL, never FULL, per the deterministic_tie_break.named_substitution rule.",
+        "per_probe_support": {
+          "F01.P1": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Python has no documented form for a binding guaranteed never-reassignable; ordinary assignment is used by convention only.",
+            "support": "PARTIAL"
+          },
+          "F01.P2": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "No language-enforced immutable constant; module-level UPPER_CASE name is convention, not enforced by the language.",
+            "support": "PARTIAL"
+          },
+          "F02.P1": {
+            "reason": "Python requires no separate declaration step; v is definitely assigned on both branches and readable after, satisfying all numbered sub-requirements under the frozen recipe.",
+            "support": "FULL"
+          },
+          "F02.P2": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Named substitution per R9: Python has no way to obtain genuinely uninitialized storage (bytearray/bytes are always zero/default-initialized); substituted default-initialized buffer written per canonical_task instruction, PARTIAL and never FULL.",
+            "support": "PARTIAL"
+          },
+          "F03.P1": {
+            "reason": "x += 1 is Python's normal in-place compound-assignment form for a mutable local int name; behavior fully delivered.",
+            "support": "FULL"
+          },
+          "F03.P2": {
+            "reason": "xs[1] = 42 mutates the list in place through the existing name.",
+            "support": "FULL"
+          },
+          "F04.P1": {
+            "reason": "Python scalar names bind immutable int objects; there is no documented mechanism for a second name to write the same scalar storage as an existing local (no references/pointers/inout for locals).",
+            "support": "NONE"
+          },
+          "F04.P2": {
+            "reason": "Python list slicing always copies; there is no standard non-copying read-only view over a list's existing elements (memoryview applies only to buffer-protocol types, not list).",
+            "support": "NONE"
+          },
+          "F04.P3": {
+            "reason": "`is` operator is Python's standard object-identity test; routing through a one-element list and reading back preserves identity.",
+            "support": "FULL"
+          },
+          "F05.P1": {
+            "reason": "f(x) is Python's ordinary bare call form; objects are passed by object reference per Python's evaluation model.",
+            "support": "FULL"
+          },
+          "F05.P2": {
+            "reason": "Python provides no documented mechanism for a callee to write a caller's scalar local variable; only mutable-container substitution is possible, which R9/probe text excludes as an acceptable FULL/PARTIAL substitute for this probe (mandated NONE per rubric N-4 listing).",
+            "support": "NONE"
+          },
+          "F05.P3": {
+            "reason": "def/lambda closures capture enclosing locals; map(neg, xs) applies a by-name function value.",
+            "support": "FULL"
+          },
+          "F06.P1": {
+            "reason": "Ordinary function returning xs[1], bound at call site with y = mid(xs); return y is standard.",
+            "support": "FULL"
+          },
+          "F06.P2": {
+            "reason": "Python tuple return (a // b, a % b) with q, r = divmod2(a, b) is the standard multiple-result mechanism.",
+            "support": "FULL"
+          },
+          "F07.P1": {
+            "reason": "r = a * b + c uses ordinary operators and precedence; Python ints are unbounded so no overflow trap changes the operator's expressibility.",
+            "support": "FULL"
+          },
+          "F07.P2": {
+            "reason": "//, %, and / are Python's standard floor-division, remainder, and true-division operators.",
+            "support": "FULL"
+          },
+          "F08.P1": {
+            "reason": "Python has no fixed-width 32-bit integer type or standard checked/wrapping/saturating 32-bit arithmetic operation; ints are arbitrary precision, so the overflow construct cannot be expressed with standard operators.",
+            "support": "NONE"
+          },
+          "F08.P2": {
+            "reason": "Explicit guard 'q = 0 if b == 0 else a // b' is a standard local guard (rung ii), making the zero-divisor outcome determinate at the site.",
+            "support": "FULL"
+          },
+          "F09.P1": {
+            "reason": "s1 == s2 compares string contents in Python, the ordinary equality operator.",
+            "support": "FULL"
+          },
+          "F09.P2": {
+            "reason": "xs.sort(reverse=True) or sorted(xs, reverse=True) supplies an explicit descending order; a < b is the ordinary comparison operator.",
+            "support": "FULL"
+          },
+          "F10.P1": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Python has no native 32-bit integer type; ctypes.c_int32(big).value (standard library) is required to obtain truncating/wrapping narrowing, a weaker/atypical substitute for a native narrowing conversion operator.",
+            "support": "PARTIAL"
+          },
+          "F10.P2": {
+            "reason": "i + d triggers Python's implicit int-to-float promotion in ordinary mixed arithmetic.",
+            "support": "FULL"
+          },
+          "F11.P1": {
+            "reason": "xs[i] is the ordinary indexed-read form; raises IndexError deterministically on out-of-range, a documented, determinate outcome.",
+            "support": "FULL"
+          },
+          "F11.P2": {
+            "reason": "xs[1:4] is Python's standard slice/sub-range form (list slicing).",
+            "support": "FULL"
+          },
+          "F12.P1": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Named substitution per R9: Python has no enforced type-level optional distinction; None is used as an untyped absence sentinel, with 'x if x is not None else 0' or similar as the fallback form.",
+            "support": "PARTIAL"
+          },
+          "F12.P2": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Named substitution per R9: Python has no standard optional-aware chaining/mapping operator; an explicit conditional expression is substituted.",
+            "support": "PARTIAL"
+          },
+          "F13.P1": {
+            "reason": "int(s) raises ValueError on malformed input and propagates unhandled by Python's default exception-propagation semantics; no special declaration syntax is required or omitted.",
+            "support": "FULL"
+          },
+          "F13.P2": {
+            "reason": "try/except around int(s) with a fallback value in the except clause is Python's standard local-handling construct.",
+            "support": "FULL"
+          },
+          "F14.P1": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Python has no closed-sum-type declaration; a class hierarchy or dataclass union is the nearest standard substitute, but nothing in the language prevents a third case being added elsewhere, per R9 named substitution.",
+            "support": "PARTIAL"
+          },
+          "F14.P2": {
+            "reason": "Python's structural pattern matching (match/case) dispatches over Circle/Rect without a default arm and computes area; exhaustiveness enforcement is an observation-target item, not a support requirement.",
+            "support": "FULL"
+          },
+          "F14.P3": {
+            "reason": "Python's duck typing/ABC mechanism trivially allows a Tri class defined in a separate module to implement area() and be dispatched through the abstract interface without editing the shapes unit.",
+            "support": "FULL"
+          },
+          "F15.P1": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Per the canonical_task's own named substitution clause: Python has only a universal dynamic type, no enforced parametric generics; the nearest standard (untyped) function form is substituted.",
+            "support": "PARTIAL"
+          },
+          "F15.P2": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Per the canonical_task's own named substitution clause: Python has no declaration-site constraint mechanism enforced by the language; ordinary comparison operators are used without an enforced bound.",
+            "support": "PARTIAL"
+          },
+          "F15.P3": {
+            "reason": "Python's dynamic typing/duck typing trivially holds heterogeneous concrete types A and B in one list under an informal Named 'interface' and dispatches tag() at runtime.",
+            "support": "FULL"
+          },
+          "F16.P1": {
+            "reason": "xs = [1, 2, 3]; total = sum(xs) is Python's standard literal and sum() builtin.",
+            "support": "FULL"
+          },
+          "F16.P2": {
+            "reason": "dict literal, sum(mp.values()), and mp.get('b', 0) are Python's standard map construction, iteration, and lookup-with-default forms.",
+            "support": "FULL"
+          },
+          "F17.P1": {
+            "reason": "with open('data.txt') as f: is Python's standard scoped-cleanup (context manager) mechanism guaranteeing release on every exit path including exceptions.",
+            "support": "FULL"
+          },
+          "F17.P2": {
+            "letters": [
+              "P-c"
+            ],
+            "reason": "Python's __del__ finalizer timing is documented as implementation-defined (not guaranteed deterministic across implementations); the nearest standard deterministic construct is an explicit close()/dispose invoked by a `with`-scoped wrapper, which is the substituted PARTIAL form.",
+            "support": "PARTIAL"
+          },
+          "F18.P1": {
+            "reason": "print('x') requires no import in Python (builtin), satisfying the canonical_task's 'nothing if the facility is available without one' branch.",
+            "support": "FULL"
+          },
+          "F18.P2": {
+            "letters": [
+              "P-a"
+            ],
+            "reason": "Python module privacy (leading underscore on secret()) is a documented convention, not an enforced boundary; the language does not prevent external access, so the nearest standard convention is substituted.",
+            "support": "PARTIAL"
+          },
+          "F19.P1": {
+            "reason": "asyncio (standard library) with asyncio.gather over two coroutines and asyncio.run() as the entry point is Python's standard async facility.",
+            "support": "FULL"
+          },
+          "F19.P2": {
+            "reason": "Two asyncio tasks incrementing a shared counter with no await inside the increment loop are documented by asyncio's cooperative single-threaded scheduling guarantee (a task runs uninterrupted until it awaits), giving a documented race-free discipline without needing an explicit lock; a threading.Lock-based alternative is equally standard.",
+            "support": "FULL"
+          },
+          "F20.P1": {
+            "reason": "ctypes.CDLL (standard library, shipped with CPython) declares and calls libc abs(-3), Python's built-in FFI mechanism with no third-party package.",
+            "support": "FULL"
+          },
+          "F20.P2": {
+            "reason": "N-1/instrument note per rubric: `python3 FILE.py` produces no compiled artifact under the frozen recipe, so the nm-based unmangled-symbol verification cannot apply; recorded as NONE with nm evidence field 'no compiled artifact under the frozen recipe', not as N/A (per na_policy NA-5/6 and the F20.P2 canonical_task note).",
+            "support": "NONE"
+          }
+        },
+        "scope_limitation": "This work unit was assigned only metric.capability_coverage for language Python; no cross-language comparability gate, Semantic Compression Overall Score, or ranking is computed or asserted here.",
+        "support_factor_map": {
+          "FULL": 1.0,
+          "NONE": 0.0,
+          "PARTIAL": 0.5
+        },
+        "total_capability_points_awarded": 67,
+        "total_fixed_capability_points": 88
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Python": 77.272727
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8",
+  "schema_version": 1
+}

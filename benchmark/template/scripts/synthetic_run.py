@@ -249,29 +249,46 @@ def synthetic_catalog_digest(
             f"{unit.get('id')}: synthetic canonical consumer is not single-language"
         )
     language = str(assigned[0])
-    candidates = [
-        source
-        for source in units.values()
-        if source_requirement in (source.get("requirement_ids") or [])
-        and list(source.get("assigned_languages") or []) == [language]
-    ]
-    if len(candidates) != 1:
+    catalog = synthetic_canonical_catalog(root)
+    expected = set(catalog)
+    owners: dict[str, dict[str, Any]] = {}
+    for source in units.values():
+        if not source.get("canonical_fragment_owner"):
+            continue
+        if list(source.get("assigned_languages") or []) != [language]:
+            continue
+        probe_id = str(source.get("canonical_probe_id") or "")
+        if probe_id not in expected:
+            continue
+        if probe_id in owners:
+            raise RunError(
+                f"{unit.get('id')}: duplicate synthetic canonical owner for "
+                f"{language} {probe_id}"
+            )
+        owners[probe_id] = source
+    if set(owners) != expected:
         raise RunError(
-            f"{unit.get('id')}: synthetic catalog owner count is {len(candidates)}"
+            f"{unit.get('id')}: synthetic canonical leaves incomplete for "
+            f"{language}; missing={sorted(expected-set(owners))}, "
+            f"extra={sorted(set(owners)-expected)}"
         )
-    source = candidates[0]
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "language": language,
-        "source_work_unit_id": source.get("id"),
-        "source_requirement_id": source_requirement,
-        "rule": (
-            "Use exactly these fragments for every downstream Semantic "
-            "Compression metric. FULL/PARTIAL entries must be measured verbatim; "
-            "NONE entries have no fragment and must not receive a numeric "
-            "per-probe A/B/C/D measurement."
+        "source_work_unit_ids": sorted(
+            str(owners[probe_id].get("id")) for probe_id in expected
         ),
-        "canonical_fragments": synthetic_canonical_catalog(root),
+        "source_requirement_prefix": "annotation.canonical_fragment--",
+        "rule": (
+            "Use exactly these independently certified probe fragments for every "
+            "downstream Semantic Compression metric. FULL/PARTIAL entries must be "
+            "measured verbatim; NONE entries have no fragment and must not receive "
+            "a numeric per-probe A/B/C/D measurement."
+        ),
+        "canonical_fragments": {
+            probe_id: catalog[probe_id]
+            for probe_id in sorted(catalog)
+        },
     }
     encoded = (
         json.dumps(payload, indent=2, sort_keys=True) + "\n"

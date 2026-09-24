@@ -5644,9 +5644,14 @@ def project_semantic_consumer_recertification(
             return None, f"{unit.get('id')}: invalid canonical record {probe_id}"
         values = _fragment_values(rows.get(probe_id) or {})
         if canonical["level"] == "NONE":
-            if values:
-                drop_probe_annotations(result.get("evidence") or {}, probe_id)
-                dropped_now_none.append(probe_id)
+            # NONE is scored through Capability Coverage, not as a synthetic
+            # zero in Q. Historical quality evidence can retain a per-probe row
+            # without embedding the fragment text itself (for example
+            # Determinacy/Locality). Remove that row regardless of whether
+            # _fragment_values() found text so the common-basis intersection
+            # excludes every current-NONE probe exactly once.
+            drop_probe_annotations(result.get("evidence") or {}, probe_id)
+            dropped_now_none.append(probe_id)
             continue
 
         expected = str(canonical["fragment"]).strip()

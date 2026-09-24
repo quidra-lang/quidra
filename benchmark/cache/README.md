@@ -56,9 +56,26 @@ is byte-identical to that catalog. The runner then adds the catalog attestation 
 validation. A missing fragment, a different fragment, or an old Capability Coverage
 owner that lacks the newer mechanical verification remains a MISS and runs normally.
 A PASS is checkpointed under the current fingerprint; a rejection discards only that
-candidate and executes the leaf normally. LLM Proficiency deliberately has no such
-migration because its prompt allocation and repair trajectory are themselves the
-measurement.
+candidate and executes the leaf normally.
+
+LLM Proficiency has no **record-level epoch shortcut** because its prompt allocation
+and repair trajectory are themselves the measurement. Historical Proficiency evidence
+is nevertheless audited at trial granularity by
+`scripts/audit_proficiency_legacy.py`. A historical trial may advance only when its
+frozen trial ID, exact initial prompt bytes, model/provider/sampling identity and
+relevant toolchain identity match the current contract and no hidden-oracle evidence
+was model-visible during repair. Even then it is only a category-D candidate until
+its preserved generated source is replayed through the current trusted verifier and
+the current validator passes. A trial whose scored task/prompt/repair conditions
+changed is category E and is not reused. Thus an epoch difference is never, by itself,
+the reason for rejection.
+
+Every compatibility migration that becomes an ordinary current-key certified record
+also carries a `migration` provenance object. It records the preserved source path,
+source byte hash and source fingerprint, migration rule/version/reason, transformed
+fields and current-validator PASS. Hydration verifies that source path and hash again.
+The old source record or frozen evidence snapshot remains untouched, so migration is
+a provenance-preserving ratchet rather than an in-place epoch rewrite.
 
 Language Quality mechanical work is certified as well. The micro suite
 (`lq-micro-mechanical`) remains one intentionally coupled all-language unit because

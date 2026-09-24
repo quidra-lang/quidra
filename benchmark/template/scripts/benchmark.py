@@ -7392,6 +7392,219 @@ def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
     return None
 
 
+CACHE_MIGRATION_RULE_VERSION = 1
+
+CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
+    "scoped-input-projection": {
+        "reason": (
+            "Legacy paid evidence is scientifically unchanged; only the scoped "
+            "Task Packet/fingerprint representation changed. Every non-scoped "
+            "dependency and selected prompt component was proved identical."
+        ),
+        "transformed_fields": [
+            "fingerprint",
+            "fingerprint_payload",
+            "provenance",
+            "certification",
+        ],
+    },
+    "ecosystem-runner-rubric-v2-snapshot": {
+        "reason": (
+            "Preserved paid Ecosystem findings/citations were centrally "
+            "re-adjudicated under the current runner-owned fixed rubric. Legacy "
+            "language-local scores were not copied."
+        ),
+        "transformed_fields": [
+            "requirements",
+            "evidence",
+            "fingerprint",
+            "fingerprint_payload",
+            "provenance",
+            "certification",
+        ],
+    },
+    "validator-recertification": {
+        "reason": (
+            "Historical paid result was projected only across explicitly allowed "
+            "runner/schema/epoch changes and then passed the complete current "
+            "validator before promotion."
+        ),
+        "transformed_fields": [
+            "fingerprint",
+            "fingerprint_payload",
+            "provenance",
+            "certification",
+            "current-validator-attestations",
+        ],
+    },
+    "micro-measure-input-projection": {
+        "reason": (
+            "Historical mechanical measurement consumed the same scientific "
+            "programs, fixtures, toolchains and measurement script; unrelated "
+            "runner-only inputs were projected away and the current validator passed."
+        ),
+        "transformed_fields": [
+            "fingerprint",
+            "fingerprint_payload",
+            "provenance",
+            "certification",
+        ],
+    },
+    "legacy-adversarial-cohort-to-language-shard": {
+        "reason": (
+            "A certified all-language mechanical adversarial cohort was split into "
+            "language shards without changing that language's frozen program, "
+            "assets, toolchain, epoch or requirement values."
+        ),
+        "transformed_fields": [
+            "assigned_languages",
+            "requirements",
+            "evidence",
+            "fingerprint",
+            "fingerprint_payload",
+            "provenance",
+            "certification",
+        ],
+    },
+}
+
+
+def cache_migration_metadata(
+    root: Path,
+    compatibility_mode: str,
+    source_rel: Path,
+    source_fingerprint: str,
+    evaluation: str,
+) -> dict[str, Any]:
+    """Create an auditable provenance chain for one compatibility migration.
+
+    The source record/snapshot is never modified or removed. The newly certified
+    record points back to its exact bytes and carries the rule that transformed
+    it. This is metadata only: it never weakens the scientific cache key.
+    """
+    rule = CACHE_MIGRATION_RULES.get(compatibility_mode)
+    if rule is None:
+        raise BenchmarkError(
+            f"unknown cache compatibility migration rule: {compatibility_mode}"
+        )
+    rel = PurePosixPath(source_rel.as_posix())
+    if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
+        raise BenchmarkError(f"invalid migration source record path: {source_rel}")
+    source_path = require_under(root / "cache" / Path(*rel.parts), root / "cache")
+    if not source_path.is_file():
+        raise BenchmarkError(
+            f"migration source record is missing: {source_rel.as_posix()}"
+        )
+    source_hash = sha256_file(source_path)
+    source_result_sha256 = None
+    try:
+        source_json = json_load(source_path)
+        if isinstance(source_json, dict):
+            source_result_sha256 = source_json.get("result_sha256")
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        source_result_sha256 = None
+    return {
+        "schema_version": 1,
+        "source_fingerprint": source_fingerprint,
+        "source_record": source_rel.as_posix(),
+        "source_record_sha256": source_hash,
+        **(
+            {"source_result_sha256": source_result_sha256}
+            if isinstance(source_result_sha256, str)
+            else {}
+        ),
+        "migration_rule": compatibility_mode,
+        "migration_rule_version": CACHE_MIGRATION_RULE_VERSION,
+        "migration_reason": str(rule["reason"]),
+        "transformed_fields": list(rule["transformed_fields"]),
+        "current_validator": "PASS",
+        "current_mechanical_verification": (
+            "current-validator"
+            if evaluation in {"semantic_compression", "language_quality"}
+            else "not-applicable"
+        ),
+    }
+
+
+def recover_current_migration_metadata(
+    root: Path, record: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Ratchet older current-key recertified records to explicit provenance.
+
+    Before migration provenance became first-class, the Ecosystem v2 records
+    stored their compatibility rule and snapshot id but not the snapshot byte
+    hash. The snapshot is frozen and itself verifies every legacy source record,
+    so the direct provenance link can be reconstructed deterministically.
+    """
+    if isinstance(record.get("migration"), dict):
+        return dict(record["migration"])
+    certification = record.get("certification") or {}
+    mode = str(certification.get("compatibility_migration") or "")
+    if mode != "ecosystem-runner-rubric-v2-snapshot":
+        return None
+    cfg = (
+        (cache_policy(root).get("reuse_conditions") or {}).get(
+            "ecosystem_snapshot_recertification"
+        )
+        or {}
+    )
+    relative = str(cfg.get("path") or "")
+    rel = PurePosixPath(relative)
+    if (
+        not relative
+        or rel.is_absolute()
+        or any(part in {"", ".", ".."} for part in rel.parts)
+    ):
+        raise BenchmarkError("Ecosystem snapshot provenance path is invalid")
+    path = require_under(root / "cache" / Path(*rel.parts), root / "cache")
+    if not path.is_file():
+        raise BenchmarkError(
+            "Ecosystem snapshot required to reconstruct migration provenance is missing"
+        )
+    return cache_migration_metadata(
+        root,
+        mode,
+        Path(*rel.parts),
+        sha256_file(path),
+        str(record.get("evaluation") or "ecosystem"),
+    )
+
+
+def cache_record_migration_problem(
+    root: Path, record: dict[str, Any]
+) -> str | None:
+    """Verify the provenance source of a recertified current cache record."""
+    migration = record.get("migration")
+    if migration is None:
+        return None
+    if not isinstance(migration, dict) or migration.get("schema_version") != 1:
+        return "migration provenance schema"
+    mode = str(migration.get("migration_rule") or "")
+    if mode not in CACHE_MIGRATION_RULES:
+        return "migration provenance rule"
+    if migration.get("migration_rule_version") != CACHE_MIGRATION_RULE_VERSION:
+        return "migration provenance rule version"
+    if migration.get("current_validator") != "PASS":
+        return "migration provenance current-validator attestation"
+    transformed = migration.get("transformed_fields")
+    if not isinstance(transformed, list) or not transformed:
+        return "migration provenance transformed_fields"
+    raw = str(migration.get("source_record") or "")
+    rel = PurePosixPath(raw)
+    if (
+        not raw
+        or rel.is_absolute()
+        or any(part in {"", ".", ".."} for part in rel.parts)
+    ):
+        return "migration provenance source path"
+    source_path = require_under(root / "cache" / Path(*rel.parts), root / "cache")
+    if not source_path.is_file():
+        return "migration provenance source record missing"
+    if sha256_file(source_path) != migration.get("source_record_sha256"):
+        return "migration provenance source record hash"
+    return None
+
+
 
 def _micro_measure_semantic_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """The scientific inputs of the runner-owned micro measurement.
@@ -8044,6 +8257,17 @@ def hydrate_certified_cache(
                 )
             )
             source_rel = compatible_path.relative_to(root / "cache")
+        migration_problem = cache_record_migration_problem(root, record)
+        if migration_problem:
+            record_miss(
+                uid,
+                fingerprint,
+                unit,
+                f"certified record failed migration provenance: {migration_problem}",
+                invalidated=True,
+                record_path=source_rel.as_posix(),
+            )
+            continue
         cap_problem = cache_cap_reuse_problem(root, record, unit)
         if cap_problem:
             record_miss(
@@ -8068,6 +8292,7 @@ def hydrate_certified_cache(
             continue
         result_path = agent_dir / "result.json"
         agent_dir.mkdir(parents=True, exist_ok=True)
+        migration_metadata = recover_current_migration_metadata(root, record)
         json_dump(result_path, record["result"])
         json_dump(agent_dir / "cache_receipt.json", {
             "schema_version": 1,
@@ -8076,6 +8301,7 @@ def hydrate_certified_cache(
             "record": str(source_rel.as_posix()),
             "certification": record.get("certification") or {},
             "fingerprint_payload": payload,
+            **({"migration": migration_metadata} if migration_metadata else {}),
             **(
                 {
                     "compatibility_mode": compatibility_mode,
@@ -8136,6 +8362,14 @@ def hydrate_certified_cache(
             certification["compatibility_migration"] = compatibility_mode
             certification["current_validator_revalidated"] = True
             receipt["certification"] = certification
+            migration_metadata = cache_migration_metadata(
+                root,
+                compatibility_mode,
+                source_rel,
+                source_fingerprint,
+                str(unit.get("evaluation") or ""),
+            )
+            receipt["migration"] = migration_metadata
             json_dump(receipt_path, receipt)
         cmd_ledger_update(argparse.Namespace(
             workspace=str(root), id=uid, status="RUNNING", evidence=[],
@@ -8159,6 +8393,7 @@ def hydrate_certified_cache(
                 if compatibility_mode
                 else {}
             ),
+            **({"migration": migration_metadata} if migration_metadata else {}),
         }
         status["misses"].pop(uid, None)
         status["invalidated"].pop(uid, None)
@@ -15558,7 +15793,25 @@ def cache_record_metadata_refresh_required(
         != (candidate.get("compatibility") or {})
         or (existing.get("certification") or {})
         != (candidate.get("certification") or {})
+        or (existing.get("migration") or {})
+        != (candidate.get("migration") or {})
     )
+
+
+def cache_record_migration_upgrade_required(
+    existing: dict[str, Any], candidate: dict[str, Any]
+) -> bool:
+    """Allow a validated HIT to ratchet only missing migration provenance."""
+    return (
+        existing.get("result_sha256") == candidate.get("result_sha256")
+        and not isinstance(existing.get("migration"), dict)
+        and isinstance(candidate.get("migration"), dict)
+        and (existing.get("compatibility") or {})
+        == (candidate.get("compatibility") or {})
+        and (existing.get("certification") or {})
+        == (candidate.get("certification") or {})
+    )
+
 
 def cache_record_legacy_identity_upgrade_required(
     existing: dict[str, Any], candidate: dict[str, Any]
@@ -15675,8 +15928,11 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             result, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
         receipt_path = agent_dir / "cache_receipt.json"
+        migration_metadata = None
         if receipt_path.is_file():
-            certification = (json_load(receipt_path).get("certification") or {})
+            receipt = json_load(receipt_path)
+            certification = (receipt.get("certification") or {})
+            migration_metadata = receipt.get("migration")
             reused += 1
         elif mechanical:
             certification = mechanical_certification(root, unit, agent_dir, result)
@@ -15717,6 +15973,8 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         }
         if compatibility:
             record["compatibility"] = compatibility
+        if isinstance(migration_metadata, dict):
+            record["migration"] = migration_metadata
         relative = cache_record_relative(unit, fingerprint)
         destination = source / "benchmark" / "cache" / relative
         encoded = (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8")
@@ -15766,6 +16024,15 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
                         upgraded += 1
                     else:
                         replaced += 1
+                elif (
+                    same_result
+                    and receipt_path.is_file()
+                    and cache_record_migration_upgrade_required(
+                        existing_record, record
+                    )
+                ):
+                    destination.write_bytes(encoded)
+                    upgraded += 1
                 elif same_result:
                     pass
                 elif receipt_path.is_file():

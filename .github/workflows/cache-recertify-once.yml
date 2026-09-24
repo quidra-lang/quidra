@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: cache-recertify-once
@@ -53,38 +54,255 @@ jobs:
           python benchmark/template/scripts/sandbox_launcher.py build-image --target toolchains --image "$BENCHMARK_IMAGE"
           python benchmark/template/scripts/sandbox_launcher.py doctor --image "$BENCHMARK_IMAGE"
 
-      - name: Prepare and recertify paid cache without provider calls
+      - name: Audit legacy cache before recertification
+        run: |
+          set -euo pipefail
+          set +e
+          python benchmark/template/scripts/benchmark.py cache-impact \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/cache-impact-before.json" >/dev/null
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
+          cat "$RUNNER_TEMP/cache-impact-before.json"
+
+      - name: Prepare, hydrate and budget-plan without provider calls
         run: |
           set -euo pipefail
           short_sha="$(git rev-parse --short=7 HEAD)"
-          python benchmark/template/scripts/benchmark.py init --source-repo "$GITHUB_WORKSPACE" --sandbox-mode container --run-id "cache-recertify-${short_sha}" --provider anthropic-messages --model claude-sonnet-5
-          python benchmark/template/scripts/sandbox_launcher.py run --source-repo "$GITHUB_WORKSPACE" --image "$BENCHMARK_IMAGE" --provider fake -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare --evaluation semantic_compression
-          # Language Quality mechanical leaves cost no provider calls. Re-run any
-          # stale mechanical measurements now so the paid benchmark never waits
-          # to discover or regenerate them.
-          python benchmark/template/scripts/sandbox_launcher.py run --source-repo "$GITHUB_WORKSPACE" --image "$BENCHMARK_IMAGE" --provider fake -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare --evaluation language_quality
-          python benchmark/template/scripts/sandbox_launcher.py run --source-repo "$GITHUB_WORKSPACE" --image "$BENCHMARK_IMAGE" --provider fake -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare --evaluation ecosystem
-          python benchmark/template/scripts/benchmark.py checkpoint-cache --source-repo "$GITHUB_WORKSPACE" | tee "$RUNNER_TEMP/cache-recertify.json"
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --sandbox-mode container \
+            --run-id "cache-recertify-${short_sha}" \
+            --provider anthropic-messages \
+            --model claude-sonnet-5
 
+          # This is the same free prepare/hydrate path used immediately before a
+          # production run. The sandbox has the fake provider, so no paid call can
+          # occur. It covers all five evaluations rather than only the migrations
+          # we happened to know about in advance.
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          python benchmark/template/scripts/production_run.py budget-plan \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --model claude-sonnet-5 \
+            --available-usd 150 \
+            --safety-multiplier 1.25 \
+            --smoke-reserve-usd 0 \
+            --output "$RUNNER_TEMP/budget-plan.json" \
+            > "$RUNNER_TEMP/budget-plan.stdout"
+          cat "$RUNNER_TEMP/budget-plan.json"
+
+          python benchmark/template/scripts/benchmark.py checkpoint-cache \
+            --source-repo "$GITHUB_WORKSPACE" \
+            | tee "$RUNNER_TEMP/cache-recertify.json"
+
+      - name: Re-audit cache after current-key checkpointing
+        run: |
+          set -euo pipefail
+          set +e
+          python benchmark/template/scripts/benchmark.py cache-impact \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/cache-impact-after.json" >/dev/null
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
+          cat "$RUNNER_TEMP/cache-impact-after.json"
+
+      - name: Audit preserved Proficiency trials at trial granularity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          evidence_root="$RUNNER_TEMP/proficiency-legacy-evidence"
+          mkdir -p "$evidence_root"
+          download_evidence() {
+            run_id="$1"
+            artifact_id="$2"
+            zip="$evidence_root/${artifact_id}.zip"
+            tgz="$evidence_root/${artifact_id}.tgz"
+            dst="$evidence_root/${run_id}"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$zip"
+            unzip -p "$zip" '_temp/workspace-evidence.tgz' > "$tgz"
+            mkdir -p "$dst"
+            tar -xzf "$tgz" -C "$dst"
+          }
+          download_evidence "2026-09-22-56f2c65-gh3" 10697874616
+          download_evidence "2026-09-23-1231af5-gh12" 10728073669
+          download_evidence "2026-09-23-fce5cfa-gh16" 10732219089
+
+          python benchmark/template/scripts/audit_proficiency_legacy.py \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --evidence "2026-09-22-56f2c65-gh3=$evidence_root/2026-09-22-56f2c65-gh3" \
+            --evidence "2026-09-23-1231af5-gh12=$evidence_root/2026-09-23-1231af5-gh12" \
+            --evidence "2026-09-23-fce5cfa-gh16=$evidence_root/2026-09-23-fce5cfa-gh16" \
+            --output benchmark/cache/proficiency-recertification-audit.json \
+            > "$RUNNER_TEMP/proficiency-recertification-audit.stdout"
+          cat benchmark/cache/proficiency-recertification-audit.json
+
+      - name: Write recertification and real next-run dry-run report
+        run: |
+          set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
+
           root = Path(".quidra-benchmark")
           status = json.loads((root / "results/cache_status.json").read_text())
+          before = json.loads(Path("$RUNNER_TEMP/cache-impact-before.json").read_text())
+          after = json.loads(Path("$RUNNER_TEMP/cache-impact-after.json").read_text())
+          budget = json.loads(Path("$RUNNER_TEMP/budget-plan.json").read_text())
+          proficiency = json.loads(
+              Path("benchmark/cache/proficiency-recertification-audit.json").read_text()
+          )
+          manifest = json.loads((root / "work/root/manifest.json").read_text())
+          units = {str(row["id"]): row for row in manifest.get("work_units", [])}
+
           hits = status.get("hits", {})
-          semantic = {uid: row for uid, row in hits.items() if row.get("compatibility_mode") == "validator-recertification"}
-          ecosystem = {uid: row for uid, row in hits.items() if row.get("compatibility_mode") == "ecosystem-runner-rubric-v2-snapshot"}
-          report = {
-              "schema_version": 1,
-              "cache_hits": len(hits),
-              "semantic_validator_recertified": len(semantic),
-              "semantic_validator_recertified_units": sorted(semantic),
-              "ecosystem_snapshot_recertified": len(ecosystem),
-              "ecosystem_snapshot_recertified_units": sorted(ecosystem),
-              "misses": status.get("misses", {}),
-              "invalidated": status.get("invalidated", {}),
+          misses = status.get("misses", {})
+          invalidated = status.get("invalidated", {})
+
+          mode_class = {
+              "scoped-input-projection": "A",
+              "ecosystem-runner-rubric-v2-snapshot": "C",
+              "validator-recertification": "D",
+              "micro-measure-input-projection": "D",
+              "legacy-adversarial-cohort-to-language-shard": "C",
           }
-          Path("benchmark/cache/recertification-report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+          classifications = {}
+          for uid, row in sorted(hits.items()):
+              mode = row.get("compatibility_mode")
+              if mode:
+                  classifications[uid] = {
+                      "classification": mode_class.get(mode, "D"),
+                      "disposition": "recertified-current-cache",
+                      "compatibility_mode": mode,
+                      "source_fingerprint": row.get("source_fingerprint"),
+                  }
+          for uid, row in sorted(misses.items()):
+              unit = units.get(uid, {})
+              evaluation = str(unit.get("evaluation") or "")
+              classification = "E"
+              reason = str(row.get("reason") or "")
+              if unit.get("execution_kind") != "agent":
+                  classification = "D"
+              classifications[uid] = {
+                  "classification": classification,
+                  "disposition": (
+                      "free-mechanical-work"
+                      if classification == "D"
+                      else "paid-rerun-required"
+                  ),
+                  "evaluation": evaluation,
+                  "reason": reason,
+              }
+
+          by_eval = {}
+          for uid, unit in units.items():
+              ev = str(unit.get("evaluation") or "")
+              row = by_eval.setdefault(
+                  ev, {"hits": 0, "misses": 0, "invalidated": 0}
+              )
+              row["hits"] += int(uid in hits)
+              row["misses"] += int(uid in misses)
+              row["invalidated"] += int(uid in invalidated)
+
+          paid_units = [
+              {
+                  "work_unit_id": row["work_unit_id"],
+                  "evaluation": row["evaluation"],
+                  "assigned_languages": row.get("assigned_languages", []),
+                  "worker_mode": row.get("worker_mode"),
+                  "planned_calls_estimate": row.get("planned_calls_estimate"),
+                  "estimated_uncached_usd": row.get("estimated_uncached_usd"),
+              }
+              for row in budget.get("units", [])
+              if float(row.get("estimated_uncached_usd", 0) or 0) > 0
+          ]
+
+          ecosystem_hits = [
+              uid for uid in hits if (units.get(uid) or {}).get("evaluation") == "ecosystem"
+          ]
+          semantic_hits = [
+              uid for uid in hits
+              if (units.get(uid) or {}).get("evaluation") == "semantic_compression"
+          ]
+          proficiency_hits = [
+              uid for uid in hits
+              if (units.get(uid) or {}).get("evaluation") == "llm_proficiency"
+          ]
+
+          report = {
+              "schema_version": 2,
+              "dry_run_kind": "full-prepare-hydrate-budget-plan-no-provider",
+              "historical_cache_before": {
+                  "valid": before.get("valid", 0),
+                  "invalid": len(before.get("invalid", [])),
+                  "superseded": before.get("superseded_count", 0),
+              },
+              "historical_cache_after": {
+                  "valid": after.get("valid", 0),
+                  "invalid": len(after.get("invalid", [])),
+                  "superseded": after.get("superseded_count", 0),
+                  "note": (
+                      "Legacy invalid records are intentionally retained as provenance; "
+                      "recertification adds ordinary current-key certified records rather "
+                      "than deleting or rewriting the legacy source."
+                  ),
+              },
+              "current_task_cache": {
+                  "hits": len(hits),
+                  "misses": len(misses),
+                  "invalidated": len(invalidated),
+                  "by_evaluation": by_eval,
+              },
+              "ecosystem_reused_units": len(ecosystem_hits),
+              "ecosystem_reused_unit_ids": sorted(ecosystem_hits),
+              "semantic_compression_reused_units": len(semantic_hits),
+              "semantic_compression_reused_unit_ids": sorted(semantic_hits),
+              "llm_proficiency_reused_units": len(proficiency_hits),
+              "llm_proficiency_reused_unit_ids": sorted(proficiency_hits),
+              "llm_proficiency_legacy_trial_audit": {
+                  "source_records": proficiency.get("source_record_count", 0),
+                  "source_trials": proficiency.get("source_trial_count", 0),
+                  "category_D_candidate_trials": proficiency.get(
+                      "category_D_candidate_trials", 0
+                  ),
+                  "category_E_trials": proficiency.get("category_E_trials", 0),
+                  "hidden_feedback_detected_trials": proficiency.get(
+                      "hidden_feedback_detected_trials", 0
+                  ),
+              },
+              "classifications": classifications,
+              "misses": misses,
+              "invalidated": invalidated,
+              "paid_api_required_units": paid_units,
+              "paid_api_required_unit_count": len(paid_units),
+              "provider_cost": {
+                  "estimated_uncached_usd": budget.get("estimated_uncached_usd"),
+                  "recommended_budget_usd": budget.get("recommended_budget_usd"),
+                  "retry_ceiling_uncached_usd": budget.get(
+                      "retry_ceiling_uncached_usd"
+                  ),
+                  "planned_paid_api_calls_estimate": budget.get(
+                      "planned_paid_api_calls_estimate"
+                  ),
+                  "expected_paid_api_calls_upper_bound": budget.get(
+                      "expected_paid_api_calls_upper_bound"
+                  ),
+              },
+              "budget_plan": budget,
+          }
+          Path("benchmark/cache/recertification-report.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
           print(json.dumps(report, indent=2, sort_keys=True))
           PY
 

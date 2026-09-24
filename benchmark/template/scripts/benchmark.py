@@ -15948,7 +15948,24 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         compatibility: dict[str, Any] = {}
         target = str(cache_policy(root).get("target_language") or "Quidra")
         if target in (payload.get("assigned_languages") or []):
-            execution_identity = current_quidra_execution_identity(root)
+            try:
+                execution_identity = current_quidra_execution_identity(root)
+            except BenchmarkError as exc:
+                # Historical retained workspaces can predate the trusted
+                # Quidra execution-identity contract. That makes only their
+                # Quidra leaf uncertifiable; it must not discard otherwise
+                # certifiable comparison-language paid evidence from the same
+                # run. The current-run compatibility layer may still recover a
+                # Quidra record later only through an explicitly verified
+                # legacy baseline.
+                skipped.append({
+                    "work_unit_id": unit.get("id"),
+                    "reason": (
+                        "cannot certify historical Quidra leaf without frozen "
+                        f"execution identity: {exc}"
+                    ),
+                })
+                continue
             if execution_identity is None:
                 skipped.append({
                     "work_unit_id": unit.get("id"),

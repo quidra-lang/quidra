@@ -3621,6 +3621,11 @@ def sc_reconcile_support(
             level = candidates.pop() if len(candidates) == 1 else None
             for key in dropped:
                 row.pop(key, None)
+            # The packet needs the support decision, not a second copy of the
+            # canonical fragment/citation/justification already preserved in
+            # the canonical leaf and support-reconciliation evidence. Keeping
+            # those large fields here made the blinded audit exceed its fixed
+            # packet reserve after probe × language atomization.
             if level is None:
                 row["support"] = "UNRECONCILED"
                 row["support_note"] = (
@@ -3631,13 +3636,16 @@ def sc_reconcile_support(
                 row["support"] = level
                 row["support_factor"] = levels.get(level, 0.0)
                 if canonical is not None:
-                    row["fragment"] = canonical["fragment"]
                     row["support_reason_codes"] = (
                         canonical["partial_reasons"]
                         if level == "PARTIAL"
                         else ([canonical["none_reason"]] if level == "NONE" else [])
                     )
-                    row["support_adjudication"] = dict(canonical)
+                    row["support_adjudication"] = {
+                        "level": canonical["level"],
+                        "partial_reasons": canonical["partial_reasons"],
+                        "none_reason": canonical["none_reason"],
+                    }
                     row["support_source"] = "cohort_adjudication_or_repair"
             if dropped or level is None or canonical is not None:
                 replaced.append({

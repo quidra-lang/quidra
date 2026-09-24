@@ -1534,6 +1534,9 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
             root / "cache/provenance/semantic-compression",
             dirs_exist_ok=True,
         )
+        run = benchmark.json_load(root / "run.json")
+        run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
+        benchmark.json_dump(root / "run.json", run)
         unit_id = "sc-recertify--python"
         agent_id = "worker-sc-recertify--python"
         semantic_section = "#### A. Semantic Density — 20% of quality score"

@@ -125,6 +125,7 @@ def find_trace(evidence_root: Path, work_unit_id: str) -> Path | None:
 
 def audit_record(
     benchmark,
+    source_repo: Path,
     current_root: Path,
     record_path: Path,
     record: dict[str, Any],
@@ -135,7 +136,7 @@ def audit_record(
     work_unit_id = str(provenance.get("work_unit_id") or "")
     language = record_language(record)
     row: dict[str, Any] = {
-        "source_record": record_path.as_posix(),
+        "source_record": record_path.relative_to(source_repo).as_posix(),
         "source_record_sha256": benchmark.sha256_file(record_path),
         "source_fingerprint": record.get("fingerprint"),
         "source_run_id": run_id,
@@ -298,7 +299,9 @@ def main() -> int:
     root = Path(args.workspace).resolve()
     evidence = parse_evidence(args.evidence)
     benchmark = load_benchmark(source)
-    records = sorted(
+    current_epoch = benchmark.cache_epoch(root, "llm_proficiency")
+    records: list[tuple[Path, dict[str, Any]]] = []
+    for path in sorted(
         (
             source
             / "benchmark"
@@ -306,12 +309,16 @@ def main() -> int:
             / "v1"
             / "llm-proficiency"
         ).glob("*/*.json")
-    )
+    ):
+        record = load_json(path)
+        if str((record.get("fingerprint_payload") or {}).get("cache_epoch") or "") == current_epoch:
+            continue
+        records.append((path, record))
     audited = [
         audit_record(
-            benchmark, root, path, load_json(path), evidence
+            benchmark, source, root, path, record, evidence
         )
-        for path in records
+        for path, record in records
     ]
     trials = [
         trial

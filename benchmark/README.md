@@ -106,40 +106,6 @@ The standalone benchmark-smoke workflow remains available for diagnostics, but
 it also runs only on **benchmark**. A normal full run does not need it because
 benchmark-production performs the same provider smoke before expensive work.
 
-## Before the next paid run: migrate historical evidence first
-
-Do not wait for a paid run to rediscover old work. Before the next request,
-download every retained workspace artifact from earlier benchmark attempts that
-may contain completed units and promote it into the current certified cache:
-
-~~~sh
-python3 benchmark/template/scripts/benchmark.py cache-promote-evidence \
-  --source-repo . \
-  --evidence /path/to/extracted-workspace \
-  --snapshot <the commit SHA that workspace evaluated>
-~~~
-
-Promotion is validation, not blind copying. The command reconstructs the exact
-historical snapshot beside its evidence, runs the current certification rules,
-and writes only records that are still scientifically reusable. A failed overall
-run does not invalidate a completed leaf. Format-only changes must be migrated
-mechanically where possible; they are not a reason to buy the same semantic
-judgment again. Evidence whose prompt, rubric, model/decoding contract, relevant
-language inputs, toolchain identity, or measured behavior changed remains a
-cache miss.
-
-After all historical artifacts have been processed, commit the resulting
-`benchmark/cache/` on **develop**. Then run `cache-impact` and the free
-synthetic/template validation. The next production run must treat those records
-as ordinary current cache: exact/compatible hits are hydrated and skipped before
-any provider call; only unresolved semantic dependencies are allowed to become
-paid work.
-
-This migration is an explicit pre-run maintenance step, not part of the paid
-benchmark lifecycle. That keeps artifact recovery and compatibility work out of
-the critical paid path and makes the expected HIT/MISS set inspectable before
-the user asks to start a benchmark.
-
 ## Requesting a full run
 
 Start from the exact current **develop** head and create the disposable branch.

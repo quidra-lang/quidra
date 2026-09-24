@@ -11396,9 +11396,15 @@ def cmd_task_create(args: argparse.Namespace) -> int:
             ))
 
         requirements_path, all_requirement_ids = load_evaluation_requirements(root, args.evaluation)
+        ownership = execution_ownership_for(
+            root, args.evaluation, all_requirement_ids
+        )
+        allowed_agent_prefixes = tuple(ownership.get("agent_prefixes") or ())
         unknown = sorted(
             rid for rid in set(requirement_ids) - set(all_requirement_ids)
-            if not str(rid).startswith(SUPPORT_ADJUDICATION_PREFIX)
+            if not any(
+                str(rid).startswith(prefix) for prefix in allowed_agent_prefixes
+            )
         )
         if unknown:
             raise BenchmarkError(

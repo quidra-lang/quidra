@@ -264,7 +264,9 @@
           "goal": "Author and certify exactly one canonical fragment/support record for the assigned probe × language pair. Apply R1-R10 and the frozen support rubric. A generation failure is never evidence of unsupported capability.\n\nOutput requirements:\n- requirements contains the assigned annotation.canonical_fragment--<probe> set to true.\n- evidence.canonical_fragments contains exactly the assigned probe.\n- FULL/PARTIAL: include evidence.canonical_verification for that probe. The trusted runner compiles/runs the fixture under the frozen recipe and rejects a failure; bounded retry receives the validator failure and repairs only this probe × language leaf.\n- NONE: fragment must be null and evidence.canonical_none_verification must contain the same probe with none_reason, a nonempty conclusion, authoritative citation text, evidence_kinds, and generation_failures_not_used_as_evidence=true. Retry exhaustion alone must never produce NONE.\n- Preserve exact official/standard/frozen-toolchain evidence used to conclude that no standard expression exists.\n- Successful leaves are independently cacheable and must not be invalidated by failures in sibling probes.",
           "split_by_probe_language": true,
           "max_llm_calls": 1,
-          "max_attempts": 5
+          "max_attempts": 5,
+          "estimated_input_tokens_per_call": 196608,
+          "max_output_tokens_per_call": 32768
         },
         {
           "id": "sc-capability-coverage",

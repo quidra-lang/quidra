@@ -6566,6 +6566,83 @@ def project_semantic_owner_recertification(
     return projected, None
 
 
+
+def materialize_legacy_semantic_owner_runner_attestation(
+    root: Path,
+    unit: dict[str, Any],
+    result: dict[str, Any],
+) -> Path | None:
+    """Restore the redundant legacy SC runner attestation from certified evidence.
+
+    A current-key cache record already carries the complete legacy recertification
+    provenance and per-fragment hashes in its result.  The original migration also
+    wrote an equivalent work/audit file, but that file is run-local and is not part
+    of the certified cache.  Fresh hydration therefore recreates only that explicit
+    legacy attestation before the ordinary current validator runs.  This never
+    synthesizes build/run/nm evidence and always records mechanical verification as
+    not performed.
+    """
+    if (
+        str(unit.get("evaluation") or "") != "semantic_compression"
+        or not unit.get("canonical_fragment_owner")
+    ):
+        return None
+    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+    if len(assigned) != 1:
+        return None
+    evidence = result.get("evidence")
+    if not isinstance(evidence, dict):
+        return None
+    metadata = evidence.get("legacy_recertification")
+    verification = evidence.get("canonical_verification")
+    catalog = evidence.get("canonical_fragments")
+    if (
+        not isinstance(metadata, dict)
+        or metadata.get("mode") != "paid-evidence-current-schema-v1"
+        or not isinstance(verification, dict)
+        or not isinstance(catalog, dict)
+    ):
+        return None
+
+    language = assigned[0]
+    audit_path = (
+        root / "work" / "audit" / "semantic-compression"
+        / f"canonical_verification_{slug_id(language)}.json"
+    )
+    json_dump(
+        audit_path,
+        {
+            "schema_version": 1,
+            "language": language,
+            "legacy_evidence_recertified": True,
+            "verification_mode": "legacy-evidence-recertification",
+            "mechanical_verification_performed": False,
+            "canonical_catalog_sha256": metadata.get("canonical_catalog_sha256"),
+            "source_owner_record": metadata.get("source_owner_record"),
+            "source_owner_record_sha256": metadata.get(
+                "source_owner_record_sha256"
+            ),
+            "source_owner_run_id": metadata.get("source_run_id"),
+            "source_owner_snapshot_commit": metadata.get(
+                "source_snapshot_commit"
+            ),
+            "source_density_record": metadata.get("source_density_record"),
+            "source_density_record_sha256": metadata.get(
+                "source_density_record_sha256"
+            ),
+            "source_density_run_id": metadata.get("source_density_run_id"),
+            "source_density_snapshot_commit": metadata.get(
+                "source_density_snapshot_commit"
+            ),
+            "density_source_selection": metadata.get("density_source_selection"),
+            "scientific_identity_sha256": metadata.get(
+                "scientific_identity_sha256"
+            ),
+            "probes": verification,
+        },
+    )
+    return audit_path
+
 def _semantic_owner_legacy_metadata(
     root: Path, language: str
 ) -> dict[str, Any] | None:
@@ -9928,6 +10005,13 @@ def hydrate_certified_cache(
         agent_dir.mkdir(parents=True, exist_ok=True)
         migration_metadata = recover_current_migration_metadata(root, record)
         json_dump(result_path, record["result"])
+        materialized_legacy_attestation = (
+            None
+            if mechanical
+            else materialize_legacy_semantic_owner_runner_attestation(
+                root, unit, record["result"]
+            )
+        )
         json_dump(agent_dir / "cache_receipt.json", {
             "schema_version": 1,
             "status": "HIT",
@@ -9973,6 +10057,11 @@ def hydrate_certified_cache(
                 receipt_path.unlink()
             except FileNotFoundError:
                 pass
+            if materialized_legacy_attestation is not None:
+                try:
+                    materialized_legacy_attestation.unlink()
+                except FileNotFoundError:
+                    pass
             record_miss(
                 uid,
                 fingerprint,

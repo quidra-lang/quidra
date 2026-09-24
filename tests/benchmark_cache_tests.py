@@ -1914,6 +1914,32 @@ def assert_semantic_owner_cross_run_density_requires_exact_experiment_identity()
         )
         assert metadata["scientific_identity_sha256"]
 
+        # A certified current-key owner must remain reusable in a fresh
+        # workspace even though work/audit is intentionally run-local. Rebuild
+        # only the explicit legacy attestation from the certified result; never
+        # manufacture mechanical build/run/nm evidence.
+        audit_path = (
+            root / "work/audit/semantic-compression/canonical_verification_go.json"
+        )
+        assert audit_path.is_file()
+        audit_path.unlink()
+        restored = benchmark.materialize_legacy_semantic_owner_runner_attestation(
+            root, unit, projected["result"]
+        )
+        assert restored == audit_path
+        restored_audit = benchmark.json_load(audit_path)
+        assert restored_audit["legacy_evidence_recertified"] is True
+        assert restored_audit["mechanical_verification_performed"] is False
+        assert restored_audit["verification_mode"] == (
+            "legacy-evidence-recertification"
+        )
+        benchmark.validate_legacy_canonical_fragment_recertification(
+            root,
+            "Go",
+            projected["result"]["evidence"]["canonical_fragments"],
+            projected["result"]["evidence"],
+        )
+
         density_path = root / "cache" / density_rel
         mismatched = benchmark.json_load(density_path)
         mismatched["fingerprint_payload"]["model"] = "different-model"

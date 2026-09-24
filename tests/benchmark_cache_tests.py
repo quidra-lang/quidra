@@ -1903,16 +1903,21 @@ def assert_semantic_legacy_full_hash_projection_is_explicit() -> None:
             for unit in plan["evaluations"]["semantic_compression"]["units"]
             if unit["id"] == "sc-metrics-hidden-coverage--part-3"
         )
+        selected = benchmark.evaluation_spec_projection_text(
+            root,
+            "semantic_compression",
+            owner["prompt_sections"],
+        )
+        appendix = benchmark.SC_PROBE_CACHE_OWNERSHIP_APPENDIX
+        assert selected.count(appendix) == 1
+        scientific_projection = selected.replace(appendix, "", 1)
         expected = {
             "primary_config": benchmark.primary_config_projection_sha256(
                 root, "semantic_compression"
             ),
-            "evaluation_spec_sections":
-                benchmark.evaluation_spec_projection_sha256(
-                    root,
-                    "semantic_compression",
-                    owner["prompt_sections"],
-                ),
+            "evaluation_spec_sections": benchmark.sha256_bytes(
+                scientific_projection.encode("utf-8")
+            ),
         }
         legacy = {
             "primary_config":

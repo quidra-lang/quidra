@@ -5579,6 +5579,28 @@ LEGACY_SC_SOURCE_SNAPSHOTS: dict[str, str] = {
 }
 
 
+# Reviewed projection bridge for the retained paid SC snapshots above.
+#
+# These five immutable snapshots all used the same full Primary JSON and the
+# same full Semantic Compression specification.  The later cache schema hashes
+# only the evaluation-visible Primary projection and selected methodology
+# sections.  A full-file digest may cross that naming/projection migration only
+# through this table, and only when the current projected digest is exactly the
+# reviewed projection below.  This is not a generic ignored hash.
+LEGACY_SC_INPUT_PROJECTION_MIGRATIONS: dict[str, dict[str, str]] = {
+    run_id: {
+        "source_snapshot_commit": snapshot,
+        "primary_config_full_sha256":
+            "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9",
+        "primary_config_projection_sha256":
+            "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819",
+        "evaluation_spec_full_sha256":
+            "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+    }
+    for run_id, snapshot in LEGACY_SC_SOURCE_SNAPSHOTS.items()
+}
+
+
 LEGACY_SC_INPUT_HASH_PROJECTIONS: dict[str, dict[str, str]] = {
     # Explicit one-time projections proved from the approved retained paid
     # snapshots. The source digest is the historical whole-file SHA-256; the
@@ -8040,6 +8062,84 @@ def _validator_recertification_payload(
     return normalized
 
 
+def _semantic_validator_recertification_payloads_compatible(
+    root: Path,
+    unit: dict[str, Any],
+    record: dict[str, Any],
+    current_payload: dict[str, Any],
+    cfg: dict[str, Any],
+) -> bool:
+    """Prove legacy full-file hashes are equivalent to current SC projections.
+
+    Historical SC records hashed all of primary.json and semantic_compression.md.
+    Current units hash only the evaluation-visible Primary projection and the
+    selected methodology sections.  The migration is accepted only for an
+    approved immutable source run and only when the old full-file digests and
+    current projected digests match the reviewed bridge exactly.
+    """
+    old_payload = record.get("fingerprint_payload") or {}
+    old = _validator_recertification_payload(old_payload, cfg)
+    current = _validator_recertification_payload(current_payload, cfg)
+    if old == current:
+        return True
+    if (
+        str(old.get("evaluation") or "") != "semantic_compression"
+        or str(current.get("evaluation") or "") != "semantic_compression"
+    ):
+        return False
+
+    run_id = str((record.get("provenance") or {}).get("run_id") or "")
+    migration = LEGACY_SC_INPUT_PROJECTION_MIGRATIONS.get(run_id)
+    if not migration:
+        return False
+    if migration.get("source_snapshot_commit") != LEGACY_SC_SOURCE_SNAPSHOTS.get(
+        run_id
+    ):
+        return False
+
+    old_hashes = dict(old.get("unit_input_hashes") or {})
+    current_hashes = dict(current.get("unit_input_hashes") or {})
+    old_primary = old_hashes.pop("primary_config", None)
+    current_primary = current_hashes.pop("primary_config", None)
+    old_spec = old_hashes.pop("evaluation_spec_sections", None)
+    current_spec = current_hashes.pop("evaluation_spec_sections", None)
+    old["unit_input_hashes"] = old_hashes
+    current["unit_input_hashes"] = current_hashes
+    if old != current:
+        return False
+
+    if old_primary != current_primary:
+        if (
+            old_primary != migration.get("primary_config_full_sha256")
+            or current_primary
+            != migration.get("primary_config_projection_sha256")
+            or current_primary
+            != primary_config_projection_sha256(root, "semantic_compression")
+        ):
+            return False
+
+    if old_spec != current_spec:
+        current_spec_path = (
+            root / "template" / "methodology"
+            / EVALUATION_SPEC_FILES["semantic_compression"]
+        )
+        selectors = [
+            str(value) for value in (unit.get("prompt_sections") or [])
+        ]
+        if (
+            old_spec != migration.get("evaluation_spec_full_sha256")
+            or not current_spec_path.is_file()
+            or sha256_file(current_spec_path) != old_spec
+            or current_spec
+            != evaluation_spec_projection_sha256(
+                root, "semantic_compression", selectors
+            )
+        ):
+            return False
+
+    return True
+
+
 def find_validator_recertifiable_cache_record(
     root: Path,
     unit: dict[str, Any],
@@ -8101,7 +8201,12 @@ def find_validator_recertifiable_cache_record(
         old_epoch = str(old.get("cache_epoch") or "")
         if old_epoch == current_epoch or old_epoch not in priority:
             continue
-        if _validator_recertification_payload(old, cfg) != normalized_current:
+        if evaluation == "semantic_compression":
+            if not _semantic_validator_recertification_payloads_compatible(
+                root, unit, record, current_payload, cfg
+            ):
+                continue
+        elif _validator_recertification_payload(old, cfg) != normalized_current:
             continue
         problem = _cache_record_self_integrity_problem(record)
         if problem:

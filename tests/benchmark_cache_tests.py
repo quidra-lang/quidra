@@ -1527,6 +1527,7 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
         root = make_workspace(Path(td))
         unit_id = "sc-recertify--python"
         agent_id = "worker-sc-recertify--python"
+        semantic_section = "#### A. Semantic Density — 20% of quality score"
         agent_dir = root / "work/agents" / agent_id
         result_path = agent_dir / "result.json"
         validator = (
@@ -1552,7 +1553,7 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
                     root / "template/config/benchmark_metadata.json"
                 ),
                 "evaluation_spec_sections": benchmark.evaluation_spec_projection_sha256(
-                    root, "semantic_compression", []
+                    root, "semantic_compression", [semantic_section]
                 ),
             },
             "reuse_audit_for": [],
@@ -1567,7 +1568,7 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
             "evidence_paths": [str(result_path)],
             "validator_command": validator,
             "network_allowed": False,
-            "prompt_sections": [],
+            "prompt_sections": [semantic_section],
             "max_attempts": 3,
             "max_llm_calls": 1,
             "estimated_input_tokens_per_call": 1000,
@@ -1586,7 +1587,7 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
                 validate=validator,
                 network=False,
                 depth=1,
-                section=[],
+                section=[semantic_section],
                 requirement_id=unit["requirement_ids"],
                 language=["Python"],
                 worker_mode="packet-only",
@@ -1610,8 +1611,18 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
         # and then run today's validator on the staged legacy result.
         old_payload["validator_contract"] = "python3 legacy-validator.py result-check"
         old_inputs = dict(old_payload["unit_input_hashes"])
-        old_inputs["evaluation_spec"] = old_inputs.pop(
-            "evaluation_spec_sections"
+        assert old_inputs["primary_config"] == (
+            "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+        )
+        assert old_inputs["evaluation_spec_sections"] != (
+            "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92"
+        )
+        old_inputs["primary_config"] = (
+            "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+        )
+        old_inputs.pop("evaluation_spec_sections")
+        old_inputs["evaluation_spec"] = (
+            "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92"
         )
         old_payload["unit_input_hashes"] = old_inputs
         old_reads = dict(old_payload["readable_input_content_hashes"])
@@ -1685,6 +1696,24 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
         policy = benchmark.cache_policy(root)["reuse_conditions"][
             "validator_recertification"
         ]
+        assert benchmark._semantic_validator_recertification_payloads_compatible(
+            root,
+            unit,
+            record,
+            current_payload,
+            policy["semantic_compression"],
+        )
+        unproved = json.loads(json.dumps(record))
+        unproved["fingerprint_payload"]["unit_input_hashes"]["primary_config"] = (
+            "0" * 64
+        )
+        assert not benchmark._semantic_validator_recertification_payloads_compatible(
+            root,
+            unit,
+            unproved,
+            current_payload,
+            policy["semantic_compression"],
+        )
         assert "semantic_compression" in policy
         assert "llm_proficiency" not in policy
         assert "validator_contract" in policy["semantic_compression"]["ignored_payload_fields"]

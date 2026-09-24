@@ -7,6 +7,7 @@ on:
     # Re-run the no-provider recertification whenever the compatibility
     # contract itself changes. Cache/prompt commits produced below are excluded,
     # so the checkpoint push cannot recursively trigger this workflow.
+    # workflow_dispatch also supports a clean retry after develop moves mid-run.
     paths:
       - ".github/workflows/cache-recertify-once.yml"
       - "benchmark/template/scripts/benchmark.py"

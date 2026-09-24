@@ -8074,19 +8074,43 @@ def _semantic_validator_recertification_payloads_compatible(
     Historical SC records hashed all of primary.json and semantic_compression.md.
     Current units hash only the evaluation-visible Primary projection and the
     selected methodology sections.  The migration is accepted only for an
-    approved immutable source run and only when the old full-file digests and
-    current projected digests match the reviewed bridge exactly.
+    approved immutable source run and only when the raw old full-file digests
+    and current projected digests match the reviewed bridge exactly.
     """
     old_payload = record.get("fingerprint_payload") or {}
-    old = _validator_recertification_payload(old_payload, cfg)
-    current = _validator_recertification_payload(current_payload, cfg)
-    if old == current:
-        return True
     if (
-        str(old.get("evaluation") or "") != "semantic_compression"
-        or str(current.get("evaluation") or "") != "semantic_compression"
+        str(old_payload.get("evaluation") or "") != "semantic_compression"
+        or str(current_payload.get("evaluation") or "") != "semantic_compression"
     ):
         return False
+
+    raw_old_hashes = dict(old_payload.get("unit_input_hashes") or {})
+    raw_current_hashes = dict(current_payload.get("unit_input_hashes") or {})
+    raw_old_primary = raw_old_hashes.get("primary_config")
+    raw_current_primary = raw_current_hashes.get("primary_config")
+    raw_old_spec = (
+        raw_old_hashes.get("evaluation_spec_sections")
+        if "evaluation_spec_sections" in raw_old_hashes
+        else raw_old_hashes.get("evaluation_spec")
+    )
+    raw_current_spec = (
+        raw_current_hashes.get("evaluation_spec_sections")
+        if "evaluation_spec_sections" in raw_current_hashes
+        else raw_current_hashes.get("evaluation_spec")
+    )
+    projection_required = (
+        raw_old_primary != raw_current_primary
+        or raw_old_spec != raw_current_spec
+        or (
+            "evaluation_spec" in raw_old_hashes
+            and "evaluation_spec_sections" in raw_current_hashes
+        )
+    )
+
+    old = _validator_recertification_payload(old_payload, cfg)
+    current = _validator_recertification_payload(current_payload, cfg)
+    if old == current and not projection_required:
+        return True
 
     run_id = str((record.get("provenance") or {}).get("run_id") or "")
     migration = LEGACY_SC_INPUT_PROJECTION_MIGRATIONS.get(run_id)
@@ -8099,26 +8123,28 @@ def _semantic_validator_recertification_payloads_compatible(
 
     old_hashes = dict(old.get("unit_input_hashes") or {})
     current_hashes = dict(current.get("unit_input_hashes") or {})
-    old_primary = old_hashes.pop("primary_config", None)
-    current_primary = current_hashes.pop("primary_config", None)
-    old_spec = old_hashes.pop("evaluation_spec_sections", None)
-    current_spec = current_hashes.pop("evaluation_spec_sections", None)
+    old_hashes.pop("primary_config", None)
+    current_hashes.pop("primary_config", None)
+    old_hashes.pop("evaluation_spec", None)
+    old_hashes.pop("evaluation_spec_sections", None)
+    current_hashes.pop("evaluation_spec", None)
+    current_hashes.pop("evaluation_spec_sections", None)
     old["unit_input_hashes"] = old_hashes
     current["unit_input_hashes"] = current_hashes
     if old != current:
         return False
 
-    if old_primary != current_primary:
+    if raw_old_primary != raw_current_primary:
         if (
-            old_primary != migration.get("primary_config_full_sha256")
-            or current_primary
+            raw_old_primary != migration.get("primary_config_full_sha256")
+            or raw_current_primary
             != migration.get("primary_config_projection_sha256")
-            or current_primary
+            or raw_current_primary
             != primary_config_projection_sha256(root, "semantic_compression")
         ):
             return False
 
-    if old_spec != current_spec:
+    if raw_old_spec != raw_current_spec:
         current_spec_path = (
             root / "template" / "methodology"
             / EVALUATION_SPEC_FILES["semantic_compression"]
@@ -8127,10 +8153,10 @@ def _semantic_validator_recertification_payloads_compatible(
             str(value) for value in (unit.get("prompt_sections") or [])
         ]
         if (
-            old_spec != migration.get("evaluation_spec_full_sha256")
+            raw_old_spec != migration.get("evaluation_spec_full_sha256")
             or not current_spec_path.is_file()
-            or sha256_file(current_spec_path) != old_spec
-            or current_spec
+            or sha256_file(current_spec_path) != raw_old_spec
+            or raw_current_spec
             != evaluation_spec_projection_sha256(
                 root, "semantic_compression", selectors
             )

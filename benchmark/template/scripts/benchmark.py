@@ -5302,8 +5302,8 @@ def project_semantic_consumer_recertification(
             assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
             if len(assigned) != 1:
                 return None, (
-                    f"{unit.get('id')}: legacy fragmentless consumer is not "
-                    "language-scoped"
+                    f"{unit.get('id')}: legacy {probe_id} carries no explicit "
+                    "fragment and the consumer is not language-scoped"
                 )
             owner_meta = _semantic_owner_legacy_metadata(root, assigned[0])
             source_run = str((record.get("provenance") or {}).get("run_id") or "")

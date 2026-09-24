@@ -7405,6 +7405,149 @@ def collect_packet_only_inputs(
     return files, sections
 
 
+
+SC_TEXT_SECTION_NAMES = (
+    "LEVEL", "FRAGMENT", "PARTIAL_REASONS", "NONE_REASON", "JUSTIFICATION", "CITATION",
+)
+
+
+def parse_sc_support_text(content: str, *, language: str) -> dict[str, Any]:
+    """Parse one human/LLM-authored language.txt into a support record.
+
+    The model never authors benchmark JSON for cohort support adjudication.
+    Section labels are deliberately trivial text delimiters; the trusted runner
+    owns JSON keys, nesting, language identity, requirement identity and escaping.
+    """
+    normalized = content.replace("\r\n", "\n").replace("\r", "\n")
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for raw_line in normalized.split("\n"):
+        label = raw_line.strip().upper()
+        if label in SC_TEXT_SECTION_NAMES:
+            current = label
+            if current in sections:
+                raise BenchmarkError(
+                    f"{language}.txt repeats section {current}"
+                )
+            sections[current] = []
+            continue
+        if current is None:
+            if raw_line.strip():
+                raise BenchmarkError(
+                    f"{language}.txt has text before the first section label"
+                )
+            continue
+        sections[current].append(raw_line)
+    missing = [name for name in SC_TEXT_SECTION_NAMES if name not in sections]
+    if missing:
+        raise BenchmarkError(
+            f"{language}.txt is missing sections: {', '.join(missing)}"
+        )
+
+    def value(name: str) -> str:
+        return "\n".join(sections[name]).strip()
+
+    level = value("LEVEL").upper()
+    if level not in {"FULL", "PARTIAL", "NONE"}:
+        raise BenchmarkError(
+            f"{language}.txt LEVEL must be FULL, PARTIAL or NONE"
+        )
+    fragment_raw = value("FRAGMENT")
+    fragment = None if fragment_raw in {"", "-"} else fragment_raw
+    partial_raw = value("PARTIAL_REASONS")
+    partial = [] if partial_raw in {"", "-"} else [
+        item.strip() for item in partial_raw.split(",") if item.strip()
+    ]
+    none_raw = value("NONE_REASON")
+    none_reason = None if none_raw in {"", "-"} else none_raw
+    record = {
+        "level": level,
+        "fragment": fragment,
+        "partial_reasons": partial,
+        "none_reason": none_reason,
+        "justification": value("JUSTIFICATION"),
+        "citation": value("CITATION"),
+    }
+    normalized_record = sc_adjudicated_record(record)
+    if normalized_record is None:
+        raise BenchmarkError(
+            f"{language}.txt does not form a complete support adjudication record"
+        )
+    return normalized_record
+
+
+def compile_sc_support_text_outputs(
+    root: Path,
+    meta: dict[str, Any],
+    staged: list[tuple[Path, bytes, str]],
+) -> tuple[list[tuple[Path, bytes, str]], set[str]]:
+    """Compile per-language text leaves into runner-owned result.json."""
+    requirement_ids = [str(value) for value in (meta.get("requirement_ids") or [])]
+    probe_id = support_adjudication_probe(requirement_ids)
+    if probe_id is None:
+        return staged, {rel for _, _, rel in staged}
+    support_ids = [
+        rid for rid in requirement_ids if rid.startswith(SUPPORT_ADJUDICATION_PREFIX)
+    ]
+    if len(support_ids) != 1:
+        raise BenchmarkError(
+            "support adjudication text compiler requires exactly one support requirement"
+        )
+    expected_languages = metadata_languages(root)
+    by_path = {rel: data for _, data, rel in staged}
+    expected_text = {f"{language}.txt": language for language in expected_languages}
+    unexpected = sorted(
+        rel for rel in by_path
+        if rel != "result.json" and rel not in expected_text
+    )
+    if unexpected:
+        raise BenchmarkError(
+            "support adjudication worker may return only language.txt leaves: "
+            + ", ".join(unexpected)
+        )
+    # result.json is runner-owned for this task. Refuse a model-authored copy
+    # rather than deciding which source is authoritative.
+    if "result.json" in by_path:
+        raise BenchmarkError(
+            "support adjudication result.json is runner-owned; return only language.txt files"
+        )
+    missing = sorted(set(expected_text) - set(by_path))
+    if missing:
+        raise BenchmarkError(
+            "support adjudication omitted language text files: " + ", ".join(missing)
+        )
+    records: dict[str, Any] = {}
+    for filename, language in expected_text.items():
+        try:
+            content = by_path[filename].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise BenchmarkError(f"{filename} is not UTF-8 text") from exc
+        record = parse_sc_support_text(content, language=language)
+        validate_sc_record_for_probe(
+            root, probe_id, record, context=f"{support_ids[0]}: {language}"
+        )
+        records[language] = record
+
+    result = {
+        "schema_version": 1,
+        "evaluation": "semantic_compression",
+        "requirements": {support_ids[0]: records},
+        "evidence": {
+            "source_format": "runner-compiled-language-text-v1",
+            "probe_id": probe_id,
+            "source_files": list(expected_text),
+        },
+    }
+    data = (
+        json.dumps(result, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+    agent_dir = require_under(
+        root / "work" / "agents" / str(meta.get("id") or ""), root
+    )
+    compiled = (agent_dir / "result.json", data, "result.json")
+    return [*staged, compiled], {rel for _, _, rel in [*staged, compiled]}
+
+
 def apply_worker_response(
     root: Path, agent_id: str, raw: bytes, extra: dict[str, Any] | None = None
 ) -> dict[str, Any]:
@@ -7518,6 +7661,7 @@ def apply_worker_response(
                 )
         seen.add(rel_text)
         staged.append((dest, data, rel_text))
+    staged, seen = compile_sc_support_text_outputs(root, meta, staged)
     expected_relative = []
     for expected in meta.get("expected_outputs", []):
         expected_path = require_under(Path(expected), agent_dir)
@@ -7914,12 +8058,42 @@ def cmd_task_create(args: argparse.Namespace) -> int:
         ))
 
     if worker_mode == "packet-only":
+        support_text_mode = support_adjudication_probe(requirement_ids) is not None
+        if support_text_mode:
+            language_files = ", ".join(f"{language}.txt" for language in metadata_languages(root))
+            output_instruction = f"""- Do NOT author result.json. The trusted runner owns all benchmark JSON.
+- Return exactly these per-language text leaves: {language_files}
+- Each language.txt must use these section labels, each on its own line and in this order:
+  LEVEL
+  <FULL|PARTIAL|NONE>
+  FRAGMENT
+  <exact fragment, or ->
+  PARTIAL_REASONS
+  <comma-separated P-a..P-e, or ->
+  NONE_REASON
+  <N-1..N-4, or ->
+  JUSTIFICATION
+  <plain UTF-8 text; may span lines>
+  CITATION
+  <plain UTF-8 text; may span lines>
+- The runner derives the language from the filename, validates every value, and mechanically compiles result.json."""
+            response_example = (
+                '{"schema_version":1,"task_id":"' + args.id
+                + '","files":[{"path":"Quidra.txt","content":"LEVEL\\nFULL\\n..."}]}'
+            )
+        else:
+            output_instruction = "- Return result.json as the expected task output."
+            response_example = (
+                '{"schema_version":1,"task_id":"' + args.id
+                + '","files":[{"path":"result.json","content":"<UTF-8 text>"}]}'
+            )
         isolation_block = f"""- Worker mode: packet-only
 - Local filesystem, shell, process, editor, IDE, and host-application tools: forbidden
 - All permitted local source inputs are embedded in this packet.
 - Provider-level network retrieval: {'allowed' if args.network else 'disabled'}
-- Return exactly one JSON Worker Response; do not write files directly.
-- Worker Response schema: {{"schema_version":1,"task_id":"{args.id}","files":[{{"path":"result.json","content":"<UTF-8 text>"}}]}}"""
+- Return exactly one JSON Worker Response envelope; do not write files directly.
+{output_instruction}
+- Worker Response transport schema: {response_example}"""
     else:
         isolation_block = """- Worker mode: sandbox-agent
 - The tool-capable agent process itself must run inside the attested /quidra-benchmark sandbox.

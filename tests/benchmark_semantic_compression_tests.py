@@ -230,21 +230,19 @@ def assert_f20_work_plan_uses_stable_runtime_facts() -> None:
         unit["id"]: unit
         for unit in plan["evaluations"]["semantic_compression"]["units"]
     }
-    # Canonical authoring and the final comparability audit consume the
-    # stable runner-owned facts directly. Cohort support adjudication receives
-    # the same facts inside its dynamically generated support input, avoiding a
-    # duplicate Task Packet dependency while still letting the current validator
-    # enforce the runtime baseline.
-    for unit_id in (
-        "sc-metrics-hidden-coverage--part-2",
-        "sc-comparability",
-    ):
-        reads = units[unit_id].get("read_paths", [])
-        assert "work/root/f20_runtime_facts.json" in reads, (unit_id, reads)
-        assert "results/toolchains.json" not in reads, (unit_id, reads)
-        assert "template/runtime/f20_interop_fixtures.json" not in reads, (
-            unit_id, reads
-        )
+    # Canonical authoring is now probe × language split. Keep the base
+    # template free of the F20-only runtime file so unrelated canonical leaves
+    # do not inherit that fingerprint; deterministic planning injects the
+    # runner-owned facts only into F20.P1 leaves. The final comparability audit
+    # still consumes the stable facts directly.
+    canonical = units["sc-canonical-fragment"]
+    assert canonical.get("split_by_probe_language") is True, canonical
+    assert canonical.get("read_paths", []) == [], canonical.get("read_paths")
+
+    reads = units["sc-comparability"].get("read_paths", [])
+    assert "work/root/f20_runtime_facts.json" in reads, reads
+    assert "results/toolchains.json" not in reads, reads
+    assert "template/runtime/f20_interop_fixtures.json" not in reads, reads
 
     adjudication = units["sc-support-adjudication--f20-p1"]
     assert adjudication.get("read_paths", []) == [], adjudication.get("read_paths")

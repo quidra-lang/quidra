@@ -6412,6 +6412,21 @@ def cache_fingerprint_payload(
             root, "mechanical" if mechanical else str(unit.get("evaluation"))
         ),
     }
+    support_probe = support_adjudication_probe(
+        [str(rid) for rid in (unit.get("requirement_ids") or [])]
+    )
+    if not mechanical and support_probe is not None:
+        # The paid experiment here is the semantic adjudication over the frozen
+        # support input. Transport (packet-only vs another carrier), JSON/text
+        # serialization and Task-Packet output instructions are runner concerns.
+        # The generated support input is already content-hashed in readable
+        # inputs, while rubric/config/model/sampling/toolchains remain in this
+        # payload. Keep an explicit semantic-contract id so a real change to the
+        # adjudication question is an intentional cache break.
+        payload.pop("exact_task_packet_sha256", None)
+        payload.pop("worker_mode", None)
+        payload["work_unit_id"] = f"sc-support-adjudication:{support_probe}"
+        payload["semantic_evidence_contract"] = "sc-support-adjudication-v1"
     if unit.get("evaluation") == "llm_proficiency":
         workload_contract_path = root / PROFICIENCY_WORKLOADS_RELATIVE
         if not workload_contract_path.is_file():

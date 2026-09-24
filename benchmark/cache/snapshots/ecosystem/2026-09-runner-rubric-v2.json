@@ -1428,20 +1428,22 @@
             "application_testing": 3
           },
           "component_findings": {
-            "web_network": "Central v2 recertification of preserved evidence assigns level 4 for: Mature third-party libraries for web servers/clients, HTTP/networking and service development.",
-            "data_numerical": "Central v2 recertification of preserved evidence assigns level 4 for: Mature third-party libraries for numerical, scientific, data-frame or data-processing workloads.",
-            "ml_ai": "Central v2 recertification of preserved evidence assigns level 4 for: Mature third-party libraries for machine learning, AI or model-serving workloads.",
-            "storage_interchange": "Central v2 recertification of preserved evidence assigns level 4 for: Mature third-party libraries for databases, storage, serialization and common interchange formats.",
-            "application_testing": "Central v2 recertification of preserved evidence assigns level 3 for: Mature third-party libraries for application development concerns such as GUI/CLI plus testing/automation."
+            "web_network": "Preserved paid evidence (ecosystem-external--part-1--rust): rustls is the default TLS backend for major HTTP clients such as reqwest.",
+            "data_numerical": "Preserved paid evidence (ecosystem-external--part-1--rust): rayon is the standard work-stealing data-parallelism library.",
+            "ml_ai": "Preserved paid evidence (ecosystem-external--part-1--rust): Score of 96/100: full domain coverage (no gaps) with strong evidence for the 4 freshly re-verified domains; -4 points reserved for (a) two domains (web framework, ORM) showing ecosystem fragmentation/churn between competing standards rather than one unambiguous default, and (b) 11 of 15 rows relying on general knowledge rather than a fresh same-session fetch, which is a methodological limitation on this run's evidence depth, not on Rust's actual coverage.",
+            "storage_interchange": "Preserved paid evidence (ecosystem-external--part-1--rust): serde is the near-universal serialization framework with over a billion downloads and a very deep version history.",
+            "application_testing": "Preserved paid evidence (ecosystem-external--part-1--rust): clap is the dominant CLI parsing crate with over a billion downloads and hundreds of published versions."
           },
           "score_0_100": 95,
           "legacy_score_0_100": 96,
           "source_work_unit_id": "ecosystem-external--part-1--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-1--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/b5b77ad10a2a6309ffd97eb46bf9cadf5a48e7c5dce5994f6a5098f74f74cb29.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-1--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/b5b77ad10a2a6309ffd97eb46bf9cadf5a48e7c5dce5994f6a5098f74f74cb29.json",
+          "source_result_sha256": "8a1213e4d3cc907cdb1003550656471e6e8511b5d6b767d6ee96f38e53228ce5"
         },
         "metric.package_ecosystem_activity_maintenance": {
           "component_levels": {
@@ -1452,20 +1454,22 @@
             "security_provenance": 4
           },
           "component_findings": {
-            "registry_discovery": "Central v2 recertification of preserved evidence assigns level 4 for: A usable package registry/index with search and metadata discovery.",
-            "recent_maintenance": "Central v2 recertification of preserved evidence assigns level 4 for: Recent releases/updates across representative packages within the fixed activity window.",
-            "dependency_metadata": "Central v2 recertification of preserved evidence assigns level 4 for: Version constraints, dependency metadata and compatibility information are routinely published.",
-            "distribution_artifacts": "Central v2 recertification of preserved evidence assigns level 4 for: Source and/or prebuilt package artifacts are routinely available through the ecosystem.",
-            "security_provenance": "Central v2 recertification of preserved evidence assigns level 4 for: Security advisories, integrity/provenance metadata or comparable supply-chain mechanisms are available."
+            "registry_discovery": "Preserved paid evidence (ecosystem-external--part-1--rust): Score of 93/100: sampled cornerstone crates show release cadences measured in days-to-weeks rather than months-to-years, deep multi-year version histories (hundreds of releases), and registry-wide growth in maintainers; a few points withheld because per-domain maintenance for the 11 non-fresh-verified domains was not independently re-confirmed this session.",
+            "recent_maintenance": "Preserved paid evidence (ecosystem-external--part-1--rust): Score of 93/100: sampled cornerstone crates show release cadences measured in days-to-weeks rather than months-to-years, deep multi-year version histories (hundreds of releases), and registry-wide growth in maintainers; a few points withheld because per-domain maintenance for the 11 non-fresh-verified domains was not independently re-confirmed this session.",
+            "dependency_metadata": "Preserved paid evidence (ecosystem-external--part-1--rust): Score of 93/100: sampled cornerstone crates show release cadences measured in days-to-weeks rather than months-to-years, deep multi-year version histories (hundreds of releases), and registry-wide growth in maintainers; a few points withheld because per-domain maintenance for the 11 non-fresh-verified domains was not independently re-confirmed this session.",
+            "distribution_artifacts": "Preserved paid evidence (ecosystem-external--part-1--rust): The registry as a whole continues to grow in publishers and traffic, indicating sustained ecosystem-level maintenance activity rather than stagnation.",
+            "security_provenance": "Preserved paid evidence (ecosystem-external--part-1--rust): Score of 93/100: sampled cornerstone crates show release cadences measured in days-to-weeks rather than months-to-years, deep multi-year version histories (hundreds of releases), and registry-wide growth in maintainers; a few points withheld because per-domain maintenance for the 11 non-fresh-verified domains was not independently re-confirmed this session."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 93,
           "source_work_unit_id": "ecosystem-external--part-1--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-1--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/b5b77ad10a2a6309ffd97eb46bf9cadf5a48e7c5dce5994f6a5098f74f74cb29.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-1--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "Raw download counts and version counts are used here only as one declared input alongside release recency (days/weeks since last publish) and registry-wide owner growth, consistent with the requirement that popularity proxies not stand alone. Only the 4 freshly re-verified crates have direct citation-backed recency data in this run; ecosystem-wide owner growth and traffic scale are used as corroborating, not sole, evidence.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/b5b77ad10a2a6309ffd97eb46bf9cadf5a48e7c5dce5994f6a5098f74f74cb29.json",
+          "source_result_sha256": "8a1213e4d3cc907cdb1003550656471e6e8511b5d6b767d6ee96f38e53228ce5"
         },
         "metric.third_party_tool_availability": {
           "component_levels": {
@@ -1476,20 +1480,22 @@
             "ci_devops": 4
           },
           "component_findings": {
-            "editor_ide": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party IDE/editor integrations.",
-            "lint_format_static": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party linting, formatting or static-analysis tools.",
-            "build_test_coverage": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party build, test or coverage tools.",
-            "debug_profile": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party debugging or profiling tools.",
-            "ci_devops": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party CI, release, packaging or developer-operations integrations."
+            "editor_ide": "Preserved paid evidence (ecosystem-external--part-2--rust): Rust scores very high (91/100): it has an officially endorsed, first-party IDE protocol (rust-analyzer) plus an independent commercial IDE (RustRover), official compiler-adjacent linter/formatter (Clippy/rustfmt), a mature layered third-party security/verification tool stack (cargo-audit, cargo-deny, Miri, Kani et al.), and first-party SDKs from both major cloud vendors (AWS, Azure). The score is not 100 because some tooling (e.g., RustRover) is proprietary/commercial-licensed for non-hobby use, and some verification tools (Kani, Prusti, Creusot) remain research-grade/niche rather than mainstream-production-hardened.",
+            "lint_format_static": "Preserved paid evidence (ecosystem-external--part-2--rust): A recognized layered third-party static-analysis stack exists beyond the compiler: style/lint (Clippy, rustfmt, rust-analyzer), supply-chain security (cargo-audit, cargo-deny, cargo-auditable), and deep verification (Miri, Kani, MIRAI, Rudra, Creusot, Prusti).",
+            "build_test_coverage": "Preserved paid evidence (ecosystem-external--part-2--rust): <cite index=\"11-11,11-12,11-13,11-14,11-15,11-16,11-17\">Every mature Rust project should cover all three layers. Layer 1: Linting and style catches idiomatic violations, common mistakes, and maintainability problems. Tools: Clippy, rustfmt, rust-analyzer. Layer 2: Dependency and supply chain security audits third-party crates for known vulnerabilities and policy violations. Tools: cargo-audit, cargo-deny, cargo-auditable. Layer 3: Deep verification finds memory safety issues in unsafe code, undefined behavior, and formally proves properties of critical functions. Tools: Miri, Kani, MIRAI, Rudra, Creusot, Prusti.</cite>",
+            "debug_profile": "Preserved paid evidence (ecosystem-external--part-2--rust): <cite index=\"11-11,11-12,11-13,11-14,11-15,11-16,11-17\">Every mature Rust project should cover all three layers. Layer 1: Linting and style catches idiomatic violations, common mistakes, and maintainability problems. Tools: Clippy, rustfmt, rust-analyzer. Layer 2: Dependency and supply chain security audits third-party crates for known vulnerabilities and policy violations. Tools: cargo-audit, cargo-deny, cargo-auditable. Layer 3: Deep verification finds memory safety issues in unsafe code, undefined behavior, and formally proves properties of critical functions. Tools: Miri, Kani, MIRAI, Rudra, Creusot, Prusti.</cite>",
+            "ci_devops": "Preserved paid evidence (ecosystem-external--part-2--rust): <cite index=\"11-11,11-12,11-13,11-14,11-15,11-16,11-17\">Every mature Rust project should cover all three layers. Layer 1: Linting and style catches idiomatic violations, common mistakes, and maintainability problems. Tools: Clippy, rustfmt, rust-analyzer. Layer 2: Dependency and supply chain security audits third-party crates for known vulnerabilities and policy violations. Tools: cargo-audit, cargo-deny, cargo-auditable. Layer 3: Deep verification finds memory safety issues in unsafe code, undefined behavior, and formally proves properties of critical functions. Tools: Miri, Kani, MIRAI, Rudra, Creusot, Prusti.</cite>"
           },
           "score_0_100": 100,
           "legacy_score_0_100": 91,
           "source_work_unit_id": "ecosystem-external--part-2--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-2--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/b9128d64d8991fb94b31a36e2e3df734b14e0d9532471b4b3de01d4a862cc892.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-2--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "Crate/download counts on lib.rs and GitHub star/plugin counts were consulted only as supplementary context and are not used as the sole basis for the score; the qualitative official-recommendation and named-tool findings above are the primary basis. Only one retrieval route (web search against official/vendor pages) was used, consistent with parity across languages in this shard.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/b9128d64d8991fb94b31a36e2e3df734b14e0d9532471b4b3de01d4a862cc892.json",
+          "source_result_sha256": "d9d833a69f5e57b7283dd1294541d3e9701f17d9f7d6092e7b8c1d0abf93af71"
         },
         "metric.production_adoption_deployment_evidence": {
           "component_levels": {
@@ -1500,20 +1506,22 @@
             "deployment_depth": 4
           },
           "component_findings": {
-            "named_organizations": "Central v2 recertification of preserved evidence assigns level 4 for: Multiple named organizations have verifiable production deployments.",
-            "scale_criticality": "Central v2 recertification of preserved evidence assigns level 4 for: Evidence includes material scale, business-critical or infrastructure-critical workloads.",
-            "domain_diversity": "Central v2 recertification of preserved evidence assigns level 4 for: Deployments span multiple distinct industry/workload domains.",
-            "current_continuity": "Central v2 recertification of preserved evidence assigns level 4 for: Evidence indicates current or recently maintained production use within the evidence window.",
-            "deployment_depth": "Central v2 recertification of preserved evidence assigns level 4 for: Evidence covers real deployed systems, not only prototypes, tutorials or developer preference surveys."
+            "named_organizations": "Preserved paid evidence (ecosystem-external--part-2--rust): Rust scores very high (92/100): production deployment evidence is unusually strong and diverse for a systems language of Rust's age, spanning multiple hyperscalers (AWS, Microsoft, Google), a dedicated Foundation-run commercial coordination body with those same companies as founding members, and named case studies (Cloudflare, Discord, Atlassian). Score is not maximal because independent reporting confirms adoption is still predominantly incremental/component-level rather than wholesale replacement of legacy systems, and some cited statistics originate from secondary blog aggregation rather than primary company disclosures.",
+            "scale_criticality": "Preserved paid evidence (ecosystem-external--part-2--rust): Cloudflare's Pingora proxy and Discord are cited as large-scale Rust production systems with reported performance/resource benefits.",
+            "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--rust): Verified, independently reported production deployments at major infrastructure companies, formal industry-coordination structures, and quantitative adoption-survey data.",
+            "current_continuity": "Preserved paid evidence (ecosystem-external--part-2--rust): A community-maintained roster of companies attributes specific production use cases directly to company statements, e.g. AWS and Atlassian.",
+            "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--rust): Rust scores very high (92/100): production deployment evidence is unusually strong and diverse for a systems language of Rust's age, spanning multiple hyperscalers (AWS, Microsoft, Google), a dedicated Foundation-run commercial coordination body with those same companies as founding members, and named case studies (Cloudflare, Discord, Atlassian). Score is not maximal because independent reporting confirms adoption is still predominantly incremental/component-level rather than wholesale replacement of legacy systems, and some cited statistics originate from secondary blog aggregation rather than primary company disclosures."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 92,
           "source_work_unit_id": "ecosystem-external--part-2--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-2--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/b9128d64d8991fb94b31a36e2e3df734b14e0d9532471b4b3de01d4a862cc892.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-2--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "Some adoption figures come from marketing-oriented blog aggregations (e.g. 'X% growth' style posts) with unclear original methodology and are treated as lower-confidence corroborating context rather than primary evidence; the primary basis for the score is the combination of named, verifiable hyperscaler production systems (Firecracker, Windows, Android) and the Rust Foundation's own formally documented Commercial Network membership.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/b9128d64d8991fb94b31a36e2e3df734b14e0d9532471b4b3de01d4a862cc892.json",
+          "source_result_sha256": "d9d833a69f5e57b7283dd1294541d3e9701f17d9f7d6092e7b8c1d0abf93af71"
         },
         "metric.community_public_knowledge_availability": {
           "component_levels": {
@@ -1524,20 +1532,22 @@
             "international_breadth": 4
           },
           "component_findings": {
-            "qa_discussion": "Central v2 recertification of preserved evidence assigns level 4 for: Substantial searchable Q&A/discussion knowledge is available.",
-            "learning_materials": "Central v2 recertification of preserved evidence assigns level 4 for: Independent tutorials, books, courses or long-form learning materials are available.",
-            "events_groups": "Central v2 recertification of preserved evidence assigns level 4 for: Conferences, meetups, user groups or comparable recurring community venues are active.",
-            "current_knowledge": "Central v2 recertification of preserved evidence assigns level 4 for: Public knowledge is being updated for current language/toolchain versions.",
-            "international_breadth": "Central v2 recertification of preserved evidence assigns level 4 for: Knowledge is available across multiple regions/languages or otherwise shows broad community reach."
+            "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--rust): <cite index=\"15-1,15-3,15-4,15-5\">The Rust Users Forum is a place for Rust users to communicate about anything and everything related to Rust and The Rust Internals Forum is a place for discussion about the development of Rust itself, with general chatter happening on several chat platforms including the Rust Zulip server.</cite>",
+            "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--rust): Official book (canonical single-language learning artifact, mirrors what other languages have as an equivalent official resource)",
+            "events_groups": "Preserved paid evidence (ecosystem-external--part-3--rust): <cite index=\"15-12,15-13\">There are more than 90 Meetups and several conferences worldwide in over 35 countries, and Rustaceans meet periodically in Rust User Groups.</cite>",
+            "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--rust): Editorial rigor of the newsletter (signal of sustained, curated public knowledge rather than noise)",
+            "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--rust): Rust exhibits very high community/public-knowledge availability across every examined channel: an official, actively maintained, community-translated book and adjacent official 'bookshelf' (Rust by Example, Rustlings, Cargo Book, rustc Book, Rust Reference, etc.) per rust-lang.org's own book index; two dedicated official Discourse forums (Users, Internals) plus an official Zulip chat; a continuously published, human-edited weekly newsletter running for over a decade; strong Stack Overflow presence and sentiment (repeated 'Most Loved Language' status); and an official multi-channel community page (blog, Twitter/Weibo, subreddit, 90+ meetups in 35+ countries). This breadth and official curatio"
           },
           "score_0_100": 100,
           "legacy_score_0_100": 96,
           "source_work_unit_id": "ecosystem-external--part-3--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-3--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/2ec7d8c5e2233c6a96a58a1f0abc928ff6a01cc2d790340894bf9ff65af6c12f.json"
           ],
-          "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-3--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "candidate_universe": "rust-lang.org/community (official community index page)",
+          "limitations": "Follower/subscriber counts and Stack Overflow tag counts sourced from third-party aggregator sites (e.g. feedspot, saashub) were cross-checked but not used as a standalone score input; several general web-search results for 'r/rust subscribers' returned unrelated subreddits (the Steam game 'Rust', r/bald, r/wallstreetbets, etc.) due to name collision with the Steam survival game, and those irrelevant results were excluded from evidence rather than used to inflate or deflate the score. Numeric star/subscriber/download counts were not obtained cleanly within the 5-search budget for this shard and are therefore not asserted as point figures; the qualitative, multi-channel evidence above (official book, official multi-venue community page, weekly human-edited newsletter running continuously since 2014, official forums, Stack Overflow 'Most Loved' recognition, 90+ meetups across 35+ countries) is used instead, consistent with the rule that raw popularity counts must not be the sole proxy.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/2ec7d8c5e2233c6a96a58a1f0abc928ff6a01cc2d790340894bf9ff65af6c12f.json",
+          "source_result_sha256": "3213f0a70bb86271e20ee1541cf5e00e4e1d5eeb175a9ca068147158ce892762"
         },
         "metric.core_tooling_availability_quality": {
           "component_levels": {
@@ -1548,20 +1558,22 @@
             "diagnostic_quality": 4
           },
           "component_findings": {
-            "build_execute": "Central v2 recertification of preserved evidence assigns level 4 for: Reliable compiler/interpreter/build-and-execute tooling.",
-            "format_lint": "Central v2 recertification of preserved evidence assigns level 4 for: Maintained formatter, linter or static-analysis support.",
-            "test": "Central v2 recertification of preserved evidence assigns level 4 for: Maintained test-running support or standard test integration.",
-            "docs_package": "Central v2 recertification of preserved evidence assigns level 4 for: Documentation generation and/or package/project tooling integrated with the core workflow.",
-            "diagnostic_quality": "Central v2 recertification of preserved evidence assigns level 4 for: Core tools expose stable diagnostics, machine-readable output or comparable automation-friendly interfaces."
+            "build_execute": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Debugging support relies on wrapper scripts around external native debuggers (gdb/lldb via rust-gdb/rust-lldb) rather than a dedicated first-party Rust debugger, and profiling tooling (e.g. cargo-flamegraph, perf integration) is largely third-party; this keeps the score below the top of the band despite an otherwise complete first-party suite.",
+            "format_lint": "Preserved paid evidence (ecosystem-tooling--part-1--rust): <cite index=\"4-1,4-2\">When you install Rust with rustup, the toolset includes the rustc compiler, the rustfmt source code formatter, and the clippy Rust linter, along with Cargo, the Rust package manager.</cite>",
+            "test": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Meets the top band (90-100) criteria: complete first-party toolchain (rustc, cargo, rustup, rustfmt, clippy, rustdoc, rust-analyzer) shipped/managed together with no fragmentation and undisputed single-standard tools; docked a few points for the debugger/profiler gap noted above.",
+            "docs_package": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Rust ships a complete, first-party, tightly-integrated toolchain distributed through a single official installer.",
+            "diagnostic_quality": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Meets the top band (90-100) criteria: complete first-party toolchain (rustc, cargo, rustup, rustfmt, clippy, rustdoc, rust-analyzer) shipped/managed together with no fragmentation and undisputed single-standard tools; docked a few points for the debugger/profiler gap noted above."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 93,
           "source_work_unit_id": "ecosystem-tooling--part-1--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-1--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/eb2160b6b523ab8ff8332c3b66c424aeafb00f3518593de217f6ff794bc0bb99.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/eb2160b6b523ab8ff8332c3b66c424aeafb00f3518593de217f6ff794bc0bb99.json",
+          "source_result_sha256": "307f805903d21d4f36b619e72cc0e53f6d35369fbaa5129c9f5d37b077a4be6b"
         },
         "metric.package_dependency_management_quality": {
           "component_levels": {
@@ -1572,20 +1584,22 @@
             "publish_version": 4
           },
           "component_findings": {
-            "resolver_lock": "Central v2 recertification of preserved evidence assigns level 4 for: Dependency resolution plus lockfile/reproducibility support.",
-            "manifest_constraints": "Central v2 recertification of preserved evidence assigns level 4 for: Project manifests and expressive version/dependency constraints.",
-            "workspace_multi": "Central v2 recertification of preserved evidence assigns level 4 for: Workspace, multi-package or monorepo support.",
-            "registry_security": "Central v2 recertification of preserved evidence assigns level 4 for: Registry integrity, provenance, advisories or dependency-security mechanisms.",
-            "publish_version": "Central v2 recertification of preserved evidence assigns level 4 for: Documented package publishing, versioning and update workflow."
+            "resolver_lock": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Meets top-band criteria: fully integrated first-party package manager, Cargo.lock reproducibility, semver resolution with feature unification, native workspace support, and a large-scale, high-traffic central registry (crates.io) with community security-auditing tooling; not a perfect 100 because some auditing/supply-chain tooling (cargo-audit, cargo-deny) remains third-party rather than bundled by default.",
+            "manifest_constraints": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Cargo is a first-party, deeply integrated package manager backed by the large, actively used crates.io registry, with lockfiles, semver-based resolution, and workspace support.",
+            "workspace_multi": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Cargo is a first-party, deeply integrated package manager backed by the large, actively used crates.io registry, with lockfiles, semver-based resolution, and workspace support.",
+            "registry_security": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Meets top-band criteria: fully integrated first-party package manager, Cargo.lock reproducibility, semver resolution with feature unification, native workspace support, and a large-scale, high-traffic central registry (crates.io) with community security-auditing tooling; not a perfect 100 because some auditing/supply-chain tooling (cargo-audit, cargo-deny) remains third-party rather than bundled by default.",
+            "publish_version": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Cargo is a first-party, deeply integrated package manager backed by the large, actively used crates.io registry, with lockfiles, semver-based resolution, and workspace support."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 96,
           "source_work_unit_id": "ecosystem-tooling--part-1--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-1--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/eb2160b6b523ab8ff8332c3b66c424aeafb00f3518593de217f6ff794bc0bb99.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/eb2160b6b523ab8ff8332c3b66c424aeafb00f3518593de217f6ff794bc0bb99.json",
+          "source_result_sha256": "307f805903d21d4f36b619e72cc0e53f6d35369fbaa5129c9f5d37b077a4be6b"
         },
         "metric.ide_editor_support_quality": {
           "component_levels": {
@@ -1596,20 +1610,22 @@
             "breadth_maintenance": 4
           },
           "component_findings": {
-            "syntax_navigation": "Central v2 recertification of preserved evidence assigns level 4 for: Syntax highlighting, navigation and symbol indexing.",
-            "completion_types": "Central v2 recertification of preserved evidence assigns level 4 for: Completion, signature help and type-aware analysis.",
-            "refactor_actions": "Central v2 recertification of preserved evidence assigns level 4 for: Refactoring and code-action support.",
-            "debug_integration": "Central v2 recertification of preserved evidence assigns level 3 for: Integrated run/debug workflow.",
-            "breadth_maintenance": "Central v2 recertification of preserved evidence assigns level 4 for: Support exists across multiple relevant editors/IDEs and is actively maintained."
+            "syntax_navigation": "Preserved paid evidence (ecosystem-tooling--part-2--rust): Rust has an official, org-backed, actively-maintained LSP (rust-analyzer) with broad multi-editor reach (VS Code, JetBrains via RustRover/IntelliJ plugin, Neovim, Emacs, Helix, Zed) plus a dedicated commercial full-IDE (RustRover) layering deep refactoring/navigation on top. This is close to best-in-class breadth and maturity; points are withheld only for acknowledged rough edges in macro-expansion tooling and general feature completeness relative to a hypothetical perfect score.",
+            "completion_types": "Preserved paid evidence (ecosystem-tooling--part-2--rust): Rust has an official, org-backed, actively-maintained LSP (rust-analyzer) with broad multi-editor reach (VS Code, JetBrains via RustRover/IntelliJ plugin, Neovim, Emacs, Helix, Zed) plus a dedicated commercial full-IDE (RustRover) layering deep refactoring/navigation on top. This is close to best-in-class breadth and maturity; points are withheld only for acknowledged rough edges in macro-expansion tooling and general feature completeness relative to a hypothetical perfect score.",
+            "refactor_actions": "Preserved paid evidence (ecosystem-tooling--part-2--rust): Rust has an official, org-backed, actively-maintained LSP (rust-analyzer) with broad multi-editor reach (VS Code, JetBrains via RustRover/IntelliJ plugin, Neovim, Emacs, Helix, Zed) plus a dedicated commercial full-IDE (RustRover) layering deep refactoring/navigation on top. This is close to best-in-class breadth and maturity; points are withheld only for acknowledged rough edges in macro-expansion tooling and general feature completeness relative to a hypothetical perfect score.",
+            "debug_integration": "Preserved paid evidence (ecosystem-tooling--part-2--rust): Rust has an official, org-backed, actively-maintained LSP (rust-analyzer) with broad multi-editor reach (VS Code, JetBrains via RustRover/IntelliJ plugin, Neovim, Emacs, Helix, Zed) plus a dedicated commercial full-IDE (RustRover) layering deep refactoring/navigation on top. This is close to best-in-class breadth and maturity; points are withheld only for acknowledged rough edges in macro-expansion tooling and general feature completeness relative to a hypothetical perfect score.",
+            "breadth_maintenance": "Preserved paid evidence (ecosystem-tooling--part-2--rust): Rust has an official, org-backed, actively-maintained LSP (rust-analyzer) with broad multi-editor reach (VS Code, JetBrains via RustRover/IntelliJ plugin, Neovim, Emacs, Helix, Zed) plus a dedicated commercial full-IDE (RustRover) layering deep refactoring/navigation on top. This is close to best-in-class breadth and maturity; points are withheld only for acknowledged rough edges in macro-expansion tooling and general feature completeness relative to a hypothetical perfect score."
           },
           "score_0_100": 95,
           "legacy_score_0_100": 90,
           "source_work_unit_id": "ecosystem-tooling--part-2--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-2--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/d69a1f3c8add2db298e1c3c7513efcccca3148ec07001f56958b42eda765697f.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/d69a1f3c8add2db298e1c3c7513efcccca3148ec07001f56958b42eda765697f.json",
+          "source_result_sha256": "d350ad46d222276bc29c5d4541d5d8d534690b05785b5718f517e5febe38866c"
         },
         "metric.debugger_profiler_support": {
           "component_levels": {
@@ -1620,20 +1636,22 @@
             "integration_platforms": 3
           },
           "component_findings": {
-            "basic_debug": "Central v2 recertification of preserved evidence assigns level 4 for: Breakpoints, stepping and variable/stack inspection.",
-            "advanced_debug": "Central v2 recertification of preserved evidence assigns level 3 for: Conditional breakpoints, watches, remote/core/post-mortem or equivalent advanced debugging.",
-            "cpu_profile": "Central v2 recertification of preserved evidence assigns level 4 for: Usable CPU/time profiling.",
-            "memory_profile": "Central v2 recertification of preserved evidence assigns level 4 for: Usable memory/allocation/leak profiling.",
-            "integration_platforms": "Central v2 recertification of preserved evidence assigns level 3 for: Debugger/profiler workflows integrate with common IDEs/builds and cover multiple supported platforms."
+            "basic_debug": "Preserved paid evidence (ecosystem-tooling--part-2--rust): IDE integration is mainstream and multi-vendor: VS Code integration via CodeLLDB: \"<cite index=\"12-7\">VS Code with the rust-analyzer extension and CodeLLDB offers breakpoints, variable inspection, and watch expressions without leaving your editor.</cite>\" and a 2026 guide lists it as a required companion extension: \"<cite index=\"7-5\">Key extensions: rust-analyzer (required), CodeLLDB (debugging), crates (dependency management), Even Better TOML (Cargo.toml editing), Error Lens (inline errors).</cite>\"",
+            "advanced_debug": "Preserved paid evidence (ecosystem-tooling--part-2--rust): Rust has solid, mainstream native-debugger coverage (GDB/LLDB with rustc DWARF info, rust-gdb/rust-lldb wrappers, a maintained LLDB fork) and good IDE integration (VS Code+CodeLLDB, RustRover's bundled visual debugger). The profiler ecosystem is mature and cross-platform (perf/cargo-flamegraph, samply, Valgrind/Cachegrind/Callgrind/DHAT, heaptrack, tokio-console for async). However, the Rust compiler team's own 2026 debugging survey explicitly states debugging remains one of the most-cited developer pain points, with named unresolved gaps in async debugging, expression evaluation, and cross-debugger/version consistency, which caps this below top-tier scores reserved for languages without suc",
+            "cpu_profile": "Preserved paid evidence (ecosystem-tooling--part-2--rust): cargo-flamegraph is a de facto standard, one-command CPU profiler wrapper: \"<cite index=\"25-9,25-10,25-11\">The community convention is to use the cargo-flamegraph crate. It wraps the perf commands and handles the stackcollapse scripts for you. Running cargo flamegraph is the standard way to get a graph in seconds.</cite>\" and it is cross-platform: \"<cite index=\"21-2,21-3\">flamegraph is a Cargo command that uses perf/DTrace to profile your code and then displays the results in a flame graph. It works on Linux and all platforms that support DTrace (macOS, FreeBSD, NetBSD, and possibly Windows).</cite>\"",
+            "memory_profile": "Preserved paid evidence (ecosystem-tooling--part-2--rust): Memory profiling has dedicated first-party-adjacent tooling: \"<cite index=\"23-7,23-8\">Memory profiling in Rust has also evolved, with tools like heaptrack and DHAT (Dynamic Heap Allocation Tool) providing detailed insights into heap allocations. Heaptrack, available on Linux, tracks memory usage and helps identify allocation hotspots, while DHAT, part of Valgrind, offers dynamic heap profiling to detect memory leaks and allocation patterns.</cite>\" plus an async-specific diagnostic tool: \"<cite index=\"26-9\">Use tokio-console when debugging async applications that stall on channel backpressure or lock contention.</cite>\"",
+            "integration_platforms": "Preserved paid evidence (ecosystem-tooling--part-2--rust): Rust has solid, mainstream native-debugger coverage (GDB/LLDB with rustc DWARF info, rust-gdb/rust-lldb wrappers, a maintained LLDB fork) and good IDE integration (VS Code+CodeLLDB, RustRover's bundled visual debugger). The profiler ecosystem is mature and cross-platform (perf/cargo-flamegraph, samply, Valgrind/Cachegrind/Callgrind/DHAT, heaptrack, tokio-console for async). However, the Rust compiler team's own 2026 debugging survey explicitly states debugging remains one of the most-cited developer pain points, with named unresolved gaps in async debugging, expression evaluation, and cross-debugger/version consistency, which caps this below top-tier scores reserved for languages without suc"
           },
           "score_0_100": 90,
           "legacy_score_0_100": 76,
           "source_work_unit_id": "ecosystem-tooling--part-2--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-2--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/d69a1f3c8add2db298e1c3c7513efcccca3148ec07001f56958b42eda765697f.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/d69a1f3c8add2db298e1c3c7513efcccca3148ec07001f56958b42eda765697f.json",
+          "source_result_sha256": "d350ad46d222276bc29c5d4541d5d8d534690b05785b5718f517e5febe38866c"
         },
         "metric.build_test_integration": {
           "component_levels": {
@@ -1644,20 +1662,22 @@
             "config_integration": 4
           },
           "component_findings": {
-            "build_system": "Central v2 recertification of preserved evidence assigns level 4 for: Standard or de-facto build tooling integrates with ordinary projects/packages.",
-            "test_framework": "Central v2 recertification of preserved evidence assigns level 4 for: Standard or mature de-facto test framework support.",
-            "ci_matrix": "Central v2 recertification of preserved evidence assigns level 4 for: Straightforward CI integration including version/platform matrices.",
-            "coverage": "Central v2 recertification of preserved evidence assigns level 3 for: Coverage tooling and CI-gating/report support.",
-            "config_integration": "Central v2 recertification of preserved evidence assigns level 4 for: Build/test/coverage/lint configuration composes cleanly in project/workspace workflows."
+            "build_system": "Preserved paid evidence (ecosystem-tooling--part-3--rust): Cargo ships with the toolchain and is the single, universal build tool for essentially all Rust projects; no competing first-party or de-facto alternative exists.",
+            "test_framework": "Preserved paid evidence (ecosystem-tooling--part-3--rust): C1 (0-20): First-party, single build tool that is the de-facto standard for the whole ecosystem",
+            "ci_matrix": "Preserved paid evidence (ecosystem-tooling--part-3--rust): cargo test compiles and runs unit tests, and separately-located integration tests, natively.",
+            "coverage": "Preserved paid evidence (ecosystem-tooling--part-3--rust): C5 (0-20): Maturity of benchmark + coverage tooling reachable from the standard build tool (native or one-command-away, widely standardized)",
+            "config_integration": "Preserved paid evidence (ecosystem-tooling--part-3--rust): Cargo workspaces let cargo test/--workspace build and test all member crates together, sharing a lockfile and target directory."
           },
           "score_0_100": 95,
           "legacy_score_0_100": 93,
           "source_work_unit_id": "ecosystem-tooling--part-3--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-3--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/80383522ad75acb9cae44bc6a6d2e930620aed1eb437c1e79eab9942b59a16dc.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/80383522ad75acb9cae44bc6a6d2e930620aed1eb437c1e79eab9942b59a16dc.json",
+          "source_result_sha256": "a4ce657d10b2d8716255cdb812231bf49ea48d35c6ec355304d0b918bfba5923"
         },
         "metric.documentation_quality": {
           "component_levels": {
@@ -1668,20 +1688,22 @@
             "generation_localization": 4
           },
           "component_findings": {
-            "language_reference": "Central v2 recertification of preserved evidence assigns level 4 for: Current official language reference/specification and tutorial material.",
-            "library_api": "Central v2 recertification of preserved evidence assigns level 4 for: Current standard/core library API reference.",
-            "examples_guides": "Central v2 recertification of preserved evidence assigns level 4 for: Task-oriented guides and representative examples.",
-            "version_navigation": "Central v2 recertification of preserved evidence assigns level 4 for: Versioned docs, search/navigation and clear change/migration information.",
-            "generation_localization": "Central v2 recertification of preserved evidence assigns level 4 for: Documentation-generation tooling and/or meaningful localization/community documentation support."
+            "language_reference": "Preserved paid evidence (ecosystem-tooling--part-3--rust): D4 (0-20): Depth/coverage of official learning material (tutorial book, language reference, style/idiom guides) maintained by the language org",
+            "library_api": "Preserved paid evidence (ecosystem-tooling--part-3--rust): D1 (0-20): First-party API-doc generator integrated into the standard toolchain/build tool",
+            "examples_guides": "Preserved paid evidence (ecosystem-tooling--part-3--rust): Code examples inside /// doc comments compile and run as tests under the standard 'cargo test' flow, so published examples are continuously verified, not just rendered.",
+            "version_navigation": "Preserved paid evidence (ecosystem-tooling--part-3--rust): rustdoc ships with the toolchain and is invoked transparently via 'cargo doc'; it produces HTML docs from doc comments and Markdown for every crate with zero extra tooling.",
+            "generation_localization": "Preserved paid evidence (ecosystem-tooling--part-3--rust): rustdoc ships with the toolchain and is invoked transparently via 'cargo doc'; it produces HTML docs from doc comments and Markdown for every crate with zero extra tooling."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 97,
           "source_work_unit_id": "ecosystem-tooling--part-3--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-3--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/80383522ad75acb9cae44bc6a6d2e930620aed1eb437c1e79eab9942b59a16dc.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/80383522ad75acb9cae44bc6a6d2e930620aed1eb437c1e79eab9942b59a16dc.json",
+          "source_result_sha256": "a4ce657d10b2d8716255cdb812231bf49ea48d35c6ec355304d0b918bfba5923"
         },
         "metric.installation_distribution_experience": {
           "component_levels": {
@@ -1692,20 +1714,24 @@
             "install_docs": 4
           },
           "component_findings": {
-            "installers": "Central v2 recertification of preserved evidence assigns level 4 for: Straightforward official or de-facto installation on Windows, macOS and Linux where applicable.",
-            "package_version_manager": "Central v2 recertification of preserved evidence assigns level 4 for: Package/version-manager installation paths reduce manual build requirements.",
-            "channel_breadth": "Central v2 recertification of preserved evidence assigns level 4 for: Multiple maintained distribution channels or prebuilt artifact routes.",
-            "artifact_integrity": "Central v2 recertification of preserved evidence assigns level 4 for: Checksums, signing, provenance or comparable release-artifact integrity.",
-            "install_docs": "Central v2 recertification of preserved evidence assigns level 4 for: Clear current installation and upgrade documentation across supported platforms."
+            "installers": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Official install docs (rust-lang.org/tools/install, the Rustup book, and the Rust Book's installation chapter) give explicit per-OS steps, verification commands, and pointers to build-tool prerequisites (e.g. MSVC linker on Windows), though a native C toolchain prerequisite on some platforms is an extra manual step.",
+            "package_version_manager": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Official install docs (rust-lang.org/tools/install, the Rustup book, and the Rust Book's installation chapter) give explicit per-OS steps, verification commands, and pointers to build-tool prerequisites (e.g. MSVC linker on Windows), though a native C toolchain prerequisite on some platforms is an extra manual step.",
+            "channel_breadth": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Linux users should generally install GCC or Clang, according to their distribution’s documentation.",
+            "artifact_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Archived rustup-init and toolchain builds are retrievable by exact version/date, and SHA-256 checksums are published for installer artifacts.",
+            "install_docs": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Official install docs (rust-lang.org/tools/install, the Rustup book, and the Rust Book's installation chapter) give explicit per-OS steps, verification commands, and pointers to build-tool prerequisites (e.g. MSVC linker on Windows), though a native C toolchain prerequisite on some platforms is an extra manual step."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 95,
           "source_work_unit_id": "ecosystem-tooling--part-4--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-4--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/0a3959f552bcd2f41f6dfeeb8088f219329318206e987fb920219104e9088ac1.json",
+            "https://www.rust-lang.org/tools/install",
+            "https://static.rust-lang.org/rustup/archive/{rustup-version}/{target-tuple}/rustup-init[.exe"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/0a3959f552bcd2f41f6dfeeb8088f219329318206e987fb920219104e9088ac1.json",
+          "source_result_sha256": "b11badc2d42eced6125822d13b56df2c2b5bf862fab359e68c49d1625cbe5804"
         },
         "metric.toolchain_stability_release_maturity": {
           "component_levels": {
@@ -1716,20 +1742,24 @@
             "governance_change": 4
           },
           "component_findings": {
-            "release_cadence": "Central v2 recertification of preserved evidence assigns level 4 for: Documented release cadence/process that is followed in practice.",
-            "support_policy": "Central v2 recertification of preserved evidence assigns level 3 for: Published supported-version/EOL or maintenance policy.",
-            "compat_deprecation": "Central v2 recertification of preserved evidence assigns level 4 for: Documented compatibility/deprecation policy and controlled breaking-change process.",
-            "release_integrity": "Central v2 recertification of preserved evidence assigns level 4 for: Reproducible/verifiable release artifacts, signing/provenance or comparable controls.",
-            "governance_change": "Central v2 recertification of preserved evidence assigns level 4 for: Stable documented governance/change-management process for toolchain evolution."
+            "release_cadence": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Rust has shipped on a strict, publicly documented 6-week 'release train' since 1.0 (2015): stable, beta and nightly channels move in lockstep, and a new stable release is produced every six weeks.",
+            "support_policy": "Preserved paid evidence (ecosystem-tooling--part-4--rust): July 9, 2026 · The Rust Release Team · The Rust team is happy to announce a new version of Rust, 1.97.0.",
+            "compat_deprecation": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Rust has shipped on a strict, publicly documented 6-week 'release train' since 1.0 (2015): stable, beta and nightly channels move in lockstep, and a new stable release is produced every six weeks.",
+            "release_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Deterministic versioning and availability of exact historical release artifacts for reproducible builds.",
+            "governance_change": "Preserved paid evidence (ecosystem-tooling--part-4--rust): Rust has shipped on a strict, publicly documented 6-week 'release train' since 1.0 (2015): stable, beta and nightly channels move in lockstep, and a new stable release is produced every six weeks."
           },
           "score_0_100": 95,
           "legacy_score_0_100": 92,
           "source_work_unit_id": "ecosystem-tooling--part-4--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-4--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/0a3959f552bcd2f41f6dfeeb8088f219329318206e987fb920219104e9088ac1.json",
+            "https://www.rust-lang.org/tools/install",
+            "https://static.rust-lang.org/rustup/archive/{rustup-version}/{target-tuple}/rustup-init[.exe"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/0a3959f552bcd2f41f6dfeeb8088f219329318206e987fb920219104e9088ac1.json",
+          "source_result_sha256": "b11badc2d42eced6125822d13b56df2c2b5bf862fab359e68c49d1625cbe5804"
         },
         "metric.implemented_platform_coverage": {
           "component_levels": {
@@ -1740,20 +1770,35 @@
             "web_wasm_other": 4
           },
           "component_findings": {
-            "desktop_server_os": "Central v2 recertification of preserved evidence assigns level 4 for: Implemented support across Linux, macOS and Windows.",
-            "architectures": "Central v2 recertification of preserved evidence assigns level 4 for: Implemented support across major CPU architectures such as x86-64 and ARM64.",
-            "mobile": "Central v2 recertification of preserved evidence assigns level 3 for: Implemented mobile platform support where technically applicable.",
-            "embedded": "Central v2 recertification of preserved evidence assigns level 4 for: Implemented embedded/bare-metal or constrained-device support where technically applicable.",
-            "web_wasm_other": "Central v2 recertification of preserved evidence assigns level 4 for: Implemented WebAssembly/browser or other materially distinct deployment targets."
+            "desktop_server_os": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Rust ships Tier-1 (fully guaranteed) support for Windows/macOS/Linux across the dominant architectures, Tier-2 support for iOS, Android, WASI (wasm32-wasip2) and dozens of ARM/embedded/server variants, and hundreds of Tier-3 targets spanning bare-metal microcontrollers, RTOSes, and exotic ISAs — one of the broadest implemented-platform footprints of any general-purpose language, trailing only C/C++ (via LLVM/GCC backends) in raw breadth, hence a high but not maximal score.",
+            "architectures": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Rust ships Tier-1 (fully guaranteed) support for Windows/macOS/Linux across the dominant architectures, Tier-2 support for iOS, Android, WASI (wasm32-wasip2) and dozens of ARM/embedded/server variants, and hundreds of Tier-3 targets spanning bare-metal microcontrollers, RTOSes, and exotic ISAs — one of the broadest implemented-platform footprints of any general-purpose language, trailing only C/C++ (via LLVM/GCC backends) in raw breadth, hence a high but not maximal score.",
+            "mobile": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Rust ships Tier-1 (fully guaranteed) support for Windows/macOS/Linux across the dominant architectures, Tier-2 support for iOS, Android, WASI (wasm32-wasip2) and dozens of ARM/embedded/server variants, and hundreds of Tier-3 targets spanning bare-metal microcontrollers, RTOSes, and exotic ISAs — one of the broadest implemented-platform footprints of any general-purpose language, trailing only C/C++ (via LLVM/GCC backends) in raw breadth, hence a high but not maximal score.",
+            "embedded": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Rust ships Tier-1 (fully guaranteed) support for Windows/macOS/Linux across the dominant architectures, Tier-2 support for iOS, Android, WASI (wasm32-wasip2) and dozens of ARM/embedded/server variants, and hundreds of Tier-3 targets spanning bare-metal microcontrollers, RTOSes, and exotic ISAs — one of the broadest implemented-platform footprints of any general-purpose language, trailing only C/C++ (via LLVM/GCC backends) in raw breadth, hence a high but not maximal score.",
+            "web_wasm_other": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Breadth of officially-implemented target/platform coverage: desktop/server OS x architecture combinations with strong guarantees, mobile OS as first-class compile targets, WebAssembly (browser + WASI), embedded/bare-metal (no_std) support, and total count/diversity of supported target triples across all tiers. Same rubric and evidence sources (official platform-support docs, target-tier policy page, official blog announcements) apply to all 10 languages; this shard scores only Rust."
           },
           "score_0_100": 95,
           "legacy_score_0_100": 94,
           "source_work_unit_id": "ecosystem-tooling--part-5--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-5--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/918e5999dc654d35fd6cd7c1df849e39ac7df44b9d9f6658bb193a9c08f9b238.json",
+            "https://doc.rust-lang.org/rustc/platform-support.html",
+            "https://doc.rust-lang.org/rustc/target-tier-policy.html",
+            "https://internals.rust-lang.org/t/pre-rfc-split-up-tier-2-platforms/13196",
+            "https://blog.rust-lang.org/2024/11/26/wasip2-tier-2/",
+            "https://xampprocky.github.io/rust-forge/release/platform-support.html",
+            "https://awslabs.github.io/aws-sdk-rust/",
+            "https://www.infoq.com/news/2025/03/azure-sdk-rust-beta",
+            "https://lib.rs/crates/google-cloud-support-v2",
+            "https://lib.rs/crates/gcloud-sdk",
+            "https://github.com/extrawurst/mongo-rust-driver",
+            "https://blog.logrocket.com/11-database-drivers-and-orms-for-rust-that-are-ready-for-production/",
+            "https://github.com/open-telemetry/opentelemetry-rust",
+            "https://oneuptime.com/blog/post/2026-02-06-instrument-rust-tonic-grpc-opentelemetry/view"
           ],
-          "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-5--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "candidate_universe": "web_search against official rustc book / Rust blog / historical internals RFC thread",
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/918e5999dc654d35fd6cd7c1df849e39ac7df44b9d9f6658bb193a9c08f9b238.json",
+          "source_result_sha256": "f80d2537e5a25b718747e5b01dff5c994b31709d7a681431e3e118577d8a6b44"
         },
         "metric.external_integration_coverage": {
           "component_levels": {
@@ -1764,20 +1809,35 @@
             "extension_embedding": 3
           },
           "component_findings": {
-            "c_native": "Central v2 recertification of preserved evidence assigns level 4 for: Working C/native ABI or system-library integration ecosystem.",
-            "language_bindings": "Central v2 recertification of preserved evidence assigns level 3 for: Maintained bindings/bridges to other major programming-language ecosystems.",
-            "database_data": "Central v2 recertification of preserved evidence assigns level 4 for: Working database/data-system integrations.",
-            "network_cloud": "Central v2 recertification of preserved evidence assigns level 4 for: Working network, cloud, container or service-platform integrations.",
-            "extension_embedding": "Central v2 recertification of preserved evidence assigns level 3 for: Practical embedding/extension/plugin mechanisms used by external systems."
+            "c_native": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Breadth and reliability of working, maintained external integrations: (1) official/major cloud-provider SDKs (AWS, Azure, GCP), (2) database drivers for major SQL/NoSQL systems, (3) messaging/streaming and RPC integrations (Kafka, AMQP, gRPC), (4) observability/tracing standard (OpenTelemetry) support, (5) CI/CD platform native support. Same dimensions and evidence approach (official SDK repos/docs, CNCF project pages, well-known crate ecosystem surveys) applied identically to all 10 languages; this shard scores only Rust.",
+            "language_bindings": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Mature community-maintained drivers exist for the other major databases, e.g., redis-rs offering 'a full implementation of the Redis communication protocol' using tokio as the async runtime, alongside widely used Postgres/MySQL crates.",
+            "database_data": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Breadth and reliability of working, maintained external integrations: (1) official/major cloud-provider SDKs (AWS, Azure, GCP), (2) database drivers for major SQL/NoSQL systems, (3) messaging/streaming and RPC integrations (Kafka, AMQP, gRPC), (4) observability/tracing standard (OpenTelemetry) support, (5) CI/CD platform native support. Same dimensions and evidence approach (official SDK repos/docs, CNCF project pages, well-known crate ecosystem surveys) applied identically to all 10 languages; this shard scores only Rust.",
+            "network_cloud": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Breadth and reliability of working, maintained external integrations: (1) official/major cloud-provider SDKs (AWS, Azure, GCP), (2) database drivers for major SQL/NoSQL systems, (3) messaging/streaming and RPC integrations (Kafka, AMQP, gRPC), (4) observability/tracing standard (OpenTelemetry) support, (5) CI/CD platform native support. Same dimensions and evidence approach (official SDK repos/docs, CNCF project pages, well-known crate ecosystem surveys) applied identically to all 10 languages; this shard scores only Rust.",
+            "extension_embedding": "Preserved paid evidence (ecosystem-tooling--part-5--rust): Rust's external integration coverage is strong and broad-based (official AWS SDK with full per-service coverage, official MongoDB driver, mature Redis/Postgres/MySQL crates, mature gRPC via tonic, and an official CNCF OpenTelemetry implementation) but is held back of a top score by the comparative immaturity of its Azure SDK (beta, narrow service list) and its fragmented/partly-unofficial GCP story, plus known gaps in individual drivers (e.g., historically missing GridFS support in the MongoDB driver, transactions initially unsupported)."
           },
           "score_0_100": 90,
           "legacy_score_0_100": 80,
           "source_work_unit_id": "ecosystem-tooling--part-5--rust",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-5--rust"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/rust/918e5999dc654d35fd6cd7c1df849e39ac7df44b9d9f6658bb193a9c08f9b238.json",
+            "https://awslabs.github.io/aws-sdk-rust/",
+            "https://www.infoq.com/news/2025/03/azure-sdk-rust-beta",
+            "https://lib.rs/crates/google-cloud-support-v2",
+            "https://lib.rs/crates/gcloud-sdk",
+            "https://github.com/extrawurst/mongo-rust-driver",
+            "https://blog.logrocket.com/11-database-drivers-and-orms-for-rust-that-are-ready-for-production/",
+            "https://github.com/open-telemetry/opentelemetry-rust",
+            "https://oneuptime.com/blog/post/2026-02-06-instrument-rust-tonic-grpc-opentelemetry/view",
+            "https://doc.rust-lang.org/rustc/platform-support.html",
+            "https://doc.rust-lang.org/rustc/target-tier-policy.html",
+            "https://internals.rust-lang.org/t/pre-rfc-split-up-tier-2-platforms/13196",
+            "https://blog.rust-lang.org/2024/11/26/wasip2-tier-2/",
+            "https://xampprocky.github.io/rust-forge/release/platform-support.html"
           ],
-          "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-5--rust; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "candidate_universe": "web_search against official SDK repos/docs, CNCF project repo, and independent technical surveys",
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/rust/918e5999dc654d35fd6cd7c1df849e39ac7df44b9d9f6658bb193a9c08f9b238.json",
+          "source_result_sha256": "f80d2537e5a25b718747e5b01dff5c994b31709d7a681431e3e118577d8a6b44"
         }
       }
     },
@@ -1792,20 +1852,31 @@
             "application_testing": 4
           },
           "component_findings": {
-            "web_network": "Central v2 recertification of preserved evidence assigns level 4 for: Mature third-party libraries for web servers/clients, HTTP/networking and service development.",
-            "data_numerical": "Central v2 recertification of preserved evidence assigns level 3 for: Mature third-party libraries for numerical, scientific, data-frame or data-processing workloads.",
-            "ml_ai": "Central v2 recertification of preserved evidence assigns level 3 for: Mature third-party libraries for machine learning, AI or model-serving workloads.",
-            "storage_interchange": "Central v2 recertification of preserved evidence assigns level 4 for: Mature third-party libraries for databases, storage, serialization and common interchange formats.",
-            "application_testing": "Central v2 recertification of preserved evidence assigns level 4 for: Mature third-party libraries for application development concerns such as GUI/CLI plus testing/automation."
+            "web_network": "Preserved paid evidence (ecosystem-external--part-1--go): Across all 6 predeclared domains, Go has at least one library that is both externally curated as the domain's leading option (Awesome Go / independent module catalogues) and, where checked, carries very large downstream adoption (16k-183k importers on pkg.go.dev). No sampled domain lacked a mature, actively distributed option; the score is not 100 because two of six domains (logging, ORM) were confirmed only via curated-list presence rather than a directly retrieved recency/import-count figure in this session, and because the sample, while predeclared and domain-neutral, remains a 6-domain slice rather than an exhaustive audit.",
+            "data_numerical": "Preserved paid evidence (ecosystem-external--part-1--go): Across all 6 predeclared domains, Go has at least one library that is both externally curated as the domain's leading option (Awesome Go / independent module catalogues) and, where checked, carries very large downstream adoption (16k-183k importers on pkg.go.dev). No sampled domain lacked a mature, actively distributed option; the score is not 100 because two of six domains (logging, ORM) were confirmed only via curated-list presence rather than a directly retrieved recency/import-count figure in this session, and because the sample, while predeclared and domain-neutral, remains a 6-domain slice rather than an exhaustive audit.",
+            "ml_ai": "Preserved paid evidence (ecosystem-external--part-1--go): Across all 6 predeclared domains, Go has at least one library that is both externally curated as the domain's leading option (Awesome Go / independent module catalogues) and, where checked, carries very large downstream adoption (16k-183k importers on pkg.go.dev). No sampled domain lacked a mature, actively distributed option; the score is not 100 because two of six domains (logging, ORM) were confirmed only via curated-list presence rather than a directly retrieved recency/import-count figure in this session, and because the sample, while predeclared and domain-neutral, remains a 6-domain slice rather than an exhaustive audit.",
+            "storage_interchange": "Preserved paid evidence (ecosystem-external--part-1--go): Across all 6 predeclared domains, Go has at least one library that is both externally curated as the domain's leading option (Awesome Go / independent module catalogues) and, where checked, carries very large downstream adoption (16k-183k importers on pkg.go.dev). No sampled domain lacked a mature, actively distributed option; the score is not 100 because two of six domains (logging, ORM) were confirmed only via curated-list presence rather than a directly retrieved recency/import-count figure in this session, and because the sample, while predeclared and domain-neutral, remains a 6-domain slice rather than an exhaustive audit.",
+            "application_testing": "Preserved paid evidence (ecosystem-external--part-1--go): Across all 6 predeclared domains, Go has at least one library that is both externally curated as the domain's leading option (Awesome Go / independent module catalogues) and, where checked, carries very large downstream adoption (16k-183k importers on pkg.go.dev). No sampled domain lacked a mature, actively distributed option; the score is not 100 because two of six domains (logging, ORM) were confirmed only via curated-list presence rather than a directly retrieved recency/import-count figure in this session, and because the sample, while predeclared and domain-neutral, remains a 6-domain slice rather than an exhaustive audit."
           },
           "score_0_100": 90,
           "legacy_score_0_100": 92,
           "source_work_unit_id": "ecosystem-external--part-1--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-1--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/227eeb712e08407392db34518b8e1af6f2e8a4e0cd2f149a52b4570d986e322b.json",
+            "https://pkg.go.dev/github.com/gin-gonic/gin",
+            "https://pkg.go.dev/github.com/spf13/cobra",
+            "https://github.com/spf13/cobra",
+            "https://pkg.go.dev/github.com/stretchr/testify/assert",
+            "https://pkg.go.dev/github.com/stretchr/testify/mock",
+            "https://pkg.go.dev/github.com/MarvinJWendt/goget/modules",
+            "https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/aws",
+            "https://pkg.go.dev/github.com/aws/aws-sdk-go-v2",
+            "https://awesome-go.com/"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-1--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/227eeb712e08407392db34518b8e1af6f2e8a4e0cd2f149a52b4570d986e322b.json",
+          "source_result_sha256": "8cfee911c7551453d3784c2f498b4fb79dac86e7340c18d3c9fbaad64a20bba5"
         },
         "metric.package_ecosystem_activity_maintenance": {
           "component_levels": {
@@ -1816,20 +1887,31 @@
             "security_provenance": 4
           },
           "component_findings": {
-            "registry_discovery": "Central v2 recertification of preserved evidence assigns level 4 for: A usable package registry/index with search and metadata discovery.",
-            "recent_maintenance": "Central v2 recertification of preserved evidence assigns level 4 for: Recent releases/updates across representative packages within the fixed activity window.",
-            "dependency_metadata": "Central v2 recertification of preserved evidence assigns level 4 for: Version constraints, dependency metadata and compatibility information are routinely published.",
-            "distribution_artifacts": "Central v2 recertification of preserved evidence assigns level 4 for: Source and/or prebuilt package artifacts are routinely available through the ecosystem.",
-            "security_provenance": "Central v2 recertification of preserved evidence assigns level 4 for: Security advisories, integrity/provenance metadata or comparable supply-chain mechanisms are available."
+            "registry_discovery": "Preserved paid evidence (ecosystem-external--part-1--go): Of the four domains where direct pkg.go.dev metadata was retrieved (web framework, testing/mocking, CLI distro trail, cloud SDK), three show a tagged release within roughly the last one to seven months of the snapshot date (Gin: Feb 28, 2026; testify assert/mock: Aug 17, 2026; aws-sdk-go-v2 aws: Sep 4, 2026), and the fourth (Cobra) shows a multi-year cadence of distro-packaged releases (1.6.1 to 1.10.1). The AWS SDK v1-to-v2 transition further shows the ecosystem actively communicating deprecation/successor paths rather than leaving abandoned packages silently in place. The score is not higher because two sampled domains (logging, ORM) lack a directly retrieved recency data point in this ses",
+            "recent_maintenance": "Preserved paid evidence (ecosystem-external--part-1--go): Of the four domains where direct pkg.go.dev metadata was retrieved (web framework, testing/mocking, CLI distro trail, cloud SDK), three show a tagged release within roughly the last one to seven months of the snapshot date (Gin: Feb 28, 2026; testify assert/mock: Aug 17, 2026; aws-sdk-go-v2 aws: Sep 4, 2026), and the fourth (Cobra) shows a multi-year cadence of distro-packaged releases (1.6.1 to 1.10.1). The AWS SDK v1-to-v2 transition further shows the ecosystem actively communicating deprecation/successor paths rather than leaving abandoned packages silently in place. The score is not higher because two sampled domains (logging, ORM) lack a directly retrieved recency data point in this ses",
+            "dependency_metadata": "Preserved paid evidence (ecosystem-external--part-1--go): Of the four domains where direct pkg.go.dev metadata was retrieved (web framework, testing/mocking, CLI distro trail, cloud SDK), three show a tagged release within roughly the last one to seven months of the snapshot date (Gin: Feb 28, 2026; testify assert/mock: Aug 17, 2026; aws-sdk-go-v2 aws: Sep 4, 2026), and the fourth (Cobra) shows a multi-year cadence of distro-packaged releases (1.6.1 to 1.10.1). The AWS SDK v1-to-v2 transition further shows the ecosystem actively communicating deprecation/successor paths rather than leaving abandoned packages silently in place. The score is not higher because two sampled domains (logging, ORM) lack a directly retrieved recency data point in this ses",
+            "distribution_artifacts": "Preserved paid evidence (ecosystem-external--part-1--go): Of the four domains where direct pkg.go.dev metadata was retrieved (web framework, testing/mocking, CLI distro trail, cloud SDK), three show a tagged release within roughly the last one to seven months of the snapshot date (Gin: Feb 28, 2026; testify assert/mock: Aug 17, 2026; aws-sdk-go-v2 aws: Sep 4, 2026), and the fourth (Cobra) shows a multi-year cadence of distro-packaged releases (1.6.1 to 1.10.1). The AWS SDK v1-to-v2 transition further shows the ecosystem actively communicating deprecation/successor paths rather than leaving abandoned packages silently in place. The score is not higher because two sampled domains (logging, ORM) lack a directly retrieved recency data point in this ses",
+            "security_provenance": "Preserved paid evidence (ecosystem-external--part-1--go): Of the four domains where direct pkg.go.dev metadata was retrieved (web framework, testing/mocking, CLI distro trail, cloud SDK), three show a tagged release within roughly the last one to seven months of the snapshot date (Gin: Feb 28, 2026; testify assert/mock: Aug 17, 2026; aws-sdk-go-v2 aws: Sep 4, 2026), and the fourth (Cobra) shows a multi-year cadence of distro-packaged releases (1.6.1 to 1.10.1). The AWS SDK v1-to-v2 transition further shows the ecosystem actively communicating deprecation/successor paths rather than leaving abandoned packages silently in place. The score is not higher because two sampled domains (logging, ORM) lack a directly retrieved recency data point in this ses"
           },
           "score_0_100": 100,
           "legacy_score_0_100": 93,
           "source_work_unit_id": "ecosystem-external--part-1--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-1--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/227eeb712e08407392db34518b8e1af6f2e8a4e0cd2f149a52b4570d986e322b.json",
+            "https://pkg.go.dev/github.com/gin-gonic/gin",
+            "https://pkg.go.dev/github.com/spf13/cobra",
+            "https://github.com/spf13/cobra",
+            "https://pkg.go.dev/github.com/stretchr/testify/assert",
+            "https://pkg.go.dev/github.com/stretchr/testify/mock",
+            "https://pkg.go.dev/github.com/MarvinJWendt/goget/modules",
+            "https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/aws",
+            "https://pkg.go.dev/github.com/aws/aws-sdk-go-v2",
+            "https://awesome-go.com/"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-1--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/227eeb712e08407392db34518b8e1af6f2e8a4e0cd2f149a52b4570d986e322b.json",
+          "source_result_sha256": "8cfee911c7551453d3784c2f498b4fb79dac86e7340c18d3c9fbaad64a20bba5"
         },
         "metric.third_party_tool_availability": {
           "component_levels": {
@@ -1840,20 +1922,22 @@
             "ci_devops": 4
           },
           "component_findings": {
-            "editor_ide": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party IDE/editor integrations.",
-            "lint_format_static": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party linting, formatting or static-analysis tools.",
-            "build_test_coverage": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party build, test or coverage tools.",
-            "debug_profile": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party debugging or profiling tools.",
-            "ci_devops": "Central v2 recertification of preserved evidence assigns level 4 for: Third-party CI, release, packaging or developer-operations integrations."
+            "editor_ide": "Preserved paid evidence (ecosystem-external--part-2--go): Go scores 94/100: near-complete coverage across all major third-party tool categories (IDE/editor plugins from at least two independent vendors, a dedicated commercial IDE, an official debugger, multiple mature and actively maintained linters/meta-linters, and official static analysis/formatting/vulnerability tools), all either officially endorsed by the Go team via go.dev/wiki or used as the de facto industry standard in major Go projects. Points withheld only because some listed tools (e.g., golint, gometalinter) are explicitly deprecated, showing some tool churn.",
+            "lint_format_static": "Preserved paid evidence (ecosystem-external--part-2--go): Additional widely used static analysis/format tools identified: go vet (official static analyzer), staticcheck, gofmt/goimports/gofumpt, govulncheck (vulnerability scanner using OSV.dev data), each cataloged on the official Go Wiki CodeTools page and third-party tool-aggregator analysis-tools.dev, which lists 111 cataloged Go static analysis tools, linters, and formatters.",
+            "build_test_coverage": "Preserved paid evidence (ecosystem-external--part-2--go): Go scores 94/100: near-complete coverage across all major third-party tool categories (IDE/editor plugins from at least two independent vendors, a dedicated commercial IDE, an official debugger, multiple mature and actively maintained linters/meta-linters, and official static analysis/formatting/vulnerability tools), all either officially endorsed by the Go team via go.dev/wiki or used as the de facto industry standard in major Go projects. Points withheld only because some listed tools (e.g., golint, gometalinter) are explicitly deprecated, showing some tool churn.",
+            "debug_profile": "Preserved paid evidence (ecosystem-external--part-2--go): Additional widely used static analysis/format tools identified: go vet (official static analyzer), staticcheck, gofmt/goimports/gofumpt, govulncheck (vulnerability scanner using OSV.dev data), each cataloged on the official Go Wiki CodeTools page and third-party tool-aggregator analysis-tools.dev, which lists 111 cataloged Go static analysis tools, linters, and formatters.",
+            "ci_devops": "Preserved paid evidence (ecosystem-external--part-2--go): Additional widely used static analysis/format tools identified: go vet (official static analyzer), staticcheck, gofmt/goimports/gofumpt, govulncheck (vulnerability scanner using OSV.dev data), each cataloged on the official Go Wiki CodeTools page and third-party tool-aggregator analysis-tools.dev, which lists 111 cataloged Go static analysis tools, linters, and formatters."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 94,
           "source_work_unit_id": "ecosystem-external--part-2--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-2--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/8fc1f7e07a60d539d0c601c59558421701553eea67e641bdf393e32966331762.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-2--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "Findings rely on secondary blog/aggregator commentary in addition to official Go Wiki and JetBrains pages; tool-count and 'most popular' claims (e.g., 50+ linters bundled, 111 cataloged tools) are self-reported by tool vendors/aggregators and are cited only as declared context, not as a standalone popularity proxy.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/8fc1f7e07a60d539d0c601c59558421701553eea67e641bdf393e32966331762.json",
+          "source_result_sha256": "29799dd7f23652c161aa46f3952ac0f59432daa263f6d2b6821847dcd8a55845"
         },
         "metric.production_adoption_deployment_evidence": {
           "component_levels": {
@@ -1864,20 +1948,22 @@
             "deployment_depth": 4
           },
           "component_findings": {
-            "named_organizations": "Central v2 recertification of preserved evidence assigns level 4 for: Multiple named organizations have verifiable production deployments.",
-            "scale_criticality": "Central v2 recertification of preserved evidence assigns level 4 for: Evidence includes material scale, business-critical or infrastructure-critical workloads.",
-            "domain_diversity": "Central v2 recertification of preserved evidence assigns level 4 for: Deployments span multiple distinct industry/workload domains.",
-            "current_continuity": "Central v2 recertification of preserved evidence assigns level 4 for: Evidence indicates current or recently maintained production use within the evidence window.",
-            "deployment_depth": "Central v2 recertification of preserved evidence assigns level 4 for: Evidence covers real deployed systems, not only prototypes, tutorials or developer preference surveys."
+            "named_organizations": "Preserved paid evidence (ecosystem-external--part-2--go): Go scores 96/100: the language has an official, actively maintained case-studies hub with multiple named, verifiable enterprise production deployments (PayPal, Riot Games, SIXT, ByteDance, MercadoLibre), plus independently verifiable long-running production use as the implementation language of foundational, widely deployed open-source infrastructure (Kubernetes, Docker, Prometheus, Terraform, CockroachDB, Istio) that itself has clear, sustained production adoption across the industry (e.g., CNCF graduated-project status for Prometheus and etcd). This combination of first-party case studies plus independently observable infrastructure-scale deployment evidence is unusually strong and well do",
+            "scale_criticality": "Preserved paid evidence (ecosystem-external--part-2--go): Go scores 96/100: the language has an official, actively maintained case-studies hub with multiple named, verifiable enterprise production deployments (PayPal, Riot Games, SIXT, ByteDance, MercadoLibre), plus independently verifiable long-running production use as the implementation language of foundational, widely deployed open-source infrastructure (Kubernetes, Docker, Prometheus, Terraform, CockroachDB, Istio) that itself has clear, sustained production adoption across the industry (e.g., CNCF graduated-project status for Prometheus and etcd). This combination of first-party case studies plus independently observable infrastructure-scale deployment evidence is unusually strong and well do",
+            "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--go): Go scores 96/100: the language has an official, actively maintained case-studies hub with multiple named, verifiable enterprise production deployments (PayPal, Riot Games, SIXT, ByteDance, MercadoLibre), plus independently verifiable long-running production use as the implementation language of foundational, widely deployed open-source infrastructure (Kubernetes, Docker, Prometheus, Terraform, CockroachDB, Istio) that itself has clear, sustained production adoption across the industry (e.g., CNCF graduated-project status for Prometheus and etcd). This combination of first-party case studies plus independently observable infrastructure-scale deployment evidence is unusually strong and well do",
+            "current_continuity": "Preserved paid evidence (ecosystem-external--part-2--go): Go scores 96/100: the language has an official, actively maintained case-studies hub with multiple named, verifiable enterprise production deployments (PayPal, Riot Games, SIXT, ByteDance, MercadoLibre), plus independently verifiable long-running production use as the implementation language of foundational, widely deployed open-source infrastructure (Kubernetes, Docker, Prometheus, Terraform, CockroachDB, Istio) that itself has clear, sustained production adoption across the industry (e.g., CNCF graduated-project status for Prometheus and etcd). This combination of first-party case studies plus independently observable infrastructure-scale deployment evidence is unusually strong and well do",
+            "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--go): Go's own solutions page states that over 75 percent of projects in the Cloud Native Computing Foundation are written in Go, a language-official adoption claim (used here only as declared supporting context alongside named case studies, not as a standalone proxy)."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 96,
           "source_work_unit_id": "ecosystem-external--part-2--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-2--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/8fc1f7e07a60d539d0c601c59558421701553eea67e641bdf393e32966331762.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-2--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "Several corroborating sources are SEO/marketing blog posts (Netguru, Medium, s3corp, ksolves, avidclan, techdatapark) rather than primary engineering sources; these were used only to corroborate breadth of named adopters already anchored by the official go.dev case-studies hub and independently verifiable CNCF/Wikipedia project pages, per the predeclared two-route rule. The '75% of CNCF projects' and 'million users' figures are self-reported by the Go team and are cited as declared, limited-weight context rather than the primary basis for the score.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/8fc1f7e07a60d539d0c601c59558421701553eea67e641bdf393e32966331762.json",
+          "source_result_sha256": "29799dd7f23652c161aa46f3952ac0f59432daa263f6d2b6821847dcd8a55845"
         },
         "metric.community_public_knowledge_availability": {
           "component_levels": {
@@ -1888,20 +1974,22 @@
             "international_breadth": 4
           },
           "component_findings": {
-            "qa_discussion": "Central v2 recertification of preserved evidence assigns level 4 for: Substantial searchable Q&A/discussion knowledge is available.",
-            "learning_materials": "Central v2 recertification of preserved evidence assigns level 4 for: Independent tutorials, books, courses or long-form learning materials are available.",
-            "events_groups": "Central v2 recertification of preserved evidence assigns level 4 for: Conferences, meetups, user groups or comparable recurring community venues are active.",
-            "current_knowledge": "Central v2 recertification of preserved evidence assigns level 4 for: Public knowledge is being updated for current language/toolchain versions.",
-            "international_breadth": "Central v2 recertification of preserved evidence assigns level 4 for: Knowledge is available across multiple regions/languages or otherwise shows broad community reach."
+            "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--go): Go's own help page enumerates a dedicated discussion forum, live Discord support, a Slack channel, and an IRC channel, plus an FAQ, in addition to release-announcement mailing lists, an official blog, and official Bluesky/Mastodon/Twitter accounts and a monitored subreddit.",
+            "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--go): Multiple widely-cited published books and an active weekly-format podcast (Go Time) plus a long-running historical talks/presentations archive (talks.golang.org, A Tour of Go, Getting Started with Go) demonstrate durable, non-ephemeral public learning material beyond forum posts.",
+            "events_groups": "Preserved paid evidence (ecosystem-external--part-3--go): The community-maintained Go Wiki catalogs user groups and meetups across many cities, a diversity-focused outreach group (GoBridge), an independent Discourse forum, a comprehensive conference list, and a companies-using-Go registry.",
+            "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--go): Multiple widely-cited published books and an active weekly-format podcast (Go Time) plus a long-running historical talks/presentations archive (talks.golang.org, A Tour of Go, Getting Started with Go) demonstrate durable, non-ephemeral public learning material beyond forum posts.",
+            "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--go): Go has one of the denser annual global conference circuits observed among mainstream languages in this batch: a US flagship (GopherCon, described by aggregators as the world's largest and longest-running Go-specific conference) plus regional editions in Europe, Africa, Singapore, China, and Israel, alongside independent events (GolangConf, GopherCamp, GoLab, Go Conference Japan, TinyGo Conf) tracked on the official community wiki."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 96,
           "source_work_unit_id": "ecosystem-external--part-3--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-external--part-3--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/0df98ac1d852aa9a6366f612ea369378aa7889c992e927732d3c15a963c9b1b8.json"
           ],
-          "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-3--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "candidate_universe": "go.dev/help (official support/help page)",
+          "limitations": "Raw counts such as subreddit subscriber totals, Stack Overflow tag question counts, and conference attendance figures were not independently re-verified against a live API in this pass beyond secondary aggregator pages (e.g., frontpagemetrics.com, subredditstats.com), and such popularity/traffic proxies are treated per methodology as supporting context only, not as a standalone score. No non-English localized-documentation coverage was independently examined beyond the Go Wiki's own pointer to a NonEnglish page.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/0df98ac1d852aa9a6366f612ea369378aa7889c992e927732d3c15a963c9b1b8.json",
+          "source_result_sha256": "65d7daa9ad04b0f2f1c92748d7c55fcb79d7f144f173545d41ceba8a968ecd38"
         },
         "metric.core_tooling_availability_quality": {
           "component_levels": {
@@ -1912,20 +2000,22 @@
             "diagnostic_quality": 4
           },
           "component_findings": {
-            "build_execute": "Central v2 recertification of preserved evidence assigns level 4 for: Reliable compiler/interpreter/build-and-execute tooling.",
-            "format_lint": "Central v2 recertification of preserved evidence assigns level 4 for: Maintained formatter, linter or static-analysis support.",
-            "test": "Central v2 recertification of preserved evidence assigns level 4 for: Maintained test-running support or standard test integration.",
-            "docs_package": "Central v2 recertification of preserved evidence assigns level 4 for: Documentation generation and/or package/project tooling integrated with the core workflow.",
-            "diagnostic_quality": "Central v2 recertification of preserved evidence assigns level 4 for: Core tools expose stable diagnostics, machine-readable output or comparable automation-friendly interfaces."
+            "build_execute": "Preserved paid evidence (ecosystem-tooling--part-1--go): go1.27.1 (released 2026-09-01) includes fixes to cgo, the compiler, the runtime, the go fix command, and the database/sql, debug/elf, encoding/json, net/http, os, simd, and simd/archsimd packages. Go 1.26.0 is a major release of Go.",
+            "format_lint": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go scores near-ceiling because build/format/vet/test/profiling are first-party and bundled in a single `go` command with a disciplined, frequent release/patch cadence (D1=20). gofmt is a universally adopted official formatter (D2=20, well-established, no counter-evidence found). D3 is capped below 20 because deep static analysis beyond go vet (staticcheck, golangci-lint) is mature but third-party rather than bundled. D4 is capped slightly below 20 because `go test` is built-in and highly capable but some advanced assertion/mocking ergonomics still rely on third-party libraries. D5 is capped further because the standard debugger (Delve) is third-party, even though profiling (pprof/trace) is f",
+            "test": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go scores near-ceiling because build/format/vet/test/profiling are first-party and bundled in a single `go` command with a disciplined, frequent release/patch cadence (D1=20). gofmt is a universally adopted official formatter (D2=20, well-established, no counter-evidence found). D3 is capped below 20 because deep static analysis beyond go vet (staticcheck, golangci-lint) is mature but third-party rather than bundled. D4 is capped slightly below 20 because `go test` is built-in and highly capable but some advanced assertion/mocking ergonomics still rely on third-party libraries. D5 is capped further because the standard debugger (Delve) is third-party, even though profiling (pprof/trace) is f",
+            "docs_package": "Preserved paid evidence (ecosystem-tooling--part-1--go): go fix (rewritten in Go 1.26) builds on the same official analysis framework as go vet, extending first-party static-analysis tooling.",
+            "diagnostic_quality": "Preserved paid evidence (ecosystem-tooling--part-1--go): pprof and trace are built-in official profiling tools distributed with the Go toolchain."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 94,
           "source_work_unit_id": "ecosystem-tooling--part-1--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-1--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/7a3124599e227a3c23c4dc104c1beb84009d0e7d7a5e56311ba05ecce1c1f28d.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/7a3124599e227a3c23c4dc104c1beb84009d0e7d7a5e56311ba05ecce1c1f28d.json",
+          "source_result_sha256": "f3cb2bd0ea1ed81ec6fea8f6b1592191f762e29574739f9c0cb4cbc106d70b5d"
         },
         "metric.package_dependency_management_quality": {
           "component_levels": {
@@ -1936,20 +2026,22 @@
             "publish_version": 4
           },
           "component_findings": {
-            "resolver_lock": "Central v2 recertification of preserved evidence assigns level 4 for: Dependency resolution plus lockfile/reproducibility support.",
-            "manifest_constraints": "Central v2 recertification of preserved evidence assigns level 4 for: Project manifests and expressive version/dependency constraints.",
-            "workspace_multi": "Central v2 recertification of preserved evidence assigns level 4 for: Workspace, multi-package or monorepo support.",
-            "registry_security": "Central v2 recertification of preserved evidence assigns level 4 for: Registry integrity, provenance, advisories or dependency-security mechanisms.",
-            "publish_version": "Central v2 recertification of preserved evidence assigns level 4 for: Documented package publishing, versioning and update workflow."
+            "resolver_lock": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go scores near-ceiling because module management is fully first-party and integrated into the `go` command with no separate installation (D1=20), and reproducibility/integrity is enforced by default via go.sum plus an independently auditable, cryptographically tamper-evident checksum database since Go 1.13 (D2=20). D3 is capped slightly below 20 because reliability of the official proxy/index/checksum trio is well documented but represents centralized Google-operated infrastructure rather than a fully decentralized guarantee. D4 is capped further because multi-module workspace support (go.work, introduced Go 1.18) and workspace vendoring are functional and actively maintained but have docume",
+            "manifest_constraints": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go modules, managed via the built-in go mod tooling, are the official first-party dependency management system.",
+            "workspace_multi": "Preserved paid evidence (ecosystem-tooling--part-1--go): Workspace-aware vendoring (go work vendor) extends single-module vendoring to multi-module workspaces for reproducible, network-independent builds.",
+            "registry_security": "Preserved paid evidence (ecosystem-tooling--part-1--go): Go modules, managed via the built-in go mod tooling, are the official first-party dependency management system.",
+            "publish_version": "Preserved paid evidence (ecosystem-tooling--part-1--go): The go command tries to authenticate every downloaded module, checking that the bits downloaded for a specific module version today match bits downloaded yesterday."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 94,
           "source_work_unit_id": "ecosystem-tooling--part-1--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-1--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/7a3124599e227a3c23c4dc104c1beb84009d0e7d7a5e56311ba05ecce1c1f28d.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/7a3124599e227a3c23c4dc104c1beb84009d0e7d7a5e56311ba05ecce1c1f28d.json",
+          "source_result_sha256": "f3cb2bd0ea1ed81ec6fea8f6b1592191f762e29574739f9c0cb4cbc106d70b5d"
         },
         "metric.ide_editor_support_quality": {
           "component_levels": {
@@ -1960,20 +2052,22 @@
             "breadth_maintenance": 4
           },
           "component_findings": {
-            "syntax_navigation": "Central v2 recertification of preserved evidence assigns level 4 for: Syntax highlighting, navigation and symbol indexing.",
-            "completion_types": "Central v2 recertification of preserved evidence assigns level 4 for: Completion, signature help and type-aware analysis.",
-            "refactor_actions": "Central v2 recertification of preserved evidence assigns level 4 for: Refactoring and code-action support.",
-            "debug_integration": "Central v2 recertification of preserved evidence assigns level 4 for: Integrated run/debug workflow.",
-            "breadth_maintenance": "Central v2 recertification of preserved evidence assigns level 4 for: Support exists across multiple relevant editors/IDEs and is actively maintained."
+            "syntax_navigation": "Preserved paid evidence (ecosystem-tooling--part-2--go): gopls is the official Go-team-maintained language server, described on go.dev as supporting a wide range of standard LSP features for navigation, completion, diagnostics, analysis, and refactoring plus extras not found in other language servers.",
+            "completion_types": "Preserved paid evidence (ecosystem-tooling--part-2--go): gopls is the official Go-team-maintained language server, described on go.dev as supporting a wide range of standard LSP features for navigation, completion, diagnostics, analysis, and refactoring plus extras not found in other language servers.",
+            "refactor_actions": "Preserved paid evidence (ecosystem-tooling--part-2--go): Delve ships its own DAP server, enabling standardized editor integration; VS Code Go, GoLand, Neovim (nvim-dap-go, go.nvim), Vim, Emacs, and Sublime plugins all integrate with it per Delve's EditorIntegration.md and multiple tutorials.",
+            "debug_integration": "Preserved paid evidence (ecosystem-tooling--part-2--go): GoLand provides deep first-party debugger integration including local run/debug, remote attach-to-process debugging (documented in JetBrains's 'Attach to running Go processes with the debugger' guide), and even time-travel/record-replay debugging via Delve internals per third-party Undo.io documentation.",
+            "breadth_maintenance": "Preserved paid evidence (ecosystem-tooling--part-2--go): Go scores near the top of the 0-100 band: it has an official, actively-maintained language server (gopls) built and owned by the Go team, first-class official VS Code integration, a dedicated commercial IDE (GoLand) with continuous feature investment (e.g., 2026.2 Go Optimization tool window, auto run-config detection), and broad third-party editor coverage (Neovim, Vim, Emacs, Sublime) all built on the same gopls/Delve foundation, minimizing feature fragmentation across editors. Score: 93/100."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 93,
           "source_work_unit_id": "ecosystem-tooling--part-2--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-2--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/4c6420d23e2fbddbe7da87203725d361d8cf470ddcd1a2fe1c8e25ede8c0ce24.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "Scoring for this shard covers only Go; comparability across the full 10-language set depends on the same rubric being applied by other language shards using the same evidence-collection methodology. | Some cited sources are third-party blogs/tutorials rather than official documentation for peripheral claims (e.g., Neovim plugin ecosystem details); official go.dev, pkg.go.dev, github.com/golang, and github.com/go-delve sources were prioritized for the core scoring claims. | No raw popularity metrics (stars, downloads) were used as a standalone score input; they were not used at all in this determination.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/4c6420d23e2fbddbe7da87203725d361d8cf470ddcd1a2fe1c8e25ede8c0ce24.json",
+          "source_result_sha256": "5c653a306d54a23c568fb1269e3efee858058a760fac20c245b5a7779316dd84"
         },
         "metric.debugger_profiler_support": {
           "component_levels": {
@@ -1984,20 +2078,22 @@
             "integration_platforms": 4
           },
           "component_findings": {
-            "basic_debug": "Central v2 recertification of preserved evidence assigns level 4 for: Breakpoints, stepping and variable/stack inspection.",
-            "advanced_debug": "Central v2 recertification of preserved evidence assigns level 4 for: Conditional breakpoints, watches, remote/core/post-mortem or equivalent advanced debugging.",
-            "cpu_profile": "Central v2 recertification of preserved evidence assigns level 4 for: Usable CPU/time profiling.",
-            "memory_profile": "Central v2 recertification of preserved evidence assigns level 4 for: Usable memory/allocation/leak profiling.",
-            "integration_platforms": "Central v2 recertification of preserved evidence assigns level 4 for: Debugger/profiler workflows integrate with common IDEs/builds and cover multiple supported platforms."
+            "basic_debug": "Preserved paid evidence (ecosystem-tooling--part-2--go): 0-100 score built from four equally-weighted 25-point components, applied identically to all languages: (1) existence and maturity of a dedicated, actively maintained source-level debugger; (2) IDE/editor debugger integration via a standard protocol (e.g., DAP) across multiple editors with breakpoints, stepping, variable/goroutine inspection, remote/attach debugging; (3) first-party, stdlib/toolchain-integrated profiling support (CPU, memory, blocking, contention) requiring no third-party install; (4) advanced/production-grade profiling and tracing tooling (flame graphs, execution tracing, IDE-integrated profiler UI).",
+            "advanced_debug": "Preserved paid evidence (ecosystem-tooling--part-2--go): GoLand provides deep first-party debugger integration including local run/debug, remote attach-to-process debugging (documented in JetBrains's 'Attach to running Go processes with the debugger' guide), and even time-travel/record-replay debugging via Delve internals per third-party Undo.io documentation.",
+            "cpu_profile": "Preserved paid evidence (ecosystem-tooling--part-2--go): GoLand 2026.2's Go Optimization tool window lets developers 'profile regular Go applications without additional setup, analyze production profiles, monitor CPU and memory usage in real time, and visualize performance data directly in your code', integrating the stdlib pprof toolchain into the IDE UI.",
+            "memory_profile": "Preserved paid evidence (ecosystem-tooling--part-2--go): GoLand 2026.2's Go Optimization tool window lets developers 'profile regular Go applications without additional setup, analyze production profiles, monitor CPU and memory usage in real time, and visualize performance data directly in your code', integrating the stdlib pprof toolchain into the IDE UI.",
+            "integration_platforms": "Preserved paid evidence (ecosystem-tooling--part-2--go): Delve ships its own DAP server, enabling standardized editor integration; VS Code Go, GoLand, Neovim (nvim-dap-go, go.nvim), Vim, Emacs, and Sublime plugins all integrate with it per Delve's EditorIntegration.md and multiple tutorials."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 94,
           "source_work_unit_id": "ecosystem-tooling--part-2--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-2--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/4c6420d23e2fbddbe7da87203725d361d8cf470ddcd1a2fe1c8e25ede8c0ce24.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "Scoring for this shard covers only Go; comparability across the full 10-language set depends on the same rubric being applied by other language shards using the same evidence-collection methodology. | Some cited sources are third-party blogs/tutorials rather than official documentation for peripheral claims (e.g., Neovim plugin ecosystem details); official go.dev, pkg.go.dev, github.com/golang, and github.com/go-delve sources were prioritized for the core scoring claims. | No raw popularity metrics (stars, downloads) were used as a standalone score input; they were not used at all in this determination.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/4c6420d23e2fbddbe7da87203725d361d8cf470ddcd1a2fe1c8e25ede8c0ce24.json",
+          "source_result_sha256": "5c653a306d54a23c568fb1269e3efee858058a760fac20c245b5a7779316dd84"
         },
         "metric.build_test_integration": {
           "component_levels": {
@@ -2008,20 +2104,22 @@
             "config_integration": 4
           },
           "component_findings": {
-            "build_system": "Central v2 recertification of preserved evidence assigns level 4 for: Standard or de-facto build tooling integrates with ordinary projects/packages.",
-            "test_framework": "Central v2 recertification of preserved evidence assigns level 4 for: Standard or mature de-facto test framework support.",
-            "ci_matrix": "Central v2 recertification of preserved evidence assigns level 4 for: Straightforward CI integration including version/platform matrices.",
-            "coverage": "Central v2 recertification of preserved evidence assigns level 4 for: Coverage tooling and CI-gating/report support.",
-            "config_integration": "Central v2 recertification of preserved evidence assigns level 4 for: Build/test/coverage/lint configuration composes cleanly in project/workspace workflows."
+            "build_system": "Preserved paid evidence (ecosystem-tooling--part-3--go): go build / go run / go install are the canonical invocations shown across official Go documentation for building and running packages.",
+            "test_framework": "Preserved paid evidence (ecosystem-tooling--part-3--go): C2 (20 pts): An official, first-party test runner/framework ships with the toolchain (not a bolt-on third-party library) and is invoked by a single standard command.",
+            "ci_matrix": "Preserved paid evidence (ecosystem-tooling--part-3--go): go build / go run / go install are the canonical invocations shown across official Go documentation for building and running packages.",
+            "coverage": "Preserved paid evidence (ecosystem-tooling--part-3--go): <cite index=\"1-3\">go test -cover # Show coverage go test -coverprofile=c.out # Generate coverage profile go tool cover -html=c.out # View HTML coverage report</cite> and <cite index=\"9-3\">Go has been supporting test code coverage since 1.12 through the -cover option.</cite>",
+            "config_integration": "Preserved paid evidence (ecosystem-tooling--part-3--go): go build is the official first-party build command; a module (go.mod) is sufficient with no separate build-config file needed."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 100,
           "source_work_unit_id": "ecosystem-tooling--part-3--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-3--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/716df955787fab0256717cfbf9ef35dd1cd809ed8c3c09e28ae8d2a7411f582d.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/716df955787fab0256717cfbf9ef35dd1cd809ed8c3c09e28ae8d2a7411f582d.json",
+          "source_result_sha256": "e7181ca8f6455a5a2fc4400d94496b961eaaccada7cc3422b57d7946d44a24dd"
         },
         "metric.documentation_quality": {
           "component_levels": {
@@ -2032,20 +2130,22 @@
             "generation_localization": 4
           },
           "component_findings": {
-            "language_reference": "Central v2 recertification of preserved evidence assigns level 4 for: Current official language reference/specification and tutorial material.",
-            "library_api": "Central v2 recertification of preserved evidence assigns level 4 for: Current standard/core library API reference.",
-            "examples_guides": "Central v2 recertification of preserved evidence assigns level 4 for: Task-oriented guides and representative examples.",
-            "version_navigation": "Central v2 recertification of preserved evidence assigns level 4 for: Versioned docs, search/navigation and clear change/migration information.",
-            "generation_localization": "Central v2 recertification of preserved evidence assigns level 4 for: Documentation-generation tooling and/or meaningful localization/community documentation support."
+            "language_reference": "Preserved paid evidence (ecosystem-tooling--part-3--go): go.dev/ref/spec is the official, actively maintained Go language specification, listed among the core official docs on go.dev/doc/.",
+            "library_api": "Preserved paid evidence (ecosystem-tooling--part-3--go): Frozen 0-100 proxy rubric for Documentation Quality, applied identically to every language in the fixed 10-language set. Five equally-weighted (20 pts each) criteria assess availability/completeness of an official language reference, an auto-generated/versioned standard-library API reference, official onboarding tutorials, toolchain-integrated doc-comment conventions, and executable/verifiable documentation examples.",
+            "examples_guides": "Preserved paid evidence (ecosystem-tooling--part-3--go): <cite index=\"29-4,29-6\">Godoc examples are snippets of Go code that are displayed as package documentation and that are verified by running them as tests. Having executable documentation for a package guarantees that the information will not go out of date as the API changes.</cite>",
+            "version_navigation": "Preserved paid evidence (ecosystem-tooling--part-3--go): go.dev/ref/spec is the official, actively maintained Go language specification, listed among the core official docs on go.dev/doc/.",
+            "generation_localization": "Preserved paid evidence (ecosystem-tooling--part-3--go): <cite index=\"16-4,16-5\">Documentation is generated based on Go source code downloaded from the Go Module Mirror at proxy.golang.org/<module>/@v/<version>.zip. New module versions are fetched from index.golang.org and added to pkg.go.dev site every few minutes.</cite>"
           },
           "score_0_100": 100,
           "legacy_score_0_100": 100,
           "source_work_unit_id": "ecosystem-tooling--part-3--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-3--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/716df955787fab0256717cfbf9ef35dd1cd809ed8c3c09e28ae8d2a7411f582d.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/716df955787fab0256717cfbf9ef35dd1cd809ed8c3c09e28ae8d2a7411f582d.json",
+          "source_result_sha256": "e7181ca8f6455a5a2fc4400d94496b961eaaccada7cc3422b57d7946d44a24dd"
         },
         "metric.installation_distribution_experience": {
           "component_levels": {
@@ -2056,20 +2156,22 @@
             "install_docs": 4
           },
           "component_findings": {
-            "installers": "Central v2 recertification of preserved evidence assigns level 4 for: Straightforward official or de-facto installation on Windows, macOS and Linux where applicable.",
-            "package_version_manager": "Central v2 recertification of preserved evidence assigns level 4 for: Package/version-manager installation paths reduce manual build requirements.",
-            "channel_breadth": "Central v2 recertification of preserved evidence assigns level 4 for: Multiple maintained distribution channels or prebuilt artifact routes.",
-            "artifact_integrity": "Central v2 recertification of preserved evidence assigns level 4 for: Checksums, signing, provenance or comparable release-artifact integrity.",
-            "install_docs": "Central v2 recertification of preserved evidence assigns level 4 for: Clear current installation and upgrade documentation across supported platforms."
+            "installers": "Preserved paid evidence (ecosystem-tooling--part-4--go): Go distributes official binaries directly from go.dev/dl/ for all three major desktop platforms: a macOS .pkg installer, a Windows .msi installer, and Linux tarballs.",
+            "package_version_manager": "Preserved paid evidence (ecosystem-tooling--part-4--go): Go is installable through Homebrew on macOS, and standard Linux package managers are documented as an alternative to the manual tarball route.",
+            "channel_breadth": "Preserved paid evidence (ecosystem-tooling--part-4--go): Docker Hub hosts an official golang image maintained by the docker-library/official-images program, covering many OS/arch/base-image flavors including Windows Server Core and Alpine variants.",
+            "artifact_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--go): Go's module system provides strong reproducibility via go.sum and the sum.golang.org checksum database for dependencies, and the go.dev/dl multi-version install method (`go get golang.org/dl/goX.Y.Z && goX.Y.Z download`) lets multiple toolchain versions coexist. However, a long-standing open issue shows the toolchain download page itself does not publish a simple machine-readable sha256sum file alongside each archive (checksums are embedded in page HTML), a minor gap versus a fully scriptable verification flow.",
+            "install_docs": "Preserved paid evidence (ecosystem-tooling--part-4--go): Go distributes official binaries directly from go.dev/dl/ for all three major desktop platforms: a macOS .pkg installer, a Windows .msi installer, and Linux tarballs."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 93,
           "source_work_unit_id": "ecosystem-tooling--part-4--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-4--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/8cf3f276b53aaf9182a0bdeef05dcff798da02411f4f8a5d16f0fa051a02b902.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/8cf3f276b53aaf9182a0bdeef05dcff798da02411f4f8a5d16f0fa051a02b902.json",
+          "source_result_sha256": "e33953a2183292aa44d3a4f96ef0357a7550592cfdc47a8fe763764441dc77c9"
         },
         "metric.toolchain_stability_release_maturity": {
           "component_levels": {
@@ -2080,20 +2182,22 @@
             "governance_change": 4
           },
           "component_findings": {
-            "release_cadence": "Central v2 recertification of preserved evidence assigns level 4 for: Documented release cadence/process that is followed in practice.",
-            "support_policy": "Central v2 recertification of preserved evidence assigns level 4 for: Published supported-version/EOL or maintenance policy.",
-            "compat_deprecation": "Central v2 recertification of preserved evidence assigns level 4 for: Documented compatibility/deprecation policy and controlled breaking-change process.",
-            "release_integrity": "Central v2 recertification of preserved evidence assigns level 4 for: Reproducible/verifiable release artifacts, signing/provenance or comparable controls.",
-            "governance_change": "Central v2 recertification of preserved evidence assigns level 4 for: Stable documented governance/change-management process for toolchain evolution."
+            "release_cadence": "Preserved paid evidence (ecosystem-tooling--part-4--go): C1 (20pts): A documented, predictable release cadence exists and is publicly tracked.",
+            "support_policy": "Preserved paid evidence (ecosystem-tooling--part-4--go): 20 + 20 + 20 + 19 + 19 = 98, rounded down 2 points for lack of a published long-term-support/LTS track (no LTS, no exceptions; only the latest two major releases get fixes) which is recorded as a deliberate policy choice rather than a defect, yielding a final normalized score of 96.",
+            "compat_deprecation": "Preserved paid evidence (ecosystem-tooling--part-4--go): C2 (20pts): A formal, explicitly documented backward-compatibility guarantee/policy exists for the language/toolchain (not just informal convention).",
+            "release_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--go): C4 (20pts): Reproducibility/integrity mechanisms exist for release artifacts and/or dependency resolution (checksums, verifiable build inputs).",
+            "governance_change": "Preserved paid evidence (ecosystem-tooling--part-4--go): The Go team tests the development version of Go against all of Google's internal Go code on a rolling basis, and only installs a commit as Google's production toolchain once those tests pass; if a change breaks internal tests it is normally rolled back or rewritten before release."
           },
           "score_0_100": 100,
           "legacy_score_0_100": 96,
           "source_work_unit_id": "ecosystem-tooling--part-4--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-4--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/8cf3f276b53aaf9182a0bdeef05dcff798da02411f4f8a5d16f0fa051a02b902.json"
           ],
           "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/8cf3f276b53aaf9182a0bdeef05dcff798da02411f4f8a5d16f0fa051a02b902.json",
+          "source_result_sha256": "e33953a2183292aa44d3a4f96ef0357a7550592cfdc47a8fe763764441dc77c9"
         },
         "metric.implemented_platform_coverage": {
           "component_levels": {
@@ -2104,20 +2208,22 @@
             "web_wasm_other": 3
           },
           "component_findings": {
-            "desktop_server_os": "Central v2 recertification of preserved evidence assigns level 4 for: Implemented support across Linux, macOS and Windows.",
-            "architectures": "Central v2 recertification of preserved evidence assigns level 4 for: Implemented support across major CPU architectures such as x86-64 and ARM64.",
-            "mobile": "Central v2 recertification of preserved evidence assigns level 3 for: Implemented mobile platform support where technically applicable.",
-            "embedded": "Central v2 recertification of preserved evidence assigns level 3 for: Implemented embedded/bare-metal or constrained-device support where technically applicable.",
-            "web_wasm_other": "Central v2 recertification of preserved evidence assigns level 3 for: Implemented WebAssembly/browser or other materially distinct deployment targets."
+            "desktop_server_os": "Preserved paid evidence (ecosystem-tooling--part-5--go): Windows, macOS (darwin) and Linux are all tier-1, first-class, officially supported host and target platforms; Go's own docs demonstrate straightforward cross-compilation to all three from a single machine.",
+            "architectures": "Preserved paid evidence (ecosystem-tooling--part-5--go): Frozen rubric applied identically to all 10 languages: score = sum of 5 sub-dimensions x 20 pts, based on breadth of platforms actually supported/shippable by the official toolchain/runtime as of the snapshot date (2026-09-22). Sub-dimensions: (1) tier-1 desktop OS coverage (Windows/macOS/Linux) with first-class official support; (2) breadth of CPU architectures officially supported for native code generation (x86-32/64, ARM 32/64, RISC-V, PPC64, s390x, MIPS, WASM, etc.); (3) mobile OS targets (iOS/Android) reachable via the official toolchain, including whether it is a first-class core capability or requires a secondary/experimental subrepo; (4) Web/WASM target support built into the standa",
+            "mobile": "Preserved paid evidence (ecosystem-tooling--part-5--go): android and ios are directly listed as first-party GOOS values in the official install-from-source documentation and in 'go tool dist list' (android/arm64, ios/arm64, etc.), so cross-compiling Go code for phone OSes is a built-in toolchain capability. However, turnkey mobile *application* packaging/UI still depends on the separate golang.org/x/mobile (gomobile) subrepo rather than being a fully first-class, batteries-included app-build pipeline the way it is for some mobile-native languages, so this sub-dimension is scored below the maximum.",
+            "embedded": "Preserved paid evidence (ecosystem-tooling--part-5--go): Proxy relies on the vendor-published target-list command/documentation rather than independent verification that every listed target is production-grade; 'go tool dist list' includes some 'known-broken' ports per Go's own porting policy, which the rubric partially penalizes in the other_embedded_legacy_os sub-score.",
+            "web_wasm_other": "Preserved paid evidence (ecosystem-tooling--part-5--go): Go ships official js/wasm and wasip1/wasm GOOS/GOARCH targets directly in the standard toolchain enumeration, giving first-party browser and WASI target support without third-party compilers."
           },
           "score_0_100": 85,
           "legacy_score_0_100": 88,
           "source_work_unit_id": "ecosystem-tooling--part-5--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-5--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/39b570cc75cb72f145205d9dca5fd165a6ecfb7f9259e5e54389638fbac24747.json"
           ],
-          "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-5--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "candidate_universe": "Source of truth is the Go project's own 'go tool dist list' output and go.dev/doc/install/source GOOS enumeration, cross-checked against secondary reproductions of the same command output. Same retrieval route (official Go docs + reproduced 'go tool dist list' output) used as would be used for any other language's official target-list documentation.",
+          "limitations": "Proxy relies on the vendor-published target-list command/documentation rather than independent verification that every listed target is production-grade; 'go tool dist list' includes some 'known-broken' ports per Go's own porting policy, which the rubric partially penalizes in the other_embedded_legacy_os sub-score.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/39b570cc75cb72f145205d9dca5fd165a6ecfb7f9259e5e54389638fbac24747.json",
+          "source_result_sha256": "b549697b9d9dd70bb4c0e90b4711fe67a5e12a58df84e0a26f2fb5003683e418"
         },
         "metric.external_integration_coverage": {
           "component_levels": {
@@ -2128,20 +2234,22 @@
             "extension_embedding": 3
           },
           "component_findings": {
-            "c_native": "Central v2 recertification of preserved evidence assigns level 3 for: Working C/native ABI or system-library integration ecosystem.",
-            "language_bindings": "Central v2 recertification of preserved evidence assigns level 3 for: Maintained bindings/bridges to other major programming-language ecosystems.",
-            "database_data": "Central v2 recertification of preserved evidence assigns level 4 for: Working database/data-system integrations.",
-            "network_cloud": "Central v2 recertification of preserved evidence assigns level 4 for: Working network, cloud, container or service-platform integrations.",
-            "extension_embedding": "Central v2 recertification of preserved evidence assigns level 3 for: Practical embedding/extension/plugin mechanisms used by external systems."
+            "c_native": "Preserved paid evidence (ecosystem-tooling--part-5--go): Go has a mature messaging ecosystem (official NATS Go client, Confluent's official Kafka Go client, widely used RabbitMQ/AMQP libraries) plus a strong standard-library HTTP stack and popular third-party web frameworks, though some of these (e.g. Kafka, RabbitMQ clients) are community/vendor-maintained rather than uniformly first-party across every messaging system.",
+            "language_bindings": "Preserved paid evidence (ecosystem-tooling--part-5--go): grpc-go is the Go reference implementation of gRPC maintained by the gRPC project itself, alongside official protobuf-go bindings, giving Go first-party, reference-quality RPC/serialization support.",
+            "database_data": "Preserved paid evidence (ecosystem-tooling--part-5--go): Go has a broad, mature database ecosystem: the standard library's database/sql interface plus mature drivers (pgx, go-sql-driver/mysql) for relational databases, an official MongoDB driver, and an official go-redis client for Redis.",
+            "network_cloud": "Preserved paid evidence (ecosystem-tooling--part-5--go): AWS, Azure and GCP each publish and actively maintain official first-party Go SDKs. AWS SDK for Go v2 reached general availability and is described as the official AWS SDK for Go; Google Cloud publishes official Go Cloud Client Libraries; Azure publishes monthly Go SDK releases.",
+            "extension_embedding": "Preserved paid evidence (ecosystem-tooling--part-5--go): Sub-scores rely on a small set of declared representative libraries per domain rather than an exhaustive audit of every possible integration; library selection used official project self-designation (official SDK/reference-implementation repos) as the external, benchmark-independent selection rule."
           },
           "score_0_100": 85,
           "legacy_score_0_100": 96,
           "source_work_unit_id": "ecosystem-tooling--part-5--go",
           "sources": [
-            "certified-cache-work-unit:ecosystem-tooling--part-5--go"
+            "certified-cache-record:benchmark/cache/v1/ecosystem/go/39b570cc75cb72f145205d9dca5fd165a6ecfb7f9259e5e54389638fbac24747.json"
           ],
-          "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-5--go; recertification did not select a new language-specific target.",
-          "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic."
+          "candidate_universe": "For each sub-dimension the specific library/target was chosen by a declared external, benchmark-independent criterion: the vendor's own officially designated SDK repository (aws/aws-sdk-go-v2, Azure/azure-sdk-for-go, googleapis/google-cloud-go), the CNCF/Kubernetes project's own reference client (kubernetes/client-go), and the gRPC project's own reference implementation repository (grpc/grpc-go), each retrieved via one route (official project README/package documentation).",
+          "limitations": "Sub-scores rely on a small set of declared representative libraries per domain rather than an exhaustive audit of every possible integration; library selection used official project self-designation (official SDK/reference-implementation repos) as the external, benchmark-independent selection rule.",
+          "source_record": "benchmark/cache/v1/ecosystem/go/39b570cc75cb72f145205d9dca5fd165a6ecfb7f9259e5e54389638fbac24747.json",
+          "source_result_sha256": "b549697b9d9dd70bb4c0e90b4711fe67a5e12a58df84e0a26f2fb5003683e418"
         }
       }
     },

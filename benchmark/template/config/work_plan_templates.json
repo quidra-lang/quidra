@@ -1057,7 +1057,6 @@
             "# 16. LLM Implementation Scenarios"
           ],
           "read_paths": [
-            "repo/docs",
             "template/programs",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1068,6 +1067,9 @@
           "goal": "Judge only the assigned language for the assigned intrinsic Language Quality design metric(s). Use design_rubrics.json exactly. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five frozen component IDs, integer 0..4), component_findings (same IDs, non-empty rubric-grounded findings), evidence_refs (one or more existing relative repo/... or template/... paths from the frozen readable inputs), selection_rule (exact frozen string), and limitations. Do not invent a normalized score: the trusted runner computes requirements[metric_id][language] mechanically from component_levels and overwrites worker arithmetic.",
           "language_scoped_program_reads": true,
           "target_only_read_paths": [
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra"
           ],
           "target_only_dependencies": [
@@ -1090,7 +1092,6 @@
             "# 16. LLM Implementation Scenarios"
           ],
           "read_paths": [
-            "repo/docs",
             "template/programs",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1101,6 +1102,9 @@
           "goal": "Judge only the assigned language for the assigned intrinsic Language Quality design metric(s). Use design_rubrics.json exactly. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five frozen component IDs, integer 0..4), component_findings (same IDs, non-empty rubric-grounded findings), evidence_refs (one or more existing relative repo/... or template/... paths from the frozen readable inputs), selection_rule (exact frozen string), and limitations. Do not invent a normalized score: the trusted runner computes requirements[metric_id][language] mechanically from component_levels and overwrites worker arithmetic.",
           "language_scoped_program_reads": true,
           "target_only_read_paths": [
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra"
           ],
           "target_only_dependencies": [
@@ -1123,7 +1127,6 @@
             "# 16. LLM Implementation Scenarios"
           ],
           "read_paths": [
-            "repo/docs",
             "template/programs",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1134,6 +1137,9 @@
           "goal": "Judge only the assigned language for the assigned intrinsic Language Quality design metric(s). Use design_rubrics.json exactly. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five frozen component IDs, integer 0..4), component_findings (same IDs, non-empty rubric-grounded findings), evidence_refs (one or more existing relative repo/... or template/... paths from the frozen readable inputs), selection_rule (exact frozen string), and limitations. Do not invent a normalized score: the trusted runner computes requirements[metric_id][language] mechanically from component_levels and overwrites worker arithmetic.",
           "language_scoped_program_reads": true,
           "target_only_read_paths": [
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra"
           ],
           "target_only_dependencies": [
@@ -1156,7 +1162,6 @@
             "# 16. LLM Implementation Scenarios"
           ],
           "read_paths": [
-            "repo/docs",
             "template/programs",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1167,6 +1172,9 @@
           "goal": "Judge only the assigned language for the assigned intrinsic Language Quality design metric(s). Use design_rubrics.json exactly. For each assigned metric write evidence[metric_id] with rubric_id, component_levels (exactly the five frozen component IDs, integer 0..4), component_findings (same IDs, non-empty rubric-grounded findings), evidence_refs (one or more existing relative repo/... or template/... paths from the frozen readable inputs), selection_rule (exact frozen string), and limitations. Do not invent a normalized score: the trusted runner computes requirements[metric_id][language] mechanically from component_levels and overwrites worker arithmetic.",
           "language_scoped_program_reads": true,
           "target_only_read_paths": [
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra"
           ],
           "target_only_dependencies": [

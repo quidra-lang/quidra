@@ -11,8 +11,10 @@
     "benchmark/template/programs/typescript": "82abd682d8d8c6cce04bc44f7eb1f2de20d2d716",
     "benchmark/template/programs/zig": "32d1545ea81c7b3e818d2b16b4087bc21c817070",
     "benchmark/template/workloads": "fce06d9f3c5391b3cb59e249b87430ac1344dcaf",
-    "docs": "943176a86af7d0ffb8371dfb217983ef5355aace",
-    "tests/benchmark/quidra": "3764b4f5b14d2f7243d6144efd34b1870847ff6e"
+    "tests/benchmark/quidra": "3764b4f5b14d2f7243d6144efd34b1870847ff6e",
+    "docs/spec": "20f72166e8085ba7bf6ebdfcef9a9e8bd499aa4c",
+    "docs/packages.md": "2bc00da096e94975b59a24bfb2caafedca19f437",
+    "docs/development.md": "742aba30759183dc7a732f7c149860a16b7ef41a"
   },
   "binding_schema_version": 1,
   "bound": true,
@@ -1002,7 +1004,9 @@
           },
           "current_adjudication_basis": "Current Quidra uses indentation blocks without braces/semicolons, local auto inference and concise range/collection forms while keeping typed boundaries and explicit error/resource semantics; generic/class/error handling retains deliberate bounded ceremony.",
           "evidence_refs": [
-            "repo/docs",
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1028,7 +1032,9 @@
           },
           "current_adjudication_basis": "Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited.",
           "evidence_refs": [
-            "repo/docs",
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1054,7 +1060,9 @@
           },
           "current_adjudication_basis": "Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit.",
           "evidence_refs": [
-            "repo/docs",
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1080,7 +1088,9 @@
           },
           "current_adjudication_basis": "Current Quidra diagnostics have stable codes, source spans, structured JSON output, cause-specific messages, bounded recovery and coded runtime failures, directly covering the five frozen diagnostic components.",
           "evidence_refs": [
-            "repo/docs",
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1106,7 +1116,9 @@
           },
           "current_adjudication_basis": "Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited.",
           "evidence_refs": [
-            "repo/docs",
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1132,7 +1144,9 @@
           },
           "current_adjudication_basis": "Current docs specify classes, constrained generics, tagged unions, exhaustive match, first-class function values, arbitrary-precision numerics, arrays/tensors, explicit errors, FFI, modules/packages and native/runtime control; dynamic abstraction remains intentionally narrower than the richest peers.",
           "evidence_refs": [
-            "repo/docs",
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1158,7 +1172,9 @@
           },
           "current_adjudication_basis": "Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs.",
           "evidence_refs": [
-            "repo/docs",
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -1184,7 +1200,9 @@
           },
           "current_adjudication_basis": "Current Quidra makes types, writable aliases (&), control flow and error propagation explicit with low punctuation noise and regular forms; a few language-specific spellings and rules still require familiarity.",
           "evidence_refs": [
-            "repo/docs",
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
             "repo/tests/benchmark/quidra",
             "template/workloads",
             "template/methodology-assets/language_quality/design_rubrics.json"
@@ -2033,12 +2051,14 @@
     "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b"
   },
   "quidra_language_quality_design_identity": {
-    "git_objects": {
-      "docs": "943176a86af7d0ffb8371dfb217983ef5355aace",
-      "tests/benchmark/quidra": "3764b4f5b14d2f7243d6144efd34b1870847ff6e"
-    },
     "schema_version": 1,
-    "sha256": "4cf2e375589315c87451ef500a1b85fa7221be1c76b002a887e9094ec40cc179"
+    "sha256": "a03e40b5b1c76bbfcd44e431eadbadbde28212bfbc421cc27ee7aaf7c1714955",
+    "git_objects": {
+      "docs/spec": "20f72166e8085ba7bf6ebdfcef9a9e8bd499aa4c",
+      "docs/packages.md": "2bc00da096e94975b59a24bfb2caafedca19f437",
+      "docs/development.md": "742aba30759183dc7a732f7c149860a16b7ef41a",
+      "tests/benchmark/quidra": "3764b4f5b14d2f7243d6144efd34b1870847ff6e"
+    }
   },
   "recertifier": {
     "engine": "GPT-5.6 Sol",
@@ -2060,5 +2080,18 @@
       "reason": "The preserved certified cache contains only the legacy numeric scores plus a note pointing to evidence.md; retained workspace evidence does not contain that promised evidence.md or another recoverable metric rationale. Reconstructing current components from those scores would violate the no-score-copy rule, so this unit remains a paid MISS.",
       "work_unit_id": "lq-language-development--part-4--c"
     }
-  ]
+  ],
+  "quidra_language_quality_design_scope": {
+    "schema_version": 1,
+    "normative_inputs": [
+      "docs/spec",
+      "docs/packages.md",
+      "docs/development.md",
+      "tests/benchmark/quidra"
+    ],
+    "excluded_non_normative_inputs": [
+      "docs/candidates.md"
+    ],
+    "reason": "Language Quality scores the current implemented/documented language contract; design candidates are proposals and must not invalidate or influence the current-language judgment."
+  }
 }

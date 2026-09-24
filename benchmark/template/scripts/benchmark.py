@@ -8467,7 +8467,12 @@ def current_quidra_execution_identity(root: Path) -> dict[str, Any] | None:
     return raw
 
 
-LQ_TARGET_DESIGN_INPUT_PATHS = ("docs", "tests/benchmark/quidra")
+LQ_TARGET_DESIGN_INPUT_PATHS = (
+    "docs/spec",
+    "docs/packages.md",
+    "docs/development.md",
+    "tests/benchmark/quidra",
+)
 
 
 def current_language_quality_design_identity(root: Path) -> dict[str, Any] | None:
@@ -8521,6 +8526,58 @@ def is_language_quality_design_unit(root: Path, unit: dict[str, Any]) -> bool:
     ):
         return False
     return set(requirement_ids) <= set(asset["metrics"])
+
+
+def is_language_quality_reuse_audit_unit(unit: dict[str, Any]) -> bool:
+    """Whether this leaf audits one frozen reusable LQ artifact against a toolchain."""
+    return (
+        str(unit.get("evaluation") or "") == "language_quality"
+        and str(unit.get("result_kind") or "") == "audit"
+        and str(unit.get("phase") or "") == "readiness"
+        and bool(unit.get("reuse_audit_for"))
+    )
+
+
+def language_quality_reuse_audit_semantic_payload(
+    payload: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Project an LQ reuse-audit key onto the experiment that actually matters.
+
+    The audit asks whether exact frozen comparison source is still semantically
+    usable under one exact current toolchain. The judge implementation, prompt
+    serialization, packet transport, network permission and validator spelling
+    are not the measured object. The current validator is always rerun before a
+    compatible historical audit is promoted.
+    """
+    if (
+        str(payload.get("evaluation") or "") != "language_quality"
+        or str(payload.get("result_kind") or "") != "audit"
+        or not payload.get("reuse_audit_for")
+    ):
+        return None
+    reads = {
+        str(key): value
+        for key, value in (payload.get("readable_input_content_hashes") or {}).items()
+        if str(key).startswith("template/programs/")
+    }
+    if not reads:
+        return None
+    return {
+        "schema_version": 1,
+        "cache_schema_version": int(payload.get("cache_schema_version", 1) or 1),
+        "evaluation": "language_quality",
+        "work_unit_id": str(payload.get("work_unit_id") or ""),
+        "requirement_ids": list(payload.get("requirement_ids") or []),
+        "assigned_languages": list(payload.get("assigned_languages") or []),
+        "toolchains": dict(payload.get("toolchains") or {}),
+        "unit_input_hashes": dict(payload.get("unit_input_hashes") or {}),
+        "readable_input_content_hashes": reads,
+        "runtime_toolchain_pins": dict(payload.get("runtime_toolchain_pins") or {}),
+        "cache_epoch": payload.get("cache_epoch"),
+        "result_kind": "audit",
+        "reuse_audit_for": sorted(str(v) for v in payload.get("reuse_audit_for") or []),
+        "semantic_evidence_contract": "language-quality-reuse-audit-v1",
+    }
 
 
 def _legacy_cache_run_commit_prefix(record: dict[str, Any]) -> str | None:
@@ -8701,7 +8758,8 @@ def cache_fingerprint_payload(
     model = identity.get("model")
     mechanical = mechanical_unit(unit)
     lq_design = is_language_quality_design_unit(root, unit)
-    if not mechanical and not lq_design and (not provider or not model):
+    lq_audit = is_language_quality_reuse_audit_unit(unit)
+    if not mechanical and not lq_design and not lq_audit and (not provider or not model):
         return None
     # The toolchain report is written by the toolchain check, which a run
     # performs before dispatch; the mechanical audit of the snapshot's own
@@ -8837,6 +8895,11 @@ def cache_fingerprint_payload(
     if unit.get("result_kind") == "audit":
         payload["reuse_audit_for"] = sorted(str(a) for a in unit.get("reuse_audit_for", []))
         payload["result_kind"] = "audit"
+    if lq_audit:
+        semantic = language_quality_reuse_audit_semantic_payload(payload)
+        if semantic is None:
+            return None
+        payload = semantic
     return payload
 
 
@@ -10517,6 +10580,21 @@ CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
             "certification",
         ],
     },
+    "language-quality-reuse-audit-v1-projection": {
+        "reason": (
+            "A preserved paid Language Quality reusable-artifact currency audit "
+            "judged the exact same frozen artifact Git object under the exact same "
+            "current toolchain and runtime pins. Judge/provider and Task Packet "
+            "transport changes do not alter that experiment; the current validator "
+            "is rerun before promotion and no new provider call is claimed."
+        ),
+        "transformed_fields": [
+            "fingerprint",
+            "fingerprint_payload",
+            "provenance",
+            "certification",
+        ],
+    },
     "validator-recertification": {
         "reason": (
             "Historical paid result was projected only across explicitly allowed "
@@ -11104,12 +11182,105 @@ def find_adversarial_language_projection_cache_record(
     return matches[-1][0], matches[-1][1], None
 
 
+def find_language_quality_reuse_audit_projection_cache_record(
+    root: Path,
+    unit: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    """Reuse a paid currency audit when source and exact current toolchain match."""
+    if not is_language_quality_reuse_audit_unit(unit):
+        return None, None, None
+    expected = language_quality_reuse_audit_semantic_payload(current_payload)
+    if expected is None or expected != current_payload:
+        return None, None, "current Language Quality reuse-audit key is not canonical"
+    directory = root / "cache" / "v1" / "language-quality" / cache_scope(unit)
+    if not directory.is_dir():
+        return None, None, None
+
+    matches: list[tuple[str, str, Path, dict[str, Any]]] = []
+    invalid: list[str] = []
+    verdicts: set[bool] = set()
+    for path in sorted(directory.glob("*.json")):
+        try:
+            record = json_load(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+        payload = record.get("fingerprint_payload")
+        if not isinstance(payload, dict):
+            continue
+        if language_quality_reuse_audit_semantic_payload(payload) != expected:
+            continue
+        problem = _cache_record_self_integrity_problem(record)
+        if problem:
+            invalid.append(f"{path.name}: {problem}")
+            continue
+        result = record.get("result")
+        if not isinstance(result, dict) or not isinstance(result.get("audit_pass"), bool):
+            invalid.append(f"{path.name}: audit result")
+            continue
+        verdicts.add(bool(result["audit_pass"]))
+        run_id = str((record.get("provenance") or {}).get("run_id") or "")
+        matches.append((run_id, path.name, path, record))
+
+    if not matches:
+        if invalid:
+            return (
+                None,
+                None,
+                "all Language Quality audit projection candidates failed integrity: "
+                + "; ".join(invalid[:8]),
+            )
+        return None, None, None
+    if len(verdicts) != 1:
+        return (
+            None,
+            None,
+            "semantically identical Language Quality audit records disagree on audit_pass",
+        )
+
+    _, _, path, record = sorted(matches)[-1]
+    source_fingerprint = str(record.get("fingerprint") or "")
+    current_fingerprint = sha256_bytes(
+        json.dumps(
+            current_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    projected = {
+        **record,
+        "fingerprint": current_fingerprint,
+        "fingerprint_payload": current_payload,
+        "assigned_languages": list(current_payload.get("assigned_languages") or []),
+        "certification": {
+            **(record.get("certification") or {}),
+            "language_quality_reuse_audit_recertification_candidate": True,
+            "new_paid_provider_call": False,
+        },
+        "provenance": {
+            **(record.get("provenance") or {}),
+            "projection_source_fingerprint": source_fingerprint,
+            "work_unit_id": unit.get("id"),
+            "certification_method": (
+                "exact artifact + exact current toolchain audit reprojection; "
+                "no new provider call"
+            ),
+        },
+    }
+    return path, projected, None
+
+
 def find_primary_projection_compatible_cache_record(
     root: Path,
     unit: dict[str, Any],
     task: dict[str, Any],
     current_payload: dict[str, Any],
 ) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    if is_language_quality_reuse_audit_unit(unit):
+        return find_language_quality_reuse_audit_projection_cache_record(
+            root, unit, current_payload
+        )
     if is_language_quality_design_unit(root, unit):
         return language_quality_snapshot_recertification_record(
             root, unit, task, current_payload
@@ -11357,6 +11528,12 @@ def hydrate_certified_cache(
                 ):
                     compatibility_mode = (
                         "language-quality-design-rubric-v1-snapshot"
+                    )
+                elif certification.get(
+                    "language_quality_reuse_audit_recertification_candidate"
+                ):
+                    compatibility_mode = (
+                        "language-quality-reuse-audit-v1-projection"
                     )
                 else:
                     compatibility_mode = "scoped-input-projection"

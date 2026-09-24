@@ -380,6 +380,7 @@ jobs:
               "scoped-input-projection": "A",
               "ecosystem-runner-rubric-v2-snapshot": "C",
               "language-quality-design-rubric-v1-snapshot": "C",
+              "language-quality-reuse-audit-v1-projection": "C",
               "validator-recertification": "D",
               "micro-measure-input-projection": "C",
               "legacy-adversarial-cohort-to-language-shard": "C",

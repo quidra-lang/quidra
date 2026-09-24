@@ -416,14 +416,38 @@ def assert_readiness_audits_are_cacheable(root: Path, task: dict) -> None:
     }
     assert benchmark.cache_eligible_unit(root, audit), "a readiness audit is not cacheable"
     assert benchmark.audit_languages(root, audit) == ["Python"]
-    pair = benchmark.cache_fingerprint(root, audit, task)
+    audit_task = dict(
+        task,
+        read_paths=[str(root / "template/programs/python/micro")],
+    )
+    pair = benchmark.cache_fingerprint(root, audit, audit_task)
     assert pair is not None, "an audit produced no cache key"
     fingerprint, payload = pair
     assert payload["toolchains"] == {"Python": "3.14.5"} and payload["result_kind"] == "audit"
     assert payload["reuse_audit_for"] == ["micro-python"]
+    assert payload["semantic_evidence_contract"] == "language-quality-reuse-audit-v1"
+    assert set(payload["readable_input_content_hashes"]) == {
+        "template/programs/python/micro"
+    }
+    assert all(
+        key not in payload
+        for key in (
+            "provider", "model", "frozen_sampling", "exact_task_packet_sha256",
+            "worker_mode", "network_allowed", "validator_contract",
+        )
+    ), payload
     assert benchmark.cache_scope(audit) == "audit-micro-python"
-    # Semantic Compression records carry the evaluation's frozen depth; every
-    # other evaluation's frozen_sampling is the run-wide declaration unchanged.
+
+    run = benchmark.json_load(root / "run.json")
+    original_model = run["inference_identity"]["model"]
+    run["inference_identity"]["model"] = "different-model"
+    benchmark.json_dump(root / "run.json", run)
+    assert benchmark.cache_fingerprint(root, audit, audit_task)[0] == fingerprint
+    run["inference_identity"]["model"] = original_model
+    benchmark.json_dump(root / "run.json", run)
+    changed_task = dict(audit_task, prompt_sha256="f" * 64)
+    assert benchmark.cache_fingerprint(root, audit, changed_task)[0] == fingerprint
+
     sc_unit = dict(audit, id="sc-probe--python", evaluation="semantic_compression",
                    phase="measurement", result_kind="requirements", assigned_languages=["Python"],
                    reuse_audit_for=[], requirement_ids=["metric.semantic_density"])
@@ -431,24 +455,80 @@ def assert_readiness_audits_are_cacheable(root: Path, task: dict) -> None:
     assert sc_payload["frozen_sampling"]["effort"] == "medium", sc_payload["frozen_sampling"]
     assert sc_payload["frozen_sampling"]["effort_source"] == "evaluation_effort"
     assert sc_payload["cache_epoch"] == "2026-09-canonical-fragments-v6-fixed-stdout"
-    assert payload["frozen_sampling"] == benchmark.sampling_config(root)
-    assert "effort_source" not in payload["frozen_sampling"]
+
     changed = dict(audit, input_hashes={"artifact_git_object": "b" * 40})
-    assert benchmark.cache_fingerprint(root, changed, task)[0] != fingerprint, (
+    assert benchmark.cache_fingerprint(root, changed, audit_task)[0] != fingerprint, (
         "a changed artifact must change the audit's key"
     )
     toolchains = benchmark.json_load(root / "results/toolchains.json")
     toolchains["toolchains"]["Python"]["canonical"] = "3.15.0"
     benchmark.json_dump(root / "results/toolchains.json", toolchains)
-    assert benchmark.cache_fingerprint(root, audit, task)[0] != fingerprint, (
+    assert benchmark.cache_fingerprint(root, audit, audit_task)[0] != fingerprint, (
         "a bumped toolchain must change the audit's key"
     )
     toolchains["toolchains"]["Python"]["canonical"] = "3.14.5"
     benchmark.json_dump(root / "results/toolchains.json", toolchains)
-    assert benchmark.cache_fingerprint(root, audit, task)[0] == fingerprint
-    # Audits for a language absent from the toolchain scan have no key.
+    assert benchmark.cache_fingerprint(root, audit, audit_task)[0] == fingerprint
+
+    legacy_payload = json.loads(json.dumps(payload))
+    legacy_payload.pop("semantic_evidence_contract")
+    legacy_payload.update({
+        "exact_task_packet_sha256": "1" * 64,
+        "provider": "anthropic-messages",
+        "model": "claude-sonnet-5",
+        "frozen_sampling": benchmark.sampling_config(root),
+        "worker_mode": "packet-only",
+        "network_allowed": True,
+        "validator_contract": "legacy-validator-spelling",
+    })
+    legacy_raw = json.dumps(
+        legacy_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    legacy_fingerprint = benchmark.sha256_bytes(legacy_raw)
+    legacy_result = {
+        "schema_version": 1,
+        "evaluation": "language_quality",
+        "audit_pass": True,
+        "evidence": {"preserved": "paid audit evidence"},
+    }
+    legacy_result_raw = json.dumps(
+        legacy_result, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    legacy_record = {
+        "schema_version": 1,
+        "fingerprint": legacy_fingerprint,
+        "fingerprint_payload": legacy_payload,
+        "evaluation": "language_quality",
+        "assigned_languages": ["Python"],
+        "result": legacy_result,
+        "result_sha256": benchmark.sha256_bytes(legacy_result_raw),
+        "certification": {"unit_complete": True, "validator_pass": True},
+        "provenance": {
+            "run_id": "2026-09-legacy-audit",
+            "work_unit_id": "audit-micro-python",
+        },
+    }
+    legacy_dir = root / "cache/v1/language-quality/audit-micro-python"
+    legacy_dir.mkdir(parents=True, exist_ok=True)
+    benchmark.json_dump(legacy_dir / f"{legacy_fingerprint}.json", legacy_record)
+    source_path, projected, problem = (
+        benchmark.find_language_quality_reuse_audit_projection_cache_record(
+            root, audit, payload
+        )
+    )
+    assert problem is None and source_path is not None and projected is not None
+    assert projected["fingerprint_payload"] == payload
+    assert projected["result"]["audit_pass"] is True
+    assert (
+        projected["certification"][
+            "language_quality_reuse_audit_recertification_candidate"
+        ]
+        is True
+    )
+    shutil.rmtree(legacy_dir)
+
     orphan = dict(audit, reuse_audit_for=["micro-rust"])
-    assert benchmark.cache_fingerprint(root, orphan, task) is None
+    assert benchmark.cache_fingerprint(root, orphan, audit_task) is None
 
 
 def assert_adversarial_mechanical_language_shards_are_independent() -> None:

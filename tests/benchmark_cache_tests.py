@@ -1355,15 +1355,47 @@ def assert_ecosystem_snapshot_recertifies_under_current_validator() -> None:
         )
         snapshot_dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(snapshot_source, snapshot_dest)
-        run = benchmark.json_load(root / "run.json")
-        run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
-        benchmark.json_dump(root / "run.json", run)
+
+        # The frozen v2 row must remain cryptographically anchored to the
+        # preserved paid record it re-adjudicates.  Copy exactly that legacy
+        # source into this isolated test cache.
+        snapshot_payload = benchmark.json_load(snapshot_source)
+        snapshot_row = snapshot_payload["languages"]["Python"]["metrics"][
+            "metric.documentation_quality"
+        ]
+        source_record = str(snapshot_row["source_record"])
+        assert source_record.startswith("benchmark/cache/")
+        source_relative = source_record.removeprefix("benchmark/cache/")
+        source_from_repo = ROOT / source_record
+        source_in_workspace = root / "cache" / source_relative
+        source_in_workspace.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_from_repo, source_in_workspace)
 
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
         pair = benchmark.cache_fingerprint(root, unit, task)
         assert pair is not None
         fingerprint, payload = pair
+
+        # A forged/stale provenance hash must turn the snapshot into a MISS,
+        # even when its component scores themselves are structurally valid.
+        tampered = json.loads(json.dumps(snapshot_payload))
+        tampered["languages"]["Python"]["metrics"][
+            "metric.documentation_quality"
+        ]["source_result_sha256"] = "0" * 64
+        benchmark.json_dump(snapshot_dest, tampered)
+        snapshot_path, record, problem = (
+            benchmark.ecosystem_snapshot_recertification_record(
+                root, unit, task, payload
+            )
+        )
+        assert snapshot_path is None and record is None
+        assert "source result_sha256 mismatch" in str(problem)
+
+        shutil.copy2(snapshot_source, snapshot_dest)
+        run = benchmark.json_load(root / "run.json")
+        run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
+        benchmark.json_dump(root / "run.json", run)
 
         snapshot_path, record, problem = (
             benchmark.ecosystem_snapshot_recertification_record(

@@ -7065,6 +7065,97 @@ def find_validator_recertifiable_cache_record(
     return path, projected, None
 
 
+def ecosystem_snapshot_source_record_problem(
+    cache_root: Path,
+    language: str,
+    requirement_id: str,
+    row: dict[str, Any],
+) -> str | None:
+    """Prove that one v2 snapshot row is anchored to preserved paid evidence.
+
+    The snapshot is a trusted re-adjudication layer, not a replacement for its
+    source evidence.  Every row therefore names the exact legacy cache record,
+    result hash and work unit it was derived from.  If that source disappears,
+    is corrupted, or no longer contains the language/metric being re-adjudicated,
+    the row is not eligible for cache recertification.
+    """
+    raw = str(row.get("source_record") or "")
+    prefix = "benchmark/cache/"
+    if not raw.startswith(prefix):
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source_record must "
+            "name benchmark/cache/v1/ecosystem evidence"
+        )
+    relative = PurePosixPath(raw[len(prefix):])
+    if (
+        relative.is_absolute()
+        or any(part in {"", ".", ".."} for part in relative.parts)
+        or len(relative.parts) < 4
+        or relative.parts[0] != "v1"
+        or relative.parts[1] != "ecosystem"
+        or relative.suffix != ".json"
+    ):
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} has invalid "
+            f"source_record path: {raw!r}"
+        )
+    source_path = require_under(cache_root.joinpath(*relative.parts), cache_root)
+    if not source_path.is_file():
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source record is "
+            f"missing: {raw}"
+        )
+    try:
+        source = json_load(source_path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source record is "
+            f"unreadable/corrupt: {type(exc).__name__}: {exc}"
+        )
+    integrity = _cache_record_self_integrity_problem(source)
+    if integrity:
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source record "
+            f"failed self-integrity: {integrity}"
+        )
+    if str(source.get("evaluation") or "") != "ecosystem":
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source record "
+            "is not Ecosystem evidence"
+        )
+    if language not in [str(value) for value in (source.get("assigned_languages") or [])]:
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source record "
+            "does not contain the assigned language"
+        )
+    expected_work_unit = str(row.get("source_work_unit_id") or "")
+    actual_work_unit = str((source.get("provenance") or {}).get("work_unit_id") or "")
+    if not expected_work_unit or actual_work_unit != expected_work_unit:
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source work unit "
+            f"mismatch: expected={expected_work_unit!r}, actual={actual_work_unit!r}"
+        )
+    expected_result = str(row.get("source_result_sha256") or "")
+    actual_result = str(source.get("result_sha256") or "")
+    if (
+        not re.fullmatch(r"[0-9a-f]{64}", expected_result)
+        or actual_result != expected_result
+    ):
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source result_sha256 "
+            f"mismatch: expected={expected_result!r}, actual={actual_result!r}"
+        )
+    cells = ((source.get("result") or {}).get("requirements") or {}).get(
+        requirement_id
+    )
+    if not isinstance(cells, dict) or language not in cells:
+        return (
+            f"Ecosystem snapshot {language}/{requirement_id} source record "
+            "does not contain the re-adjudicated metric cell"
+        )
+    return None
+
+
 def ecosystem_snapshot_recertification_record(
     root: Path,
     unit: dict[str, Any],
@@ -7211,6 +7302,11 @@ def ecosystem_snapshot_recertification_record(
             return None, None, (
                 f"Ecosystem snapshot {language}/{rid} limitations must be a string"
             )
+        provenance_problem = ecosystem_snapshot_source_record_problem(
+            root / "cache", language, rid, row
+        )
+        if provenance_problem:
+            return None, None, provenance_problem
         evidence[rid] = {
             "rubric_id": rubric["rubric_id"],
             "component_levels": normalized_levels,

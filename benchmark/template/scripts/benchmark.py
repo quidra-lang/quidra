@@ -5280,6 +5280,10 @@ def project_semantic_consumer_recertification(
     catalog = catalog_payload.get("canonical_fragments") or {}
     if not isinstance(catalog, dict) or not catalog:
         return None, f"{unit.get('id')}: canonical-fragment catalog is empty"
+    # task.canonical_fragment_catalog_sha256 is the serialized input-file hash.
+    # Legacy owner metadata intentionally binds the canonical catalog object
+    # itself. Keep those two hash domains separate instead of comparing them.
+    catalog_content_digest = _legacy_sc_catalog_digest(catalog)
 
     assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
     owner_meta = (
@@ -5352,7 +5356,8 @@ def project_semantic_consumer_recertification(
             not isinstance(owner_meta, dict)
             or not legacy_identity_sha
             or owner_meta.get("scientific_identity_sha256") != legacy_identity_sha
-            or owner_meta.get("canonical_catalog_sha256") != digest
+            or owner_meta.get("canonical_catalog_sha256")
+            != catalog_content_digest
         ):
             return None, (
                 f"{unit.get('id')}: legacy {probe_id} carries no explicit fragment "
@@ -5377,6 +5382,7 @@ def project_semantic_consumer_recertification(
         "proof_mode": proof_mode,
         "source_run_id": source_run,
         "canonical_fragment_catalog_sha256": digest,
+        "canonical_fragment_catalog_content_sha256": catalog_content_digest,
         "all_explicit_fragments_matched": not used_owner_identity_join,
     }
     if source_rel is not None and source_hash is not None:

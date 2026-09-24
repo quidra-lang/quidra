@@ -2076,6 +2076,7 @@ def assert_semantic_recertification_requires_exact_canonical_fragments() -> None
         unit = {
             "id": "sc-metrics-local--part-1--python",
             "evaluation": "semantic_compression",
+            "assigned_languages": ["Python"],
             "canonical_fragment_source_requirement": "metric.capability_coverage",
         }
         record = {
@@ -2116,6 +2117,74 @@ def assert_semantic_recertification_requires_exact_canonical_fragments() -> None
             root, unit, task, missing
         )
         assert projected is None and "carries no explicit fragment" in str(problem)
+
+        # The task binds the serialized catalog file while legacy owner metadata
+        # binds only canonical_fragments. Missing legacy fragment text may join
+        # through the owner only when scientific identity and the *content*
+        # digest match; comparing the owner digest to the file SHA is a
+        # cross-domain mismatch.
+        catalog = benchmark.json_load(catalog_path)["canonical_fragments"]
+        catalog_content_digest = benchmark._legacy_sc_catalog_digest(catalog)
+        assert catalog_content_digest != digest
+        source_payload = {
+            "schema_version": 1,
+            "evaluation": "semantic_compression",
+            "assigned_languages": ["Python"],
+            "cache_epoch": "2026-09-medium",
+            "model": "claude-sonnet-5",
+            "provider": "anthropic-messages",
+            "unit_input_hashes": {},
+        }
+        source_result = missing["result"]
+        source_record = {
+            "schema_version": 1,
+            "fingerprint_payload": source_payload,
+            "fingerprint": benchmark.sha256_bytes(
+                json.dumps(
+                    source_payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            ),
+            "result": source_result,
+            "result_sha256": benchmark.sha256_bytes(
+                json.dumps(
+                    source_result,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ),
+        }
+        source_path = root / "cache/legacy-consumer.json"
+        benchmark.json_dump(source_path, source_record)
+        identity = benchmark._legacy_sc_shared_experiment_identity(source_record)
+        identity_sha = benchmark.sha256_bytes(
+            json.dumps(
+                identity,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        )
+        original_owner_meta = benchmark._semantic_owner_legacy_metadata
+        benchmark._semantic_owner_legacy_metadata = lambda _root, _language: {
+            "scientific_identity_sha256": identity_sha,
+            "canonical_catalog_sha256": catalog_content_digest,
+        }
+        try:
+            projected, problem = benchmark.project_semantic_consumer_recertification(
+                root, unit, task, missing, source_path=source_path
+            )
+        finally:
+            benchmark._semantic_owner_legacy_metadata = original_owner_meta
+        assert problem is None and projected is not None, problem
+        assert (
+            projected["result"]["evidence"]["legacy_fragment_equivalence"][
+                "canonical_fragment_catalog_content_sha256"
+            ]
+            == catalog_content_digest
+        )
 
         drifted = json.loads(json.dumps(record))
         drifted["result"]["evidence"]["per_probe_measurements"][0]["fragment"] = (

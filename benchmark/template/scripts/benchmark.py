@@ -7393,6 +7393,140 @@ def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
 
 
 
+def _micro_measure_semantic_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """The scientific inputs of the runner-owned micro measurement.
+
+    Historical mechanical keys conservatively included all measurement scripts
+    and the whole Primary configuration.  micro-measure never executes
+    adversarial_measure.py, and its numerical experiment is fixed by its
+    readable programs/fixtures/workloads/validator/scoring inputs, toolchains,
+    target identity, requirement set and micro_measure.py itself.  Keeping the
+    unrelated adversarial script or orchestration-only Primary fields in this
+    compatibility projection would force a multi-hour remeasurement without
+    changing the experiment.
+
+    This is intentionally a migration projection, not a weakening of the exact
+    cache key.  The projected result still has to pass today's command validator
+    before it can be promoted under the current fingerprint.
+    """
+    normalized = json.loads(json.dumps(payload))
+    inputs = dict(normalized.get("unit_input_hashes") or {})
+    inputs.pop("primary_config", None)
+    # The old planner called the same no-prompt-section digest
+    # evaluation_spec; the current planner calls it evaluation_spec_sections.
+    # Neither file is read by micro_measure.py.  The executable experiment is
+    # already content-bound by the concrete readable inputs and script hash.
+    inputs.pop("evaluation_spec", None)
+    inputs.pop("evaluation_spec_sections", None)
+    normalized["unit_input_hashes"] = inputs
+    scripts = normalized.get("measurement_script_hashes") or {}
+    normalized["measurement_script_hashes"] = {
+        "micro_measure.py": scripts.get("micro_measure.py")
+    }
+    return normalized
+
+
+def find_micro_measure_projection_cache_record(
+    root: Path,
+    unit: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[Path | None, dict[str, Any] | None, str | None]:
+    """Recover a legacy micro measurement across runner-only key changes.
+
+    Only the all-language runner-owned micro unit is eligible.  Every input
+    actually consumed by that measurement remains exact; only unrelated
+    adversarial-script and orchestration metadata differences are projected
+    away.  A changed micro script, program, workload, validator/scoring input,
+    toolchain, target version/implementation, requirement set or epoch cannot
+    match this bridge.
+    """
+    if (
+        str(unit.get("evaluation") or "") != "language_quality"
+        or str(unit.get("runner_action") or "") != "micro-measure"
+        or unit.get("execution_kind") != "command"
+        or not mechanical_unit(unit)
+    ):
+        return None, None, None
+
+    primary = json_load(root / "template" / "config" / "primary.json")
+    program_root = str(
+        (primary.get("language_quality") or {}).get("quidra_program_root") or ""
+    )
+    if program_root != "tests/benchmark/quidra":
+        # The historical record below explicitly read this snapshot path.
+        return None, None, None
+
+    directory = (
+        root / "cache" / "v1" / "language-quality" / "mechanical-micro-measure"
+    )
+    if not directory.is_dir():
+        return None, None, None
+
+    expected = _micro_measure_semantic_payload(current_payload)
+    matches: list[tuple[str, str, Path, dict[str, Any]]] = []
+    invalid_candidates: list[str] = []
+    for path in sorted(directory.glob("*.json")):
+        try:
+            record = json_load(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+        old = record.get("fingerprint_payload") or {}
+        if (
+            str(old.get("work_unit_id") or "") != str(unit.get("id") or "")
+            or str(old.get("evaluation") or "") != "language_quality"
+            or str(old.get("runner_action") or "") != "micro-measure"
+        ):
+            continue
+        if _micro_measure_semantic_payload(old) != expected:
+            continue
+        problem = _cache_record_self_integrity_problem(record)
+        if problem:
+            invalid_candidates.append(f"{path.name}: {problem}")
+            continue
+        run_id = str((record.get("provenance") or {}).get("run_id") or "")
+        matches.append((run_id, path.name, path, record))
+
+    if not matches:
+        if invalid_candidates:
+            return (
+                None,
+                None,
+                "all micro-measure projection candidates failed self-integrity: "
+                + "; ".join(invalid_candidates[:8]),
+            )
+        return None, None, None
+
+    # Never choose by the measured score.  Prefer the newest run identity and
+    # stable path tie-break when the same experiment was measured repeatedly.
+    _, _, path, record = sorted(matches)[-1]
+    source_fingerprint = str(record.get("fingerprint") or "")
+    current_fingerprint = sha256_bytes(
+        json.dumps(
+            current_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    projected = {
+        **record,
+        "fingerprint": current_fingerprint,
+        "fingerprint_payload": current_payload,
+        "evaluation": "language_quality",
+        "assigned_languages": list(unit.get("assigned_languages", [])),
+        "certification": {
+            **(record.get("certification") or {}),
+            "mechanical_action_projection": "micro-measure-v1",
+        },
+        "provenance": {
+            **(record.get("provenance") or {}),
+            "projection_source_fingerprint": source_fingerprint,
+            "work_unit_id": unit.get("id"),
+        },
+    }
+    return path, projected, None
+
+
 def find_adversarial_language_projection_cache_record(
     root: Path,
     unit: dict[str, Any],
@@ -7859,24 +7993,41 @@ def hydrate_certified_cache(
                     if compatible_path is not None and record is not None:
                         compatibility_mode = "validator-recertification"
                     else:
-                        compatible_path, record, projection_problem = (
-                            find_adversarial_language_projection_cache_record(
+                        compatible_path, record, mechanical_problem = (
+                            find_micro_measure_projection_cache_record(
                                 root, unit, payload
                             )
                         )
-                        if projection_problem:
+                        if mechanical_problem:
                             record_miss(
                                 uid,
                                 fingerprint,
                                 unit,
-                                projection_problem,
+                                mechanical_problem,
                                 invalidated=True,
                             )
                             continue
                         if compatible_path is not None and record is not None:
-                            compatibility_mode = (
-                                "legacy-adversarial-cohort-to-language-shard"
+                            compatibility_mode = "micro-measure-input-projection"
+                        else:
+                            compatible_path, record, projection_problem = (
+                                find_adversarial_language_projection_cache_record(
+                                    root, unit, payload
+                                )
                             )
+                            if projection_problem:
+                                record_miss(
+                                    uid,
+                                    fingerprint,
+                                    unit,
+                                    projection_problem,
+                                    invalidated=True,
+                                )
+                                continue
+                            if compatible_path is not None and record is not None:
+                                compatibility_mode = (
+                                    "legacy-adversarial-cohort-to-language-shard"
+                                )
             if compatible_path is None or record is None:
                 record_miss(
                     uid,

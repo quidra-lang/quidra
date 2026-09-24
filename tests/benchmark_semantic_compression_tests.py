@@ -262,6 +262,9 @@ def assert_r9_p_a_scope_is_enforced() -> None:
             root, "F18.P2", allowed, context="allowed F18 private-boundary substitution"
         )
         assert "F18.P2" in benchmark.sc_p_a_allowed_probes(root)
+        quidra_f06 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Quidra"]["F06.P2"]
+        assert quidra_f06["level"] == "FULL"
+        assert not quidra_f06.get("partial_reasons")
         universe = benchmark.json_load(
             root
             / "template/methodology-assets/semantic_compression"

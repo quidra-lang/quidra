@@ -5479,6 +5479,18 @@ LEGACY_SC_FRAGMENT_OVERRIDES: dict[str, dict[str, str]] = {
 
 
 LEGACY_SC_SUPPORT_OVERRIDES: dict[str, dict[str, dict[str, Any]]] = {
+    "Quidra": {
+        "F06.P2": {
+            "level": "FULL",
+            "reason": (
+                "The current canonical task explicitly permits a small record/class "
+                "as the normal multiple-result mechanism and requires one binding "
+                "construct only when the language has such destructuring syntax. "
+                "Quidra therefore satisfies the numbered task without a P-a "
+                "substitution; the legacy PARTIAL judgment is FULL under the current rubric."
+            ),
+        },
+    },
     "Python": {
         "F01.P1": {
             "level": "PARTIAL",

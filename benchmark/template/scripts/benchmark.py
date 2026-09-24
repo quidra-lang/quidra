@@ -8539,6 +8539,78 @@ def _semantic_validator_recertification_payloads_compatible(
     return True
 
 
+def _semantic_validator_recertification_mismatch_summary(
+    root: Path,
+    unit: dict[str, Any],
+    record: dict[str, Any],
+    current_payload: dict[str, Any],
+    cfg: dict[str, Any],
+) -> str:
+    """Explain a rejected SC compatibility candidate without relaxing its checks."""
+    old_payload = record.get("fingerprint_payload") or {}
+    run_id = str((record.get("provenance") or {}).get("run_id") or "")
+    selectors = [str(value) for value in (unit.get("prompt_sections") or [])]
+    source_projection = _legacy_sc_source_projection_attestation(
+        root, run_id, selectors
+    )
+    if source_projection is None:
+        return "source-snapshot projection attestation is missing or invalid"
+
+    old = _validator_recertification_payload(old_payload, cfg)
+    current = _validator_recertification_payload(current_payload, cfg)
+    differing: list[str] = []
+    for key in sorted(set(old) | set(current)):
+        old_value = old.get(key)
+        current_value = current.get(key)
+        if old_value == current_value:
+            continue
+        if isinstance(old_value, dict) and isinstance(current_value, dict):
+            nested = [
+                str(subkey)
+                for subkey in sorted(set(old_value) | set(current_value))
+                if old_value.get(subkey) != current_value.get(subkey)
+            ]
+            differing.append(f"{key}[{','.join(nested)}]")
+        else:
+            differing.append(key)
+
+    raw_old_hashes = dict(old_payload.get("unit_input_hashes") or {})
+    raw_current_hashes = dict(current_payload.get("unit_input_hashes") or {})
+    projection_notes: list[str] = []
+    raw_old_primary = raw_old_hashes.get("primary_config")
+    raw_current_primary = raw_current_hashes.get("primary_config")
+    if raw_old_primary != raw_current_primary and (
+        raw_old_primary
+        != source_projection.get("primary_config_full_sha256")
+        or raw_current_primary
+        != source_projection.get("primary_config_projection_sha256")
+    ):
+        projection_notes.append("primary_config projection proof mismatch")
+    raw_old_spec = (
+        raw_old_hashes.get("evaluation_spec_sections")
+        if "evaluation_spec_sections" in raw_old_hashes
+        else raw_old_hashes.get("evaluation_spec")
+    )
+    raw_current_spec = (
+        raw_current_hashes.get("evaluation_spec_sections")
+        if "evaluation_spec_sections" in raw_current_hashes
+        else raw_current_hashes.get("evaluation_spec")
+    )
+    if raw_old_spec != raw_current_spec and (
+        raw_old_spec
+        != source_projection.get("evaluation_spec_full_sha256")
+        or raw_current_spec
+        != source_projection.get("evaluation_spec_projection_sha256")
+    ):
+        projection_notes.append("evaluation_spec projection proof mismatch")
+    if not differing and not projection_notes:
+        return "candidate failed a strict SC projection compatibility check"
+    return "; ".join(
+        (["normalized fields differ: " + ", ".join(differing)] if differing else [])
+        + projection_notes
+    )
+
+
 def find_validator_recertifiable_cache_record(
     root: Path,
     unit: dict[str, Any],
@@ -8585,6 +8657,7 @@ def find_validator_recertifiable_cache_record(
     )
     matches: list[tuple[int, str, str, Path, dict[str, Any]]] = []
     invalid_candidates: list[str] = []
+    semantic_incompatible_candidates: list[str] = []
     for path in sorted(directory.glob("*.json")):
         try:
             record = json_load(path)
@@ -8604,6 +8677,12 @@ def find_validator_recertifiable_cache_record(
             if not _semantic_validator_recertification_payloads_compatible(
                 root, unit, record, current_payload, cfg
             ):
+                semantic_incompatible_candidates.append(
+                    f"{path.name}: "
+                    + _semantic_validator_recertification_mismatch_summary(
+                        root, unit, record, current_payload, cfg
+                    )
+                )
                 continue
         elif _validator_recertification_payload(old, cfg) != normalized_current:
             continue
@@ -8623,6 +8702,14 @@ def find_validator_recertifiable_cache_record(
                 None,
                 "all validator-recertification candidates failed self-integrity: "
                 + "; ".join(invalid_candidates[:8]),
+            )
+        if evaluation == "semantic_compression" and semantic_incompatible_candidates:
+            return (
+                None,
+                None,
+                "all Semantic Compression validator-recertification candidates "
+                "were incompatible: "
+                + "; ".join(semantic_incompatible_candidates[:8]),
             )
         return None, None, None
 

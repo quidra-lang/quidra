@@ -1691,6 +1691,71 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
                 root, unit, current_payload
             )
         )
+        source_projection = benchmark._legacy_sc_source_projection_attestation(
+            root,
+            "2026-09-23-fce5cfa-gh16",
+            [semantic_section],
+        )
+        if source_projection is None:
+            meta_path = benchmark._legacy_sc_source_projection_metadata_path(
+                root, "2026-09-23-fce5cfa-gh16"
+            )
+            meta = benchmark.json_load(meta_path)
+            primary_path = benchmark._legacy_sc_source_projection_file(
+                root, meta["source_primary_config"]
+            )
+            spec_path = benchmark._legacy_sc_source_projection_file(
+                root, meta["source_evaluation_spec"]
+            )
+            migration = benchmark.LEGACY_SC_INPUT_PROJECTION_MIGRATIONS[
+                "2026-09-23-fce5cfa-gh16"
+            ]
+            assert source_projection is not None, {
+                "meta_path": str(meta_path),
+                "meta": meta,
+                "primary_exists": bool(primary_path and primary_path.is_file()),
+                "primary_sha256": (
+                    benchmark.sha256_file(primary_path)
+                    if primary_path and primary_path.is_file() else None
+                ),
+                "primary_projection_sha256": (
+                    benchmark.sha256_bytes(
+                        json.dumps(
+                            benchmark.primary_config_projection_from_data(
+                                benchmark.json_load(primary_path),
+                                "semantic_compression",
+                            ),
+                            sort_keys=True,
+                            separators=(",", ":"),
+                            ensure_ascii=False,
+                        ).encode("utf-8")
+                    )
+                    if primary_path and primary_path.is_file() else None
+                ),
+                "spec_exists": bool(spec_path and spec_path.is_file()),
+                "spec_sha256": (
+                    benchmark.sha256_file(spec_path)
+                    if spec_path and spec_path.is_file() else None
+                ),
+                "spec_projection_sha256": (
+                    benchmark.sha256_bytes(
+                        benchmark.extract_markdown_sections(
+                            spec_path.read_text(encoding="utf-8"),
+                            [semantic_section],
+                        ).encode("utf-8")
+                    )
+                    if spec_path and spec_path.is_file() else None
+                ),
+                "current_primary_projection_sha256":
+                    benchmark.primary_config_projection_sha256(
+                        root, "semantic_compression"
+                    ),
+                "current_spec_projection_sha256":
+                    benchmark.evaluation_spec_projection_sha256(
+                        root, "semantic_compression", [semantic_section]
+                    ),
+                "migration": migration,
+            }
         assert (
             problem is None and compatible_path is not None and projected is not None
         ), (

@@ -1287,6 +1287,51 @@ def assert_execution_plan_classifies_cache_decisions() -> None:
 
         # Materialize the exact MISS before pricing, as production prepare does.
         assert benchmark.hydrate_certified_cache(root) == 0
+
+        # Cross-evaluation state may coexist in the workspace/cache. A scoped
+        # execution plan must never report those rows as part of this run.
+        status = benchmark.json_load(root / "results/cache_status.json")
+        status["hits"]["unrelated-proficiency"] = {
+            "fingerprint": "a" * 64,
+            "scope": "python",
+            "record": "v1/llm-proficiency/python/unrelated.json",
+        }
+        status["misses"]["unrelated-proficiency"] = {
+            "fingerprint": "b" * 64,
+            "scope": "python",
+            "reason": "no certified record",
+        }
+        status["invalidated"]["unrelated-proficiency"] = {
+            "fingerprint": "b" * 64,
+            "scope": "python",
+            "reason": "unrelated prompt changed",
+        }
+        benchmark.json_dump(root / "results/cache_status.json", status)
+        benchmark.json_dump(
+            root / "results/cache_impact.json",
+            {
+                "schema_version": 1,
+                "valid": 0,
+                "invalid": [{
+                    "record": "benchmark/cache/v1/llm-proficiency/python/unrelated.json",
+                    "work_unit_id": "unrelated-proficiency",
+                    "evaluation": "llm_proficiency",
+                    "changed": ["exact_task_packet_sha256"],
+                }],
+            },
+        )
+        benchmark.json_dump(
+            root / "results/partial_paid_checkpoint_status.json",
+            {
+                "schema_version": 1,
+                "imported_units": [{
+                    "work_unit_id": "unrelated-proficiency",
+                    "restored_paid_calls": 99,
+                }],
+                "restored_paid_calls": 99,
+            },
+        )
+
         plan = production.build_budget_plan(
             root,
             "claude-sonnet-5",
@@ -1300,7 +1345,13 @@ def assert_execution_plan_classifies_cache_decisions() -> None:
         }
         assert unit["id"] in new_ids, plan["execution_decisions"]
         assert plan["expected_paid_api_calls_upper_bound"] > 0, plan
+        assert plan["scope_work_unit_count"] == 1, plan
+        assert plan["cache_hits"] == 0, plan
+        assert plan["cache_misses"] == 1, plan
         assert plan["cache_invalidated_units"] == 0, plan
+        assert plan["invalidated_cache_records"] == [], plan
+        assert plan["partial_paid_restored_calls"] == 0, plan
+        assert plan["partial_paid_resumed_units"] == [], plan
 
         # A real invalidation is classified separately from a first execution.
         status = benchmark.json_load(root / "results/cache_status.json")

@@ -602,6 +602,12 @@ def build_budget_plan(
         raise ProductionRunError(
             "budget plan names unknown work units: " + ", ".join(unknown)
         )
+    scoped_unit_ids = {
+        uid
+        for uid, unit in units.items()
+        if (evaluation is None or unit.get("evaluation") == evaluation)
+        and (not selected or uid in selected)
+    }
 
     cache_status_path = root / "results/cache_status.json"
     cache_status = (
@@ -612,6 +618,15 @@ def build_budget_plan(
     cache_hits = cache_status.get("hits", {}) or {}
     cache_misses = cache_status.get("misses", {}) or {}
     cache_invalidated = cache_status.get("invalidated", {}) or {}
+    scoped_cache_hits = {
+        uid: row for uid, row in cache_hits.items() if uid in scoped_unit_ids
+    }
+    scoped_cache_misses = {
+        uid: row for uid, row in cache_misses.items() if uid in scoped_unit_ids
+    }
+    scoped_cache_invalidated = {
+        uid: row for uid, row in cache_invalidated.items() if uid in scoped_unit_ids
+    }
 
     cache_impact_path = root / "results/cache_impact.json"
     cache_impact = (
@@ -630,6 +645,22 @@ def build_budget_plan(
         for row in (partial_status.get("imported_units", []) or [])
         if row.get("work_unit_id")
     }
+    scoped_partial_by_unit = {
+        uid: row for uid, row in partial_by_unit.items() if uid in scoped_unit_ids
+    }
+    scoped_invalidated_records: list[dict[str, Any]] = []
+    for row in list(cache_impact.get("invalid", []) or []):
+        row_uid = str(row.get("work_unit_id") or "")
+        row_evaluation = str(row.get("evaluation") or "")
+        if row_uid:
+            if row_uid in scoped_unit_ids:
+                scoped_invalidated_records.append(row)
+        elif not selected and (
+            evaluation is None or row_evaluation == evaluation
+        ):
+            # Corrupt legacy records may not expose a work-unit id. Include
+            # them only when their recorded evaluation belongs to this plan.
+            scoped_invalidated_records.append(row)
 
     input_price = float(pricing["input_usd_per_million_tokens"])
     output_price = float(pricing["output_usd_per_million_tokens"])
@@ -791,7 +822,7 @@ def build_budget_plan(
             output_tokens = max(output_tokens, 1)
         elif worker_mode == "sandbox-agent":
             restored_paid = int(
-                (partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
+                (scoped_partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
             )
             max_scored_calls = int(unit.get("max_llm_calls", 0) or 0)
             scored_calls = max(0, max_scored_calls - restored_paid)
@@ -855,7 +886,7 @@ def build_budget_plan(
             "max_attempts": max_attempts,
             "remaining_attempts": remaining_attempts,
             "restored_paid_calls": int(
-                (partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
+                (scoped_partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
             ),
             "planned_calls_estimate": planned_calls,
             "calls_upper_bound": calls,
@@ -866,10 +897,10 @@ def build_budget_plan(
             "retry_ceiling_uncached_usd": round(retry_ceiling, 6),
         }
         rows.append(row)
-        if uid in partial_by_unit:
+        if uid in scoped_partial_by_unit:
             decisions["partial_paid_resume"].append({
                 **row,
-                "checkpoint": partial_by_unit[uid],
+                "checkpoint": scoped_partial_by_unit[uid],
             })
 
         miss = cache_misses.get(uid)
@@ -926,14 +957,16 @@ def build_budget_plan(
         "selected_units": sorted(selected),
         "complete_units": complete_units,
         "pending_agent_units": pending_agent_units,
-        "cache_hits": len(cache_hits),
-        "cache_misses": len(cache_misses),
-        "cache_invalidated_units": len(cache_invalidated),
-        "invalidated_cache_records": list(cache_impact.get("invalid", []) or []),
-        "partial_paid_restored_calls": int(
-            partial_status.get("restored_paid_calls", 0) or 0
+        "scope_work_unit_count": len(scoped_unit_ids),
+        "cache_hits": len(scoped_cache_hits),
+        "cache_misses": len(scoped_cache_misses),
+        "cache_invalidated_units": len(scoped_cache_invalidated),
+        "invalidated_cache_records": scoped_invalidated_records,
+        "partial_paid_restored_calls": sum(
+            int(row.get("restored_paid_calls", 0) or 0)
+            for row in scoped_partial_by_unit.values()
         ),
-        "partial_paid_resumed_units": sorted(partial_by_unit),
+        "partial_paid_resumed_units": sorted(scoped_partial_by_unit),
         "estimated_uncached_usd": round(total_estimate, 6),
         "retry_ceiling_uncached_usd": round(retry_ceiling_total, 6),
         "planned_paid_api_calls_estimate": planned_calls_estimate,

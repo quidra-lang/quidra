@@ -1457,6 +1457,13 @@ def assert_ecosystem_snapshot_recertifies_under_current_validator() -> None:
         source_in_workspace.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_from_repo, source_in_workspace)
 
+        # Copying the trusted snapshot/source changes the isolated cache tree.
+        # Refresh the frozen cache identity before any helper that asserts
+        # template integrity.
+        run = benchmark.json_load(root / "run.json")
+        run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
+        benchmark.json_dump(root / "run.json", run)
+
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
         pair = benchmark.cache_fingerprint(root, unit, task)

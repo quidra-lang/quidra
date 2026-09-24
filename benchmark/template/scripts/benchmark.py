@@ -7197,7 +7197,8 @@ def materialize_legacy_semantic_owner_runner_attestation(
 def _semantic_owner_legacy_metadata(
     root: Path, language: str
 ) -> dict[str, Any] | None:
-    manifest = json_load(root / "work" / "root" / "manifest.json")
+    manifest_path = root / "work" / "root" / "manifest.json"
+    manifest = json_load(manifest_path) if manifest_path.is_file() else {}
     for unit in manifest.get("work_units", []):
         if (
             unit.get("evaluation") != "semantic_compression"

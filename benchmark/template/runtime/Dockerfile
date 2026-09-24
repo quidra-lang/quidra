@@ -31,6 +31,7 @@ RUN set -e; \
       if apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
         ca-certificates curl unzip xz-utils tar git make strace \
         python3 python3-venv \
+        libncurses6 libpython3-dev libsqlite3-0 libxml2 tzdata \
         build-essential pkg-config ninja-build cmake \
         clang-${CLANG_MAJOR} lld-${CLANG_MAJOR} llvm-${CLANG_MAJOR}-dev llvm-${CLANG_MAJOR} \
         libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev \
@@ -101,19 +102,10 @@ ARG TYPESCRIPT_PIN
 ARG SWIFT_PIN
 ARG ZIG_PIN
 
-# Swift's Linux runtime needs a few shared libraries beyond the base set.
-RUN set -e; \
-    for attempt in 1 2 3; do \
-      rm -rf /var/lib/apt/lists/*; \
-      apt-get -o Acquire::Retries=3 update; \
-      if apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
-        libncurses6 libpython3-dev libsqlite3-0 libxml2 tzdata; then \
-        break; \
-      fi; \
-      if [ "$attempt" -eq 3 ]; then exit 1; fi; \
-      sleep 3; \
-    done; \
-    rm -rf /var/lib/apt/lists/*
+# Swift's Linux runtime dependencies are installed in the base transaction above.
+# Keep them in that single apt transaction: splitting libpython3-dev into a later
+# layer can race Ubuntu mirror publication and leave libexpat1/libexpat1-dev at
+# different security revisions even though both package sets are individually valid.
 
 # Keep the install and verification phases on exactly the same toolchain
 # environment. In particular rustc is a rustup proxy and needs RUSTUP_HOME

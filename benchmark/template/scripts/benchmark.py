@@ -5334,7 +5334,9 @@ def project_semantic_consumer_recertification(
         if isinstance(owner_meta, dict) and str(owner_meta.get("source_run_id") or "") == source_run:
             evidence["legacy_fragment_equivalence"] = {
                 "schema_version": 1,
-                "source_run_id": source_run,
+                "source_run_id": density_run,
+                "source_record": density_rel.as_posix(),
+                "source_record_sha256": sha256_file(density_path),
                 "canonical_fragment_catalog_sha256": digest,
                 "policy": (
                     "The historical metric shard and canonical owner came from "
@@ -5519,12 +5521,64 @@ def _legacy_sc_first_text(node: Any, keys: tuple[str, ...]) -> str:
     return found[0] if found else ""
 
 
+LEGACY_SC_SOURCE_SNAPSHOTS: dict[str, str] = {
+    "2026-09-22-56f2c65-gh3": "56f2c65cf938edce1de6f038148cf660eba9dd2b",
+    "2026-09-23-402117e-gh11": "402117e2d4a15ca96ea92fa2a911a10e6ae35bf2",
+    "2026-09-23-1231af5-gh12": "1231af5b6bdb6e525a303e2d79307d016f3bcc36",
+    "2026-09-23-fce5cfa-gh16": "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+    "2026-09-23-61f50c1-gh22": "61f50c1a8c1518f6d6abcb9b1468e4a9e0aa0610",
+}
+
+
+def _normalize_sc_evaluation_spec_hash_aliases(
+    hashes: dict[str, Any],
+) -> dict[str, Any]:
+    normalized = dict(hashes)
+    legacy = normalized.get("evaluation_spec")
+    current = normalized.get("evaluation_spec_sections")
+    present = [value for value in (legacy, current) if value is not None]
+    if not present:
+        return normalized
+    if not all(
+        isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
+        for value in present
+    ):
+        return normalized
+    if legacy is not None and current is not None and legacy != current:
+        return normalized
+    digest = current if current is not None else legacy
+    normalized.pop("evaluation_spec", None)
+    normalized.pop("evaluation_spec_sections", None)
+    normalized["evaluation_spec_sections"] = digest
+    return normalized
+
+
+def _legacy_sc_shared_experiment_identity(
+    record: dict[str, Any],
+) -> dict[str, Any]:
+    payload = json.loads(json.dumps(record.get("fingerprint_payload") or {}))
+    if str(payload.get("evaluation") or "") != "semantic_compression":
+        return {}
+    for field in (
+        "work_unit_id",
+        "requirement_ids",
+        "exact_task_packet_sha256",
+        "validator_contract",
+    ):
+        payload.pop(field, None)
+    payload["unit_input_hashes"] = _normalize_sc_evaluation_spec_hash_aliases(
+        dict(payload.get("unit_input_hashes") or {})
+    )
+    return payload
+
+
 def _legacy_sc_find_source_record(
     root: Path,
     language: str,
     work_unit_prefix: str,
     *,
     run_id: str | None = None,
+    experiment_identity: dict[str, Any] | None = None,
 ) -> tuple[Path | None, dict[str, Any] | None]:
     directory = (
         root / "cache" / "v1" / "semantic-compression" / slug_id(language)
@@ -5539,6 +5593,12 @@ def _legacy_sc_find_source_record(
             continue
         if _cache_record_self_integrity_problem(record):
             continue
+        certification = record.get("certification") or {}
+        if (
+            certification.get("unit_complete") is not True
+            or certification.get("validator_pass") is not True
+        ):
+            continue
         if str(record.get("evaluation") or "") != "semantic_compression":
             continue
         if list(record.get("assigned_languages") or []) != [language]:
@@ -5549,6 +5609,12 @@ def _legacy_sc_find_source_record(
             continue
         source_run = str(provenance.get("run_id") or "")
         if run_id is not None and source_run != run_id:
+            continue
+        if (
+            experiment_identity is not None
+            and _legacy_sc_shared_experiment_identity(record)
+            != experiment_identity
+        ):
             continue
         matches.append((source_run, path.name, path, record))
     if not matches:
@@ -5696,14 +5762,31 @@ def project_semantic_owner_recertification(
         return None, "legacy Semantic Compression owner must be language-scoped"
     language = assigned[0]
     source_run = str((record.get("provenance") or {}).get("run_id") or "")
+    experiment_identity = _legacy_sc_shared_experiment_identity(record)
     density_path, density_record = _legacy_sc_find_source_record(
-        root, language, "sc-metrics-local--part-1--", run_id=source_run
+        root,
+        language,
+        "sc-metrics-local--part-1--",
+        run_id=source_run,
+        experiment_identity=experiment_identity,
     )
+    density_source_selection = "same-run"
+    if density_path is None or density_record is None:
+        density_path, density_record = _legacy_sc_find_source_record(
+            root,
+            language,
+            "sc-metrics-local--part-1--",
+            experiment_identity=experiment_identity,
+        )
+        density_source_selection = "cross-run-scientific-identity"
     if density_path is None or density_record is None:
         return None, (
-            f"{unit.get('id')}: no same-run legacy Semantic Density record exists "
-            "to recover exact canonical fragments"
+            f"{unit.get('id')}: no certified legacy Semantic Density record has "
+            "the same scientific experiment identity as the owner"
         )
+    density_run = str(
+        (density_record.get("provenance") or {}).get("run_id") or ""
+    )
 
     matrix = json_load(
         root / "template" / "methodology-assets" / "semantic_compression"
@@ -5849,15 +5932,26 @@ def project_semantic_owner_recertification(
     evidence = dict(result.get("evidence") or {})
     evidence["canonical_fragments"] = catalog
     evidence["canonical_verification"] = verification
-    source_snapshot = {
-        "2026-09-23-fce5cfa-gh16":
-            "fce5cfa731cbf735dca4200257d4c54e084aacc4",
-    }.get(source_run)
+    source_snapshot = LEGACY_SC_SOURCE_SNAPSHOTS.get(source_run)
+    density_snapshot = LEGACY_SC_SOURCE_SNAPSHOTS.get(density_run)
     if source_snapshot is None:
         return None, (
             f"{unit.get('id')}: legacy source run is not an approved "
             "Semantic Compression recertification snapshot"
         )
+    if density_snapshot is None:
+        return None, (
+            f"{unit.get('id')}: legacy density run is not an approved "
+            "Semantic Compression recertification snapshot"
+        )
+    scientific_identity_sha256 = sha256_bytes(
+        json.dumps(
+            experiment_identity,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
     current_rubric_path = (
         root / "template" / "methodology-assets" / "semantic_compression"
         / "capability_universe.json"
@@ -5873,8 +5967,12 @@ def project_semantic_owner_recertification(
         "source_run_id": source_run,
         "source_owner_record": source_rel.as_posix(),
         "source_owner_record_sha256": source_hash,
+        "source_density_run_id": density_run,
+        "source_density_snapshot_commit": density_snapshot,
         "source_density_record": density_rel.as_posix(),
         "source_density_record_sha256": density_hash,
+        "density_source_selection": density_source_selection,
+        "scientific_identity_sha256": scientific_identity_sha256,
         "canonical_catalog_sha256": catalog_digest,
         "support_re_adjudications": {
             probe_id: dict(value)
@@ -7701,6 +7799,8 @@ def _validator_recertification_payload(
         normalized.pop(str(field), None)
 
     hashes = dict(normalized.get("unit_input_hashes") or {})
+    if str(normalized.get("evaluation") or "") == "semantic_compression":
+        hashes = _normalize_sc_evaluation_spec_hash_aliases(hashes)
     for field in cfg.get("ignored_unit_input_hashes", []):
         hashes.pop(str(field), None)
     normalized["unit_input_hashes"] = hashes

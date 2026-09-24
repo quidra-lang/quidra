@@ -1730,6 +1730,55 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
             )
         )
 
+
+def assert_semantic_legacy_full_hash_projection_is_explicit() -> None:
+    """Only reviewed historical whole-file hashes may become current SC projections."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        plan = benchmark.json_load(
+            root / "template/config/work_plan_templates.json"
+        )
+        owner = next(
+            unit
+            for unit in plan["evaluations"]["semantic_compression"]["units"]
+            if unit["id"] == "sc-metrics-hidden-coverage--part-2"
+        )
+        expected = {
+            "primary_config": benchmark.primary_config_projection_sha256(
+                root, "semantic_compression"
+            ),
+            "evaluation_spec_sections":
+                benchmark.evaluation_spec_projection_sha256(
+                    root,
+                    "semantic_compression",
+                    owner["prompt_sections"],
+                ),
+        }
+        legacy = {
+            "primary_config":
+                "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9",
+            "evaluation_spec":
+                "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+        }
+        assert (
+            benchmark._normalize_sc_evaluation_spec_hash_aliases(legacy)
+            == expected
+        )
+
+        unknown_spec = dict(legacy)
+        unknown_spec["evaluation_spec"] = "0" * 64
+        assert (
+            benchmark._normalize_sc_evaluation_spec_hash_aliases(unknown_spec)
+            != expected
+        )
+        unknown_primary = dict(legacy)
+        unknown_primary["primary_config"] = "1" * 64
+        assert (
+            benchmark._normalize_sc_evaluation_spec_hash_aliases(unknown_primary)
+            != expected
+        )
+
+
 def assert_semantic_owner_cross_run_density_requires_exact_experiment_identity() -> None:
     """Cross-run density reuse requires an identical shared SC experiment."""
     with tempfile.TemporaryDirectory() as td:
@@ -2249,6 +2298,7 @@ def main() -> None:
     assert_evaluation_scoped_primary_cache()
     assert_ecosystem_snapshot_recertifies_under_current_validator()
     assert_semantic_validator_recertification_is_narrow()
+    assert_semantic_legacy_full_hash_projection_is_explicit()
     assert_semantic_owner_cross_run_density_requires_exact_experiment_identity()
     assert_semantic_recertification_requires_exact_canonical_fragments()
     assert_budget_plan_excludes_complete_units()

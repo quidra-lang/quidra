@@ -5579,23 +5579,59 @@ LEGACY_SC_SOURCE_SNAPSHOTS: dict[str, str] = {
 }
 
 
+LEGACY_SC_INPUT_HASH_PROJECTIONS: dict[str, dict[str, str]] = {
+    # Explicit one-time projections proved from the approved retained paid
+    # snapshots. The source digest is the historical whole-file SHA-256; the
+    # target digest is the current Semantic Compression-visible projection of
+    # that exact source. Unknown digests are never rewritten or ignored.
+    "primary_config": {
+        "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9":
+            "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819",
+    },
+    "evaluation_spec": {
+        "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92":
+            "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+    },
+}
+
+
 def _normalize_sc_evaluation_spec_hash_aliases(
     hashes: dict[str, Any],
 ) -> dict[str, Any]:
+    """Normalize only reviewed legacy SC whole-file -> scoped projections."""
     normalized = dict(hashes)
+
+    primary = normalized.get("primary_config")
+    if isinstance(primary, str):
+        normalized["primary_config"] = (
+            LEGACY_SC_INPUT_HASH_PROJECTIONS["primary_config"].get(
+                primary, primary
+            )
+        )
+
     legacy = normalized.get("evaluation_spec")
     current = normalized.get("evaluation_spec_sections")
-    present = [value for value in (legacy, current) if value is not None]
-    if not present:
+    if legacy is None:
         return normalized
-    if not all(
-        isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
-        for value in present
-    ):
+    if not isinstance(legacy, str) or not re.fullmatch(r"[0-9a-f]{64}", legacy):
         return normalized
-    if legacy is not None and current is not None and legacy != current:
-        return normalized
-    digest = current if current is not None else legacy
+
+    projected_legacy = LEGACY_SC_INPUT_HASH_PROJECTIONS[
+        "evaluation_spec"
+    ].get(legacy, legacy)
+    if current is not None:
+        if (
+            not isinstance(current, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", current)
+            or current != projected_legacy
+        ):
+            # Conflicting declarations stay distinct and therefore fail the
+            # fingerprint compatibility comparison.
+            return normalized
+        digest = current
+    else:
+        digest = projected_legacy
+
     normalized.pop("evaluation_spec", None)
     normalized.pop("evaluation_spec_sections", None)
     normalized["evaluation_spec_sections"] = digest
@@ -5778,6 +5814,12 @@ def validate_legacy_canonical_fragment_recertification(
     if metadata.get("scientific_identity_sha256") != identity_sha:
         raise BenchmarkError(
             "legacy Semantic Compression scientific identity hash drifted"
+        )
+    if metadata.get("migration_rule") != "semantic-legacy-llm-recertification":
+        raise BenchmarkError("legacy Semantic Compression migration rule drifted")
+    if metadata.get("migration_rule_version") != CACHE_MIGRATION_RULE_VERSION:
+        raise BenchmarkError(
+            "legacy Semantic Compression migration rule version drifted"
         )
     selection = str(metadata.get("density_source_selection") or "")
     owner_run = str(metadata.get("source_run_id") or "")
@@ -6138,6 +6180,8 @@ def project_semantic_owner_recertification(
         "density_source_selection": density_source_selection,
         "scientific_identity_sha256": scientific_identity_sha256,
         "canonical_catalog_sha256": catalog_digest,
+        "migration_rule": "semantic-legacy-llm-recertification",
+        "migration_rule_version": CACHE_MIGRATION_RULE_VERSION,
         "support_re_adjudications": {
             probe_id: dict(value)
             for probe_id, value in sorted(
@@ -6147,8 +6191,9 @@ def project_semantic_owner_recertification(
         "policy": (
             "Support judgments are recovered from the preserved paid Capability "
             "Coverage record and re-checked against the current rubric. Fragments "
-            "come from the same paid run's Semantic Density evidence, with only the "
-            "small reviewed fragment-override table filling historical omissions. "
+            "come from the same scientific experiment's Semantic Density evidence (same-run "
+            "preferred; cross-run only after exact shared-identity proof), with only "
+            "the small reviewed fragment-override table filling historical omissions. "
             "Current trusted runtime facts own F20.P1 for Python/Go/Java/Kotlin. "
             "This is legacy LLM recertification and never claims that the historical "
             "run mechanically compiled or executed these reconstructed fixtures."
@@ -8049,6 +8094,10 @@ def find_validator_recertifiable_cache_record(
         old = record.get("fingerprint_payload") or {}
         if str(old.get("work_unit_id") or "") != str(unit.get("id") or ""):
             continue
+        if evaluation == "semantic_compression":
+            source_run = str((record.get("provenance") or {}).get("run_id") or "")
+            if source_run not in LEGACY_SC_SOURCE_SNAPSHOTS:
+                continue
         old_epoch = str(old.get("cache_epoch") or "")
         if old_epoch == current_epoch or old_epoch not in priority:
             continue
@@ -8520,8 +8569,9 @@ CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
     },
     "semantic-legacy-owner-recertification": {
         "reason": (
-            "Preserved paid Semantic Compression support judgments and same-run "
-            "raw fragments were reconstructed into the current canonical owner "
+            "Preserved paid Semantic Compression support judgments and scientifically "
+            "identical raw fragments (same-run preferred) were reconstructed into "
+            "the current canonical owner "
             "schema. Exact source bytes are retained and the complete current "
             "validator re-checks the reconstructed catalog."
         ),
@@ -8532,8 +8582,8 @@ CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
     },
     "semantic-legacy-consumer-recertification": {
         "reason": (
-            "A preserved paid Semantic Compression metric shard from the same "
-            "run as the recertified owner was rebound to the current canonical "
+            "A preserved paid Semantic Compression metric shard with the same scientific "
+            "experiment identity as the recertified owner was rebound to the current canonical "
             "catalog. Explicit legacy fragments, when present, matched exactly; "
             "the current metric validator re-checks the result."
         ),

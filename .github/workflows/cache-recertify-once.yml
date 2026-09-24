@@ -1,6 +1,7 @@
 name: cache-recertify-once
 
 on:
+  workflow_dispatch:
   push:
     branches: [develop]
     paths:

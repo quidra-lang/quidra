@@ -1211,7 +1211,7 @@ For LLM Proficiency, both the Primary allocation and every initial scored
 prompt are enforced by the trusted runtime. Start every ID below exactly once
 before finalizing; any other trial ID is rejected before it can spend a scored
 call. Do NOT author an initial prompt. Use
-`{"action":"trial_start","trial_id":"<id>"}` (or batch entries containing only
+`{{"action":"trial_start","trial_id":"<id>"}}` (or batch entries containing only
 `trial_id`). The runtime inserts the frozen workload/scenario prompt. A custom
 prompt is rejected before inference.
 

@@ -1,0 +1,121 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "compatibility_migration": "semantic-probe-from-current-owner",
+    "current_validator_revalidated": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "1d0839f52c3b6a02b19f08bf5d59c44e4c7712ef40bbdc09521f8602257be6b5",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "ce1b3cdfca090b230905b956717300163ddf0d059ec35dd85d816c2be7a4f0bc",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/typescript--f14-p2.json": "af504db28c83e35fd0e904a08a5327795cf92bc4147aafe45060184385fb8b00"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f14-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--typescript--f14-p2",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
+    "migration_rule": "semantic-probe-from-current-owner",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186",
+    "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
+    "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
+    "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "ce1b3cdfca090b230905b956717300163ddf0d059ec35dd85d816c2be7a4f0bc",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-canonical-fragment--typescript--f14-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F14.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json#F14.P2",
+          "fragment": "let area: number;\nswitch (s.kind) {\n  case \"circle\": area = 3.141592653589793 * s.r * s.r; break;\n  case \"rect\": area = s.w * s.h; break;\n}\nreturn area;",
+          "justification": "The retained discriminated-union switch delivers every numbered requirement with no default arm and computes both Circle and Rect areas. Compiler-enforced exhaustiveness is explicitly an OBSERVATION TARGET scored by B/D, not a Capability Coverage support requirement, so the legacy PARTIAL/P-c judgment double-counted determinacy.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F14.P2": {
+          "canonical_fragment_sha256": "3a54d0417a9c5e497de6d7eb380951812f89d80cdd7a77b10eccbc0be85f433a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/typescript/adade02e7ddb150eeb42e9efd9ea777625c989b83c22819c4996fd318430886b.json",
+          "source_record_sha256": "cf0893eefa36d727e65cb40b78eb66d4945d5c861577b049497c13c1278fea95",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "probe_recertification": {
+        "language": "TypeScript",
+        "mode": "probe-from-current-certified-language-owner",
+        "probe_id": "F14.P2",
+        "schema_version": 1,
+        "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
+        "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
+        "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f14-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "f19b99e18f869b51c013e2779b71ff96d56b9e58216e0966ef9dc5e173c07ea2",
+  "schema_version": 1
+}

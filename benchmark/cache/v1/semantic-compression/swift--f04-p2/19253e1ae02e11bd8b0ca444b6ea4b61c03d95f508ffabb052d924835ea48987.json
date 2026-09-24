@@ -1,0 +1,120 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "compatibility_migration": "semantic-probe-from-current-owner",
+    "current_validator_revalidated": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "19253e1ae02e11bd8b0ca444b6ea4b61c03d95f508ffabb052d924835ea48987",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "6ca401dda8128ec7941ecfdeee5d7a8194883ef01ed48f7cb7eb8b8f1fc304c4",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/swift--f04-p2.json": "a40ef09629d04f4b71aa5bfe3a05412c34a6485d3041b2d716eb15afe753a9f0"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f04-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--swift--f04-p2",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
+    "migration_rule": "semantic-probe-from-current-owner",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8",
+    "source_record": "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
+    "source_record_sha256": "a83a1fac2b66451a7c8aa7255bd8ee3d1f2bb6c15d5c2d8c3099b9d734164943",
+    "source_result_sha256": "6ed5cdb79513b4f83b539dda7e842742badcf57d1f1bb522dcabb19dc1662678",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "6ca401dda8128ec7941ecfdeee5d7a8194883ef01ed48f7cb7eb8b8f1fc304c4",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-canonical-fragment--swift--f04-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F04.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F04.P2",
+          "fragment": "let window = xs[0...]\nreturn window[0]",
+          "justification": "ArraySlice (xs[1...3] or a slicing view) shares storage with the original Array via copy-on-write without an eager copy; window[0]... reads without copying.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F04.P2": {
+          "canonical_fragment_sha256": "5d04e4a0748e509581d96c7408ebb68361a0cd5cb52d8ca5c27691215b865e16",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "probe_recertification": {
+        "language": "Swift",
+        "mode": "probe-from-current-certified-language-owner",
+        "probe_id": "F04.P2",
+        "schema_version": 1,
+        "source_record": "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
+        "source_record_sha256": "a83a1fac2b66451a7c8aa7255bd8ee3d1f2bb6c15d5c2d8c3099b9d734164943",
+        "source_result_sha256": "6ed5cdb79513b4f83b539dda7e842742badcf57d1f1bb522dcabb19dc1662678"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f04-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "da3091e5c456be578bec0e2d7c004dc91543d899d379c17c3145559afd7ed98f",
+  "schema_version": 1
+}

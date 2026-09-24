@@ -1,0 +1,178 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "compatibility_migration": "semantic-support-from-current-catalog",
+    "current_validator_revalidated": true,
+    "semantic_derived_recertification_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "f822bc3c4d828905043c4acb25631b3eced0fcb4024248546929196313ba71c1",
+  "fingerprint_payload": {
+    "assigned_languages": [],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/audit/semantic-compression/support_adjudication_f10-p1.json": "3a943963b3c70416a1a72ab6fdaa86447645f707627d5435860b56e4ba26c5c5"
+    },
+    "requirement_ids": [
+      "annotation.support_adjudication--f10-p1"
+    ],
+    "runtime_toolchain_pins": {},
+    "schema_version": 1,
+    "semantic_evidence_contract": "sc-support-adjudication-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "27d9c247f8c9e5c59a5be3cab63ed35f7e7ed8af2292b71729edd54f68ed2e72",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-support-adjudication:F10.P1"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+    "migration_rule": "semantic-support-from-current-catalog",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+    "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+    "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+    "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "0c48e06e7b3238a244c0d82da1e6ce28712b0ff2ecebdbb3c8b5a4e961fd1ba2",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-support-adjudication--f10-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "legacy_recertification": {
+        "mode": "support-from-current-canonical-probe-cache",
+        "probe_id": "F10.P1",
+        "schema_version": 1,
+        "source_owner_records": [
+          "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+          "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
+          "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
+          "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
+          "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
+          "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
+          "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
+          "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
+          "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
+          "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json"
+        ]
+      }
+    },
+    "requirements": {
+      "annotation.support_adjudication--f10-p1": {
+        "C++": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F10.P1",
+          "fragment": "int small = static_cast<int>(big);\nreturn small;",
+          "justification": "`int32_t small = static_cast<int32_t>(big);` explicit narrowing conversion (rung ii); C++20 `std::in_range<int32_t>(big)` also available for a checked-style guard.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Go": {
+          "citation": "legacy-cache:v1/semantic-compression/go/c3ecb3195839703799bf2201d88434b4c856fe01d4a27e527a5c55209b041de1.json#F10.P1",
+          "fragment": "small := int32(big)\nreturn small",
+          "justification": "small := int32(big) -- Go's ordinary explicit narrowing conversion (rung ii; no checked-conversion stdlib op exists).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Java": {
+          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F10.P1",
+          "fragment": "int small;\ntry { small = Math.toIntExact(big); } catch (ArithmeticException e) { small = 0; }\nreturn small;",
+          "justification": "int small; try { small = Math.toIntExact(big); } catch (ArithmeticException e) { small = 0; } \u2014 Math.toIntExact is the standard checked narrowing operation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Kotlin": {
+          "citation": "legacy-cache:v1/semantic-compression/kotlin/7d29a8f7152b864c5360a63ceb31541d74c54c5eb27d35a9043bd937693a6551.json#F10.P1",
+          "fragment": "val small = big.toInt()\nreturn small",
+          "justification": "val small = big.toInt() \u2014 explicit ordinary narrowing conversion (rung ii); Kotlin stdlib has no checked Long-to-Int conversion returning an optional, so the plain explicit conversion (bit-truncating) is used.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Python": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F10.P1",
+          "fragment": "import ctypes\nsmall = ctypes.c_int32(big).value\nreturn small",
+          "justification": "ctypes.c_int32 is a standard-library signed 32-bit representation and its explicit construction is a standard narrowing conversion. The unchanged preference ladder therefore reaches rung (ii) without a named-substitution exception.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Quidra": {
+          "citation": "numeric-and-bin.md 'Conversion': `int32(big)` is the ordinary explicit narrowing cast; 'Integer narrowing never wraps or clamps' and is deterministically range-checked at runtime (rung ii, frozen checked-mode behavior).",
+          "fragment": "int32 small = int32(big)\nreturn small",
+          "justification": "numeric-and-bin.md 'Conversion': `int32(big)` is the ordinary explicit narrowing cast; 'Integer narrowing never wraps or clamps' and is deterministically range-checked at runtime (rung ii, frozen checked-mode behavior).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Rust": {
+          "citation": "TryFrom<i64> for i32 documentation",
+          "fragment": "let small: i32 = big.try_into().unwrap_or(0);\nsmall",
+          "justification": "TryFrom<i64> for i32 documentation",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Swift": {
+          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F10.P1",
+          "fragment": "let small = Int32(exactly: big) ?? 0\nreturn small",
+          "justification": "let small = Int32(exactly: big) ?? 0 \u2014 rung (i) failable initializer reports out-of-range as nil.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "TypeScript": {
+          "citation": "legacy-cache:v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json#F10.P1",
+          "fragment": "const small = big | 0;\nreturn small;",
+          "justification": "const small = Number(big) | 0; \u2014 explicit narrowing to 32-bit representation via documented ToInt32 bitwise conversion (rung ii); no checked/optional narrowing op exists in stdlib.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Zig": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F10.P1",
+          "fragment": "const small: i32 = std.math.cast(i32, big) orelse 0;",
+          "justification": "std.math.cast(i32, big) returns ?i32 (rung i, checked conversion yielding optional) \u2014 explicit, documented.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "dc43ae1eea926f2794d9a874953b2a4a454920a4d5ba9d1764a0b257c09642b2",
+  "schema_version": 1
+}

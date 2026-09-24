@@ -1,0 +1,182 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "canonical_fragment_catalog_sha256": "8b48c7b91debe95f4d5af8682f5d41fd1d4fcdee04cf8b6ddf353519a4c08c90",
+    "canonical_fragment_equivalence_proved": true,
+    "compatibility_migration": "semantic-legacy-consumer-recertification",
+    "current_validator_revalidated": true,
+    "primary_complete": false,
+    "semantic_legacy_consumer_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "f52d7b65d654cafeed6f925273b35ac17e0982746a800900e39a7593c2687b77",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "10fa21b38094f339c8180f1d801b89626001eef66b36f6e7159b30b37b9fb453",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "eb6479a391dcca58d050516fac0c7859c7d67dc762f7b55561999896e97321ec",
+      "work/audit/semantic-compression/canonical_fragments_kotlin.json": "8b48c7b91debe95f4d5af8682f5d41fd1d4fcdee04cf8b6ddf353519a4c08c90"
+    },
+    "requirement_ids": [
+      "metric.semantic_locality"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "1d441dd9732821c80f95df874c541f4c88d3928af09651abc5d5d5735d67a5e8",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-local--part-2--kotlin",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+    "migration_rule": "semantic-legacy-consumer-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "bcd208a13fedd651611939feb4e935f3510be2af8fe68a29365962fb959068a1",
+    "source_record": "v1/semantic-compression/kotlin/bcd208a13fedd651611939feb4e935f3510be2af8fe68a29365962fb959068a1.json",
+    "source_record_sha256": "8333ccac469d6fb6314794f30a782d80da07f9581328ace80ac653b0d2e48f60",
+    "source_result_sha256": "26805cbb53a3a0421ee143f765d300076b043e9e6cb66332032b31e2881d7865",
+    "transformed_fields": [
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "10fa21b38094f339c8180f1d801b89626001eef66b36f6e7159b30b37b9fb453",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-metrics-local--part-2--kotlin"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragment_catalog_sha256": "8b48c7b91debe95f4d5af8682f5d41fd1d4fcdee04cf8b6ddf353519a4c08c90",
+      "legacy_fragment_equivalence": {
+        "all_explicit_fragments_matched": false,
+        "canonical_fragment_catalog_content_sha256": "2c2b1635a03b78f5ea6486189005fa71aa978f77ed60d355113dcfd3613fbdc5",
+        "canonical_fragment_catalog_sha256": "8b48c7b91debe95f4d5af8682f5d41fd1d4fcdee04cf8b6ddf353519a4c08c90",
+        "dropped_now_none_probes": [
+          "F04.P1",
+          "F05.P2",
+          "F20.P2"
+        ],
+        "proof_mode": "prior-certified-equivalence-with-none-drop",
+        "schema_version": 1,
+        "scientific_identity_sha256": "be5e39e2b6c1ca2317e8543aef4b597d4aa06ceaf2774512227de3ac3f7c46ee",
+        "source_density_record": "v1/semantic-compression/kotlin/de23033b3284cc4a1add3a5e036ac700603d3f5148fd3ba3aeefc04e440182a9.json",
+        "source_density_record_sha256": "7503853a0bdf27a1f6fd8ec3c8c79de7c403a64ccef4c4e5d4b7a2a92aa80428",
+        "source_metric_record": "v1/semantic-compression/kotlin/bcd208a13fedd651611939feb4e935f3510be2af8fe68a29365962fb959068a1.json",
+        "source_metric_record_sha256": "8333ccac469d6fb6314794f30a782d80da07f9581328ace80ac653b0d2e48f60",
+        "source_owner_record": "v1/semantic-compression/kotlin/7d29a8f7152b864c5360a63ceb31541d74c54c5eb27d35a9043bd937693a6551.json",
+        "source_owner_record_sha256": "53c5be00e9dcc716ab28bdf445bcd20453ba766be0232517073bd17091bb13f2",
+        "source_run_id": "2026-09-23-fce5cfa-gh16"
+      },
+      "metric.semantic_locality": {
+        "basis": "single-language (Kotlin) partial computation; common-basis (all-ten-language) figure requires the sibling per-language workers' outputs and is computed by the runner at aggregation time, not by this worker",
+        "basis_size_note": "42 of the 44 frozen probes have a scoreable Kotlin fragment for this metric; F20.P1 and F20.P2 are NONE for Kotlin under the frozen recipe and are excluded from the A-D common-material basis per the interaction_with_quality_metrics rule (unsupported capability effects are captured only through Capability Coverage, not by inflating or deflating locality with a fabricated lookup count).",
+        "basis_size_this_worker": 42,
+        "determinacy_is_not_a_support_criterion_note": "Per capability_universe.json support_rubric, whether a fact is locally recoverable never changes FULL/PARTIAL/NONE support; F20.P1/F20.P2 are excluded here strictly because Kotlin has no fragment (NONE) under the frozen recipe, not because of any locality finding.",
+        "language": "Kotlin",
+        "limitations": "This is a single packet-only worker with no compiler/toolchain access; lookup counts were derived by applying R5/R6 (measured_fragment boundary; 'given'/'declared elsewhere' context counts as a non-local lookup only when a frozen fact requires consulting it) and standard Kotlin/JVM semantics reasoning to each canonical_task and semantic_facts_expected list, rather than by mechanically parsing compiled fragments and a declaration graph. Raw per-probe counts and the citation-bearing NONE justifications for F20.P1/F20.P2 are provided so a downstream auditor can re-derive or challenge each entry against the frozen probe text.",
+        "measurement_unit": "count of required external semantic lookups/declaration-graph hops per probe (callee signature, variable declaration, type declaration, overload set, trait/interface implementation, imported definition, global configuration) needed to resolve the fixed semantic-fact inventory for that probe, counted only for facts actually in the frozen semantic_facts_expected list, excluding any lookup that is merely optional for extra detail",
+        "methodology_basis": "semantic_compression.md section C (Semantic Locality) and capability_universe.json probe set (44 fixed probes)",
+        "normalization_rule_used": "normalized_score = 100 * max(0, 1 - mean_lookups / 5); the divisor 5 is this worker's documented ceiling for a plausible maximum required-lookup count per probe under the frozen 13-fact taxonomy (callee signature + type declaration + overload set + trait impl + imported definition), applied identically to every language so the same divisor would be used for Quidra, Python, C++, Rust, Go, Java, TypeScript, Swift and Zig fragments measured under this same worker family.",
+        "normalized_score_Kotlin": 88.09523809523809,
+        "per_probe_lookup_counts": {
+          "F01.P1": 0,
+          "F01.P2": 0,
+          "F02.P1": 0,
+          "F02.P2": 0,
+          "F03.P1": 1,
+          "F03.P2": 1,
+          "F04.P2": 1,
+          "F04.P3": 0,
+          "F05.P1": 2,
+          "F05.P3": 1,
+          "F06.P1": 0,
+          "F06.P2": 0,
+          "F07.P1": 1,
+          "F07.P2": 1,
+          "F08.P1": 0,
+          "F08.P2": 1,
+          "F09.P1": 1,
+          "F09.P2": 2,
+          "F10.P1": 1,
+          "F10.P2": 1,
+          "F11.P1": 1,
+          "F11.P2": 1,
+          "F12.P1": 0,
+          "F12.P2": 1,
+          "F13.P1": 0,
+          "F13.P2": 1,
+          "F14.P1": 0,
+          "F14.P2": 1,
+          "F14.P3": 2,
+          "F15.P1": 0,
+          "F15.P2": 0,
+          "F15.P3": 0,
+          "F16.P1": 0,
+          "F16.P2": 0,
+          "F17.P1": 0,
+          "F17.P2": 0,
+          "F18.P1": 1,
+          "F18.P2": 1,
+          "F19.P1": 1,
+          "F19.P2": 1,
+          "F20.P1": "excluded_unsupported_no_fragment"
+        },
+        "raw_mean_lookups_per_probe": 0.5952380952380952,
+        "raw_sum_lookups": 25,
+        "unsupported_probes_for_kotlin": {
+          "F20.P1": "Kotlin/JVM has no documented built-in FFI mechanism to call an arbitrary platform C function without an external native shim (JNI requires a separately compiled C/C++ native library, which is a separate toolchain step outside the frozen single-file javac/kotlinc recipe); scored NONE per support rubric N-2, therefore excluded from the Semantic Locality common-basis fragment set for this probe."
+        }
+      }
+    },
+    "requirements": {
+      "metric.semantic_locality": {
+        "Kotlin": 88
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "27a7bd86ea1df44b42aa5d02c618263a3e2c15779e91e576ce2b815a49ab26c6",
+  "schema_version": 1
+}

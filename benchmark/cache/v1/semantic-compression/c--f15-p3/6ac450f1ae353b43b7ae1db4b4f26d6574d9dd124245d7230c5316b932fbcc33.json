@@ -1,0 +1,122 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "compatibility_migration": "semantic-probe-from-current-owner",
+    "current_validator_revalidated": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "6ac450f1ae353b43b7ae1db4b4f26d6574d9dd124245d7230c5316b932fbcc33",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "d8d6a2c3b3ef8750bb1f9642e4822cb79ab08133d518b2f4b49302901e7cf448",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/c--f15-p3.json": "5514ad5e0b8eec01c6f10ef38eb0839288d81b86cd78492b12c66f16298a9569"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f15-p3"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--c--f15-p3",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
+    "migration_rule": "semantic-probe-from-current-owner",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+    "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+    "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+    "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "d8d6a2c3b3ef8750bb1f9642e4822cb79ab08133d518b2f4b49302901e7cf448",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-canonical-fragment--c--f15-p3"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F15.P3": {
+          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F15.P3",
+          "fragment": "struct Named { virtual std::string tag() const = 0; virtual ~Named() = default; };\nstruct A : Named { std::string tag() const override { return \"a\"; } };\nstruct B : Named { std::string tag() const override { return \"b\"; } };\nstd::vector<std::unique_ptr<Named>> items;\nitems.push_back(std::make_unique<A>());\nitems.push_back(std::make_unique<B>());\nstd::string result = items[0]->tag();",
+          "justification": "Abstract `struct Named { virtual std::string tag() const = 0; };`, concrete A/B, `std::vector<std::unique_ptr<Named>> items` holding one of each, `items[0]->tag()` dispatched at runtime via vtable, concrete type not recoverable from the declared element type Named.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F15.P3": {
+          "canonical_fragment_sha256": "df4fb6da11cd72ec025e56dff261e06a1fb73d90dac6cc40cf43bc81a003866a",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "probe_recertification": {
+        "language": "C++",
+        "mode": "probe-from-current-certified-language-owner",
+        "probe_id": "F15.P3",
+        "schema_version": 1,
+        "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+        "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+        "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f15-p3": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "f5f3eb9e2f5c5bb028c5d7f64fde56da0ff2f7ebf7325bc12d9a26fc829547d3",
+  "schema_version": 1
+}

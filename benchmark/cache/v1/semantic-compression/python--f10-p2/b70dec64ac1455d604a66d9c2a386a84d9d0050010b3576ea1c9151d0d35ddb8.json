@@ -1,0 +1,120 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "compatibility_migration": "semantic-probe-from-current-owner",
+    "current_validator_revalidated": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "b70dec64ac1455d604a66d9c2a386a84d9d0050010b3576ea1c9151d0d35ddb8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "b72b5f24fd9160aab3aafd0c028fdaf580d50b3f4176c91aa9f22272702334cd",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/python--f10-p2.json": "f017a54cf15b7ebe25b6178a3a440c076d0518ede8582afa4cc6cf954a8692dd"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f10-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--python--f10-p2",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
+    "migration_rule": "semantic-probe-from-current-owner",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34",
+    "source_record": "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
+    "source_record_sha256": "eeef1f12a3bbe61b7fd0fa3acafd88a92096f9f18de9f0c433bd5850392c8bac",
+    "source_result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "b72b5f24fd9160aab3aafd0c028fdaf580d50b3f4176c91aa9f22272702334cd",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-canonical-fragment--python--f10-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F10.P2": {
+          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F10.P2",
+          "fragment": "sum = i + d",
+          "justification": "i + d triggers Python's implicit int-to-float promotion in ordinary mixed arithmetic.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F10.P2": {
+          "canonical_fragment_sha256": "8c5a9d649d4f33564498b0257d4091d34a39a809f69f5ed7bf45f026dd9c8e67",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
+          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "probe_recertification": {
+        "language": "Python",
+        "mode": "probe-from-current-certified-language-owner",
+        "probe_id": "F10.P2",
+        "schema_version": 1,
+        "source_record": "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
+        "source_record_sha256": "eeef1f12a3bbe61b7fd0fa3acafd88a92096f9f18de9f0c433bd5850392c8bac",
+        "source_result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f10-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "0089f74e382dcc63f57f56958953e2664240c3fd1c2f579bb53bfd20e40c7e28",
+  "schema_version": 1
+}

@@ -1,0 +1,120 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "compatibility_migration": "semantic-probe-from-current-owner",
+    "current_validator_revalidated": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "3582fbbd7fb15d8b57542b015754a172292597dd69f0a5347f3fa428205c8845",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "f8bbd8a35ff749e4d75c07736d318a866614ae133bd3e738446a379767b328cc",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/rust--f14-p3.json": "0e01097d2e0e0f37a460492e362f233b4f948e3399f779efdfe3610b1fcb5759"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f14-p3"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--rust--f14-p3",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
+    "migration_rule": "semantic-probe-from-current-owner",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e",
+    "source_record": "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
+    "source_record_sha256": "35ea3611d4ac415fc9d034cac1f96bb7f5f4c76fd7cd6b985119e830f0db8354",
+    "source_result_sha256": "4a051a695bb96dd74b4344139ff605cbb9826e8953cde8fbab5d4f21ee566651",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "f8bbd8a35ff749e4d75c07736d318a866614ae133bd3e738446a379767b328cc",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-canonical-fragment--rust--f14-p3"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F14.P3": {
+          "citation": "Rust Reference trait objects (dyn Trait); multi-unit recipe frozen for this probe",
+          "fragment": "[shapes.rs] pub trait Shape { fn area(&self) -> f64; } pub struct Circle { pub r: f64 } impl Shape for Circle {...} pub struct Rect {...} impl Shape for Rect {...} [main.rs] struct Tri { b: f64, hh: f64 } impl shapes::Shape for Tri {...} let t: Box<dyn shapes::Shape> = Box::new(Tri { b: 4.0, hh: 3.0 }); t.area()",
+          "justification": "Rust Reference trait objects (dyn Trait); multi-unit recipe frozen for this probe",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F14.P3": {
+          "canonical_fragment_sha256": "910fdf0b50e38caf4cad7863eb82fd67c234cd84ceb5d33a7c0ff1c5909b442e",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
+          "source_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "probe_recertification": {
+        "language": "Rust",
+        "mode": "probe-from-current-certified-language-owner",
+        "probe_id": "F14.P3",
+        "schema_version": 1,
+        "source_record": "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
+        "source_record_sha256": "35ea3611d4ac415fc9d034cac1f96bb7f5f4c76fd7cd6b985119e830f0db8354",
+        "source_result_sha256": "4a051a695bb96dd74b4344139ff605cbb9826e8953cde8fbab5d4f21ee566651"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f14-p3": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "e69532578a2602e979f1ac0f8eb01814f8dd8413ed18f265965fb4f375aad602",
+  "schema_version": 1
+}

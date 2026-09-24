@@ -1,0 +1,308 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "canonical_fragment_catalog_sha256": "0f9beacb5ed0a9fac8b723cc3e8b850f8b5aea9dd658e15cd8b9ac4709694c77",
+    "canonical_fragment_equivalence_proved": true,
+    "compatibility_migration": "semantic-legacy-consumer-recertification",
+    "current_validator_revalidated": true,
+    "primary_complete": false,
+    "semantic_legacy_consumer_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "cfaae7549a234833b4d2065875a64e65b79859490ba7034773fe5c4f6dfc50f7",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "2a991e27c135d926f2735fd417b7979500a3e4ffc6a041ee32452ab58bc259ea",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "eb6479a391dcca58d050516fac0c7859c7d67dc762f7b55561999896e97321ec",
+      "work/audit/semantic-compression/canonical_fragments_swift.json": "0f9beacb5ed0a9fac8b723cc3e8b850f8b5aea9dd658e15cd8b9ac4709694c77"
+    },
+    "requirement_ids": [
+      "metric.semantic_determinacy"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "1d441dd9732821c80f95df874c541f4c88d3928af09651abc5d5d5735d67a5e8",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-local--part-3--swift",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+    "migration_rule": "semantic-legacy-consumer-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d1de822b7f31c1d06b93577df164531914e0b9443dd2d28db2e32d1ad2062428",
+    "source_record": "v1/semantic-compression/swift/d1de822b7f31c1d06b93577df164531914e0b9443dd2d28db2e32d1ad2062428.json",
+    "source_record_sha256": "367f54a02713d555781725096d0f3c0b650a99e24997786d8e12873b32e737e6",
+    "source_result_sha256": "7644a6fb95b23f71d819cbe08554c70605c247775e7dedaef49874152b7185c2",
+    "transformed_fields": [
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "2a991e27c135d926f2735fd417b7979500a3e4ffc6a041ee32452ab58bc259ea",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-metrics-local--part-3--swift"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragment_catalog_sha256": "0f9beacb5ed0a9fac8b723cc3e8b850f8b5aea9dd658e15cd8b9ac4709694c77",
+      "legacy_fragment_equivalence": {
+        "all_explicit_fragments_matched": false,
+        "canonical_fragment_catalog_content_sha256": "f10303fb89af7e886bdc54cb132761d8a43472bbcb4b52bfb76c5545b09ec338",
+        "canonical_fragment_catalog_sha256": "0f9beacb5ed0a9fac8b723cc3e8b850f8b5aea9dd658e15cd8b9ac4709694c77",
+        "dropped_now_none_probes": [],
+        "proof_mode": "shared-experiment-owner-catalog",
+        "schema_version": 1,
+        "scientific_identity_sha256": "d5d4adc59b695318889be140cb6ad813c48dbb2b9e6a2031e90d7f4b6b454b0b",
+        "source_density_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+        "source_density_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+        "source_metric_record": "v1/semantic-compression/swift/d1de822b7f31c1d06b93577df164531914e0b9443dd2d28db2e32d1ad2062428.json",
+        "source_metric_record_sha256": "367f54a02713d555781725096d0f3c0b650a99e24997786d8e12873b32e737e6",
+        "source_owner_record": "v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json",
+        "source_owner_record_sha256": "069a7e177d435045b8e77bb91e1e0acf1cf3d09d4c7ea5cdc0549e5e95f6831c",
+        "source_run_id": "2026-09-23-fce5cfa-gh16"
+      },
+      "metric.semantic_determinacy": {
+        "aggregate": {
+          "mean_log2_Bi": 0.0909090909,
+          "normalization_cap_log2": 3,
+          "normalization_formula": "100 * (1 - mean_log2_Bi / 3), clamped to [0,100]",
+          "normalized_score_Swift": 96.97,
+          "probe_count": 44,
+          "sum_log2_Bi": 4
+        },
+        "basis": "all-44-probes (fixed capability universe); this metric is computed over the frozen probe set independent of FULL/PARTIAL/NONE support level per spec 6.1.3.B, since branching is measured on whatever local surface form exists for the language, including substituted/PARTIAL forms named by R9.",
+        "language": "Swift",
+        "limitations": "This is a single-language (Swift) shard. Cross-language comparability of the reported 0-100 score depends on every other language shard applying the identical cap (log2(8)=3) and formula; that invariant is recorded here for the runner's aggregation/audit step.",
+        "methodology_note": "Per spec 6.1.3.B, raw value is the branching count B_i (materially distinct interpretations compatible with the local surface form alone, before consulting external declarations) for each of the 44 frozen probes, reduced to mean(log2(B_i)). Lower branching is better. This shard covers only Swift. Normalization to 0-100 (100=best/most determinate) uses score = 100 * clamp(1 - mean_log2B / log2(8), 0, 1); the cap log2(8)=3 is drawn from the probe set's own worst-case enumerated outcome family (F05.P1 enumerates up to 6 materially distinct call-site aliasing/mutation outcomes, rounded up to the next power of two, 8, as the documented ceiling for a single probe's branching in this universe). This normalization constant is recorded here for audit and must be applied identically to every language shard measuring this metric so cross-shard aggregation is comparable.",
+        "raw_branching_counts": {
+          "F01.P1": {
+            "B_i": 1,
+            "rationale": "`let n = 7` is an immutable local value binding with inferred Int type; local form alone is fully determinate (value semantics, immutability, initialization all explicit via `let`)."
+          },
+          "F01.P2": {
+            "B_i": 1,
+            "rationale": "`var counter: Int64 = 0` vs `let LIMIT: Int64 = 100` mark mutability unambiguously via keyword choice."
+          },
+          "F02.P1": {
+            "B_i": 1,
+            "rationale": "Swift's definite-initialization analysis is a local, syntactic, deterministic check over the two-way branch; no external lookup changes the reader's conclusion."
+          },
+          "F02.P2": {
+            "B_i": 1,
+            "rationale": "Swift has no zero-cost 'declared but contents unspecified' array literal; the substituted fragment (Array(repeating:count:) or UnsafeMutablePointer.allocate) states its initialization state explicitly and locally."
+          },
+          "F03.P1": {
+            "B_i": 1,
+            "rationale": "`x += 1` on Int32 traps on overflow by Swift's default (checked) arithmetic; behavior is fixed by the operator alone."
+          },
+          "F03.P2": {
+            "B_i": 1,
+            "rationale": "`xs[1] = 42` on an Array bound by `xs` mutates that binding's storage; Swift's value/COW semantics make this locally determinate."
+          },
+          "F04.P1": {
+            "B_i": 2,
+            "rationale": "Swift has no first-class second name aliasing a stack scalar in the same scope; the only standard mechanisms (withUnsafeMutablePointer closure scope vs a class-boxed alias) diverge in whether the alias outlives the call, so two materially different lifetime/aliasing readings remain locally compatible."
+          },
+          "F04.P2": {
+            "B_i": 1,
+            "rationale": "`let window = xs[1...]` (ArraySlice) with `let` fixes non-mutability of the binding and Swift's documented COW slicing guarantees no eager copy."
+          },
+          "F04.P3": {
+            "B_i": 1,
+            "rationale": "`===` is Swift's dedicated reference-identity operator, unambiguous from local form."
+          },
+          "F05.P1": {
+            "B_i": 2,
+            "rationale": "The bare call site `f(x)` does not disclose, without consulting f's parameter type, whether x's element type is a value type (fully copied, no caller-visible effect) or a class/reference type (full aliasing); two materially distinct outcome families remain compatible with the call-site syntax alone."
+          },
+          "F05.P2": {
+            "B_i": 1,
+            "rationale": "Swift's `inout` parameter and `&cell` call-site marker jointly and unambiguously declare writable-alias passing."
+          },
+          "F05.P3": {
+            "B_i": 1,
+            "rationale": "Swift closures capture enclosing locals by reference to the captured variable by default; declared closure syntax is locally determinate."
+          },
+          "F06.P1": {
+            "B_i": 1,
+            "rationale": "Returning an Int element (value type) from `mid` is independent of the source array by Swift's value semantics; no aliasing ambiguity remains."
+          },
+          "F06.P2": {
+            "B_i": 1,
+            "rationale": "Tuple return `(Int, Int)` with tuple-destructuring `let (q, r) = ...` is fully determinate."
+          },
+          "F07.P1": {
+            "B_i": 1,
+            "rationale": "`a * b + c` on Int32 traps on overflow deterministically; standard precedence applies."
+          },
+          "F07.P2": {
+            "B_i": 1,
+            "rationale": "Swift integer division truncates toward zero and `%` follows the dividend's sign; both are fixed language rules, not dependent on external context."
+          },
+          "F08.P1": {
+            "B_i": 1,
+            "rationale": "Using `addingReportingOverflow` (rung i) makes the overflow outcome an explicit, locally visible tuple result."
+          },
+          "F08.P2": {
+            "B_i": 1,
+            "rationale": "An explicit local `b == 0` guard makes the zero-divisor outcome fully determinate at the site."
+          },
+          "F09.P1": {
+            "B_i": 1,
+            "rationale": "Swift's `==` on String is documented to compare Unicode-canonical content equality, not identity; fixed by the operator/type pair alone."
+          },
+          "F09.P2": {
+            "B_i": 1,
+            "rationale": "`xs.sorted(by: >)` explicitly returns a new array (non-mutating) per Swift's documented value-semantics API naming convention (non-`sort` name implies new array)."
+          },
+          "F10.P1": {
+            "B_i": 1,
+            "rationale": "`Int32(exactly: big)` is Swift's explicit checked/optional-returning conversion; local form fixes the out-of-range outcome as nil."
+          },
+          "F10.P2": {
+            "B_i": 1,
+            "rationale": "Swift requires an explicit `Double(i)` conversion before mixed arithmetic; there is no silent implicit promotion, so the site is fully determinate."
+          },
+          "F11.P1": {
+            "B_i": 1,
+            "rationale": "`xs[i]` traps on out-of-range by fixed Array subscript semantics."
+          },
+          "F11.P2": {
+            "B_i": 1,
+            "rationale": "`xs[1..<4]` (ArraySlice) shares storage under Swift's documented COW slicing rule."
+          },
+          "F12.P1": {
+            "B_i": 1,
+            "rationale": "Optional<Int32> and the `??` coalescing operator are both explicit, fixed-semantics constructs."
+          },
+          "F12.P2": {
+            "B_i": 1,
+            "rationale": "`o.map(h)` on Optional is documented to short-circuit on nil without evaluating h; fully determinate."
+          },
+          "F13.P1": {
+            "B_i": 1,
+            "rationale": "`throws` in the declared signature plus `try` propagation at the call site make failure and propagation locally explicit."
+          },
+          "F13.P2": {
+            "B_i": 1,
+            "rationale": "`do { try ... } catch { ... }` bounds the protected region explicitly and locally."
+          },
+          "F14.P1": {
+            "B_i": 1,
+            "rationale": "Swift `enum` is closed by language rule; no external declaration can add a case."
+          },
+          "F14.P2": {
+            "B_i": 1,
+            "rationale": "`switch` over an enum without `default` is exhaustiveness-checked at compile time by the compiler; the local form itself signals this guarantee (a non-exhaustive switch fails to compile)."
+          },
+          "F14.P3": {
+            "B_i": 2,
+            "rationale": "Protocol conformance added in a separate file/module and dispatched through an existential/generic can resolve via static (witness-table) or dynamic (@objc/vtable) dispatch depending on how the abstract type is used; the bare call-through-abstraction site does not by itself disambiguate which dispatch mechanism Swift selects."
+          },
+          "F15.P1": {
+            "B_i": 1,
+            "rationale": "`func head<T>(_ xs: [T]) -> T` states the parametric relationship between argument and result type directly in the declaration."
+          },
+          "F15.P2": {
+            "B_i": 1,
+            "rationale": "`func max_of<T: Comparable>(...)` states the constraint at the declaration; misuse is diagnosed there, not at instantiation."
+          },
+          "F15.P3": {
+            "B_i": 1,
+            "rationale": "`[any Named]` (or `[Named]` protocol-typed array) with dynamic dispatch to `.tag()` is a fixed, documented existential-dispatch mechanism."
+          },
+          "F16.P1": {
+            "B_i": 1,
+            "rationale": "`xs.reduce(0, +)` is a standard, fixed-semantics fold; no ambiguity."
+          },
+          "F16.P2": {
+            "B_i": 2,
+            "rationale": "Swift's Dictionary iteration order is explicitly documented as unspecified/unstable across executions, so the local construct itself is compatible with more than one materially different traversal-order outcome (though the lookup-miss default via `mp[\"b\", default: 0]` is itself determinate)."
+          },
+          "F17.P1": {
+            "B_i": 1,
+            "rationale": "`defer` placed immediately after acquisition fixes the release point locally and covers every exit path including thrown errors."
+          },
+          "F17.P2": {
+            "B_i": 1,
+            "rationale": "`deinit` on a non-reference-cycle class value is deterministic under ARC given a single, non-escaping owner in the local block, matching the probe's construction."
+          },
+          "F18.P1": {
+            "B_i": 1,
+            "rationale": "`import Foundation` (or no import for `print`) plus `print(\"x\")` is fixed, standard-library-documented behavior."
+          },
+          "F18.P2": {
+            "B_i": 1,
+            "rationale": "`public`/`internal` (default) access modifiers are explicit, fixed-meaning keywords enforced by the compiler across module boundaries."
+          },
+          "F19.P1": {
+            "B_i": 1,
+            "rationale": "`async let` / `Task {}` plus `await` produces a single documented join semantics; although the two child tasks may execute on arbitrary threads, the combining read after both awaits is deterministic given no shared mutable state in the probe."
+          },
+          "F19.P2": {
+            "B_i": 1,
+            "rationale": "An `actor`-isolated counter serializes all increments by Swift's documented actor-isolation guarantee, making the race-freedom locally determinate from the `actor` keyword."
+          },
+          "F20.P1": {
+            "B_i": 1,
+            "rationale": "Calling imported C `abs(_:)` via the platform module (Glibc/Darwin) uses Swift's fixed, documented C-interop calling convention."
+          },
+          "F20.P2": {
+            "B_i": 1,
+            "rationale": "`@_cdecl(\"add2\")` is Swift's documented (if underscored/compiler-internal) mechanism for a stable, unmangled, C-ABI exported symbol; its effect is fixed by the attribute itself."
+          }
+        }
+      }
+    },
+    "requirements": {
+      "metric.semantic_determinacy": {
+        "Swift": 97
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "0b1cac3611e0e59905a97903bc8c5f9ff79a7a761e77749be30e7bf2476fee15",
+  "schema_version": 1
+}

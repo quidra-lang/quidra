@@ -1,0 +1,120 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "compatibility_migration": "semantic-probe-from-current-owner",
+    "current_validator_revalidated": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "05d3d89590157bdbae9fe6ca80e12dc6905dee0d99f67a42a00ed435d81a63c8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "51df67937ba7b4ff25176d063e6193afde016ea07279d1c0c88be68581fdd765",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/zig--f08-p1.json": "a4652d85fc3c24739382451ca6fddb247d323ce83d8a73795e2c4a1bc5645168"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f08-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--zig--f08-p1",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
+    "migration_rule": "semantic-probe-from-current-owner",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177",
+    "source_record": "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
+    "source_record_sha256": "f5186ae2446d270530a47c066d4f182ee3c85d3443bf561ee115dc05ac5ea928",
+    "source_result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "51df67937ba7b4ff25176d063e6193afde016ea07279d1c0c88be68581fdd765",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-canonical-fragment--zig--f08-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F08.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F08.P1",
+          "fragment": "const m: i32 = std.math.maxInt(i32);\nconst ov=@addWithOverflow(m,1);\nconst o: i32 = if (ov[1]==1) 0 else ov[0];",
+          "justification": "@addWithOverflow(m, 1) returns a struct with overflow flag (rung akin to (i), substituting 0 on overflow) \u2014 behavior fully determinable from the construct; ReleaseSafe plain `+` traps deterministically as a fallback rung (iv).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F08.P1": {
+          "canonical_fragment_sha256": "cac3918dad20519ebfcd931cf438ce3d89907148ce7427f36b52a7ec9c98a903",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
+          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "probe_recertification": {
+        "language": "Zig",
+        "mode": "probe-from-current-certified-language-owner",
+        "probe_id": "F08.P1",
+        "schema_version": 1,
+        "source_record": "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
+        "source_record_sha256": "f5186ae2446d270530a47c066d4f182ee3c85d3443bf561ee115dc05ac5ea928",
+        "source_result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f08-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "dea36eed2c72de2de45345b5dd17d54fcf9301b9449e7ece5460c67891da8a77",
+  "schema_version": 1
+}

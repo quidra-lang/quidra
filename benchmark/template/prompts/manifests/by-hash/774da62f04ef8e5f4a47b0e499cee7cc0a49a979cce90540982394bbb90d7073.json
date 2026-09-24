@@ -1,0 +1,57 @@
+{
+  "components": [
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 114782,
+      "kind": "task-input:template/methodology-assets/semantic_compression/capability_universe.json",
+      "sha256": "25fe1ff0be667e245256ff08e2b65ed048d4604e3b6fd7436080593317fdec3b"
+    },
+    {
+      "bytes": 4451,
+      "kind": "task-input:template/methodology-assets/semantic_compression/none_capability_evidence.json",
+      "sha256": "6e803850938a0886421a80cff8a61215df0b9328c43a18566983bba23c1f384d"
+    },
+    {
+      "bytes": 365790,
+      "kind": "task-input:template/methodology-assets/semantic_compression/semantic_site_matrix.json",
+      "sha256": "7b7913f75da5a0d36c8e363747d0a658671f548b1a3c4b259f8f99cfc27caaf6"
+    },
+    {
+      "bytes": 27439,
+      "kind": "task-input:work/audit/semantic-compression/canonical_fragments_c.json",
+      "sha256": "dbd2f6ce9412f88fe7eecf0e36bc824fcb9aeddea297831b1a95d87676b7f809"
+    },
+    {
+      "bytes": 3310,
+      "kind": "task",
+      "sha256": "7eea82bdeb268ff0339e10b16d5248ece31c0961e499a2ac2c2a71f5a071ac1c"
+    },
+    {
+      "bytes": 258,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "b6d70daff9a73599d884a50bc848ecf7b0cda1c066a0609d8d9b2cb7cf7912f2"
+    }
+  ],
+  "prompt_sha256": "774da62f04ef8e5f4a47b0e499cee7cc0a49a979cce90540982394bbb90d7073",
+  "rendered_bytes": 532781,
+  "schema_version": 1
+}

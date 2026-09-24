@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 41510,
+      "kind": "task-input:work/root/semantic-probes/swift--f10-p1.json",
+      "sha256": "58d124bcb6bfc0b673ecfb3ee2e247862e38fb0517231527be27de910306ce0a"
+    },
+    {
+      "bytes": 3865,
+      "kind": "task",
+      "sha256": "874c6b4b4a60592e72b2d61c803be77e4b123b0e64d56947000fc6f1f0262d1f"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "a16fe8b2956ab5b737451b441cce6cf65c6dcd289dde0410762f80375185f4ec"
+    }
+  ],
+  "prompt_sha256": "0a09e4cdaa1966110303cb8b3e6d55a9cf6096068de73f89fa0e6f30ff95aaa3",
+  "rendered_bytes": 62394,
+  "schema_version": 1
+}

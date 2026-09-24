@@ -1,0 +1,77 @@
+{
+  "components": [
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 34560,
+      "kind": "task-input:repo/docs/spec/architecture.md",
+      "sha256": "c5a0a4b0c27b55588e85292f5ed30cbbb2056a9af17bb979b18e8c7121a2b2bf"
+    },
+    {
+      "bytes": 20067,
+      "kind": "task-input:repo/docs/spec/diagnostics.md",
+      "sha256": "e9def88bdb9cc30dd5f8b17d0e95d32630b946c803f061bc30093ec457d9b7d6"
+    },
+    {
+      "bytes": 10346,
+      "kind": "task-input:repo/docs/spec/grammar.ebnf",
+      "sha256": "936a203d2441dee09610b26a668c3533d61ba013334f51487e138ada90b4b8d7"
+    },
+    {
+      "bytes": 101509,
+      "kind": "task-input:repo/docs/spec/language.md",
+      "sha256": "8a47a4a1c8effbb686f41f2d7448d8b8fa1d74f8241ac8d3bf7329b9c56e815a"
+    },
+    {
+      "bytes": 25541,
+      "kind": "task-input:repo/docs/spec/llm-guide.md",
+      "sha256": "f783545f873f744f70d0397ee0973b3ef4956addbc8f0ef8878612601d97a872"
+    },
+    {
+      "bytes": 12068,
+      "kind": "task-input:repo/docs/spec/numeric-and-bin.md",
+      "sha256": "a2b0cfbb758b84baec8f7e6efdfcca34448885c65908e3639b094d11c74df15d"
+    },
+    {
+      "bytes": 6431,
+      "kind": "task-input:repo/docs/spec/patch-schema.md",
+      "sha256": "c68eb133b646fdb028510de26b37e560d04605ef51e227c2090ed5f437281cb2"
+    },
+    {
+      "bytes": 41113,
+      "kind": "task-input:work/root/semantic-probes/quidra--f04-p1.json",
+      "sha256": "94ec44917fb11b567fc595a551459dde56226b84d8af87ad44c0f6ca5c99443f"
+    },
+    {
+      "bytes": 3907,
+      "kind": "task",
+      "sha256": "039e49bd0d34ddbfcb2a9c294c2ec743663ed14e32273f0042a79d63cf8930b5"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "9bad408add032fc80165a2ab50655f2ba2e0a8288fcab8a4f78ed35a81315810"
+    }
+  ],
+  "prompt_sha256": "18a675ae2d1e76c3ecc436863a256bdc3b0c10ab247e327fde343490dad8ee87",
+  "rendered_bytes": 272561,
+  "schema_version": 1
+}

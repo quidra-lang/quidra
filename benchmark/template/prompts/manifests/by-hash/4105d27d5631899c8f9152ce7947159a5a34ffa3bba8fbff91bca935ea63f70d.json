@@ -1,0 +1,77 @@
+{
+  "components": [
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 34560,
+      "kind": "task-input:repo/docs/spec/architecture.md",
+      "sha256": "c5a0a4b0c27b55588e85292f5ed30cbbb2056a9af17bb979b18e8c7121a2b2bf"
+    },
+    {
+      "bytes": 20067,
+      "kind": "task-input:repo/docs/spec/diagnostics.md",
+      "sha256": "e9def88bdb9cc30dd5f8b17d0e95d32630b946c803f061bc30093ec457d9b7d6"
+    },
+    {
+      "bytes": 10346,
+      "kind": "task-input:repo/docs/spec/grammar.ebnf",
+      "sha256": "936a203d2441dee09610b26a668c3533d61ba013334f51487e138ada90b4b8d7"
+    },
+    {
+      "bytes": 101509,
+      "kind": "task-input:repo/docs/spec/language.md",
+      "sha256": "8a47a4a1c8effbb686f41f2d7448d8b8fa1d74f8241ac8d3bf7329b9c56e815a"
+    },
+    {
+      "bytes": 25541,
+      "kind": "task-input:repo/docs/spec/llm-guide.md",
+      "sha256": "f783545f873f744f70d0397ee0973b3ef4956addbc8f0ef8878612601d97a872"
+    },
+    {
+      "bytes": 12068,
+      "kind": "task-input:repo/docs/spec/numeric-and-bin.md",
+      "sha256": "a2b0cfbb758b84baec8f7e6efdfcca34448885c65908e3639b094d11c74df15d"
+    },
+    {
+      "bytes": 6431,
+      "kind": "task-input:repo/docs/spec/patch-schema.md",
+      "sha256": "c68eb133b646fdb028510de26b37e560d04605ef51e227c2090ed5f437281cb2"
+    },
+    {
+      "bytes": 42242,
+      "kind": "task-input:work/root/semantic-probes/quidra--f14-p3.json",
+      "sha256": "1cea2da59e9610ee6b84322fa1e664aeedfe816174ba954369fa9fa3d62127ed"
+    },
+    {
+      "bytes": 3907,
+      "kind": "task",
+      "sha256": "90ff55cc4497cb007b16c25d9a189ea7f6acab8d7b24c519b51d69c7e0ab158a"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "d41ae1efddfaeb1bfb332bc8cd844e16562d2fb0626f8b89f3977fef98823712"
+    }
+  ],
+  "prompt_sha256": "4105d27d5631899c8f9152ce7947159a5a34ffa3bba8fbff91bca935ea63f70d",
+  "rendered_bytes": 273690,
+  "schema_version": 1
+}

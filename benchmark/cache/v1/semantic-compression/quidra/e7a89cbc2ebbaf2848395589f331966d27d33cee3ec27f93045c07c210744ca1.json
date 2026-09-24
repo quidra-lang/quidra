@@ -1,0 +1,387 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
+    "canonical_fragment_equivalence_proved": true,
+    "compatibility_migration": "semantic-legacy-consumer-recertification",
+    "current_validator_revalidated": true,
+    "primary_complete": false,
+    "semantic_legacy_consumer_recertified": true,
+    "unit_complete": true,
+    "validator_pass": true,
+    "validator_recertification_candidate": true,
+    "validator_recertification_source_epoch": "2026-09-medium",
+    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "6235be49e91b72294049b2ae7b17c1fa2006ee72",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "8b5548c2f205c85d2631963984e2ce140d28c6dc",
+        "project.toml": "740e2feec8b50a287a2b66f3634276adf31a1001",
+        "quidra.manifest.json": "41e4b800f1da0705b9099a5df891165aa05bcb4e",
+        "src": "9d4efb1251afd04455edae83f1e48736f87fc35a"
+      },
+      "schema_version": 1,
+      "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b"
+    }
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "e7a89cbc2ebbaf2848395589f331966d27d33cee3ec27f93045c07c210744ca1",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "9f85fc3e97589dff12485bc09d877f10b3c0d507d3b65623bf503d969a18558c",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851",
+      "template/methodology-assets/semantic_compression": "eb6479a391dcca58d050516fac0c7859c7d67dc762f7b55561999896e97321ec",
+      "work/audit/semantic-compression/canonical_fragments_quidra.json": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8"
+    },
+    "requirement_ids": [
+      "metric.semantic_determinacy"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "1d441dd9732821c80f95df874c541f4c88d3928af09651abc5d5d5735d67a5e8",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-local--part-3--quidra",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+    "migration_rule": "semantic-legacy-consumer-recertification",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826",
+    "source_record": "v1/semantic-compression/quidra/0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826.json",
+    "source_record_sha256": "6f240f34da8dce06df0828febff205754342a479ef34df4fa6bc8f4e1f9835e0",
+    "source_result_sha256": "6df819694fdf36a7e8e589a5a5c065bbf64afce50746a546b892a94abc11bd41",
+    "transformed_fields": [
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "9f85fc3e97589dff12485bc09d877f10b3c0d507d3b65623bf503d969a18558c",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-metrics-local--part-3--quidra"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "aggregate_computation": {
+        "measured_probe_count": 38,
+        "normalized_score_Quidra": 100,
+        "raw_max_reference": 3.0,
+        "raw_mean_log2_B_i": 0.0,
+        "sum_log2_B_i_over_measured_probes": 0.0
+      },
+      "assigned_languages": [
+        "Quidra"
+      ],
+      "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
+      "excluded_probe_count_for_Quidra": 6,
+      "excluded_probes": [],
+      "gate_status": {
+        "gate_note": "This shard reports only the Quidra column. The runner is responsible for confirming the common-basis comparability gate across all 10 languages before this normalized figure is used in cross-language aggregation, per semantic_compression.md 'support_rubric.interaction_with_quality_metrics'.",
+        "score_requires_comparability_gate": true
+      },
+      "interpretation_caveat": "Every measured Quidra probe fragment yields B_i = 1 because Quidra's design deliberately forces the disambiguating information (mutability, aliasing/authority, initialization, overflow/failure mode, dispatch, ordering guarantee) into the mandatory local surface syntax at each of these sites (explicit const/&, single checked-arithmetic build posture, exhaustive match, monomorphized generics, documented ordering/atomicity guarantees). This is a substantive, citation-backed finding about the specific frozen probe set, not an assumed or default value; six probes where Quidra genuinely lacks the underlying capability (closure capture, array slicing, open extension, runtime abstract dispatch, user-hookable destructors, C-ABI export) are excluded from this mean rather than force-scored, and are instead reflected in Capability Coverage per the frozen na_policy.",
+      "legacy_fragment_equivalence": {
+        "all_explicit_fragments_matched": false,
+        "canonical_fragment_catalog_content_sha256": "00f3195f8f1c8ebb6fdd4781f80d03a3cf2a4e05a8e5ebfe960abe099e96a1c9",
+        "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
+        "dropped_now_none_probes": [
+          "F05.P3",
+          "F09.P2",
+          "F11.P2",
+          "F14.P3",
+          "F15.P3",
+          "F17.P2",
+          "F20.P2"
+        ],
+        "proof_mode": "prior-certified-equivalence-with-none-drop",
+        "schema_version": 1,
+        "scientific_identity_sha256": "e6eec0c01331b0df35bd2e09e517dadc37ed6a77c7f0b27dcb05577ce55963dd",
+        "source_density_record": "v1/semantic-compression/quidra/e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json",
+        "source_density_record_sha256": "1a70edbbaaa3175122678f3dd363e93422d270deae7d92b1b42dce45b04f02f9",
+        "source_metric_record": "v1/semantic-compression/quidra/0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826.json",
+        "source_metric_record_sha256": "6f240f34da8dce06df0828febff205754342a479ef34df4fa6bc8f4e1f9835e0",
+        "source_owner_record": "v1/semantic-compression/quidra/d9bd8e2e4c1131910636313fd1be4fde6ef5cdb3ed2183680f21464b054e2a23.json",
+        "source_owner_record_sha256": "1278fd0036ddfaac720012e09bbe603925a96f8b6645bed680d1f747a6e78d1e",
+        "source_run_id": "2026-09-23-fce5cfa-gh16"
+      },
+      "measured_probe_count_for_Quidra": 38,
+      "methodology_basis": "semantic_compression.md section 6.1.3.B: raw value is mean(log2(B_i)) over the fixed 44 probes, where B_i is the count of materially different interpretations (mutation, aliasing, failure, conversion, dispatch, resource behavior, control flow, representation, or observable-result differences) compatible with the probe's local surface form alone, before consulting external declarations. Lower raw value is better.",
+      "metric_id": "metric.semantic_determinacy",
+      "normalization_rule": {
+        "description": "Frozen before language-specific measurement (common to any language shard). raw = mean(log2(B_i)) taken over the probes for which this language has a measured fragment (FULL or PARTIAL support; probes scored NONE for this language are excluded from the mean, per capability_universe.json interaction_with_quality_metrics, and their absence is instead captured by Capability Coverage). Reference ceiling raw_max = log2(8) = 3.0 bits, representing a probe whose bare local surface form is compatible with up to 8 materially different outcomes (a level actually observed for bare-call-site aliasing/mutation in dynamically-typed or implicit-conversion-heavy languages under this same rubric). normalized_score = 100 * clamp(1 - raw/raw_max, 0, 1).",
+        "formula": "normalized_score = 100 * max(0, min(1, 1 - mean(log2(B_i)) / 3.0))"
+      },
+      "per_probe_branching": [
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`const int n = 7` then produce n. Immutable value binding; Quidra's `const T value` form is a single, fully explicit, non-rebindable value contract (language.md 'Addresses, references, and const authority'); no alternate reading of storage/mutability/type is compatible with the surface form.",
+          "probe_id": "F01.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Module-level `int counter = 0` (mutable) vs a genuine `const int LIMIT = 100` (immutable named constant, distinct keyword). The two declarations are syntactically distinguished by the mandatory `const` keyword; no ambiguity.",
+          "probe_id": "F01.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`int32 v` with no initializer, both branches of an if/else assign it; Quidra's definite-initialization checker statically proves initialization on every continuing path (language.md 'Bindings and definite initialization'). Only one initialization/type outcome is consistent with the checked surface form.",
+          "probe_id": "F02.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`array(16)` yields provably uninitialized per-element storage tracked by a compact bitmap (architecture.md); this is the language's sole uninitialized-bulk-storage form, unambiguous.",
+          "probe_id": "F02.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`x += 1` on `int32` is Quidra's one arithmetic mode: checked, in place, single native build posture (no wrap/trap mode selection exists in Quidra); numeric-and-bin.md guarantees a single deterministic overflow behavior.",
+          "probe_id": "F03.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`xs[1] = 42` is in-place element mutation with runtime bounds checking; arrays have independent value semantics but element assignment through an existing binding is unambiguous in-place mutation (language.md Arrays).",
+          "probe_id": "F03.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`int &port = &slot; port = 9` is Quidra's sole writable-alias form; write-through semantics are explicit and singular (language.md 'Addresses, references, and const authority').",
+          "probe_id": "F04.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`const T[] &window = &xs` is the sole non-copying read-only view form; const-path write rejection is a static, absolute rule, so no alternate write-capable reading survives.",
+          "probe_id": "F04.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`ref.Cell<T>` plus `.same(other)` is the single deliberate opt-in identity-comparison mechanism (language.md 'Explicit reference cells'); ordinary `==` is defined to be structural, so `.same` unambiguously tests allocation identity.",
+          "probe_id": "F04.P3"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Bare `f(x)` call: Quidra's grammar requires an explicit `&` at BOTH the call site and the parameter declaration for any writable or aliasing access ('Reference markers cannot be omitted or supplied to ordinary parameters', architecture.md). Absence of `&` at the call site alone is sufficient, without consulting f's signature, to fix that x is passed as an independent value with copy/value semantics and no retained alias -- collapsing the outcome set the spec 6.1.4.B probe is designed to expose to a single interpretation for this language.",
+          "probe_id": "F05.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`put(&cell)` with `int &value` parameter: presence of `&` at both sites is Quidra's sole writable-alias-passing form; the callee necessarily receives write authority to the same storage. Single interpretation.",
+          "probe_id": "F05.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`mid(xs)` returns `int`, a direct scalar value type; scalars have no storage-sharing representation in Quidra, so the return is unambiguously an independent value with no aliasing to `xs`.",
+          "probe_id": "F06.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Two results returned via a small class value (Quidra has no native tuple type; the class-return form is the single idiomatic multi-result mechanism, per llm-guide.md #26); field access at the call site is unambiguous.",
+          "probe_id": "F06.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`a * b + c` on same-typed `int32` operands: fixed precedence table, single checked-arithmetic mode, no implicit promotion possible (numeric literals aside, operands already typed). Single interpretation.",
+          "probe_id": "F07.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Integer `/`, `%`, and explicit `float(a) / float(b)`: Quidra defines exactly one integer division/remainder behavior and forbids implicit int-to-float widening, so the explicit cast is mandatory and the meaning of each of the three statements is fixed by the language contract alone.",
+          "probe_id": "F07.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`m + 1` at signed-32 max: Quidra has exactly one native execution posture -- Clang -O3 with checked arithmetic never disabled ('Runtime safety remains explicit ... not disabled for speed', architecture.md 'Native execution cost model'); overflow deterministically fails at runtime. No build-mode branch exists to create a second interpretation.",
+          "probe_id": "F08.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`a / b` with dynamically-possibly-zero `b`: DIVIDE_BY_ZERO is a deterministic runtime failure 101 in Quidra's single execution mode; only one outcome is compatible with the bare operator.",
+          "probe_id": "F08.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`s1 == s2` on `string`: Quidra strings compare by content only ('Class, array, and bin equality is value equality ... Strings compare contents', architecture.md); there is no operator overloading and no dynamic dispatch, so identity comparison is not a compatible alternate reading.",
+          "probe_id": "F09.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`int32(big)` explicit cast: Quidra defines integer narrowing as always range-checked, never wrapping or clamping (numeric-and-bin.md 'Conversion'). Exactly one outcome is compatible with the cast syntax.",
+          "probe_id": "F10.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`float(i) + d`: Quidra forbids implicit numeric conversion absolutely, so the explicit `float(i)` is mandatory and its rounding behavior is the single documented IEEE-754 conversion; no implicit-widening alternate reading exists.",
+          "probe_id": "F10.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`xs[i]` with dynamically out-of-range `i`: dynamic arrays are always runtime bounds-checked, deterministic INDEX_BOUNDS failure (diagnostics.md); single outcome.",
+          "probe_id": "F11.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`int | none o = none` plus `match`-based fallback: unions are exhaustively and statically checked, `none` is an explicit distinguished alternative; single interpretation.",
+          "probe_id": "F12.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "No optional-chaining/map combinator is documented for `T | none` in Quidra, so an explicit `match` substitutes (R9/P-a); once written, the match is exhaustive and statically checked, giving a single interpretation of the substitute fragment.",
+          "probe_id": "F12.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`try int.parse(s)` inside a function returning `... | error`: `try` propagation is the language's sole explicit-failure-propagation form (language.md 'Error propagation and match'); single interpretation.",
+          "probe_id": "F13.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`match int.parse(s)` handling `int` and `error` cases locally: exhaustive match is statically checked; single interpretation.",
+          "probe_id": "F13.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`enum Shape: Circle(float) Rect(float,float) ...`: Quidra's named enum is a genuinely closed, per-variant-typed alternative set enforced by the checker (language.md 'Named enums and variants'); single interpretation, FULL support.",
+          "probe_id": "F14.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`match token` over enum variants requires exhaustive coverage with a compile-time MATCH_EXHAUSTIVE diagnostic on any omission; single interpretation.",
+          "probe_id": "F14.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`T head<T>(T[] values)` monomorphized generic function; Quidra generics are monomorphized before ordinary checking with an exact, non-erased declared result type T (language.md 'Generics'); single interpretation.",
+          "probe_id": "F15.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`T max_of<T: ordered>(T a, T b)`: the built-in `ordered` constraint is checked at the generic declaration itself (language.md 'Generics'), giving a single, declaration-site-checked interpretation.",
+          "probe_id": "F15.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "No native fold/sum combinator exists for `int[]` in Quidra's documented stdlib (stats.* operates on tensor, not array); an explicit `for` loop substitutes. The loop's semantics (checked accumulation, in-order traversal) are single-interpretation once written.",
+          "probe_id": "F16.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`map.Map<string,int>` iteration and `.get(\"b\")` on a missing key: insertion order is explicitly guaranteed stable (language.md 'map'), and `.get` returns `V | none` deterministically for a miss; single interpretation for both iteration order and lookup-miss behavior.",
+          "probe_id": "F16.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`file.Handle` release timing is explicitly documented as deterministic at end of lifetime on every exit path including failure, with no defer/manual cleanup required (language.md 'file'); single interpretation of the release point.",
+          "probe_id": "F17.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`print(\"x\")`: `print`/console output are always-visible built-ins requiring no import (standard namespaces are always visible; language.md 'Modules'); single interpretation, no ambiguity about what enters scope from where because nothing is imported.",
+          "probe_id": "F18.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "Quidra has no free-function/module-level privacy keyword ('private is a class-member-only prefix', language.md 'Classes'); a private class method substitutes (P-a). Once substituted, private-method access restriction is an absolute, statically checked rule (architecture.md PRIVATE_MEMBER), giving a single interpretation.",
+          "probe_id": "F18.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`task.all([twenty, twenty_two])` returns results in operation-array order 'independent of completion order' (language.md 'Structured concurrency'), an explicit ordering guarantee; single interpretation.",
+          "probe_id": "F19.P1"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`atomic.Counter.add` is documented as a 'sequentially-consistent checked atomic read-modify-write' (language.md 'Atomic shared state'), a normative race-freedom guarantee quoted directly from the spec; single interpretation.",
+          "probe_id": "F19.P2"
+        },
+        {
+          "B_i": 1,
+          "log2_B_i": 0.0,
+          "note": "`extern int c_abs(int value) = \"llabs\"`: Quidra's FFI declaration form fixes ABI, by-value scalar passing, and calling convention explicitly and exclusively (architecture.md 'C FFI boundary'); single interpretation.",
+          "probe_id": "F20.P1"
+        }
+      ]
+    },
+    "requirements": {
+      "metric.semantic_determinacy": {
+        "Quidra": 100
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "5c305db8016ee9ee1105fc1d2024992f2ddc74acfa8bbdf1ab98e2aa347313a9",
+  "schema_version": 1
+}

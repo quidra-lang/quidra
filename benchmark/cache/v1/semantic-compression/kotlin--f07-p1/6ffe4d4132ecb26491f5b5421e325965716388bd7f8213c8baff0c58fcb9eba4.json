@@ -1,0 +1,122 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "compatibility_migration": "semantic-probe-from-current-owner",
+    "current_validator_revalidated": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "6ffe4d4132ecb26491f5b5421e325965716388bd7f8213c8baff0c58fcb9eba4",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "4d15cfe556f4981ea3c3a3bcbfbda0f90d87d5bafdc5ceb9deca667d830fc672",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/kotlin--f07-p1.json": "756da2843def896a2667a3cd9a123f8927848171f24c130c63f85060b4e66c2d"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f07-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--kotlin--f07-p1",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
+    "migration_rule": "semantic-probe-from-current-owner",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee",
+    "source_record": "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
+    "source_record_sha256": "4730061f5e810a8d5883ed61528797bb63c33db1c6b526c14fedd08d14aefe23",
+    "source_result_sha256": "b1da3fa706b840fce1b06ea5dae1116cb99ca84ac8de719f96886986e82f6d76",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "4d15cfe556f4981ea3c3a3bcbfbda0f90d87d5bafdc5ceb9deca667d830fc672",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-canonical-fragment--kotlin--f07-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F07.P1": {
+          "citation": "legacy-cache:v1/semantic-compression/kotlin/7d29a8f7152b864c5360a63ceb31541d74c54c5eb27d35a9043bd937693a6551.json#F07.P1",
+          "fragment": "val r = a * b + c",
+          "justification": "val r = a * b + c, ordinary operator precedence.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F07.P1": {
+          "canonical_fragment_sha256": "dc502a3f41423b25e602f95906553e1fa6e4152366032cbc1c89e73c96aadffc",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/kotlin/de23033b3284cc4a1add3a5e036ac700603d3f5148fd3ba3aeefc04e440182a9.json",
+          "source_record_sha256": "7503853a0bdf27a1f6fd8ec3c8c79de7c403a64ccef4c4e5d4b7a2a92aa80428",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "probe_recertification": {
+        "language": "Kotlin",
+        "mode": "probe-from-current-certified-language-owner",
+        "probe_id": "F07.P1",
+        "schema_version": 1,
+        "source_record": "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
+        "source_record_sha256": "4730061f5e810a8d5883ed61528797bb63c33db1c6b526c14fedd08d14aefe23",
+        "source_result_sha256": "b1da3fa706b840fce1b06ea5dae1116cb99ca84ac8de719f96886986e82f6d76"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f07-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "ef2185e9227921956381650653f2415d32e997e038d15221cb4c9ca57df62433",
+  "schema_version": 1
+}

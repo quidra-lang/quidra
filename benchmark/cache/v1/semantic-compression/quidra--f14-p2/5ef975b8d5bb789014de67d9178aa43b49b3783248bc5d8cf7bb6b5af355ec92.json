@@ -1,0 +1,135 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "compatibility_migration": "semantic-probe-from-current-owner",
+    "current_validator_revalidated": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "6235be49e91b72294049b2ae7b17c1fa2006ee72",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "8b5548c2f205c85d2631963984e2ce140d28c6dc",
+        "project.toml": "740e2feec8b50a287a2b66f3634276adf31a1001",
+        "quidra.manifest.json": "41e4b800f1da0705b9099a5df891165aa05bcb4e",
+        "src": "9d4efb1251afd04455edae83f1e48736f87fc35a"
+      },
+      "schema_version": 1,
+      "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b"
+    }
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "5ef975b8d5bb789014de67d9178aa43b49b3783248bc5d8cf7bb6b5af355ec92",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "23d4534690e88ad8e63dde85f26777ade8db01ec61d0fae5974492e2fb785a21",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs/spec": "99aead213aa1a526aa891bfd6e5fa099bcbd2385fefef140bb2f7b4fe991255e",
+      "work/root/semantic-probes/quidra--f14-p2.json": "fceb92a6d59f2e03df78ae5101caba76d8c6f26338a263e5ab8b3ce1e9f157a6"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f14-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--quidra--f14-p2",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
+    "migration_rule": "semantic-probe-from-current-owner",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed",
+    "source_record": "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
+    "source_record_sha256": "90cc983fab485ea7878fac4ea911e066c5c339462e2aa2b82bd3e302bf43dd47",
+    "source_result_sha256": "96e18a2c3885847e156b64a354b91d7dadcdafcbc3449bf88631e07113061edc",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "23d4534690e88ad8e63dde85f26777ade8db01ec61d0fae5974492e2fb785a21",
+    "run_id": "cache-recertify-d12749f",
+    "work_unit_id": "sc-canonical-fragment--quidra--f14-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F14.P2": {
+          "citation": "language.md: 'Enum matching is exhaustive' -- match cases must cover every alternative exactly once with no default/catch-all case, and this is a compile-time (MATCH_EXHAUSTIVE) check per diagnostics.md.",
+          "fragment": "float area = 0.0\nmatch s\n    Shape.Circle value\n        area = 3.141592653589793 * value * value\n    Shape.Rect value\n        area = value.w * value.h\nreturn area",
+          "justification": "language.md: 'Enum matching is exhaustive' -- match cases must cover every alternative exactly once with no default/catch-all case, and this is a compile-time (MATCH_EXHAUSTIVE) check per diagnostics.md.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F14.P2": {
+          "canonical_fragment_sha256": "b7f39e3050267d66c6000ca97ca69e2d089a11f11668c783f7b9f30b4ff73f8d",
+          "fragment_origin": "legacy-semantic-density",
+          "mode": "legacy-evidence-recertification",
+          "source_record": "v1/semantic-compression/quidra/e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json",
+          "source_record_sha256": "1a70edbbaaa3175122678f3dd363e93422d270deae7d92b1b42dce45b04f02f9",
+          "source_run_id": "2026-09-23-fce5cfa-gh16"
+        }
+      },
+      "probe_recertification": {
+        "language": "Quidra",
+        "mode": "probe-from-current-certified-language-owner",
+        "probe_id": "F14.P2",
+        "schema_version": 1,
+        "source_record": "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
+        "source_record_sha256": "90cc983fab485ea7878fac4ea911e066c5c339462e2aa2b82bd3e302bf43dd47",
+        "source_result_sha256": "96e18a2c3885847e156b64a354b91d7dadcdafcbc3449bf88631e07113061edc"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f14-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "be8d92eb43f92ac12672bb793d110ba3164ea9f1d3e6f0f555f4cd3ecbb7a2a9",
+  "schema_version": 1
+}

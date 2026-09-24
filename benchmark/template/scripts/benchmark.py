@@ -5427,6 +5427,60 @@ LEGACY_SC_FRAGMENT_OVERRIDES: dict[str, dict[str, str]] = {
 }
 
 
+LEGACY_SC_SUPPORT_OVERRIDES: dict[str, dict[str, dict[str, Any]]] = {
+    "Python": {
+        "F01.P1": {
+            "level": "PARTIAL",
+            "partial_reasons": ["P-c"],
+            "reason": (
+                "Python can bind and return the required value but does not document "
+                "a language-enforced never-reassignable local binding; the missing "
+                "immutability guarantee is therefore PARTIAL under P-c, not P-a."
+            ),
+        },
+        "F01.P2": {
+            "level": "PARTIAL",
+            "partial_reasons": ["P-c"],
+            "reason": (
+                "Python's module-level constant spelling is a documented convention "
+                "rather than an enforced non-reassignability guarantee, so the "
+                "guarantee is PARTIAL under P-c."
+            ),
+        },
+        "F10.P1": {
+            "level": "FULL",
+            "reason": (
+                "ctypes.c_int32 is a standard-library signed 32-bit representation "
+                "and its explicit construction is a standard narrowing conversion. "
+                "The unchanged preference ladder therefore reaches rung (ii) without "
+                "a named-substitution exception."
+            ),
+        },
+    },
+    "Go": {
+        "F04.P2": {
+            "level": "NONE",
+            "none_reason": "N-4",
+            "reason": (
+                "A Go slice is non-copying but not read-only. F04.P2 explicitly "
+                "directs languages without a non-copying read-only view to write no "
+                "fragment, so the old PARTIAL classification is NONE under N-4."
+            ),
+        },
+    },
+    "Zig": {
+        "F08.P2": {
+            "level": "FULL",
+            "reason": (
+                "The unchanged canonical task explicitly makes a local b == 0 guard "
+                "preference rung (ii). The retained guard therefore delivers every "
+                "numbered requirement and is FULL, not a P-a substitution."
+            ),
+        },
+    },
+}
+
+
 def _legacy_sc_codes(node: Any, prefix: str) -> list[str]:
     pattern = re.compile(rf"\b{re.escape(prefix)}-[a-e1-4]\b")
     found: set[str] = set()
@@ -5538,6 +5592,27 @@ def validate_legacy_canonical_fragment_recertification(
         )
     if metadata.get("mode") != "paid-evidence-current-schema-v1":
         raise BenchmarkError("unknown legacy Semantic Compression recertification mode")
+    if metadata.get("recertifier") != "GPT-5.6 Sol":
+        raise BenchmarkError("legacy Semantic Compression recertifier identity drifted")
+    if metadata.get("verdict") != "PASS":
+        raise BenchmarkError("legacy Semantic Compression recertification verdict is not PASS")
+    if metadata.get("current_sc_epoch") != cache_epoch(root, "semantic_compression"):
+        raise BenchmarkError("legacy Semantic Compression epoch drifted")
+    current_rubric_path = (
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "capability_universe.json"
+    )
+    if metadata.get("current_rubric_sha256") != sha256_file(current_rubric_path):
+        raise BenchmarkError("legacy Semantic Compression current rubric hash drifted")
+    expected_source_snapshot = {
+        "2026-09-23-fce5cfa-gh16":
+            "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+    }.get(str(metadata.get("source_run_id") or ""))
+    if (
+        expected_source_snapshot is None
+        or metadata.get("source_snapshot_commit") != expected_source_snapshot
+    ):
+        raise BenchmarkError("legacy Semantic Compression source snapshot drifted")
     expected_digest = _legacy_sc_catalog_digest(catalog)
     if metadata.get("canonical_catalog_sha256") != expected_digest:
         raise BenchmarkError("legacy Semantic Compression canonical catalog hash drifted")
@@ -5663,6 +5738,18 @@ def project_semantic_owner_recertification(
             partial = []
             none_codes = []
 
+        reviewed_override = (
+            (LEGACY_SC_SUPPORT_OVERRIDES.get(language) or {}).get(probe_id) or {}
+        )
+        if reviewed_override:
+            level = str(reviewed_override.get("level") or level).upper()
+            partial = [
+                str(value)
+                for value in (reviewed_override.get("partial_reasons") or [])
+            ]
+            override_none = str(reviewed_override.get("none_reason") or "")
+            none_codes = [override_none] if override_none else []
+
         fragment = None
         fragment_origin = "none"
         if level in {"FULL", "PARTIAL"}:
@@ -5691,9 +5778,11 @@ def project_semantic_owner_recertification(
         if level == "NONE":
             none_reason = none_codes[0] if none_codes else "N-1"
 
-        justification = _legacy_sc_first_text(
-            row, ("justification", "rationale", "note", "notes", "reason", "citation")
-        )
+        justification = str(reviewed_override.get("reason") or "").strip()
+        if not justification:
+            justification = _legacy_sc_first_text(
+                row, ("justification", "rationale", "note", "notes", "reason", "citation")
+            )
         if not justification:
             justification = (
                 "Recovered from the preserved paid Capability Coverage support "
@@ -5760,21 +5849,47 @@ def project_semantic_owner_recertification(
     evidence = dict(result.get("evidence") or {})
     evidence["canonical_fragments"] = catalog
     evidence["canonical_verification"] = verification
+    source_snapshot = {
+        "2026-09-23-fce5cfa-gh16":
+            "fce5cfa731cbf735dca4200257d4c54e084aacc4",
+    }.get(source_run)
+    if source_snapshot is None:
+        return None, (
+            f"{unit.get('id')}: legacy source run is not an approved "
+            "Semantic Compression recertification snapshot"
+        )
+    current_rubric_path = (
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "capability_universe.json"
+    )
     evidence["legacy_recertification"] = {
         "schema_version": 1,
         "mode": "paid-evidence-current-schema-v1",
+        "recertifier": "GPT-5.6 Sol",
+        "verdict": "PASS",
+        "current_sc_epoch": cache_epoch(root, "semantic_compression"),
+        "current_rubric_sha256": sha256_file(current_rubric_path),
+        "source_snapshot_commit": source_snapshot,
         "source_run_id": source_run,
         "source_owner_record": source_rel.as_posix(),
         "source_owner_record_sha256": source_hash,
         "source_density_record": density_rel.as_posix(),
         "source_density_record_sha256": density_hash,
         "canonical_catalog_sha256": catalog_digest,
+        "support_re_adjudications": {
+            probe_id: dict(value)
+            for probe_id, value in sorted(
+                (LEGACY_SC_SUPPORT_OVERRIDES.get(language) or {}).items()
+            )
+        },
         "policy": (
-            "Support judgments are recovered from the paid Capability Coverage "
-            "record. Fragments are recovered from the same paid run's Semantic "
-            "Density record; the small explicit override table fills only "
-            "historically omitted fragments. Current trusted runtime facts own "
-            "F20.P1 for Python/Go/Java/Kotlin."
+            "Support judgments are recovered from the preserved paid Capability "
+            "Coverage record and re-checked against the current rubric. Fragments "
+            "come from the same paid run's Semantic Density evidence, with only the "
+            "small reviewed fragment-override table filling historical omissions. "
+            "Current trusted runtime facts own F20.P1 for Python/Go/Java/Kotlin. "
+            "This is legacy LLM recertification and never claims that the historical "
+            "run mechanically compiled or executed these reconstructed fixtures."
         ),
     }
     result["evidence"] = evidence
@@ -8966,7 +9081,7 @@ def hydrate_certified_cache(
                         if compatible_path is not None and record is not None:
                             certification = record.get("certification") or {}
                             if certification.get("semantic_legacy_owner_recertified"):
-                                compatibility_mode = "semantic-legacy-owner-recertification"
+                                compatibility_mode = "semantic-legacy-llm-recertification"
                             elif certification.get("semantic_legacy_consumer_recertified"):
                                 compatibility_mode = "semantic-legacy-consumer-recertification"
                             else:

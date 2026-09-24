@@ -1683,6 +1683,25 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
         assert "semantic_compression" in policy
         assert "llm_proficiency" not in policy
         assert "validator_contract" in policy["semantic_compression"]["ignored_payload_fields"]
+        assert (
+            "work/root/f20_runtime_facts.json"
+            in policy["semantic_compression"]["ignored_readable_input_hashes"]
+        )
+        with_runtime_facts = json.loads(json.dumps(current_payload))
+        with_runtime_facts["readable_input_content_hashes"] = dict(
+            current_payload["readable_input_content_hashes"]
+        )
+        with_runtime_facts["readable_input_content_hashes"][
+            "work/root/f20_runtime_facts.json"
+        ] = "c" * 64
+        assert (
+            benchmark._validator_recertification_payload(
+                with_runtime_facts, policy["semantic_compression"]
+            )
+            == benchmark._validator_recertification_payload(
+                current_payload, policy["semantic_compression"]
+            )
+        )
 
         changed = json.loads(json.dumps(old_payload))
         changed["model"] = "different-model"

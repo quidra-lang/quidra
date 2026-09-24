@@ -258,6 +258,10 @@ def assert_r9_p_a_scope_is_enforced() -> None:
         benchmark.validate_sc_record_for_probe(
             root, "F02.P2", allowed, context="allowed R9 substitution"
         )
+        benchmark.validate_sc_record_for_probe(
+            root, "F18.P2", allowed, context="allowed F18 private-boundary substitution"
+        )
+        assert "F18.P2" in benchmark.sc_p_a_allowed_probes(root)
 
         forbidden = canonical("PARTIAL", "wrapper()", partial=["P-a"])
         try:

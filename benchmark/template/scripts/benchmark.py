@@ -5170,9 +5170,15 @@ def validate_canonical_fragment_owner_result(
         validate_f20_record_against_runtime_baseline(
             root, language, catalog["F20.P1"]
         )
-    validate_canonical_fragment_verification(
-        root, language, catalog, result.get("evidence") or {}
-    )
+    evidence = result.get("evidence") or {}
+    if isinstance(evidence.get("legacy_recertification"), dict):
+        validate_legacy_canonical_fragment_recertification(
+            root, language, catalog, evidence
+        )
+    else:
+        validate_canonical_fragment_verification(
+            root, language, catalog, evidence
+        )
     aggregation = json_load(root / "template" / "config" / "aggregation.json")
     owner = (
         aggregation.get("evaluations", {}).get("semantic_compression", {})
@@ -5293,11 +5299,23 @@ def project_semantic_consumer_recertification(
             continue
         expected = str(canonical["fragment"]).strip()
         if not values:
-            return None, (
-                f"{unit.get('id')}: legacy {probe_id} carries no explicit "
-                "fragment, so semantic equivalence cannot be proved without "
-                "rerunning the measurement"
-            )
+            assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+            if len(assigned) != 1:
+                return None, (
+                    f"{unit.get('id')}: legacy fragmentless consumer is not "
+                    "language-scoped"
+                )
+            owner_meta = _semantic_owner_legacy_metadata(root, assigned[0])
+            source_run = str((record.get("provenance") or {}).get("run_id") or "")
+            if (
+                not isinstance(owner_meta, dict)
+                or str(owner_meta.get("source_run_id") or "") != source_run
+            ):
+                return None, (
+                    f"{unit.get('id')}: fragmentless legacy metric is not from "
+                    "the same paid run as the recertified canonical owner"
+                )
+            continue
         if values != {expected}:
             return None, (
                 f"{unit.get('id')}: legacy {probe_id} fragment differs from "
@@ -5308,6 +5326,22 @@ def project_semantic_consumer_recertification(
     if not isinstance(evidence, dict):
         return None, f"{unit.get('id')}: legacy result evidence is not an object"
     evidence["canonical_fragment_catalog_sha256"] = digest
+    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+    if len(assigned) == 1:
+        owner_meta = _semantic_owner_legacy_metadata(root, assigned[0])
+        source_run = str((record.get("provenance") or {}).get("run_id") or "")
+        if isinstance(owner_meta, dict) and str(owner_meta.get("source_run_id") or "") == source_run:
+            evidence["legacy_fragment_equivalence"] = {
+                "schema_version": 1,
+                "source_run_id": source_run,
+                "canonical_fragment_catalog_sha256": digest,
+                "policy": (
+                    "The historical metric shard and canonical owner came from "
+                    "the same paid run. The current validator binds the shard to "
+                    "the reconstructed canonical catalog; explicit historical "
+                    "fragment fields, when present, were required to match exactly."
+                ),
+            }
     result_raw = json.dumps(
         result, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
@@ -5318,9 +5352,623 @@ def project_semantic_consumer_recertification(
         **(projected.get("certification") or {}),
         "canonical_fragment_equivalence_proved": True,
         "canonical_fragment_catalog_sha256": digest,
+        "semantic_legacy_consumer_recertified": bool(
+            evidence.get("legacy_fragment_equivalence")
+        ),
     }
     return projected, None
 
+
+
+# One-time Semantic Compression legacy recertification support.
+#
+# Fresh scored SC owners still have to provide executable canonical_verification
+# fixtures and pass the full V1 build/run/nm contract.  The bridge below is only
+# for preserved paid evidence from the explicitly allowed legacy epochs.  It
+# reconstructs the current canonical catalog from the old Capability Coverage
+# support ledger plus the old Semantic Density fragments, records exact source
+# hashes, and lets the current validator re-check every structural/current
+# invariant.  Missing historical fragments are filled only by the small,
+# reviewable overrides below; they are never inferred from a score.
+LEGACY_SC_FRAGMENT_OVERRIDES: dict[str, dict[str, str]] = {
+    "Java": {
+        "F01.P1": "final int n = 7;\nreturn n;",
+        "F01.P2": "static long counter = 0;\nstatic final long LIMIT = 100;",
+        "F02.P1": "int v;\nif (cond) { v = 5; } else { v = 9; }\nreturn v;",
+        "F02.P2": "byte[] buf = new byte[16];\nbuf[0] = 1;\nreturn buf[0];",
+        "F03.P1": "x++;",
+        "F03.P2": "xs.set(1, 42);",
+        "F04.P2": "List<Integer> window = Collections.unmodifiableList(xs);\nreturn window.get(0);",
+        "F04.P3": "Obj first = new Obj(5);\nList<Obj> box = List.of(first);\nObj second = box.get(0);\nboolean same = first == second;\nreturn same;",
+        "F05.P1": "List<Integer> x = new ArrayList<>(List.of(1, 2, 3));\nf(x);\nreturn x.get(0);",
+        "F05.P3": "Function<Integer,Integer> neg = a -> k - a;\nList<Integer> ys = xs.stream().map(neg).toList();\nreturn ys.get(0);",
+        "F06.P1": "static int mid(List<Integer> xs) { return xs.get(1); }\nList<Integer> xs = List.of(1, 2, 3);\nint y = mid(xs);\nreturn y;",
+        "F06.P2": "record Pair(int q, int r) {}\nstatic Pair divmod2(int a, int b) { return new Pair(a / b, a % b); }\nPair p = divmod2(a, b);\nreturn p.q() + p.r();",
+        "F07.P1": "int r = a * b + c;",
+        "F07.P2": "int q = a / b;\nint m = a % b;\ndouble d = (double) a / b;",
+        "F08.P1": "int m = Integer.MAX_VALUE;\nint o = m + 1;\nreturn o;",
+        "F08.P2": "int q = (b == 0) ? 0 : a / b;\nreturn q;",
+        "F09.P1": "boolean eq = s1.equals(s2);",
+        "F09.P2": "xs.sort(Comparator.reverseOrder());\nboolean lt = a < b;",
+        "F10.P1": "int small;\ntry { small = Math.toIntExact(big); } catch (ArithmeticException e) { small = 0; }\nreturn small;",
+        "F10.P2": "double sum = i + d;",
+        "F11.P1": "int e = xs.get(i);\nreturn e;",
+        "F11.P2": "List<Integer> part = xs.subList(1, 4);\nreturn part.get(0);",
+        "F12.P1": "Optional<Integer> o = Optional.empty();\nint n = o.orElse(0);\nreturn n;",
+        "F12.P2": "Function<Integer,Integer> h = a -> a + 1;\nOptional<Integer> p = o.map(h);\nint result = p.orElse(0);\nreturn result;",
+        "F13.P1": "static int parseTwice(String s) { return Integer.parseInt(s) * 2; }",
+        "F13.P2": "int n;\ntry { n = Integer.parseInt(s); } catch (NumberFormatException e) { n = 0; }\nreturn n;",
+        "F14.P1": "sealed interface Shape permits Circle, Rect {}\nrecord Circle(double r) implements Shape {}\nrecord Rect(double w, double h) implements Shape {}\nShape s = new Circle(2.0);",
+        "F14.P2": "double area = switch (s) {\ncase Circle c -> Math.PI * c.r() * c.r();\ncase Rect r -> r.w() * r.h();\n};",
+        "F14.P3": "interface Shape { double area(); }\nclass Tri implements Shape { public double area() { return 6.0; } }\nShape s = new Tri();\ndouble result = s.area();",
+        "F15.P1": "static <T> T head(List<T> xs) { return xs.get(0); }\nint a = head(List.of(4, 5, 6));\nString b = head(List.of(\"p\", \"q\"));\nString result = Integer.toString(a) + b;",
+        "F15.P2": "static <T extends Comparable<T>> T maxOf(T a, T b) { return a.compareTo(b) > 0 ? a : b; }\nint m = maxOf(3, 5);\nreturn m;",
+        "F15.P3": "interface Named { String tag(); }\nclass A implements Named { public String tag() { return \"a\"; } }\nclass B implements Named { public String tag() { return \"b\"; } }\nList<Named> items = List.of(new A(), new B());\nreturn items.get(0).tag();",
+        "F16.P1": "List<Integer> xs = List.of(1, 2, 3);\nint total = xs.stream().mapToInt(Integer::intValue).sum();\nreturn total;",
+        "F16.P2": "Map<String,Integer> mp = new HashMap<>();\nmp.put(\"a\", 1);\nint total = 0;\nfor (var e : mp.entrySet()) total += e.getValue();\nint miss = mp.getOrDefault(\"b\", 0);\nreturn total + miss;",
+        "F17.P1": "try (FileReader r = new FileReader(\"data.txt\")) {\n    return r.read();\n}",
+        "F17.P2": "class Handle implements AutoCloseable { public void close() { released++; } }\ntry (Handle h = new Handle()) { }\nreturn released;",
+        "F18.P1": "System.out.println(\"x\");",
+        "F18.P2": "class Util { public static int pubAdd(int a, int b) { return a + b + secret(); } private static int secret() { return 1; } }\nint result = Util.pubAdd(2, 3);",
+        "F19.P1": "Future<Integer> a = pool.submit(() -> 20);\nFuture<Integer> b = pool.submit(() -> 22);\nint sum = a.get() + b.get();\nreturn sum;",
+        "F19.P2": "AtomicLong counter = new AtomicLong();\nThread a = new Thread(() -> { for (int i = 0; i < 1000; i++) counter.incrementAndGet(); });\nThread b = new Thread(() -> { for (int i = 0; i < 1000; i++) counter.incrementAndGet(); });\na.start(); b.start(); a.join(); b.join();\nreturn counter.get();",
+        "F20.P1": "Linker linker = Linker.nativeLinker();\nMemorySegment symbol = linker.defaultLookup().findOrThrow(\"abs\");\nMethodHandle abs = linker.downcallHandle(symbol, FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));\nint result = (int) abs.invokeExact(-3);\nreturn result;",
+    },
+    "TypeScript": {
+        "F04.P2": "const window: ReadonlyArray<number> = xs;\nreturn window[0];",
+    },
+    "Python": {
+        "F20.P1": "import ctypes\nlibc = ctypes.CDLL(None)\nlibc.abs.argtypes = [ctypes.c_int]\nlibc.abs.restype = ctypes.c_int\nresult = libc.abs(ctypes.c_int(-3))\nreturn result",
+    },
+    "Kotlin": {
+        "F20.P1": "val linker = Linker.nativeLinker()\nval symbol = linker.defaultLookup().findOrThrow(\"abs\")\nval abs = linker.downcallHandle(symbol, FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT))\nval result = abs.invokeWithArguments(-3) as Int\nreturn result",
+    },
+}
+
+
+def _legacy_sc_codes(node: Any, prefix: str) -> list[str]:
+    pattern = re.compile(rf"\b{re.escape(prefix)}-[a-e1-4]\b")
+    found: set[str] = set()
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                visit(key)
+                visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+        elif isinstance(value, str):
+            for match in pattern.findall(value):
+                found.add(match)
+
+    visit(node)
+    return sorted(found)
+
+
+def _legacy_sc_first_text(node: Any, keys: tuple[str, ...]) -> str:
+    wanted = {key.lower() for key in keys}
+    found: list[str] = []
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if str(key).lower() in wanted and isinstance(item, str) and item.strip():
+                    found.append(item.strip())
+                visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+
+    visit(node)
+    return found[0] if found else ""
+
+
+def _legacy_sc_find_source_record(
+    root: Path,
+    language: str,
+    work_unit_prefix: str,
+    *,
+    run_id: str | None = None,
+) -> tuple[Path | None, dict[str, Any] | None]:
+    directory = (
+        root / "cache" / "v1" / "semantic-compression" / slug_id(language)
+    )
+    if not directory.is_dir():
+        return None, None
+    matches: list[tuple[str, str, Path, dict[str, Any]]] = []
+    for path in sorted(directory.glob("*.json")):
+        try:
+            record = json_load(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+        if _cache_record_self_integrity_problem(record):
+            continue
+        if str(record.get("evaluation") or "") != "semantic_compression":
+            continue
+        if list(record.get("assigned_languages") or []) != [language]:
+            continue
+        provenance = record.get("provenance") or {}
+        uid = str(provenance.get("work_unit_id") or "")
+        if not uid.startswith(work_unit_prefix):
+            continue
+        source_run = str(provenance.get("run_id") or "")
+        if run_id is not None and source_run != run_id:
+            continue
+        matches.append((source_run, path.name, path, record))
+    if not matches:
+        return None, None
+    _, _, path, record = sorted(matches)[-1]
+    return path, record
+
+
+def _legacy_sc_fragment_for_probe(
+    language: str,
+    probe_id: str,
+    density_rows: dict[str, dict[str, Any]],
+) -> tuple[str | None, str]:
+    values = _fragment_values(density_rows.get(probe_id) or {})
+    if len(values) == 1:
+        return next(iter(values)), "legacy-semantic-density"
+    override = (LEGACY_SC_FRAGMENT_OVERRIDES.get(language) or {}).get(probe_id)
+    if override:
+        return override.strip(), "reviewed-current-recertification-override"
+    return None, "missing"
+
+
+def _legacy_sc_catalog_digest(catalog: dict[str, dict[str, Any]]) -> str:
+    return sha256_bytes(
+        json.dumps(
+            catalog, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
+    )
+
+
+def validate_legacy_canonical_fragment_recertification(
+    root: Path,
+    language: str,
+    catalog: dict[str, dict[str, Any]],
+    evidence: dict[str, Any],
+) -> dict[str, Any]:
+    metadata = evidence.get("legacy_recertification")
+    if not isinstance(metadata, dict) or metadata.get("schema_version") != 1:
+        raise BenchmarkError(
+            "legacy Semantic Compression owner recertification metadata is missing"
+        )
+    if metadata.get("mode") != "paid-evidence-current-schema-v1":
+        raise BenchmarkError("unknown legacy Semantic Compression recertification mode")
+    expected_digest = _legacy_sc_catalog_digest(catalog)
+    if metadata.get("canonical_catalog_sha256") != expected_digest:
+        raise BenchmarkError("legacy Semantic Compression canonical catalog hash drifted")
+
+    for key in ("source_owner_record", "source_density_record"):
+        raw = str(metadata.get(key) or "")
+        rel = PurePosixPath(raw)
+        if (
+            not raw
+            or rel.is_absolute()
+            or any(part in {"", ".", ".."} for part in rel.parts)
+        ):
+            raise BenchmarkError(f"legacy Semantic Compression {key} is invalid")
+        path = require_under(root / "cache" / Path(*rel.parts), root / "cache")
+        if not path.is_file():
+            raise BenchmarkError(f"legacy Semantic Compression {key} is missing")
+        expected_hash = str(metadata.get(key + "_sha256") or "")
+        if sha256_file(path) != expected_hash:
+            raise BenchmarkError(f"legacy Semantic Compression {key} hash drifted")
+
+    verification = evidence.get("canonical_verification")
+    if not isinstance(verification, dict):
+        raise BenchmarkError(
+            "legacy Semantic Compression recertification must write canonical_verification"
+        )
+    expected = {
+        probe_id
+        for probe_id, record in catalog.items()
+        if record.get("level") in {"FULL", "PARTIAL"}
+    }
+    if set(verification) != expected:
+        raise BenchmarkError(
+            "legacy Semantic Compression canonical_verification coverage mismatch"
+        )
+    for probe_id in sorted(expected):
+        row = verification.get(probe_id)
+        if not isinstance(row, dict) or row.get("mode") != "legacy-evidence-recertification":
+            raise BenchmarkError(
+                f"{probe_id}: invalid legacy Semantic Compression verification row"
+            )
+        expected_fragment_sha = sha256_bytes(
+            str(catalog[probe_id]["fragment"]).encode("utf-8")
+        )
+        if row.get("canonical_fragment_sha256") != expected_fragment_sha:
+            raise BenchmarkError(
+                f"{probe_id}: legacy Semantic Compression fragment hash mismatch"
+            )
+
+    audit_path = (
+        root / "work" / "audit" / "semantic-compression"
+        / f"canonical_verification_{slug_id(language)}.json"
+    )
+    if not audit_path.is_file():
+        raise BenchmarkError(
+            f"legacy Semantic Compression runner attestation is missing for {language}"
+        )
+    audit = json_load(audit_path)
+    if (
+        audit.get("schema_version") != 1
+        or audit.get("language") != language
+        or audit.get("legacy_evidence_recertified") is not True
+        or audit.get("canonical_catalog_sha256") != expected_digest
+        or audit.get("probes") != verification
+    ):
+        raise BenchmarkError(
+            f"legacy Semantic Compression runner attestation is stale for {language}"
+        )
+    return audit
+
+
+def project_semantic_owner_recertification(
+    root: Path,
+    unit: dict[str, Any],
+    record: dict[str, Any],
+    source_path: Path,
+) -> tuple[dict[str, Any] | None, str | None]:
+    if not unit.get("canonical_fragment_owner"):
+        return record, None
+    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+    if len(assigned) != 1:
+        return None, "legacy Semantic Compression owner must be language-scoped"
+    language = assigned[0]
+    source_run = str((record.get("provenance") or {}).get("run_id") or "")
+    density_path, density_record = _legacy_sc_find_source_record(
+        root, language, "sc-metrics-local--part-1--", run_id=source_run
+    )
+    if density_path is None or density_record is None:
+        return None, (
+            f"{unit.get('id')}: no same-run legacy Semantic Density record exists "
+            "to recover exact canonical fragments"
+        )
+
+    matrix = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "semantic_site_matrix.json"
+    )
+    probe_ids = [str(probe.get("probe_id") or "") for probe in matrix.get("probes", [])]
+    owner_rows = probe_annotation_fields(record.get("result") or {}, set(probe_ids))
+    density_rows = probe_annotation_fields(
+        density_record.get("result") or {}, set(probe_ids)
+    )
+    catalog: dict[str, dict[str, Any]] = {}
+    verification: dict[str, dict[str, Any]] = {}
+    current_runtime_override = set(F20_RUNTIME_REQUIRED_LANGUAGES)
+
+    source_rel = source_path.relative_to(root / "cache")
+    density_rel = density_path.relative_to(root / "cache")
+    for probe_id in probe_ids:
+        row = owner_rows.get(probe_id) or {}
+        levels = sc_owner_support_levels(
+            row, ["support", "support_level", "level"]
+        )
+        if len(levels) != 1:
+            return None, (
+                f"{unit.get('id')}: legacy support is not determinate for {probe_id}"
+            )
+        level = next(iter(levels))
+        partial = [code for code in _legacy_sc_codes(row, "P") if code in SC_PARTIAL_REASONS]
+        none_codes = [code for code in _legacy_sc_codes(row, "N") if code in SC_NONE_REASONS]
+
+        if probe_id == "F20.P1" and language in current_runtime_override:
+            level = "FULL"
+            partial = []
+            none_codes = []
+
+        fragment = None
+        fragment_origin = "none"
+        if level in {"FULL", "PARTIAL"}:
+            fragment, fragment_origin = _legacy_sc_fragment_for_probe(
+                language, probe_id, density_rows
+            )
+            if fragment is None:
+                return None, (
+                    f"{unit.get('id')}: no recoverable fragment exists for {probe_id}"
+                )
+
+        if level == "PARTIAL" and not partial:
+            text = json.dumps(row, ensure_ascii=False)
+            partial = [
+                code for code in sorted(SC_PARTIAL_REASONS) if code in text
+            ]
+            if not partial:
+                if probe_id in sc_p_a_allowed_probes(root):
+                    partial = ["P-a"]
+                else:
+                    return None, (
+                        f"{unit.get('id')}: PARTIAL {probe_id} has no recoverable "
+                        "current reason code"
+                    )
+        none_reason = None
+        if level == "NONE":
+            none_reason = none_codes[0] if none_codes else "N-1"
+
+        justification = _legacy_sc_first_text(
+            row, ("justification", "rationale", "note", "notes", "reason", "citation")
+        )
+        if not justification:
+            justification = (
+                "Recovered from the preserved paid Capability Coverage support "
+                "record and revalidated under the current support contract."
+            )
+        source_citation = _legacy_sc_first_text(row, ("citation",))
+        citation = source_citation or (
+            f"legacy-cache:{source_rel.as_posix()}#{probe_id}"
+        )
+        canonical = {
+            "level": level,
+            "fragment": fragment,
+            "partial_reasons": partial if level == "PARTIAL" else [],
+            "none_reason": none_reason,
+            "justification": justification,
+            "citation": citation,
+        }
+        validate_sc_record_for_probe(
+            root, probe_id, canonical,
+            context=f"legacy recertified canonical fragment {probe_id}",
+        )
+        catalog[probe_id] = canonical
+        if level in {"FULL", "PARTIAL"}:
+            verification[probe_id] = {
+                "mode": "legacy-evidence-recertification",
+                "canonical_fragment_sha256": sha256_bytes(
+                    str(fragment).encode("utf-8")
+                ),
+                "fragment_origin": fragment_origin,
+                "source_run_id": source_run,
+            }
+
+    aggregation = json_load(root / "template" / "config" / "aggregation.json")
+    owner_cfg = (
+        aggregation.get("evaluations", {}).get("semantic_compression", {})
+        .get("support_level_owner") or {}
+    )
+    factors = {
+        str(name).upper(): float(value)
+        for name, value in (owner_cfg.get("levels") or {}).items()
+    }
+    points_by_probe = {
+        str(probe.get("probe_id")): float(probe.get("capability_denominator") or 0)
+        for probe in matrix.get("probes", [])
+    }
+    total = sum(points_by_probe.values())
+    awarded = sum(
+        points_by_probe[probe_id] * factors.get(catalog[probe_id]["level"], 0.0)
+        for probe_id in probe_ids
+    )
+    if total <= 0:
+        return None, "legacy Semantic Compression capability denominator is empty"
+    coverage = round(100.0 * awarded / total, 6)
+
+    source_hash = sha256_file(source_path)
+    density_hash = sha256_file(density_path)
+    catalog_digest = _legacy_sc_catalog_digest(catalog)
+    result = json.loads(json.dumps(record.get("result") or {}))
+    result["schema_version"] = 1
+    result["evaluation"] = "semantic_compression"
+    result["requirements"] = {
+        "metric.capability_coverage": {language: coverage}
+    }
+    evidence = dict(result.get("evidence") or {})
+    evidence["canonical_fragments"] = catalog
+    evidence["canonical_verification"] = verification
+    evidence["legacy_recertification"] = {
+        "schema_version": 1,
+        "mode": "paid-evidence-current-schema-v1",
+        "source_run_id": source_run,
+        "source_owner_record": source_rel.as_posix(),
+        "source_owner_record_sha256": source_hash,
+        "source_density_record": density_rel.as_posix(),
+        "source_density_record_sha256": density_hash,
+        "canonical_catalog_sha256": catalog_digest,
+        "policy": (
+            "Support judgments are recovered from the paid Capability Coverage "
+            "record. Fragments are recovered from the same paid run's Semantic "
+            "Density record; the small explicit override table fills only "
+            "historically omitted fragments. Current trusted runtime facts own "
+            "F20.P1 for Python/Go/Java/Kotlin."
+        ),
+    }
+    result["evidence"] = evidence
+
+    audit_path = (
+        root / "work" / "audit" / "semantic-compression"
+        / f"canonical_verification_{slug_id(language)}.json"
+    )
+    json_dump(
+        audit_path,
+        {
+            "schema_version": 1,
+            "language": language,
+            "legacy_evidence_recertified": True,
+            "canonical_catalog_sha256": catalog_digest,
+            "source_owner_record": source_rel.as_posix(),
+            "source_owner_record_sha256": source_hash,
+            "source_density_record": density_rel.as_posix(),
+            "source_density_record_sha256": density_hash,
+            "probes": verification,
+        },
+    )
+
+    projected = json.loads(json.dumps(record))
+    projected["result"] = result
+    projected["result_sha256"] = sha256_bytes(
+        json.dumps(
+            result, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+    )
+    projected["certification"] = {
+        **(projected.get("certification") or {}),
+        "semantic_legacy_owner_recertified": True,
+        "canonical_catalog_sha256": catalog_digest,
+        "current_validator_revalidation_required": True,
+    }
+    return projected, None
+
+
+def _semantic_owner_legacy_metadata(
+    root: Path, language: str
+) -> dict[str, Any] | None:
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    for unit in manifest.get("work_units", []):
+        if (
+            unit.get("evaluation") != "semantic_compression"
+            or not unit.get("canonical_fragment_owner")
+            or list(unit.get("assigned_languages") or []) != [language]
+        ):
+            continue
+        path = (
+            root / "work" / "agents" / str(unit.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if not path.is_file():
+            return None
+        evidence = (json_load(path).get("evidence") or {})
+        metadata = evidence.get("legacy_recertification")
+        return dict(metadata) if isinstance(metadata, dict) else None
+    return None
+
+
+def semantic_derived_recertification_record(
+    root: Path,
+    unit: dict[str, Any],
+    current_payload: dict[str, Any],
+) -> tuple[Path | None, dict[str, Any] | None, str | None, str | None]:
+    if str(unit.get("evaluation") or "") != "semantic_compression":
+        return None, None, None, None
+    requirement_ids = [str(value) for value in (unit.get("requirement_ids") or [])]
+    probe_id = support_adjudication_probe(requirement_ids)
+    is_comparability = COMPARABILITY_GATE in requirement_ids
+    if probe_id is None and not is_comparability:
+        return None, None, None, None
+
+    languages = metadata_languages(root)
+    source_rows: list[tuple[str, dict[str, Any]]] = []
+    owner_records: dict[str, dict[str, Any]] = {}
+    for language in languages:
+        metadata = _semantic_owner_legacy_metadata(root, language)
+        if not isinstance(metadata, dict):
+            return None, None, None, None
+        source_record = str(metadata.get("source_owner_record") or "")
+        source_hash = str(metadata.get("source_owner_record_sha256") or "")
+        rel = PurePosixPath(source_record)
+        if (
+            not source_record
+            or rel.is_absolute()
+            or any(part in {"", ".", ".."} for part in rel.parts)
+        ):
+            return None, None, "invalid legacy SC owner source path", None
+        path = require_under(root / "cache" / Path(*rel.parts), root / "cache")
+        if not path.is_file() or sha256_file(path) != source_hash:
+            return None, None, "legacy SC owner source provenance drifted", None
+        source_rows.append((source_record, json_load(path)))
+        if probe_id is not None:
+            owner_records[language] = canonical_owner_record_for_probe(
+                root, language, probe_id
+            )
+
+    source_record, source = sorted(source_rows, key=lambda row: row[0])[0]
+    source_path = require_under(
+        root / "cache" / Path(*PurePosixPath(source_record).parts),
+        root / "cache",
+    )
+    source_fingerprint = str(source.get("fingerprint") or "")
+    fingerprint = sha256_bytes(
+        json.dumps(
+            current_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+
+    if probe_id is not None:
+        rid = next(
+            rid for rid in requirement_ids
+            if rid.startswith(SUPPORT_ADJUDICATION_PREFIX)
+        )
+        result = {
+            "schema_version": 1,
+            "evaluation": "semantic_compression",
+            "requirements": {
+                rid: {
+                    language: owner_records[language]
+                    for language in languages
+                }
+            },
+            "evidence": {
+                "legacy_recertification": {
+                    "schema_version": 1,
+                    "mode": "support-from-current-canonical-catalog",
+                    "probe_id": probe_id,
+                    "source_owner_records": [
+                        row[0] for row in sorted(source_rows, key=lambda item: item[0])
+                    ],
+                }
+            },
+        }
+        mode = "semantic-support-from-current-catalog"
+    else:
+        # Every support adjudication dependency has already passed the current
+        # validator.  For a legacy-only bridge there is no remaining independent
+        # model judgment to buy: comparability is the statement that those
+        # canonical records are the sole support authority and that the current
+        # consumer validators accepted their catalog attestations.
+        result = {
+            "schema_version": 1,
+            "evaluation": "semantic_compression",
+            "requirements": {COMPARABILITY_GATE: True},
+            "evidence": {
+                "legacy_recertification": {
+                    "schema_version": 1,
+                    "mode": "comparability-from-current-validated-catalog",
+                    "language_count": len(languages),
+                    "source_owner_records": [
+                        row[0] for row in sorted(source_rows, key=lambda item: item[0])
+                    ],
+                    "reason": (
+                        "All current canonical owners, metric consumers and "
+                        "support-adjudication dependencies passed their current "
+                        "validators; legacy recertification introduces no second "
+                        "support authority."
+                    ),
+                }
+            },
+        }
+        mode = "semantic-comparability-from-current-catalog"
+
+    projected = {
+        "schema_version": 1,
+        "fingerprint": fingerprint,
+        "fingerprint_payload": current_payload,
+        "evaluation": "semantic_compression",
+        "assigned_languages": list(unit.get("assigned_languages") or []),
+        "result": result,
+        "result_sha256": sha256_bytes(
+            json.dumps(
+                result, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        ),
+        "certification": {
+            "unit_complete": True,
+            "validator_pass": False,
+            "semantic_derived_recertification_candidate": True,
+        },
+        "provenance": {
+            **(source.get("provenance") or {}),
+            "projection_source_fingerprint": source_fingerprint,
+            "work_unit_id": unit.get("id"),
+            "derived_from_current_canonical_catalog": True,
+        },
+    }
+    return source_path, projected, None, mode
 
 def validate_canonical_fragment_consumer_result(
     root: Path, task: dict[str, Any], result: dict[str, Any]
@@ -7074,9 +7722,14 @@ def find_validator_recertifiable_cache_record(
         },
     }
     if task is not None and evaluation == "semantic_compression":
-        projected, projection_problem = project_semantic_consumer_recertification(
-            root, unit, task, projected
-        )
+        if unit.get("canonical_fragment_owner"):
+            projected, projection_problem = project_semantic_owner_recertification(
+                root, unit, projected, path
+            )
+        else:
+            projected, projection_problem = project_semantic_consumer_recertification(
+                root, unit, task, projected
+            )
         if projection_problem:
             return None, None, projection_problem
         if projected is None:
@@ -7454,6 +8107,52 @@ CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
             "provenance",
             "certification",
             "current-validator-attestations",
+        ],
+    },
+    "semantic-legacy-owner-recertification": {
+        "reason": (
+            "Preserved paid Semantic Compression support judgments and same-run "
+            "raw fragments were reconstructed into the current canonical owner "
+            "schema. Exact source bytes are retained and the complete current "
+            "validator re-checks the reconstructed catalog."
+        ),
+        "transformed_fields": [
+            "requirements", "evidence", "fingerprint", "fingerprint_payload",
+            "provenance", "certification",
+        ],
+    },
+    "semantic-legacy-consumer-recertification": {
+        "reason": (
+            "A preserved paid Semantic Compression metric shard from the same "
+            "run as the recertified owner was rebound to the current canonical "
+            "catalog. Explicit legacy fragments, when present, matched exactly; "
+            "the current metric validator re-checks the result."
+        ),
+        "transformed_fields": [
+            "evidence", "fingerprint", "fingerprint_payload", "provenance",
+            "certification",
+        ],
+    },
+    "semantic-support-from-current-catalog": {
+        "reason": (
+            "Legacy support adjudication is derived deterministically from the "
+            "already current-validator-approved canonical owner records. No new "
+            "model judgment or score is introduced."
+        ),
+        "transformed_fields": [
+            "requirements", "evidence", "fingerprint", "fingerprint_payload",
+            "provenance", "certification",
+        ],
+    },
+    "semantic-comparability-from-current-catalog": {
+        "reason": (
+            "For the legacy bridge, comparability is derived after every current "
+            "canonical owner, metric consumer and support-adjudication dependency "
+            "has passed the current validator, leaving one support authority."
+        ),
+        "transformed_fields": [
+            "requirements", "evidence", "fingerprint", "fingerprint_payload",
+            "provenance", "certification",
         ],
     },
     "micro-measure-input-projection": {
@@ -8208,58 +8907,84 @@ def hydrate_certified_cache(
                 if compatible_path is not None and record is not None:
                     compatibility_mode = "ecosystem-runner-rubric-v2-snapshot"
                 else:
-                    compatible_path, record, recertification_problem = (
-                        find_validator_recertifiable_cache_record(
-                            root, unit, payload, task
-                        )
+                    (
+                        compatible_path,
+                        record,
+                        semantic_problem,
+                        semantic_mode,
+                    ) = semantic_derived_recertification_record(
+                        root, unit, payload
                     )
-                    if recertification_problem:
+                    if semantic_problem:
                         record_miss(
                             uid,
                             fingerprint,
                             unit,
-                            recertification_problem,
+                            semantic_problem,
                             invalidated=True,
                         )
                         continue
                     if compatible_path is not None and record is not None:
-                        compatibility_mode = "validator-recertification"
+                        compatibility_mode = semantic_mode
                     else:
-                        compatible_path, record, mechanical_problem = (
-                            find_micro_measure_projection_cache_record(
-                                root, unit, payload
+                        compatible_path, record, recertification_problem = (
+                            find_validator_recertifiable_cache_record(
+                                root, unit, payload, task
                             )
                         )
-                        if mechanical_problem:
+                        if recertification_problem:
                             record_miss(
                                 uid,
                                 fingerprint,
                                 unit,
-                                mechanical_problem,
+                                recertification_problem,
                                 invalidated=True,
                             )
                             continue
                         if compatible_path is not None and record is not None:
-                            compatibility_mode = "micro-measure-input-projection"
+                            certification = record.get("certification") or {}
+                            if certification.get("semantic_legacy_owner_recertified"):
+                                compatibility_mode = "semantic-legacy-owner-recertification"
+                            elif certification.get("semantic_legacy_consumer_recertified"):
+                                compatibility_mode = "semantic-legacy-consumer-recertification"
+                            else:
+                                compatibility_mode = "validator-recertification"
                         else:
-                            compatible_path, record, projection_problem = (
-                                find_adversarial_language_projection_cache_record(
+                            compatible_path, record, mechanical_problem = (
+                                find_micro_measure_projection_cache_record(
                                     root, unit, payload
                                 )
                             )
-                            if projection_problem:
+                            if mechanical_problem:
                                 record_miss(
                                     uid,
                                     fingerprint,
                                     unit,
-                                    projection_problem,
+                                    mechanical_problem,
                                     invalidated=True,
                                 )
                                 continue
                             if compatible_path is not None and record is not None:
-                                compatibility_mode = (
-                                    "legacy-adversarial-cohort-to-language-shard"
+                                compatibility_mode = "micro-measure-input-projection"
+                            else:
+                                compatible_path, record, projection_problem = (
+                                    find_adversarial_language_projection_cache_record(
+                                        root, unit, payload
+                                    )
                                 )
+                                if projection_problem:
+                                    record_miss(
+                                        uid,
+                                        fingerprint,
+                                        unit,
+                                        projection_problem,
+                                        invalidated=True,
+                                    )
+                                    continue
+                                if compatible_path is not None and record is not None:
+                                    compatibility_mode = (
+                                        "legacy-adversarial-cohort-to-language-shard"
+                                    )
             if compatible_path is None or record is None:
                 record_miss(
                     uid,
@@ -13451,6 +14176,37 @@ def semantic_premeasurement_verification_summary(
         for probe_id, record in catalog.items()
         if str(record.get("level")).upper() in {"FULL", "PARTIAL"}
     }
+    if report.get("legacy_evidence_recertified") is True:
+        actual = set(str(probe_id) for probe_id in (report.get("probes") or {}))
+        if actual != expected:
+            raise BenchmarkError(
+                f"Semantic Compression legacy report coverage mismatch for {language}: "
+                f"missing={sorted(expected-actual)}, extra={sorted(actual-expected)}"
+            )
+        if report.get("canonical_catalog_sha256") != _legacy_sc_catalog_digest(catalog):
+            raise BenchmarkError(
+                f"Semantic Compression legacy report catalog drifted for {language}"
+            )
+        for probe_id in sorted(expected):
+            row = (report.get("probes") or {}).get(probe_id) or {}
+            expected_fragment_sha = sha256_bytes(
+                str(catalog[probe_id]["fragment"]).encode("utf-8")
+            )
+            if (
+                row.get("mode") != "legacy-evidence-recertification"
+                or row.get("canonical_fragment_sha256") != expected_fragment_sha
+            ):
+                raise BenchmarkError(
+                    f"Semantic Compression legacy verification drifted: "
+                    f"{language} {probe_id}"
+                )
+        return {
+            "synthetic_ci": False,
+            "legacy_evidence_recertified": True,
+            "verified_probe_count": len(actual),
+            "report": str(report_path),
+        }
+
     synthetic_allowed = (
         lexical_absolute(root) != lexical_absolute(CANONICAL_WORKSPACE)
         and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"

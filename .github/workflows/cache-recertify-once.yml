@@ -93,19 +93,7 @@ jobs:
           restore_run "2026-09-23-fce5cfa-gh16" 10732219089 fce5cfa731cbf735dca4200257d4c54e084aacc4
           restore_run "2026-09-23-61f50c1-gh22" 10745064587 61f50c1a8c1518f6d6abcb9b1468e4a9e0aa0610
 
-      - name: Audit legacy cache before recertification
-        run: |
-          set -euo pipefail
-          set +e
-          python benchmark/template/scripts/benchmark.py cache-impact \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --output "$RUNNER_TEMP/cache-impact-before.json" >/dev/null
-          rc=$?
-          set -e
-          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
-          cat "$RUNNER_TEMP/cache-impact-before.json"
-
-      - name: Prepare, hydrate and budget-plan without provider calls
+      - name: Initialize clean recertification workspace
         run: |
           set -euo pipefail
           short_sha="$(git rev-parse --short=7 HEAD)"
@@ -116,15 +104,105 @@ jobs:
             --provider anthropic-messages \
             --model claude-sonnet-5
 
-          # This is the same free prepare/hydrate path used immediately before a
-          # production run. The sandbox has the fake provider, so no paid call can
-          # occur. It covers all five evaluations rather than only the migrations
-          # we happened to know about in advance.
+      - name: Recover retained paid evidence without provider calls
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          evidence_root="$RUNNER_TEMP/legacy-evidence"
+          recovered_cache="$RUNNER_TEMP/recovered-cache"
+          mkdir -p "$evidence_root" "$recovered_cache"
+
+          recover_evidence() {
+            run_id="$1"
+            workflow_run="$2"
+            artifact_name="$3"
+            snapshot="$4"
+            artifact_id="$(
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${workflow_run}/artifacts" \
+                --jq ".artifacts[] | select(.name == \"${artifact_name}\") | .id" \
+                | head -n 1
+            )"
+            test -n "$artifact_id" || {
+              echo "::error::artifact not found: ${artifact_name} (run ${workflow_run})"
+              exit 1
+            }
+            zip="$evidence_root/${artifact_id}.zip"
+            tgz="$evidence_root/${artifact_id}.tgz"
+            dst="$evidence_root/${run_id}"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$zip"
+            unzip -p "$zip" '_temp/workspace-evidence.tgz' > "$tgz"
+            rm -rf "$dst"
+            mkdir -p "$dst"
+            tar -xzf "$tgz" -C "$dst"
+
+            python benchmark/template/scripts/benchmark.py cache-promote-evidence \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --evidence "$dst" \
+              --snapshot "$snapshot" \
+              | tee "$evidence_root/${run_id}.promotion.json"
+          }
+
+          recover_evidence \
+            "2026-09-22-56f2c65-gh3" \
+            35720020334 \
+            "benchmark-2026-09-22-56f2c65-gh3" \
+            56f2c65cf938edce1de6f038148cf660eba9dd2b
+          recover_evidence \
+            "2026-09-23-1231af5-gh12" \
+            35806610661 \
+            "benchmark-2026-09-23-1231af5-gh12" \
+            1231af5b6bdb6e525a303e2d79307d016f3bcc36
+          recover_evidence \
+            "2026-09-23-fce5cfa-gh16" \
+            35815934646 \
+            "benchmark-2026-09-23-fce5cfa-gh16" \
+            fce5cfa731cbf735dca4200257d4c54e084aacc4
+          recover_evidence \
+            "2026-09-23-61f50c1-gh22" \
+            35849683595 \
+            "benchmark-2026-09-23-61f50c1-gh22" \
+            61f50c1a8c1518f6d6abcb9b1468e4a9e0aa0610
+
+          # Classify the union of Git-tracked cache and every certifiable record
+          # recovered from retained paid artifacts.
+          set +e
+          python benchmark/template/scripts/benchmark.py cache-impact \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/cache-impact-before.json" >/dev/null
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
+          cat "$RUNNER_TEMP/cache-impact-before.json"
+
+          # The benchmark target itself must remain the original clean commit.
+          # Copy recovered cache into the already initialized trusted workspace,
+          # bind run.json to those exact bytes, save the legacy source records for
+          # provenance, then restore the checkout before any certification step.
+          rsync -a benchmark/cache/ "$GITHUB_WORKSPACE/.quidra-benchmark/cache/"
+          rsync -a benchmark/cache/ "$recovered_cache/"
+          python benchmark/template/scripts/benchmark.py refresh-cache-snapshot \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --expected-commit "$GITHUB_SHA"
+          git restore --source=HEAD --staged --worktree -- \
+            benchmark/cache benchmark/template/prompts
+          git clean -fd -- benchmark/cache benchmark/template/prompts
+          test -z "$(git status --porcelain=v1 -- benchmark/cache benchmark/template/prompts)"
+
+      - name: Prepare, hydrate and checkpoint without provider calls
+        run: |
+          set -euo pipefail
+
+          # This is the same deterministic prepare/hydrate path used immediately
+          # before production. The provider is fake; no paid inference can occur.
           python benchmark/template/scripts/sandbox_launcher.py run \
             --source-repo "$GITHUB_WORKSPACE" \
             --image "$BENCHMARK_IMAGE" \
             --provider fake \
             -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          cp "$GITHUB_WORKSPACE/.quidra-benchmark/results/cache_status.json" \
+            "$RUNNER_TEMP/recertification-cache-status.json"
 
           python benchmark/template/scripts/production_run.py budget-plan \
             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
@@ -132,15 +210,83 @@ jobs:
             --available-usd 150 \
             --safety-multiplier 1.25 \
             --smoke-reserve-usd 0 \
-            --output "$RUNNER_TEMP/budget-plan.json" \
-            > "$RUNNER_TEMP/budget-plan.stdout"
-          cat "$RUNNER_TEMP/budget-plan.json"
+            --output "$RUNNER_TEMP/recertification-budget-plan.json" \
+            > "$RUNNER_TEMP/recertification-budget-plan.stdout"
 
           python benchmark/template/scripts/benchmark.py checkpoint-cache \
             --source-repo "$GITHUB_WORKSPACE" \
             | tee "$RUNNER_TEMP/cache-recertify.json"
 
-      - name: Re-audit cache after current-key checkpointing
+          # Migration provenance points back to the exact legacy source bytes.
+          # Merge the recovered snapshot back after checkpointing. A current
+          # checkpoint wins unless a migrated current record explicitly names
+          # the recovered bytes as its provenance source; in that case the exact
+          # source hash is mandatory and is restored verbatim.
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          recovered = Path(os.environ["RUNNER_TEMP"]) / "recovered-cache"
+          current = Path("benchmark/cache")
+
+          expected_sources = {}
+          for path in current.rglob("*.json"):
+              try:
+                  row = json.loads(path.read_text(encoding="utf-8"))
+              except Exception:
+                  continue
+              migration = row.get("migration") if isinstance(row, dict) else None
+              if not isinstance(migration, dict):
+                  continue
+              source = str(migration.get("source_record") or "")
+              digest = str(migration.get("source_record_sha256") or "")
+              if source and digest:
+                  expected_sources[source] = digest
+
+          for source in sorted(recovered.rglob("*")):
+              if not source.is_file():
+                  continue
+              rel = source.relative_to(recovered)
+              destination = current / rel
+              data = source.read_bytes()
+              digest = hashlib.sha256(data).hexdigest()
+              expected = expected_sources.get(rel.as_posix())
+              if destination.exists():
+                  current_digest = hashlib.sha256(
+                      destination.read_bytes()
+                  ).hexdigest()
+                  if expected == digest and current_digest != expected:
+                      destination.write_bytes(data)
+                  elif expected and current_digest != expected:
+                      raise SystemExit(
+                          f"migration source hash mismatch for {rel}: "
+                          f"expected {expected}, recovered {digest}, "
+                          f"current {current_digest}"
+                      )
+                  continue
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(source, destination)
+          PY
+
+      - name: Audit preserved Proficiency trials at trial granularity
+        run: |
+          set -euo pipefail
+          evidence_root="$RUNNER_TEMP/legacy-evidence"
+          python benchmark/template/scripts/audit_proficiency_legacy.py \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --evidence "2026-09-22-56f2c65-gh3=$evidence_root/2026-09-22-56f2c65-gh3" \
+            --evidence "2026-09-23-1231af5-gh12=$evidence_root/2026-09-23-1231af5-gh12" \
+            --evidence "2026-09-23-fce5cfa-gh16=$evidence_root/2026-09-23-fce5cfa-gh16" \
+            --evidence "2026-09-23-61f50c1-gh22=$evidence_root/2026-09-23-61f50c1-gh22" \
+            --output benchmark/cache/proficiency-recertification-audit.json \
+            > "$RUNNER_TEMP/proficiency-recertification-audit.stdout"
+          cat benchmark/cache/proficiency-recertification-audit.json
+
+      - name: Re-audit preserved cache after current-key checkpointing
         run: |
           set -euo pipefail
           set +e
@@ -152,39 +298,51 @@ jobs:
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
           cat "$RUNNER_TEMP/cache-impact-after.json"
 
-      - name: Audit preserved Proficiency trials at trial granularity
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Commit recertified cache locally for an exact next-run dry-run
         run: |
           set -euo pipefail
-          evidence_root="$RUNNER_TEMP/proficiency-legacy-evidence"
-          mkdir -p "$evidence_root"
-          download_evidence() {
-            run_id="$1"
-            artifact_id="$2"
-            zip="$evidence_root/${artifact_id}.zip"
-            tgz="$evidence_root/${artifact_id}.tgz"
-            dst="$evidence_root/${run_id}"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$zip"
-            unzip -p "$zip" '_temp/workspace-evidence.tgz' > "$tgz"
-            mkdir -p "$dst"
-            tar -xzf "$tgz" -C "$dst"
-          }
-          download_evidence "2026-09-22-56f2c65-gh3" 10697874616
-          download_evidence "2026-09-23-1231af5-gh12" 10728073669
-          download_evidence "2026-09-23-fce5cfa-gh16" 10732219089
+          python benchmark/template/scripts/benchmark.py discard-workspace \
+            --source-repo "$GITHUB_WORKSPACE"
+          git add -f benchmark/cache benchmark/template/prompts
+          if ! git diff --cached --quiet; then
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -m "benchmark: checkpoint recertified paid cache"
+          fi
+          test -z "$(git status --porcelain=v1)"
 
-          python benchmark/template/scripts/audit_proficiency_legacy.py \
+      - name: Prove a fresh next run gets ordinary current-cache HITs
+        run: |
+          set -euo pipefail
+          short_sha="$(git rev-parse --short=7 HEAD)"
+          python benchmark/template/scripts/benchmark.py init \
             --source-repo "$GITHUB_WORKSPACE" \
-            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
-            --evidence "2026-09-22-56f2c65-gh3=$evidence_root/2026-09-22-56f2c65-gh3" \
-            --evidence "2026-09-23-1231af5-gh12=$evidence_root/2026-09-23-1231af5-gh12" \
-            --evidence "2026-09-23-fce5cfa-gh16=$evidence_root/2026-09-23-fce5cfa-gh16" \
-            --output benchmark/cache/proficiency-recertification-audit.json \
-            > "$RUNNER_TEMP/proficiency-recertification-audit.stdout"
-          cat benchmark/cache/proficiency-recertification-audit.json
+            --sandbox-mode container \
+            --run-id "cache-next-run-dry-${short_sha}" \
+            --provider anthropic-messages \
+            --model claude-sonnet-5
 
-      - name: Write recertification and real next-run dry-run report
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          cp "$GITHUB_WORKSPACE/.quidra-benchmark/results/cache_status.json" \
+            "$RUNNER_TEMP/next-run-cache-status.json"
+
+          python benchmark/template/scripts/production_run.py budget-plan \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --model claude-sonnet-5 \
+            --available-usd 150 \
+            --safety-multiplier 1.25 \
+            --smoke-reserve-usd 0 \
+            --output "$RUNNER_TEMP/next-run-budget-plan.json" \
+            > "$RUNNER_TEMP/next-run-budget-plan.stdout"
+          cat "$RUNNER_TEMP/next-run-cache-status.json"
+          cat "$RUNNER_TEMP/next-run-budget-plan.json"
+
+      - name: Write recertification and next-run dry-run report
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -194,65 +352,110 @@ jobs:
 
           runner_temp = Path(os.environ["RUNNER_TEMP"])
           root = Path(".quidra-benchmark")
-          status = json.loads((root / "results/cache_status.json").read_text())
-          before = json.loads((runner_temp / "cache-impact-before.json").read_text())
-          after = json.loads((runner_temp / "cache-impact-after.json").read_text())
-          budget = json.loads((runner_temp / "budget-plan.json").read_text())
+          first_status = json.loads(
+              (runner_temp / "recertification-cache-status.json").read_text()
+          )
+          next_status = json.loads(
+              (runner_temp / "next-run-cache-status.json").read_text()
+          )
+          before = json.loads(
+              (runner_temp / "cache-impact-before.json").read_text()
+          )
+          after = json.loads(
+              (runner_temp / "cache-impact-after.json").read_text()
+          )
+          budget = json.loads(
+              (runner_temp / "next-run-budget-plan.json").read_text()
+          )
           proficiency = json.loads(
               Path("benchmark/cache/proficiency-recertification-audit.json").read_text()
           )
           manifest = json.loads((root / "work/root/manifest.json").read_text())
           units = {str(row["id"]): row for row in manifest.get("work_units", [])}
 
-          hits = status.get("hits", {})
-          misses = status.get("misses", {})
-          invalidated = status.get("invalidated", {})
+          first_hits = first_status.get("hits", {})
+          next_hits = next_status.get("hits", {})
+          next_misses = next_status.get("misses", {})
+          next_invalidated = next_status.get("invalidated", {})
 
           mode_class = {
               "scoped-input-projection": "A",
               "ecosystem-runner-rubric-v2-snapshot": "C",
               "validator-recertification": "D",
-              "micro-measure-input-projection": "D",
+              "micro-measure-input-projection": "C",
               "legacy-adversarial-cohort-to-language-shard": "C",
           }
+          migrated_by_source = {
+              str(row.get("source_fingerprint")): str(row.get("compatibility_mode"))
+              for row in first_hits.values()
+              if row.get("source_fingerprint") and row.get("compatibility_mode")
+          }
+          proficiency_by_source = {
+              str(row.get("source_record")): row
+              for row in proficiency.get("records", [])
+          }
 
-          classifications = {}
-          for uid, row in sorted(hits.items()):
-              mode = row.get("compatibility_mode")
+          legacy_classifications = []
+          for entry in before.get("invalid", []):
+              record = str(entry.get("record") or "")
+              fingerprint = Path(record).stem
+              uid = str(entry.get("work_unit_id") or "")
+              evaluation = str(entry.get("evaluation") or "")
+              mode = migrated_by_source.get(fingerprint)
               if mode:
-                  classifications[uid] = {
-                      "classification": mode_class.get(mode, "D"),
-                      "disposition": "recertified-current-cache",
-                      "compatibility_mode": mode,
-                      "source_fingerprint": row.get("source_fingerprint"),
-                  }
-          for uid, row in sorted(misses.items()):
-              unit = units.get(uid, {})
-              evaluation = str(unit.get("evaluation") or "")
-              classification = "E"
-              reason = str(row.get("reason") or "")
-              if unit.get("execution_kind") != "agent":
-                  classification = "D"
-              classifications[uid] = {
-                  "classification": classification,
-                  "disposition": (
-                      "free-mechanical-work"
+                  classification = mode_class.get(mode, "D")
+                  disposition = "recertified-current-cache"
+                  reason = "current validator accepted compatibility migration"
+              elif evaluation == "llm_proficiency":
+                  audited = proficiency_by_source.get(record, {})
+                  classification = str(audited.get("classification") or "E")
+                  disposition = (
+                      "current-mechanical-reverification-candidate"
                       if classification == "D"
                       else "paid-rerun-required"
-                  ),
-                  "evaluation": evaluation,
-                  "reason": reason,
-              }
+                  )
+                  reason = str(
+                      audited.get("reason")
+                      or "legacy trial contract could not be proved current-compatible"
+                  )
+              elif (
+                  evaluation == "semantic_compression"
+                  and uid.startswith("sc-metrics-hidden-coverage--part-2--")
+              ):
+                  classification = "E"
+                  disposition = "paid-rerun-required"
+                  reason = (
+                      "legacy capability-coverage owner lacks the current complete "
+                      "canonical-fragment verification fixture; current build/run/stdout "
+                      "verification cannot be reconstructed safely from its score alone"
+                  )
+              elif (units.get(uid) or {}).get("execution_kind") == "command":
+                  classification = "D"
+                  disposition = "free-mechanical-remeasurement"
+                  reason = "runner-owned command unit can be recomputed without provider calls"
+              else:
+                  classification = "E"
+                  disposition = "paid-rerun-required"
+                  reason = (
+                      "no current compatibility migration proved semantic equivalence"
+                  )
+              legacy_classifications.append({
+                  **entry,
+                  "classification": classification,
+                  "disposition": disposition,
+                  "classification_reason": reason,
+                  **({"compatibility_mode": mode} if mode else {}),
+              })
 
           by_eval = {}
           for uid, unit in units.items():
-              ev = str(unit.get("evaluation") or "")
+              evaluation = str(unit.get("evaluation") or "")
               row = by_eval.setdefault(
-                  ev, {"hits": 0, "misses": 0, "invalidated": 0}
+                  evaluation, {"hits": 0, "misses": 0, "invalidated": 0}
               )
-              row["hits"] += int(uid in hits)
-              row["misses"] += int(uid in misses)
-              row["invalidated"] += int(uid in invalidated)
+              row["hits"] += int(uid in next_hits)
+              row["misses"] += int(uid in next_misses)
+              row["invalidated"] += int(uid in next_invalidated)
 
           paid_units = [
               {
@@ -267,21 +470,18 @@ jobs:
               if float(row.get("estimated_uncached_usd", 0) or 0) > 0
           ]
 
-          ecosystem_hits = [
-              uid for uid in hits if (units.get(uid) or {}).get("evaluation") == "ecosystem"
-          ]
-          semantic_hits = [
-              uid for uid in hits
-              if (units.get(uid) or {}).get("evaluation") == "semantic_compression"
-          ]
-          proficiency_hits = [
-              uid for uid in hits
-              if (units.get(uid) or {}).get("evaluation") == "llm_proficiency"
-          ]
+          def hit_ids(evaluation):
+              return sorted(
+                  uid for uid in next_hits
+                  if (units.get(uid) or {}).get("evaluation") == evaluation
+              )
 
           report = {
-              "schema_version": 2,
-              "dry_run_kind": "full-prepare-hydrate-budget-plan-no-provider",
+              "schema_version": 3,
+              "dry_run_kind": (
+                  "artifact-recovery-current-validator-checkpoint-then-fresh-"
+                  "prepare-hydrate-budget-plan-no-provider"
+              ),
               "historical_cache_before": {
                   "valid": before.get("valid", 0),
                   "invalid": len(before.get("invalid", [])),
@@ -292,23 +492,38 @@ jobs:
                   "invalid": len(after.get("invalid", [])),
                   "superseded": after.get("superseded_count", 0),
                   "note": (
-                      "Legacy invalid records are intentionally retained as provenance; "
-                      "recertification adds ordinary current-key certified records rather "
-                      "than deleting or rewriting the legacy source."
+                      "Legacy invalid records are retained as provenance. A successful "
+                      "migration adds an ordinary current-key record rather than "
+                      "rewriting or deleting its source."
                   ),
               },
-              "current_task_cache": {
-                  "hits": len(hits),
-                  "misses": len(misses),
-                  "invalidated": len(invalidated),
+              "legacy_invalid_record_count": len(before.get("invalid", [])),
+              "legacy_invalid_record_classifications": legacy_classifications,
+              "recertification_pass_cache": {
+                  "hits": len(first_status.get("hits", {})),
+                  "misses": len(first_status.get("misses", {})),
+                  "invalidated": len(first_status.get("invalidated", {})),
+              },
+              "next_run_current_task_cache": {
+                  "hits": len(next_hits),
+                  "misses": len(next_misses),
+                  "invalidated": len(next_invalidated),
                   "by_evaluation": by_eval,
               },
-              "ecosystem_reused_units": len(ecosystem_hits),
-              "ecosystem_reused_unit_ids": sorted(ecosystem_hits),
-              "semantic_compression_reused_units": len(semantic_hits),
-              "semantic_compression_reused_unit_ids": sorted(semantic_hits),
-              "llm_proficiency_reused_units": len(proficiency_hits),
-              "llm_proficiency_reused_unit_ids": sorted(proficiency_hits),
+              "ecosystem_reused_units": len(hit_ids("ecosystem")),
+              "ecosystem_reused_unit_ids": hit_ids("ecosystem"),
+              "semantic_compression_reused_units": len(
+                  hit_ids("semantic_compression")
+              ),
+              "semantic_compression_reused_unit_ids": hit_ids(
+                  "semantic_compression"
+              ),
+              "llm_proficiency_reused_units": len(
+                  hit_ids("llm_proficiency")
+              ),
+              "llm_proficiency_reused_unit_ids": hit_ids(
+                  "llm_proficiency"
+              ),
               "llm_proficiency_legacy_trial_audit": {
                   "source_records": proficiency.get("source_record_count", 0),
                   "source_trials": proficiency.get("source_trial_count", 0),
@@ -319,10 +534,12 @@ jobs:
                   "hidden_feedback_detected_trials": proficiency.get(
                       "hidden_feedback_detected_trials", 0
                   ),
+                  "current_certified_trial_count": proficiency.get(
+                      "current_certified_trial_count", 0
+                  ),
               },
-              "classifications": classifications,
-              "misses": misses,
-              "invalidated": invalidated,
+              "next_run_misses": next_misses,
+              "next_run_invalidated": next_invalidated,
               "paid_api_required_units": paid_units,
               "paid_api_required_unit_count": len(paid_units),
               "provider_cost": {
@@ -347,16 +564,31 @@ jobs:
           print(json.dumps(report, indent=2, sort_keys=True))
           PY
 
-      - name: Commit only certified cache changes to develop
+      - name: Amend report and push only after develop HEAD recheck
         run: |
           set -euo pipefail
-          rm -rf .quidra-benchmark
+          python benchmark/template/scripts/benchmark.py discard-workspace \
+            --source-repo "$GITHUB_WORKSPACE"
           git add -f benchmark/cache benchmark/template/prompts
-          if git diff --cached --quiet; then
-            echo "No cache records passed current recertification."
+          if ! git diff --cached --quiet; then
+            if [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ]; then
+              git -c user.name="github-actions[bot]" \
+                  -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                  commit -m "benchmark: checkpoint recertified paid cache"
+            else
+              git -c user.name="github-actions[bot]" \
+                  -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                  commit --amend --no-edit
+            fi
+          fi
+
+          git fetch origin develop
+          test "$(git rev-parse origin/develop)" = "$GITHUB_SHA" || {
+            echo "::error::develop moved during cache recertification; refusing to overwrite it."
+            exit 1
+          }
+          if [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ]; then
+            echo "No cache/report changes passed current recertification."
             exit 0
           fi
-          git fetch origin develop
-          test "$(git rev-parse origin/develop)" = "$GITHUB_SHA" || { echo "::error::develop moved during cache recertification; refusing to overwrite it."; exit 1; }
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "benchmark: checkpoint recertified paid cache"
           git push origin HEAD:develop

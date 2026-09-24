@@ -99,6 +99,16 @@ is never taken again by a run that could reuse it. Change
 `declared_epochs.mechanical` when the runner class changes or the numbers should be
 taken again.
 
+The no-provider recertification workflow also re-opens retained benchmark
+workspace artifacts before declaring a paid MISS. It promotes every historically
+COMPLETE/certifiable leaf under its original fingerprint into a temporary trusted
+cache snapshot, hydrates that snapshot against the current tasks, and keeps the
+legacy source bytes whenever a current-key migration points back to them. After
+checkpointing, it starts a second clean workspace from the locally committed cache
+and runs the ordinary prepare/hydrate/budget-plan path again with a fake provider.
+That second pass is the proof that recertified records are normal current-cache HITs,
+not migration-only special cases.
+
 Workers never receive this directory as a readable path. Cache hydration is a
 trusted runner operation, and every hydrated result is passed through the current
 validator before it can become COMPLETE. A structurally intact record that a newer

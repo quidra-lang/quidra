@@ -72,7 +72,7 @@ def current_nontrajectory_compatibility(
         "provider",
         "model",
         "frozen_sampling",
-        "toolchain_fingerprints",
+        "toolchains",
         "runtime_toolchain_pins",
         "worker_mode",
         "network_allowed",
@@ -204,6 +204,14 @@ def audit_record(
         if isinstance(current_payload, dict)
         else (False, ["current_work_unit"])
     )
+    if language == "Quidra":
+        target_problem = benchmark.cache_quidra_execution_reuse_problem(
+            current_root, record
+        )
+        if target_problem:
+            dependency_mismatches.append(
+                "quidra_execution_identity:" + target_problem
+            )
 
     reusable_candidates = 0
     hidden_feedback_trials = 0
@@ -346,7 +354,24 @@ def main() -> int:
             int(record.get("hidden_feedback_detected_trial_count", 0))
             for record in audited
         ),
-        "current_certified_trial_count": 0,
+        "current_certified_trial_count": sum(
+            int((record.get("certification") or {}).get(
+                "proficiency_primary_trial_count", 0
+            ) or 0)
+            for path in sorted(
+                (
+                    source
+                    / "benchmark"
+                    / "cache"
+                    / "v1"
+                    / "llm-proficiency"
+                ).glob("*/*.json")
+            )
+            for record in [load_json(path)]
+            if str((record.get("fingerprint_payload") or {}).get(
+                "cache_epoch"
+            ) or "") == current_epoch
+        ),
         "note": (
             "D is only a candidate state. Promotion additionally requires deterministic "
             "replay with the current trusted verifier, current validator PASS, and "

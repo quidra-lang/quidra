@@ -262,6 +262,18 @@ def assert_r9_p_a_scope_is_enforced() -> None:
             root, "F18.P2", allowed, context="allowed F18 private-boundary substitution"
         )
         assert "F18.P2" in benchmark.sc_p_a_allowed_probes(root)
+        universe = benchmark.json_load(
+            root
+            / "template/methodology-assets/semantic_compression"
+            / "capability_universe.json"
+        )
+        assert "F18.P2" in universe["authoring_rules"]["R9_no_probe_substitution"]
+        assert (
+            "F18.P2"
+            in universe["support_rubric"]["deterministic_tie_break"][
+                "named_substitution"
+            ]
+        )
 
         forbidden = canonical("PARTIAL", "wrapper()", partial=["P-a"])
         try:

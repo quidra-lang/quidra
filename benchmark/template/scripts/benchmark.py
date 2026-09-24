@@ -11541,6 +11541,7 @@ def cmd_task_create(args: argparse.Namespace) -> int:
             if not any(
                 str(rid).startswith(prefix) for prefix in allowed_agent_prefixes
             )
+            and not str(rid).startswith(CANONICAL_FRAGMENT_PREFIX)
         )
         if unknown:
             raise BenchmarkError(

@@ -5701,6 +5701,45 @@ LEGACY_SC_SOURCE_PROVENANCE_ROOT = PurePosixPath(
     "provenance/semantic-compression"
 )
 
+# The retained SC snapshots encode these two guard magnitudes as JSON floats
+# (8.0 / 3.0), while the current Primary file writes the mathematically
+# identical values as integers (8 / 3). Python's json round-trip preserves that
+# int-vs-float distinction in a projection hash even though the runner consumes
+# both as the same numeric magnitude. Normalize only these reviewed legacy paths;
+# every other Primary field remains byte/semantic sensitive.
+LEGACY_SC_INTEGRAL_NUMBER_EQUIVALENCE_PATHS = (
+    ("worker_isolation", "task_spend_guard", "floor_usd"),
+    ("worker_isolation", "task_spend_guard", "envelope_multiplier"),
+)
+
+
+def _legacy_sc_primary_projection_data(
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    projected = json.loads(
+        json.dumps(
+            primary_config_projection_from_data(
+                config, "semantic_compression"
+            ),
+            ensure_ascii=False,
+        )
+    )
+    for parts in LEGACY_SC_INTEGRAL_NUMBER_EQUIVALENCE_PATHS:
+        parent: dict[str, Any] | None = projected
+        for part in parts[:-1]:
+            value = parent.get(part) if isinstance(parent, dict) else None
+            if not isinstance(value, dict):
+                parent = None
+                break
+            parent = value
+        if parent is None:
+            continue
+        key = parts[-1]
+        value = parent.get(key)
+        if isinstance(value, float) and value.is_integer():
+            parent[key] = int(value)
+    return projected
+
 
 def _legacy_sc_source_projection_metadata_path(root: Path, run_id: str) -> Path:
     return (
@@ -5757,8 +5796,8 @@ def record_legacy_sc_source_projection_provenance(
     spec_full = sha256_file(spec)
     primary_projection = sha256_bytes(
         json.dumps(
-            primary_config_projection_from_data(
-                json_load(primary), "semantic_compression"
+            _legacy_sc_primary_projection_data(
+                json_load(primary)
             ),
             sort_keys=True,
             separators=(",", ":"),
@@ -5865,9 +5904,9 @@ def _legacy_sc_source_projection_attestation(
         spec_full = sha256_file(spec)
         primary_projection = sha256_bytes(
             json.dumps(
-                primary_config_projection_from_data(
-                    json_load(primary), "semantic_compression"
-                ),
+                _legacy_sc_primary_projection_data(
+                json_load(primary)
+            ),
                 sort_keys=True,
                 separators=(",", ":"),
                 ensure_ascii=False,

@@ -267,7 +267,7 @@ def assert_r9_p_a_scope_is_enforced() -> None:
             / "template/methodology-assets/semantic_compression"
             / "capability_universe.json"
         )
-        assert "F18.P2" in universe["authoring_rules"]["R9_no_probe_substitution"]
+        assert "F18.P2" in universe["authoring_rules_for_probe_fragments"]["R9_no_probe_substitution"]
         assert (
             "F18.P2"
             in universe["support_rubric"]["deterministic_tie_break"][

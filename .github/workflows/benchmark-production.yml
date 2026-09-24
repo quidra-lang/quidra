@@ -290,6 +290,13 @@ jobs:
                   f"budget {plan.get('available_usd')} is below conservative recommendation "
                   f"{plan.get('recommended_budget_usd')}; no API money was spent"
               )
+          if not plan.get("full_retry_envelope_funded", True):
+              print(
+                  "::warning::Nominal benchmark plan is funded, but the absolute "
+                  "configured retry envelope is not. "
+                  f"Full retry-envelope recommendation: "
+                  f"{plan.get('full_retry_envelope_recommended_budget_usd')} USD."
+              )
           PY
 
       - name: Prove the provider path once only when paid dispatch remains

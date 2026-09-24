@@ -1012,6 +1012,74 @@ def assert_budget_plan_excludes_complete_units() -> None:
 
 
 
+def assert_budget_plan_exposes_configured_retry_ceiling() -> None:
+    """The preflight must distinguish nominal spend from every allowed retry."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, _ = create_cacheable_task(root)
+        freeze_manifest(root, unit)
+        plan = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=100.0,
+            evaluation="ecosystem",
+            safety_multiplier=1.25,
+        )
+        row = plan["units"][0]
+        max_turns = int(
+            benchmark.json_load(root / "template/config/sandbox_agent.json")[
+                "max_turns"
+            ]
+        )
+        assert row["planned_calls_estimate"] == 1 + min(3, max_turns), row
+        assert row["remaining_attempts"] == 3, row
+        assert row["calls_upper_bound"] == 3 * (1 + max_turns), row
+        assert (
+            plan["planned_paid_api_calls_estimate"]
+            < plan["expected_paid_api_calls_upper_bound"]
+        ), plan
+        assert (
+            plan["estimated_uncached_usd"]
+            < plan["retry_ceiling_uncached_usd"]
+        ), plan
+        assert (
+            plan["recommended_budget_usd"]
+            < plan["full_retry_envelope_recommended_budget_usd"]
+        ), plan
+
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, _ = create_cacheable_task(root)
+        unit["worker_mode"] = "packet-only"
+        unit["max_llm_calls"] = 0
+        freeze_manifest(root, unit)
+        plan = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=100.0,
+            evaluation="ecosystem",
+            safety_multiplier=1.25,
+        )
+        row = plan["units"][0]
+        assert row["planned_calls_estimate"] == 1, row
+        assert row["calls_upper_bound"] == 3, row
+
+        ledger_path = root / "work/root/ledger.json"
+        ledger = benchmark.json_load(ledger_path)
+        ledger["units"][unit["id"]]["attempts"] = 1
+        benchmark.json_dump(ledger_path, ledger)
+        resumed = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=100.0,
+            evaluation="ecosystem",
+            safety_multiplier=1.25,
+        )
+        resumed_row = resumed["units"][0]
+        assert resumed_row["remaining_attempts"] == 2, resumed_row
+        assert resumed_row["calls_upper_bound"] == 2, resumed_row
+
+
 def assert_empty_cache_impact_is_a_valid_first_run() -> None:
     """A repository with no v1 records still produces a zero-impact plan."""
     with tempfile.TemporaryDirectory() as td:
@@ -1489,6 +1557,7 @@ def main() -> None:
     assert_empty_cache_impact_is_a_valid_first_run()
     assert_evaluation_scoped_primary_cache()
     assert_budget_plan_excludes_complete_units()
+    assert_budget_plan_exposes_configured_retry_ceiling()
     assert_accepted_trial_start_marks_the_scored_boundary()
     assert_language_quality_design_runner_owned_scoring()
     assert_ecosystem_runner_owned_scoring()

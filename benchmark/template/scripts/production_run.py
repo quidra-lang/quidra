@@ -645,9 +645,14 @@ def build_budget_plan(
     orchestration_output = int(
         worker_cfg.get("orchestration_max_output_tokens", 8192) or 8192
     )
-    orchestration_turn_reserve = min(
-        3, int(sandbox_cfg.get("max_turns", 3) or 3)
-    )
+    orchestration_turn_ceiling = int(sandbox_cfg.get("max_turns", 3) or 3)
+    if orchestration_turn_ceiling < 1:
+        raise ProductionRunError("sandbox max_turns must be at least 1")
+    # Three turns is the nominal planning reserve used for the practical budget
+    # estimate.  The full configured turn budget is tracked separately as the
+    # retry ceiling so the preflight never calls the nominal estimate a hard
+    # upper bound.
+    orchestration_turn_estimate = min(3, orchestration_turn_ceiling)
 
     def task_tokens(unit: dict[str, Any]) -> int:
         agent_id = str(unit.get("assigned_agent_id") or "")
@@ -671,7 +676,9 @@ def build_budget_plan(
     by_eval: dict[str, dict[str, Any]] = {}
     rows: list[dict[str, Any]] = []
     blockers: list[dict[str, str]] = []
-    total_upper = 0.0
+    total_estimate = 0.0
+    retry_ceiling_total = 0.0
+    planned_calls_estimate = 0
     expected_calls_upper = 0
     pending_agent_units = 0
     complete_units = 0
@@ -696,6 +703,8 @@ def build_budget_plan(
                 "complete_units": 0,
                 "pending_agent_units": 0,
                 "estimated_uncached_usd": 0.0,
+                "retry_ceiling_uncached_usd": 0.0,
+                "planned_paid_api_calls_estimate": 0,
                 "expected_paid_api_calls_upper_bound": 0,
                 "hard_blockers": [],
             },
@@ -736,6 +745,25 @@ def build_budget_plan(
             })
             continue
 
+        attempts_used = int(state.get("attempts", 0) or 0)
+        max_attempts = int(
+            state.get("max_attempts", unit.get("max_attempts", 3)) or 3
+        )
+        remaining_attempts = max_attempts - attempts_used
+        if remaining_attempts <= 0:
+            blocker = {
+                "work_unit_id": uid,
+                "status": status,
+                "reason": (
+                    f"attempt budget exhausted before dispatch "
+                    f"({attempts_used}/{max_attempts})"
+                ),
+            }
+            blockers.append(blocker)
+            entry["hard_blockers"].append(blocker)
+            decisions["blocked"].append({**base_decision, **blocker, "api_calls": 0})
+            continue
+
         pending_agent_units += 1
         entry["pending_agent_units"] += 1
         worker_mode = str(unit.get("worker_mode") or "packet-only")
@@ -743,7 +771,11 @@ def build_budget_plan(
         rendered_input = task_tokens(unit)
         input_tokens = max(planned_input, rendered_input, 1)
         if worker_mode == "packet-only":
-            calls = 1
+            # One request is expected.  If validation rejects the response, every
+            # remaining work-unit attempt is allowed to buy one corrected response,
+            # so the configured retry ceiling is the remaining attempt count.
+            planned_calls = 1
+            calls = remaining_attempts
             declared_output = int(unit.get("max_output_tokens_per_call", 0) or 0)
             if declared_output > 0:
                 output_tokens = min(declared_output, packet_output_ceiling)
@@ -759,11 +791,27 @@ def build_budget_plan(
             restored_paid = int(
                 (partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
             )
-            scored_calls = max(
-                0,
-                int(unit.get("max_llm_calls", 0) or 0) - restored_paid,
+            max_scored_calls = int(unit.get("max_llm_calls", 0) or 0)
+            scored_calls = max(0, max_scored_calls - restored_paid)
+            planned_calls = max(
+                1, scored_calls + orchestration_turn_estimate
             )
-            calls = max(1, scored_calls + orchestration_turn_reserve)
+            # Normal retries resume runtime-owned scored trials.  The absolute
+            # configured ceiling also covers an attempt whose filesystem-policy
+            # violation makes its trial state unsafe to resume: later attempts may
+            # then have to repurchase the scored calls.  This ceiling is reported,
+            # not used as the ordinary funding gate, because reserving every
+            # possible failure on every leaf would make a healthy run needlessly
+            # impossible to start.
+            retry_scored_calls = (
+                scored_calls
+                + max(0, remaining_attempts - 1) * max_scored_calls
+            )
+            calls = max(
+                1,
+                retry_scored_calls
+                + remaining_attempts * orchestration_turn_ceiling,
+            )
             output_tokens = max(
                 int(unit.get("max_output_tokens_per_call", 0) or 0),
                 orchestration_output,
@@ -774,7 +822,7 @@ def build_budget_plan(
                 f"{uid}: unsupported worker mode in budget plan: {worker_mode!r}"
             )
 
-        upper = calls * (
+        per_call_cost = (
             input_tokens * input_price / 1_000_000.0
             + output_tokens * output_price / 1_000_000.0
             + (
@@ -783,24 +831,37 @@ def build_budget_plan(
                 else 0.0
             )
         )
-        total_upper += upper
+        estimate = planned_calls * per_call_cost
+        retry_ceiling = calls * per_call_cost
+        total_estimate += estimate
+        retry_ceiling_total += retry_ceiling
+        planned_calls_estimate += planned_calls
         expected_calls_upper += calls
         entry["estimated_uncached_usd"] = round(
-            float(entry["estimated_uncached_usd"]) + upper, 6
+            float(entry["estimated_uncached_usd"]) + estimate, 6
         )
+        entry["retry_ceiling_uncached_usd"] = round(
+            float(entry["retry_ceiling_uncached_usd"]) + retry_ceiling, 6
+        )
+        entry["planned_paid_api_calls_estimate"] += planned_calls
         entry["expected_paid_api_calls_upper_bound"] += calls
 
         row = {
             **base_decision,
             "worker_mode": worker_mode,
+            "attempts_used": attempts_used,
+            "max_attempts": max_attempts,
+            "remaining_attempts": remaining_attempts,
             "restored_paid_calls": int(
                 (partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
             ),
+            "planned_calls_estimate": planned_calls,
             "calls_upper_bound": calls,
             "input_tokens_per_call": input_tokens,
             "output_tokens_per_call": output_tokens,
             "network_allowed": bool(unit.get("network_allowed")),
-            "estimated_uncached_usd": round(upper, 6),
+            "estimated_uncached_usd": round(estimate, 6),
+            "retry_ceiling_uncached_usd": round(retry_ceiling, 6),
         }
         rows.append(row)
         if uid in partial_by_unit:
@@ -839,12 +900,21 @@ def build_budget_plan(
     # A fully cache-satisfied run has no provider path to prove and must not
     # reserve or spend money on a smoke request. Smoke is a guard for actual
     # paid dispatch, not a tax on deterministic cache replay.
-    effective_smoke_reserve = smoke_reserve_usd if expected_calls_upper > 0 else 0.0
-    recommended = total_upper * safety_multiplier + effective_smoke_reserve
+    effective_smoke_reserve = (
+        smoke_reserve_usd if planned_calls_estimate > 0 else 0.0
+    )
+    recommended = total_estimate * safety_multiplier + effective_smoke_reserve
+    retry_recommended = (
+        retry_ceiling_total * safety_multiplier + effective_smoke_reserve
+    )
     available = float(available_usd) if available_usd is not None else None
     sufficient = (
         not blockers
         and (available is None or available + 1e-9 >= recommended)
+    )
+    full_retry_envelope_funded = (
+        not blockers
+        and (available is None or available + 1e-9 >= retry_recommended)
     )
     return {
         "schema_version": 2,
@@ -862,14 +932,20 @@ def build_budget_plan(
             partial_status.get("restored_paid_calls", 0) or 0
         ),
         "partial_paid_resumed_units": sorted(partial_by_unit),
-        "estimated_uncached_usd": round(total_upper, 6),
+        "estimated_uncached_usd": round(total_estimate, 6),
+        "retry_ceiling_uncached_usd": round(retry_ceiling_total, 6),
+        "planned_paid_api_calls_estimate": planned_calls_estimate,
         "expected_paid_api_calls_upper_bound": expected_calls_upper,
         "safety_multiplier": safety_multiplier,
         "smoke_reserve_usd": round(effective_smoke_reserve, 6),
-        "provider_smoke_required": expected_calls_upper > 0,
+        "provider_smoke_required": planned_calls_estimate > 0,
         "recommended_budget_usd": round(recommended, 6),
+        "full_retry_envelope_recommended_budget_usd": round(
+            retry_recommended, 6
+        ),
         "available_usd": available,
         "sufficient": sufficient,
+        "full_retry_envelope_funded": full_retry_envelope_funded,
         "hard_blockers": blockers,
         "by_evaluation": by_eval,
         "execution_decisions": decisions,
@@ -882,12 +958,17 @@ def build_budget_plan(
         ),
         "note": (
             "Frozen pre-paid execution plan. COMPLETE certified-cache hits are "
-            "revalidated and cost zero. Pending leaves with a known invalidation "
-            "state the exact reason; leaves whose fingerprint depends on unfinished "
-            "upstream evidence are explicitly DEFERRED and conservatively priced. "
-            "Exact-fingerprint paid partial checkpoints reduce the remaining scored "
-            "trial-call envelope before pricing. Prompt-cache discounts can only "
-            "reduce actual provider spend further."
+            "revalidated and cost zero. estimated_uncached_usd and "
+            "planned_paid_api_calls_estimate are the practical nominal envelope; "
+            "retry_ceiling_uncached_usd and expected_paid_api_calls_upper_bound "
+            "also expose every still-configured work-unit retry and sandbox-agent "
+            "turn. The normal funding gate uses the nominal envelope plus its safety "
+            "multiplier, while full_retry_envelope_funded says whether even the "
+            "absolute configured retry envelope is funded. Pending leaves with a "
+            "known invalidation state the exact reason; dependency-deferred cache "
+            "decisions remain conservatively priced. Exact-fingerprint paid partial "
+            "checkpoints reduce the remaining scored-call estimate before pricing. "
+            "Prompt-cache discounts can only reduce actual provider spend further."
         ),
     }
 
@@ -1289,9 +1370,20 @@ def reconcile_execution_plan(
         if str(unit.get("evaluation") or "") == evaluation
     }
 
-    planned_calls = int(plan.get("expected_paid_api_calls_upper_bound", 0) or 0)
+    planned_calls = int(
+        plan.get(
+            "planned_paid_api_calls_estimate",
+            plan.get("expected_paid_api_calls_upper_bound", 0),
+        ) or 0
+    )
+    retry_call_ceiling = int(
+        plan.get("expected_paid_api_calls_upper_bound", planned_calls) or 0
+    )
     actual_calls = int(actual.get("paid_inference_calls", 0) or 0)
     planned_cost = float(plan.get("estimated_uncached_usd", 0.0) or 0.0)
+    retry_cost_ceiling = float(
+        plan.get("retry_ceiling_uncached_usd", planned_cost) or 0.0
+    )
     actual_cost = float(actual.get("estimated_cost_usd", 0.0) or 0.0)
 
     retry_units = []
@@ -1319,14 +1411,18 @@ def reconcile_execution_plan(
     reasons: list[str] = []
     if actual_calls < planned_calls:
         reasons.append(
-            "actual calls are below the conservative upper bound because unused "
-            "repair/orchestration envelopes and dependency-unlocked cache hits are "
-            "not charged"
+            "actual calls are below the nominal frozen plan because unused "
+            "orchestration/repair work or dependency-unlocked cache hits were not charged"
         )
     elif actual_calls > planned_calls:
         reasons.append(
-            "actual calls exceeded the frozen upper-bound estimate; inspect retries "
-            "and gateway audit before accepting the run plan as accurate"
+            "actual calls exceeded the nominal frozen plan; retries or additional "
+            "orchestration consumed part of the configured retry envelope"
+        )
+    if actual_calls > retry_call_ceiling:
+        reasons.append(
+            "actual calls exceeded the configured retry ceiling; the execution plan "
+            "or provider accounting requires investigation"
         )
     if retry_units:
         reasons.append("one or more work units required runner retries")
@@ -1340,11 +1436,15 @@ def reconcile_execution_plan(
         "schema_version": 1,
         "kind": "benchmark_execution_actual_vs_plan",
         "evaluation": evaluation,
-        "planned_paid_api_calls_upper_bound": planned_calls,
+        "planned_paid_api_calls_estimate": planned_calls,
+        "planned_paid_api_calls_upper_bound": retry_call_ceiling,
         "actual_paid_api_calls": actual_calls,
-        "paid_api_call_delta_actual_minus_upper_bound": actual_calls - planned_calls,
-        "within_planned_call_upper_bound": actual_calls <= planned_calls,
-        "planned_uncached_usd_upper_estimate": round(planned_cost, 6),
+        "paid_api_call_delta_actual_minus_plan": actual_calls - planned_calls,
+        "paid_api_call_delta_actual_minus_upper_bound": actual_calls - retry_call_ceiling,
+        "within_nominal_call_plan": actual_calls <= planned_calls,
+        "within_planned_call_upper_bound": actual_calls <= retry_call_ceiling,
+        "planned_uncached_usd_estimate": round(planned_cost, 6),
+        "planned_uncached_usd_upper_estimate": round(retry_cost_ceiling, 6),
         "actual_estimated_cost_usd": round(actual_cost, 6),
         "cost_delta_actual_minus_plan": round(actual_cost - planned_cost, 6),
         "final_ledger_status_counts": final_status_counts,

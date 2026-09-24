@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "policy": "Requirements that are deterministically measurable or verifiable must remain runner-command work. Requirements whose substance is semantic judgment, external evidence adjudication, or the measured LLM behavior itself remain agent work. This file prevents future plan edits from paying an LLM for work the runner already knows how to do, and also prevents brittle scripts from replacing judgment tasks.",
+  "policy": "Deterministic-first execution ownership. The runner must own every operation that is reproducibly derivable from frozen inputs: planning, parsing/serialization, schema and range validation, compilation/execution, oracle checks, timing/resource measurement, arithmetic/normalization, aggregation/ranking, cache identity, and integrity gates. Agent work is reserved for irreducible semantic judgment, external qualitative evidence interpretation, or the LLM behavior being measured. Agent outputs are evidence/decisions only; trusted runner code validates and derives machine-computable fields. This file prevents future plan edits from paying an LLM for deterministic work and prevents brittle scripts from replacing genuine judgment.",
   "evaluations": {
     "semantic_compression": {
       "runner_command_requirements": [

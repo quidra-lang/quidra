@@ -591,11 +591,28 @@ jobs:
           fi
 
           git fetch origin develop
-          test "$(git rev-parse origin/develop)" = "$GITHUB_SHA" || {
-            echo "::error::develop moved during cache recertification; refusing to overwrite it."
-            exit 1
-          }
-          if [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ]; then
+          remote_head="$(git rev-parse origin/develop)"
+          if [ "$remote_head" != "$GITHUB_SHA" ]; then
+            # A concurrent documentation/test-only commit must not waste a
+            # completed six-hour recertification. Reuse it only when every
+            # scientific input that can affect cached benchmark meaning stayed
+            # byte-identical; otherwise fail closed and let a fresh run start
+            # from the newer develop commit.
+            if ! git diff --quiet "$GITHUB_SHA" "$remote_head" -- \
+              benchmark/template \
+              benchmark/master_prompt.md \
+              CMakeLists.txt project.toml quidra.manifest.json \
+              src include \
+              docs/spec docs/packages.md docs/development.md \
+              tests/benchmark/quidra
+            then
+              echo "::error::develop moved and benchmark-scientific inputs changed; refusing stale recertification."
+              exit 1
+            fi
+            echo "develop moved only outside benchmark-scientific inputs; rebasing checkpoint onto $remote_head"
+            git rebase origin/develop
+          fi
+          if [ "$(git rev-parse HEAD)" = "$remote_head" ]; then
             echo "No cache/report changes passed current recertification."
             exit 0
           fi

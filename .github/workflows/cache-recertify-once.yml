@@ -19,6 +19,7 @@ on:
       - "benchmark/template/methodology-assets/semantic_compression/**"
       - "benchmark/template/methodology-assets/ecosystem/**"
       - "benchmark/template/environment/environment.json"
+      - "benchmark/template/runtime/**"
 
 permissions:
   contents: write

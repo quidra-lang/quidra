@@ -1609,6 +1609,11 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
         # Current keys intentionally do not; recertification must project it away
         # and then run today's validator on the staged legacy result.
         old_payload["validator_contract"] = "python3 legacy-validator.py result-check"
+        old_inputs = dict(old_payload["unit_input_hashes"])
+        old_inputs["evaluation_spec"] = old_inputs.pop(
+            "evaluation_spec_sections"
+        )
+        old_payload["unit_input_hashes"] = old_inputs
         old_reads = dict(old_payload["readable_input_content_hashes"])
         assert "template/methodology-assets/semantic_compression" in old_reads
         old_reads["template/methodology-assets/semantic_compression"] = "b" * 64
@@ -1713,6 +1718,77 @@ def assert_semantic_validator_recertification_is_narrow() -> None:
                 current_payload, policy["semantic_compression"]
             )
         )
+
+        changed_eval = json.loads(json.dumps(old_payload))
+        changed_eval["unit_input_hashes"]["evaluation_spec"] = "d" * 64
+        assert (
+            benchmark._validator_recertification_payload(
+                changed_eval, policy["semantic_compression"]
+            )
+            != benchmark._validator_recertification_payload(
+                current_payload, policy["semantic_compression"]
+            )
+        )
+
+def assert_semantic_owner_cross_run_density_requires_exact_experiment_identity() -> None:
+    """Cross-run density reuse requires an identical shared SC experiment."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        owner_rel = Path(
+            "v1/semantic-compression/go/"
+            "5385612dd53fe18db59592af3136aaca2f449a124fd9cc6128a7c3e2b9f1ad9b.json"
+        )
+        density_rel = Path(
+            "v1/semantic-compression/go/"
+            "60221c1fd59b881e6aab14273e72c07158acb883458a11c8a5cc5853e70a47d6.json"
+        )
+        for rel in (owner_rel, density_rel):
+            dest = root / "cache" / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / "benchmark/cache" / rel, dest)
+
+        owner_path = root / "cache" / owner_rel
+        owner = benchmark.json_load(owner_path)
+        unit = {
+            "id": "sc-metrics-hidden-coverage--part-2--go",
+            "evaluation": "semantic_compression",
+            "canonical_fragment_owner": True,
+            "assigned_languages": ["Go"],
+        }
+        projected, problem = benchmark.project_semantic_owner_recertification(
+            root, unit, owner, owner_path
+        )
+        assert problem is None and projected is not None, problem
+        metadata = projected["result"]["evidence"]["legacy_recertification"]
+        assert metadata["source_run_id"] == "2026-09-23-fce5cfa-gh16"
+        assert metadata["source_density_run_id"] == "2026-09-23-402117e-gh11"
+        assert (
+            metadata["density_source_selection"]
+            == "cross-run-scientific-identity"
+        )
+        assert metadata["source_density_snapshot_commit"] == (
+            "402117e2d4a15ca96ea92fa2a911a10e6ae35bf2"
+        )
+        assert metadata["scientific_identity_sha256"]
+
+        density_path = root / "cache" / density_rel
+        mismatched = benchmark.json_load(density_path)
+        mismatched["fingerprint_payload"]["model"] = "different-model"
+        mismatched["fingerprint"] = benchmark.sha256_bytes(
+            json.dumps(
+                mismatched["fingerprint_payload"],
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        )
+        benchmark.json_dump(density_path, mismatched)
+        projected, problem = benchmark.project_semantic_owner_recertification(
+            root, unit, owner, owner_path
+        )
+        assert projected is None
+        assert "same scientific experiment identity" in str(problem), problem
+
 
 def assert_semantic_recertification_requires_exact_canonical_fragments() -> None:
     with tempfile.TemporaryDirectory() as td:
@@ -2161,6 +2237,7 @@ def main() -> None:
     assert_evaluation_scoped_primary_cache()
     assert_ecosystem_snapshot_recertifies_under_current_validator()
     assert_semantic_validator_recertification_is_narrow()
+    assert_semantic_owner_cross_run_density_requires_exact_experiment_identity()
     assert_semantic_recertification_requires_exact_canonical_fragments()
     assert_budget_plan_excludes_complete_units()
     assert_budget_plan_exposes_configured_retry_ceiling()

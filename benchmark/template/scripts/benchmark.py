@@ -8110,6 +8110,27 @@ CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
             "current-validator-attestations",
         ],
     },
+    "semantic-legacy-llm-recertification": {
+        "reason": (
+            "Historical paid Semantic Compression evidence was re-adjudicated "
+            "against the current frozen rubric by the trusted GPT-5.6 Sol "
+            "recertifier. The result is bound to a frozen provenance snapshot "
+            "containing the exact legacy source hashes and current canonical "
+            "fragments. This mode never claims that legacy fragments were "
+            "mechanically compiled when the retained run did not perform that "
+            "verification."
+        ),
+        "transformed_fields": [
+            "requirements",
+            "evidence",
+            "fingerprint",
+            "fingerprint_payload",
+            "provenance",
+            "certification",
+            "canonical_fragments",
+            "canonical_verification",
+        ],
+    },
     "semantic-legacy-owner-recertification": {
         "reason": (
             "Preserved paid Semantic Compression support judgments and same-run "

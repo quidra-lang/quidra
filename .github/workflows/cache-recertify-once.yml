@@ -98,6 +98,31 @@ jobs:
             mkdir -p "$dst"
             tar -xzf "$tgz" -C "$dst"
 
+            # Some paid runs were made from commits that still exist in GitHub's
+            # object store but are no longer ancestors of develop. A normal
+            # fetch-depth: 0 checkout therefore may not contain the commit object.
+            # Recover the exact public source archive by immutable SHA instead of
+            # treating missing branch ancestry as a scientific cache miss.
+            if ! git cat-file -e "${snapshot}^{commit}" 2>/dev/null; then
+              source_tgz="$evidence_root/${snapshot}.source.tgz"
+              source_dir="$evidence_root/source-${snapshot}"
+              rm -rf "$source_dir"
+              mkdir -p "$source_dir"
+              gh api \
+                -H "Accept: application/vnd.github+json" \
+                "repos/${GITHUB_REPOSITORY}/tarball/${snapshot}" \
+                > "$source_tgz"
+              tar -xzf "$source_tgz" -C "$source_dir"
+              source_root="$(
+                find "$source_dir" -mindepth 1 -maxdepth 1 -type d -print -quit
+              )"
+              test -n "$source_root"
+              test -d "$source_root/benchmark/template"
+              mkdir -p "$dst/template" "$dst/repo"
+              cp -a "$source_root/benchmark/template/." "$dst/template/"
+              cp -a "$source_root/." "$dst/repo/"
+            fi
+
             python benchmark/template/scripts/benchmark.py cache-promote-evidence \
               --source-repo "$GITHUB_WORKSPACE" \
               --evidence "$dst" \

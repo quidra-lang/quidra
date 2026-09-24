@@ -7662,6 +7662,10 @@ def apply_worker_response(
         seen.add(rel_text)
         staged.append((dest, data, rel_text))
     staged, seen = compile_sc_support_text_outputs(root, meta, staged)
+    # For support-adjudication tasks result.json is intentionally runner-owned:
+    # the packet's historical expected output is satisfied by the deterministic
+    # text compiler above, while the model returns only the ten language leaves.
+    # This keeps paid semantic judgment separate from serialization/bookkeeping.
     expected_relative = []
     for expected in meta.get("expected_outputs", []):
         expected_path = require_under(Path(expected), agent_dir)

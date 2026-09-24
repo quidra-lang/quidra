@@ -5900,8 +5900,20 @@ def project_semantic_owner_recertification(
     if len(assigned) != 1:
         return None, "legacy Semantic Compression owner must be language-scoped"
     language = assigned[0]
-    source_run = str((record.get("provenance") or {}).get("run_id") or "")
-    experiment_identity = _legacy_sc_shared_experiment_identity(record)
+    try:
+        source_record = json_load(source_path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        return None, (
+            f"{unit.get('id')}: legacy owner source is unreadable: "
+            f"{type(exc).__name__}: {exc}"
+        )
+    source_run = str((source_record.get("provenance") or {}).get("run_id") or "")
+    experiment_identity = _legacy_sc_shared_experiment_identity(source_record)
+    if not experiment_identity:
+        return None, (
+            f"{unit.get('id')}: legacy owner has no valid Semantic Compression "
+            "scientific experiment identity"
+        )
     density_path, density_record = _legacy_sc_find_source_record(
         root,
         language,
@@ -5932,7 +5944,9 @@ def project_semantic_owner_recertification(
         / "semantic_site_matrix.json"
     )
     probe_ids = [str(probe.get("probe_id") or "") for probe in matrix.get("probes", [])]
-    owner_rows = probe_annotation_fields(record.get("result") or {}, set(probe_ids))
+    owner_rows = probe_annotation_fields(
+        source_record.get("result") or {}, set(probe_ids)
+    )
     density_rows = probe_annotation_fields(
         density_record.get("result") or {}, set(probe_ids)
     )

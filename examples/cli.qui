@@ -1,8 +1,0 @@
-cli args
-    string source = argument()
-    int count = option(default = 1)
-    bool verbose = flag()
-
-print(args.source)
-print(args.count)
-print(args.verbose)

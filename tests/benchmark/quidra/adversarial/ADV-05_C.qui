@@ -1,8 +1,0 @@
-print("ADV-START")
-io.flush()
-float v = 1.0e30
-int32 r = int32(math.trunc(v))
-print("OBS=V:{r}")
-io.flush()
-print("ADV-END")
-io.flush()

@@ -1,9 +1,0 @@
-print("ADV-START")
-io.flush()
-int[] values = [10, 20, 30, 40, 50]
-int index = 5
-int element = values[index]
-print("OBS=ELEM:{element}")
-io.flush()
-print("ADV-END")
-io.flush()

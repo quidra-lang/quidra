@@ -1755,8 +1755,20 @@ def assert_semantic_owner_cross_run_density_requires_exact_experiment_identity()
             "canonical_fragment_owner": True,
             "assigned_languages": ["Go"],
         }
+        projected_owner = json.loads(json.dumps(owner))
+        projected_owner["fingerprint_payload"]["cache_epoch"] = (
+            benchmark.cache_epoch(root, "semantic_compression")
+        )
+        projected_owner["fingerprint_payload"]["unit_input_hashes"][
+            "primary_config"
+        ] = "f" * 64
+        projected_owner["fingerprint_payload"]["unit_input_hashes"][
+            "evaluation_spec_sections"
+        ] = projected_owner["fingerprint_payload"]["unit_input_hashes"].pop(
+            "evaluation_spec"
+        )
         projected, problem = benchmark.project_semantic_owner_recertification(
-            root, unit, owner, owner_path
+            root, unit, projected_owner, owner_path
         )
         assert problem is None and projected is not None, problem
         metadata = projected["result"]["evidence"]["legacy_recertification"]
@@ -1784,7 +1796,7 @@ def assert_semantic_owner_cross_run_density_requires_exact_experiment_identity()
         )
         benchmark.json_dump(density_path, mismatched)
         projected, problem = benchmark.project_semantic_owner_recertification(
-            root, unit, owner, owner_path
+            root, unit, projected_owner, owner_path
         )
         assert projected is None
         assert "same scientific experiment identity" in str(problem), problem

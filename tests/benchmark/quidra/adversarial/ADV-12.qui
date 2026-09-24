@@ -1,7 +1,0 @@
-print("ADV-START")
-io.flush()
-int value
-print("OBS=VAL:{value}")
-io.flush()
-print("ADV-END")
-io.flush()

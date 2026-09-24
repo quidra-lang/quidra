@@ -1,9 +1,0 @@
-print("ADV-START")
-io.flush()
-int32 a = -1
-uint32 b = 1
-bool r = a < b
-print("OBS=CMP:{r}")
-io.flush()
-print("ADV-END")
-io.flush()

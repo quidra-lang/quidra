@@ -1,8 +1,0 @@
-print("ADV-START")
-io.flush()
-int a = 7
-int q = a / 0
-print("OBS=QUOT:{q}")
-io.flush()
-print("ADV-END")
-io.flush()

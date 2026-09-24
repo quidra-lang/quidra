@@ -1,8 +1,0 @@
-void double_all(int[] &values)
-    for &value in values
-        value = value * 2
-
-int[] values = [1, 2, 3]
-double_all(&values)
-for value in values
-    print(value)

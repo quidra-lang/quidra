@@ -1,0 +1,82 @@
+name: cache-recertify-once
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - ".github/workflows/cache-recertify-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cache-recertify-once
+  cancel-in-progress: false
+
+jobs:
+  semantic-compression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Reclaim runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Build and verify pinned benchmark image
+        run: |
+          python benchmark/template/runtime/check_pins.py
+          python benchmark/template/scripts/sandbox_launcher.py build-image --target toolchains --image "$BENCHMARK_IMAGE"
+          python benchmark/template/scripts/sandbox_launcher.py doctor --image "$BENCHMARK_IMAGE"
+
+      - name: Prepare and recertify Semantic Compression cache without provider calls
+        run: |
+          set -euo pipefail
+          short_sha="$(git rev-parse --short=7 HEAD)"
+          python benchmark/template/scripts/benchmark.py init --source-repo "$GITHUB_WORKSPACE" --sandbox-mode container --run-id "cache-recertify-${short_sha}" --provider anthropic-messages --model claude-sonnet-5
+          python benchmark/template/scripts/sandbox_launcher.py run --source-repo "$GITHUB_WORKSPACE" --image "$BENCHMARK_IMAGE" --provider fake -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare --evaluation semantic_compression
+          python benchmark/template/scripts/benchmark.py checkpoint-cache --source-repo "$GITHUB_WORKSPACE" | tee "$RUNNER_TEMP/cache-recertify.json"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path(".quidra-benchmark")
+          status = json.loads((root / "results/cache_status.json").read_text())
+          hits = status.get("hits", {})
+          recertified = {uid: row for uid, row in hits.items() if row.get("compatibility_mode") == "validator-recertification"}
+          report = {
+              "schema_version": 1,
+              "cache_hits": len(hits),
+              "validator_recertified": len(recertified),
+              "validator_recertified_units": sorted(recertified),
+              "misses": len(status.get("misses", {})),
+              "invalidated": len(status.get("invalidated", {})),
+          }
+          Path("benchmark/cache/recertification-report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Commit only certified cache changes to develop
+        run: |
+          set -euo pipefail
+          rm -rf .quidra-benchmark
+          git add -f benchmark/cache benchmark/template/prompts
+          if git diff --cached --quiet; then
+            echo "No cache records passed current recertification."
+            exit 0
+          fi
+          git fetch origin develop
+          test "$(git rev-parse origin/develop)" = "$GITHUB_SHA" || { echo "::error::develop moved during cache recertification; refusing to overwrite it."; exit 1; }
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "benchmark: checkpoint recertified semantic cache"
+          git push origin HEAD:develop

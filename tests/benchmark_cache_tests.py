@@ -554,6 +554,17 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
         "read_paths": ["repo/tests/benchmark/quidra", "template/workloads"],
         "evidence_paths": [str(result_path)], "network_allowed": False, "max_attempts": 3,
         "worker_mode": "runner-command", "assigned_languages": [],
+        "input_hashes": {
+            "benchmark_metadata": benchmark.sha256_file(
+                root / "template/config/benchmark_metadata.json"
+            ),
+            "evaluation_spec_sections": benchmark.evaluation_spec_projection_sha256(
+                root, "language_quality", []
+            ),
+            "primary_config": benchmark.primary_config_projection_sha256(
+                root, "language_quality"
+            ),
+        },
     }
     assert benchmark.cache_eligible_unit(root, unit), "a mechanical measurement is not cacheable"
     assert benchmark.cache_scope(unit) == "mechanical-micro-measure"
@@ -595,6 +606,81 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     )
     assert "micro_raw.json" in record["certification"]["raw_evidence_sha256"]
     assert record["result"] == result
+
+    # Older mechanical keys included orchestration-only Primary metadata and
+    # adversarial_measure.py even though this unit executes only
+    # micro_measure.py.  Preserve that paid multi-hour measurement when every
+    # input actually consumed by the micro experiment is unchanged.
+    projection_dir = root / "cache/v1/language-quality/mechanical-micro-measure"
+    if projection_dir.exists():
+        shutil.rmtree(projection_dir)
+    projection_dir.mkdir(parents=True)
+    legacy_projection = json.loads(json.dumps(record))
+    legacy_payload = legacy_projection["fingerprint_payload"]
+    legacy_inputs = dict(legacy_payload.get("unit_input_hashes") or {})
+    legacy_inputs["primary_config"] = "a" * 64
+    if "evaluation_spec_sections" in legacy_inputs:
+        legacy_inputs["evaluation_spec"] = legacy_inputs.pop(
+            "evaluation_spec_sections"
+        )
+    legacy_payload["unit_input_hashes"] = legacy_inputs
+    legacy_payload["measurement_script_hashes"][
+        "adversarial_measure.py"
+    ] = "b" * 64
+    legacy_fingerprint = benchmark.sha256_bytes(
+        json.dumps(
+            legacy_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    legacy_projection["fingerprint"] = legacy_fingerprint
+    legacy_projection["provenance"]["run_id"] = "2026-09-22-legacy-micro"
+    legacy_path = projection_dir / f"{legacy_fingerprint}.json"
+    benchmark.json_dump(legacy_path, legacy_projection)
+
+    projected_path, projected, projection_problem = (
+        benchmark.find_micro_measure_projection_cache_record(
+            root, unit, payload
+        )
+    )
+    assert projection_problem is None, projection_problem
+    assert projected_path == legacy_path
+    assert projected is not None
+    assert projected["fingerprint"] == fingerprint
+    assert projected["result_sha256"] == record["result_sha256"]
+    assert (
+        projected["certification"]["mechanical_action_projection"]
+        == "micro-measure-v1"
+    )
+
+    # The bridge is narrow: changing the script that actually executes the
+    # measurement is a true cache miss.
+    broken = json.loads(json.dumps(legacy_projection))
+    broken["fingerprint_payload"]["measurement_script_hashes"][
+        "micro_measure.py"
+    ] = "c" * 64
+    broken_fingerprint = benchmark.sha256_bytes(
+        json.dumps(
+            broken["fingerprint_payload"],
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    broken["fingerprint"] = broken_fingerprint
+    legacy_path.unlink()
+    broken_path = projection_dir / f"{broken_fingerprint}.json"
+    benchmark.json_dump(broken_path, broken)
+    no_path, no_record, no_problem = (
+        benchmark.find_micro_measure_projection_cache_record(
+            root, unit, payload
+        )
+    )
+    assert no_problem is None
+    assert no_path is None and no_record is None
+    broken_path.unlink()
 
     # A verified legacy record keeps its historical fingerprint/result but is
     # ratcheted forward with the current execution identity at checkpoint.

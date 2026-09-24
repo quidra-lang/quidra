@@ -21024,7 +21024,7 @@
           "cache": {
             "assigned_languages": [],
             "compatibility_mode": "semantic-comparability-from-current-catalog",
-            "fingerprint": "97cd4869f3dd5d29f1f12544a28e461c478001f7259182ae9bf1474d361d2269",
+            "fingerprint": "0b922ce5a3809ee7850c83a2ecb8b977ef07dd3d8bc8b1acfd1f93c8cc6aee07",
             "migration": {
               "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
               "current_validator": "PASS",
@@ -25876,12 +25876,12 @@
     "invalid": 209,
     "note": "Legacy invalid records are retained as provenance. A successful migration adds an ordinary current-key record rather than rewriting or deleting its source.",
     "superseded": 240,
-    "valid": 657
+    "valid": 658
   },
   "historical_cache_before": {
     "invalid": 209,
     "superseded": 240,
-    "valid": 146
+    "valid": 657
   },
   "legacy_invalid_record_classifications": [
     {
@@ -26152,10 +26152,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
       "work_unit_id": "sc-metrics-local--part-1--c"
@@ -26201,10 +26200,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/c/5fc6f4cb8e40404bd7af23fb9dbfa632cf17745ef176c92d4fe6e9ad95d7e4f2.json",
       "work_unit_id": "sc-metrics-local--part-2--c"
@@ -26262,10 +26260,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/c/99d1bd0b9161ed8c4db4e94e53fe520ff74f6ef2f9d573fdc84c024ad08fc618.json",
       "work_unit_id": "sc-metrics-local--part-3--c"
@@ -26299,10 +26296,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/c/bb2a97b0e0870a771c54893c09de8cc54208eb997179ad42a57d70748a626a20.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--c"
@@ -26324,7 +26320,7 @@
       ],
       "classification": "D",
       "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-support-from-current-catalog",
+      "compatibility_mode": "semantic-comparability-from-current-catalog",
       "disposition": "recertified-current-cache",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
@@ -26335,10 +26331,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/c/fdf72d9553f9c555ddebb58dbba9ab73f832c1a803ddc0ed143b3365c67d84d7.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--c"
@@ -26409,10 +26404,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/go/39ceaaf189aefc9577cac216b7ce277a60cd4afa03f0a69e9106b1776754e698.json",
       "work_unit_id": "sc-metrics-local--part-3--go"
@@ -26434,10 +26428,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/go/3e3a9839e58ddd681584b11cc4086372bfb6d11452aa432495358274d974b6f4.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--go"
@@ -26447,10 +26440,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/go/44adf95175136643e4bb2d5b127dad53287e5009f0bdb9b3570f923c62a7867f.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--go"
@@ -26482,10 +26474,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--go"
@@ -26495,10 +26486,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/go/5e58b6b600992c2448b7b4ad4cb6d207b2a4b752e0319260f8d4c4c94a112013.json",
       "work_unit_id": "sc-metrics-local--part-1--go"
@@ -26579,10 +26569,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/go/eed194c39b8b5181bcd881e5cec3e768ec955cc520baeb7b1610fef04459a6ca.json",
       "work_unit_id": "sc-metrics-local--part-2--go"
@@ -26651,10 +26640,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/java/4e6ec80652823b61fe15841098cb26f2943a61ae97ac83225be40ca5b144c33e.json",
       "work_unit_id": "sc-metrics-local--part-2--java"
@@ -26734,10 +26722,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/java/956d0f4caea8fc4b07f3631a8814c60772178d4a98a9a742652a8eac3b34cb64.json",
       "work_unit_id": "sc-metrics-local--part-1--java"
@@ -26747,10 +26734,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/java/980d3d892e7cdf12807340453b0d0c10ab0d2025aab046b9ca19e79fa33ab5f6.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--java"
@@ -26783,10 +26769,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/java/c9e9d8f80cd3768d34320c91e60bc4282c868086a4f7c283a63943741c532b6e.json",
       "work_unit_id": "sc-metrics-local--part-3--java"
@@ -26809,10 +26794,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/java/d92d59336f98cf192c029e33f02e8ecc354f23524a93bd7e962615b0bded1ac9.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--java"
@@ -26821,10 +26805,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--java"
@@ -26893,10 +26876,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/kotlin/6bec2119e4f0cab54fe79ceb05dac1134251d6b97c8eb55e4ea808f2ad5717c7.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--kotlin"
@@ -26940,10 +26922,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/kotlin/919350decade35a30de4be1984994c6ce89e00d76f090baf9a9d8d2a3561f61b.json",
       "work_unit_id": "sc-metrics-local--part-3--kotlin"
@@ -26965,10 +26946,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/kotlin/9e873c075e0e905a1fd9d8dd670b1d12035acad7cca908e4c0c137b4b30194fc.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--kotlin"
@@ -27016,10 +26996,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/kotlin/bcd208a13fedd651611939feb4e935f3510be2af8fe68a29365962fb959068a1.json",
       "work_unit_id": "sc-metrics-local--part-2--kotlin"
@@ -27039,10 +27018,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--kotlin"
@@ -27052,10 +27030,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/kotlin/de23033b3284cc4a1add3a5e036ac700603d3f5148fd3ba3aeefc04e440182a9.json",
       "work_unit_id": "sc-metrics-local--part-1--kotlin"
@@ -27149,10 +27126,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/python/5e4bed41363f9a1f144f282cf6d91887038ac624edacf6516bbce2a9830f427d.json",
       "work_unit_id": "sc-metrics-local--part-2--python"
@@ -27162,10 +27138,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/python/680292e75cc34e34124753204566b12ed0e44f6e52dd146573f574020fc865e9.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--python"
@@ -27211,10 +27186,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--python"
@@ -27235,10 +27209,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/python/e13e1a9d4c96a6c071b79c3d49a71d95810954fa9a1cc286e9827b4ed4d95568.json",
       "work_unit_id": "sc-metrics-local--part-3--python"
@@ -27259,10 +27232,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/python/ee878d0276b4bfd28f41f3fb944b10926da4f7e2efd60793822ce4e7726457d6.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--python"
@@ -27272,10 +27244,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
       "work_unit_id": "sc-metrics-local--part-1--python"
@@ -27296,10 +27267,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/quidra/0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826.json",
       "work_unit_id": "sc-metrics-local--part-3--quidra"
@@ -27320,10 +27290,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/quidra/184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra"
@@ -27344,10 +27313,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/quidra/7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra"
@@ -27391,10 +27359,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/quidra/dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc.json",
       "work_unit_id": "sc-metrics-local--part-2--quidra"
@@ -27403,10 +27370,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--quidra"
@@ -27416,10 +27382,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/quidra/e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json",
       "work_unit_id": "sc-metrics-local--part-1--quidra"
@@ -27515,10 +27480,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/rust/73c6b7495fa88f077d2331884803a4965affc8e02291a12f84b4efdafb90dc4a.json",
       "work_unit_id": "sc-metrics-local--part-3--rust"
@@ -27528,10 +27492,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/rust/765166cd49b948a852442f055d75e3a7658a7931a15bf7aed9bd75bd27bcc335.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--rust"
@@ -27590,10 +27553,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/rust/ab79eafb92f267f87ca816b3010dd0e75272bdffd741d793c6e163a9fe884d9e.json",
       "work_unit_id": "sc-metrics-local--part-2--rust"
@@ -27602,10 +27564,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--rust"
@@ -27627,10 +27588,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/rust/cb3fad8de8a49fd7ac901d68aa142ae76288c97dc5f695c6f59eb0c4ebd19d0f.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--rust"
@@ -27663,10 +27623,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
       "work_unit_id": "sc-metrics-local--part-1--rust"
@@ -27736,10 +27695,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--swift"
@@ -27795,10 +27753,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/swift/92e660af4810551b491e555f05af7c96741dcf34a831c094c9d48f0ca1d239f6.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--swift"
@@ -27820,10 +27777,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/swift/9a7cf53539a12243bce4cddc4c0498c1f4985094eba64293351a3671dadd981d.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--swift"
@@ -27856,10 +27812,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
       "work_unit_id": "sc-metrics-local--part-1--swift"
@@ -27880,10 +27835,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/swift/c12a44c0b8cec2aceaf8db43935610b33de7da54ad16d52e0c5ddca6a6093764.json",
       "work_unit_id": "sc-metrics-local--part-2--swift"
@@ -27906,10 +27860,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/swift/d1de822b7f31c1d06b93577df164531914e0b9443dd2d28db2e32d1ad2062428.json",
       "work_unit_id": "sc-metrics-local--part-3--swift"
@@ -27991,10 +27944,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/typescript/36d02949f66fdc38136b2e8b825046761365057a1280f2130e92b30330c62137.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--typescript"
@@ -28015,10 +27967,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/typescript/467577acdf50ddf437b8ccdb3b4ca3fa142ea91eeb937742cbae7976c6019498.json",
       "work_unit_id": "sc-metrics-local--part-2--typescript"
@@ -28087,10 +28038,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--typescript"
@@ -28111,10 +28061,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/typescript/adade02e7ddb150eeb42e9efd9ea777625c989b83c22819c4996fd318430886b.json",
       "work_unit_id": "sc-metrics-local--part-1--typescript"
@@ -28160,10 +28109,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/typescript/d06f956d2d1a7ea1b2de20d6e2c60ba77efef8a763c0a7779c8130258e265856.json",
       "work_unit_id": "sc-metrics-local--part-3--typescript"
@@ -28173,10 +28121,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/typescript/fd39b319f3e81c424b36c36a993894ac2f9fee21b86a758dc8b0571bba81a665.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--typescript"
@@ -28281,10 +28228,9 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-probe-from-current-owner",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--zig"
@@ -28294,10 +28240,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/zig/9a82e8b42d46cf0e685e322f74607d81d2ff3f37d75ddd1c5c4480d25e594310.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-3--zig"
@@ -28342,10 +28287,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/zig/c378b9a60d7bf8db9cfc8f6b692a5acfd5e8abcf5271246d4c75707805fb6fb0.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--zig"
@@ -28378,10 +28322,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/zig/d7bcfcd33b1bf9b74a37eb4ab3c92592957e57591b68000615d025fe3cdf24e0.json",
       "work_unit_id": "sc-metrics-local--part-2--zig"
@@ -28391,10 +28334,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/zig/df7045f578256713754664dfd1f84b18fe33a482b25e1304afd564e10b156b93.json",
       "work_unit_id": "sc-metrics-local--part-3--zig"
@@ -28404,10 +28346,9 @@
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
-      "classification": "D",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "semantic-legacy-consumer-recertification",
-      "disposition": "recertified-current-cache",
+      "classification": "E",
+      "classification_reason": "no current compatibility migration proved semantic equivalence",
+      "disposition": "paid-rerun-required",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
       "work_unit_id": "sc-metrics-local--part-1--zig"

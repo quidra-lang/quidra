@@ -1,0 +1,103 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "compatibility_migration": "semantic-comparability-from-current-catalog",
+    "current_validator_revalidated": true,
+    "semantic_derived_recertification_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "9413bd99c9d1e210af2847d2f8409c3baddeabe411031601c13f4a537e031561",
+  "fingerprint_payload": {
+    "assigned_languages": [],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "2c0c36e2de8897b3ff58916d26f4340e3577a4dc44a73260dca03c2e0f39926e",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851",
+      "template/config/semantic_compression_comparability.json": "59c5daf8088278f15e7c3bb3ea1cef82c0e911e6499ce8de21458ff49bef26dc",
+      "template/methodology-assets/semantic_compression": "eb6479a391dcca58d050516fac0c7859c7d67dc762f7b55561999896e97321ec",
+      "work/audit/semantic-compression/comparability_sample.json": "c1dde8bdcb1af538cc0f74735e08fdfec52e6c12f6a7a1332d53d49d252f271b",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82"
+    },
+    "requirement_ids": [
+      "gate.comparability_audit"
+    ],
+    "runtime_toolchain_pins": {},
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "64c685218f6505bc728fffa3bcb19f57d1c4e2736f809c234d19ad51cc1c3eae",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-comparability",
+    "worker_mode": "packet-only"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+    "current_validator": "PASS",
+    "migration_reason": "For the legacy bridge, comparability is derived after every current canonical owner, metric consumer and support-adjudication dependency has passed the current validator, leaving one support authority.",
+    "migration_rule": "semantic-comparability-from-current-catalog",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+    "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+    "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+    "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "2c0c36e2de8897b3ff58916d26f4340e3577a4dc44a73260dca03c2e0f39926e",
+    "run_id": "cache-recertify-240f3dd",
+    "work_unit_id": "sc-comparability"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "legacy_recertification": {
+        "language_count": 10,
+        "mode": "comparability-from-current-validated-probe-cache",
+        "reason": "Every probe\u00d7language canonical owner and downstream metric dependency passed the current validator; the derived audit introduces no second support authority.",
+        "schema_version": 1,
+        "source_owner_records": [
+          "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+          "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
+          "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
+          "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
+          "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
+          "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
+          "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
+          "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
+          "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
+          "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json"
+        ]
+      }
+    },
+    "requirements": {
+      "gate.comparability_audit": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "096717a5bc8463a8ac3bcc6a94bf8e768272af797a0e2c9dd959b469b3df6ee6",
+  "schema_version": 1
+}

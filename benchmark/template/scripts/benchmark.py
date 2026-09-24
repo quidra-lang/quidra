@@ -6427,6 +6427,13 @@ def cache_fingerprint_payload(
         payload.pop("worker_mode", None)
         payload["work_unit_id"] = f"sc-support-adjudication:{support_probe}"
         payload["semantic_evidence_contract"] = "sc-support-adjudication-v1"
+    if mechanical:
+        # Mechanical records are measurements produced by this runner; their
+        # validator/runner contract is part of the measurement implementation.
+        # Preserve the historical key shape so existing mechanical cache stays
+        # an exact hit. The semantic/validator separation above is for paid
+        # model evidence only.
+        payload["validator_contract"] = str(unit.get("validator_command") or "")
     if unit.get("evaluation") == "llm_proficiency":
         workload_contract_path = root / PROFICIENCY_WORKLOADS_RELATIVE
         if not workload_contract_path.is_file():

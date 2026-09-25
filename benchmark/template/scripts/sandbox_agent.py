@@ -300,9 +300,9 @@ def act_write_file(action: dict[str, Any], perms: Permissions) -> dict[str, Any]
 
 _WORKSPACE_PATH_RE = re.compile(r"/quidra-benchmark(?:/[^\\\"'\s,)]*)?")
 _TRACE_SYSCALL_RE = re.compile(
-    r"^(?:\\[pid\\s+\\d+\\]\\s+|\\d+\\s+)?([A-Za-z0-9_]+)\\("
+    r"^(?:\[pid\s+\d+\]\s+|\d+\s+)?([A-Za-z0-9_]+)\("
 )
-_TRACE_MISSING_PATH_RE = re.compile(r"=\\s*-1\\s+(?:ENOENT|ENOTDIR)\\b")
+_TRACE_MISSING_PATH_RE = re.compile(r"=\s*-1\s+(?:ENOENT|ENOTDIR)\b")
 _METADATA_ONLY_SYSCALLS = frozenset({
     "access", "faccessat", "faccessat2",
     "stat", "stat64", "lstat", "lstat64", "newfstatat", "statx",

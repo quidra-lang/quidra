@@ -9277,7 +9277,14 @@ def _learnability_worker_core_projection(body: str) -> str:
     if end < 0:
         # Synthetic/minimal fixtures may put the SC-only appendix at EOF.
         return body[:start].strip()
-    return (body[:start] + body[end:]).strip()
+    # Canonicalize only the removal seam. The historical Worker Core had one
+    # blank line between the preceding shared rule and the reusable-artifact
+    # paragraph; removing the SC-only appendix from the current file otherwise
+    # leaves an extra newline and turns a formatting-only JSON/TXT transport
+    # change into a paid Learnability cache miss.
+    prefix = body[:start].rstrip("\n")
+    suffix = body[end:].lstrip("\n")
+    return (prefix + "\n\n" + suffix).strip()
 
 
 def _prompt_component_signature_without_scoped(

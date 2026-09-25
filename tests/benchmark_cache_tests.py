@@ -3133,6 +3133,22 @@ For support adjudication only, return UTF-8 text leaves instead of result.json.
         benchmark._learnability_worker_core_projection(old)
         == benchmark._learnability_worker_core_projection(current)
     ), "SC-only JSON/TXT transport drift must not repurchase Learnability"
+
+    # The retained paid Worker Core and the current file differ by this exact
+    # seam: removing the SC-only appendix leaves one extra blank line before
+    # the following shared paragraph. Formatting at that deletion boundary is
+    # not a scientific Learnability change.
+    current_with_extra_seam_newline = current.replace(
+        "\nFor reusable-artifact currency audits",
+        "\n\nFor reusable-artifact currency audits",
+        1,
+    )
+    assert (
+        benchmark._learnability_worker_core_projection(old)
+        == benchmark._learnability_worker_core_projection(
+            current_with_extra_seam_newline
+        )
+    ), "an extra seam newline after removing SC transport text caused a paid MISS"
     assert "reusable-artifact currency audits" in (
         benchmark._learnability_worker_core_projection(current)
     ), "the projection must preserve shared worker rules after the SC-only appendix"

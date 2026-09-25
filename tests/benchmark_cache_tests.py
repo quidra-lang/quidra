@@ -2997,19 +2997,28 @@ def assert_language_quality_snapshot_migration_hash_ratchets() -> None:
 
 
 def assert_learnability_worker_core_projection_is_nonsemantic_only() -> None:
-    old = """# Benchmark Worker Core Rules
+    common = """# Benchmark Worker Core Rules
 
 1. Keep the scored contract fixed.
 2. Independent scored LLM trials must not share previous trial generations.
 """
-    current = old + """
+    shared_tail = """
+For reusable-artifact currency audits with no Primary requirement IDs:
+keep the ordinary audit contract.
+"""
+    old = common + shared_tail
+    current = common + """
 ### Semantic Compression support adjudication exception
 For support adjudication only, return UTF-8 text leaves instead of result.json.
-"""
+
+""" + shared_tail.lstrip()
     assert (
         benchmark._learnability_worker_core_projection(old)
         == benchmark._learnability_worker_core_projection(current)
     ), "SC-only JSON/TXT transport drift must not repurchase Learnability"
+    assert "reusable-artifact currency audits" in (
+        benchmark._learnability_worker_core_projection(current)
+    ), "the projection must preserve shared worker rules after the SC-only appendix"
 
     substantive = current.replace(
         "must not share previous trial generations",

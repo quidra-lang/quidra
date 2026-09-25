@@ -9248,20 +9248,20 @@ def _learnability_worker_core_projection(body: str) -> str:
     Everything else remains byte-significant. This makes a JSON/TXT-style
     transport change in another evaluation non-scientific for Learnability,
     while any rule that can affect Learnability trial behavior still causes a
-    cache miss.
+    cache miss. The SC appendix is followed by a shared reusable-artifact rule
+    without a Markdown heading, so the boundary must be explicit rather than
+    "skip until the next heading".
     """
-    lines = body.splitlines()
-    projected: list[str] = []
-    skipping = False
-    for line in lines:
-        if line.strip() == LEARNABILITY_NONSCIENTIFIC_WORKER_CORE_HEADING:
-            skipping = True
-            continue
-        if skipping and line.startswith("### "):
-            skipping = False
-        if not skipping:
-            projected.append(line)
-    return "\n".join(projected).strip()
+    marker = "\n" + LEARNABILITY_NONSCIENTIFIC_WORKER_CORE_HEADING + "\n"
+    start = body.find(marker)
+    if start < 0:
+        return body.strip()
+    shared_tail = "\n\nFor reusable-artifact currency audits"
+    end = body.find(shared_tail, start)
+    if end < 0:
+        # Synthetic/minimal fixtures may put the SC-only appendix at EOF.
+        return body[:start].strip()
+    return (body[:start] + body[end:]).strip()
 
 
 def _prompt_component_signature_without_scoped(

@@ -2626,7 +2626,113 @@ def assert_certified_checkpoint_promotes_prompt_dependencies() -> None:
         ).exists()
 
 
+
+def assert_language_quality_snapshot_migration_hash_ratchets() -> None:
+    """LQ snapshot bookkeeping changes must not invalidate unchanged evidence."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        rel = Path("snapshots/language_quality/2026-09-design-rubric-v1.json")
+        path = root / "cache" / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        levels = {
+            "local_intent_visibility": 3,
+            "structural_clarity": 3,
+            "consistency_regular_forms": 3,
+            "name_type_signal": 3,
+            "control_effect_traceability": 3,
+        }
+        row = {
+            "component_levels": levels,
+            "score_0_100": 75,
+            "source_record": "v1/language-quality/python/legacy.json",
+            "source_record_sha256": "1" * 64,
+            "source_result_sha256": "2" * 64,
+            "source_evidence_sha256": "3" * 64,
+            "source_run_id": "legacy-paid-run",
+        }
+        snapshot = {
+            "schema_version": 1,
+            "frozen": True,
+            "bound": True,
+            "snapshot_id": "lq-test-snapshot",
+            "languages": {"Python": {"metrics": {"metric.readability": row}}},
+            "bound_source_commit": "old",
+        }
+        benchmark.json_dump(path, snapshot)
+        stale_hash = benchmark.sha256_file(path)
+
+        result = {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": {"metric.readability": {"Python": 75}},
+            "evidence": {
+                "language_quality_snapshot_recertification": {
+                    "snapshot_id": "lq-test-snapshot",
+                    "new_paid_benchmark_provider_call": False,
+                },
+                "metric.readability": {
+                    "component_levels": levels,
+                    "recertification_provenance": {
+                        "source_record": row["source_record"],
+                        "source_record_sha256": row["source_record_sha256"],
+                        "source_result_sha256": row["source_result_sha256"],
+                        "source_evidence_sha256": row["source_evidence_sha256"],
+                        "source_run_id": row["source_run_id"],
+                        "legacy_score_used_for_component_levels": False,
+                        "new_paid_provider_call": False,
+                    },
+                },
+            },
+        }
+        record = {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "assigned_languages": ["Python"],
+            "result": result,
+            "certification": {
+                "language_quality_snapshot_id": "lq-test-snapshot",
+                "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+            },
+            "migration": {
+                "schema_version": 1,
+                "source_fingerprint": stale_hash,
+                "source_record": rel.as_posix(),
+                "source_record_sha256": stale_hash,
+                "migration_rule": "language-quality-design-rubric-v1-snapshot",
+                "migration_rule_version": benchmark.CACHE_MIGRATION_RULE_VERSION,
+                "migration_reason": "test",
+                "transformed_fields": ["requirements"],
+                "current_validator": "PASS",
+            },
+        }
+
+        # Binding/checkpoint bookkeeping changes the snapshot bytes without
+        # changing the adjudicated component levels or exact legacy evidence.
+        snapshot["bound_source_commit"] = "new"
+        benchmark.json_dump(path, snapshot)
+        current_hash = benchmark.sha256_file(path)
+        assert current_hash != stale_hash
+        assert benchmark.cache_record_migration_problem(root, record) is None
+
+        ratcheted = benchmark.recover_current_migration_metadata(root, record)
+        assert ratcheted is not None
+        assert ratcheted["source_record"] == rel.as_posix()
+        assert ratcheted["source_record_sha256"] == current_hash
+
+        # Scientific content drift must still fail closed.
+        snapshot["languages"]["Python"]["metrics"]["metric.readability"][
+            "component_levels"
+        ]["structural_clarity"] = 4
+        benchmark.json_dump(path, snapshot)
+        assert (
+            benchmark.cache_record_migration_problem(root, record)
+            == "migration provenance source record hash"
+        )
+
+
 def main() -> None:
+    assert_language_quality_snapshot_migration_hash_ratchets()
     assert_certified_checkpoint_promotes_prompt_dependencies()
     assert_partial_paid_checkpoint_roundtrip()
     assert_optional_units_do_not_enter_required_resume_set()

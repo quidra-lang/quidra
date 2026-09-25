@@ -455,6 +455,15 @@ def test_sandbox_subprocess_trace_rejects_undeclared_workspace_access() -> None:
         f"workspace-root directory open escaped the subprocess audit: {problem}",
     )
 
+    validator_open = (
+        '1 openat(AT_FDCWD, "/quidra-benchmark/template/scripts/benchmark.py", O_RDONLY) = 3\\n'
+    )
+    problem = sandbox_agent._sandbox_subprocess_access_problem(validator_open, policy)
+    check(
+        problem is not None and "benchmark.py" in problem,
+        f"runner-owned validator source became readable to a worker: {problem}",
+    )
+
     sibling = (
         '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/worker-b/result.json", O_RDONLY) = 3\\n'
     )

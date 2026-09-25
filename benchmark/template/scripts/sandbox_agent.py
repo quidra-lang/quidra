@@ -449,7 +449,13 @@ def act_run(action: dict[str, Any], perms: Permissions) -> dict[str, Any]:
         problem = _sandbox_subprocess_access_problem(trace_text, perms)
         trace_path.unlink(missing_ok=True)
         if problem is not None:
-            raise AgentFailure(f"sandbox filesystem policy violation: {problem}")
+            # A model-selected run action that crosses the sandbox boundary is
+            # an action denial, not a crashed worker. Returning the denial to the
+            # same orchestration session preserves already-paid scored trials and
+            # lets the worker finish with the outputs it has already produced.
+            # Runtime-owned integrity failures (missing strace, modified protected
+            # state) remain AgentFailure below/above and still stop the worker.
+            raise AgentDenied(f"sandbox filesystem policy violation: {problem}")
 
     protected_after = _runtime_state_hashes(perms)
     if protected_after != protected_before:
@@ -1583,6 +1589,8 @@ Available actions:
 
 Permissions:
 
+- The validation command is runner-owned. Do not invoke benchmark.py or the
+  validation command yourself; write the expected outputs and send final.
 - Readable paths (nothing else is readable):
 {read_lines or "- (none beyond your own directory)"}
 - Writable directory (the only writable location): `{perms.agent_dir.as_posix()}`

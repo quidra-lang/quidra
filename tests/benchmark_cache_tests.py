@@ -1455,6 +1455,67 @@ def assert_proficiency_budget_nominal_is_one_next_call_per_trial() -> None:
         ) == trial_count - 1
 
 
+def assert_learnability_budget_nominal_is_one_next_call_per_trial() -> None:
+    """Learnability nominal spend funds Primary calls, not every repair ceiling."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, _ = create_cacheable_task(root)
+        cfg = benchmark.json_load(root / "template/config/primary.json")[
+            "llm_learnability"
+        ]
+        primary_trials = (
+            int(cfg["keyword_anonymization_seeds"])
+            + int(cfg["vocabulary_anonymization_seeds"])
+        )
+        repair_factor = 1 + int(cfg["max_repair_turns"])
+        unit.update({
+            "id": "learnability-i1-i2--python",
+            "evaluation": "llm_learnability",
+            "requirement_ids": [
+                "condition.i1_keyword_anonymization",
+                "condition.i2_vocabulary_anonymization",
+            ],
+            "max_llm_calls": primary_trials * repair_factor,
+            "max_output_tokens_per_call": 16384,
+            "max_attempts": 5,
+        })
+        freeze_manifest(root, unit)
+
+        plan = production.build_budget_plan(
+            root,
+            "claude-sonnet-5",
+            available_usd=1000.0,
+            evaluation="llm_learnability",
+            safety_multiplier=1.25,
+        )
+        row = plan["units"][0]
+        assert row["scored_calls_estimate"] == primary_trials, row
+        assert row["scored_calls_remaining_allowance"] == (
+            primary_trials * repair_factor
+        ), row
+        assert row["scored_calls_upper_bound"] > row["scored_calls_estimate"], row
+
+        # A started Learnability trial has no runtime-owned pass verdict, so a
+        # partial-run budget conservatively reserves one next call for it. Once
+        # its full repair allowance is exhausted it needs no additional call.
+        trial_dir = (
+            root / "work/agents" / unit["assigned_agent_id"]
+            / "trials/i1-t1"
+        )
+        trial_dir.mkdir(parents=True, exist_ok=True)
+        benchmark.json_dump(
+            trial_dir / "session.json",
+            {
+                "schema_version": 1,
+                "trial_id": "i1-t1",
+                "calls": [{"call": i + 1} for i in range(repair_factor)],
+            },
+        )
+        assert production.nominal_sandbox_scored_calls(
+            root, unit, primary_trials * repair_factor, repair_factor
+        ) == primary_trials - 1
+
+
 def assert_empty_cache_impact_is_a_valid_first_run() -> None:
     """A repository with no v1 records still produces a zero-impact plan."""
     with tempfile.TemporaryDirectory() as td:
@@ -3128,6 +3189,7 @@ def main() -> None:
     assert_budget_plan_excludes_complete_units()
     assert_budget_plan_exposes_configured_retry_ceiling()
     assert_proficiency_budget_nominal_is_one_next_call_per_trial()
+    assert_learnability_budget_nominal_is_one_next_call_per_trial()
     assert_accepted_trial_start_marks_the_scored_boundary()
     assert_language_quality_design_runner_owned_scoring()
     assert_ecosystem_runner_owned_scoring()

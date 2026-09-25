@@ -573,51 +573,83 @@ def nominal_sandbox_scored_calls(
 ) -> int:
     """Estimate the next healthy-run scored calls without pretending every repair fires.
 
-    max_llm_calls is an execution ceiling: for Proficiency it includes every
-    possible repair turn for every frozen trial. A nominal budget should instead
-    fund one next call for each unresolved Primary trial. The full repair budget
-    remains in the separately reported retry ceiling.
+    max_llm_calls is an execution ceiling. For both scored trial evaluations it
+    includes every possible repair turn for every frozen Primary trial. A nominal
+    budget funds the next call for each not-yet-terminal trial; the full repair
+    allowance remains in the separately reported retry ceiling.
     """
     remaining_allowance = max(0, int(max_scored_calls) - int(restored_paid_calls))
-    if str(unit.get("evaluation") or "") != "llm_proficiency":
-        return remaining_allowance
     if remaining_allowance <= 0:
         return 0
 
-    required = benchmark.proficiency_required_trial_ids(root)
-    max_repairs = int(
-        benchmark.json_load(root / "template/config/primary.json")
-        ["llm_proficiency"]["max_repair_turns"]
-    )
+    evaluation = str(unit.get("evaluation") or "")
+    primary = benchmark.json_load(root / "template/config/primary.json")
     agent_id = str(unit.get("assigned_agent_id") or "")
     trials_root = root / "work" / "agents" / agent_id / "trials"
-    needed = 0
-    for trial_id in required:
-        session_path = trials_root / trial_id / "session.json"
-        if not session_path.is_file():
-            needed += 1
-            continue
-        try:
-            session = json_load(session_path)
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
-            # Corrupt restored state is not assumed reusable by the budget plan.
-            # The execution/validation path will fail closed; reserve one next
-            # scored call here rather than the whole repair ceiling.
-            needed += 1
-            continue
-        calls = session.get("calls")
-        if not isinstance(calls, list) or not calls:
-            needed += 1
-            continue
-        last = calls[-1] if isinstance(calls[-1], dict) else {}
-        verification = last.get("verification")
-        if isinstance(verification, dict) and verification.get("test_passed") is True:
-            continue
-        repairs_used = max(0, len(calls) - 1)
-        if repairs_used < max_repairs:
-            needed += 1
 
-    return min(needed, remaining_allowance)
+    if evaluation == "llm_proficiency":
+        required = benchmark.proficiency_required_trial_ids(root)
+        max_repairs = int(primary["llm_proficiency"]["max_repair_turns"])
+        needed = 0
+        for trial_id in required:
+            session_path = trials_root / trial_id / "session.json"
+            if not session_path.is_file():
+                needed += 1
+                continue
+            try:
+                session = json_load(session_path)
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                # Corrupt restored state is not assumed reusable by the budget
+                # plan. Reserve one next scored call; execution still fails closed.
+                needed += 1
+                continue
+            calls = session.get("calls")
+            if not isinstance(calls, list) or not calls:
+                needed += 1
+                continue
+            last = calls[-1] if isinstance(calls[-1], dict) else {}
+            verification = last.get("verification")
+            if isinstance(verification, dict) and verification.get("test_passed") is True:
+                continue
+            repairs_used = max(0, len(calls) - 1)
+            if repairs_used < max_repairs:
+                needed += 1
+        return min(needed, remaining_allowance)
+
+    if evaluation == "llm_learnability":
+        max_repairs = int(primary["llm_learnability"]["max_repair_turns"])
+        turn_factor = 1 + max_repairs
+        if max_scored_calls <= 0 or max_scored_calls % turn_factor != 0:
+            return remaining_allowance
+        primary_trials = max_scored_calls // turn_factor
+
+        # Learnability's current runtime preserves prompt/completion sessions,
+        # but unlike Proficiency it has no trusted per-call oracle verdict in
+        # session.json. Budget conservatively: every started trial that has not
+        # exhausted its repair allowance may need one next call. This still
+        # avoids charging all three possible repairs up front for every cell.
+        observed = 0
+        exhausted = 0
+        if trials_root.is_dir():
+            for session_path in sorted(trials_root.glob("*/session.json")):
+                try:
+                    session = json_load(session_path)
+                except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                    continue
+                calls = session.get("calls")
+                if not isinstance(calls, list) or not calls:
+                    continue
+                observed += 1
+                repairs_used = max(0, len(calls) - 1)
+                if repairs_used >= max_repairs:
+                    exhausted += 1
+        observed = min(observed, primary_trials)
+        exhausted = min(exhausted, observed)
+        unstarted = primary_trials - observed
+        started_may_need_next = observed - exhausted
+        return min(unstarted + started_may_need_next, remaining_allowance)
+
+    return remaining_allowance
 
 
 def build_budget_plan(

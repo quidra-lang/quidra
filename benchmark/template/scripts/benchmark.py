@@ -19394,9 +19394,14 @@ def recover_proficiency_archived_attempts(root: Path) -> dict[str, Any]:
                 })
                 continue
 
-            evidence = normalize_paths(
-                unit.get("evidence_paths", []), root
-            )
+            # Frozen manifests record worker-visible paths under the canonical
+            # /quidra-benchmark root. Retained Actions workspaces are extracted
+            # elsewhere during free recertification, so map those recorded paths
+            # back onto this recovery workspace before checking evidence.
+            evidence = [
+                str(resolve_recorded_workspace_path(root, raw))
+                for raw in unit.get("evidence_paths", [])
+            ]
             missing = [path for path in evidence if not Path(path).is_file()]
             if missing:
                 if active.exists():

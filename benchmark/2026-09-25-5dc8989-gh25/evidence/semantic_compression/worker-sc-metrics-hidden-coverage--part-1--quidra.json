@@ -1,0 +1,255 @@
+{
+  "agent_id": "worker-sc-metrics-hidden-coverage--part-1--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
+    "checklist_categories": [
+      "implicit_conversions",
+      "hidden_writable_aliasing_or_mutation",
+      "overload_or_dynamic_dispatch_not_locally_evident",
+      "implicit_allocation_copy_move_destruction_cleanup",
+      "implicit_exception_or_failure_propagation",
+      "hidden_nullability_or_optionality",
+      "implicit_representation_change",
+      "context_dependent_overflow_numeric_behavior",
+      "hidden_side_effects_on_existing_state"
+    ],
+    "checklist_size_per_probe": 9,
+    "counting_rule": "For each of the 44 frozen probes, count how many of the 9 checklist categories describe a semantically material behavior that occurs in the Quidra fragment without being signaled by the fixed local syntax at the use site, per capability_universe.json canonical_task and R1-R10 authoring rules. A behavior already made unambiguous by fixed local syntax under the language spec (e.g. Quidra explicit conversions, explicit references, explicit try/error unions, explicit generic constraints, static-only method resolution) is excluded per the frozen exclusion clause. Probes scored NONE for Quidra (no fragment exists) are excluded from this metric's basis and reported separately; their absence is scored only through Capability Coverage C, not Hidden Semantic Cost.",
+    "double_counting_avoidance": "Each probe's count reflects distinct underlying rules; a single runtime-panic mechanism (checked arithmetic/bounds/allocation) is counted once per probe under implicit_exception_or_failure_propagation and not duplicated under context_dependent_overflow_numeric_behavior for the same construct, per semantic_compression.md instruction not to count the same underlying rule twice inside one metric.",
+    "language": "Quidra",
+    "legacy_fragment_equivalence": {
+      "all_explicit_fragments_matched": false,
+      "canonical_fragment_catalog_content_sha256": "00f3195f8f1c8ebb6fdd4781f80d03a3cf2a4e05a8e5ebfe960abe099e96a1c9",
+      "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
+      "dropped_now_none_probes": [
+        "F05.P3",
+        "F09.P2",
+        "F11.P2",
+        "F14.P3",
+        "F15.P3",
+        "F17.P2",
+        "F20.P2"
+      ],
+      "proof_mode": "prior-certified-equivalence-with-none-drop",
+      "schema_version": 1,
+      "scientific_identity_sha256": "e6eec0c01331b0df35bd2e09e517dadc37ed6a77c7f0b27dcb05577ce55963dd",
+      "source_density_record": "v1/semantic-compression/quidra/e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json",
+      "source_density_record_sha256": "1a70edbbaaa3175122678f3dd363e93422d270deae7d92b1b42dce45b04f02f9",
+      "source_metric_record": "v1/semantic-compression/quidra/184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3.json",
+      "source_metric_record_sha256": "88231692c86fe8f4258c4c950edf786986f1fa4c004fa3fde203cbb7e67970a6",
+      "source_owner_record": "v1/semantic-compression/quidra/d9bd8e2e4c1131910636313fd1be4fde6ef5cdb3ed2183680f21464b054e2a23.json",
+      "source_owner_record_sha256": "1278fd0036ddfaac720012e09bbe603925a96f8b6645bed680d1f747a6e78d1e",
+      "source_run_id": "2026-09-23-fce5cfa-gh16"
+    },
+    "max_possible_hidden_count": 351,
+    "methodology_reference": "benchmark/template/methodology-assets/semantic_compression: semantic_compression.md section D; checklist frozen before annotation per common.md methodology.",
+    "metric": "metric.hidden_semantic_cost",
+    "normalization_formula": "score = 100 * (1 - total_hidden_count / (probes_in_basis * 9)), where probes_in_basis excludes NONE-support probes for Quidra and 9 is the fixed checklist size per probe.",
+    "note_on_shard_scope": "This packet is language-sharded to Quidra only per assigned_requirements.json; the runner is responsible for merging this shard with the other nine languages' disjoint shards for metric.hidden_semantic_cost before aggregation, per worker_core.md and primary.json max_requirement_ids_per_multi_language_agent constraints.",
+    "per_probe_hidden_counts": [
+      {
+        "count": 0,
+        "notes": "Immutable local binding; value/mutability/init/type all locally explicit.",
+        "probe_id": "F01.P1"
+      },
+      {
+        "count": 0,
+        "notes": "Explicit mutable storage vs explicit named constant; both locally marked.",
+        "probe_id": "F01.P2"
+      },
+      {
+        "count": 0,
+        "notes": "Definite-initialization is compiler-checked on every branch before read; no hidden state.",
+        "probe_id": "F02.P1"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: array(n) can fail on invalid allocation size without a union/try marker at the call site.",
+        "probe_id": "F02.P2"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: compound-assignment overflow is a deterministic runtime panic (status 101) not signaled by the += syntax itself.",
+        "probe_id": "F03.P1"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: indexed element write can fail on out-of-range index without a locally visible error type.",
+        "probe_id": "F03.P2"
+      },
+      {
+        "count": 0,
+        "notes": "Writable alias uses explicit & syntax at both formation and dereference.",
+        "probe_id": "F04.P1"
+      },
+      {
+        "count": 0,
+        "notes": "const T & view is an explicit non-copying read-only path per spec; no hidden copy.",
+        "probe_id": "F04.P2"
+      },
+      {
+        "count": 0,
+        "notes": "ref.Cell<T> identity sharing is an explicit opt-in mechanism (architecture.md); ordinary classes do not silently gain identity semantics.",
+        "probe_id": "F04.P3"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_allocation_copy_move_destruction_cleanup: ordinary by-value argument passing performs a deep independent copy of the aggregate that is not visible at the bare call-site expression itself (only knowable from the global value-semantics rule).",
+        "probe_id": "F05.P1"
+      },
+      {
+        "count": 0,
+        "notes": "Explicit &data / T& parameter marks writable-alias passing at both declaration and call site.",
+        "probe_id": "F05.P2"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: element access inside the callee can fail on bounds without that being visible in the signature.",
+        "probe_id": "F06.P1"
+      },
+      {
+        "count": 0,
+        "notes": "Multiple results returned via an explicit small class with named fields; both results and their types are explicit at the declaration.",
+        "probe_id": "F06.P2"
+      },
+      {
+        "count": 1,
+        "notes": "context_dependent_overflow_numeric_behavior counted narrowly as implicit_exception_or_failure_propagation: a*b+c can trap on overflow with no local syntax difference from a non-overflowing expression.",
+        "probe_id": "F07.P1"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: integer division/remainder can fail on runtime zero divisor without a union/try marker; explicit float(a)/float(b) avoids any implicit conversion hidden cost.",
+        "probe_id": "F07.P2"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: Quidra provides only the single optimized checked-arithmetic mode (no wrapping/saturating/optional rung available), so m+1 traps deterministically without a locally distinguishing operator.",
+        "probe_id": "F08.P1"
+      },
+      {
+        "count": 0,
+        "notes": "The explicit b==0 guard makes the zero-divisor outcome fully locally visible; no hidden path remains.",
+        "probe_id": "F08.P2"
+      },
+      {
+        "count": 0,
+        "notes": "String content equality is the only == meaning for string; no user-defined/dynamic dispatch is possible (static method resolution).",
+        "probe_id": "F09.P1"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: explicit int32(big) narrowing is range-checked and fails deterministically at runtime without a locally visible error type on the cast expression itself.",
+        "probe_id": "F10.P1"
+      },
+      {
+        "count": 0,
+        "notes": "Quidra forbids implicit mixed-type arithmetic; i + d requires an explicit float(i) conversion, so no implicit conversion is hidden.",
+        "probe_id": "F10.P2"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: xs[i] traps on out-of-range i with no local syntax difference from an in-range access.",
+        "probe_id": "F11.P1"
+      },
+      {
+        "count": 0,
+        "notes": "int | none absence and explicit match/fallback extraction are fully visible in the type and the statement.",
+        "probe_id": "F12.P1"
+      },
+      {
+        "count": 0,
+        "notes": "No optional-chaining combinator exists; the substituted explicit match makes the short-circuit fully visible (P-a substitution).",
+        "probe_id": "F12.P2"
+      },
+      {
+        "count": 0,
+        "notes": "int | error return type and try both declare failure and propagation explicitly in the signature and body.",
+        "probe_id": "F13.P1"
+      },
+      {
+        "count": 0,
+        "notes": "Local match/fallback handling of int | error is fully explicit; no hidden unwinding.",
+        "probe_id": "F13.P2"
+      },
+      {
+        "count": 0,
+        "notes": "enum Shape is a closed, exhaustively-checked alternative set; nominal typing is explicit.",
+        "probe_id": "F14.P1"
+      },
+      {
+        "count": 0,
+        "notes": "match is compiler-enforced exhaustive with no implicit default/else arm permitted.",
+        "probe_id": "F14.P2"
+      },
+      {
+        "count": 0,
+        "notes": "Monomorphized generic function; concrete instantiation is explicit and statically checked.",
+        "probe_id": "F15.P1"
+      },
+      {
+        "count": 0,
+        "notes": "Built-in ordered constraint is declared at the generic declaration site; misuse is diagnosed there, not hidden until instantiation.",
+        "probe_id": "F15.P2"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_exception_or_failure_propagation: the summation loop's accumulator addition can overflow-trap without a locally distinguishing marker.",
+        "probe_id": "F16.P1"
+      },
+      {
+        "count": 0,
+        "notes": "map.Map insertion order and .get returning V | none are both documented and explicit at the call site.",
+        "probe_id": "F16.P2"
+      },
+      {
+        "count": 1,
+        "notes": "implicit_allocation_copy_move_destruction_cleanup: file.Handle closes deterministically at end of binding lifetime with no explicit with/defer/using marker at the open call site (architecture.md: 'no defer or manual cleanup required').",
+        "probe_id": "F17.P1"
+      },
+      {
+        "count": 0,
+        "notes": "print is an always-visible standard namespace member; no import ambiguity.",
+        "probe_id": "F18.P1"
+      },
+      {
+        "count": 0,
+        "notes": "Quidra's private prefix is class-member-only; the substituted class-based encapsulation makes the visibility boundary fully explicit at both declaration and call site (P-a substitution).",
+        "probe_id": "F18.P2"
+      },
+      {
+        "count": 0,
+        "notes": "task.all explicitly starts and joins both operations before returning; result placement order is documented and explicit.",
+        "probe_id": "F19.P1"
+      },
+      {
+        "count": 0,
+        "notes": "atomic.Counter.add is a documented sequentially-consistent checked read-modify-write; race-freedom is an explicit normative guarantee, not hidden.",
+        "probe_id": "F19.P2"
+      },
+      {
+        "count": 0,
+        "notes": "extern C declaration states the exact C symbol, ABI-stable scalar types, and call is marked foreign at the declaration; no hidden calling convention choice remains once the scalar types are fixed.",
+        "probe_id": "F20.P1"
+      }
+    ],
+    "probes_excluded_no_fragment_none_support": [],
+    "probes_in_basis": 39,
+    "raw_score_unrounded": 96.58,
+    "reported_score": 97,
+    "status": "COMPLETE_FOR_ASSIGNED_LANGUAGE_ONLY",
+    "total_hidden_count": 12
+  },
+  "requirement_ids": [
+    "metric.hidden_semantic_cost"
+  ],
+  "requirements": {
+    "metric.hidden_semantic_cost": {
+      "Quidra": 97
+    }
+  },
+  "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra"
+}

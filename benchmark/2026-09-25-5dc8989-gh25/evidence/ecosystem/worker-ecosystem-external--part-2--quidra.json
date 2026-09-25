@@ -1,0 +1,115 @@
+{
+  "agent_id": "worker-ecosystem-external--part-2--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "metric.production_adoption_deployment_evidence": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-2--quidra; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "current_continuity": "Preserved paid evidence (ecosystem-external--part-2--quidra): Quidra's own README/release history shows the language reaching only v0.1.0-v0.3.1, first tagged 2026-09-16 and most recently 2026-09-20, i.e. released within the week preceding this evaluation snapshot (2026-09-23).",
+        "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--quidra): No evidence of any production deployment, external company adoption, or real-world usage of Quidra was found. Given the language's release history begins only days before this snapshot, this outcome is expected and consistent with the language having no discoverable production footprint yet. Score reflects the rubric-defined low/absent-evidence floor rather than a genuine N/A, since production-adoption evidence is a capability this metric intentionally probes.",
+        "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--quidra): No evidence of any production deployment, external company adoption, or real-world usage of Quidra was found. Given the language's release history begins only days before this snapshot, this outcome is expected and consistent with the language having no discoverable production footprint yet. Score reflects the rubric-defined low/absent-evidence floor rather than a genuine N/A, since production-adoption evidence is a capability this metric intentionally probes.",
+        "named_organizations": "Preserved paid evidence (ecosystem-external--part-2--quidra): No evidence of any production deployment, external company adoption, or real-world usage of Quidra was found. Given the language's release history begins only days before this snapshot, this outcome is expected and consistent with the language having no discoverable production footprint yet. Score reflects the rubric-defined low/absent-evidence floor rather than a genuine N/A, since production-adoption evidence is a capability this metric intentionally probes.",
+        "scale_criticality": "Preserved paid evidence (ecosystem-external--part-2--quidra): No evidence of any production deployment, external company adoption, or real-world usage of Quidra was found. Given the language's release history begins only days before this snapshot, this outcome is expected and consistent with the language having no discoverable production footprint yet. Score reflects the rubric-defined low/absent-evidence floor rather than a genuine N/A, since production-adoption evidence is a capability this metric intentionally probes."
+      },
+      "component_levels": {
+        "current_continuity": 0,
+        "deployment_depth": 0,
+        "domain_diversity": 0,
+        "named_organizations": 0,
+        "scale_criticality": 0
+      },
+      "legacy_score_0_100": 0,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.production-adoption.v1",
+      "runner_score_0_100": 0,
+      "selection_rule": "Use public, independently checkable production evidence; named deployments must be documented by the deploying organization or corroborated by credible independent sources. Popularity surveys alone do not prove deployment.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-2--quidra",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/quidra/c49e123f3760fb5841a1b91397c091247045b6273ef3fbee7256d7ab6874d311.json",
+        "https://github.com/quidra-lang/quidra",
+        "https://github.com/quidra-lang"
+      ]
+    },
+    "metric.third_party_tool_availability": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-2--quidra; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "build_test_coverage": "Preserved paid evidence (ecosystem-external--part-2--quidra): No third-party (non quidra-lang-authored) editor plugins, linters, formatters, build-system integrations, CI marketplace actions, or debuggers were found. All tooling identified is official/first-party. This is the rubric-defined near-absent case, not a genuine N/A, since third-party tooling is a capability the metric intentionally tests and Quidra is a real, evaluable (if extremely new) language with an accessible repository.",
+        "ci_devops": "Preserved paid evidence (ecosystem-external--part-2--quidra): No third-party (non quidra-lang-authored) editor plugins, linters, formatters, build-system integrations, CI marketplace actions, or debuggers were found. All tooling identified is official/first-party. This is the rubric-defined near-absent case, not a genuine N/A, since third-party tooling is a capability the metric intentionally tests and Quidra is a real, evaluable (if extremely new) language with an accessible repository.",
+        "debug_profile": "Preserved paid evidence (ecosystem-external--part-2--quidra): No third-party (non quidra-lang-authored) editor plugins, linters, formatters, build-system integrations, CI marketplace actions, or debuggers were found. All tooling identified is official/first-party. This is the rubric-defined near-absent case, not a genuine N/A, since third-party tooling is a capability the metric intentionally tests and Quidra is a real, evaluable (if extremely new) language with an accessible repository.",
+        "editor_ide": "Preserved paid evidence (ecosystem-external--part-2--quidra): No third-party (non quidra-lang-authored) editor plugins, linters, formatters, build-system integrations, CI marketplace actions, or debuggers were found. All tooling identified is official/first-party. This is the rubric-defined near-absent case, not a genuine N/A, since third-party tooling is a capability the metric intentionally tests and Quidra is a real, evaluable (if extremely new) language with an accessible repository.",
+        "lint_format_static": "Preserved paid evidence (ecosystem-external--part-2--quidra): No third-party (non quidra-lang-authored) editor plugins, linters, formatters, build-system integrations, CI marketplace actions, or debuggers were found. All tooling identified is official/first-party. This is the rubric-defined near-absent case, not a genuine N/A, since third-party tooling is a capability the metric intentionally tests and Quidra is a real, evaluable (if extremely new) language with an accessible repository."
+      },
+      "component_levels": {
+        "build_test_coverage": 0,
+        "ci_devops": 0,
+        "debug_profile": 0,
+        "editor_ide": 0,
+        "lint_format_static": 0
+      },
+      "legacy_score_0_100": 2,
+      "limitations": "Star/fork counts and search-result absence are weak proxies (a tool could exist without being indexed yet); however, the consistent first-party-only pattern across every discovered artifact (compiler, LSP mentioned only in official docs, playground, formatter, first-party packages) plus zero independent hits after multiple targeted queries is convergent evidence of essentially no third-party tool ecosystem.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.third-party-tools.v1",
+      "runner_score_0_100": 0,
+      "selection_rule": "Inspect the same fixed tool categories for every language and require independently maintained current tools; official first-party tools may be cited only as context, not as third-party availability.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-2--quidra",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/quidra/c49e123f3760fb5841a1b91397c091247045b6273ef3fbee7256d7ab6874d311.json",
+        "https://github.com/quidra-lang/quidra",
+        "https://github.com/quidra-lang"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Quidra",
+      "metrics": {
+        "metric.production_adoption_deployment_evidence": {
+          "component_levels": {
+            "current_continuity": 0,
+            "deployment_depth": 0,
+            "domain_diversity": 0,
+            "named_organizations": 0,
+            "scale_criticality": 0
+          },
+          "rubric_id": "ecosystem.production-adoption.v1",
+          "score_0_100": 0
+        },
+        "metric.third_party_tool_availability": {
+          "component_levels": {
+            "build_test_coverage": 0,
+            "ci_devops": 0,
+            "debug_profile": 0,
+            "editor_ide": 0,
+            "lint_format_static": 0
+          },
+          "rubric_id": "ecosystem.third-party-tools.v1",
+          "score_0_100": 0
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.production_adoption_deployment_evidence",
+    "metric.third_party_tool_availability"
+  ],
+  "requirements": {
+    "metric.production_adoption_deployment_evidence": {
+      "Quidra": 0.0
+    },
+    "metric.third_party_tool_availability": {
+      "Quidra": 0.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-2--quidra"
+}

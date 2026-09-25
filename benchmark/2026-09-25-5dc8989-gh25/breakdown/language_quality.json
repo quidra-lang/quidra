@@ -1,0 +1,3513 @@
+{
+  "aggregation": {
+    "categories": {
+      "language_development": {
+        "metrics": [
+          "metric.code_efficiency_conciseness",
+          "metric.readability",
+          "metric.functionality_expressiveness",
+          "metric.diagnostics",
+          "metric.dependency_simplicity",
+          "metric.portability_design_platform_neutrality",
+          "metric.ffi_interoperability_design",
+          "metric.concurrency"
+        ],
+        "weight": 0.25
+      },
+      "performance": {
+        "metrics": [
+          "metric.native_execution_performance",
+          "metric.long_running_performance",
+          "metric.compile_build_performance",
+          "metric.startup_latency"
+        ],
+        "weight": 0.25
+      },
+      "resource": {
+        "metrics": [
+          "metric.memory_efficiency",
+          "metric.source_code_size",
+          "metric.binary_artifact_size",
+          "metric.runtime_overhead"
+        ],
+        "weight": 0.1875
+      },
+      "safety_robustness": {
+        "metrics": [
+          "metric.type_safety",
+          "metric.memory_safety",
+          "metric.runtime_safety",
+          "metric.boundary_value_safety",
+          "metric.adversarial_input_robustness",
+          "metric.early_error_detection",
+          "metric.debuggability",
+          "metric.silent_bug_resistance",
+          "metric.implementation_robustness"
+        ],
+        "weight": 0.3125
+      }
+    },
+    "type": "category_mean"
+  },
+  "categories": [
+    {
+      "category": "performance",
+      "contribution": {
+        "C++": 14.762591362446368,
+        "Go": 13.508229273627405,
+        "Java": 8.84910278264904,
+        "Kotlin": 8.40456970047909,
+        "Python": 7.407576836135317,
+        "Quidra": 11.845599668549395,
+        "Rust": 16.1902934125651,
+        "Swift": 10.888468757028376,
+        "TypeScript": 5.5533263659988465,
+        "Zig": 18.27047014309711
+      },
+      "means": {
+        "C++": 59.050365449785474,
+        "Go": 54.03291709450962,
+        "Java": 35.39641113059616,
+        "Kotlin": 33.61827880191636,
+        "Python": 29.63030734454127,
+        "Quidra": 47.38239867419758,
+        "Rust": 64.7611736502604,
+        "Swift": 43.5538750281135,
+        "TypeScript": 22.213305463995386,
+        "Zig": 73.08188057238844
+      },
+      "metrics": [
+        "metric.native_execution_performance",
+        "metric.long_running_performance",
+        "metric.compile_build_performance",
+        "metric.startup_latency"
+      ],
+      "ranking": [
+        {
+          "language": "Zig",
+          "rank": 1,
+          "score": 73.08
+        },
+        {
+          "language": "Rust",
+          "rank": 2,
+          "score": 64.76
+        },
+        {
+          "language": "C++",
+          "rank": 3,
+          "score": 59.05
+        },
+        {
+          "language": "Go",
+          "rank": 4,
+          "score": 54.03
+        },
+        {
+          "language": "Quidra",
+          "rank": 5,
+          "score": 47.38
+        },
+        {
+          "language": "Swift",
+          "rank": 6,
+          "score": 43.55
+        },
+        {
+          "language": "Java",
+          "rank": 7,
+          "score": 35.4
+        },
+        {
+          "language": "Kotlin",
+          "rank": 8,
+          "score": 33.62
+        },
+        {
+          "language": "Python",
+          "rank": 9,
+          "score": 29.63
+        },
+        {
+          "language": "TypeScript",
+          "rank": 10,
+          "score": 22.21
+        }
+      ],
+      "weight": 0.25
+    },
+    {
+      "category": "resource",
+      "contribution": {
+        "C++": 12.752326046166857,
+        "Go": 12.872375787079836,
+        "Java": 8.24489060018633,
+        "Kotlin": 6.0814724395291675,
+        "Python": 16.860529967773456,
+        "Quidra": 12.618311188281343,
+        "Rust": 12.917775926186515,
+        "Swift": 12.099443920656391,
+        "TypeScript": 7.53506925845637,
+        "Zig": 12.131689998071757
+      },
+      "means": {
+        "C++": 68.01240557955657,
+        "Go": 68.65267086442579,
+        "Java": 43.972749867660426,
+        "Kotlin": 32.43451967748889,
+        "Python": 89.92282649479176,
+        "Quidra": 67.29765967083382,
+        "Rust": 68.89480493966141,
+        "Swift": 64.53036757683408,
+        "TypeScript": 40.18703604510064,
+        "Zig": 64.7023466563827
+      },
+      "metrics": [
+        "metric.memory_efficiency",
+        "metric.source_code_size",
+        "metric.binary_artifact_size",
+        "metric.runtime_overhead"
+      ],
+      "ranking": [
+        {
+          "language": "Python",
+          "rank": 1,
+          "score": 89.92
+        },
+        {
+          "language": "Rust",
+          "rank": 2,
+          "score": 68.89
+        },
+        {
+          "language": "Go",
+          "rank": 3,
+          "score": 68.65
+        },
+        {
+          "language": "C++",
+          "rank": 4,
+          "score": 68.01
+        },
+        {
+          "language": "Quidra",
+          "rank": 5,
+          "score": 67.3
+        },
+        {
+          "language": "Zig",
+          "rank": 6,
+          "score": 64.7
+        },
+        {
+          "language": "Swift",
+          "rank": 7,
+          "score": 64.53
+        },
+        {
+          "language": "Java",
+          "rank": 8,
+          "score": 43.97
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 40.19
+        },
+        {
+          "language": "Kotlin",
+          "rank": 10,
+          "score": 32.43
+        }
+      ],
+      "weight": 0.1875
+    },
+    {
+      "category": "language_development",
+      "contribution": {
+        "C++": 14.84375,
+        "Go": 19.6875,
+        "Java": 19.84375,
+        "Kotlin": 21.875,
+        "Python": 19.0625,
+        "Quidra": 21.40625,
+        "Rust": 22.96875,
+        "Swift": 23.28125,
+        "TypeScript": 18.75,
+        "Zig": 20.9375
+      },
+      "means": {
+        "C++": 59.375,
+        "Go": 78.75,
+        "Java": 79.375,
+        "Kotlin": 87.5,
+        "Python": 76.25,
+        "Quidra": 85.625,
+        "Rust": 91.875,
+        "Swift": 93.125,
+        "TypeScript": 75.0,
+        "Zig": 83.75
+      },
+      "metrics": [
+        "metric.code_efficiency_conciseness",
+        "metric.readability",
+        "metric.functionality_expressiveness",
+        "metric.diagnostics",
+        "metric.dependency_simplicity",
+        "metric.portability_design_platform_neutrality",
+        "metric.ffi_interoperability_design",
+        "metric.concurrency"
+      ],
+      "ranking": [
+        {
+          "language": "Swift",
+          "rank": 1,
+          "score": 93.12
+        },
+        {
+          "language": "Rust",
+          "rank": 2,
+          "score": 91.88
+        },
+        {
+          "language": "Kotlin",
+          "rank": 3,
+          "score": 87.5
+        },
+        {
+          "language": "Quidra",
+          "rank": 4,
+          "score": 85.62
+        },
+        {
+          "language": "Zig",
+          "rank": 5,
+          "score": 83.75
+        },
+        {
+          "language": "Java",
+          "rank": 6,
+          "score": 79.38
+        },
+        {
+          "language": "Go",
+          "rank": 7,
+          "score": 78.75
+        },
+        {
+          "language": "Python",
+          "rank": 8,
+          "score": 76.25
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 75.0
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 59.38
+        }
+      ],
+      "weight": 0.25
+    },
+    {
+      "category": "safety_robustness",
+      "contribution": {
+        "C++": 8.962152777777778,
+        "Go": 21.153472222222224,
+        "Java": 21.827430555555555,
+        "Kotlin": 20.587152777777774,
+        "Python": 21.071180555555557,
+        "Quidra": 20.264236111111114,
+        "Rust": 20.163541666666667,
+        "Swift": 17.375694444444445,
+        "TypeScript": 14.885069444444445,
+        "Zig": 15.422916666666666
+      },
+      "means": {
+        "C++": 28.678888888888892,
+        "Go": 67.69111111111111,
+        "Java": 69.84777777777778,
+        "Kotlin": 65.87888888888888,
+        "Python": 67.42777777777778,
+        "Quidra": 64.84555555555556,
+        "Rust": 64.52333333333334,
+        "Swift": 55.602222222222224,
+        "TypeScript": 47.632222222222225,
+        "Zig": 49.35333333333333
+      },
+      "metrics": [
+        "metric.type_safety",
+        "metric.memory_safety",
+        "metric.runtime_safety",
+        "metric.boundary_value_safety",
+        "metric.adversarial_input_robustness",
+        "metric.early_error_detection",
+        "metric.debuggability",
+        "metric.silent_bug_resistance",
+        "metric.implementation_robustness"
+      ],
+      "ranking": [
+        {
+          "language": "Java",
+          "rank": 1,
+          "score": 69.85
+        },
+        {
+          "language": "Go",
+          "rank": 2,
+          "score": 67.69
+        },
+        {
+          "language": "Python",
+          "rank": 3,
+          "score": 67.43
+        },
+        {
+          "language": "Kotlin",
+          "rank": 4,
+          "score": 65.88
+        },
+        {
+          "language": "Quidra",
+          "rank": 5,
+          "score": 64.85
+        },
+        {
+          "language": "Rust",
+          "rank": 6,
+          "score": 64.52
+        },
+        {
+          "language": "Swift",
+          "rank": 7,
+          "score": 55.6
+        },
+        {
+          "language": "Zig",
+          "rank": 8,
+          "score": 49.35
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 47.63
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 28.68
+        }
+      ],
+      "weight": 0.3125
+    }
+  ],
+  "evaluation": "language_quality",
+  "languages": [
+    "Quidra",
+    "Python",
+    "C++",
+    "Rust",
+    "Go",
+    "Java",
+    "TypeScript",
+    "Kotlin",
+    "Swift",
+    "Zig"
+  ],
+  "published": {
+    "blockers": [],
+    "ranking": [
+      {
+        "language": "Rust",
+        "rank": 1,
+        "score": 72.24
+      },
+      {
+        "language": "Go",
+        "rank": 2,
+        "score": 67.22
+      },
+      {
+        "language": "Zig",
+        "rank": 3,
+        "score": 66.76
+      },
+      {
+        "language": "Quidra",
+        "rank": 4,
+        "score": 66.13
+      },
+      {
+        "language": "Python",
+        "rank": 5,
+        "score": 64.4
+      },
+      {
+        "language": "Swift",
+        "rank": 6,
+        "score": 63.64
+      },
+      {
+        "language": "Java",
+        "rank": 7,
+        "score": 58.77
+      },
+      {
+        "language": "Kotlin",
+        "rank": 8,
+        "score": 56.95
+      },
+      {
+        "language": "C++",
+        "rank": 9,
+        "score": 51.32
+      },
+      {
+        "language": "TypeScript",
+        "rank": 10,
+        "score": 46.72
+      }
+    ],
+    "score": 66.13439696794185,
+    "scores": {
+      "C++": 51.320820186391,
+      "Go": 67.22157728292946,
+      "Java": 58.76517393839093,
+      "Kotlin": 56.94819491778603,
+      "Python": 64.40178735946432,
+      "Quidra": 66.13439696794185,
+      "Rust": 72.2403610054183,
+      "Swift": 63.64485712212921,
+      "TypeScript": 46.723465068899664,
+      "Zig": 66.76257680783553
+    }
+  },
+  "reconstruction": {
+    "max_abs_error_vs_published": 0.0,
+    "note": "Recomputed with the same functions the aggregate used. A null error means the evaluation published no scores to compare against.",
+    "recomputed_scores": {
+      "C++": 51.320820186391,
+      "Go": 67.22157728292946,
+      "Java": 58.76517393839093,
+      "Kotlin": 56.94819491778603,
+      "Python": 64.40178735946432,
+      "Quidra": 66.13439696794185,
+      "Rust": 72.2403610054183,
+      "Swift": 63.64485712212921,
+      "TypeScript": 46.723465068899664,
+      "Zig": 66.76257680783553
+    }
+  },
+  "requirements": [
+    {
+      "category": "performance",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-micro-mechanical",
+          "assigned_languages": [],
+          "work_unit_id": "lq-micro-mechanical"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Zig",
+          "rank": 1,
+          "score": 97.01
+        },
+        {
+          "language": "C++",
+          "rank": 2,
+          "score": 87.21
+        },
+        {
+          "language": "Rust",
+          "rank": 3,
+          "score": 84.0
+        },
+        {
+          "language": "Go",
+          "rank": 4,
+          "score": 76.26
+        },
+        {
+          "language": "Swift",
+          "rank": 5,
+          "score": 71.08
+        },
+        {
+          "language": "Quidra",
+          "rank": 6,
+          "score": 63.02
+        },
+        {
+          "language": "Java",
+          "rank": 7,
+          "score": 62.82
+        },
+        {
+          "language": "Kotlin",
+          "rank": 8,
+          "score": 61.43
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 42.16
+        },
+        {
+          "language": "Python",
+          "rank": 10,
+          "score": 3.77
+        }
+      ],
+      "requirement_id": "metric.native_execution_performance",
+      "scores": {
+        "C++": 87.20582225301507,
+        "Go": 76.26331790371606,
+        "Java": 62.82123824092956,
+        "Kotlin": 61.42903044314583,
+        "Python": 3.7683981598009564,
+        "Quidra": 63.02439997248359,
+        "Rust": 84.00013935030809,
+        "Swift": 71.07678054868727,
+        "TypeScript": 42.16226412489814,
+        "Zig": 97.00573372682808
+      }
+    },
+    {
+      "category": "performance",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-micro-mechanical",
+          "assigned_languages": [],
+          "work_unit_id": "lq-micro-mechanical"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Zig",
+          "rank": 1,
+          "score": 95.32
+        },
+        {
+          "language": "C++",
+          "rank": 2,
+          "score": 85.85
+        },
+        {
+          "language": "Rust",
+          "rank": 3,
+          "score": 82.04
+        },
+        {
+          "language": "Java",
+          "rank": 4,
+          "score": 74.55
+        },
+        {
+          "language": "Go",
+          "rank": 5,
+          "score": 74.34
+        },
+        {
+          "language": "Kotlin",
+          "rank": 6,
+          "score": 70.54
+        },
+        {
+          "language": "Swift",
+          "rank": 7,
+          "score": 69.53
+        },
+        {
+          "language": "Quidra",
+          "rank": 8,
+          "score": 61.81
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 41.44
+        },
+        {
+          "language": "Python",
+          "rank": 10,
+          "score": 3.68
+        }
+      ],
+      "requirement_id": "metric.long_running_performance",
+      "scores": {
+        "C++": 85.84723768803984,
+        "Go": 74.33890793421742,
+        "Java": 74.55343234922556,
+        "Kotlin": 70.53543288553966,
+        "Python": 3.6788169108144797,
+        "Quidra": 61.805898894612525,
+        "Rust": 82.04414036745156,
+        "Swift": 69.53477115213029,
+        "TypeScript": 41.437131219725956,
+        "Zig": 95.31510542794736
+      }
+    },
+    {
+      "category": "performance",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-micro-mechanical",
+          "assigned_languages": [],
+          "work_unit_id": "lq-micro-mechanical"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Python",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Go",
+          "rank": 2,
+          "score": 0.77
+        },
+        {
+          "language": "Quidra",
+          "rank": 3,
+          "score": 0.6
+        },
+        {
+          "language": "Rust",
+          "rank": 4,
+          "score": 0.56
+        },
+        {
+          "language": "TypeScript",
+          "rank": 5,
+          "score": 0.3
+        },
+        {
+          "language": "Java",
+          "rank": 6,
+          "score": 0.16
+        },
+        {
+          "language": "Swift",
+          "rank": 7,
+          "score": 0.14
+        },
+        {
+          "language": "C++",
+          "rank": 8,
+          "score": 0.07
+        },
+        {
+          "language": "Kotlin",
+          "rank": 9,
+          "score": 0.02
+        },
+        {
+          "language": "Zig",
+          "rank": 10,
+          "score": 0.01
+        }
+      ],
+      "requirement_id": "metric.compile_build_performance",
+      "scores": {
+        "C++": 0.06917687008372606,
+        "Go": 0.7677612577752368,
+        "Java": 0.1614804841046564,
+        "Kotlin": 0.018629241448785246,
+        "Python": 100.0,
+        "Quidra": 0.6040738336021833,
+        "Rust": 0.5562088937812052,
+        "Swift": 0.14106995622062338,
+        "TypeScript": 0.30477252696132273,
+        "Zig": 0.006683134778318426
+      }
+    },
+    {
+      "category": "performance",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-micro-mechanical",
+          "assigned_languages": [],
+          "work_unit_id": "lq-micro-mechanical"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Zig",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Rust",
+          "rank": 2,
+          "score": 92.44
+        },
+        {
+          "language": "Go",
+          "rank": 3,
+          "score": 64.76
+        },
+        {
+          "language": "Quidra",
+          "rank": 4,
+          "score": 64.1
+        },
+        {
+          "language": "C++",
+          "rank": 5,
+          "score": 63.08
+        },
+        {
+          "language": "Swift",
+          "rank": 6,
+          "score": 33.46
+        },
+        {
+          "language": "Python",
+          "rank": 7,
+          "score": 11.07
+        },
+        {
+          "language": "TypeScript",
+          "rank": 8,
+          "score": 4.95
+        },
+        {
+          "language": "Java",
+          "rank": 9,
+          "score": 4.05
+        },
+        {
+          "language": "Kotlin",
+          "rank": 10,
+          "score": 2.49
+        }
+      ],
+      "requirement_id": "metric.startup_latency",
+      "scores": {
+        "C++": 63.07922498800326,
+        "Go": 64.76168128232976,
+        "Java": 4.049493448124837,
+        "Kotlin": 2.4900226375311707,
+        "Python": 11.074014307549644,
+        "Quidra": 64.09522199609202,
+        "Rust": 92.44420598950074,
+        "Swift": 33.46287845541584,
+        "TypeScript": 4.949053984396135,
+        "Zig": 100.0
+      }
+    },
+    {
+      "category": "resource",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-micro-mechanical",
+          "assigned_languages": [],
+          "work_unit_id": "lq-micro-mechanical"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Zig",
+          "rank": 1,
+          "score": 97.81
+        },
+        {
+          "language": "Rust",
+          "rank": 2,
+          "score": 95.93
+        },
+        {
+          "language": "C++",
+          "rank": 3,
+          "score": 92.07
+        },
+        {
+          "language": "Go",
+          "rank": 4,
+          "score": 83.55
+        },
+        {
+          "language": "Swift",
+          "rank": 5,
+          "score": 75.94
+        },
+        {
+          "language": "Quidra",
+          "rank": 6,
+          "score": 75.17
+        },
+        {
+          "language": "Python",
+          "rank": 7,
+          "score": 64.84
+        },
+        {
+          "language": "Java",
+          "rank": 8,
+          "score": 21.87
+        },
+        {
+          "language": "TypeScript",
+          "rank": 8,
+          "score": 21.87
+        },
+        {
+          "language": "Kotlin",
+          "rank": 10,
+          "score": 21.35
+        }
+      ],
+      "requirement_id": "metric.memory_efficiency",
+      "scores": {
+        "C++": 92.06839980451444,
+        "Go": 83.54749664591755,
+        "Java": 21.87094200135576,
+        "Kotlin": 21.348624869680776,
+        "Python": 64.83945757649803,
+        "Quidra": 75.17123573736917,
+        "Rust": 95.93133920926942,
+        "Swift": 75.93754097713023,
+        "TypeScript": 21.87484324091208,
+        "Zig": 97.81231629149595
+      }
+    },
+    {
+      "category": "resource",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-micro-mechanical",
+          "assigned_languages": [],
+          "work_unit_id": "lq-micro-mechanical"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Python",
+          "rank": 1,
+          "score": 95.13
+        },
+        {
+          "language": "Quidra",
+          "rank": 2,
+          "score": 92.32
+        },
+        {
+          "language": "Go",
+          "rank": 3,
+          "score": 91.21
+        },
+        {
+          "language": "Kotlin",
+          "rank": 4,
+          "score": 84.04
+        },
+        {
+          "language": "Rust",
+          "rank": 5,
+          "score": 79.87
+        },
+        {
+          "language": "Java",
+          "rank": 6,
+          "score": 75.05
+        },
+        {
+          "language": "Swift",
+          "rank": 7,
+          "score": 71.11
+        },
+        {
+          "language": "C++",
+          "rank": 8,
+          "score": 63.24
+        },
+        {
+          "language": "Zig",
+          "rank": 9,
+          "score": 61.2
+        },
+        {
+          "language": "TypeScript",
+          "rank": 10,
+          "score": 60.87
+        }
+      ],
+      "requirement_id": "metric.source_code_size",
+      "scores": {
+        "C++": 63.239319809540845,
+        "Go": 91.21125309783056,
+        "Java": 75.04834901992784,
+        "Kotlin": 84.04429842884576,
+        "Python": 95.1332412974984,
+        "Quidra": 92.3214558700235,
+        "Rust": 79.87066355750797,
+        "Swift": 71.10568491276356,
+        "TypeScript": 60.86609888740987,
+        "Zig": 61.20180465495751
+      }
+    },
+    {
+      "category": "resource",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-micro-mechanical",
+          "assigned_languages": [],
+          "work_unit_id": "lq-micro-mechanical"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Python",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 2,
+          "score": 55.9
+        },
+        {
+          "language": "Java",
+          "rank": 3,
+          "score": 52.78
+        },
+        {
+          "language": "C++",
+          "rank": 4,
+          "score": 17.09
+        },
+        {
+          "language": "Swift",
+          "rank": 5,
+          "score": 11.36
+        },
+        {
+          "language": "Quidra",
+          "rank": 6,
+          "score": 1.7
+        },
+        {
+          "language": "Go",
+          "rank": 7,
+          "score": 0.17
+        },
+        {
+          "language": "Zig",
+          "rank": 8,
+          "score": 0.11
+        },
+        {
+          "language": "Rust",
+          "rank": 9,
+          "score": 0.09
+        },
+        {
+          "language": "Kotlin",
+          "rank": 10,
+          "score": 0.07
+        }
+      ],
+      "requirement_id": "metric.binary_artifact_size",
+      "scores": {
+        "C++": 17.093396553028622,
+        "Go": 0.16838941015754597,
+        "Java": 52.777492427922255,
+        "Kotlin": 0.07497306402726307,
+        "Python": 100.0,
+        "Quidra": 1.6979470759426256,
+        "Rust": 0.09367268807077704,
+        "Swift": 11.359637312271925,
+        "TypeScript": 55.90366236706581,
+        "Zig": 0.11172137527986752
+      }
+    },
+    {
+      "category": "resource",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-micro-mechanical",
+          "assigned_languages": [],
+          "work_unit_id": "lq-micro-mechanical"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Python",
+          "rank": 2,
+          "score": 99.72
+        },
+        {
+          "language": "Swift",
+          "rank": 2,
+          "score": 99.72
+        },
+        {
+          "language": "Rust",
+          "rank": 4,
+          "score": 99.68
+        },
+        {
+          "language": "Go",
+          "rank": 4,
+          "score": 99.68
+        },
+        {
+          "language": "Zig",
+          "rank": 4,
+          "score": 99.68
+        },
+        {
+          "language": "C++",
+          "rank": 7,
+          "score": 99.65
+        },
+        {
+          "language": "Java",
+          "rank": 8,
+          "score": 26.19
+        },
+        {
+          "language": "Kotlin",
+          "rank": 9,
+          "score": 24.27
+        },
+        {
+          "language": "TypeScript",
+          "rank": 10,
+          "score": 22.1
+        }
+      ],
+      "requirement_id": "metric.runtime_overhead",
+      "scores": {
+        "C++": 99.64850615114236,
+        "Go": 99.68354430379746,
+        "Java": 26.19421602143583,
+        "Kotlin": 24.270182347401764,
+        "Python": 99.71860710517059,
+        "Quidra": 100.0,
+        "Rust": 99.68354430379746,
+        "Swift": 99.71860710517059,
+        "TypeScript": 22.103539685014812,
+        "Zig": 99.68354430379746
+      }
+    },
+    {
+      "category": "language_development",
+      "measured_by": [
+        {
+          "agent_id": "worker-lq-language-development--part-1--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-language-development--part-1--quidra"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-language-development--part-1--python"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-language-development--part-1--c"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-language-development--part-1--rust"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-language-development--part-1--go"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-language-development--part-1--java"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-language-development--part-1--typescript"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-language-development--part-1--kotlin"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-language-development--part-1--swift"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-language-development--part-1--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Kotlin",
+          "rank": 1,
+          "score": 95.0
+        },
+        {
+          "language": "Swift",
+          "rank": 1,
+          "score": 95.0
+        },
+        {
+          "language": "Quidra",
+          "rank": 3,
+          "score": 90.0
+        },
+        {
+          "language": "Python",
+          "rank": 3,
+          "score": 90.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 3,
+          "score": 90.0
+        },
+        {
+          "language": "Rust",
+          "rank": 6,
+          "score": 75.0
+        },
+        {
+          "language": "Zig",
+          "rank": 7,
+          "score": 65.0
+        },
+        {
+          "language": "Go",
+          "rank": 8,
+          "score": 60.0
+        },
+        {
+          "language": "C++",
+          "rank": 9,
+          "score": 50.0
+        },
+        {
+          "language": "Java",
+          "rank": 9,
+          "score": 50.0
+        }
+      ],
+      "requirement_id": "metric.code_efficiency_conciseness",
+      "scores": {
+        "C++": 50.0,
+        "Go": 60.0,
+        "Java": 50.0,
+        "Kotlin": 95.0,
+        "Python": 90.0,
+        "Quidra": 90.0,
+        "Rust": 75.0,
+        "Swift": 95.0,
+        "TypeScript": 90.0,
+        "Zig": 65.0
+      }
+    },
+    {
+      "category": "language_development",
+      "measured_by": [
+        {
+          "agent_id": "worker-lq-language-development--part-1--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-language-development--part-1--quidra"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-language-development--part-1--python"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-language-development--part-1--c"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-language-development--part-1--rust"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-language-development--part-1--go"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-language-development--part-1--java"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-language-development--part-1--typescript"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-language-development--part-1--kotlin"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-language-development--part-1--swift"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-1--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-language-development--part-1--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 95.0
+        },
+        {
+          "language": "Go",
+          "rank": 1,
+          "score": 95.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 3,
+          "score": 90.0
+        },
+        {
+          "language": "Swift",
+          "rank": 3,
+          "score": 90.0
+        },
+        {
+          "language": "Python",
+          "rank": 5,
+          "score": 85.0
+        },
+        {
+          "language": "Java",
+          "rank": 5,
+          "score": 85.0
+        },
+        {
+          "language": "Rust",
+          "rank": 7,
+          "score": 80.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 8,
+          "score": 75.0
+        },
+        {
+          "language": "Zig",
+          "rank": 8,
+          "score": 75.0
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 50.0
+        }
+      ],
+      "requirement_id": "metric.readability",
+      "scores": {
+        "C++": 50.0,
+        "Go": 95.0,
+        "Java": 85.0,
+        "Kotlin": 90.0,
+        "Python": 85.0,
+        "Quidra": 95.0,
+        "Rust": 80.0,
+        "Swift": 90.0,
+        "TypeScript": 75.0,
+        "Zig": 75.0
+      }
+    },
+    {
+      "category": "language_development",
+      "measured_by": [
+        {
+          "agent_id": "worker-lq-language-development--part-2--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-language-development--part-2--quidra"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-language-development--part-2--python"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-language-development--part-2--c"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-language-development--part-2--rust"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-language-development--part-2--go"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-language-development--part-2--java"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-language-development--part-2--typescript"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-language-development--part-2--kotlin"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-language-development--part-2--swift"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-language-development--part-2--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Rust",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 2,
+          "score": 95.0
+        },
+        {
+          "language": "Swift",
+          "rank": 2,
+          "score": 95.0
+        },
+        {
+          "language": "Python",
+          "rank": 4,
+          "score": 90.0
+        },
+        {
+          "language": "C++",
+          "rank": 4,
+          "score": 90.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 4,
+          "score": 90.0
+        },
+        {
+          "language": "Quidra",
+          "rank": 7,
+          "score": 85.0
+        },
+        {
+          "language": "Java",
+          "rank": 7,
+          "score": 85.0
+        },
+        {
+          "language": "Zig",
+          "rank": 9,
+          "score": 80.0
+        },
+        {
+          "language": "Go",
+          "rank": 10,
+          "score": 75.0
+        }
+      ],
+      "requirement_id": "metric.functionality_expressiveness",
+      "scores": {
+        "C++": 90.0,
+        "Go": 75.0,
+        "Java": 85.0,
+        "Kotlin": 95.0,
+        "Python": 90.0,
+        "Quidra": 85.0,
+        "Rust": 100.0,
+        "Swift": 95.0,
+        "TypeScript": 90.0,
+        "Zig": 80.0
+      }
+    },
+    {
+      "category": "language_development",
+      "measured_by": [
+        {
+          "agent_id": "worker-lq-language-development--part-2--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-language-development--part-2--quidra"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-language-development--part-2--python"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-language-development--part-2--c"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-language-development--part-2--rust"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-language-development--part-2--go"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-language-development--part-2--java"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-language-development--part-2--typescript"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-language-development--part-2--kotlin"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-language-development--part-2--swift"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-2--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-language-development--part-2--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Rust",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 3,
+          "score": 95.0
+        },
+        {
+          "language": "Swift",
+          "rank": 3,
+          "score": 95.0
+        },
+        {
+          "language": "Zig",
+          "rank": 3,
+          "score": 95.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 6,
+          "score": 85.0
+        },
+        {
+          "language": "Java",
+          "rank": 7,
+          "score": 75.0
+        },
+        {
+          "language": "Python",
+          "rank": 8,
+          "score": 65.0
+        },
+        {
+          "language": "Go",
+          "rank": 8,
+          "score": 65.0
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 60.0
+        }
+      ],
+      "requirement_id": "metric.diagnostics",
+      "scores": {
+        "C++": 60.0,
+        "Go": 65.0,
+        "Java": 75.0,
+        "Kotlin": 85.0,
+        "Python": 65.0,
+        "Quidra": 100.0,
+        "Rust": 100.0,
+        "Swift": 95.0,
+        "TypeScript": 95.0,
+        "Zig": 95.0
+      }
+    },
+    {
+      "category": "language_development",
+      "measured_by": [
+        {
+          "agent_id": "worker-lq-language-development--part-3--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-language-development--part-3--quidra"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-language-development--part-3--python"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-language-development--part-3--c"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-language-development--part-3--rust"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-language-development--part-3--go"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-language-development--part-3--java"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-language-development--part-3--typescript"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-language-development--part-3--kotlin"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-language-development--part-3--swift"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-language-development--part-3--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Rust",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Go",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Swift",
+          "rank": 4,
+          "score": 95.0
+        },
+        {
+          "language": "Zig",
+          "rank": 4,
+          "score": 95.0
+        },
+        {
+          "language": "Java",
+          "rank": 6,
+          "score": 75.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 7,
+          "score": 65.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 7,
+          "score": 65.0
+        },
+        {
+          "language": "Python",
+          "rank": 9,
+          "score": 60.0
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 35.0
+        }
+      ],
+      "requirement_id": "metric.dependency_simplicity",
+      "scores": {
+        "C++": 35.0,
+        "Go": 100.0,
+        "Java": 75.0,
+        "Kotlin": 65.0,
+        "Python": 60.0,
+        "Quidra": 100.0,
+        "Rust": 100.0,
+        "Swift": 95.0,
+        "TypeScript": 65.0,
+        "Zig": 95.0
+      }
+    },
+    {
+      "category": "language_development",
+      "measured_by": [
+        {
+          "agent_id": "worker-lq-language-development--part-3--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-language-development--part-3--quidra"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-language-development--part-3--python"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-language-development--part-3--c"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-language-development--part-3--rust"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-language-development--part-3--go"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-language-development--part-3--java"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-language-development--part-3--typescript"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-language-development--part-3--kotlin"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-language-development--part-3--swift"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-3--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-language-development--part-3--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Go",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Zig",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Java",
+          "rank": 4,
+          "score": 95.0
+        },
+        {
+          "language": "Quidra",
+          "rank": 5,
+          "score": 90.0
+        },
+        {
+          "language": "Python",
+          "rank": 5,
+          "score": 90.0
+        },
+        {
+          "language": "Rust",
+          "rank": 5,
+          "score": 90.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 8,
+          "score": 80.0
+        },
+        {
+          "language": "Swift",
+          "rank": 8,
+          "score": 80.0
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 50.0
+        }
+      ],
+      "requirement_id": "metric.portability_design_platform_neutrality",
+      "scores": {
+        "C++": 50.0,
+        "Go": 100.0,
+        "Java": 95.0,
+        "Kotlin": 100.0,
+        "Python": 90.0,
+        "Quidra": 90.0,
+        "Rust": 90.0,
+        "Swift": 80.0,
+        "TypeScript": 80.0,
+        "Zig": 100.0
+      }
+    },
+    {
+      "category": "language_development",
+      "measured_by": [
+        {
+          "agent_id": "worker-lq-language-development--part-4--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-language-development--part-4--quidra"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-language-development--part-4--python"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-language-development--part-4--c"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-language-development--part-4--rust"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-language-development--part-4--go"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-language-development--part-4--java"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-language-development--part-4--typescript"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-language-development--part-4--kotlin"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-language-development--part-4--swift"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-language-development--part-4--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Rust",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Swift",
+          "rank": 2,
+          "score": 95.0
+        },
+        {
+          "language": "Zig",
+          "rank": 2,
+          "score": 95.0
+        },
+        {
+          "language": "Java",
+          "rank": 4,
+          "score": 85.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 4,
+          "score": 85.0
+        },
+        {
+          "language": "C++",
+          "rank": 6,
+          "score": 80.0
+        },
+        {
+          "language": "Quidra",
+          "rank": 7,
+          "score": 70.0
+        },
+        {
+          "language": "Python",
+          "rank": 7,
+          "score": 70.0
+        },
+        {
+          "language": "Go",
+          "rank": 9,
+          "score": 65.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 10,
+          "score": 30.0
+        }
+      ],
+      "requirement_id": "metric.ffi_interoperability_design",
+      "scores": {
+        "C++": 80.0,
+        "Go": 65.0,
+        "Java": 85.0,
+        "Kotlin": 85.0,
+        "Python": 70.0,
+        "Quidra": 70.0,
+        "Rust": 100.0,
+        "Swift": 95.0,
+        "TypeScript": 30.0,
+        "Zig": 95.0
+      }
+    },
+    {
+      "category": "language_development",
+      "measured_by": [
+        {
+          "agent_id": "worker-lq-language-development--part-4--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-language-development--part-4--quidra"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-language-development--part-4--python"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-language-development--part-4--c"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-language-development--part-4--rust"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-language-development--part-4--go"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-language-development--part-4--java"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-language-development--part-4--typescript"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-language-development--part-4--kotlin"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-language-development--part-4--swift"
+        },
+        {
+          "agent_id": "worker-lq-language-development--part-4--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-language-development--part-4--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Swift",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Rust",
+          "rank": 2,
+          "score": 90.0
+        },
+        {
+          "language": "Java",
+          "rank": 3,
+          "score": 85.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 3,
+          "score": 85.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 5,
+          "score": 75.0
+        },
+        {
+          "language": "Go",
+          "rank": 6,
+          "score": 70.0
+        },
+        {
+          "language": "Zig",
+          "rank": 7,
+          "score": 65.0
+        },
+        {
+          "language": "Python",
+          "rank": 8,
+          "score": 60.0
+        },
+        {
+          "language": "C++",
+          "rank": 8,
+          "score": 60.0
+        },
+        {
+          "language": "Quidra",
+          "rank": 10,
+          "score": 55.0
+        }
+      ],
+      "requirement_id": "metric.concurrency",
+      "scores": {
+        "C++": 60.0,
+        "Go": 70.0,
+        "Java": 85.0,
+        "Kotlin": 85.0,
+        "Python": 60.0,
+        "Quidra": 55.0,
+        "Rust": 90.0,
+        "Swift": 100.0,
+        "TypeScript": 75.0,
+        "Zig": 65.0
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 74.58
+        },
+        {
+          "language": "Swift",
+          "rank": 2,
+          "score": 67.08
+        },
+        {
+          "language": "Zig",
+          "rank": 2,
+          "score": 67.08
+        },
+        {
+          "language": "Go",
+          "rank": 4,
+          "score": 62.5
+        },
+        {
+          "language": "Kotlin",
+          "rank": 5,
+          "score": 56.25
+        },
+        {
+          "language": "Rust",
+          "rank": 6,
+          "score": 51.67
+        },
+        {
+          "language": "Java",
+          "rank": 7,
+          "score": 45.83
+        },
+        {
+          "language": "TypeScript",
+          "rank": 8,
+          "score": 33.33
+        },
+        {
+          "language": "Python",
+          "rank": 9,
+          "score": 29.17
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 19.58
+        }
+      ],
+      "requirement_id": "metric.type_safety",
+      "scores": {
+        "C++": 19.58,
+        "Go": 62.5,
+        "Java": 45.83,
+        "Kotlin": 56.25,
+        "Python": 29.17,
+        "Quidra": 74.58,
+        "Rust": 51.67,
+        "Swift": 67.08,
+        "TypeScript": 33.33,
+        "Zig": 67.08
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Java",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Go",
+          "rank": 3,
+          "score": 88.89
+        },
+        {
+          "language": "Rust",
+          "rank": 4,
+          "score": 77.78
+        },
+        {
+          "language": "Python",
+          "rank": 5,
+          "score": 66.67
+        },
+        {
+          "language": "TypeScript",
+          "rank": 6,
+          "score": 55.56
+        },
+        {
+          "language": "Quidra",
+          "rank": 7,
+          "score": 44.44
+        },
+        {
+          "language": "Swift",
+          "rank": 7,
+          "score": 44.44
+        },
+        {
+          "language": "Zig",
+          "rank": 9,
+          "score": 33.33
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 11.11
+        }
+      ],
+      "requirement_id": "metric.memory_safety",
+      "scores": {
+        "C++": 11.11,
+        "Go": 88.89,
+        "Java": 100.0,
+        "Kotlin": 100.0,
+        "Python": 66.67,
+        "Quidra": 44.44,
+        "Rust": 77.78,
+        "Swift": 44.44,
+        "TypeScript": 55.56,
+        "Zig": 33.33
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Python",
+          "rank": 1,
+          "score": 68.75
+        },
+        {
+          "language": "Java",
+          "rank": 2,
+          "score": 57.69
+        },
+        {
+          "language": "Go",
+          "rank": 3,
+          "score": 51.16
+        },
+        {
+          "language": "Kotlin",
+          "rank": 4,
+          "score": 45.83
+        },
+        {
+          "language": "Quidra",
+          "rank": 5,
+          "score": 41.67
+        },
+        {
+          "language": "Rust",
+          "rank": 6,
+          "score": 39.02
+        },
+        {
+          "language": "TypeScript",
+          "rank": 7,
+          "score": 22.22
+        },
+        {
+          "language": "Swift",
+          "rank": 8,
+          "score": 13.95
+        },
+        {
+          "language": "Zig",
+          "rank": 9,
+          "score": 9.76
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 3.33
+        }
+      ],
+      "requirement_id": "metric.runtime_safety",
+      "scores": {
+        "C++": 3.33,
+        "Go": 51.16,
+        "Java": 57.69,
+        "Kotlin": 45.83,
+        "Python": 68.75,
+        "Quidra": 41.67,
+        "Rust": 39.02,
+        "Swift": 13.95,
+        "TypeScript": 22.22,
+        "Zig": 9.76
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Python",
+          "rank": 1,
+          "score": 65.91
+        },
+        {
+          "language": "Go",
+          "rank": 2,
+          "score": 60.45
+        },
+        {
+          "language": "Quidra",
+          "rank": 3,
+          "score": 54.55
+        },
+        {
+          "language": "Zig",
+          "rank": 4,
+          "score": 53.75
+        },
+        {
+          "language": "Rust",
+          "rank": 5,
+          "score": 51.93
+        },
+        {
+          "language": "Swift",
+          "rank": 6,
+          "score": 47.27
+        },
+        {
+          "language": "Java",
+          "rank": 7,
+          "score": 42.27
+        },
+        {
+          "language": "Kotlin",
+          "rank": 8,
+          "score": 37.73
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 22.27
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 7.27
+        }
+      ],
+      "requirement_id": "metric.boundary_value_safety",
+      "scores": {
+        "C++": 7.27,
+        "Go": 60.45,
+        "Java": 42.27,
+        "Kotlin": 37.73,
+        "Python": 65.91,
+        "Quidra": 54.55,
+        "Rust": 51.93,
+        "Swift": 47.27,
+        "TypeScript": 22.27,
+        "Zig": 53.75
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Java",
+          "rank": 1,
+          "score": 85.71
+        },
+        {
+          "language": "Python",
+          "rank": 2,
+          "score": 79.29
+        },
+        {
+          "language": "Kotlin",
+          "rank": 3,
+          "score": 75.0
+        },
+        {
+          "language": "Rust",
+          "rank": 4,
+          "score": 69.29
+        },
+        {
+          "language": "Go",
+          "rank": 5,
+          "score": 64.29
+        },
+        {
+          "language": "TypeScript",
+          "rank": 6,
+          "score": 59.29
+        },
+        {
+          "language": "Swift",
+          "rank": 7,
+          "score": 51.43
+        },
+        {
+          "language": "Quidra",
+          "rank": 8,
+          "score": 50.71
+        },
+        {
+          "language": "C++",
+          "rank": 9,
+          "score": 48.57
+        },
+        {
+          "language": "Zig",
+          "rank": 10,
+          "score": 42.86
+        }
+      ],
+      "requirement_id": "metric.adversarial_input_robustness",
+      "scores": {
+        "C++": 48.57,
+        "Go": 64.29,
+        "Java": 85.71,
+        "Kotlin": 75.0,
+        "Python": 79.29,
+        "Quidra": 50.71,
+        "Rust": 69.29,
+        "Swift": 51.43,
+        "TypeScript": 59.29,
+        "Zig": 42.86
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Java",
+          "rank": 1,
+          "score": 65.0
+        },
+        {
+          "language": "Rust",
+          "rank": 2,
+          "score": 64.47
+        },
+        {
+          "language": "Go",
+          "rank": 3,
+          "score": 64.04
+        },
+        {
+          "language": "Kotlin",
+          "rank": 4,
+          "score": 61.15
+        },
+        {
+          "language": "Quidra",
+          "rank": 5,
+          "score": 59.81
+        },
+        {
+          "language": "Python",
+          "rank": 6,
+          "score": 57.88
+        },
+        {
+          "language": "Swift",
+          "rank": 7,
+          "score": 55.96
+        },
+        {
+          "language": "Zig",
+          "rank": 8,
+          "score": 49.86
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 44.62
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 25.38
+        }
+      ],
+      "requirement_id": "metric.early_error_detection",
+      "scores": {
+        "C++": 25.38,
+        "Go": 64.04,
+        "Java": 65.0,
+        "Kotlin": 61.15,
+        "Python": 57.88,
+        "Quidra": 59.81,
+        "Rust": 64.47,
+        "Swift": 55.96,
+        "TypeScript": 44.62,
+        "Zig": 49.86
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Python",
+          "rank": 1,
+          "score": 68.59
+        },
+        {
+          "language": "Quidra",
+          "rank": 2,
+          "score": 66.67
+        },
+        {
+          "language": "Java",
+          "rank": 3,
+          "score": 61.54
+        },
+        {
+          "language": "Rust",
+          "rank": 4,
+          "score": 54.49
+        },
+        {
+          "language": "Kotlin",
+          "rank": 5,
+          "score": 52.24
+        },
+        {
+          "language": "Go",
+          "rank": 6,
+          "score": 45.83
+        },
+        {
+          "language": "TypeScript",
+          "rank": 7,
+          "score": 38.46
+        },
+        {
+          "language": "Swift",
+          "rank": 8,
+          "score": 32.05
+        },
+        {
+          "language": "Zig",
+          "rank": 9,
+          "score": 27.24
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 13.46
+        }
+      ],
+      "requirement_id": "metric.debuggability",
+      "scores": {
+        "C++": 13.46,
+        "Go": 45.83,
+        "Java": 61.54,
+        "Kotlin": 52.24,
+        "Python": 68.59,
+        "Quidra": 66.67,
+        "Rust": 54.49,
+        "Swift": 32.05,
+        "TypeScript": 38.46,
+        "Zig": 27.24
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 91.18
+        },
+        {
+          "language": "Swift",
+          "rank": 2,
+          "score": 88.24
+        },
+        {
+          "language": "Rust",
+          "rank": 3,
+          "score": 75.0
+        },
+        {
+          "language": "Go",
+          "rank": 4,
+          "score": 72.06
+        },
+        {
+          "language": "Python",
+          "rank": 5,
+          "score": 70.59
+        },
+        {
+          "language": "Java",
+          "rank": 5,
+          "score": 70.59
+        },
+        {
+          "language": "Kotlin",
+          "rank": 7,
+          "score": 64.71
+        },
+        {
+          "language": "Zig",
+          "rank": 8,
+          "score": 63.24
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 52.94
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 29.41
+        }
+      ],
+      "requirement_id": "metric.silent_bug_resistance",
+      "scores": {
+        "C++": 29.41,
+        "Go": 72.06,
+        "Java": 70.59,
+        "Kotlin": 64.71,
+        "Python": 70.59,
+        "Quidra": 91.18,
+        "Rust": 75.0,
+        "Swift": 88.24,
+        "TypeScript": 52.94,
+        "Zig": 63.24
+      }
+    },
+    {
+      "category": "safety_robustness",
+      "measured_by": [
+        {
+          "agent_id": "system-lq-adversarial-mechanical--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--quidra"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--python"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--c"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--rust"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--go"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--java"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--typescript"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--kotlin"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--swift"
+        },
+        {
+          "agent_id": "system-lq-adversarial-mechanical--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "lq-adversarial-mechanical--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Python",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "C++",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Go",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Java",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Kotlin",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Swift",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Rust",
+          "rank": 9,
+          "score": 97.06
+        },
+        {
+          "language": "Zig",
+          "rank": 9,
+          "score": 97.06
+        }
+      ],
+      "requirement_id": "metric.implementation_robustness",
+      "scores": {
+        "C++": 100.0,
+        "Go": 100.0,
+        "Java": 100.0,
+        "Kotlin": 100.0,
+        "Python": 100.0,
+        "Quidra": 100.0,
+        "Rust": 97.06,
+        "Swift": 100.0,
+        "TypeScript": 100.0,
+        "Zig": 97.06
+      }
+    }
+  ],
+  "schema_version": 1,
+  "status": "COMPLETE"
+}

@@ -1,0 +1,324 @@
+{
+  "agent_id": "worker-sc-metrics-hidden-coverage--part-1--swift",
+  "assigned_languages": [
+    "Swift"
+  ],
+  "evidence": {
+    "aggregate_calculation": {
+      "formula": "mean over 44 probes of per-probe score",
+      "mean": 93.687,
+      "n": 44,
+      "rounded_reported_value": 93.7,
+      "sum_of_scores": 4122.222
+    },
+    "basis": "per-probe hidden-behavior audit across all 44 frozen probes in capability_universe.json, assuming a FULL/PARTIAL Swift fragment exists for each probe per authoring rules R1-R10; normalized higher=better",
+    "canonical_fragment_catalog_sha256": "0f9beacb5ed0a9fac8b723cc3e8b850f8b5aea9dd658e15cd8b9ac4709694c77",
+    "checklist_frozen_before_annotation": [
+      "implicit_conversions",
+      "hidden_writable_aliasing_or_mutation",
+      "overload_or_dynamic_dispatch_not_locally_evident",
+      "implicit_allocation_copy_move_destruction_cleanup",
+      "implicit_exception_or_failure_propagation",
+      "hidden_nullability_or_optionality",
+      "implicit_representation_change",
+      "context_dependent_overflow_or_numeric_behavior",
+      "hidden_side_effects_on_existing_state"
+    ],
+    "counting_rule": "For each probe, using the idiomatic minimal-token Swift fragment selected under R10, count how many of the 9 frozen checklist categories describe a semantically material behavior that occurs at the measured_fragment's surface syntax WITHOUT being locally signaled by that syntax under the Swift language specification (per the 'do not count a behavior as hidden if the fixed local syntax makes that behavior unambiguous' rule). hidden_count is an integer 0-9 per probe. Per-probe normalized score = 100 * (1 - hidden_count/9). The reported aggregate is the unweighted mean of the 44 per-probe normalized scores (all 44 probes weighted equally, consistent with the uniform 2-point capability weighting used elsewhere in this evaluation).",
+    "language": "Swift",
+    "legacy_fragment_equivalence": {
+      "all_explicit_fragments_matched": false,
+      "canonical_fragment_catalog_content_sha256": "f10303fb89af7e886bdc54cb132761d8a43472bbcb4b52bfb76c5545b09ec338",
+      "canonical_fragment_catalog_sha256": "0f9beacb5ed0a9fac8b723cc3e8b850f8b5aea9dd658e15cd8b9ac4709694c77",
+      "dropped_now_none_probes": [],
+      "proof_mode": "shared-experiment-owner-catalog",
+      "schema_version": 1,
+      "scientific_identity_sha256": "d5d4adc59b695318889be140cb6ad813c48dbb2b9e6a2031e90d7f4b6b454b0b",
+      "source_density_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
+      "source_density_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
+      "source_metric_record": "v1/semantic-compression/swift/92e660af4810551b491e555f05af7c96741dcf34a831c094c9d48f0ca1d239f6.json",
+      "source_metric_record_sha256": "3153cadd28f6f01a7dafb2866acd85ef92b3d0f9f85aeb88ae472d2e4eaad14d",
+      "source_owner_record": "v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json",
+      "source_owner_record_sha256": "069a7e177d435045b8e77bb91e1e0acf1cf3d09d4c7ea5cdc0549e5e95f6831c",
+      "source_run_id": "2026-09-23-fce5cfa-gh16"
+    },
+    "limitations": "This worker evaluated only the Hidden Semantic Cost metric for Swift, per its assigned requirement/language scope. It did not independently perform the FULL/PARTIAL/NONE support-rubric adjudication, R10 alternative-form token counts, or the cross-language common-basis reconciliation; those are produced by the paired capability-coverage/support-rubric worker(s) and merged by the runner. If any of these 44 probes is later adjudicated NONE for Swift, its hidden-cost datum is excluded from the common-basis aggregate per the interaction_with_quality_metrics rule, and the mean above must be recomputed by the runner over the reduced common-basis set.",
+    "methodology_note": "Score requires the semantic-site comparability gate; this worker reports raw per-probe hidden-cost measurements for Swift only. Aggregation into the cross-language common-basis figure and gate pass/fail determination is performed by the runner once all language shards are merged.",
+    "metric": "hidden_semantic_cost",
+    "per_probe_hidden_counts_and_citations": [
+      {
+        "hidden_count": 0,
+        "note": "`let n = 7` / return n: let marks immutability explicitly; Int is a value type with no hidden copy/alias/conversion at this site.",
+        "probe_id": "F01.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "var counter vs let LIMIT: mutability fully explicit via keyword choice.",
+        "probe_id": "F01.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "Swift enforces definite-assignment via flow analysis; both branches assign before use is compiler-checked, no hidden uninitialized-read risk.",
+        "probe_id": "F02.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "UnsafeMutablePointer<UInt8>.allocate(capacity:) yields genuinely uninitialized memory but manual deallocate() responsibility is not signaled at the allocation site (implicit_allocation_copy_move_destruction_cleanup).",
+        "probe_id": "F02.P2",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 1,
+        "note": "x += 1 on Int traps on overflow by default; the trapping behavior is not visible at the += site (context_dependent_overflow_or_numeric_behavior).",
+        "probe_id": "F03.P1",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 2,
+        "note": "xs[1]=42 on an Array (value type, COW): copy-on-write duplication if xs is shared is not visible at the assignment (hidden_writable_aliasing_or_mutation / implicit_allocation_copy_move_destruction_cleanup, counted once as aliasing/mutation) plus an unsignaled out-of-range trap (implicit_exception_or_failure_propagation).",
+        "probe_id": "F03.P2",
+        "score": 77.8
+      },
+      {
+        "hidden_count": 1,
+        "note": "inout parameter is explicit at both call site (&) and declaration, but Swift's inout is copy-in/copy-out semantics rather than a true pointer alias, which is not visible at the surface (implicit_representation_change).",
+        "probe_id": "F04.P1",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 1,
+        "note": "ArraySlice shares the parent buffer's storage without copying, but this retention of the whole backing buffer is not evident from the slicing syntax (hidden_writable_aliasing_or_mutation).",
+        "probe_id": "F04.P2",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 0,
+        "note": "`===` is a distinct, dedicated reference-identity operator in Swift, unambiguous versus `==`.",
+        "probe_id": "F04.P3",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "Bare call f(x) on a value-type array guarantees no caller-visible mutation, but an implicit retain/COW-copy inside f is not visible at the call site (implicit_allocation_copy_move_destruction_cleanup).",
+        "probe_id": "F05.P1",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 1,
+        "note": "inout is explicit, but as in F04.P1 the copy-in/copy-out implementation is an implicit representation change not conveyed by the syntax.",
+        "probe_id": "F05.P2",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 2,
+        "note": "Closure literal capturing k: whether k is captured by reference or by value is not shown without an explicit capture list (implicit_representation_change), and Swift closures are heap-allocated context objects, which is not visible at the declaration (implicit_allocation_copy_move_destruction_cleanup).",
+        "probe_id": "F05.P3",
+        "score": 77.8
+      },
+      {
+        "hidden_count": 0,
+        "note": "Int is a value type; returning an indexed element always yields an independent copy, fully determinate from the type alone.",
+        "probe_id": "F06.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "Tuple return is a plain value construct with no hidden aliasing or allocation.",
+        "probe_id": "F06.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "a*b+c on Int traps on overflow by default; trapping behavior is standard but unsignaled at the expression.",
+        "probe_id": "F07.P1",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 2,
+        "note": "Integer division traps on divisor 0 (implicit_exception_or_failure_propagation) unsignaled at the operator, and division truncates toward zero without a marker at the site (context_dependent_overflow_or_numeric_behavior).",
+        "probe_id": "F07.P2",
+        "score": 77.8
+      },
+      {
+        "hidden_count": 0,
+        "note": "`m &+ 1` uses Swift's dedicated wrapping-add operator, which explicitly and locally signals wrapping overflow semantics at the operator itself.",
+        "probe_id": "F08.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "An explicit `if b == 0` guard makes the zero-divisor handling fully local and visible.",
+        "probe_id": "F08.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "`s1 == s2` compares String contents via Equatable protocol witness dispatch; the dispatch mechanism is not visible at the operator (overload_or_dynamic_dispatch_not_locally_evident).",
+        "probe_id": "F09.P1",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 1,
+        "note": "`.sort(by:)` mutates in place versus `.sorted(by:)` producing a new array; the in-place-vs-copy distinction rests on a naming convention rather than surface syntax (hidden_writable_aliasing_or_mutation).",
+        "probe_id": "F09.P2",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 0,
+        "note": "`Int32(exactly: big) ?? 0` makes the out-of-range outcome (nil) and the fallback fully explicit.",
+        "probe_id": "F10.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "Swift forbids implicit numeric conversion; `Double(i) + d` requires the conversion to be written explicitly.",
+        "probe_id": "F10.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "`xs[i]` traps on out-of-range with no local marker (implicit_exception_or_failure_propagation).",
+        "probe_id": "F11.P1",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 1,
+        "note": "`xs[1..<4]` (ArraySlice) shares the parent's storage without copying elements, which is not evident from the slicing syntax (hidden_writable_aliasing_or_mutation).",
+        "probe_id": "F11.P2",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 0,
+        "note": "`Int?` and `?? 0` make optionality and the fallback fully explicit in the type and operator.",
+        "probe_id": "F12.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "`o.map(h)` is Optional's documented map with well-known short-circuit-on-nil semantics conveyed by the method name and Optional type.",
+        "probe_id": "F12.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "`throws` in the declared signature plus `try` at the call site make failure and propagation fully visible.",
+        "probe_id": "F13.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "`try? Int(s) ?? 0` makes local handling and the fallback value fully explicit.",
+        "probe_id": "F13.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "`enum Shape { case circle(...), case rect(...) }` is a closed set by construction, explicit in the declaration.",
+        "probe_id": "F14.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "`switch` over an enum with no default arm is compiler-checked for exhaustiveness, visible at the construct.",
+        "probe_id": "F14.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "Extending via a protocol conformance in a separate file relies on dynamic dispatch through the protocol witness table, not locally evident from the call site through an existential (overload_or_dynamic_dispatch_not_locally_evident).",
+        "probe_id": "F14.P3",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 0,
+        "note": "`func head<T>(_ xs: [T]) -> T` is a statically monomorphized generic with a compiler-checked, explicit type relationship.",
+        "probe_id": "F15.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "`func max_of<T: Comparable>` states the constraint at the declaration, checked there rather than only at call sites.",
+        "probe_id": "F15.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "`[Named]` holding heterogeneous concrete types dispatches `tag()` dynamically through an existential container; the dispatch mechanism is not locally evident (overload_or_dynamic_dispatch_not_locally_evident).",
+        "probe_id": "F15.P3",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 0,
+        "note": "`xs.reduce(0, +)` is a standard, fully explicit fold with no hidden allocation or mutation.",
+        "probe_id": "F16.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "Dictionary iteration order is documented as unspecified; this is not signaled at the for-in site (hidden_side_effects_on_existing_state / context-dependent behavior).",
+        "probe_id": "F16.P2",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 0,
+        "note": "`defer` explicitly marks the cleanup action and guarantees it runs on every exit path including the failure path.",
+        "probe_id": "F17.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "Swift's ARC-based `deinit` is generally deterministic, but the exact point of last-use-based deallocation is not strictly guaranteed by the language spec (documented as compiler-dependent in some optimization scenarios), which is not visible at the declaration (implicit_allocation_copy_move_destruction_cleanup).",
+        "probe_id": "F17.P2",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 0,
+        "note": "`print(\"x\")` requires no import and is fully explicit standard-library console output.",
+        "probe_id": "F18.P1",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 0,
+        "note": "`private`/`fileprivate` plus qualified access make the visibility boundary explicit at both declaration and use sites.",
+        "probe_id": "F18.P2",
+        "score": 100.0
+      },
+      {
+        "hidden_count": 1,
+        "note": "`async let`/`await` make concurrency and the join point explicit, but actor/executor hopping behind an `await` is not visible at the await site (hidden_side_effects_on_existing_state / implicit control-flow suspension detail).",
+        "probe_id": "F19.P1",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 1,
+        "note": "Actor isolation serializes access to shared state, but the fact that an `await` on a cross-actor call enforces mutual exclusion is not locally evident from the call syntax (overload_or_dynamic_dispatch_not_locally_evident / hidden synchronization).",
+        "probe_id": "F19.P2",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 1,
+        "note": "Calling the C function `abs(-3)` looks syntactically identical to an ordinary Swift call; the FFI boundary crossing and C ABI assumption are not signaled at the call site (hidden_side_effects_on_existing_state / implicit_representation_change).",
+        "probe_id": "F20.P1",
+        "score": 88.9
+      },
+      {
+        "hidden_count": 1,
+        "note": "`@_cdecl(\"add2\")` is an underscored, non-public compiler attribute; its exact semantics are not covered by official Swift language documentation, so a reader must rely on outside/unofficial knowledge to interpret it (implicit_representation_change).",
+        "probe_id": "F20.P2",
+        "score": 88.9
+      }
+    ]
+  },
+  "requirement_ids": [
+    "metric.hidden_semantic_cost"
+  ],
+  "requirements": {
+    "metric.hidden_semantic_cost": {
+      "Swift": 93.7
+    }
+  },
+  "work_unit_id": "sc-metrics-hidden-coverage--part-1--swift"
+}

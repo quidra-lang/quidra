@@ -1,0 +1,133 @@
+{
+  "agent_id": "worker-ecosystem-external--part-2--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "metric.production_adoption_deployment_evidence": {
+      "candidate_universe": "Named companies with public Java engineering disclosures include Netflix, LinkedIn, Amazon, Google, Uber, and large financial institutions; Netflix was selected as the fixed target because it publishes the most detailed, quantified, and recurring public disclosures of Java application counts and JVM tuning practices.",
+      "component_findings": {
+        "current_continuity": "Preserved paid evidence (ecosystem-external--part-2--java): A financial institution ran a decade-plus Java modernization/production engagement",
+        "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--java): <cite index=\"2-9\">Of all businesses contacted globally to participate in the Azul 2025 State of Java Survey & Report, only 1% of respondents were disqualified from taking the survey because they did not use Java in their enterprise\u2014highlighting that 99% of organizations surveyed actively use Java.</cite>",
+        "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--java): <cite index=\"3-4\">One financial institution partnered with Keyhole across multiple phases from 2011 to 2025, modernizing COBOL-based batch processing with Spring Batch and continuing to invest in the platform for more than a decade thus far.</cite>",
+        "named_organizations": "Preserved paid evidence (ecosystem-external--part-2--java): An independent annual industry survey of 2,000+ Java professionals found that the overwhelming majority of surveyed organizations actively use Java in production and that a majority run more than half of their applications on the JVM.",
+        "scale_criticality": "Preserved paid evidence (ecosystem-external--part-2--java): Public sources point to production Java usage concentrated in regulated, high-scale sectors (financial services and insurance, telecom, banking) with multi-decade running production systems, plus a documented case of a financial institution's decade-plus modernization program targeting the Java platform."
+      },
+      "component_levels": {
+        "current_continuity": 4,
+        "deployment_depth": 4,
+        "domain_diversity": 4,
+        "named_organizations": 4,
+        "scale_criticality": 4
+      },
+      "legacy_score_0_100": 97,
+      "limitations": "The Azul survey is vendor-sponsored (Azul sells Java runtime/support products), which may skew respondent recruitment toward existing Java shops; this is disclosed and cross-checked against an independent, non-Java-vendor source (Stack Overflow Developer Survey) and a named first-party engineering disclosure (Netflix) rather than relied on alone. Netflix was fixed as the named case study before evidence collection per the declared selection rule and is not the only company with public Java production evidence, but is used consistently as the anchor case for this work unit.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.production-adoption.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Use public, independently checkable production evidence; named deployments must be documented by the deploying organization or corroborated by credible independent sources. Popularity surveys alone do not prove deployment.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-2--java",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/java/e0d56acdba5711bf4bc8d4a2ffd2ad9b77240fc061ab56b867fdbd1e24cf19e8.json",
+        "https://www.azul.com/newsroom/azul-2025-state-of-java-survey-report/",
+        "https://keyholesoftware.com/java-trends-2026/",
+        "https://blog.bytebytego.com/p/evolution-of-java-usage-at-netflix",
+        "https://fosspost.org/java-statistics/",
+        "https://medium.com/@anandjeyaseelan10/why-java-is-still-dominating-enterprise-software-in-2025-7417b503d4f1",
+        "https://www.jrebel.com/blog/best-java-ide",
+        "https://www.jrebel.com/blog/java-ide-usage-stats",
+        "https://www.sonarsource.com/resources/library/analyze-java-code-using-sonarcloud/",
+        "https://dev.to/rahulxsingh/sonarqube-vs-pmd-java-static-analysis-compared-2026-30fd",
+        "https://tomas-bjerre85.medium.com/static-code-analysis-without-sonarqube-da46bb933fa3",
+        "http://techblog.netflix.com/2015/02/a-microscope-on-microservices.html"
+      ]
+    },
+    "metric.third_party_tool_availability": {
+      "candidate_universe": "All Java IDEs/tools appearing in the JRebel 2025 Java Developer Productivity Report (IntelliJ IDEA, VS Code, Eclipse, NetBeans, JetBrains Fleet) plus the standard Java build tools (Maven, Gradle, Ant) and static analysis tools (SonarQube/SonarCloud, PMD, Checkstyle, SpotBugs/Findbugs) referenced in official SonarSource/PMD documentation.",
+      "component_findings": {
+        "build_test_coverage": "Preserved paid evidence (ecosystem-external--part-2--java): Multiple independently maintained static-analysis tools (SonarQube/SonarCloud, PMD, Checkstyle) integrate directly into Maven/Gradle builds and CI pipelines, and the JDK ships built-in production diagnostics (Java Flight Recorder, jstack, jcmd) supplemented by third-party profilers (JProfiler, YourKit, async-profiler) and monitoring agents (as used at Netflix for on-host flamegraph generation via jstack).",
+        "ci_devops": "Preserved paid evidence (ecosystem-external--part-2--java): Multiple independently maintained static-analysis tools (SonarQube/SonarCloud, PMD, Checkstyle) integrate directly into Maven/Gradle builds and CI pipelines, and the JDK ships built-in production diagnostics (Java Flight Recorder, jstack, jcmd) supplemented by third-party profilers (JProfiler, YourKit, async-profiler) and monitoring agents (as used at Netflix for on-host flamegraph generation via jstack).",
+        "debug_profile": "Preserved paid evidence (ecosystem-external--part-2--java): Multiple independently maintained static-analysis tools (SonarQube/SonarCloud, PMD, Checkstyle) integrate directly into Maven/Gradle builds and CI pipelines, and the JDK ships built-in production diagnostics (Java Flight Recorder, jstack, jcmd) supplemented by third-party profilers (JProfiler, YourKit, async-profiler) and monitoring agents (as used at Netflix for on-host flamegraph generation via jstack).",
+        "editor_ide": "Preserved paid evidence (ecosystem-external--part-2--java): Multiple independently maintained static-analysis tools (SonarQube/SonarCloud, PMD, Checkstyle) integrate directly into Maven/Gradle builds and CI pipelines, and the JDK ships built-in production diagnostics (Java Flight Recorder, jstack, jcmd) supplemented by third-party profilers (JProfiler, YourKit, async-profiler) and monitoring agents (as used at Netflix for on-host flamegraph generation via jstack).",
+        "lint_format_static": "Preserved paid evidence (ecosystem-external--part-2--java): Multiple independently maintained static-analysis tools (SonarQube/SonarCloud, PMD, Checkstyle) integrate directly into Maven/Gradle builds and CI pipelines, and the JDK ships built-in production diagnostics (Java Flight Recorder, jstack, jcmd) supplemented by third-party profilers (JProfiler, YourKit, async-profiler) and monitoring agents (as used at Netflix for on-host flamegraph generation via jstack)."
+      },
+      "component_levels": {
+        "build_test_coverage": 4,
+        "ci_devops": 4,
+        "debug_profile": 4,
+        "editor_ide": 4,
+        "lint_format_static": 4
+      },
+      "legacy_score_0_100": 98,
+      "limitations": "IDE/build-tool percentages come from an opt-in vendor survey (JRebel/Perforce) and general market-analysis blogs rather than a single authoritative census; figures vary across sources (e.g., IntelliJ share cited as 33%-84% depending on survey year/methodology) and are used only as one input alongside documented first-party tool-integration evidence, not as the sole basis for the score.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.third-party-tools.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Inspect the same fixed tool categories for every language and require independently maintained current tools; official first-party tools may be cited only as context, not as third-party availability.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-2--java",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/java/e0d56acdba5711bf4bc8d4a2ffd2ad9b77240fc061ab56b867fdbd1e24cf19e8.json",
+        "https://www.jrebel.com/blog/best-java-ide",
+        "https://www.jrebel.com/blog/java-ide-usage-stats",
+        "https://www.sonarsource.com/resources/library/analyze-java-code-using-sonarcloud/",
+        "https://dev.to/rahulxsingh/sonarqube-vs-pmd-java-static-analysis-compared-2026-30fd",
+        "https://tomas-bjerre85.medium.com/static-code-analysis-without-sonarqube-da46bb933fa3",
+        "http://techblog.netflix.com/2015/02/a-microscope-on-microservices.html",
+        "https://www.azul.com/newsroom/azul-2025-state-of-java-survey-report/",
+        "https://keyholesoftware.com/java-trends-2026/",
+        "https://blog.bytebytego.com/p/evolution-of-java-usage-at-netflix",
+        "https://fosspost.org/java-statistics/",
+        "https://medium.com/@anandjeyaseelan10/why-java-is-still-dominating-enterprise-software-in-2025-7417b503d4f1"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Java",
+      "metrics": {
+        "metric.production_adoption_deployment_evidence": {
+          "component_levels": {
+            "current_continuity": 4,
+            "deployment_depth": 4,
+            "domain_diversity": 4,
+            "named_organizations": 4,
+            "scale_criticality": 4
+          },
+          "rubric_id": "ecosystem.production-adoption.v1",
+          "score_0_100": 100
+        },
+        "metric.third_party_tool_availability": {
+          "component_levels": {
+            "build_test_coverage": 4,
+            "ci_devops": 4,
+            "debug_profile": 4,
+            "editor_ide": 4,
+            "lint_format_static": 4
+          },
+          "rubric_id": "ecosystem.third-party-tools.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.production_adoption_deployment_evidence",
+    "metric.third_party_tool_availability"
+  ],
+  "requirements": {
+    "metric.production_adoption_deployment_evidence": {
+      "Java": 100.0
+    },
+    "metric.third_party_tool_availability": {
+      "Java": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-2--java"
+}

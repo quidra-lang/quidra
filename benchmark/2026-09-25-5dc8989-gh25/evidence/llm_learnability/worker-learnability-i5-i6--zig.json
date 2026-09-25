@@ -1,0 +1,62 @@
+{
+  "agent_id": "worker-learnability-i5-i6--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "condition.i5_held_out_rule_composition": {
+      "artifact": "i5.zig",
+      "compile_success": true,
+      "completion_path": "trials/i5-t1/completion_01.txt",
+      "held_out_combination": "error unions + tagged unions + struct methods used together; each rule was taught only in isolation",
+      "max": 88,
+      "mean": 88,
+      "min": 88,
+      "observed_output": "added: 1\nadded: 2\nadded: 3\nadded: 4\nfailed: Full\n",
+      "repairs_used": 0,
+      "run_exit_code": 0,
+      "seeds": {
+        "seed_1": 88
+      },
+      "stddev": 0,
+      "trial_id": "i5-t1"
+    },
+    "condition.i6_prior_conflict_resistance": {
+      "artifact": "i6.zig",
+      "compile_success": true,
+      "completion_path": "trials/i6-t1/completion_01.txt",
+      "expected_output": "55",
+      "mapping_description": "Reversible swapped terminology mapping: model correctly emitted real const for the immutable bound and real var for the mutable accumulator despite swapped-label instructions, per spec.",
+      "max": 92,
+      "mean": 92,
+      "min": 92,
+      "observed_output": "55",
+      "repairs_used": 0,
+      "run_exit_code": 0,
+      "seeds": {
+        "seed_1": 92
+      },
+      "stddev": 0,
+      "trial_id": "i6-t1"
+    },
+    "language_scope": "Zig only",
+    "trial_budget": {
+      "planned_calls": 2,
+      "remaining_calls": 6,
+      "used_calls": 2
+    }
+  },
+  "requirement_ids": [
+    "condition.i5_held_out_rule_composition",
+    "condition.i6_prior_conflict_resistance"
+  ],
+  "requirements": {
+    "condition.i5_held_out_rule_composition": {
+      "Zig": 88
+    },
+    "condition.i6_prior_conflict_resistance": {
+      "Zig": 92
+    }
+  },
+  "work_unit_id": "learnability-i5-i6--zig"
+}

@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-1--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Java",
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "abstraction_ceremony": 3,
+            "control_data_ceremony": 2,
+            "declaration_ceremony": 2,
+            "error_resource_ceremony": 1,
+            "semantic_work_ratio": 2
+          },
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.conciseness.v1",
+          "score_0_100": 50
+        },
+        "metric.readability": {
+          "component_levels": {
+            "consistency_regular_forms": 3,
+            "control_effect_traceability": 3,
+            "local_intent_visibility": 3,
+            "name_type_signal": 4,
+            "structural_clarity": 4
+          },
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.readability.v1",
+          "score_0_100": 85
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.code_efficiency_conciseness": {
+      "component_findings": {
+        "abstraction_ceremony": "Recertified level 3 under the current criterion: Reusable abstractions such as types, interfaces/traits/generics or equivalent mechanisms can be declared and consumed without excessive scaffolding. Evidence basis: Manual inspection of template/programs/java/micro (mb00-mb11) and adversarial samples. Java requires explicit type declarations, boilerplate class wrapper, explicit access modifiers, manual loop indices, and verbose System.out.printf/Locale ceremony for numeric formatting compared to more concise languages. Java 16+ records (used in mb04, mb09 for multi-value Result types) reduce boilerplate versus classic POJOs, and var type-inference plus enhanced for-loops help conciseness in idiomatic modern Java, but mandatory class enclosure and lack of top-level functions keep token counts higher than more concise peers for equivalent algorithmic content. | mb04.java (~72 lines) implements a 4-accumulator floating point workload; a terser language typically needs fewer structural lines due to no mandatory class wrapper and less explicit typing. | mb09.java repeats explicit double[] declarations and manual loops for mean/variance/correlation/histogram computation; idiomatic Java stays close to raw loop form since vectorized library shortcuts would violate fairness rules, but explicit typing and required class/method scaffolding add overhead relative to inferred-type languages. | Adversarial programs (ADV series) show standard Java ceremony (explicit class declaration, main(String[] args) signature, exception handling boilerplate) required on every entry point. | 0-100, 100 = maximally con\u2026",
+        "control_data_ceremony": "Recertified level 2 under the current criterion: Common control flow and collection/data manipulation avoid repetitive structural ceremony unrelated to the algorithm. Evidence basis: Manual inspection of template/programs/java/micro (mb00-mb11) and adversarial samples. Java requires explicit type declarations, boilerplate class wrapper, explicit access modifiers, manual loop indices, and verbose System.out.printf/Locale ceremony for numeric formatting compared to more concise languages. Java 16+ records (used in mb04, mb09 for multi-value Result types) reduce boilerplate versus classic POJOs, and var type-inference plus enhanced for-loops help conciseness in idiomatic modern Java, but mandatory class enclosure and lack of top-level functions keep token counts higher than more concise peers for equivalent algorithmic content. | mb04.java (~72 lines) implements a 4-accumulator floating point workload; a terser language typically needs fewer structural lines due to no mandatory class wrapper and less explicit typing. | mb09.java repeats explicit double[] declarations and manual loops for mean/variance/correlation/histogram computation; idiomatic Java stays close to raw loop form since vectorized library shortcuts would violate fairness rules, but explicit typing and required class/method scaffolding add overhead relative to inferred-type languages. | Adversarial programs (ADV series) show standard Java ceremony (explicit class declaration, main(String[] args) signature, exception handling boilerplate) required on every entry point. | 0-100, 100 = maximally con\u2026",
+        "declaration_ceremony": "Recertified level 2 under the current criterion: Routine variables, functions, parameters and returns can be expressed without disproportionate mandatory boilerplate. Evidence basis: Manual inspection of template/programs/java/micro (mb00-mb11) and adversarial samples. Java requires explicit type declarations, boilerplate class wrapper, explicit access modifiers, manual loop indices, and verbose System.out.printf/Locale ceremony for numeric formatting compared to more concise languages. Java 16+ records (used in mb04, mb09 for multi-value Result types) reduce boilerplate versus classic POJOs, and var type-inference plus enhanced for-loops help conciseness in idiomatic modern Java, but mandatory class enclosure and lack of top-level functions keep token counts higher than more concise peers for equivalent algorithmic content. | mb04.java (~72 lines) implements a 4-accumulator floating point workload; a terser language typically needs fewer structural lines due to no mandatory class wrapper and less explicit typing. | mb09.java repeats explicit double[] declarations and manual loops for mean/variance/correlation/histogram computation; idiomatic Java stays close to raw loop form since vectorized library shortcuts would violate fairness rules, but explicit typing and required class/method scaffolding add overhead relative to inferred-type languages. | Adversarial programs (ADV series) show standard Java ceremony (explicit class declaration, main(String[] args) signature, exception handling boilerplate) required on every entry point. | 0-100, 100 = maximally con\u2026",
+        "error_resource_ceremony": "Recertified level 1 under the current criterion: Ordinary error/resource handling expresses intent without pervasive mandatory boilerplate while retaining clear semantics. Evidence basis: Manual inspection of template/programs/java/micro (mb00-mb11) and adversarial samples. Java requires explicit type declarations, boilerplate class wrapper, explicit access modifiers, manual loop indices, and verbose System.out.printf/Locale ceremony for numeric formatting compared to more concise languages. Java 16+ records (used in mb04, mb09 for multi-value Result types) reduce boilerplate versus classic POJOs, and var type-inference plus enhanced for-loops help conciseness in idiomatic modern Java, but mandatory class enclosure and lack of top-level functions keep token counts higher than more concise peers for equivalent algorithmic content. | mb04.java (~72 lines) implements a 4-accumulator floating point workload; a terser language typically needs fewer structural lines due to no mandatory class wrapper and less explicit typing. | mb09.java repeats explicit double[] declarations and manual loops for mean/variance/correlation/histogram computation; idiomatic Java stays close to raw loop form since vectorized library shortcuts would violate fairness rules, but explicit typing and required class/method scaffolding add overhead relative to inferred-type languages. | Adversarial programs (ADV series) show standard Java ceremony (explicit class declaration, main(String[] args) signature, exception handling boilerplate) required on every entry point. | 0-100, 100 = maximally con\u2026",
+        "semantic_work_ratio": "Recertified level 2 under the current criterion: Idiomatic source spends most syntax on domain/algorithm meaning rather than language-mandated plumbing; this is a qualitative ceremony judgment, not a second source-size measurement. Evidence basis: Manual inspection of template/programs/java/micro (mb00-mb11) and adversarial samples. Java requires explicit type declarations, boilerplate class wrapper, explicit access modifiers, manual loop indices, and verbose System.out.printf/Locale ceremony for numeric formatting compared to more concise languages. Java 16+ records (used in mb04, mb09 for multi-value Result types) reduce boilerplate versus classic POJOs, and var type-inference plus enhanced for-loops help conciseness in idiomatic modern Java, but mandatory class enclosure and lack of top-level functions keep token counts higher than more concise peers for equivalent algorithmic content. | mb04.java (~72 lines) implements a 4-accumulator floating point workload; a terser language typically needs fewer structural lines due to no mandatory class wrapper and less explicit typing. | mb09.java repeats explicit double[] declarations and manual loops for mean/variance/correlation/histogram computation; idiomatic Java stays close to raw loop form since vectorized library shortcuts would violate fairness rules, but explicit typing and required class/method scaffolding add overhead relative to inferred-type languages. | Adversarial programs (ADV series) show standard Java ceremony (explicit class declaration, main(String[] args) signature, exception handling boilerplate) required on every entry point. | 0-100, 100 = maximally con\u2026"
+      },
+      "component_levels": {
+        "abstraction_ceremony": 3,
+        "control_data_ceremony": 2,
+        "declaration_ceremony": 2,
+        "error_resource_ceremony": 1,
+        "semantic_work_ratio": 2
+      },
+      "evidence_refs": [
+        "template/programs/java/micro",
+        "template/programs/java/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 66,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "054da592008449c4475c6fbb6277a56d8bfa0b6106f8c7d323b25f16cba10a78",
+        "source_record": "benchmark/cache/v1/language-quality/java/71e5bc3d3e63304c0c604b8bc76f36bc76d881a1e23be62393fa786b64434f20.json",
+        "source_record_sha256": "c1020c4a692b87bd1e99fef9c71233c1d401eb9f3c1dcd6da30155915fe41398",
+        "source_result_sha256": "113147697fa754a06a8a5f10303b11815eb28bc5a7df12ec279b85d3aeb12d25",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.conciseness.v1",
+      "runner_score_0_100": 50,
+      "selection_rule": "Judge intrinsic mandatory ceremony for the same kinds of ordinary programs. Do not reuse raw LOC/bytes/tokens as the score and do not reward external libraries."
+    },
+    "metric.readability": {
+      "component_findings": {
+        "consistency_regular_forms": "Recertified level 3 under the current criterion: Similar concepts use regular forms with few special-case spellings or context-dependent surface rules. Evidence basis: Manual inspection of the same micro (mb00-mb11) and adversarial program corpus for naming clarity, structural organization, comment density, and cognitive load of idiomatic Java constructs. | Consistent naming conventions (Lcg, Result, workload()) and doc-style comments in mb04/mb09 make algorithmic intent clear; explicit static typing on every field/variable aids readability by making data flow and units unambiguous. | record types (Result(double s1, double s2, double s3, double s4)) communicate immutable multi-value returns compactly and readably, superior to raw tuples or untyped maps. | Explicit block braces, consistent 4-space indentation, and one-statement-per-line style keep nested loops (mb09 moment/correlation/histogram passes) easy to follow despite algorithmic density. | Minor readability costs: verbose exception/generic boilerplate and required System.out.printf(Locale.ROOT, ...) ceremony for locale-safe numeric formatting, more explicit than higher-level languages but not harmful to comprehension. | 0-100, 100 = maximally readable for an experienced engineer with no external context. Java scored 83: strong static typing and naming conventions aid comprehension; verbosity slightly increases visual scanning cost but does not obscure algorithmic intent.",
+        "control_effect_traceability": "Recertified level 3 under the current criterion: Control flow, mutation and exceptional/effectful behavior can be followed from ordinary idiomatic source with bounded cognitive indirection. Evidence basis: Manual inspection of the same micro (mb00-mb11) and adversarial program corpus for naming clarity, structural organization, comment density, and cognitive load of idiomatic Java constructs. | Consistent naming conventions (Lcg, Result, workload()) and doc-style comments in mb04/mb09 make algorithmic intent clear; explicit static typing on every field/variable aids readability by making data flow and units unambiguous. | record types (Result(double s1, double s2, double s3, double s4)) communicate immutable multi-value returns compactly and readably, superior to raw tuples or untyped maps. | Explicit block braces, consistent 4-space indentation, and one-statement-per-line style keep nested loops (mb09 moment/correlation/histogram passes) easy to follow despite algorithmic density. | Minor readability costs: verbose exception/generic boilerplate and required System.out.printf(Locale.ROOT, ...) ceremony for locale-safe numeric formatting, more explicit than higher-level languages but not harmful to comprehension. | 0-100, 100 = maximally readable for an experienced engineer with no external context. Java scored 83: strong static typing and naming conventions aid comprehension; verbosity slightly increases visual scanning cost but does not obscure algorithmic intent.",
+        "local_intent_visibility": "Recertified level 3 under the current criterion: A local expression/statement makes its operation and important effects reasonably apparent without unrelated context. Evidence basis: Manual inspection of the same micro (mb00-mb11) and adversarial program corpus for naming clarity, structural organization, comment density, and cognitive load of idiomatic Java constructs. | Consistent naming conventions (Lcg, Result, workload()) and doc-style comments in mb04/mb09 make algorithmic intent clear; explicit static typing on every field/variable aids readability by making data flow and units unambiguous. | record types (Result(double s1, double s2, double s3, double s4)) communicate immutable multi-value returns compactly and readably, superior to raw tuples or untyped maps. | Explicit block braces, consistent 4-space indentation, and one-statement-per-line style keep nested loops (mb09 moment/correlation/histogram passes) easy to follow despite algorithmic density. | Minor readability costs: verbose exception/generic boilerplate and required System.out.printf(Locale.ROOT, ...) ceremony for locale-safe numeric formatting, more explicit than higher-level languages but not harmful to comprehension. | 0-100, 100 = maximally readable for an experienced engineer with no external context. Java scored 83: strong static typing and naming conventions aid comprehension; verbosity slightly increases visual scanning cost but does not obscure algorithmic intent.",
+        "name_type_signal": "Recertified level 4 under the current criterion: The language permits names/types/signatures to communicate intent without forcing distracting noise or hiding essential information. Evidence basis: Manual inspection of the same micro (mb00-mb11) and adversarial program corpus for naming clarity, structural organization, comment density, and cognitive load of idiomatic Java constructs. | Consistent naming conventions (Lcg, Result, workload()) and doc-style comments in mb04/mb09 make algorithmic intent clear; explicit static typing on every field/variable aids readability by making data flow and units unambiguous. | record types (Result(double s1, double s2, double s3, double s4)) communicate immutable multi-value returns compactly and readably, superior to raw tuples or untyped maps. | Explicit block braces, consistent 4-space indentation, and one-statement-per-line style keep nested loops (mb09 moment/correlation/histogram passes) easy to follow despite algorithmic density. | Minor readability costs: verbose exception/generic boilerplate and required System.out.printf(Locale.ROOT, ...) ceremony for locale-safe numeric formatting, more explicit than higher-level languages but not harmful to comprehension. | 0-100, 100 = maximally readable for an experienced engineer with no external context. Java scored 83: strong static typing and naming conventions aid comprehension; verbosity slightly increases visual scanning cost but does not obscure algorithmic intent.",
+        "structural_clarity": "Recertified level 4 under the current criterion: Blocks, declarations, calls and data construction have visually and syntactically clear structure. Evidence basis: Manual inspection of the same micro (mb00-mb11) and adversarial program corpus for naming clarity, structural organization, comment density, and cognitive load of idiomatic Java constructs. | Consistent naming conventions (Lcg, Result, workload()) and doc-style comments in mb04/mb09 make algorithmic intent clear; explicit static typing on every field/variable aids readability by making data flow and units unambiguous. | record types (Result(double s1, double s2, double s3, double s4)) communicate immutable multi-value returns compactly and readably, superior to raw tuples or untyped maps. | Explicit block braces, consistent 4-space indentation, and one-statement-per-line style keep nested loops (mb09 moment/correlation/histogram passes) easy to follow despite algorithmic density. | Minor readability costs: verbose exception/generic boilerplate and required System.out.printf(Locale.ROOT, ...) ceremony for locale-safe numeric formatting, more explicit than higher-level languages but not harmful to comprehension. | 0-100, 100 = maximally readable for an experienced engineer with no external context. Java scored 83: strong static typing and naming conventions aid comprehension; verbosity slightly increases visual scanning cost but does not obscure algorithmic intent."
+      },
+      "component_levels": {
+        "consistency_regular_forms": 3,
+        "control_effect_traceability": 3,
+        "local_intent_visibility": 3,
+        "name_type_signal": 4,
+        "structural_clarity": 4
+      },
+      "evidence_refs": [
+        "template/programs/java/micro",
+        "template/programs/java/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 83,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "f6cae441318cc88724e3cb0fdc4aadbde24fc0116055940818edc4c2ad710269",
+        "source_record": "benchmark/cache/v1/language-quality/java/71e5bc3d3e63304c0c604b8bc76f36bc76d881a1e23be62393fa786b64434f20.json",
+        "source_record_sha256": "c1020c4a692b87bd1e99fef9c71233c1d401eb9f3c1dcd6da30155915fe41398",
+        "source_result_sha256": "113147697fa754a06a8a5f10303b11815eb28bc5a7df12ec279b85d3aeb12d25",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.readability.v1",
+      "runner_score_0_100": 85,
+      "selection_rule": "Judge readability of idiomatic code under the frozen corpus and documented syntax/semantics, without inventing human-study results."
+    }
+  },
+  "requirement_ids": [
+    "metric.code_efficiency_conciseness",
+    "metric.readability"
+  ],
+  "requirements": {
+    "metric.code_efficiency_conciseness": {
+      "Java": 50.0
+    },
+    "metric.readability": {
+      "Java": 85.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-1--java"
+}

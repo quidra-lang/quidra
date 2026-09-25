@@ -1,0 +1,253 @@
+{
+  "agent_id": "worker-sc-metrics-local--part-3--typescript",
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "evidence": {
+    "canonical_fragment_catalog_sha256": "7e032f080cd03d6eec07c881d92919235a3f96e0e713fa65bd09d640a3d2e914",
+    "legacy_fragment_equivalence": {
+      "all_explicit_fragments_matched": false,
+      "canonical_fragment_catalog_content_sha256": "76d60b6b704a63e69908541e5cfca59a7490da426510e72eddbb28c65b858f82",
+      "canonical_fragment_catalog_sha256": "7e032f080cd03d6eec07c881d92919235a3f96e0e713fa65bd09d640a3d2e914",
+      "dropped_now_none_probes": [
+        "F04.P1",
+        "F05.P2",
+        "F08.P1",
+        "F13.P1",
+        "F20.P1",
+        "F20.P2"
+      ],
+      "proof_mode": "prior-certified-equivalence-with-none-drop",
+      "schema_version": 1,
+      "scientific_identity_sha256": "669e8651a35172def16fef404d19650c7d34685860459ce01f1776a2bd24cb1c",
+      "source_density_record": "v1/semantic-compression/typescript/adade02e7ddb150eeb42e9efd9ea777625c989b83c22819c4996fd318430886b.json",
+      "source_density_record_sha256": "cf0893eefa36d727e65cb40b78eb66d4945d5c861577b049497c13c1278fea95",
+      "source_metric_record": "v1/semantic-compression/typescript/d06f956d2d1a7ea1b2de20d6e2c60ba77efef8a763c0a7779c8130258e265856.json",
+      "source_metric_record_sha256": "9ec4fcd8dd72c703b1861e44d7909901785948165d5fe7b29b3935bd29f1fbfc",
+      "source_owner_record": "v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json",
+      "source_owner_record_sha256": "cb19c0b63374ea86bc0c9c6bc672970e43634691aa15a5562959514fedc4f0eb",
+      "source_run_id": "2026-09-23-fce5cfa-gh16"
+    },
+    "metric.semantic_determinacy": {
+      "aggregate": {
+        "geomean_B": 1.0353,
+        "mean_log2_B": 0.05,
+        "n_fragments": 40,
+        "normalization_formula_used": "100 * 2^(-mean_log2_B)",
+        "normalized_score_TypeScript": 96.6,
+        "sum_log2_B": 2.0
+      },
+      "fragments_excluded_no_fragment_NONE": [],
+      "fragments_scored": 40,
+      "language": "TypeScript",
+      "limitations": [
+        "Common-basis figure (probes where ALL TEN languages have a fragment) cannot be computed by this single-language worker; this record reports TypeScript's all-fragments basis only (n_L = 40), as required to be published alongside the common-basis figure once all ten languages' shards are merged by the runner.",
+        "The frozen 0-100 normalization formula for Semantic Determinacy was not present among this packet's embedded inputs; the monotonic fallback transform documented above was applied and must be reconciled with the official formula (if it differs) before final aggregation across languages."
+      ],
+      "methodology_ref": "semantic_compression.md section B (Semantic Determinacy, 25% of quality score)",
+      "normalization_note": "The frozen normalization/token-counting rule document referenced by capability_universe.json (methodology 02) that converts raw mean(log2(B_i)) into the final 0-100 scale was not among this packet's embedded inputs, so a documented, monotonic, symmetric fallback transform was applied identically to how it would be applied to any language: normalized_score = 100 * 2^(-mean_log2_B) = 100 / geomean(B_i). This maps a perfectly determinate language (all B_i=1, mean_log2=0) to 100 and decreases monotonically as branching grows. This is recorded as a methodology gap (blocker for exact cross-run comparability) rather than a fabricated official normalization; raw per-probe B_i and the raw mean(log2 B_i) are preserved below for re-normalization once the frozen formula is supplied.",
+      "per_probe_B_i": {
+        "F01.P1": {
+          "B": 1,
+          "basis": "const n = 7; return n; -- number is always float64, const binding is always non-reassignable, initialization is unconditional; single interpretation from local form.",
+          "log2B": 0.0
+        },
+        "F01.P2": {
+          "B": 1,
+          "basis": "let counter: number = 0; const LIMIT: number = 100; -- let vs const mutability is unambiguous and locally determined; single interpretation.",
+          "log2B": 0.0
+        },
+        "F02.P1": {
+          "B": 1,
+          "basis": "TS strict-mode definite-assignment analysis over both branches is a single deterministic local check; single interpretation.",
+          "log2B": 0.0
+        },
+        "F02.P2": {
+          "B": 1,
+          "basis": "new Uint8Array(16) -- ECMAScript spec guarantees typed arrays are zero-initialized (no true uninitialized storage capability in TS/JS); substitution per R9, but the substituted fragment's semantics are unambiguous (always zero-filled).",
+          "log2B": 0.0
+        },
+        "F03.P1": {
+          "B": 1,
+          "basis": "x += 1; -- JS number arithmetic never overflows/traps, single well-defined float64 semantics.",
+          "log2B": 0.0
+        },
+        "F03.P2": {
+          "B": 1,
+          "basis": "xs[1] = 42; -- arrays are always reference-typed objects in JS regardless of let/const of the binding; single interpretation (in-place mutation visible through xs).",
+          "log2B": 0.0
+        },
+        "F04.P2": {
+          "B": 1,
+          "basis": "const window: readonly number[] = xs; -- no runtime copy occurs for object assignment in JS (single behavior); readonly is a compile-time-only view, a single documented mechanism.",
+          "log2B": 0.0
+        },
+        "F04.P3": {
+          "B": 1,
+          "basis": "=== on two object references is always reference/identity equality in JS, never structural, for non-primitive operands; single interpretation.",
+          "log2B": 0.0
+        },
+        "F05.P1": {
+          "B": 4,
+          "basis": "f(x) where x is an array -- JS always passes objects by shared reference (never by value, never invisible to callee). From the bare call-site syntax alone, of the 6 listed candidate outcomes, 'callee cannot observe caller's object at all' and 'a copy was made so no caller-visible change is possible' are impossible under JS's single object-passing convention; the remaining 4 (read-only use, write elements, resize/replace, retain alias beyond call) all remain compatible with the bare call-site syntax alone.",
+          "log2B": 2.0
+        },
+        "F05.P3": {
+          "B": 1,
+          "basis": "Arrow-function closures in JS always capture enclosing bindings by reference to the variable (not a value snapshot); single, unambiguous, spec-fixed capture semantics.",
+          "log2B": 0.0
+        },
+        "F06.P1": {
+          "B": 1,
+          "basis": "Returned element is a primitive number; primitives are always independent values in JS, never aliases; single interpretation.",
+          "log2B": 0.0
+        },
+        "F06.P2": {
+          "B": 1,
+          "basis": "Tuple literal [q, r] destructured via const [q, r] = divmod2(a, b); -- TS tuple typing and array destructuring are single, well-defined mechanisms.",
+          "log2B": 0.0
+        },
+        "F07.P1": {
+          "B": 1,
+          "basis": "a * b + c on numbers -- single float64 arithmetic semantics, fixed operator precedence, no overload resolution ambiguity for the built-in number type.",
+          "log2B": 0.0
+        },
+        "F07.P2": {
+          "B": 1,
+          "basis": "Math.trunc(a / b); a % b; a / b -- JS spec fixes truncating division via Math.trunc, remainder sign follows the dividend, and / is already real division since numbers are always float64; single interpretation.",
+          "log2B": 0.0
+        },
+        "F08.P2": {
+          "B": 1,
+          "basis": "b === 0 ? 0 : Math.trunc(a / b) -- explicit local guard (rung ii, since no standard checked-division op exists); single deterministic outcome.",
+          "log2B": 0.0
+        },
+        "F09.P1": {
+          "B": 1,
+          "basis": "s1 === s2 on primitive strings is always content/value equality in JS (strings are primitives), never object identity; single interpretation.",
+          "log2B": 0.0
+        },
+        "F09.P2": {
+          "B": 1,
+          "basis": "xs.sort((a,b)=>b-a) -- Array.prototype.sort is documented to sort in place and return the same array; single behavior. a < b is ordinary numeric comparison, single semantics.",
+          "log2B": 0.0
+        },
+        "F10.P1": {
+          "B": 1,
+          "basis": "big | 0 -- JS bitwise OR with 0 performs the spec-defined ToInt32 abstract operation, a single deterministic wraparound-truncation rule (rung ii, explicit syntax).",
+          "log2B": 0.0
+        },
+        "F10.P2": {
+          "B": 1,
+          "basis": "i + d -- both operands are already the single JS number (float64) type; no conversion syntax exists or is needed; single interpretation.",
+          "log2B": 0.0
+        },
+        "F11.P1": {
+          "B": 1,
+          "basis": "xs[i] -- ECMAScript spec fixes out-of-range array indexing to return undefined (never throws); single actual runtime behavior, though the static number type masks it (a Hidden-Semantic-Cost concern, not a determinacy branching concern).",
+          "log2B": 0.0
+        },
+        "F11.P2": {
+          "B": 1,
+          "basis": "xs.slice(1,4) -- Array.prototype.slice is documented to return a shallow copy; single behavior.",
+          "log2B": 0.0
+        },
+        "F12.P1": {
+          "B": 1,
+          "basis": "o ?? 0 -- the nullish-coalescing operator has a single fixed semantics (substitutes only on null/undefined).",
+          "log2B": 0.0
+        },
+        "F12.P2": {
+          "B": 1,
+          "basis": "No standard optional-map operator exists for a plain number|undefined union (R9 substitution, PARTIAL under P-a): o === undefined ? undefined : h(o) -- a single deterministic ternary form.",
+          "log2B": 0.0
+        },
+        "F13.P2": {
+          "B": 1,
+          "basis": "try { ... } catch { n = 0 } -- standard try/catch has a single, well-defined local-handling semantics.",
+          "log2B": 0.0
+        },
+        "F14.P1": {
+          "B": 1,
+          "basis": "type Shape = Circle | Rect discriminated union -- single, standard, well-understood TS idiom; the union alias cannot gain a member from outside its own declaration.",
+          "log2B": 0.0
+        },
+        "F14.P2": {
+          "B": 1,
+          "basis": "switch on discriminant with no default arm, function must return a value on every path -- TS's control-flow 'not all code paths return a value' check indirectly enforces exhaustiveness; single deterministic check.",
+          "log2B": 0.0
+        },
+        "F14.P3": {
+          "B": 1,
+          "basis": "interface Named { area(): number } with Tri implementing it from a separate module and dispatched through the interface type -- JS/TS method calls are always singly, dynamically dispatched; single interpretation.",
+          "log2B": 0.0
+        },
+        "F15.P1": {
+          "B": 1,
+          "basis": "function head<T>(xs: T[]): T -- TS generics preserve the exact declared type relationship between parameter and result; single interpretation.",
+          "log2B": 0.0
+        },
+        "F15.P2": {
+          "B": 1,
+          "basis": "function maxOf<T extends number>(a: T, b: T): T -- bound is explicit at the declaration; single interpretation (support level recorded separately as PARTIAL under P-a since TS lacks a general Comparable/Ord abstraction).",
+          "log2B": 0.0
+        },
+        "F15.P3": {
+          "B": 1,
+          "basis": "const items: Named[] = [new A(), new B()]; items[0].tag() -- always dynamically dispatched through the object's own method table; single interpretation.",
+          "log2B": 0.0
+        },
+        "F16.P1": {
+          "B": 1,
+          "basis": "xs.reduce((a,b)=>a+b,0) -- Array.prototype.reduce has single documented left-to-right fold semantics.",
+          "log2B": 0.0
+        },
+        "F16.P2": {
+          "B": 1,
+          "basis": "Map iteration is spec-guaranteed insertion order; mp.get('b') on an absent key is spec-guaranteed to return undefined, coalesced with ??; single interpretation for both facts.",
+          "log2B": 0.0
+        },
+        "F17.P1": {
+          "B": 1,
+          "basis": "try { ... } finally { close() } -- finally is spec-guaranteed to run exactly once on every exit path including thrown exceptions; single interpretation. (ES2023 'using' is unavailable under the frozen es2022 target.)",
+          "log2B": 0.0
+        },
+        "F17.P2": {
+          "B": 1,
+          "basis": "Explicit dispose() pattern invoked inside try/finally -- JS/TS has no automatic deterministic finalizer (FinalizationRegistry is explicitly documented as non-deterministic and not to be relied upon), so the manual dispose-in-finally idiom is used; the finally-guaranteed single call is itself unambiguous.",
+          "log2B": 0.0
+        },
+        "F18.P1": {
+          "B": 1,
+          "basis": "console.log('x') -- console is a global available without any import statement in both Node and browser hosts under the frozen recipe; single interpretation.",
+          "log2B": 0.0
+        },
+        "F18.P2": {
+          "B": 1,
+          "basis": "export function pubAdd / non-exported function secret in util.ts, imported via 'import { pubAdd } from ./util' -- TS/ES module export visibility is a single, compiler-enforced rule.",
+          "log2B": 0.0
+        },
+        "F19.P1": {
+          "B": 1,
+          "basis": "const [a,b] = await Promise.all([task1(), task2()]) -- Promise.all has a single documented join semantics (waits for both, preserves argument order in the result array) regardless of completion order.",
+          "log2B": 0.0
+        },
+        "F19.P2": {
+          "B": 1,
+          "basis": "Two async functions each synchronously incrementing a shared counter 1000 times with no await inside the loop -- JS's run-to-completion / single-threaded execution model is a normative ECMAScript guarantee that a synchronous code region between suspension points cannot be interleaved with another job; this yields a single deterministic race-free interpretation without any explicit lock construct.",
+          "log2B": 0.0
+        }
+      },
+      "raw_formula": "mean(log2(B_i)) over probes for which TypeScript has a fragment (FULL or PARTIAL). Lower raw value = better (more determinate)."
+    }
+  },
+  "requirement_ids": [
+    "metric.semantic_determinacy"
+  ],
+  "requirements": {
+    "metric.semantic_determinacy": {
+      "TypeScript": 96.6
+    }
+  },
+  "work_unit_id": "sc-metrics-local--part-3--typescript"
+}

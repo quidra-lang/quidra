@@ -1,0 +1,345 @@
+{
+  "agent_id": "worker-sc-metrics-local--part-1--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "canonical_fragment_catalog_sha256": "718fdf29364c09b4d075c75155b8ea94ef5620e56c496c5cc8708bf6b2eae954",
+    "legacy_fragment_equivalence": {
+      "all_explicit_fragments_matched": false,
+      "canonical_fragment_catalog_content_sha256": "3c4b1b4f084c74edb3a79bca1259f35aa0f3c24b433e1a43725b987bf88a3450",
+      "canonical_fragment_catalog_sha256": "718fdf29364c09b4d075c75155b8ea94ef5620e56c496c5cc8708bf6b2eae954",
+      "dropped_now_none_probes": [
+        "F04.P1",
+        "F05.P2",
+        "F20.P2"
+      ],
+      "proof_mode": "prior-certified-equivalence-with-none-drop",
+      "schema_version": 1,
+      "scientific_identity_sha256": "d12beef09a8c742a954f2cbaed5f167e4c565d2677f6eae55422d299c9a73e01",
+      "source_density_record": "v1/semantic-compression/java/956d0f4caea8fc4b07f3631a8814c60772178d4a98a9a742652a8eac3b34cb64.json",
+      "source_density_record_sha256": "f38a04a479587e64bd59b2a85e1328b99cb20092ca4c60a85be621e9340ed4da",
+      "source_metric_record": "v1/semantic-compression/java/956d0f4caea8fc4b07f3631a8814c60772178d4a98a9a742652a8eac3b34cb64.json",
+      "source_metric_record_sha256": "f38a04a479587e64bd59b2a85e1328b99cb20092ca4c60a85be621e9340ed4da",
+      "source_owner_record": "v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json",
+      "source_owner_record_sha256": "254ce403a3d69376ee7ad89ed231138d44de5e807c2f3583103afab16ea9d02c",
+      "source_run_id": "2026-09-23-fce5cfa-gh16"
+    },
+    "metric.semantic_density": {
+      "basis": "all-fragments (Java-only, single-language shard). This worker was not given other languages' fragments, so the common-basis (all-10-languages) figure cannot be computed here; the runner must recompute the common-basis figure once every language shard is merged, per capability_universe.json interaction_with_quality_metrics.common_basis_rule.",
+      "caveats": [
+        "Java version assumed to be a modern LTS (17 for sealed types, 21+ for pattern-matching switch over sealed hierarchies and for java.lang.foreign FFI availability). F14.P1/F14.P2 fragments require at least Java 17/21 respectively; if the run's frozen toolchain pins an older Java version, those two probes would need to be re-scored (likely PARTIAL/NONE for exhaustive closed-type dispatch), which would change totals.",
+        "F20.P1 was scored NONE on the conservative reading that java.lang.foreign is preview/incubator depending on exact frozen JDK version; if the frozen recipe's JDK version has it stabilized without extra flags, this probe should be re-scored FULL/PARTIAL and totals recomputed.",
+        "All fragment texts, alternative forms considered, and R10 documentation citations were authored by this worker from the canonical_task text and are NOT independently re-validated by compiling under a live javac/java toolchain (no local tool execution is available in packet-only mode); V1 build/run evidence must be produced by a mechanical compilation pass before this data is treated as final."
+      ],
+      "fragment_count_n_L": 40,
+      "language": "Java",
+      "methodology": "Raw value = (count of frozen site_id rows whose evidence state is EXPLICIT_LOCAL, summed over all measured Java fragments) / (lexical source tokens of those fragments, summed). Tokens counted with a language-neutral whitespace+punctuation split consistent with the frozen tokenizer intent in semantic_compression.md sec 6.1.3 (identifiers, keywords, literals, operators, and each punctuation mark each count as one token; comments/whitespace excluded). Facts drawn only from the frozen site_id rows in semantic_site_matrix.json for each probe; only EXPLICIT_LOCAL rows enter the numerator per the frozen counting rule. NONLOCAL/IMPLICIT/ABSENT rows are recorded but excluded from the density numerator (they feed Locality/Hidden-Cost metrics computed by other workers).",
+      "none_probes": [
+        {
+          "probe_id": "F20.P1",
+          "reason": "N-1: Standard javac/java frozen recipe (no --enable-preview / --add-modules incubator flags) does not expose a finalized, non-preview built-in FFI mechanism reaching libc abs(int) without such flags, which would be a P-b deviation outside the frozen recipe. No fragment written."
+        }
+      ],
+      "normalization_applied": {
+        "method": "PROVISIONAL single-language linear transform: score = min(100, round(raw_density * 1000)). This worker was assigned only Java and has no visibility into the other nine languages' raw densities, so no genuine cross-language min-max or common-basis normalization is possible in this shard. Per capability_universe.json 'interaction_with_quality_metrics', metrics A-D are properly computed on a COMMON BASIS across all ten languages; the runner must recompute the final normalized Semantic Density score for Java (and all languages) once every language shard's raw per-probe counts are merged, restricting to the common basis (probes where all ten languages have a fragment) and applying the run's frozen cross-language normalization rule.",
+        "reported_score": 82,
+        "reported_score_is_provisional": true
+      },
+      "partial_probes": [
+        {
+          "p_letter": "P-a",
+          "probe_id": "F02.P2",
+          "reason": "Java arrays are always zero/default-initialized; no documented way to obtain genuinely uninitialized bulk storage. Substituted the default-initialized byte[16] per R9."
+        },
+        {
+          "p_letter": "P-a",
+          "probe_id": "F08.P1",
+          "reason": "No standard checked/wrapping/saturating op for int addition in java.lang.Math beyond Math.addExact (throws, not optional-valued); used rung (iv) plain '+' which silently wraps."
+        },
+        {
+          "p_letter": "P-a",
+          "probe_id": "F08.P2",
+          "reason": "No standard optional-returning integer division in the JDK; used rung (ii) explicit local guard on b==0."
+        },
+        {
+          "p_letter": "P-a",
+          "probe_id": "F10.P1",
+          "reason": "No standard optional-returning narrowing conversion in the JDK; used rung (ii) explicit (int) cast, which truncates silently."
+        }
+      ],
+      "per_probe_raw_counts": [
+        {
+          "explicit_local_facts": 4,
+          "probe_id": "F01.P1",
+          "support": "FULL",
+          "tokens": 9
+        },
+        {
+          "explicit_local_facts": 5,
+          "probe_id": "F01.P2",
+          "support": "FULL",
+          "tokens": 12
+        },
+        {
+          "explicit_local_facts": 5,
+          "probe_id": "F02.P1",
+          "support": "FULL",
+          "tokens": 23
+        },
+        {
+          "explicit_local_facts": 3,
+          "probe_id": "F02.P2",
+          "support": "PARTIAL",
+          "tokens": 24
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F03.P1",
+          "support": "FULL",
+          "tokens": 3
+        },
+        {
+          "explicit_local_facts": 3,
+          "probe_id": "F03.P2",
+          "support": "FULL",
+          "tokens": 9
+        },
+        {
+          "explicit_local_facts": 1,
+          "probe_id": "F04.P2",
+          "support": "FULL",
+          "tokens": 21
+        },
+        {
+          "explicit_local_facts": 4,
+          "probe_id": "F04.P3",
+          "support": "FULL",
+          "tokens": 51
+        },
+        {
+          "explicit_local_facts": 1,
+          "probe_id": "F05.P1",
+          "support": "FULL",
+          "tokens": 36
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F05.P3",
+          "support": "FULL",
+          "tokens": 48
+        },
+        {
+          "explicit_local_facts": 5,
+          "probe_id": "F06.P1",
+          "support": "FULL",
+          "tokens": 47
+        },
+        {
+          "explicit_local_facts": 4,
+          "probe_id": "F06.P2",
+          "support": "FULL",
+          "tokens": 68
+        },
+        {
+          "explicit_local_facts": 3,
+          "probe_id": "F07.P1",
+          "support": "FULL",
+          "tokens": 9
+        },
+        {
+          "explicit_local_facts": 3,
+          "probe_id": "F07.P2",
+          "support": "FULL",
+          "tokens": 24
+        },
+        {
+          "explicit_local_facts": 1,
+          "probe_id": "F08.P1",
+          "support": "PARTIAL",
+          "tokens": 17
+        },
+        {
+          "explicit_local_facts": 5,
+          "probe_id": "F08.P2",
+          "support": "PARTIAL",
+          "tokens": 15
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F09.P1",
+          "support": "FULL",
+          "tokens": 10
+        },
+        {
+          "explicit_local_facts": 1,
+          "probe_id": "F09.P2",
+          "support": "FULL",
+          "tokens": 18
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F10.P1",
+          "support": "PARTIAL",
+          "tokens": 11
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F10.P2",
+          "support": "FULL",
+          "tokens": 7
+        },
+        {
+          "explicit_local_facts": 1,
+          "probe_id": "F11.P1",
+          "support": "FULL",
+          "tokens": 13
+        },
+        {
+          "explicit_local_facts": 0,
+          "probe_id": "F11.P2",
+          "support": "FULL",
+          "tokens": 23
+        },
+        {
+          "explicit_local_facts": 3,
+          "probe_id": "F12.P1",
+          "support": "FULL",
+          "tokens": 25
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F12.P2",
+          "support": "FULL",
+          "tokens": 37
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F13.P1",
+          "support": "FULL",
+          "tokens": 18
+        },
+        {
+          "explicit_local_facts": 3,
+          "probe_id": "F13.P2",
+          "support": "FULL",
+          "tokens": 29
+        },
+        {
+          "explicit_local_facts": 4,
+          "note": "Uses Java 17+ sealed interfaces (sealed/permits) for a closed alternative set.",
+          "probe_id": "F14.P1",
+          "support": "FULL",
+          "tokens": 41
+        },
+        {
+          "explicit_local_facts": 5,
+          "note": "Uses Java 21+ pattern-matching switch expression over a sealed hierarchy, exhaustive with no default arm.",
+          "probe_id": "F14.P2",
+          "support": "FULL",
+          "tokens": 44
+        },
+        {
+          "explicit_local_facts": 5,
+          "note": "Plain (non-sealed) interface Shape; Tri implements Shape from a separate compilation unit per toolchain_binding.multi_unit_recipes (javac -d OUT util/Util.java FILE.java analog).",
+          "probe_id": "F14.P3",
+          "support": "FULL",
+          "tokens": 157
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F15.P1",
+          "support": "FULL",
+          "tokens": 66
+        },
+        {
+          "explicit_local_facts": 2,
+          "probe_id": "F15.P2",
+          "support": "FULL",
+          "tokens": 46
+        },
+        {
+          "explicit_local_facts": 5,
+          "probe_id": "F15.P3",
+          "support": "FULL",
+          "tokens": 76
+        },
+        {
+          "explicit_local_facts": 3,
+          "probe_id": "F16.P1",
+          "support": "FULL",
+          "tokens": 46
+        },
+        {
+          "explicit_local_facts": 4,
+          "probe_id": "F16.P2",
+          "support": "FULL",
+          "tokens": 56
+        },
+        {
+          "explicit_local_facts": 5,
+          "note": "try-with-resources guarantees release on every exit path including read failure.",
+          "probe_id": "F17.P1",
+          "support": "FULL",
+          "tokens": 69
+        },
+        {
+          "explicit_local_facts": 5,
+          "note": "AutoCloseable + try-with-resources gives a genuinely deterministic, exactly-once, scoped cleanup hook in Java; not merely a P-a substitute.",
+          "probe_id": "F17.P2",
+          "support": "FULL",
+          "tokens": 50
+        },
+        {
+          "explicit_local_facts": 1,
+          "probe_id": "F18.P1",
+          "support": "FULL",
+          "tokens": 9
+        },
+        {
+          "explicit_local_facts": 2,
+          "note": "public/private visibility boundary enforced by the language.",
+          "probe_id": "F18.P2",
+          "support": "FULL",
+          "tokens": 50
+        },
+        {
+          "explicit_local_facts": 3,
+          "note": "ExecutorService/Future launch-join-combine.",
+          "probe_id": "F19.P1",
+          "support": "FULL",
+          "tokens": 63
+        },
+        {
+          "explicit_local_facts": 5,
+          "note": "AtomicLong.incrementAndGet documented atomic read-modify-write; race-free by JDK javadoc guarantee.",
+          "probe_id": "F19.P2",
+          "support": "FULL",
+          "tokens": 89
+        },
+        {
+          "explicit_local_facts": 0,
+          "probe_id": "F20.P1",
+          "support": "NONE",
+          "tokens": 0
+        }
+      ],
+      "tokenizer_note": "Simple whitespace/punctuation split: each identifier, keyword, numeric/string literal, and each individual punctuation/operator character or fixed multi-char operator (e.g. '->', '::', '<=', '!=') counted as one token; comments and whitespace excluded; consistent with methodology's 'documented language-neutral token-counting rule' requirement pending the frozen tokenizer script in methodology 02 (not embedded in this packet).",
+      "totals": {
+        "formula": "raw_density = sum_explicit_local_facts_all_fragments / sum_tokens_all_fragments = 120 / 1469 = 0.08169...",
+        "raw_density_all_fragments_basis": 0.0817,
+        "sum_explicit_local_facts_all_fragments": 120,
+        "sum_tokens_all_fragments": 1469
+      }
+    }
+  },
+  "requirement_ids": [
+    "metric.semantic_density"
+  ],
+  "requirements": {
+    "metric.semantic_density": {
+      "Java": 82
+    }
+  },
+  "work_unit_id": "sc-metrics-local--part-1--java"
+}

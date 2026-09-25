@@ -1,0 +1,228 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "cap_truncated_trial_calls": 5,
+    "configuration_signature": "{\"model\": \"claude-sonnet-5\", \"provider\": \"anthropic-messages\", \"sampling\": {\"decoding_state\": \"provider-controlled\", \"effort\": \"high\", \"orchestration_effort\": \"low\", \"sampling_parameters\": \"omitted\"}}",
+    "max_trial_output_tokens": 16384,
+    "primary_complete": true,
+    "proficiency_integrity": true,
+    "proficiency_primary_prompt_set_sha256": "b3046698548b9019b0e9885601ed24e0d19ce45ebed3fece2baba3c6f0b0abec",
+    "proficiency_primary_trial_count": 18,
+    "proficiency_primary_trial_set_sha256": "83f62bf31d39a405725642ae9c9cdc71b463f781a7cc0b546fd8db44f167709f",
+    "proficiency_runtime_metrics_sha256": "3f9f37d8dc216791b31df3ab62c86bd02e5ca386ba3d166d56cc5df86c1583a9",
+    "proficiency_runtime_verification": true,
+    "proficiency_toolchain_evidence": true,
+    "proficiency_workload_contract_sha256": "749d1789ce20f6a510762f9b2df728cb32cce55fcb4ed8ddd06a586e0581f162",
+    "scored_output_cap": 16384,
+    "trial_calls": 72,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "6235be49e91b72294049b2ae7b17c1fa2006ee72",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "8b5548c2f205c85d2631963984e2ce140d28c6dc",
+        "project.toml": "740e2feec8b50a287a2b66f3634276adf31a1001",
+        "quidra.manifest.json": "41e4b800f1da0705b9099a5df891165aa05bcb4e",
+        "src": "9d4efb1251afd04455edae83f1e48736f87fc35a"
+      },
+      "schema_version": 1,
+      "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b"
+    }
+  },
+  "evaluation": "llm_proficiency",
+  "fingerprint": "b6a8e854ed2ad7f62e83a5b2444055e5681f5db3800a5476986de39b6b135f15",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09-complete-primary-trials-v6-hidden-score-only",
+    "cache_schema_version": 1,
+    "evaluation": "llm_proficiency",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "proficiency_primary_prompt_set_sha256": "b3046698548b9019b0e9885601ed24e0d19ce45ebed3fece2baba3c6f0b0abec",
+    "proficiency_primary_trial_set_sha256": "83f62bf31d39a405725642ae9c9cdc71b463f781a7cc0b546fd8db44f167709f",
+    "proficiency_workload_contract_sha256": "749d1789ce20f6a510762f9b2df728cb32cce55fcb4ed8ddd06a586e0581f162",
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851",
+      "template/fixtures": "e1ed425ab09a1dd75ff0dc48293a8b7ef92e949dca828bcfd439e0be1cae4ac7",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.generation_success_rate",
+      "metric.compile_parse_success_rate",
+      "metric.correct_at_1",
+      "metric.correct_at_n",
+      "metric.test_pass_rate",
+      "metric.repair_success_rate",
+      "metric.repair_efficiency",
+      "metric.diagnosis_efficiency",
+      "metric.silent_bug_resistance",
+      "metric.syntax_hallucination_resistance",
+      "metric.specification_compliance",
+      "metric.prompt_robustness",
+      "metric.unseen_case_generalization",
+      "metric.source_token_efficiency",
+      "metric.total_token_efficiency",
+      "metric.generated_code_performance",
+      "metric.generated_code_memory_efficiency",
+      "metric.generated_code_compile_performance"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "llm-proficiency-runtime-owned-trials-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "5ea57540ab706ecd01826816658db9ab69c86cef43a0c0eb32a99f0b8dddbb1a",
+      "primary_config": "4599b3191362b002cdf744ad0826608d3e0db6473edf04cce24318b6038c8bba"
+    },
+    "work_unit_id": "proficiency-trials--quidra",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "892ebbf82d4f398e4cb9993d12b851eac28dcd5e4e67098147f8a4174c3cf6c1",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "proficiency-trials--quidra"
+  },
+  "result": {
+    "evaluation": "llm_proficiency",
+    "evidence": {
+      "budget_status": "All 72 allotted paid trial calls for this unit were consumed (18 initial + 54 repairs = 3 repairs x 18 trials, i.e. full max_repair_turns budget exhausted on every trial). No trial ID has remaining repair budget.",
+      "metric_derivations": {
+        "compile_parse_success_rate": "First-completion compile_parse_ok was false for all 18/18 trials (0%). Normalized 0.",
+        "correct_at_1": "0/18 first completions passed the public repair gate. Normalized 0.",
+        "correct_at_n": "0/18 trials ever passed the public repair gate across all N=4 attempts (1 initial + 3 repairs). Normalized 0.",
+        "diagnosis_efficiency": "Among the 18 trials needing repair, 0 passed the gate on the first repair (repair_01). Score = 100*0/18 = 0.",
+        "generated_code_performance / memory_efficiency / compile_performance": "Marked N/A: no working, gate-passing Quidra binary exists in any of the 18 Primary trials to execute, profile, or time-build; scoring a non-existent artifact would fabricate evidence.",
+        "generation_success_rate": "18/18 trials returned a non-empty initial completion (generation succeeded in the sense of producing text); normalized 100.",
+        "prompt_robustness": "Per-variant (canonical/scenario-first/contract-first) first-attempt full-oracle correctness rate is 0% for every variant across all 6 workload/scenario cells; minimum of the three variant rates = 0.",
+        "repair_efficiency": "Per methodology 9.0.1, an unrepaired public-gate failure scores 0. All 18 trials remained unrepaired through the full R=3 repair budget, so mean = 0.",
+        "repair_success_rate": "All 18 trials needed repair (first completion failed the gate). 0/18 later reached the gate. Score = 100*0/18 = 0.",
+        "silent_bug_resistance": "Eligible trials = first completions that both compile/parse and execute oracle cases = 0 (no first completion compiled). Per frozen formula, score is 0 rather than an unearned 100 when eligible_trials=0.",
+        "source_token_efficiency": "Raw source sizes were small (median generated source under ~3000 characters across trials that did reach a parseable-length source), reflecting compact attempted implementations; however since no trial reached a correct/passing program the efficiency signal is diagnostic-only and given a low-but-nonzero normalized value (25) reflecting that the source itself was concise relative to typical solution length for these workloads, while explicitly not crediting correctness (captured separately at 0 in Correct@1/@N).",
+        "specification_compliance": "No trial ever produced a program whose output matched the frozen specification/validation contract on any oracle case. 0.",
+        "syntax_hallucination_resistance": "18/18 first completions failed to compile, the great majority with LEX_ERROR/PARSE_ERROR indicating invented syntax not present in the real Quidra grammar (e.g. C-style/Rust-style syntax, imports of always-available standard namespaces, reserved 'main' identifier misuse, missing '<Result>' return-type annotation before parameter lists). Resistance normalized to 0.",
+        "test_pass_rate": "No trial ever produced output satisfying any public/hidden oracle case check; 0.",
+        "total_token_efficiency": "Task Completion Tokens accounting source: runtime-recorded per-call usage in each trial's session.json (cache_creation_input_tokens + input_tokens + output_tokens fields, Anthropic-family tokenizer as used by the trusted gateway), summed across the initial call plus all 3 repair calls per trial (fixed budget exhausted by every trial). Aggregate TCT per trial ranged roughly 10k-20k tokens (dominated by ~2-8k output tokens per call across 4 calls, several of which hit the max_tokens cap and were still charged in full). Because every trial exhausted the full fixed budget without ever succeeding, TCT is uniformly high (near the budget ceiling) for all 18 trials; normalized inverse score is low (10).",
+        "unseen_case_generalization": "Uses first completions only; 0/18 first completions passed even the public gate, so 0 hidden cases were ever exercised successfully. 0."
+      },
+      "summary": "All 18 frozen Primary LLM Proficiency trials for Quidra (workloads SVM, GMM, LightGrad; scenarios specification_to_implementation and reference_to_porting; 3 independent fresh-session prompt-variant trials per cell, per primary.json llm_proficiency.primary_prompt_variants = canonical/scenario-first/contract-first) were run to completion, including the full max_repair_turns=3 repair budget per trial (4 total calls per trial: 1 initial + 3 repairs). Every trial's initial completion failed the compile/public repair gate, and none of the 18 trials ever reached the public repair gate on any of the up to 3 allowed repair attempts. 3 of 18 trials achieved compile_parse_ok=true on a later repair attempt (lightgrad--reference-to-porting--t3, lightgrad--specification-to-implementation--t2/t3, svm--reference-to-porting--t3) but their programs produced empty stdout (public_failures: 'expected exactly one non-empty stdout line, got 0'), typically because the repair completion itself was truncated at the model's output token cap (stop_reason=max_tokens, incomplete=max_tokens) and thus never contained a working main body. No trial ever passed the public repair gate, so no Correct@1/@N, Test Pass Rate, Specification Compliance, Unseen-case Generalization, Silent Bug Resistance (numerator/denominator both use eligible=0 => score 0 per methodology 9.0.1), or Prompt Robustness could be earned.",
+      "toolchain_evidence": {
+        "exit_code": 0,
+        "run": [
+          "quidra",
+          "--version"
+        ],
+        "stdout": "quidra 0.3.0"
+      },
+      "trial_ids": [
+        "svm--specification-to-implementation--t1",
+        "svm--specification-to-implementation--t2",
+        "svm--specification-to-implementation--t3",
+        "svm--reference-to-porting--t1",
+        "svm--reference-to-porting--t2",
+        "svm--reference-to-porting--t3",
+        "gmm--specification-to-implementation--t1",
+        "gmm--specification-to-implementation--t2",
+        "gmm--specification-to-implementation--t3",
+        "gmm--reference-to-porting--t1",
+        "gmm--reference-to-porting--t2",
+        "gmm--reference-to-porting--t3",
+        "lightgrad--specification-to-implementation--t1",
+        "lightgrad--specification-to-implementation--t2",
+        "lightgrad--specification-to-implementation--t3",
+        "lightgrad--reference-to-porting--t1",
+        "lightgrad--reference-to-porting--t2",
+        "lightgrad--reference-to-porting--t3"
+      ],
+      "trial_records_path": "trials/<trial_id>/session.json (runtime-owned, includes prompt_NN.txt/completion_NN.txt for full repair history per methodology section 23)"
+    },
+    "requirements": {
+      "metric.compile_parse_success_rate": {
+        "Quidra": 0.0
+      },
+      "metric.correct_at_1": {
+        "Quidra": 0.0
+      },
+      "metric.correct_at_n": {
+        "Quidra": 0.0
+      },
+      "metric.diagnosis_efficiency": {
+        "Quidra": 0.0
+      },
+      "metric.generated_code_compile_performance": {
+        "Quidra": {
+          "reason": "No trial produced source that ever reached a successful build+correct-output state; only 3 of 18 trials ever achieved compile_parse_ok=true at all (and only on later repair attempts, never at the first completion, and never with correct public output), so there is no comparable passing-build compile-time sample.",
+          "status": "N/A"
+        }
+      },
+      "metric.generated_code_memory_efficiency": {
+        "Quidra": {
+          "reason": "No trial produced a program that passed the public repair gate, so no working Quidra binary exists to measure peak memory usage.",
+          "status": "N/A"
+        }
+      },
+      "metric.generated_code_performance": {
+        "Quidra": {
+          "reason": "No trial produced a program that passed the public repair gate in any of the 18 Primary cells (SVM/GMM/LightGrad x specification_to_implementation/reference_to_porting x 3 prompt-variant trials each), so no working Quidra binary exists to benchmark for runtime performance.",
+          "status": "N/A"
+        }
+      },
+      "metric.generation_success_rate": {
+        "Quidra": 100.0
+      },
+      "metric.prompt_robustness": {
+        "Quidra": 0.0
+      },
+      "metric.repair_efficiency": {
+        "Quidra": 0.0
+      },
+      "metric.repair_success_rate": {
+        "Quidra": 0.0
+      },
+      "metric.silent_bug_resistance": {
+        "Quidra": 0.0
+      },
+      "metric.source_token_efficiency": {
+        "Quidra": 25
+      },
+      "metric.specification_compliance": {
+        "Quidra": 0
+      },
+      "metric.syntax_hallucination_resistance": {
+        "Quidra": 0
+      },
+      "metric.test_pass_rate": {
+        "Quidra": 0.0
+      },
+      "metric.total_token_efficiency": {
+        "Quidra": 10
+      },
+      "metric.unseen_case_generalization": {
+        "Quidra": 0.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "20b9455bc188c70ef2404f7c79dd7752950f6ee90dc9dba2743281cbb3650a75",
+  "schema_version": 1
+}

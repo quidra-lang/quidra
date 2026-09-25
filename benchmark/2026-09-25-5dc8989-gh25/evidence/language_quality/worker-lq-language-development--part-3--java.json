@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-3--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Java",
+      "metrics": {
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "dependency_declaration": 3,
+            "isolation_namespacing": 4,
+            "module_import_model": 3,
+            "resolution_determinism": 2,
+            "transitive_visibility": 3
+          },
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.dependency-simplicity.v1",
+          "score_0_100": 75
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "artifact_source_separation": 4,
+            "conditional_platform_mechanism": 3,
+            "data_numeric_portability": 4,
+            "platform_abstraction": 4,
+            "specified_core_semantics": 4
+          },
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.portability-design.v1",
+          "score_0_100": 95
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.dependency_simplicity": {
+      "component_findings": {
+        "dependency_declaration": "Recertified level 3 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: language-level dependency semantics: JDK self-sufficiency for compile/run, JPMS module declarations vs classic classpath ambiguity risk | Java core language plus JDK (javac/java) has zero external native dependencies to build or run a program: 'javac Main.java && java Main' works with only the JDK installed. | Reviewed /quidra-benchmark/template/programs/java/micro and /quidra-benchmark/template/programs/java/adversarial: sample programs compile and run using only javac/java, no third-party jars required. | Transitive dependency resolution is delegated to external build tools (Maven/Gradle), not part of the core language; keeps runtime dependency-free but pushes complexity to tooling for larger projects. | Module system (JPMS, Java 9+) allows explicit dependency declaration via module-info.java, improving clarity over classic classpath model, but ecosystem adoption is inconsistent. | Classic classpath model can allow ambiguous or duplicate class resolution across jars (classpath hell); JPMS mitigates but does not eliminate this broadly.",
+        "isolation_namespacing": "Recertified level 4 under the current criterion: The language/project model provides clear namespace/version/isolation boundaries that reduce accidental coupling. Evidence basis: language-level dependency semantics: JDK self-sufficiency for compile/run, JPMS module declarations vs classic classpath ambiguity risk | Java core language plus JDK (javac/java) has zero external native dependencies to build or run a program: 'javac Main.java && java Main' works with only the JDK installed. | Reviewed /quidra-benchmark/template/programs/java/micro and /quidra-benchmark/template/programs/java/adversarial: sample programs compile and run using only javac/java, no third-party jars required. | Transitive dependency resolution is delegated to external build tools (Maven/Gradle), not part of the core language; keeps runtime dependency-free but pushes complexity to tooling for larger projects. | Module system (JPMS, Java 9+) allows explicit dependency declaration via module-info.java, improving clarity over classic classpath model, but ecosystem adoption is inconsistent. | Classic classpath model can allow ambiguous or duplicate class resolution across jars (classpath hell); JPMS mitigates but does not eliminate this broadly.",
+        "module_import_model": "Recertified level 3 under the current criterion: Module/import semantics are small, explicit and predictable from source. Evidence basis: language-level dependency semantics: JDK self-sufficiency for compile/run, JPMS module declarations vs classic classpath ambiguity risk | Java core language plus JDK (javac/java) has zero external native dependencies to build or run a program: 'javac Main.java && java Main' works with only the JDK installed. | Reviewed /quidra-benchmark/template/programs/java/micro and /quidra-benchmark/template/programs/java/adversarial: sample programs compile and run using only javac/java, no third-party jars required. | Transitive dependency resolution is delegated to external build tools (Maven/Gradle), not part of the core language; keeps runtime dependency-free but pushes complexity to tooling for larger projects. | Module system (JPMS, Java 9+) allows explicit dependency declaration via module-info.java, improving clarity over classic classpath model, but ecosystem adoption is inconsistent. | Classic classpath model can allow ambiguous or duplicate class resolution across jars (classpath hell); JPMS mitigates but does not eliminate this broadly.",
+        "resolution_determinism": "Recertified level 2 under the current criterion: Ordinary dependency/name resolution has deterministic, documented precedence with limited ambient search-path surprises. Evidence basis: language-level dependency semantics: JDK self-sufficiency for compile/run, JPMS module declarations vs classic classpath ambiguity risk | Java core language plus JDK (javac/java) has zero external native dependencies to build or run a program: 'javac Main.java && java Main' works with only the JDK installed. | Reviewed /quidra-benchmark/template/programs/java/micro and /quidra-benchmark/template/programs/java/adversarial: sample programs compile and run using only javac/java, no third-party jars required. | Transitive dependency resolution is delegated to external build tools (Maven/Gradle), not part of the core language; keeps runtime dependency-free but pushes complexity to tooling for larger projects. | Module system (JPMS, Java 9+) allows explicit dependency declaration via module-info.java, improving clarity over classic classpath model, but ecosystem adoption is inconsistent. | Classic classpath model can allow ambiguous or duplicate class resolution across jars (classpath hell); JPMS mitigates but does not eliminate this broadly.",
+        "transitive_visibility": "Recertified level 3 under the current criterion: Transitive dependency visibility and import exposure are controlled and understandable rather than silently leaking arbitrary dependencies. Evidence basis: language-level dependency semantics: JDK self-sufficiency for compile/run, JPMS module declarations vs classic classpath ambiguity risk | Java core language plus JDK (javac/java) has zero external native dependencies to build or run a program: 'javac Main.java && java Main' works with only the JDK installed. | Reviewed /quidra-benchmark/template/programs/java/micro and /quidra-benchmark/template/programs/java/adversarial: sample programs compile and run using only javac/java, no third-party jars required. | Transitive dependency resolution is delegated to external build tools (Maven/Gradle), not part of the core language; keeps runtime dependency-free but pushes complexity to tooling for larger projects. | Module system (JPMS, Java 9+) allows explicit dependency declaration via module-info.java, improving clarity over classic classpath model, but ecosystem adoption is inconsistent. | Classic classpath model can allow ambiguous or duplicate class resolution across jars (classpath hell); JPMS mitigates but does not eliminate this broadly."
+      },
+      "component_levels": {
+        "dependency_declaration": 3,
+        "isolation_namespacing": 4,
+        "module_import_model": 3,
+        "resolution_determinism": 2,
+        "transitive_visibility": 3
+      },
+      "evidence_refs": [
+        "template/programs/java/micro",
+        "template/programs/java/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 78,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "d20f58225d98b6fafade03b6a178efbca673d72811f3695f2a91c3d70eabe9ce",
+        "source_record": "benchmark/cache/v1/language-quality/java/e6e48be4224fa09986f9aebe71c7753fca0f53abefe3dab53532455d295a6191.json",
+        "source_record_sha256": "91fc28351627588a9e4b3e1196d1072ce7160057ca93b4eee51e1c7b5e79e4ad",
+        "source_result_sha256": "2211f9415809f31f4767408481af2240fcdd59b3bfc37321688e04b750d5374a",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.dependency-simplicity.v1",
+      "runner_score_0_100": 75,
+      "selection_rule": "Judge language/module dependency semantics and intrinsic project dependency model. Registry size, package-manager maturity and community conventions belong to Ecosystem."
+    },
+    "metric.portability_design_platform_neutrality": {
+      "component_findings": {
+        "artifact_source_separation": "Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: language/runtime design: bytecode abstraction, standard library cross-platform APIs, opt-in native interop boundary | Java's language/runtime design (JVM bytecode target, write-once-run-anywhere) is intrinsically platform-neutral by construction: source compiles to platform-independent bytecode executed by any conformant JVM. | No platform-specific conditional compilation is required in the base language for portability; standard library APIs (java.nio.file, java.net) provide cross-platform abstractions such as Path and separator handling. | Reviewed /quidra-benchmark/template/programs/java/micro and adversarial samples: no platform-specific code, OS-conditional branches, or native-only APIs used; portable across JVM-supporting platforms by design. | Native interop (JNI/JNA/Foreign Function and Memory API) is opt-in and clearly separated from the portable core language, preserving platform neutrality of the base language while still allowing platform-specific extension when needed. | Design-level caveat: some JDK APIs and behaviors have historically differed slightly between platforms (filesystem case sensitivity, line endings, default charset behavior pre-Java 18), minor language/runtime design leaks rather than ecosystem gaps.",
+        "conditional_platform_mechanism": "Recertified level 3 under the current criterion: When platform-specific behavior is necessary, the language/project model exposes explicit, localized conditional mechanisms rather than implicit divergence. Evidence basis: language/runtime design: bytecode abstraction, standard library cross-platform APIs, opt-in native interop boundary | Java's language/runtime design (JVM bytecode target, write-once-run-anywhere) is intrinsically platform-neutral by construction: source compiles to platform-independent bytecode executed by any conformant JVM. | No platform-specific conditional compilation is required in the base language for portability; standard library APIs (java.nio.file, java.net) provide cross-platform abstractions such as Path and separator handling. | Reviewed /quidra-benchmark/template/programs/java/micro and adversarial samples: no platform-specific code, OS-conditional branches, or native-only APIs used; portable across JVM-supporting platforms by design. | Native interop (JNI/JNA/Foreign Function and Memory API) is opt-in and clearly separated from the portable core language, preserving platform neutrality of the base language while still allowing platform-specific extension when needed. | Design-level caveat: some JDK APIs and behaviors have historically differed slightly between platforms (filesystem case sensitivity, line endings, default charset behavior pre-Java 18), minor language/runtime design leaks rather than ecosystem gaps.",
+        "data_numeric_portability": "Recertified level 4 under the current criterion: Primitive data/numeric behavior needed for portable programs is sufficiently specified across targets, with implementation-defined behavior clearly bounded. Evidence basis: language/runtime design: bytecode abstraction, standard library cross-platform APIs, opt-in native interop boundary | Java's language/runtime design (JVM bytecode target, write-once-run-anywhere) is intrinsically platform-neutral by construction: source compiles to platform-independent bytecode executed by any conformant JVM. | No platform-specific conditional compilation is required in the base language for portability; standard library APIs (java.nio.file, java.net) provide cross-platform abstractions such as Path and separator handling. | Reviewed /quidra-benchmark/template/programs/java/micro and adversarial samples: no platform-specific code, OS-conditional branches, or native-only APIs used; portable across JVM-supporting platforms by design. | Native interop (JNI/JNA/Foreign Function and Memory API) is opt-in and clearly separated from the portable core language, preserving platform neutrality of the base language while still allowing platform-specific extension when needed. | Design-level caveat: some JDK APIs and behaviors have historically differed slightly between platforms (filesystem case sensitivity, line endings, default charset behavior pre-Java 18), minor language/runtime design leaks rather than ecosystem gaps.",
+        "platform_abstraction": "Recertified level 4 under the current criterion: Core/standard runtime interfaces provide portable abstractions for common OS/runtime needs with explicit platform escape hatches. Evidence basis: language/runtime design: bytecode abstraction, standard library cross-platform APIs, opt-in native interop boundary | Java's language/runtime design (JVM bytecode target, write-once-run-anywhere) is intrinsically platform-neutral by construction: source compiles to platform-independent bytecode executed by any conformant JVM. | No platform-specific conditional compilation is required in the base language for portability; standard library APIs (java.nio.file, java.net) provide cross-platform abstractions such as Path and separator handling. | Reviewed /quidra-benchmark/template/programs/java/micro and adversarial samples: no platform-specific code, OS-conditional branches, or native-only APIs used; portable across JVM-supporting platforms by design. | Native interop (JNI/JNA/Foreign Function and Memory API) is opt-in and clearly separated from the portable core language, preserving platform neutrality of the base language while still allowing platform-specific extension when needed. | Design-level caveat: some JDK APIs and behaviors have historically differed slightly between platforms (filesystem case sensitivity, line endings, default charset behavior pre-Java 18), minor language/runtime design leaks rather than ecosystem gaps.",
+        "specified_core_semantics": "Recertified level 4 under the current criterion: Core language semantics avoid unnecessary dependence on one OS/CPU/ABI and specify portable behavior for ordinary constructs. Evidence basis: language/runtime design: bytecode abstraction, standard library cross-platform APIs, opt-in native interop boundary | Java's language/runtime design (JVM bytecode target, write-once-run-anywhere) is intrinsically platform-neutral by construction: source compiles to platform-independent bytecode executed by any conformant JVM. | No platform-specific conditional compilation is required in the base language for portability; standard library APIs (java.nio.file, java.net) provide cross-platform abstractions such as Path and separator handling. | Reviewed /quidra-benchmark/template/programs/java/micro and adversarial samples: no platform-specific code, OS-conditional branches, or native-only APIs used; portable across JVM-supporting platforms by design. | Native interop (JNI/JNA/Foreign Function and Memory API) is opt-in and clearly separated from the portable core language, preserving platform neutrality of the base language while still allowing platform-specific extension when needed. | Design-level caveat: some JDK APIs and behaviors have historically differed slightly between platforms (filesystem case sensitivity, line endings, default charset behavior pre-Java 18), minor language/runtime design leaks rather than ecosystem gaps."
+      },
+      "component_levels": {
+        "artifact_source_separation": 4,
+        "conditional_platform_mechanism": 3,
+        "data_numeric_portability": 4,
+        "platform_abstraction": 4,
+        "specified_core_semantics": 4
+      },
+      "evidence_refs": [
+        "template/programs/java/micro",
+        "template/programs/java/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 92,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "e997a9de7906b9e03b100019ff91e5902f3b0ae6166fa4ba46462401f77ac93d",
+        "source_record": "benchmark/cache/v1/language-quality/java/e6e48be4224fa09986f9aebe71c7753fca0f53abefe3dab53532455d295a6191.json",
+        "source_record_sha256": "91fc28351627588a9e4b3e1196d1072ce7160057ca93b4eee51e1c7b5e79e4ad",
+        "source_result_sha256": "2211f9415809f31f4767408481af2240fcdd59b3bfc37321688e04b750d5374a",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.portability-design.v1",
+      "runner_score_0_100": 95,
+      "selection_rule": "Judge the language/runtime design for writing portable source. Actual number of currently implemented targets belongs to Ecosystem."
+    }
+  },
+  "requirement_ids": [
+    "metric.dependency_simplicity",
+    "metric.portability_design_platform_neutrality"
+  ],
+  "requirements": {
+    "metric.dependency_simplicity": {
+      "Java": 75.0
+    },
+    "metric.portability_design_platform_neutrality": {
+      "Java": 95.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-3--java"
+}

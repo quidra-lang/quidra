@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-4--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Python",
+      "metrics": {
+        "metric.concurrency": {
+          "component_levels": {
+            "async_structured": 3,
+            "error_cancel_propagation": 3,
+            "parallel_execution": 2,
+            "race_safety": 1,
+            "synchronization_channels": 3
+          },
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.concurrency.v1",
+          "score_0_100": 60
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "abi_calling_control": 2,
+            "bidirectional_callbacks": 4,
+            "foreign_declaration": 4,
+            "ownership_lifetime_boundary": 2,
+            "type_layout_mapping": 2
+          },
+          "evidence_refs": [
+            "template/programs/python/micro",
+            "template/programs/python/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.ffi-design.v1",
+          "score_0_100": 70
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.concurrency": {
+      "component_findings": {
+        "async_structured": "Recertified level 3 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Python | GIL prevents true multi-threaded CPU parallelism in CPython. | multiprocessing gives real parallelism but with serialization overhead. | asyncio provides native async/await cooperative concurrency, well designed for I/O-bound work. | No type-system-level data-race safety (unlike Rust). | Rich stdlib concurrency primitives (Lock, Queue, concurrent.futures) comparable to Java util.concurrent. | Structured concurrency (asyncio.TaskGroup, 3.11+) is a genuine recent improvement. | Free-threaded/no-GIL mode (PEP 703) exists but not yet default/mature. | 0-100, 100 best",
+        "error_cancel_propagation": "Recertified level 3 under the current criterion: Errors, cancellation and task termination propagate predictably across concurrent work instead of being silently detached or lost. Evidence basis: Python | GIL prevents true multi-threaded CPU parallelism in CPython. | multiprocessing gives real parallelism but with serialization overhead. | asyncio provides native async/await cooperative concurrency, well designed for I/O-bound work. | No type-system-level data-race safety (unlike Rust). | Rich stdlib concurrency primitives (Lock, Queue, concurrent.futures) comparable to Java util.concurrent. | Structured concurrency (asyncio.TaskGroup, 3.11+) is a genuine recent improvement. | Free-threaded/no-GIL mode (PEP 703) exists but not yet default/mature. | 0-100, 100 best",
+        "parallel_execution": "Recertified level 2 under the current criterion: The normal language/runtime model supports genuine parallel execution for applicable workloads without a fundamental default bottleneck or undocumented caveat. Evidence basis: Python | GIL prevents true multi-threaded CPU parallelism in CPython. | multiprocessing gives real parallelism but with serialization overhead. | asyncio provides native async/await cooperative concurrency, well designed for I/O-bound work. | No type-system-level data-race safety (unlike Rust). | Rich stdlib concurrency primitives (Lock, Queue, concurrent.futures) comparable to Java util.concurrent. | Structured concurrency (asyncio.TaskGroup, 3.11+) is a genuine recent improvement. | Free-threaded/no-GIL mode (PEP 703) exists but not yet default/mature. | 0-100, 100 best",
+        "race_safety": "Recertified level 1 under the current criterion: The language provides strong static or runtime mechanisms to prevent/detect data races and unsafe concurrent access, with unsafe escape hatches explicit. Evidence basis: Python | GIL prevents true multi-threaded CPU parallelism in CPython. | multiprocessing gives real parallelism but with serialization overhead. | asyncio provides native async/await cooperative concurrency, well designed for I/O-bound work. | No type-system-level data-race safety (unlike Rust). | Rich stdlib concurrency primitives (Lock, Queue, concurrent.futures) comparable to Java util.concurrent. | Structured concurrency (asyncio.TaskGroup, 3.11+) is a genuine recent improvement. | Free-threaded/no-GIL mode (PEP 703) exists but not yet default/mature. | 0-100, 100 best",
+        "synchronization_channels": "Recertified level 3 under the current criterion: Core primitives for synchronization/message passing/shared-state coordination are coherent, documented and practical. Evidence basis: Python | GIL prevents true multi-threaded CPU parallelism in CPython. | multiprocessing gives real parallelism but with serialization overhead. | asyncio provides native async/await cooperative concurrency, well designed for I/O-bound work. | No type-system-level data-race safety (unlike Rust). | Rich stdlib concurrency primitives (Lock, Queue, concurrent.futures) comparable to Java util.concurrent. | Structured concurrency (asyncio.TaskGroup, 3.11+) is a genuine recent improvement. | Free-threaded/no-GIL mode (PEP 703) exists but not yet default/mature. | 0-100, 100 best"
+      },
+      "component_levels": {
+        "async_structured": 3,
+        "error_cancel_propagation": 3,
+        "parallel_execution": 2,
+        "race_safety": 1,
+        "synchronization_channels": 3
+      },
+      "evidence_refs": [
+        "template/programs/python/micro",
+        "template/programs/python/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 40,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "fe2a520865dd3c84687e2131cde35146fe03c1174605bf89c4df6cd641d29bf3",
+        "source_record": "benchmark/cache/v1/language-quality/python/a7d8da2a2229ade2233ee7f77ff9d6ec943d47996862afbac7dc7a0f2a2fe9e8.json",
+        "source_record_sha256": "105f647bb7038466aaef338d34899a2c9b8bab9c572013ee512c79cae6da3961",
+        "source_result_sha256": "09c4bbe7d93a2b214d506e42264192f92c915492196fea01b0597cc87e25ba3a",
+        "source_run_id": "2026-09-22-56f2c65-gh3"
+      },
+      "rubric_id": "language-quality.concurrency.v1",
+      "runner_score_0_100": 60,
+      "selection_rule": "Judge intrinsic concurrency/parallelism semantics and core runtime primitives. External frameworks and debugger/tool maturity are out of scope."
+    },
+    "metric.ffi_interoperability_design": {
+      "component_findings": {
+        "abi_calling_control": "Recertified level 2 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Python | CPython C-API is a first-class in-language FFI mechanism. | ctypes in stdlib allows calling shared libraries without writing C glue. | Buffer protocol (PEP 3118) enables zero-copy interop with native code. | Boxed PyObject model requires marshaling overhead vs native-ABI languages (Rust/Zig/C++). | Historically unstable binary ABI across CPython minor versions. | GIL requires explicit acquire/release around native calls for concurrency. | 0-100, 100 best",
+        "bidirectional_callbacks": "Recertified level 4 under the current criterion: Embedding, callbacks/function pointers or equivalent bidirectional interoperation are supported by a coherent language design rather than only bespoke glue. Evidence basis: Python | CPython C-API is a first-class in-language FFI mechanism. | ctypes in stdlib allows calling shared libraries without writing C glue. | Buffer protocol (PEP 3118) enables zero-copy interop with native code. | Boxed PyObject model requires marshaling overhead vs native-ABI languages (Rust/Zig/C++). | Historically unstable binary ABI across CPython minor versions. | GIL requires explicit acquire/release around native calls for concurrency. | 0-100, 100 best",
+        "foreign_declaration": "Recertified level 4 under the current criterion: Foreign symbols/functions/types can be declared or imported with explicit, understandable boundary syntax. Evidence basis: Python | CPython C-API is a first-class in-language FFI mechanism. | ctypes in stdlib allows calling shared libraries without writing C glue. | Buffer protocol (PEP 3118) enables zero-copy interop with native code. | Boxed PyObject model requires marshaling overhead vs native-ABI languages (Rust/Zig/C++). | Historically unstable binary ABI across CPython minor versions. | GIL requires explicit acquire/release around native calls for concurrency. | 0-100, 100 best",
+        "ownership_lifetime_boundary": "Recertified level 2 under the current criterion: Ownership, lifetime, allocation and error responsibilities across the foreign boundary can be expressed explicitly enough to avoid hidden hazards. Evidence basis: Python | CPython C-API is a first-class in-language FFI mechanism. | ctypes in stdlib allows calling shared libraries without writing C glue. | Buffer protocol (PEP 3118) enables zero-copy interop with native code. | Boxed PyObject model requires marshaling overhead vs native-ABI languages (Rust/Zig/C++). | Historically unstable binary ABI across CPython minor versions. | GIL requires explicit acquire/release around native calls for concurrency. | 0-100, 100 best",
+        "type_layout_mapping": "Recertified level 2 under the current criterion: Primitive/aggregate/string/pointer or equivalent boundary representations have clear mapping rules and layout control where needed. Evidence basis: Python | CPython C-API is a first-class in-language FFI mechanism. | ctypes in stdlib allows calling shared libraries without writing C glue. | Buffer protocol (PEP 3118) enables zero-copy interop with native code. | Boxed PyObject model requires marshaling overhead vs native-ABI languages (Rust/Zig/C++). | Historically unstable binary ABI across CPython minor versions. | GIL requires explicit acquire/release around native calls for concurrency. | 0-100, 100 best"
+      },
+      "component_levels": {
+        "abi_calling_control": 2,
+        "bidirectional_callbacks": 4,
+        "foreign_declaration": 4,
+        "ownership_lifetime_boundary": 2,
+        "type_layout_mapping": 2
+      },
+      "evidence_refs": [
+        "template/programs/python/micro",
+        "template/programs/python/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 62,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "35009a2f95cfb8157d65ab53ab5c08e349dd7fcdfdc601446c2baaefd43417ac",
+        "source_record": "benchmark/cache/v1/language-quality/python/a7d8da2a2229ade2233ee7f77ff9d6ec943d47996862afbac7dc7a0f2a2fe9e8.json",
+        "source_record_sha256": "105f647bb7038466aaef338d34899a2c9b8bab9c572013ee512c79cae6da3961",
+        "source_result_sha256": "09c4bbe7d93a2b214d506e42264192f92c915492196fea01b0597cc87e25ba3a",
+        "source_run_id": "2026-09-22-56f2c65-gh3"
+      },
+      "rubric_id": "language-quality.ffi-design.v1",
+      "runner_score_0_100": 70,
+      "selection_rule": "Judge intrinsic FFI/ABI boundary design, not breadth of existing third-party bindings (Ecosystem)."
+    }
+  },
+  "requirement_ids": [
+    "metric.concurrency",
+    "metric.ffi_interoperability_design"
+  ],
+  "requirements": {
+    "metric.concurrency": {
+      "Python": 60.0
+    },
+    "metric.ffi_interoperability_design": {
+      "Python": 70.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-4--python"
+}

@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-1--kotlin",
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "evidence": {
+    "metric.core_tooling_availability_quality": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--kotlin; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "build_execute": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): <cite index=\"8-8,8-9\">The Kotlin 2.4.20 release is out! This release brings performance improvements, bug fixes, and tooling updates, and more.</cite> <cite index=\"4-3\">In May 2024, JetBrains released Kotlin 2.0 featuring the new K2 compiler\u2014a complete rewrite offering up to twice the compilation speed of its predecessor\u2014as well as stabilised support for Kotlin Multiplatform.</cite>",
+        "diagnostic_quality": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): Kotlin has widely-adopted static analysis/formatting tools (ktlint, detekt) and JetBrains documents their integration for Maven/Gradle projects; these are community rather than core-bundled tools.",
+        "docs_package": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): Kotlin's newer 'Kotlin Toolchain' unified CLI/build tool is explicitly Alpha, so it was not scored as a mature core tool; scoring instead credits the long-mature Gradle/Maven/kotlinc/IntelliJ stack that constitutes the de facto core tooling used by the overwhelming majority of Kotlin projects today.",
+        "format_lint": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): <cite index=\"19-2,19-3,19-4\">detekt is a static code analysis tool for Kotlin that detects code smells, complexity issues, and potential bugs. This guide shows how to integrate popular tools like ktlint, detekt, SonarQube, SonarCloud, and Kover into your backend project for Maven or Gradle. ktlint is a Kotlin linter and formatter that enforces the official Kotlin coding conventions with no extra configuration.</cite> <cite index=\"26-7,26-8\">detekt has 7,031 stars, ktlint 6,733, and Spotless 5,617, and all three were pushed to within the last 24 hours as of this writing (August 2026). All three are actively maintained, all three are free.</cite>",
+        "test": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): Kotlin has mature official Gradle and Maven integration, plus an emerging first-party 'Kotlin Toolchain' build tool still in Alpha."
+      },
+      "component_levels": {
+        "build_execute": 4,
+        "diagnostic_quality": 4,
+        "docs_package": 4,
+        "format_lint": 4,
+        "test": 4
+      },
+      "legacy_score_0_100": 92,
+      "limitations": "Kotlin's newer 'Kotlin Toolchain' unified CLI/build tool is explicitly Alpha, so it was not scored as a mature core tool; scoring instead credits the long-mature Gradle/Maven/kotlinc/IntelliJ stack that constitutes the de facto core tooling used by the overwhelming majority of Kotlin projects today.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.core-tooling.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Evaluate the maintained first-party/de-facto core developer toolchain actually available today; score implemented capability, not planned design.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-1--kotlin",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/kotlin/5d2f830241e7e0be8b71deb3f45e0a4d62690f4d6223de25a4b2e18e2ad55250.json"
+      ]
+    },
+    "metric.package_dependency_management_quality": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--kotlin; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "manifest_constraints": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): <cite index=\"29-1\">A single catalog centralizes all dependency coordinates, avoids version duplication, and lets every subproject share the same type-safe accessors.</cite> <cite index=\"36-3,36-4\">To ensure consistent version alignment, a good approach is to use a version catalog to define dependency versions alongside a platform to enforce them. Use platforms when you need to influence or enforce version alignment across modules.</cite>",
+        "publish_version": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): Kotlin does not have a single unified, mature package manager independent of the JVM build-tool ecosystem (unlike e.g. Cargo or npm as a single canonical tool); its package-management strength is substantially inherited from Gradle/Maven/Maven Central rather than being a Kotlin-native invention, and multiplatform-specific dependency/publishing tooling is documented as still maturing (legacy-mode deprecation warnings, Alpha-stage unified toolchain publishing).",
+        "registry_security": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): Kotlin officially supports both Gradle (with a dedicated Kotlin DSL) and Maven as first-party build/dependency-management systems.",
+        "resolver_lock": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): Kotlin dependency resolution defaults to Maven Central, giving it access to the entire mature JVM package ecosystem shared with Java/Scala/Groovy.",
+        "workspace_multi": "Preserved paid evidence (ecosystem-tooling--part-1--kotlin): Kotlin dependency resolution defaults to Maven Central, giving it access to the entire mature JVM package ecosystem shared with Java/Scala/Groovy."
+      },
+      "component_levels": {
+        "manifest_constraints": 4,
+        "publish_version": 4,
+        "registry_security": 4,
+        "resolver_lock": 4,
+        "workspace_multi": 4
+      },
+      "legacy_score_0_100": 90,
+      "limitations": "Kotlin does not have a single unified, mature package manager independent of the JVM build-tool ecosystem (unlike e.g. Cargo or npm as a single canonical tool); its package-management strength is substantially inherited from Gradle/Maven/Maven Central rather than being a Kotlin-native invention, and multiplatform-specific dependency/publishing tooling is documented as still maturing (legacy-mode deprecation warnings, Alpha-stage unified toolchain publishing).",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.package-management.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Evaluate the standard/de-facto package workflow using official documentation and current registry/tool behavior; ecosystem size is scored elsewhere.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-1--kotlin",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/kotlin/5d2f830241e7e0be8b71deb3f45e0a4d62690f4d6223de25a4b2e18e2ad55250.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Kotlin",
+      "metrics": {
+        "metric.core_tooling_availability_quality": {
+          "component_levels": {
+            "build_execute": 4,
+            "diagnostic_quality": 4,
+            "docs_package": 4,
+            "format_lint": 4,
+            "test": 4
+          },
+          "rubric_id": "ecosystem.core-tooling.v1",
+          "score_0_100": 100
+        },
+        "metric.package_dependency_management_quality": {
+          "component_levels": {
+            "manifest_constraints": 4,
+            "publish_version": 4,
+            "registry_security": 4,
+            "resolver_lock": 4,
+            "workspace_multi": 4
+          },
+          "rubric_id": "ecosystem.package-management.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.core_tooling_availability_quality",
+    "metric.package_dependency_management_quality"
+  ],
+  "requirements": {
+    "metric.core_tooling_availability_quality": {
+      "Kotlin": 100.0
+    },
+    "metric.package_dependency_management_quality": {
+      "Kotlin": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-1--kotlin"
+}

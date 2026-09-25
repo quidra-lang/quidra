@@ -1,0 +1,269 @@
+{
+  "agent_id": "worker-sc-metrics-local--part-2--c",
+  "assigned_languages": [
+    "C++"
+  ],
+  "evidence": {
+    "aggregation_rule": "Total lookups summed over the 44 fixed probes for C++ = 32. Mean lookups per site = 32/217 = 0.1475 (site inventory frozen in semantic_site_matrix.json, identical denominator for every language). Score = 100/(1+mean_lookups_per_site) = 100/1.1475 = 87.14, rounded to 87.1.",
+    "basis": "all-fragments (single-language shard; common-basis reconciliation performed by aggregator)",
+    "blockers": [],
+    "canonical_fragment_catalog_sha256": "28cfc3a3082d4f29f832dc9e543f05a72e35ea1e05f05795e7df92d6c37e4d76",
+    "computed_score": 87.1,
+    "gate_notes": "score_requires_comparability_gate (primary.json semantic_compression.fixed_probe_count=44) is satisfied for this shard: all 44 frozen probes evaluated for C++ with a documented lookup count and citation; cross-language common-basis reconciliation (which probes have fragments in ALL ten languages) is performed by the aggregating runner, not by this single-language worker.",
+    "language": "C++",
+    "legacy_fragment_equivalence": {
+      "all_explicit_fragments_matched": false,
+      "canonical_fragment_catalog_content_sha256": "d524701650204cbb3dfa8fd2074413ce72f6d785a239180bf49def27c8e7cf9b",
+      "canonical_fragment_catalog_sha256": "28cfc3a3082d4f29f832dc9e543f05a72e35ea1e05f05795e7df92d6c37e4d76",
+      "dropped_now_none_probes": [],
+      "proof_mode": "shared-experiment-owner-catalog",
+      "schema_version": 1,
+      "scientific_identity_sha256": "76afce9780fd044b18935a7f0a18b0dbf21b18d45b9e98e59af755ff65d4ea5c",
+      "source_density_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
+      "source_density_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
+      "source_metric_record": "v1/semantic-compression/c/5fc6f4cb8e40404bd7af23fb9dbfa632cf17745ef176c92d4fe6e9ad95d7e4f2.json",
+      "source_metric_record_sha256": "ea6aa5d44ff1abde1a6eefb6d69af5a0e3a9893829c3341b5d003bd5209b62e8",
+      "source_owner_record": "v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json",
+      "source_owner_record_sha256": "7b41cfe9d9830cb97364b98841a5589b2f28ee12eb1c4895c19e63c922070c94",
+      "source_run_id": "2026-09-23-fce5cfa-gh16"
+    },
+    "mean_lookups_per_probe": 0.7273,
+    "mean_lookups_per_site": 0.1475,
+    "methodology_rule": "6.1.3.C semantic_compression.md: record the number of required external semantic lookups or declaration-graph hops (callee signature, variable/type declaration, overload set, trait/interface/protocol implementation, imported definition, global configuration/compiler mode) needed to resolve each frozen site's semantic fact from C++'s local surface form, under the R10-selected fragment for each probe. Lookups that are optional for extra detail are excluded. Lower total is better.",
+    "metric": "semantic_locality",
+    "normalization_formula": "score = 100 / (1 + mean_lookups_per_site), where mean_lookups_per_site = total_external_lookups_across_all_sites / total_sites_in_universe (217 sites across 44 frozen probes). Raw values recorded per probe below; per-site counting follows the same fixed site inventory used for Semantic Density so denominators cannot vary by language.",
+    "per_probe_raw_lookup_counts": [
+      {
+        "lookups": 0,
+        "note": "const int n = 7; return n; \u2014 fully local, no external declarations consulted.",
+        "probe_id": "F01.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "static (or namespace-scope) int64_t counter = 0; and constexpr int64_t LIMIT = 100; \u2014 mutability, lifetime (static storage duration) and representation are all evident from the local declarations.",
+        "probe_id": "F01.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "int32_t v; if(cond){v=5;}else{v=9;} return v; \u2014 C++ performs no definite-assignment check; all facts are local.",
+        "probe_id": "F02.P1"
+      },
+      {
+        "lookups": 1,
+        "note": "uint8_t* buf = new uint8_t[16]; \u2014 possible_failure (std::bad_alloc) is documented in the standard library, not visible at the call site: 1 lookup (imported definition).",
+        "probe_id": "F02.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "x += 1; \u2014 overflow behavior is a fixed language rule (signed overflow UB), not a lookup.",
+        "probe_id": "F03.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "xs[1] = 42; \u2014 operator[] semantics are a fixed language/library rule known without consulting a declaration.",
+        "probe_id": "F03.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "int slot=4; int& port=slot; port=9; return slot; \u2014 reference aliasing fully local.",
+        "probe_id": "F04.P1"
+      },
+      {
+        "lookups": 1,
+        "note": "std::span<const int> window(xs); \u2014 that span never copies and rejects writes is documented library behavior: 1 lookup.",
+        "probe_id": "F04.P2"
+      },
+      {
+        "lookups": 1,
+        "note": "Using std::shared_ptr round-trip through a container and comparing .get() pointers \u2014 identity semantics documented in library: 1 lookup.",
+        "probe_id": "F04.P3"
+      },
+      {
+        "lookups": 4,
+        "note": "Bare call f(x): aliasing, mutability, allocation/copy, and externally_visible_side_effects for x cannot be resolved from the call-site syntax alone and require consulting f's declared signature (excluded from the fragment by design, per spec 6.1.4.B): 4 sites x 1 hop each = 4.",
+        "probe_id": "F05.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "put's full declaration (void put(int& cell){cell=12;}) is included inside the measured fragment for this probe, so the writable-alias facts are local.",
+        "probe_id": "F05.P2"
+      },
+      {
+        "lookups": 1,
+        "note": "std::transform(xs.begin(),xs.end(),ys.begin(),neg); \u2014 std::transform's application contract (applies neg to each element, does not mutate xs) is documented library behavior: 1 lookup.",
+        "probe_id": "F05.P3"
+      },
+      {
+        "lookups": 0,
+        "note": "mid's full declaration is inside the measured fragment; value/copy semantics of the returned int are local.",
+        "probe_id": "F06.P1"
+      },
+      {
+        "lookups": 1,
+        "note": "std::tuple/structured bindings for divmod2 \u2014 that tie/structured-binding decomposition does not copy or share is documented library/language behavior: 1 lookup.",
+        "probe_id": "F06.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "r = a*b+c; \u2014 fixed precedence/operator rules, fully local.",
+        "probe_id": "F07.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "q=a/b; m=a%b; d=(double)a/b; \u2014 truncation/sign rules are fixed language rules, local.",
+        "probe_id": "F07.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "Checked-mode overflow behavior is pinned by the frozen recipe (no checked-arith facility in C++, so plain operator UB is recorded); no external lookup needed to state that.",
+        "probe_id": "F08.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "Explicit local guard on b==0 \u2014 fully local.",
+        "probe_id": "F08.P2"
+      },
+      {
+        "lookups": 1,
+        "note": "s1==s2 for std::string \u2014 that operator== compares contents (not identity) is documented library behavior: 1 lookup.",
+        "probe_id": "F09.P1"
+      },
+      {
+        "lookups": 1,
+        "note": "std::sort(xs.rbegin(),xs.rend()) or std::sort with std::greater<>{} \u2014 in-place vs new-sequence and comparator contract documented in library: 1 lookup.",
+        "probe_id": "F09.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "static_cast<int32_t>(big) \u2014 explicit, fixed conversion rule, local.",
+        "probe_id": "F10.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "sum = i + d; \u2014 usual arithmetic conversions are a fixed language rule, local.",
+        "probe_id": "F10.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "xs[i] \u2014 operator[] UB-on-out-of-range is a fixed, well known language/library rule, local.",
+        "probe_id": "F11.P1"
+      },
+      {
+        "lookups": 1,
+        "note": "std::span<int> part(xs.data()+1,3) or vector sub-range construction \u2014 that it shares storage (does not copy) is documented library behavior: 1 lookup.",
+        "probe_id": "F11.P2"
+      },
+      {
+        "lookups": 1,
+        "note": "std::optional<int> o = std::nullopt; n = o.value_or(0); \u2014 value_or's fallback contract is documented library behavior: 1 lookup.",
+        "probe_id": "F12.P1"
+      },
+      {
+        "lookups": 1,
+        "note": "std::optional's transform/and_then short-circuit-on-absence contract is documented library behavior: 1 lookup.",
+        "probe_id": "F12.P2"
+      },
+      {
+        "lookups": 2,
+        "note": "int parse_twice(std::string s){ return 2*std::stoi(s); } \u2014 that std::stoi throws std::invalid_argument/out_of_range, and that an uncaught exception propagates to the caller, are documented library/language facts external to the visible call: 2 lookups (possible_failure + control_flow_effect).",
+        "probe_id": "F13.P1"
+      },
+      {
+        "lookups": 2,
+        "note": "try { n = std::stoi(s); } catch(...) { n = 0; } \u2014 knowing exactly which exception types std::stoi can throw, and that only the stoi call (not surrounding code) is protected, both require consulting library documentation: 2 lookups.",
+        "probe_id": "F13.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "std::variant<Circle,Rect> declared locally in the fragment; closedness is evident from the local declaration.",
+        "probe_id": "F14.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "std::visit or std::get_if switch over the variant declared in F14.P1's local declaration; exhaustiveness-checking behavior (compile error on unhandled visitor arm) is a fixed language rule.",
+        "probe_id": "F14.P2"
+      },
+      {
+        "lookups": 2,
+        "note": "Multi-unit extension (Tri implementing area() from a separate translation unit) requires consulting the shapes unit's abstract interface declaration and the separate unit's Tri implementation, both external to the calling fragment: 2 lookups.",
+        "probe_id": "F14.P3"
+      },
+      {
+        "lookups": 0,
+        "note": "template<class T> T head(...) \u2014 declared locally in the fragment; the T-to-result relationship is evident from the local declaration.",
+        "probe_id": "F15.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "template<class T> requires std::totally_ordered<T> T max_of(T,T) \u2014 the constraint is written at the local declaration.",
+        "probe_id": "F15.P2"
+      },
+      {
+        "lookups": 0,
+        "note": "Abstract Named interface and A/B implementations all declared locally within the fragment/unit.",
+        "probe_id": "F15.P3"
+      },
+      {
+        "lookups": 1,
+        "note": "std::accumulate(xs.begin(),xs.end(),0) \u2014 accumulate's contract (does not mutate xs, returns fold of elements) is documented library behavior: 1 lookup.",
+        "probe_id": "F16.P1"
+      },
+      {
+        "lookups": 1,
+        "note": "std::unordered_map iteration-order-is-unspecified and .find()-miss handling are documented library facts external to the local code: 1 lookup.",
+        "probe_id": "F16.P2"
+      },
+      {
+        "lookups": 2,
+        "note": "std::ifstream RAII \u2014 that the file handle is released deterministically at scope exit (destructor) and that open/read can fail are both documented library facts, not visible in the local fragment: 2 lookups.",
+        "probe_id": "F17.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "struct Handle{ ~Handle(){ ++released; } }; \u2014 the destructor hook is declared inside the measured fragment, so its deterministic, exactly-once firing is local.",
+        "probe_id": "F17.P2"
+      },
+      {
+        "lookups": 1,
+        "note": "#include <iostream>; std::cout<<\"x\\n\"; \u2014 which names the include introduces and from where is documented in the standard library, external to the fragment: 1 lookup.",
+        "probe_id": "F18.P1"
+      },
+      {
+        "lookups": 2,
+        "note": "util.cpp/util.h with pub_add exported and secret() private (anonymous namespace or static) \u2014 the external call site must consult util.h's declaration of pub_add, and the private-boundary enforcement rule is confirmed by consulting util.cpp's internal-linkage declaration: 2 lookups.",
+        "probe_id": "F18.P2"
+      },
+      {
+        "lookups": 2,
+        "note": "std::async/std::future launch+join \u2014 the concurrency guarantee (async policy, join semantics, exception propagation through future::get) is documented library behavior external to the visible call syntax: 2 lookups.",
+        "probe_id": "F19.P1"
+      },
+      {
+        "lookups": 2,
+        "note": "std::mutex/std::atomic<int64_t> race-freedom guarantee for the read-modify-write and thread join semantics are both documented library facts external to the local increment statements: 2 lookups.",
+        "probe_id": "F19.P2"
+      },
+      {
+        "lookups": 1,
+        "note": "extern \"C\" int abs(int); call \u2014 the C ABI/calling-convention assumption and abs's documented contract (from <cstdlib>) are external to the bare extern declaration written in the fragment: 1 lookup.",
+        "probe_id": "F20.P1"
+      },
+      {
+        "lookups": 0,
+        "note": "extern \"C\" int add2(int a,int b){return a+b;} \u2014 the export mechanism (extern \"C\") and its effect on the symbol name are fully evident from the local declaration/annotation; nm verification is mechanical, not an added semantic lookup.",
+        "probe_id": "F20.P2"
+      }
+    ],
+    "total_external_lookups_C++": 32,
+    "total_sites_in_universe": 217
+  },
+  "requirement_ids": [
+    "metric.semantic_locality"
+  ],
+  "requirements": {
+    "metric.semantic_locality": {
+      "C++": 87.1
+    }
+  },
+  "work_unit_id": "sc-metrics-local--part-2--c"
+}

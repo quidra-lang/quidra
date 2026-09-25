@@ -1,0 +1,68 @@
+{
+  "agent_id": "worker-ecosystem-external--part-3--kotlin",
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "evidence": {
+    "metric.community_public_knowledge_availability": {
+      "candidate_universe": "Predeclared, language-neutral evidence cells: (1) official language documentation/community hub, (2) largest general Q&A site presence (Stack Overflow tag + language usage-share ranking from the Stack Overflow Developer Survey), (3) official/major real-time chat community, (4) official recurring conference, (5) third-party MOOC aggregator course count, (6) presence of a canonical, widely-cited book. These cells are applied identically across all assigned languages in this evaluation family.",
+      "component_findings": {
+        "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--kotlin): Kotlin maintains an official, actively updated documentation site with a dedicated Community section listing Slack, blog, forums, and events.",
+        "events_groups": "Preserved paid evidence (ecosystem-external--part-3--kotlin): kotlinlang.org/community and kotlinlang.org/docs/faq.html pages describe Slack, forums, meetups, and KotlinConf as active community channels.",
+        "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--kotlin): Kotlin has a well-established, actively maintained knowledge ecosystem: official JetBrains-run documentation and community portal, a large dedicated Slack community with formal moderation, an annual official conference (KotlinConf) with continued future editions, a distinct and improving Stack Overflow Developer Survey presence, and a large third-party course/book catalog including a canonical book co-authored by the language designers. This is comparable to other mature, single-vendor-backed mainstream languages, but somewhat behind the very largest multi-decade, multi-vendor communities (e.g. JavaScript, Python, Java) in raw discussion volume, warranting a strong but not maximal score of 8",
+        "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--kotlin): Independent course aggregators list several hundred Kotlin-focused online courses spanning multiple platforms and skill levels.",
+        "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--kotlin): Kotlin has a well-established, actively maintained knowledge ecosystem: official JetBrains-run documentation and community portal, a large dedicated Slack community with formal moderation, an annual official conference (KotlinConf) with continued future editions, a distinct and improving Stack Overflow Developer Survey presence, and a large third-party course/book catalog including a canonical book co-authored by the language designers. This is comparable to other mature, single-vendor-backed mainstream languages, but somewhat behind the very largest multi-decade, multi-vendor communities (e.g. JavaScript, Python, Java) in raw discussion volume, warranting a strong but not maximal score of 8"
+      },
+      "component_levels": {
+        "current_knowledge": 4,
+        "events_groups": 4,
+        "international_breadth": 3,
+        "learning_materials": 4,
+        "qa_discussion": 4
+      },
+      "legacy_score_0_100": 85,
+      "limitations": "Raw counts (Stack Overflow tag size, Slack member counts) are used only as one declared proxy among several and are not the sole basis for the score, per methodology guidance against single-proxy scoring. | The precise current Stack Overflow tag question count for Kotlin could not be freshly re-verified beyond a 2018 baseline figure (~16k, described as growing) within the fixed search budget for this task; the 2025 Developer Survey usage/admiration rankings and Stack Overflow's own 2025 blog commentary on Kotlin's community growth were used as more current corroborating signals instead. | Course-aggregator and book citations reflect third-party curation rather than a single canonical benchmark, consistent with the requirement to avoid raw popularity counts as a standalone proxy.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.community-knowledge.v1",
+      "runner_score_0_100": 95,
+      "selection_rule": "Inspect the same knowledge channels for every language and use current, publicly accessible evidence rather than raw search-result counts alone.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-3--kotlin",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/kotlin/6bea95164c61a04807f7a8096e4b3caad96f9ecdaaddd74eaa1b726705158300.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Kotlin",
+      "metrics": {
+        "metric.community_public_knowledge_availability": {
+          "component_levels": {
+            "current_knowledge": 4,
+            "events_groups": 4,
+            "international_breadth": 3,
+            "learning_materials": 4,
+            "qa_discussion": 4
+          },
+          "rubric_id": "ecosystem.community-knowledge.v1",
+          "score_0_100": 95
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.community_public_knowledge_availability"
+  ],
+  "requirements": {
+    "metric.community_public_knowledge_availability": {
+      "Kotlin": 95.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-3--kotlin"
+}

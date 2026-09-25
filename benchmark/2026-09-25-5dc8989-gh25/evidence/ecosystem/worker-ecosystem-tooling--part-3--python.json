@@ -1,0 +1,143 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-3--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "metric.build_test_integration": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--python; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "build_system": "Preserved paid evidence (ecosystem-tooling--part-3--python): Frozen 5-criterion rubric (20 points each, 0-100 total), applied identically to all 10 languages in this evaluation. Measures maturity of the build-to-test-to-CI pipeline: (1) standard/native build tooling and its integration with the packaging system; (2) maturity/adoption of standard or de-facto test framework(s); (3) ease of CI integration incl. multi-version matrix testing; (4) coverage tooling integration and CI-gate support; (5) ability to unify build/test/coverage/lint config in one place.",
+        "ci_matrix": "Preserved paid evidence (ecosystem-tooling--part-3--python): tox and nox provide first-class multi-Python-version matrix testing, with documented GitHub Actions recipes (setup-python + tox) and native uv acceleration paths.",
+        "config_integration": "Preserved paid evidence (ecosystem-tooling--part-3--python): Frozen 5-criterion rubric (20 points each, 0-100 total), applied identically to all 10 languages in this evaluation. Measures maturity of the build-to-test-to-CI pipeline: (1) standard/native build tooling and its integration with the packaging system; (2) maturity/adoption of standard or de-facto test framework(s); (3) ease of CI integration incl. multi-version matrix testing; (4) coverage tooling integration and CI-gate support; (5) ability to unify build/test/coverage/lint config in one place.",
+        "coverage": "Preserved paid evidence (ecosystem-tooling--part-3--python): coverage.py integrates with pytest via pytest-cov with minimal setup, supports branch coverage, and multiple report formats (term, term-missing, html, xml) usable for CI gating via --cov-fail-under.",
+        "test_framework": "Preserved paid evidence (ecosystem-tooling--part-3--python): Standard or de-facto test framework maturity and adoption (stdlib unittest + de-facto pytest)"
+      },
+      "component_levels": {
+        "build_system": 4,
+        "ci_matrix": 4,
+        "config_integration": 4,
+        "coverage": 4,
+        "test_framework": 4
+      },
+      "legacy_score_0_100": 94,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.build-test.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Evaluate the standard/de-facto build-to-test-to-CI path with official tool documentation plus current integration evidence.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-3--python",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/python/600ad58a6c7e6199a67b5bde5f99892165229530d72b1104a7a1e3c0222eef39.json",
+        "https://medium.com/@inprogrammer/best-python-testing-tools-2026-updated-884dcb78b115",
+        "https://coverage.readthedocs.io/en/latest/contributing.html",
+        "https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/test-coverage/python-test-coverage",
+        "https://inventivehq.com/blog/python-package-testing-guide",
+        "https://pydevtools.com/handbook/reference/nox/",
+        "https://pydevtools.com/handbook/reference/tox/",
+        "https://pypi.org/project/pytest-cov/",
+        "https://docs.python.org/3/",
+        "https://www.sphinx-doc.org/",
+        "https://github.com/sphinx-doc/sphinx",
+        "https://peps.python.org/pep-0257/",
+        "https://peps.python.org/pep-0008/",
+        "https://devguide.python.org/documentation/translations/translating/",
+        "https://devguide.python.org/documentation/translations/coordinating/",
+        "https://peps.python.org/pep-0545/",
+        "https://translations.python.org/"
+      ]
+    },
+    "metric.documentation_quality": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--python; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "examples_guides": "Preserved paid evidence (ecosystem-tooling--part-3--python): The official docs have a dedicated, PEP-545-governed translation program with a public dashboard and multiple in-production language translations reachable via a language switcher, plus a large surrounding community documentation ecosystem (Real Python, countless guides).",
+        "generation_localization": "Preserved paid evidence (ecosystem-tooling--part-3--python): Frozen 5-criterion rubric (20 points each, 0-100 total), applied identically to all 10 languages. Measures the maturity and completeness of the documentation ecosystem: (1) official reference/tutorial completeness and currency; (2) standard-library API reference completeness; (3) maturity of auto-doc-generation tooling (docstring-to-published-docs pipeline); (4) consistency/officiality of a docstring/comment convention; (5) breadth of supplementary community documentation and internationalization.",
+        "language_reference": "Preserved paid evidence (ecosystem-tooling--part-3--python): The official docs cover the language reference, tutorial, and full standard library API reference as a single maintained corpus licensed under the PSF License, with examples additionally under a permissive license.",
+        "library_api": "Preserved paid evidence (ecosystem-tooling--part-3--python): The official docs cover the language reference, tutorial, and full standard library API reference as a single maintained corpus licensed under the PSF License, with examples additionally under a permissive license.",
+        "version_navigation": "Preserved paid evidence (ecosystem-tooling--part-3--python): Sphinx, originally built for Python's own docs, provides mature autodoc extraction from docstrings into multi-format output (HTML, PDF, EPUB) and is the tool used for Python's official documentation itself as well as major libraries."
+      },
+      "component_levels": {
+        "examples_guides": 4,
+        "generation_localization": 4,
+        "language_reference": 4,
+        "library_api": 4,
+        "version_navigation": 4
+      },
+      "legacy_score_0_100": 93,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.documentation.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Prioritize official current-version documentation, then independently maintained supplementary material; community size alone is not documentation quality.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-3--python",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/python/600ad58a6c7e6199a67b5bde5f99892165229530d72b1104a7a1e3c0222eef39.json",
+        "https://docs.python.org/3/",
+        "https://www.sphinx-doc.org/",
+        "https://github.com/sphinx-doc/sphinx",
+        "https://peps.python.org/pep-0257/",
+        "https://peps.python.org/pep-0008/",
+        "https://devguide.python.org/documentation/translations/translating/",
+        "https://devguide.python.org/documentation/translations/coordinating/",
+        "https://peps.python.org/pep-0545/",
+        "https://translations.python.org/",
+        "https://medium.com/@inprogrammer/best-python-testing-tools-2026-updated-884dcb78b115",
+        "https://coverage.readthedocs.io/en/latest/contributing.html",
+        "https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/test-coverage/python-test-coverage",
+        "https://inventivehq.com/blog/python-package-testing-guide",
+        "https://pydevtools.com/handbook/reference/nox/",
+        "https://pydevtools.com/handbook/reference/tox/",
+        "https://pypi.org/project/pytest-cov/"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Python",
+      "metrics": {
+        "metric.build_test_integration": {
+          "component_levels": {
+            "build_system": 4,
+            "ci_matrix": 4,
+            "config_integration": 4,
+            "coverage": 4,
+            "test_framework": 4
+          },
+          "rubric_id": "ecosystem.build-test.v1",
+          "score_0_100": 100
+        },
+        "metric.documentation_quality": {
+          "component_levels": {
+            "examples_guides": 4,
+            "generation_localization": 4,
+            "language_reference": 4,
+            "library_api": 4,
+            "version_navigation": 4
+          },
+          "rubric_id": "ecosystem.documentation.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.build_test_integration",
+    "metric.documentation_quality"
+  ],
+  "requirements": {
+    "metric.build_test_integration": {
+      "Python": 100.0
+    },
+    "metric.documentation_quality": {
+      "Python": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-3--python"
+}

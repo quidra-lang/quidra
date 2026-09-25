@@ -1,0 +1,115 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-2--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "metric.debugger_profiler_support": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--quidra; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "advanced_debug": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): 8/20 (ASan/UBSan instrumentation exists for generated programs, but documentation frames it around compiler CI rather than a general user-facing debugging/profiling workflow)",
+        "basic_debug": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): The same README passage explicitly disclaims full source mapping: 'Current integration guarantees native function/symbol visibility; fine-grained Quidra source-line DWARF mapping is not yet claimed,' meaning breakpoints/stepping are only guaranteed at the native symbol level, not reliable Quidra-source-line granularity.",
+        "cpu_profile": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): 8/20 (ASan/UBSan instrumentation exists for generated programs, but documentation frames it around compiler CI rather than a general user-facing debugging/profiling workflow)",
+        "integration_platforms": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): Same source: 'quidra debug FILE.qui launches LLDB or GDB (or QUIDRA_DEBUGGER) against that executable,' confirming real integration with mainstream native debuggers rather than a bespoke one.",
+        "memory_profile": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): 8/20 (ASan/UBSan instrumentation exists for generated programs, but documentation frames it around compiler CI rather than a general user-facing debugging/profiling workflow)"
+      },
+      "component_levels": {
+        "advanced_debug": 2,
+        "basic_debug": 3,
+        "cpu_profile": 1,
+        "integration_platforms": 2,
+        "memory_profile": 1
+      },
+      "legacy_score_0_100": 45,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.debug-profile.v1",
+      "runner_score_0_100": 45,
+      "selection_rule": "Evaluate implemented, documented debugging/profiling workflows on current supported toolchains; generic OS tools count only when language-aware use is documented.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-2--quidra",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/quidra/3debe2fb7dff4116e7ec2066c234e97ff5309f221c9dc471a1674082be88b0cd.json",
+        "https://github.com/quidra-lang/quidra",
+        "https://github.com/quidra-lang/playground"
+      ]
+    },
+    "metric.ide_editor_support_quality": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-2--quidra; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "breadth_maintenance": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): A first-party browser Playground (quidra-lang/playground) exists, running the real compiler frontend compiled to WebAssembly, offering in-editor diagnostics with codes/ranges, formatting, typed-IR view, structural inspect (node ids/kinds/spans/hashes/types), and hash-checked patch application -- but it explicitly excludes program execution ('No Run, REPL, JIT or any other execution'), multi-file editing, and package management.",
+        "completion_types": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): 7/20 (2 of 6 tracked features -- diagnostics and formatting -- documented; completion/hover/go-to-def/rename not documented)",
+        "debug_integration": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): A first-party browser Playground (quidra-lang/playground) exists, running the real compiler frontend compiled to WebAssembly, offering in-editor diagnostics with codes/ranges, formatting, typed-IR view, structural inspect (node ids/kinds/spans/hashes/types), and hash-checked patch application -- but it explicitly excludes program execution ('No Run, REPL, JIT or any other execution'), multi-file editing, and package management.",
+        "refactor_actions": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): A search for an official Quidra VS Code/JetBrains/Open VSX marketplace extension returned no matching listing; only unrelated languages (e.g. Quil, Quint, Q#, q) were found under similar-sounding names.",
+        "syntax_navigation": "Preserved paid evidence (ecosystem-tooling--part-2--quidra): No dedicated TextMate/semantic-highlighting grammar package for Quidra was found distributed independently of the playground's own embedded editor."
+      },
+      "component_levels": {
+        "breadth_maintenance": 1,
+        "completion_types": 4,
+        "debug_integration": 2,
+        "refactor_actions": 3,
+        "syntax_navigation": 4
+      },
+      "legacy_score_0_100": 40,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.ide-editor.v1",
+      "runner_score_0_100": 70,
+      "selection_rule": "Inspect the same editor capabilities across at least the dominant general-purpose editor and any major dedicated IDE when available.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-2--quidra",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/quidra/3debe2fb7dff4116e7ec2066c234e97ff5309f221c9dc471a1674082be88b0cd.json",
+        "https://github.com/quidra-lang/quidra",
+        "https://github.com/quidra-lang/playground"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Quidra",
+      "metrics": {
+        "metric.debugger_profiler_support": {
+          "component_levels": {
+            "advanced_debug": 2,
+            "basic_debug": 3,
+            "cpu_profile": 1,
+            "integration_platforms": 2,
+            "memory_profile": 1
+          },
+          "rubric_id": "ecosystem.debug-profile.v1",
+          "score_0_100": 45
+        },
+        "metric.ide_editor_support_quality": {
+          "component_levels": {
+            "breadth_maintenance": 1,
+            "completion_types": 4,
+            "debug_integration": 2,
+            "refactor_actions": 3,
+            "syntax_navigation": 4
+          },
+          "rubric_id": "ecosystem.ide-editor.v1",
+          "score_0_100": 70
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.debugger_profiler_support",
+    "metric.ide_editor_support_quality"
+  ],
+  "requirements": {
+    "metric.debugger_profiler_support": {
+      "Quidra": 45.0
+    },
+    "metric.ide_editor_support_quality": {
+      "Quidra": 70.0
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-2--quidra"
+}

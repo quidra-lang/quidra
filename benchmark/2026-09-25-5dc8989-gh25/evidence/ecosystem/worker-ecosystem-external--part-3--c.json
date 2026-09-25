@@ -1,0 +1,68 @@
+{
+  "agent_id": "worker-ecosystem-external--part-3--c",
+  "assigned_languages": [
+    "C++"
+  ],
+  "evidence": {
+    "metric.community_public_knowledge_availability": {
+      "candidate_universe": "Stack Overflow tag 'c++'; cppreference.com (listed by isocpp.org's own resources page as a recommended unofficial reference); r/cpp subreddit; CppCon (listed by isocpp.org as the flagship annual C++ conference); ISO/IEC JTC1/SC22/WG21 public papers/mailings archive.",
+      "component_findings": {
+        "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--c): C++ scores near the top of the 0-100 band because it has mature, high-volume, publicly and freely accessible knowledge across every one of the four predeclared channel types: one of the highest-engagement tags on the dominant programming Q&A site, a de-facto canonical public reference (cppreference.com) explicitly endorsed by the language's own standards body, a large dedicated subreddit, and the largest recurring language-specific conference (CppCon) plus a fully public, continuously updated ISO standards-committee paper archive (WG21). This combination of breadth (Q&A, docs, social forum, conference, standards archive) and decades of accumulated content is characteristic of one of the most",
+        "events_groups": "Preserved paid evidence (ecosystem-external--part-3--c): Before evidence collection, four language-neutral, externally observable channel types were frozen and applied identically to every language in this evaluation batch: (1) the language's tag on the largest general-purpose programmer Q&A site (Stack Overflow), (2) the canonical/most-referenced public reference documentation site linked from the language's own official standardization/community body, (3) the largest dedicated top-level subreddit for the language, (4) the largest recurring public conference dedicated specifically to the language. Selection of the specific target within each channel type is deterministic: the single site/community/conference that the language's own official body ",
+        "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--c): C++ scores near the top of the 0-100 band because it has mature, high-volume, publicly and freely accessible knowledge across every one of the four predeclared channel types: one of the highest-engagement tags on the dominant programming Q&A site, a de-facto canonical public reference (cppreference.com) explicitly endorsed by the language's own standards body, a large dedicated subreddit, and the largest recurring language-specific conference (CppCon) plus a fully public, continuously updated ISO standards-committee paper archive (WG21). This combination of breadth (Q&A, docs, social forum, conference, standards archive) and decades of accumulated content is characteristic of one of the most",
+        "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--c): C++ (together with C) is one of the tags whose questions receive above-average views and follow-up comment activity on Stack Overflow, reflecting a very large, long-standing user base actively asking and answering questions.",
+        "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--c): C++ scores near the top of the 0-100 band because it has mature, high-volume, publicly and freely accessible knowledge across every one of the four predeclared channel types: one of the highest-engagement tags on the dominant programming Q&A site, a de-facto canonical public reference (cppreference.com) explicitly endorsed by the language's own standards body, a large dedicated subreddit, and the largest recurring language-specific conference (CppCon) plus a fully public, continuously updated ISO standards-committee paper archive (WG21). This combination of breadth (Q&A, docs, social forum, conference, standards archive) and decades of accumulated content is characteristic of one of the most"
+      },
+      "component_levels": {
+        "current_knowledge": 4,
+        "events_groups": 4,
+        "international_breadth": 4,
+        "learning_materials": 4,
+        "qa_discussion": 4
+      },
+      "legacy_score_0_100": 97,
+      "limitations": "Subreddit member counts and Stack Overflow view/comment intensity are raw popularity-style proxies; per methodology they are used only as one declared line of evidence among four distinct channel types, not as the sole basis for the score. | CppCon attendance figures are in-person counts only and do not capture the much larger online video audience or the separate C++ Day / Meeting C++ regional conferences, so the true public-conference reach is understated by this single figure. | Exact current Stack Overflow question-count-per-tag could not be retrieved from a live tag page in this pass; the evidence instead relies on secondary analyses confirming C++'s outsized engagement (views/comments) relative to other tags.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.community-knowledge.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Inspect the same knowledge channels for every language and use current, publicly accessible evidence rather than raw search-result counts alone.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-3--c",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/c/66960016b4eec5839d718114d1de49f3420b8230f6d0138b7e1c7e559ec9fb76.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "C++",
+      "metrics": {
+        "metric.community_public_knowledge_availability": {
+          "component_levels": {
+            "current_knowledge": 4,
+            "events_groups": 4,
+            "international_breadth": 4,
+            "learning_materials": 4,
+            "qa_discussion": 4
+          },
+          "rubric_id": "ecosystem.community-knowledge.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.community_public_knowledge_availability"
+  ],
+  "requirements": {
+    "metric.community_public_knowledge_availability": {
+      "C++": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-3--c"
+}

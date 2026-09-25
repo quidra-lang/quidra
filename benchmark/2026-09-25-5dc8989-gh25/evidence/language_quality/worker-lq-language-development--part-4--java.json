@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-4--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Java",
+      "metrics": {
+        "metric.concurrency": {
+          "component_levels": {
+            "async_structured": 4,
+            "error_cancel_propagation": 4,
+            "parallel_execution": 4,
+            "race_safety": 1,
+            "synchronization_channels": 4
+          },
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.concurrency.v1",
+          "score_0_100": 85
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "abi_calling_control": 3,
+            "bidirectional_callbacks": 4,
+            "foreign_declaration": 3,
+            "ownership_lifetime_boundary": 4,
+            "type_layout_mapping": 3
+          },
+          "evidence_refs": [
+            "template/programs/java/micro",
+            "template/programs/java/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.ffi-design.v1",
+          "score_0_100": 85
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.concurrency": {
+      "component_findings": {
+        "async_structured": "Recertified level 4 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Java | Java concurrency is now among the strongest in the fixed language set: virtual threads give Go-goroutine-like ergonomics while retaining a best-in-class concurrent library and rigorously specified memory model; lacks Rust's compile-time race freedom. | java.util.concurrent: mature library of thread pools (ExecutorService), concurrent collections (ConcurrentHashMap), synchronizers (CountDownLatch, Semaphore, CyclicBarrier), atomics, and locks (ReentrantLock, StampedLock) | Virtual threads (Project Loom, JEP 444, finalized JDK 21): lightweight JVM-managed user-mode threads scaling blocking code to millions of concurrent tasks without separate async/await syntax | Structured concurrency (JEP 480, preview) formalizes parent/child task lifetime and error propagation | java.util.concurrent.Flow and CompletableFuture give composable async pipelines | Memory model (JLS Chapter 17) is a well-specified happens-before model | synchronized keyword and monitor-based intrinsic locks as a simple built-in primitive | JEP 444 (virtual threads), JEP 480 (structured concurrency), java.util.concurrent design, JLS Chapter 17 memory model; design-level assessment. | No compile-time data-race prevention comparable to Rust ownership/borrow checker and Send/Sync traits | Historical thread-per-request model was expensive before virtual threads (now mitigated) | No native async/await syntax; pre-L\u2026",
+        "error_cancel_propagation": "Recertified level 4 under the current criterion: Errors, cancellation and task termination propagate predictably across concurrent work instead of being silently detached or lost. Evidence basis: Java | Java concurrency is now among the strongest in the fixed language set: virtual threads give Go-goroutine-like ergonomics while retaining a best-in-class concurrent library and rigorously specified memory model; lacks Rust's compile-time race freedom. | java.util.concurrent: mature library of thread pools (ExecutorService), concurrent collections (ConcurrentHashMap), synchronizers (CountDownLatch, Semaphore, CyclicBarrier), atomics, and locks (ReentrantLock, StampedLock) | Virtual threads (Project Loom, JEP 444, finalized JDK 21): lightweight JVM-managed user-mode threads scaling blocking code to millions of concurrent tasks without separate async/await syntax | Structured concurrency (JEP 480, preview) formalizes parent/child task lifetime and error propagation | java.util.concurrent.Flow and CompletableFuture give composable async pipelines | Memory model (JLS Chapter 17) is a well-specified happens-before model | synchronized keyword and monitor-based intrinsic locks as a simple built-in primitive | JEP 444 (virtual threads), JEP 480 (structured concurrency), java.util.concurrent design, JLS Chapter 17 memory model; design-level assessment. | No compile-time data-race prevention comparable to Rust ownership/borrow checker and Send/Sync traits | Historical thread-per-request model was expensive before virtual threads (now mitigated) | No native async/await syntax; pre-L\u2026",
+        "parallel_execution": "Recertified level 4 under the current criterion: The normal language/runtime model supports genuine parallel execution for applicable workloads without a fundamental default bottleneck or undocumented caveat. Evidence basis: Java | Java concurrency is now among the strongest in the fixed language set: virtual threads give Go-goroutine-like ergonomics while retaining a best-in-class concurrent library and rigorously specified memory model; lacks Rust's compile-time race freedom. | java.util.concurrent: mature library of thread pools (ExecutorService), concurrent collections (ConcurrentHashMap), synchronizers (CountDownLatch, Semaphore, CyclicBarrier), atomics, and locks (ReentrantLock, StampedLock) | Virtual threads (Project Loom, JEP 444, finalized JDK 21): lightweight JVM-managed user-mode threads scaling blocking code to millions of concurrent tasks without separate async/await syntax | Structured concurrency (JEP 480, preview) formalizes parent/child task lifetime and error propagation | java.util.concurrent.Flow and CompletableFuture give composable async pipelines | Memory model (JLS Chapter 17) is a well-specified happens-before model | synchronized keyword and monitor-based intrinsic locks as a simple built-in primitive | JEP 444 (virtual threads), JEP 480 (structured concurrency), java.util.concurrent design, JLS Chapter 17 memory model; design-level assessment. | No compile-time data-race prevention comparable to Rust ownership/borrow checker and Send/Sync traits | Historical thread-per-request model was expensive before virtual threads (now mitigated) | No native async/await syntax; pre-L\u2026",
+        "race_safety": "Recertified level 1 under the current criterion: The language provides strong static or runtime mechanisms to prevent/detect data races and unsafe concurrent access, with unsafe escape hatches explicit. Evidence basis: Java | Java concurrency is now among the strongest in the fixed language set: virtual threads give Go-goroutine-like ergonomics while retaining a best-in-class concurrent library and rigorously specified memory model; lacks Rust's compile-time race freedom. | java.util.concurrent: mature library of thread pools (ExecutorService), concurrent collections (ConcurrentHashMap), synchronizers (CountDownLatch, Semaphore, CyclicBarrier), atomics, and locks (ReentrantLock, StampedLock) | Virtual threads (Project Loom, JEP 444, finalized JDK 21): lightweight JVM-managed user-mode threads scaling blocking code to millions of concurrent tasks without separate async/await syntax | Structured concurrency (JEP 480, preview) formalizes parent/child task lifetime and error propagation | java.util.concurrent.Flow and CompletableFuture give composable async pipelines | Memory model (JLS Chapter 17) is a well-specified happens-before model | synchronized keyword and monitor-based intrinsic locks as a simple built-in primitive | JEP 444 (virtual threads), JEP 480 (structured concurrency), java.util.concurrent design, JLS Chapter 17 memory model; design-level assessment. | No compile-time data-race prevention comparable to Rust ownership/borrow checker and Send/Sync traits | Historical thread-per-request model was expensive before virtual threads (now mitigated) | No native async/await syntax; pre-L\u2026",
+        "synchronization_channels": "Recertified level 4 under the current criterion: Core primitives for synchronization/message passing/shared-state coordination are coherent, documented and practical. Evidence basis: Java | Java concurrency is now among the strongest in the fixed language set: virtual threads give Go-goroutine-like ergonomics while retaining a best-in-class concurrent library and rigorously specified memory model; lacks Rust's compile-time race freedom. | java.util.concurrent: mature library of thread pools (ExecutorService), concurrent collections (ConcurrentHashMap), synchronizers (CountDownLatch, Semaphore, CyclicBarrier), atomics, and locks (ReentrantLock, StampedLock) | Virtual threads (Project Loom, JEP 444, finalized JDK 21): lightweight JVM-managed user-mode threads scaling blocking code to millions of concurrent tasks without separate async/await syntax | Structured concurrency (JEP 480, preview) formalizes parent/child task lifetime and error propagation | java.util.concurrent.Flow and CompletableFuture give composable async pipelines | Memory model (JLS Chapter 17) is a well-specified happens-before model | synchronized keyword and monitor-based intrinsic locks as a simple built-in primitive | JEP 444 (virtual threads), JEP 480 (structured concurrency), java.util.concurrent design, JLS Chapter 17 memory model; design-level assessment. | No compile-time data-race prevention comparable to Rust ownership/borrow checker and Send/Sync traits | Historical thread-per-request model was expensive before virtual threads (now mitigated) | No native async/await syntax; pre-L\u2026"
+      },
+      "component_levels": {
+        "async_structured": 4,
+        "error_cancel_propagation": 4,
+        "parallel_execution": 4,
+        "race_safety": 1,
+        "synchronization_channels": 4
+      },
+      "evidence_refs": [
+        "template/programs/java/micro",
+        "template/programs/java/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 88,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "7d1bcdb87053650542249e7d8b4a58c39d306648df43a62d17813cf48861f5c4",
+        "source_record": "benchmark/cache/v1/language-quality/java/25c07220951e1c6659a849c3e348af5e65393dc1179dfe309a5b1e78ef472bf7.json",
+        "source_record_sha256": "38b9df0242db3a9840164369965b8b4bf82246ebf55c25931754112d3461a3c5",
+        "source_result_sha256": "45345b0c867c5b7f0699b1d37ef4bd61e48c1ea0328dec1e2fb28a57873dc5c6",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.concurrency.v1",
+      "runner_score_0_100": 85,
+      "selection_rule": "Judge intrinsic concurrency/parallelism semantics and core runtime primitives. External frameworks and debugger/tool maturity are out of scope."
+    },
+    "metric.ffi_interoperability_design": {
+      "component_findings": {
+        "abi_calling_control": "Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Java | Materially better than the legacy JNI baseline, but behind C/Rust/Zig zero-overhead direct ABI interop, roughly comparable to or slightly behind Swift/Kotlin given JVM boundary overhead and manual layout descriptors. | Java Foreign Function & Memory (FFM) API (JEP 454, finalized JDK 22), preceded by JNI for two decades | JDK 22 FFM API (JEP 454) and java.lang.foreign package design knowledge; design-level metric, no execution required. | FFM API provides safe, arena-scoped native memory management (MemorySegment, Arena) without hand-written glue/native code, unlike JNI | Method handles + linker (Linker.nativeLinker()) allow calling C functions directly from pure Java via FunctionDescriptor, no C stubs required for simple calls | Confinement model ties native memory lifetime to Java thread/arena scope, giving compile-time-adjacent safety over manual malloc/free | jextract tool can auto-generate Java bindings from C headers, reducing boilerplate | Bidirectional interop: Java can expose upcalls via Linker.upcallStub | Legacy JNI (still widely used) requires hand-written C glue code and manual reference management, heavier than Rust extern C or Go cgo | FFM API still requires explicit layout descriptors mirroring C struct layouts by hand for complex structs; no automatic ABI struct derivation like Rust bindgen or C# P/Invoke source generators | No language-native unsafe-bloc\u2026",
+        "bidirectional_callbacks": "Recertified level 4 under the current criterion: Embedding, callbacks/function pointers or equivalent bidirectional interoperation are supported by a coherent language design rather than only bespoke glue. Evidence basis: Java | Materially better than the legacy JNI baseline, but behind C/Rust/Zig zero-overhead direct ABI interop, roughly comparable to or slightly behind Swift/Kotlin given JVM boundary overhead and manual layout descriptors. | Java Foreign Function & Memory (FFM) API (JEP 454, finalized JDK 22), preceded by JNI for two decades | JDK 22 FFM API (JEP 454) and java.lang.foreign package design knowledge; design-level metric, no execution required. | FFM API provides safe, arena-scoped native memory management (MemorySegment, Arena) without hand-written glue/native code, unlike JNI | Method handles + linker (Linker.nativeLinker()) allow calling C functions directly from pure Java via FunctionDescriptor, no C stubs required for simple calls | Confinement model ties native memory lifetime to Java thread/arena scope, giving compile-time-adjacent safety over manual malloc/free | jextract tool can auto-generate Java bindings from C headers, reducing boilerplate | Bidirectional interop: Java can expose upcalls via Linker.upcallStub | Legacy JNI (still widely used) requires hand-written C glue code and manual reference management, heavier than Rust extern C or Go cgo | FFM API still requires explicit layout descriptors mirroring C struct layouts by hand for complex structs; no automatic ABI struct derivation like Rust bindgen or C# P/Invoke source generators | No language-native unsafe-bloc\u2026",
+        "foreign_declaration": "Recertified level 3 under the current criterion: Foreign symbols/functions/types can be declared or imported with explicit, understandable boundary syntax. Evidence basis: Java | Materially better than the legacy JNI baseline, but behind C/Rust/Zig zero-overhead direct ABI interop, roughly comparable to or slightly behind Swift/Kotlin given JVM boundary overhead and manual layout descriptors. | Java Foreign Function & Memory (FFM) API (JEP 454, finalized JDK 22), preceded by JNI for two decades | JDK 22 FFM API (JEP 454) and java.lang.foreign package design knowledge; design-level metric, no execution required. | FFM API provides safe, arena-scoped native memory management (MemorySegment, Arena) without hand-written glue/native code, unlike JNI | Method handles + linker (Linker.nativeLinker()) allow calling C functions directly from pure Java via FunctionDescriptor, no C stubs required for simple calls | Confinement model ties native memory lifetime to Java thread/arena scope, giving compile-time-adjacent safety over manual malloc/free | jextract tool can auto-generate Java bindings from C headers, reducing boilerplate | Bidirectional interop: Java can expose upcalls via Linker.upcallStub | Legacy JNI (still widely used) requires hand-written C glue code and manual reference management, heavier than Rust extern C or Go cgo | FFM API still requires explicit layout descriptors mirroring C struct layouts by hand for complex structs; no automatic ABI struct derivation like Rust bindgen or C# P/Invoke source generators | No language-native unsafe-bloc\u2026",
+        "ownership_lifetime_boundary": "Recertified level 4 under the current criterion: Ownership, lifetime, allocation and error responsibilities across the foreign boundary can be expressed explicitly enough to avoid hidden hazards. Evidence basis: Java | Materially better than the legacy JNI baseline, but behind C/Rust/Zig zero-overhead direct ABI interop, roughly comparable to or slightly behind Swift/Kotlin given JVM boundary overhead and manual layout descriptors. | Java Foreign Function & Memory (FFM) API (JEP 454, finalized JDK 22), preceded by JNI for two decades | JDK 22 FFM API (JEP 454) and java.lang.foreign package design knowledge; design-level metric, no execution required. | FFM API provides safe, arena-scoped native memory management (MemorySegment, Arena) without hand-written glue/native code, unlike JNI | Method handles + linker (Linker.nativeLinker()) allow calling C functions directly from pure Java via FunctionDescriptor, no C stubs required for simple calls | Confinement model ties native memory lifetime to Java thread/arena scope, giving compile-time-adjacent safety over manual malloc/free | jextract tool can auto-generate Java bindings from C headers, reducing boilerplate | Bidirectional interop: Java can expose upcalls via Linker.upcallStub | Legacy JNI (still widely used) requires hand-written C glue code and manual reference management, heavier than Rust extern C or Go cgo | FFM API still requires explicit layout descriptors mirroring C struct layouts by hand for complex structs; no automatic ABI struct derivation like Rust bindgen or C# P/Invoke source generators | No language-native unsafe-bloc\u2026",
+        "type_layout_mapping": "Recertified level 3 under the current criterion: Primitive/aggregate/string/pointer or equivalent boundary representations have clear mapping rules and layout control where needed. Evidence basis: Java | Materially better than the legacy JNI baseline, but behind C/Rust/Zig zero-overhead direct ABI interop, roughly comparable to or slightly behind Swift/Kotlin given JVM boundary overhead and manual layout descriptors. | Java Foreign Function & Memory (FFM) API (JEP 454, finalized JDK 22), preceded by JNI for two decades | JDK 22 FFM API (JEP 454) and java.lang.foreign package design knowledge; design-level metric, no execution required. | FFM API provides safe, arena-scoped native memory management (MemorySegment, Arena) without hand-written glue/native code, unlike JNI | Method handles + linker (Linker.nativeLinker()) allow calling C functions directly from pure Java via FunctionDescriptor, no C stubs required for simple calls | Confinement model ties native memory lifetime to Java thread/arena scope, giving compile-time-adjacent safety over manual malloc/free | jextract tool can auto-generate Java bindings from C headers, reducing boilerplate | Bidirectional interop: Java can expose upcalls via Linker.upcallStub | Legacy JNI (still widely used) requires hand-written C glue code and manual reference management, heavier than Rust extern C or Go cgo | FFM API still requires explicit layout descriptors mirroring C struct layouts by hand for complex structs; no automatic ABI struct derivation like Rust bindgen or C# P/Invoke source generators | No language-native unsafe-bloc\u2026"
+      },
+      "component_levels": {
+        "abi_calling_control": 3,
+        "bidirectional_callbacks": 4,
+        "foreign_declaration": 3,
+        "ownership_lifetime_boundary": 4,
+        "type_layout_mapping": 3
+      },
+      "evidence_refs": [
+        "template/programs/java/micro",
+        "template/programs/java/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 74,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "f356a8168679d61848354d3119a6388b6adf32de390f4d3b877d9b9a4fe9a96e",
+        "source_record": "benchmark/cache/v1/language-quality/java/25c07220951e1c6659a849c3e348af5e65393dc1179dfe309a5b1e78ef472bf7.json",
+        "source_record_sha256": "38b9df0242db3a9840164369965b8b4bf82246ebf55c25931754112d3461a3c5",
+        "source_result_sha256": "45345b0c867c5b7f0699b1d37ef4bd61e48c1ea0328dec1e2fb28a57873dc5c6",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.ffi-design.v1",
+      "runner_score_0_100": 85,
+      "selection_rule": "Judge intrinsic FFI/ABI boundary design, not breadth of existing third-party bindings (Ecosystem)."
+    }
+  },
+  "requirement_ids": [
+    "metric.concurrency",
+    "metric.ffi_interoperability_design"
+  ],
+  "requirements": {
+    "metric.concurrency": {
+      "Java": 85.0
+    },
+    "metric.ffi_interoperability_design": {
+      "Java": 85.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-4--java"
+}

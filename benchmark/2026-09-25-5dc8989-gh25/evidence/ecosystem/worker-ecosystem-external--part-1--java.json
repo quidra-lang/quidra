@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-ecosystem-external--part-1--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "metric.package_ecosystem_activity_maintenance": {
+      "candidate_universe": "Most widely deployed Java backend framework; explicitly the default recommendation of Spring Initializr and the de facto standard for enterprise Java.",
+      "component_findings": {
+        "dependency_metadata": "Preserved paid evidence (ecosystem-external--part-1--java): Latest version: jackson-databind-3.1.3, last published: May 1, 2026 (releasealert.dev)",
+        "distribution_artifacts": "Preserved paid evidence (ecosystem-external--part-1--java): All 6 independently re-verified flagship libraries (Spring Boot, Jackson, Hibernate ORM, JUnit, Logback, Guava) plus the core build tool (Maven) show recent releases within the last few months of the 2026-09-22 snapshot, active issue/milestone tracking, and in several cases concurrently maintained major-version lines (Jackson 2.x/3.x, Hibernate 6.x/7.x/8.0-dev, JUnit 5.x/6.x, Spring Boot 3.x EOL transition to 4.x). This indicates a highly active, well-maintained package ecosystem. Score is not 100 because EOL transitions were also observed (e.g., Spring Boot 3.5 reaching open-source end-of-life June 30, 2026), reflecting normal but real churn/maintenance-burden dynamics rather than uniformly",
+        "recent_maintenance": "Preserved paid evidence (ecosystem-external--part-1--java): All 6 independently re-verified flagship libraries (Spring Boot, Jackson, Hibernate ORM, JUnit, Logback, Guava) plus the core build tool (Maven) show recent releases within the last few months of the 2026-09-22 snapshot, active issue/milestone tracking, and in several cases concurrently maintained major-version lines (Jackson 2.x/3.x, Hibernate 6.x/7.x/8.0-dev, JUnit 5.x/6.x, Spring Boot 3.x EOL transition to 4.x). This indicates a highly active, well-maintained package ecosystem. Score is not 100 because EOL transitions were also observed (e.g., Spring Boot 3.5 reaching open-source end-of-life June 30, 2026), reflecting normal but real churn/maintenance-burden dynamics rather than uniformly",
+        "registry_discovery": "Preserved paid evidence (ecosystem-external--part-1--java): Not independently re-verified with a fresh source this session due to search-call budget; recorded as a coverage gap in evidence depth rather than a negative finding. Existence and domain coverage are well-established and not in dispute; recency of latest release was not re-confirmed with a citation.",
+        "security_provenance": "Preserved paid evidence (ecosystem-external--part-1--java): Spring Boot 4.0.6 has been released and is now available from Maven Central. (spring.io blog, April 23, 2026)"
+      },
+      "component_levels": {
+        "dependency_metadata": 4,
+        "distribution_artifacts": 4,
+        "recent_maintenance": 4,
+        "registry_discovery": 4,
+        "security_provenance": 4
+      },
+      "legacy_score_0_100": 96,
+      "limitations": "Raw popularity indicators (GitHub stars, download counts) were recorded only as secondary, declared evidence alongside release-cadence and maintenance-policy evidence, consistent with the requirement that such raw counts not be used as a standalone proxy for the whole evaluation.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.package-activity.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Use the primary package registry/ecosystem for the language when one exists and evaluate current observable maintenance within the fixed activity window; package count alone is never sufficient.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-1--java",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/java/962349662a55d13a1a72c186b296500a68b16cc57ec4de8d79d080c145ce74c4.json"
+      ]
+    },
+    "metric.third_party_library_availability_domain_coverage": {
+      "candidate_universe": "Most widely deployed Java backend framework; explicitly the default recommendation of Spring Initializr and the de facto standard for enterprise Java.",
+      "component_findings": {
+        "application_testing": "Preserved paid evidence (ecosystem-external--part-1--java): Predeclared domain/library sampling per Section 'Predeclared sampling'. Selection rule frozen before collection: for each application domain, the target library is (a) the artifact recommended/defaulted by the language's official or de-facto standard tooling (Spring Initializr defaults, JCP/JPA standardization), OR (b) the top-ranked artifact in that domain's category on mvnrepository.com/Maven Central popularity rankings. Candidate universe = mvnrepository.com category listings (Testing, Logging Frameworks, JSON Libraries, etc.) plus Maven Central search. Retrieval route = web search snapshot on 2026-09-22 against project GitHub release pages, official project sites, and Wikipedia infoboxes",
+        "data_numerical": "Preserved paid evidence (ecosystem-external--part-1--java): Not independently re-verified with a fresh source this session due to search-call budget. This domain is the weakest point of Java's third-party coverage relative to other sampled domains and is reflected as a modest deduction in the domain-coverage score rather than assumed perfect.",
+        "ml_ai": "Preserved paid evidence (ecosystem-external--part-1--java): Not independently re-verified with a fresh source this session due to search-call budget. This domain is the weakest point of Java's third-party coverage relative to other sampled domains and is reflected as a modest deduction in the domain-coverage score rather than assumed perfect.",
+        "storage_interchange": "Preserved paid evidence (ecosystem-external--part-1--java): Not independently re-verified with a fresh source this session due to search-call budget. This domain is the weakest point of Java's third-party coverage relative to other sampled domains and is reflected as a modest deduction in the domain-coverage score rather than assumed perfect.",
+        "web_network": "Preserved paid evidence (ecosystem-external--part-1--java): 7 of 10 predeclared domains (web framework, JSON, ORM, testing, logging, general utility, build tooling) were independently verified this session to have canonical, actively maintained, Maven-Central-distributed libraries, several of which are spec-standardized (JPA/Hibernate) or de-facto standards bundled by default tooling (Spring Initializr, JUnit, Jackson). The remaining 3 domains (HTTP client, reactive, ML/numerical) are known by general knowledge to have mature or adequate coverage, with ML being the relatively weakest domain for the JVM ecosystem compared to Python. Score reflects near-complete domain coverage with a small deduction for the comparatively narrower ML/numerical-computin"
+      },
+      "component_levels": {
+        "application_testing": 4,
+        "data_numerical": 4,
+        "ml_ai": 4,
+        "storage_interchange": 4,
+        "web_network": 4
+      },
+      "legacy_score_0_100": 97,
+      "limitations": "Raw popularity indicators (GitHub stars, download counts) were recorded only as secondary, declared evidence alongside release-cadence and maintenance-policy evidence, consistent with the requirement that such raw counts not be used as a standalone proxy for the whole evaluation.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.library-domain-coverage.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Inspect the same five fixed domain groups for every language; prefer the official package index or official ecosystem directory, then independent package/project evidence.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-1--java",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/java/962349662a55d13a1a72c186b296500a68b16cc57ec4de8d79d080c145ce74c4.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Java",
+      "metrics": {
+        "metric.package_ecosystem_activity_maintenance": {
+          "component_levels": {
+            "dependency_metadata": 4,
+            "distribution_artifacts": 4,
+            "recent_maintenance": 4,
+            "registry_discovery": 4,
+            "security_provenance": 4
+          },
+          "rubric_id": "ecosystem.package-activity.v1",
+          "score_0_100": 100
+        },
+        "metric.third_party_library_availability_domain_coverage": {
+          "component_levels": {
+            "application_testing": 4,
+            "data_numerical": 4,
+            "ml_ai": 4,
+            "storage_interchange": 4,
+            "web_network": 4
+          },
+          "rubric_id": "ecosystem.library-domain-coverage.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.package_ecosystem_activity_maintenance",
+    "metric.third_party_library_availability_domain_coverage"
+  ],
+  "requirements": {
+    "metric.package_ecosystem_activity_maintenance": {
+      "Java": 100.0
+    },
+    "metric.third_party_library_availability_domain_coverage": {
+      "Java": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-1--java"
+}

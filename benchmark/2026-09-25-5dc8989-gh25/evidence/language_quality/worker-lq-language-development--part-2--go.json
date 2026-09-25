@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-2--go",
+  "assigned_languages": [
+    "Go"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Go",
+      "metrics": {
+        "metric.diagnostics": {
+          "component_levels": {
+            "actionability": 3,
+            "cause_specificity": 3,
+            "expected_actual": 2,
+            "location_context": 3,
+            "machine_stability": 2
+          },
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.diagnostics.v1",
+          "score_0_100": 65
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "abstraction_reuse": 3,
+            "data_modeling": 3,
+            "feature_composability": 3,
+            "higher_order_composition": 2,
+            "systems_runtime_control": 4
+          },
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.expressiveness.v1",
+          "score_0_100": 75
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.diagnostics": {
+      "component_findings": {
+        "actionability": "Recertified level 3 under the current criterion: Messages normally provide enough precise information to correct the issue without requiring unrelated guesswork; suggested fixes count only when semantically reliable. Evidence basis: Compiled adversarial Go programs (syntax-invalid ADV-22a truncated file, ADV-22b garbled identifier) using go build from readable adversarial corpus, and inspected overflow-behavior programs (ADV-01) for observable diagnostics. | go build on truncated ADV-22a produced: 'adv22a/main.go:9:1: syntax error: unexpected EOF, expected }' -- includes file, exact line:column, and expected-token hint. | Compiler errors are terse but precise (single line, file:line:col, short message); no multi-line caret-highlighted source snippets like Rust/clang, no suggested fixes emitted by the compiler itself (editor tooling like gopls provides more, which is Ecosystem not Language Quality). | Go's error model surfaces domain errors as explicit values (multi-return, error interface) inspectable by static tools but without compiler-level provenance like Rust's Result diagnostics. | Runtime: nil-pointer dereference and index-out-of-range panics include a stack trace with file:line, but signed integer truncation (ADV-01 int32(int64(...))) truncates silently with no diagnostic -- a real diagnostics gap versus checked-arithmetic languages. | go vet and the race detector (-race) provide additional static/runtime diagnostics but are opt-in tools, not innate compiler diagnostics for ordinary builds.",
+        "cause_specificity": "Recertified level 3 under the current criterion: Diagnostics distinguish meaningful error categories/root causes instead of collapsing failures into generic messages. Evidence basis: Compiled adversarial Go programs (syntax-invalid ADV-22a truncated file, ADV-22b garbled identifier) using go build from readable adversarial corpus, and inspected overflow-behavior programs (ADV-01) for observable diagnostics. | go build on truncated ADV-22a produced: 'adv22a/main.go:9:1: syntax error: unexpected EOF, expected }' -- includes file, exact line:column, and expected-token hint. | Compiler errors are terse but precise (single line, file:line:col, short message); no multi-line caret-highlighted source snippets like Rust/clang, no suggested fixes emitted by the compiler itself (editor tooling like gopls provides more, which is Ecosystem not Language Quality). | Go's error model surfaces domain errors as explicit values (multi-return, error interface) inspectable by static tools but without compiler-level provenance like Rust's Result diagnostics. | Runtime: nil-pointer dereference and index-out-of-range panics include a stack trace with file:line, but signed integer truncation (ADV-01 int32(int64(...))) truncates silently with no diagnostic -- a real diagnostics gap versus checked-arithmetic languages. | go vet and the race detector (-race) provide additional static/runtime diagnostics but are opt-in tools, not innate compiler diagnostics for ordinary builds.",
+        "expected_actual": "Recertified level 2 under the current criterion: Type/value/syntax contract failures report useful expected-versus-actual information or an equivalent precise explanation. Evidence basis: Compiled adversarial Go programs (syntax-invalid ADV-22a truncated file, ADV-22b garbled identifier) using go build from readable adversarial corpus, and inspected overflow-behavior programs (ADV-01) for observable diagnostics. | go build on truncated ADV-22a produced: 'adv22a/main.go:9:1: syntax error: unexpected EOF, expected }' -- includes file, exact line:column, and expected-token hint. | Compiler errors are terse but precise (single line, file:line:col, short message); no multi-line caret-highlighted source snippets like Rust/clang, no suggested fixes emitted by the compiler itself (editor tooling like gopls provides more, which is Ecosystem not Language Quality). | Go's error model surfaces domain errors as explicit values (multi-return, error interface) inspectable by static tools but without compiler-level provenance like Rust's Result diagnostics. | Runtime: nil-pointer dereference and index-out-of-range panics include a stack trace with file:line, but signed integer truncation (ADV-01 int32(int64(...))) truncates silently with no diagnostic -- a real diagnostics gap versus checked-arithmetic languages. | go vet and the race detector (-race) provide additional static/runtime diagnostics but are opt-in tools, not innate compiler diagnostics for ordinary builds.",
+        "location_context": "Recertified level 3 under the current criterion: Diagnostics identify the relevant source location and enough local context to find the failing construct. Evidence basis: Compiled adversarial Go programs (syntax-invalid ADV-22a truncated file, ADV-22b garbled identifier) using go build from readable adversarial corpus, and inspected overflow-behavior programs (ADV-01) for observable diagnostics. | go build on truncated ADV-22a produced: 'adv22a/main.go:9:1: syntax error: unexpected EOF, expected }' -- includes file, exact line:column, and expected-token hint. | Compiler errors are terse but precise (single line, file:line:col, short message); no multi-line caret-highlighted source snippets like Rust/clang, no suggested fixes emitted by the compiler itself (editor tooling like gopls provides more, which is Ecosystem not Language Quality). | Go's error model surfaces domain errors as explicit values (multi-return, error interface) inspectable by static tools but without compiler-level provenance like Rust's Result diagnostics. | Runtime: nil-pointer dereference and index-out-of-range panics include a stack trace with file:line, but signed integer truncation (ADV-01 int32(int64(...))) truncates silently with no diagnostic -- a real diagnostics gap versus checked-arithmetic languages. | go vet and the race detector (-race) provide additional static/runtime diagnostics but are opt-in tools, not innate compiler diagnostics for ordinary builds.",
+        "machine_stability": "Recertified level 2 under the current criterion: Diagnostics expose stable structured codes/categories or otherwise predictable forms suitable for tooling and automated reasoning. Evidence basis: Compiled adversarial Go programs (syntax-invalid ADV-22a truncated file, ADV-22b garbled identifier) using go build from readable adversarial corpus, and inspected overflow-behavior programs (ADV-01) for observable diagnostics. | go build on truncated ADV-22a produced: 'adv22a/main.go:9:1: syntax error: unexpected EOF, expected }' -- includes file, exact line:column, and expected-token hint. | Compiler errors are terse but precise (single line, file:line:col, short message); no multi-line caret-highlighted source snippets like Rust/clang, no suggested fixes emitted by the compiler itself (editor tooling like gopls provides more, which is Ecosystem not Language Quality). | Go's error model surfaces domain errors as explicit values (multi-return, error interface) inspectable by static tools but without compiler-level provenance like Rust's Result diagnostics. | Runtime: nil-pointer dereference and index-out-of-range panics include a stack trace with file:line, but signed integer truncation (ADV-01 int32(int64(...))) truncates silently with no diagnostic -- a real diagnostics gap versus checked-arithmetic languages. | go vet and the race detector (-race) provide additional static/runtime diagnostics but are opt-in tools, not innate compiler diagnostics for ordinary builds."
+      },
+      "component_levels": {
+        "actionability": 3,
+        "cause_specificity": 3,
+        "expected_actual": 2,
+        "location_context": 3,
+        "machine_stability": 2
+      },
+      "evidence_refs": [
+        "template/programs/go/micro",
+        "template/programs/go/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 68,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "e9a88252fc542af461bd53a2e6056325f3b6358864dc020a6d4591070a759650",
+        "source_record": "benchmark/cache/v1/language-quality/go/15e311f81a71022de3a3f3e3c163f949e7c411853a861ce85a686217ba878789.json",
+        "source_record_sha256": "d9a06d1002dd8c516e45b4d758a2b183964042162c941030a30c36d19089a877",
+        "source_result_sha256": "a0363533a4488ccd03e0454eeb6d6727d4689b8e5138197edae2131ae306d4ea",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.diagnostics.v1",
+      "runner_score_0_100": 65,
+      "selection_rule": "Judge built-in compiler/checker/runtime diagnostic design from normal language use; do not count external IDE/debugger maturity."
+    },
+    "metric.functionality_expressiveness": {
+      "component_findings": {
+        "abstraction_reuse": "Recertified level 3 under the current criterion: Functions, modules/types and generic/polymorphic abstraction support reusable composition across ordinary programs. Evidence basis: Inspected micro/ and adversarial/ Go program corpus for expressiveness signals: generics (Go 1.18+), goroutines/channels, defer/panic/recover, slices/maps as built-ins, multiple return values, implicit-interface polymorphism, error-as-value idiom. | Go lacks algebraic data types / tagged unions, exhaustive pattern matching, and operator overloading, reducing expressiveness relative to Rust/Kotlin/Swift. | No macro/metaprogramming system; reflection is limited and verbose (reflect package). | Generics exist since 1.18 but with restricted type-set constraints and no specialization, limiting generic-code expressiveness compared to Rust traits or C++ templates. | Error handling via explicit multi-value returns is explicit and simple but verbose (repeated if err != nil boilerplate); no try/? operator equivalent. | Concurrency primitives (goroutines, channels, select) are a strong expressiveness feature, enabling concise CSP-style concurrent code not directly available in many peer languages without libraries. | No built-in sum types/enums beyond simple iota constants; no null-safety type system (nil pointers/interfaces still possible). | Standard library favors composition (interfaces, embedding) over inheritance -- adequate but sometimes limits expressing polymorphic hierarchies concisely.",
+        "data_modeling": "Recertified level 3 under the current criterion: The language can model structured data and domain variants/invariants with practical first-class constructs. Evidence basis: Inspected micro/ and adversarial/ Go program corpus for expressiveness signals: generics (Go 1.18+), goroutines/channels, defer/panic/recover, slices/maps as built-ins, multiple return values, implicit-interface polymorphism, error-as-value idiom. | Go lacks algebraic data types / tagged unions, exhaustive pattern matching, and operator overloading, reducing expressiveness relative to Rust/Kotlin/Swift. | No macro/metaprogramming system; reflection is limited and verbose (reflect package). | Generics exist since 1.18 but with restricted type-set constraints and no specialization, limiting generic-code expressiveness compared to Rust traits or C++ templates. | Error handling via explicit multi-value returns is explicit and simple but verbose (repeated if err != nil boilerplate); no try/? operator equivalent. | Concurrency primitives (goroutines, channels, select) are a strong expressiveness feature, enabling concise CSP-style concurrent code not directly available in many peer languages without libraries. | No built-in sum types/enums beyond simple iota constants; no null-safety type system (nil pointers/interfaces still possible). | Standard library favors composition (interfaces, embedding) over inheritance -- adequate but sometimes limits expressing polymorphic hierarchies concisely.",
+        "feature_composability": "Recertified level 3 under the current criterion: Major language features compose predictably rather than becoming unavailable or fragile when used together. Evidence basis: Inspected micro/ and adversarial/ Go program corpus for expressiveness signals: generics (Go 1.18+), goroutines/channels, defer/panic/recover, slices/maps as built-ins, multiple return values, implicit-interface polymorphism, error-as-value idiom. | Go lacks algebraic data types / tagged unions, exhaustive pattern matching, and operator overloading, reducing expressiveness relative to Rust/Kotlin/Swift. | No macro/metaprogramming system; reflection is limited and verbose (reflect package). | Generics exist since 1.18 but with restricted type-set constraints and no specialization, limiting generic-code expressiveness compared to Rust traits or C++ templates. | Error handling via explicit multi-value returns is explicit and simple but verbose (repeated if err != nil boilerplate); no try/? operator equivalent. | Concurrency primitives (goroutines, channels, select) are a strong expressiveness feature, enabling concise CSP-style concurrent code not directly available in many peer languages without libraries. | No built-in sum types/enums beyond simple iota constants; no null-safety type system (nil pointers/interfaces still possible). | Standard library favors composition (interfaces, embedding) over inheritance -- adequate but sometimes limits expressing polymorphic hierarchies concisely.",
+        "higher_order_composition": "Recertified level 2 under the current criterion: The language supports practical higher-order/compositional programming patterns where applicable without unnatural escape hatches. Evidence basis: Inspected micro/ and adversarial/ Go program corpus for expressiveness signals: generics (Go 1.18+), goroutines/channels, defer/panic/recover, slices/maps as built-ins, multiple return values, implicit-interface polymorphism, error-as-value idiom. | Go lacks algebraic data types / tagged unions, exhaustive pattern matching, and operator overloading, reducing expressiveness relative to Rust/Kotlin/Swift. | No macro/metaprogramming system; reflection is limited and verbose (reflect package). | Generics exist since 1.18 but with restricted type-set constraints and no specialization, limiting generic-code expressiveness compared to Rust traits or C++ templates. | Error handling via explicit multi-value returns is explicit and simple but verbose (repeated if err != nil boilerplate); no try/? operator equivalent. | Concurrency primitives (goroutines, channels, select) are a strong expressiveness feature, enabling concise CSP-style concurrent code not directly available in many peer languages without libraries. | No built-in sum types/enums beyond simple iota constants; no null-safety type system (nil pointers/interfaces still possible). | Standard library favors composition (interfaces, embedding) over inheritance -- adequate but sometimes limits expressing polymorphic hierarchies concisely.",
+        "systems_runtime_control": "Recertified level 4 under the current criterion: The language exposes sufficient control over execution, resources, errors and interoperability for its claimed general-purpose scope. Evidence basis: Inspected micro/ and adversarial/ Go program corpus for expressiveness signals: generics (Go 1.18+), goroutines/channels, defer/panic/recover, slices/maps as built-ins, multiple return values, implicit-interface polymorphism, error-as-value idiom. | Go lacks algebraic data types / tagged unions, exhaustive pattern matching, and operator overloading, reducing expressiveness relative to Rust/Kotlin/Swift. | No macro/metaprogramming system; reflection is limited and verbose (reflect package). | Generics exist since 1.18 but with restricted type-set constraints and no specialization, limiting generic-code expressiveness compared to Rust traits or C++ templates. | Error handling via explicit multi-value returns is explicit and simple but verbose (repeated if err != nil boilerplate); no try/? operator equivalent. | Concurrency primitives (goroutines, channels, select) are a strong expressiveness feature, enabling concise CSP-style concurrent code not directly available in many peer languages without libraries. | No built-in sum types/enums beyond simple iota constants; no null-safety type system (nil pointers/interfaces still possible). | Standard library favors composition (interfaces, embedding) over inheritance -- adequate but sometimes limits expressing polymorphic hierarchies concisely."
+      },
+      "component_levels": {
+        "abstraction_reuse": 3,
+        "data_modeling": 3,
+        "feature_composability": 3,
+        "higher_order_composition": 2,
+        "systems_runtime_control": 4
+      },
+      "evidence_refs": [
+        "template/programs/go/micro",
+        "template/programs/go/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 62,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "c1ffd6cf4cdc605025e6fadbe5483daa1cd34ea9901f7d470a7e3312f3700fb5",
+        "source_record": "benchmark/cache/v1/language-quality/go/15e311f81a71022de3a3f3e3c163f949e7c411853a861ce85a686217ba878789.json",
+        "source_record_sha256": "d9a06d1002dd8c516e45b4d758a2b183964042162c941030a30c36d19089a877",
+        "source_result_sha256": "a0363533a4488ccd03e0454eeb6d6727d4689b8e5138197edae2131ae306d4ea",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.expressiveness.v1",
+      "runner_score_0_100": 75,
+      "selection_rule": "Judge intrinsic general-purpose expressive power available in the language/core runtime, not third-party package breadth."
+    }
+  },
+  "requirement_ids": [
+    "metric.diagnostics",
+    "metric.functionality_expressiveness"
+  ],
+  "requirements": {
+    "metric.diagnostics": {
+      "Go": 65.0
+    },
+    "metric.functionality_expressiveness": {
+      "Go": 75.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-2--go"
+}

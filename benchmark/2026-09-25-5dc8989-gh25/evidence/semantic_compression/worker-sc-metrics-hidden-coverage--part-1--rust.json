@@ -1,0 +1,281 @@
+{
+  "agent_id": "worker-sc-metrics-hidden-coverage--part-1--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "basis": "all-fragments (Rust only; common-basis figure requires merge of all 10 language shards by the runner)",
+    "basis_size_note": "This shard measures Rust only, per assigned_requirements.json. Cross-language common-basis restriction (probes where all 10 languages have a fragment) cannot be determined from a single-language shard; the runner must recompute the common-basis figure after merging all language shards, per capability_universe.json interaction_with_quality_metrics.common_basis_rule.",
+    "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
+    "caveats": [
+      "This is a single-language (Rust-only) shard per the runner's max_requirement_ids_per_multi_language_agent / language-sharding plan. The methodology's common-basis rule (metrics computed primarily on probes where ALL TEN languages have a fragment) cannot be evaluated from this shard alone; the runner must intersect this shard's per-probe support status with the other nine language shards before computing the final common-basis hidden_semantic_cost figure.",
+      "The reported score of 84 uses a provisional, symmetric normalization constant (3 hidden-cost items per probe ceiling) applied identically to whatever other languages the runner scores with the same formula; it is not itself a claim about Rust's rank relative to other languages.",
+      "Support-level (FULL/PARTIAL/NONE) adjudication per the support_rubric is out of scope for this hidden_semantic_cost worker; probes were assumed expressible for the purpose of fragment inspection. Any NONE finding from the capability-coverage worker would remove that probe's contribution to this metric's numerator basis per the interaction_with_quality_metrics rule, and the runner should reconcile.",
+      "No genuine N/A applies to this metric for Rust: unfinished/applicable hidden-cost analysis is never marked N/A per NA-6 and worker_core rule 3."
+    ],
+    "counting_methodology": {
+      "counting_rule": "For each probe's R10-selected Rust fragment (the fewest-token idiomatic form satisfying the canonical_task, per capability_universe.json authoring_rules_for_probe_fragments), the annotator inspects the measured_fragment text against each of the 9 checklist categories and records 1 per category-instance where a semantically material behavior can occur at that site WITHOUT being signaled by the fixed local syntax of the fragment alone (i.e. requires knowledge external to the fragment's own tokens: build-mode/recipe knowledge, callee signature, documentation of unspecified behavior, or an implicit compiler-inserted operation such as autoref, closure capture-mode inference, or Drop invocation timing). Per the frozen rule, a behavior is NOT counted if the fixed local syntax makes it unambiguous under the Rust language specification (e.g. explicit &mut, explicit .clone(), explicit ? on a written Result type, explicit unsafe block, explicit dyn dispatch marker). Each probe's per-category counting is itemised below so the total is auditable. Multiple hidden behaviors within one probe are all counted (no cap enforced per probe in this raw count; the aggregate is what feeds the score).",
+      "frozen_checklist_categories": [
+        "implicit_conversions",
+        "hidden_writable_aliasing_or_mutation",
+        "overload_dynamic_dispatch_not_locally_evident",
+        "implicit_allocation_copy_move_destruction_cleanup",
+        "implicit_exception_failure_propagation",
+        "hidden_nullability_or_optionality",
+        "implicit_representation_change",
+        "context_dependent_overflow_numeric_behavior",
+        "hidden_side_effects_on_existing_state"
+      ],
+      "score_formula": "hidden_semantic_cost_score(Rust) = 100 * (1 - raw_hidden_count / (44 probes * 3 empirical-ceiling-per-probe)). Ceiling of 3 per probe is a provisional, symmetric normalization constant chosen before inspecting any other language's counts, used only because this shard cannot access the other 9 languages' raw counts to build a genuine cross-language max. THE RUNNER MUST RECOMPUTE THIS SCORE using the same formula and constant applied identically to all 10 languages' raw counts once all language shards are merged, per spec 4 ('never alter a workload...to favor or penalize one language') and per the common_basis_rule. The value reported here (84) is provisional and self-consistent for Rust only; it is NOT a validated cross-language comparison."
+    },
+    "fragment_count_n_L": 44,
+    "fragment_count_note": "All 44 probes were assessed as expressible for Rust at FULL or PARTIAL support under the frozen recipe (rustc -O -C debug-assertions=on); no NONE fragments were required to compute this metric. Support-level adjudication itself is out of scope for this metric worker (owned by capability coverage) and is not asserted here as final.",
+    "language": "Rust",
+    "legacy_fragment_equivalence": {
+      "all_explicit_fragments_matched": false,
+      "canonical_fragment_catalog_content_sha256": "747d85fce83d0bf20646982bac18fd8c4c06c386bdab795b734828d2b16de3a2",
+      "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
+      "dropped_now_none_probes": [],
+      "proof_mode": "shared-experiment-owner-catalog",
+      "schema_version": 1,
+      "scientific_identity_sha256": "ea696e92fcf76cf2d6fb99e387aae3cce4193cb391d15bebf3c0be93cdfc63f3",
+      "source_density_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
+      "source_density_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
+      "source_metric_record": "v1/semantic-compression/rust/cb3fad8de8a49fd7ac901d68aa142ae76288c97dc5f695c6f59eb0c4ebd19d0f.json",
+      "source_metric_record_sha256": "cc9873b8f8cea748c6c595f8504a8bdb6887aecbbe588b782ed1a1542cdde497",
+      "source_owner_record": "v1/semantic-compression/rust/e76751d96630ff4bde5ed9fcda44b8543915e11c49a6d996bc13764c3ce652ba.json",
+      "source_owner_record_sha256": "5d309a31d88565b5409435f77507f5f11fd25bf78b9ae10293d20d5d523391a3",
+      "source_run_id": "2026-09-23-fce5cfa-gh16"
+    },
+    "metric": "hidden_semantic_cost",
+    "raw_hidden_cost_count_by_probe": {
+      "F01.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F01.P2": {
+        "count": 1,
+        "items": [
+          "hidden_writable_aliasing_or_mutation: mutable `static` requires `unsafe` to write and is a program-wide aliasing surface not visible at the declaration site alone"
+        ]
+      },
+      "F02.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F02.P2": {
+        "count": 2,
+        "items": [
+          "implicit_representation_change: MaybeUninit<[u8;16]> to initialized array requires unsafe assume_init(), and the fragment's declared type does not itself show which bytes are defined",
+          "hidden_side_effects_on_existing_state: reading an unassumed-init byte outside element 0 is UB, not signaled locally"
+        ]
+      },
+      "F03.P1": {
+        "count": 1,
+        "items": [
+          "context_dependent_overflow_numeric_behavior: `x += 1` panics on overflow only because the frozen recipe enables `-C debug-assertions=on`; the operator's own syntax does not reveal this"
+        ]
+      },
+      "F03.P2": {
+        "count": 1,
+        "items": [
+          "implicit_exception_failure_propagation: `xs[1] = 42` panics on out-of-range index; the indexing syntax itself does not signal this possibility"
+        ]
+      },
+      "F04.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F04.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F04.P3": {
+        "count": 1,
+        "items": [
+          "hidden_side_effects_on_existing_state: obtaining `second` via a container round-trip on an Rc-wrapped object increments a reference count as a side effect not shown at the use site"
+        ]
+      },
+      "F05.P1": {
+        "count": 1,
+        "items": [
+          "implicit_allocation_copy_move_destruction_cleanup: bare `f(x)` moves ownership of `x` (or copies, or borrows) depending entirely on f's declared signature, which is outside the measured fragment"
+        ]
+      },
+      "F05.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F05.P3": {
+        "count": 1,
+        "items": [
+          "implicit_allocation_copy_move_destruction_cleanup: closure `neg` capturing `k` selects its capture mode (by reference or by value) via compiler inference, not written at the closure site"
+        ]
+      },
+      "F06.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F06.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F07.P1": {
+        "count": 1,
+        "items": [
+          "context_dependent_overflow_numeric_behavior: `a * b + c` panics on overflow only under the frozen debug-assertions-on recipe"
+        ]
+      },
+      "F07.P2": {
+        "count": 1,
+        "items": [
+          "implicit_exception_failure_propagation: `a / b` and `a % b` panic on b == 0; not signaled by the operator syntax"
+        ]
+      },
+      "F08.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F08.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F09.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F09.P2": {
+        "count": 1,
+        "items": [
+          "hidden_writable_aliasing_or_mutation: `xs.sort_by(...)` mutates `xs` in place via an implicit `&mut self` autoref inserted by the method-call syntax, not written explicitly at the call site"
+        ]
+      },
+      "F10.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F10.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F11.P1": {
+        "count": 1,
+        "items": [
+          "implicit_exception_failure_propagation: `xs[i]` panics on out-of-range `i`; not signaled by the indexing syntax"
+        ]
+      },
+      "F11.P2": {
+        "count": 1,
+        "items": [
+          "implicit_exception_failure_propagation: `&xs[1..4]` panics if the range is invalid; not signaled by the slicing syntax"
+        ]
+      },
+      "F12.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F12.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F13.P1": {
+        "count": 1,
+        "items": [
+          "implicit_conversions: the `?` operator performs an implicit `From`-trait error-type conversion at the propagation point, not written at the `?` site"
+        ]
+      },
+      "F13.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F14.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F14.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F14.P3": {
+        "count": 0,
+        "items": []
+      },
+      "F15.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F15.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F15.P3": {
+        "count": 0,
+        "items": []
+      },
+      "F16.P1": {
+        "count": 1,
+        "items": [
+          "context_dependent_overflow_numeric_behavior: `xs.iter().sum()` panics on overflow only under the frozen debug-assertions-on recipe; the method call itself does not reveal this"
+        ]
+      },
+      "F16.P2": {
+        "count": 1,
+        "items": [
+          "hidden_side_effects_on_existing_state / context-dependent behavior: HashMap entry iteration order is documented as unspecified; the iteration construct does not reveal this at the site"
+        ]
+      },
+      "F17.P1": {
+        "count": 1,
+        "items": [
+          "implicit_allocation_copy_move_destruction_cleanup: the file handle's `Drop::drop` runs at end of scope; the exact release point is not marked by any token in the fragment"
+        ]
+      },
+      "F17.P2": {
+        "count": 1,
+        "items": [
+          "implicit_allocation_copy_move_destruction_cleanup: `Handle`'s `Drop::drop` invocation point at block end is not marked by any token in the fragment"
+        ]
+      },
+      "F18.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F18.P2": {
+        "count": 0,
+        "items": []
+      },
+      "F19.P1": {
+        "count": 1,
+        "items": [
+          "implicit_allocation_copy_move_destruction_cleanup: `thread::spawn` allocates OS-thread resources and requires captured data be moved/owned ('static bound) as a consequence of the call, not shown at the call site itself"
+        ]
+      },
+      "F19.P2": {
+        "count": 1,
+        "items": [
+          "implicit_exception_failure_propagation / hidden_side_effects_on_existing_state: `Mutex::lock().unwrap()` can panic on a poisoned mutex from an unrelated earlier panic in another thread, and `Arc::clone` increments a reference count as a side effect"
+        ]
+      },
+      "F20.P1": {
+        "count": 0,
+        "items": []
+      },
+      "F20.P2": {
+        "count": 1,
+        "items": [
+          "context_dependent_overflow_numeric_behavior: `a + b` inside the exported `add2` panics on overflow only under the frozen debug-assertions-on recipe"
+        ]
+      }
+    },
+    "raw_hidden_cost_count_total": 21
+  },
+  "requirement_ids": [
+    "metric.hidden_semantic_cost"
+  ],
+  "requirements": {
+    "metric.hidden_semantic_cost": {
+      "Rust": 84
+    }
+  },
+  "work_unit_id": "sc-metrics-hidden-coverage--part-1--rust"
+}

@@ -1,0 +1,68 @@
+{
+  "agent_id": "worker-ecosystem-external--part-3--go",
+  "assigned_languages": [
+    "Go"
+  ],
+  "evidence": {
+    "metric.community_public_knowledge_availability": {
+      "candidate_universe": "go.dev/help (official support/help page)",
+      "component_findings": {
+        "current_knowledge": "Preserved paid evidence (ecosystem-external--part-3--go): Multiple widely-cited published books and an active weekly-format podcast (Go Time) plus a long-running historical talks/presentations archive (talks.golang.org, A Tour of Go, Getting Started with Go) demonstrate durable, non-ephemeral public learning material beyond forum posts.",
+        "events_groups": "Preserved paid evidence (ecosystem-external--part-3--go): The community-maintained Go Wiki catalogs user groups and meetups across many cities, a diversity-focused outreach group (GoBridge), an independent Discourse forum, a comprehensive conference list, and a companies-using-Go registry.",
+        "international_breadth": "Preserved paid evidence (ecosystem-external--part-3--go): Go has one of the denser annual global conference circuits observed among mainstream languages in this batch: a US flagship (GopherCon, described by aggregators as the world's largest and longest-running Go-specific conference) plus regional editions in Europe, Africa, Singapore, China, and Israel, alongside independent events (GolangConf, GopherCamp, GoLab, Go Conference Japan, TinyGo Conf) tracked on the official community wiki.",
+        "learning_materials": "Preserved paid evidence (ecosystem-external--part-3--go): Multiple widely-cited published books and an active weekly-format podcast (Go Time) plus a long-running historical talks/presentations archive (talks.golang.org, A Tour of Go, Getting Started with Go) demonstrate durable, non-ephemeral public learning material beyond forum posts.",
+        "qa_discussion": "Preserved paid evidence (ecosystem-external--part-3--go): Go's own help page enumerates a dedicated discussion forum, live Discord support, a Slack channel, and an IRC channel, plus an FAQ, in addition to release-announcement mailing lists, an official blog, and official Bluesky/Mastodon/Twitter accounts and a monitored subreddit."
+      },
+      "component_levels": {
+        "current_knowledge": 4,
+        "events_groups": 4,
+        "international_breadth": 4,
+        "learning_materials": 4,
+        "qa_discussion": 4
+      },
+      "legacy_score_0_100": 96,
+      "limitations": "Raw counts such as subreddit subscriber totals, Stack Overflow tag question counts, and conference attendance figures were not independently re-verified against a live API in this pass beyond secondary aggregator pages (e.g., frontpagemetrics.com, subredditstats.com), and such popularity/traffic proxies are treated per methodology as supporting context only, not as a standalone score. No non-English localized-documentation coverage was independently examined beyond the Go Wiki's own pointer to a NonEnglish page.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.community-knowledge.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Inspect the same knowledge channels for every language and use current, publicly accessible evidence rather than raw search-result counts alone.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-3--go",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/go/0df98ac1d852aa9a6366f612ea369378aa7889c992e927732d3c15a963c9b1b8.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Go",
+      "metrics": {
+        "metric.community_public_knowledge_availability": {
+          "component_levels": {
+            "current_knowledge": 4,
+            "events_groups": 4,
+            "international_breadth": 4,
+            "learning_materials": 4,
+            "qa_discussion": 4
+          },
+          "rubric_id": "ecosystem.community-knowledge.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.community_public_knowledge_availability"
+  ],
+  "requirements": {
+    "metric.community_public_knowledge_availability": {
+      "Go": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-3--go"
+}

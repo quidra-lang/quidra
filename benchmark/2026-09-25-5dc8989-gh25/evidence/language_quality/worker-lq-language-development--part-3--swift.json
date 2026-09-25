@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-3--swift",
+  "assigned_languages": [
+    "Swift"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Swift",
+      "metrics": {
+        "metric.dependency_simplicity": {
+          "component_levels": {
+            "dependency_declaration": 4,
+            "isolation_namespacing": 4,
+            "module_import_model": 4,
+            "resolution_determinism": 4,
+            "transitive_visibility": 3
+          },
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.dependency-simplicity.v1",
+          "score_0_100": 95
+        },
+        "metric.portability_design_platform_neutrality": {
+          "component_levels": {
+            "artifact_source_separation": 3,
+            "conditional_platform_mechanism": 4,
+            "data_numeric_portability": 3,
+            "platform_abstraction": 3,
+            "specified_core_semantics": 3
+          },
+          "evidence_refs": [
+            "template/programs/swift/micro",
+            "template/programs/swift/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.portability-design.v1",
+          "score_0_100": 80
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.dependency_simplicity": {
+      "component_findings": {
+        "dependency_declaration": "Recertified level 4 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Evaluates language-level dependency semantics: how simply a Swift program declares, resolves, and isolates dependencies at the language/toolchain level (not package-manager maturity, which is Ecosystem). | Based on static analysis of provided template programs and documented Swift language semantics; no live network access for further comparative trials. | Swift programs in template/programs/swift/micro (mb00-mb11) and adversarial (ADV-*) are single-file or few-file programs compiled directly via swiftc with no external package dependencies; mb00.swift is a 15-byte trivial program, others use only the standard library and occasionally Foundation. | Swift's module system (explicit `import X`) provides clean namespace-scoped dependencies at the language level: no header files, no preprocessor, no implicit global includes. | Access control keywords (public/internal/private/fileprivate/open) cleanly separate what a module/dependency exposes, avoiding accidental transitive coupling. | SwiftPM integrates dependency declaration (Package.swift) as executable Swift code in the toolchain, giving one coherent language-to-build-graph story. | Foundation is a separate library from the core standard library, historically rooted in the Objective-C runtime; on non-Darwin platforms this requires linking swift-corelibs-foundation, adding a layer of dependency conditionality not present in langua\u2026",
+        "isolation_namespacing": "Recertified level 4 under the current criterion: The language/project model provides clear namespace/version/isolation boundaries that reduce accidental coupling. Evidence basis: Evaluates language-level dependency semantics: how simply a Swift program declares, resolves, and isolates dependencies at the language/toolchain level (not package-manager maturity, which is Ecosystem). | Based on static analysis of provided template programs and documented Swift language semantics; no live network access for further comparative trials. | Swift programs in template/programs/swift/micro (mb00-mb11) and adversarial (ADV-*) are single-file or few-file programs compiled directly via swiftc with no external package dependencies; mb00.swift is a 15-byte trivial program, others use only the standard library and occasionally Foundation. | Swift's module system (explicit `import X`) provides clean namespace-scoped dependencies at the language level: no header files, no preprocessor, no implicit global includes. | Access control keywords (public/internal/private/fileprivate/open) cleanly separate what a module/dependency exposes, avoiding accidental transitive coupling. | SwiftPM integrates dependency declaration (Package.swift) as executable Swift code in the toolchain, giving one coherent language-to-build-graph story. | Foundation is a separate library from the core standard library, historically rooted in the Objective-C runtime; on non-Darwin platforms this requires linking swift-corelibs-foundation, adding a layer of dependency conditionality not present in langua\u2026",
+        "module_import_model": "Recertified level 4 under the current criterion: Module/import semantics are small, explicit and predictable from source. Evidence basis: Evaluates language-level dependency semantics: how simply a Swift program declares, resolves, and isolates dependencies at the language/toolchain level (not package-manager maturity, which is Ecosystem). | Based on static analysis of provided template programs and documented Swift language semantics; no live network access for further comparative trials. | Swift programs in template/programs/swift/micro (mb00-mb11) and adversarial (ADV-*) are single-file or few-file programs compiled directly via swiftc with no external package dependencies; mb00.swift is a 15-byte trivial program, others use only the standard library and occasionally Foundation. | Swift's module system (explicit `import X`) provides clean namespace-scoped dependencies at the language level: no header files, no preprocessor, no implicit global includes. | Access control keywords (public/internal/private/fileprivate/open) cleanly separate what a module/dependency exposes, avoiding accidental transitive coupling. | SwiftPM integrates dependency declaration (Package.swift) as executable Swift code in the toolchain, giving one coherent language-to-build-graph story. | Foundation is a separate library from the core standard library, historically rooted in the Objective-C runtime; on non-Darwin platforms this requires linking swift-corelibs-foundation, adding a layer of dependency conditionality not present in langua\u2026",
+        "resolution_determinism": "Recertified level 4 under the current criterion: Ordinary dependency/name resolution has deterministic, documented precedence with limited ambient search-path surprises. Evidence basis: Evaluates language-level dependency semantics: how simply a Swift program declares, resolves, and isolates dependencies at the language/toolchain level (not package-manager maturity, which is Ecosystem). | Based on static analysis of provided template programs and documented Swift language semantics; no live network access for further comparative trials. | Swift programs in template/programs/swift/micro (mb00-mb11) and adversarial (ADV-*) are single-file or few-file programs compiled directly via swiftc with no external package dependencies; mb00.swift is a 15-byte trivial program, others use only the standard library and occasionally Foundation. | Swift's module system (explicit `import X`) provides clean namespace-scoped dependencies at the language level: no header files, no preprocessor, no implicit global includes. | Access control keywords (public/internal/private/fileprivate/open) cleanly separate what a module/dependency exposes, avoiding accidental transitive coupling. | SwiftPM integrates dependency declaration (Package.swift) as executable Swift code in the toolchain, giving one coherent language-to-build-graph story. | Foundation is a separate library from the core standard library, historically rooted in the Objective-C runtime; on non-Darwin platforms this requires linking swift-corelibs-foundation, adding a layer of dependency conditionality not present in langua\u2026",
+        "transitive_visibility": "Recertified level 3 under the current criterion: Transitive dependency visibility and import exposure are controlled and understandable rather than silently leaking arbitrary dependencies. Evidence basis: Evaluates language-level dependency semantics: how simply a Swift program declares, resolves, and isolates dependencies at the language/toolchain level (not package-manager maturity, which is Ecosystem). | Based on static analysis of provided template programs and documented Swift language semantics; no live network access for further comparative trials. | Swift programs in template/programs/swift/micro (mb00-mb11) and adversarial (ADV-*) are single-file or few-file programs compiled directly via swiftc with no external package dependencies; mb00.swift is a 15-byte trivial program, others use only the standard library and occasionally Foundation. | Swift's module system (explicit `import X`) provides clean namespace-scoped dependencies at the language level: no header files, no preprocessor, no implicit global includes. | Access control keywords (public/internal/private/fileprivate/open) cleanly separate what a module/dependency exposes, avoiding accidental transitive coupling. | SwiftPM integrates dependency declaration (Package.swift) as executable Swift code in the toolchain, giving one coherent language-to-build-graph story. | Foundation is a separate library from the core standard library, historically rooted in the Objective-C runtime; on non-Darwin platforms this requires linking swift-corelibs-foundation, adding a layer of dependency conditionality not present in langua\u2026"
+      },
+      "component_levels": {
+        "dependency_declaration": 4,
+        "isolation_namespacing": 4,
+        "module_import_model": 4,
+        "resolution_determinism": 4,
+        "transitive_visibility": 3
+      },
+      "evidence_refs": [
+        "template/programs/swift/micro",
+        "template/programs/swift/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 78,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "f6c527ff7da6db7597ea20feb1211d3d9e83202a7fbff280283d4b46a5578639",
+        "source_record": "benchmark/cache/v1/language-quality/swift/34abe020ae4fdaba54a191428d27b09cda05c02053f43a9665b83ff8c56a2799.json",
+        "source_record_sha256": "29e8757ac967bedf7fc6fdc2962109588a09765a078dd91c37159f85587da65b",
+        "source_result_sha256": "3eeb141751bee4c4d9605d3f6baa0e1ee7c5129a6982bc7515dbde01bba8913e",
+        "source_run_id": "2026-09-23-fce5cfa-gh16"
+      },
+      "rubric_id": "language-quality.dependency-simplicity.v1",
+      "runner_score_0_100": 95,
+      "selection_rule": "Judge language/module dependency semantics and intrinsic project dependency model. Registry size, package-manager maturity and community conventions belong to Ecosystem."
+    },
+    "metric.portability_design_platform_neutrality": {
+      "component_findings": {
+        "artifact_source_separation": "Recertified level 3 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Evaluates whether Swift's language specification and standard library are designed abstractly from a specific OS/ABI, independent of how many platforms are currently supported (breadth is Ecosystem). | Assessed via language specification knowledge and structure of provided programs; no cross-platform compilation trials were run in this sandbox (single toolchain image, no network). | Swift's core language (syntax, generics, protocols, value semantics, ARC) is platform-neutral by design and implemented on LLVM, enabling multiple target architectures. | Swift's history and much of its standard-library-adjacent design (Foundation, Objective-C bridging, `NSObject` interop) originated tightly coupled to Apple's runtime and ABI. | On non-Darwin platforms Swift relies on swift-corelibs-foundation / swift-corelibs-xctest reimplementations, so common code frequently needs `#if os(...)` / `#if canImport(Foundation)` conditionals -- a language-level portability-design gap rather than pure ecosystem breadth. | Swift has a stable module ABI only on Apple/Darwin platforms; on Linux/Windows, ABI stability guarantees are weaker, so binary interop is not uniform across platforms by design. | Swift Concurrency (async/await, actors) is specified in the language itself (platform neutral) but its runtime integrates with platform-specific threading/scheduling facilities, requiring per-OS runtime port\u2026",
+        "conditional_platform_mechanism": "Recertified level 4 under the current criterion: When platform-specific behavior is necessary, the language/project model exposes explicit, localized conditional mechanisms rather than implicit divergence. Evidence basis: Evaluates whether Swift's language specification and standard library are designed abstractly from a specific OS/ABI, independent of how many platforms are currently supported (breadth is Ecosystem). | Assessed via language specification knowledge and structure of provided programs; no cross-platform compilation trials were run in this sandbox (single toolchain image, no network). | Swift's core language (syntax, generics, protocols, value semantics, ARC) is platform-neutral by design and implemented on LLVM, enabling multiple target architectures. | Swift's history and much of its standard-library-adjacent design (Foundation, Objective-C bridging, `NSObject` interop) originated tightly coupled to Apple's runtime and ABI. | On non-Darwin platforms Swift relies on swift-corelibs-foundation / swift-corelibs-xctest reimplementations, so common code frequently needs `#if os(...)` / `#if canImport(Foundation)` conditionals -- a language-level portability-design gap rather than pure ecosystem breadth. | Swift has a stable module ABI only on Apple/Darwin platforms; on Linux/Windows, ABI stability guarantees are weaker, so binary interop is not uniform across platforms by design. | Swift Concurrency (async/await, actors) is specified in the language itself (platform neutral) but its runtime integrates with platform-specific threading/scheduling facilities, requiring per-OS runtime port\u2026",
+        "data_numeric_portability": "Recertified level 3 under the current criterion: Primitive data/numeric behavior needed for portable programs is sufficiently specified across targets, with implementation-defined behavior clearly bounded. Evidence basis: Evaluates whether Swift's language specification and standard library are designed abstractly from a specific OS/ABI, independent of how many platforms are currently supported (breadth is Ecosystem). | Assessed via language specification knowledge and structure of provided programs; no cross-platform compilation trials were run in this sandbox (single toolchain image, no network). | Swift's core language (syntax, generics, protocols, value semantics, ARC) is platform-neutral by design and implemented on LLVM, enabling multiple target architectures. | Swift's history and much of its standard-library-adjacent design (Foundation, Objective-C bridging, `NSObject` interop) originated tightly coupled to Apple's runtime and ABI. | On non-Darwin platforms Swift relies on swift-corelibs-foundation / swift-corelibs-xctest reimplementations, so common code frequently needs `#if os(...)` / `#if canImport(Foundation)` conditionals -- a language-level portability-design gap rather than pure ecosystem breadth. | Swift has a stable module ABI only on Apple/Darwin platforms; on Linux/Windows, ABI stability guarantees are weaker, so binary interop is not uniform across platforms by design. | Swift Concurrency (async/await, actors) is specified in the language itself (platform neutral) but its runtime integrates with platform-specific threading/scheduling facilities, requiring per-OS runtime port\u2026",
+        "platform_abstraction": "Recertified level 3 under the current criterion: Core/standard runtime interfaces provide portable abstractions for common OS/runtime needs with explicit platform escape hatches. Evidence basis: Evaluates whether Swift's language specification and standard library are designed abstractly from a specific OS/ABI, independent of how many platforms are currently supported (breadth is Ecosystem). | Assessed via language specification knowledge and structure of provided programs; no cross-platform compilation trials were run in this sandbox (single toolchain image, no network). | Swift's core language (syntax, generics, protocols, value semantics, ARC) is platform-neutral by design and implemented on LLVM, enabling multiple target architectures. | Swift's history and much of its standard-library-adjacent design (Foundation, Objective-C bridging, `NSObject` interop) originated tightly coupled to Apple's runtime and ABI. | On non-Darwin platforms Swift relies on swift-corelibs-foundation / swift-corelibs-xctest reimplementations, so common code frequently needs `#if os(...)` / `#if canImport(Foundation)` conditionals -- a language-level portability-design gap rather than pure ecosystem breadth. | Swift has a stable module ABI only on Apple/Darwin platforms; on Linux/Windows, ABI stability guarantees are weaker, so binary interop is not uniform across platforms by design. | Swift Concurrency (async/await, actors) is specified in the language itself (platform neutral) but its runtime integrates with platform-specific threading/scheduling facilities, requiring per-OS runtime port\u2026",
+        "specified_core_semantics": "Recertified level 3 under the current criterion: Core language semantics avoid unnecessary dependence on one OS/CPU/ABI and specify portable behavior for ordinary constructs. Evidence basis: Evaluates whether Swift's language specification and standard library are designed abstractly from a specific OS/ABI, independent of how many platforms are currently supported (breadth is Ecosystem). | Assessed via language specification knowledge and structure of provided programs; no cross-platform compilation trials were run in this sandbox (single toolchain image, no network). | Swift's core language (syntax, generics, protocols, value semantics, ARC) is platform-neutral by design and implemented on LLVM, enabling multiple target architectures. | Swift's history and much of its standard-library-adjacent design (Foundation, Objective-C bridging, `NSObject` interop) originated tightly coupled to Apple's runtime and ABI. | On non-Darwin platforms Swift relies on swift-corelibs-foundation / swift-corelibs-xctest reimplementations, so common code frequently needs `#if os(...)` / `#if canImport(Foundation)` conditionals -- a language-level portability-design gap rather than pure ecosystem breadth. | Swift has a stable module ABI only on Apple/Darwin platforms; on Linux/Windows, ABI stability guarantees are weaker, so binary interop is not uniform across platforms by design. | Swift Concurrency (async/await, actors) is specified in the language itself (platform neutral) but its runtime integrates with platform-specific threading/scheduling facilities, requiring per-OS runtime port\u2026"
+      },
+      "component_levels": {
+        "artifact_source_separation": 3,
+        "conditional_platform_mechanism": 4,
+        "data_numeric_portability": 3,
+        "platform_abstraction": 3,
+        "specified_core_semantics": 3
+      },
+      "evidence_refs": [
+        "template/programs/swift/micro",
+        "template/programs/swift/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 55,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "147d441c6736d469bd6ffe31532c0edc810940e8aa2aaa296962670253a01250",
+        "source_record": "benchmark/cache/v1/language-quality/swift/34abe020ae4fdaba54a191428d27b09cda05c02053f43a9665b83ff8c56a2799.json",
+        "source_record_sha256": "29e8757ac967bedf7fc6fdc2962109588a09765a078dd91c37159f85587da65b",
+        "source_result_sha256": "3eeb141751bee4c4d9605d3f6baa0e1ee7c5129a6982bc7515dbde01bba8913e",
+        "source_run_id": "2026-09-23-fce5cfa-gh16"
+      },
+      "rubric_id": "language-quality.portability-design.v1",
+      "runner_score_0_100": 80,
+      "selection_rule": "Judge the language/runtime design for writing portable source. Actual number of currently implemented targets belongs to Ecosystem."
+    }
+  },
+  "requirement_ids": [
+    "metric.dependency_simplicity",
+    "metric.portability_design_platform_neutrality"
+  ],
+  "requirements": {
+    "metric.dependency_simplicity": {
+      "Swift": 95.0
+    },
+    "metric.portability_design_platform_neutrality": {
+      "Swift": 80.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-3--swift"
+}

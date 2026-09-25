@@ -175,6 +175,18 @@ def audit_record(
         return row
 
     current_manifest = benchmark.proficiency_trial_manifest(current_root)
+    # A historical trial ID is only a label.  Re-keying/renaming a trial must
+    # not make paid evidence scientifically different, so compare the exact
+    # model-visible initial prompt against every current Primary trial for the
+    # same language.  The old ID is retained only as audit metadata.
+    current_prompt_to_trial_ids: dict[str, list[str]] = {}
+    for current_trial_id in current_manifest:
+        expected = benchmark.proficiency_expected_prompt(
+            current_root, language, current_trial_id
+        )
+        current_prompt_to_trial_ids.setdefault(expected, []).append(
+            current_trial_id
+        )
     manifest = load_json(current_root / "work" / "root" / "manifest.json")
     unit = next(
         (
@@ -226,9 +238,6 @@ def audit_record(
             "reasons": [],
         }
         if str(trial_id) not in current_manifest:
-            item["reasons"].append(
-                "trial_id_not_in_current_frozen_allocation"
-            )
             id_mismatch_trials += 1
         if (
             not calls
@@ -236,19 +245,29 @@ def audit_record(
             or not isinstance(calls[0].get("prompt"), str)
         ):
             item["reasons"].append("initial_prompt_unavailable")
-        elif str(trial_id) in current_manifest:
-            expected = benchmark.proficiency_expected_prompt(
-                current_root, language, str(trial_id)
+        else:
+            initial_prompt = calls[0]["prompt"]
+            item["initial_prompt_sha256"] = benchmark.sha256_bytes(
+                initial_prompt.encode("utf-8")
             )
-            if calls[0]["prompt"] != expected:
+            matched_current_ids = current_prompt_to_trial_ids.get(
+                initial_prompt, []
+            )
+            if len(matched_current_ids) == 1:
+                item["matched_current_trial_id"] = matched_current_ids[0]
+            elif not matched_current_ids:
                 item["reasons"].append(
-                    "initial_prompt_not_byte_identical_to_current_contract"
+                    "initial_prompt_not_byte_identical_to_any_current_trial"
                 )
                 prompt_mismatch_trials += 1
             else:
-                item["initial_prompt_sha256"] = benchmark.sha256_bytes(
-                    calls[0]["prompt"].encode("utf-8")
+                # Current prompt identities are expected to be unique.  Never
+                # guess which current cell an ambiguous historical prompt
+                # belongs to.
+                item["reasons"].append(
+                    "initial_prompt_matches_multiple_current_trials"
                 )
+                prompt_mismatch_trials += 1
         leaked = any(
             isinstance(call, dict)
             and index > 0
@@ -375,7 +394,9 @@ def main() -> int:
         "note": (
             "D is only a candidate state. Promotion additionally requires deterministic "
             "replay with the current trusted verifier, current validator PASS, and "
-            "construction of a current-fingerprint record. E is never migrated."
+            "construction of a current-fingerprint record. Legacy trial IDs are audit "
+            "metadata only: prompt identity is matched against every current Primary "
+            "trial for the same language. E is never migrated."
         ),
         "records": audited,
     }

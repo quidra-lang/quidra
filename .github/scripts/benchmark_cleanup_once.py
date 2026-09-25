@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import re
 import shutil
@@ -41,7 +42,213 @@ def active_cache() -> dict[str, str]:
         raise SystemExit(f"expected 687 baseline records, found {len(out)}")
     return out
 
-def canonicalize_cache(active: dict[str, str]) -> None:
+def file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def result_sha256(result) -> str:
+    raw = json.dumps(result, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+def slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+def scrub_legacy_citations(value):
+    if isinstance(value, dict):
+        return {key: scrub_legacy_citations(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [scrub_legacy_citations(item) for item in value]
+    if isinstance(value, str) and value.startswith("legacy-cache:"):
+        suffix = value.split("#", 1)[1] if "#" in value else ""
+        return f"canonical-baseline:{BASELINE}" + (f"#{suffix}" if suffix else "")
+    return value
+
+def baseline_certification(record: dict, work_unit_id: str) -> dict:
+    cert = dict(record.get("certification") or {})
+    for key in list(cert):
+        if re.search(r"(migration|recertif|snapshot|legacy)", key, re.I) or key == "new_paid_provider_call":
+            cert.pop(key, None)
+    cert.update({
+        "unit_complete": True,
+        "validator_pass": True,
+        "primary_complete": True,
+        "canonical_baseline_run_id": BASELINE,
+        "canonical_baseline_formal_complete": True,
+    })
+    return cert
+
+def baseline_semantic_owners(active: dict[str, str]) -> dict[str, dict[str, str]]:
+    source_by_language: dict[str, str] = {}
+    for rel in active:
+        record = load(CACHE / rel)
+        result = record.get("result") or {}
+        evidence = result.get("evidence") or {}
+        projection = evidence.get("probe_recertification")
+        if not isinstance(projection, dict):
+            continue
+        source_rel = str(projection.get("source_record") or "")
+        language = str(projection.get("language") or "")
+        if not source_rel or not language:
+            continue
+        previous = source_by_language.setdefault(language, source_rel)
+        if previous != source_rel:
+            raise SystemExit(
+                f"{language}: multiple Semantic owner sources in successful baseline: "
+                f"{previous} vs {source_rel}"
+            )
+
+    if len(source_by_language) != 10:
+        raise SystemExit(
+            f"expected 10 Semantic baseline owners, found {len(source_by_language)}"
+        )
+
+    root = CACHE / "baseline" / "semantic-owners"
+    if root.exists():
+        shutil.rmtree(root)
+    root.mkdir(parents=True, exist_ok=True)
+    out: dict[str, dict[str, str]] = {}
+
+    for language, source_rel in sorted(source_by_language.items()):
+        source_path = CACHE / source_rel
+        if not source_path.is_file():
+            raise SystemExit(f"Semantic baseline owner source missing: {source_rel}")
+        record = load(source_path)
+        result = scrub_legacy_citations(record.get("result") or {})
+        evidence = result.get("evidence")
+        if not isinstance(evidence, dict):
+            raise SystemExit(f"{language}: Semantic owner evidence missing")
+        evidence.pop("legacy_recertification", None)
+        verification = evidence.get("canonical_verification")
+        if isinstance(verification, dict):
+            compact = {}
+            for probe_id, row in verification.items():
+                if not isinstance(row, dict):
+                    continue
+                digest = row.get("canonical_fragment_sha256")
+                compact[str(probe_id)] = {
+                    "mode": "canonical-baseline-certified-owner",
+                    "canonical_fragment_sha256": digest,
+                    "baseline_run_id": BASELINE,
+                }
+            evidence["canonical_verification"] = compact
+        evidence["canonical_baseline"] = {
+            "schema_version": 1,
+            "run_id": BASELINE,
+            "evaluated_commit_sha": EVALUATED_SHA,
+            "role": "semantic-language-owner",
+            "language": language,
+        }
+        record["result"] = result
+        record["result_sha256"] = result_sha256(result)
+        record["certification"] = baseline_certification(
+            record, f"semantic-baseline-owner--{slug(language)}"
+        )
+        record.pop("migration", None)
+        record["provenance"] = {
+            "run_id": BASELINE,
+            "work_unit_id": f"semantic-baseline-owner--{slug(language)}",
+            "prompt_sha256": (record.get("provenance") or {}).get("prompt_sha256"),
+            "canonical_baseline": True,
+            "evaluated_commit_sha": EVALUATED_SHA,
+        }
+        destination = root / f"{slug(language)}.json"
+        dump(destination, record)
+        out[language] = {
+            "record": destination.relative_to(CACHE).as_posix(),
+            "record_sha256": file_sha256(destination),
+            "result_sha256": str(record["result_sha256"]),
+        }
+    return out
+
+def canonicalize_result(record: dict, owners: dict[str, dict[str, str]]) -> dict:
+    result = scrub_legacy_citations(record.get("result") or {})
+    if str(record.get("evaluation") or "") != "semantic_compression":
+        return result
+    evidence = result.get("evidence")
+    if not isinstance(evidence, dict):
+        return result
+
+    projection = evidence.get("probe_recertification")
+    if isinstance(projection, dict):
+        language = str(projection.get("language") or "")
+        owner = owners.get(language)
+        if owner is None:
+            raise SystemExit(f"{language}: no canonical Semantic baseline owner")
+        projection = {
+            "schema_version": 1,
+            "mode": "probe-from-canonical-baseline-owner",
+            "probe_id": projection.get("probe_id"),
+            "language": language,
+            "source_record": owner["record"],
+            "source_record_sha256": owner["record_sha256"],
+            "source_result_sha256": owner["result_sha256"],
+            "baseline_run_id": BASELINE,
+        }
+        evidence["probe_recertification"] = projection
+        verification = evidence.get("canonical_verification")
+        if isinstance(verification, dict):
+            compact = {}
+            for probe_id, row in verification.items():
+                if not isinstance(row, dict):
+                    continue
+                compact[str(probe_id)] = {
+                    "mode": "canonical-baseline-probe-projection",
+                    "canonical_fragment_sha256": row.get("canonical_fragment_sha256"),
+                    "baseline_run_id": BASELINE,
+                }
+            evidence["canonical_verification"] = compact
+
+    equivalence = evidence.pop("legacy_fragment_equivalence", None)
+    if isinstance(equivalence, dict):
+        evidence["canonical_baseline_equivalence"] = {
+            "schema_version": 1,
+            "baseline_run_id": BASELINE,
+            "canonical_fragment_catalog_sha256": equivalence.get(
+                "canonical_fragment_catalog_sha256"
+            ),
+            "canonical_fragment_catalog_content_sha256": equivalence.get(
+                "canonical_fragment_catalog_content_sha256"
+            ),
+        }
+
+    recertification = evidence.pop("legacy_recertification", None)
+    if isinstance(recertification, dict):
+        mode = str(recertification.get("mode") or "")
+        evidence["canonical_baseline"] = {
+            "schema_version": 1,
+            "run_id": BASELINE,
+            "evaluated_commit_sha": EVALUATED_SHA,
+            "mode": (
+                "support-from-canonical-baseline"
+                if mode == "support-from-current-canonical-probe-cache"
+                else "comparability-from-canonical-baseline"
+            ),
+            **(
+                {"probe_id": recertification.get("probe_id")}
+                if recertification.get("probe_id")
+                else {}
+            ),
+            **(
+                {"language_count": recertification.get("language_count")}
+                if recertification.get("language_count") is not None
+                else {}
+            ),
+            **(
+                {"reason": recertification.get("reason")}
+                if recertification.get("reason")
+                else {}
+            ),
+        }
+
+    serialized = json.dumps(result, sort_keys=True, ensure_ascii=False)
+    if "legacy-cache:" in serialized:
+        raise SystemExit("Semantic baseline result still contains a legacy-cache citation")
+    if "v1/semantic-compression/" in serialized:
+        raise SystemExit("Semantic baseline result still contains an old Semantic cache path")
+    return result
+
+def canonicalize_cache(
+    active: dict[str, str], owners: dict[str, dict[str, str]]
+) -> None:
     existing = {
         p.relative_to(CACHE).as_posix(): p
         for p in sorted((CACHE / "v1").rglob("*.json"))
@@ -57,18 +264,10 @@ def canonicalize_cache(active: dict[str, str]) -> None:
         record = load(path)
         if record.get("fingerprint") != path.stem:
             raise SystemExit(f"fingerprint/path mismatch: {rel}")
-        cert = dict(record.get("certification") or {})
-        for key in list(cert):
-            if re.search(r"(migration|recertif|snapshot|legacy)", key, re.I) or key == "new_paid_provider_call":
-                cert.pop(key, None)
-        cert.update({
-            "unit_complete": True,
-            "validator_pass": True,
-            "primary_complete": True,
-            "canonical_baseline_run_id": BASELINE,
-            "canonical_baseline_formal_complete": True,
-        })
-        record["certification"] = cert
+        result = canonicalize_result(record, owners)
+        record["result"] = result
+        record["result_sha256"] = result_sha256(result)
+        record["certification"] = baseline_certification(record, uid)
         record.pop("migration", None)
         previous = record.get("provenance") or {}
         record["provenance"] = {
@@ -467,7 +666,8 @@ def cleanup_runner() -> None:
 
 def main() -> None:
     active = active_cache()
-    canonicalize_cache(active)
+    owners = baseline_semantic_owners(active)
+    canonicalize_cache(active, owners)
     delete_legacy_assets()
     rewrite_policy()
     rewrite_cache_readme()
@@ -489,6 +689,7 @@ def main() -> None:
         "retained_cache_records": len(records),
         "deleted_old_cache_records": 532,
         "canonicalized_records": len(records),
+        "semantic_baseline_owners": len(owners),
     }, indent=2))
 
 if __name__ == "__main__":

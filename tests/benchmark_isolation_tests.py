@@ -2977,6 +2977,64 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 broken["compile_parse_ok"] is False,
                 f"trusted Python verifier accepted invalid syntax: {broken}",
             )
+
+            # A genuine trial failure is also terminal once the frozen repair
+            # budget is exhausted. It remains a failed scored observation; the
+            # surrounding unit must not become PENDING and repurchase the same
+            # trial merely because success was never reached.
+            broken_summary = benchmark.proficiency_verification_summary(broken)
+            check(
+                broken_summary.get("public_repair_gate_passed") is False,
+                f"broken fixture unexpectedly passed the public repair gate: {broken_summary}",
+            )
+            broken_call = {
+                "completion_sha256": broken["source_sha256"],
+                "verification": broken_summary,
+                "verification_path": str(
+                    (trusted_dir.parent / "broken" / "verification.json").relative_to(root)
+                ),
+            }
+            exhausted_calls = [dict(broken_call) for _ in range(4)]
+            exhausted_trace = {
+                "trials": {"trials": {trial_id: {"calls": exhausted_calls}}}
+            }
+            exhausted_metrics = benchmark.proficiency_runtime_metrics(root, exhausted_trace)
+            benchmark.json_dump(agent_dir / "result.json", {
+                "requirements": {
+                    key: {"Python": value}
+                    for key, value in (exhausted_metrics or {}).items()
+                }
+            })
+            exhausted_problems = benchmark.proficiency_runtime_verification_problems(
+                root,
+                {
+                    "id": "trial",
+                    "assigned_agent_id": "test-worker",
+                    "assigned_languages": ["Python"],
+                },
+                agent_dir,
+                exhausted_trace,
+            )
+            check(
+                not any("stopped after" in problem for problem in exhausted_problems),
+                "repair-exhausted failed trial was incorrectly treated as unfinished: "
+                f"{exhausted_problems}",
+            )
+            benchmark.json_dump(
+                agent_dir / "trials" / trial_id / "session.json",
+                {"calls": exhausted_calls},
+            )
+            exhausted_needed = planner.nominal_sandbox_scored_calls(
+                root,
+                {"evaluation": "llm_proficiency", "assigned_agent_id": "test-worker"},
+                72,
+                1,
+            )
+            check(
+                exhausted_needed == 17,
+                "budget planner tried to repurchase a repair-exhausted failed trial: "
+                f"{exhausted_needed}",
+            )
         finally:
             if previous is not None:
                 os.environ["QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS"] = previous

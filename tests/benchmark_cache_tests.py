@@ -2946,7 +2946,9 @@ For support adjudication only, return UTF-8 text leaves instead of result.json.
         {"kind": "embedded:benchmark_metadata.json", "sha256": "c" * 64},
     ]
     current_components = [
-        {"kind": "task", "sha256": "a" * 64},
+        # The outer task/output wrapper changed too. Learnability treats it as
+        # runner-owned transport; Proficiency continues to treat it as scored.
+        {"kind": "task", "sha256": "e" * 64},
         {"kind": "embedded:worker_core.md", "sha256": "d" * 64},
         {"kind": "embedded:benchmark_metadata.json", "sha256": "c" * 64},
     ]

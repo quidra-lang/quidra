@@ -9227,13 +9227,13 @@ def _scoped_prompt_component_kinds(evaluation: str) -> set[str]:
         "embedded:assigned_requirements.json",
     }
     # Learnability measures the model's scored trial behavior under I1-I6, not
-    # unrelated worker transport instructions. Historical paid packets differ
-    # from the current worker core only by the Semantic Compression-only text
-    # leaf output exception. Compare a narrow semantic projection of worker_core
-    # below instead of letting that unrelated JSON/TXT transport change repurchase
-    # all Learnability trials.
+    # runner-owned result transport. Historical paid packets can differ in the
+    # outer task wrapper (for example JSON vs text output plumbing) and in the
+    # Semantic Compression-only worker-core text-leaf exception. The scientific
+    # contract remains bound by the payload plus exact benchmark metadata,
+    # Learnability methodology, Primary projection and assigned requirements.
     if evaluation == "llm_learnability":
-        scoped.add("embedded:worker_core.md")
+        scoped.update({"task", "embedded:worker_core.md"})
     return scoped
 
 
@@ -10774,9 +10774,10 @@ CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
             "Legacy paid evidence is scientifically unchanged; only the scoped "
             "Task Packet/fingerprint representation changed. Every non-scoped "
             "dependency and selected prompt component was proved identical, except "
-            "that Learnability may project away the explicitly Semantic Compression-"
-            "only worker-core output-transport section after the remaining worker "
-            "rules compare byte-for-byte."
+            "that Learnability may project away its runner-owned outer task "
+            "transport/output wrapper and the explicitly Semantic Compression-only "
+            "worker-core output-transport section after the remaining worker rules "
+            "compare byte-for-byte."
         ),
         "transformed_fields": [
             "fingerprint",

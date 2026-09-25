@@ -1,0 +1,184 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "cap_evidence_source": "agent_trace.json retained by 2026-09-22-62bb50a-gh2",
+    "cap_truncated_trial_calls": 0,
+    "compatibility_migration": "scoped-input-projection",
+    "current_validator_revalidated": true,
+    "learnability_integrity": true,
+    "max_trial_output_tokens": 230,
+    "primary_complete": false,
+    "scored_output_cap": 4000,
+    "trial_calls": 6,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "1cae6d319f0432c081f7d02adcb65b2782774599c9048596647aae9f054ec600",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "56a784002ae7af67c51cb95a563f63f5d4a319f817ef79611d3067cac73cab65",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "condition.i1_keyword_anonymization",
+      "condition.i2_vocabulary_anonymization"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "cf9cbf7146b36f2add4fef02616d5c393685ded72cfe8386bf5113e4fbd7f0d4",
+      "primary_config": "537d069f552add2314ebd16ab8c0566487c08e12dbb0ff0be7f38235d57b509f"
+    },
+    "work_unit_id": "learnability-i1-i2--zig",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+    "migration_rule": "scoped-input-projection",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "f9a095cf94c64ebf35a9ddbbc68171f81c46c1db55ffbd9ae6165cecd9f4c8c1",
+    "source_record": "v1/llm-learnability/zig/f9a095cf94c64ebf35a9ddbbc68171f81c46c1db55ffbd9ae6165cecd9f4c8c1.json",
+    "source_record_sha256": "39026ca23eb60f230431615eadf624b114b1aeaed8b1aa104c4d68a55474bacc",
+    "source_result_sha256": "7b09e9cbd2c65028ed81775cf4c363eefd19ca3eef273f8856cc1da206190fcc",
+    "transformed_fields": [
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "56a784002ae7af67c51cb95a563f63f5d4a319f817ef79611d3067cac73cab65",
+    "run_id": "cache-recertify-c401796",
+    "work_unit_id": "learnability-i1-i2--zig"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "i1_raw": {
+        "max": 100.0,
+        "mean": 67.67,
+        "min": 3.0,
+        "per_seed_detail": [
+          {
+            "compiled": true,
+            "correct": true,
+            "expected": 55,
+            "n": 10,
+            "output": "55",
+            "seed": 1,
+            "trial": "i1-t1"
+          },
+          {
+            "compiled": false,
+            "correct": false,
+            "expected": 325,
+            "failure": "model redeclared `const std = @import(\"std\")` a second time (duplicate struct member 'std') after already importing it at file scope, causing a compile error; unrelated to the anonymization itself (model tracked keyword mapping correctly but introduced a duplicate top-level declaration).",
+            "n": 25,
+            "seed": 2,
+            "trial": "i1-t2"
+          },
+          {
+            "compiled": true,
+            "correct": true,
+            "expected": 28,
+            "n": 7,
+            "output": "28",
+            "seed": 3,
+            "trial": "i1-t3"
+          }
+        ],
+        "seed_scores": [
+          100.0,
+          3.0,
+          100.0
+        ],
+        "stdev": 45.73
+      },
+      "i2_raw": {
+        "max": 100.0,
+        "mean": 67.67,
+        "min": 3.0,
+        "per_seed_detail": [
+          {
+            "compiled": true,
+            "correct": true,
+            "expected": 55,
+            "n": 10,
+            "output": "55",
+            "seed": 1,
+            "trial": "i2-t1"
+          },
+          {
+            "compiled": true,
+            "correct": true,
+            "expected": 325,
+            "n": 25,
+            "output": "325",
+            "seed": 2,
+            "trial": "i2-t2"
+          },
+          {
+            "compiled": false,
+            "correct": false,
+            "expected": 28,
+            "failure": "model imported std under an aliased name `std_` (const std_ = @import(\"std\")) but still called the original `std.debug.print` internally after replacing it with the anonymized builtin path in the visible call site, so after reverse-translating the anonymized builtin back to `std.debug.print`, the identifier `std` was undeclared (only `std_` existed) -> compile error 'use of undeclared identifier std'.",
+            "n": 7,
+            "seed": 3,
+            "trial": "i2-t3"
+          }
+        ],
+        "seed_scores": [
+          100.0,
+          100.0,
+          3.0
+        ],
+        "stdev": 45.73
+      },
+      "methodology": "Ran exactly 3 seeds each for I1 (keyword anonymization) and I2 (keyword+vocabulary anonymization) per primary.json llm_learnability.keyword_anonymization_seeds=3 and vocabulary_anonymization_seeds=3. Each seed used a fresh independent trial_start session (no shared history), with a distinct pseudo-word mapping for Zig keywords (fn, pub, return, const, var, while, if, else) and, for I2, an additional pseudo-path renaming of std.debug.print. Model was asked to write an anonymized-Zig program summing 1..n and printing the result via the anonymized print call. Model output was extracted, keyword pseudo-words (and I2 builtin pseudo-path) translated back to real Zig tokens via a fixed reverse-mapping script (validate.py), then compiled and run with `zig run` (zig 0.16.0) and checked for the exact expected numeric output in stdout+stderr.",
+      "preflight_and_leakage": "See learnability_preflight.json and learnability_leakage.json for infrastructure and leakage attestations, backed by preflight_test.py, preflight_result.json, leakage_check.py, leakage_scan.json, leakage_positive_control.py, leakage_positive_control_result.json.",
+      "scoring_note": "Per-seed score computed from methodology 10.6 weighted metric list (Compile/Parse 7%, Correct@1 18%, Correct@N 8%, Test Pass Rate 15%, Repair Success 8%, Repair Efficiency 6%, Spec Compliance 10%, Hallucination Resistance 8%, Silent Bug Resistance 10%, Unseen-case Generalization 7%, Source Token Efficiency 1%, Total Token Efficiency 2%). This work unit ran single-shot trials with no repair turn invoked (each trial either passed or failed outright without exhausting available repair attempts, since repair was not needed for passing trials and was not exercised for failing trials in this evidence collection pass): the binary compiled+correct outcome was applied uniformly to all outcome-equivalent submetrics (Correct@1/@N, Test Pass Rate, Spec Compliance, Hallucination Resistance, Silent Bug Resistance, Unseen-case Generalization) since only one canonical task instance was evaluated per seed; Compile/Parse Success scored independently on compile outcome; Repair Success/Efficiency scored as 100 when the trial passed without needing repair and 0 for the two failing trials (no repair was attempted in this pass); Token Efficiency scored 100 since all completions were well under the 4000-token cap (max observed 475 chars).",
+      "seeds_config": "3 seeds each for I1 and I2, matching primary.json llm_learnability.keyword_anonymization_seeds=3, vocabulary_anonymization_seeds=3.",
+      "toolchain": "zig 0.16.0 (zig run) used to compile and execute reverse-translated fixtures and trial outputs.",
+      "trial_provenance": "All 6 trials (i1-t1..i1-t3, i2-t1..i2-t3) recorded verbatim under trials/<id>/prompt_01.txt and completion_01.txt by the sandbox runtime; no repairs were used (repairs_used=0 for all)."
+    },
+    "requirements": {
+      "condition.i1_keyword_anonymization": {
+        "Zig": 67.67
+      },
+      "condition.i2_vocabulary_anonymization": {
+        "Zig": 67.67
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "7b09e9cbd2c65028ed81775cf4c363eefd19ca3eef273f8856cc1da206190fcc",
+  "schema_version": 1
+}

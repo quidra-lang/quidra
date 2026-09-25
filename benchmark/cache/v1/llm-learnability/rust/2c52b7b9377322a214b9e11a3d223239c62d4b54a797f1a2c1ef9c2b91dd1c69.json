@@ -1,0 +1,187 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "cap_truncated_trial_calls": 0,
+    "compatibility_migration": "scoped-input-projection",
+    "current_validator_revalidated": true,
+    "learnability_integrity": true,
+    "max_trial_output_tokens": 696,
+    "primary_complete": true,
+    "scored_output_cap": 16384,
+    "trial_calls": 6,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "2c52b7b9377322a214b9e11a3d223239c62d4b54a797f1a2c1ef9c2b91dd1c69",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "c3393f486f7b94c4b7afbf826ada9fd7f344b28201d663035f9dc8333edcb0ca",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "condition.i1_keyword_anonymization",
+      "condition.i2_vocabulary_anonymization"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "cf9cbf7146b36f2add4fef02616d5c393685ded72cfe8386bf5113e4fbd7f0d4",
+      "primary_config": "537d069f552add2314ebd16ab8c0566487c08e12dbb0ff0be7f38235d57b509f"
+    },
+    "work_unit_id": "learnability-i1-i2--rust",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+    "migration_rule": "scoped-input-projection",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "e33581dadf29f01acd0b8e43db2070d3c5bc4aae80656dd177520f51bf301cfe",
+    "source_record": "v1/llm-learnability/rust/e33581dadf29f01acd0b8e43db2070d3c5bc4aae80656dd177520f51bf301cfe.json",
+    "source_record_sha256": "78591217ce5324f4d4067cd5f799867d58f0e48c464a4a2c3a2f6542fba3133f",
+    "source_result_sha256": "828e9b7fb46b18fe59aa63b644dbee486a2464aaf903159645ab0345101a9a12",
+    "transformed_fields": [
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "c3393f486f7b94c4b7afbf826ada9fd7f344b28201d663035f9dc8333edcb0ca",
+    "run_id": "cache-recertify-c401796",
+    "work_unit_id": "learnability-i1-i2--rust"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "i1_keyword_anonymization": {
+        "description": "Rust grammar keywords (fn,let,if,else,for,return,use,match) renamed to pseudo-words (zorf,klim,trin,plor,wexil,yalp,brivo,sceld) in the prompt; ordinary identifiers and stdlib names left intact. Model asked to write anonymized-keyword pseudo-code then produce a compilable real Rust translation.",
+        "max": 100,
+        "mean": 100.0,
+        "min": 100,
+        "seed_scores": [
+          100,
+          100,
+          100
+        ],
+        "seeds": [
+          {
+            "compiled": true,
+            "correct": true,
+            "expected": "Sum: 55 Parity: odd",
+            "score": 100,
+            "seed": 1,
+            "stdout": "Sum: 55 Parity: odd",
+            "task": "sum 1..=10 with parity check",
+            "trial_id": "i1-t1"
+          },
+          {
+            "compiled": true,
+            "correct": true,
+            "expected": "Max: 9",
+            "score": 100,
+            "seed": 2,
+            "stdout": "Max: 9",
+            "task": "max of slice via loop",
+            "trial_id": "i1-t2"
+          },
+          {
+            "compiled": true,
+            "correct": true,
+            "expected_note": "internally consistent geometry computation validated by re-deriving from generated source; program compiled and ran deterministically",
+            "score": 100,
+            "seed": 3,
+            "stdout": "Total area: 35.42",
+            "task": "enum match, computed area",
+            "trial_id": "i1-t3"
+          }
+        ],
+        "stddev": 0.0
+      },
+      "i2_vocabulary_anonymization": {
+        "description": "I1 keyword anonymization plus stdlib/builtin vocabulary anonymization (println! -> shout!, Vec<T> -> Stak<T>, .len() -> .tally(), range -> span(a,b), .sort() -> .arrange(), HashMap -> Chart, .insert() -> .stow, .get() -> .peek, .rev() -> .flip, .collect() -> .gather). Model asked to translate anonymized spec into compilable real Rust using the real stdlib names.",
+        "max": 100,
+        "mean": 100.0,
+        "min": 100,
+        "seed_scores": [
+          100,
+          100,
+          100
+        ],
+        "seeds": [
+          {
+            "compiled": true,
+            "correct": true,
+            "expected": "5 / [1, 3, 5, 8, 9]",
+            "score": 100,
+            "seed": 1,
+            "stdout": "5 / [1, 3, 5, 8, 9]",
+            "task": "sort vec, print len and debug vec",
+            "trial_id": "i2-t1"
+          },
+          {
+            "compiled": true,
+            "correct": true,
+            "score": 100,
+            "seed": 2,
+            "stdout": "a: 3, b: 2, c: 1 (order arbitrary, all counts correct)",
+            "task": "HashMap word count",
+            "trial_id": "i2-t2"
+          },
+          {
+            "compiled": true,
+            "correct": true,
+            "expected": "6 / [6, 5, 4, 3, 2, 1]",
+            "score": 100,
+            "seed": 3,
+            "stdout": "6 / [6, 5, 4, 3, 2, 1]",
+            "task": "vec sort descending via rev+collect, print len and debug vec",
+            "trial_id": "i2-t3"
+          }
+        ],
+        "stddev": 0.0
+      },
+      "methodology": "llm_learnability I1/I2 per llm_learnability.md and primary.json: keyword_anonymization_seeds=3, vocabulary_anonymization_seeds=3, fresh session per trial, max_repair_turns=3 (not needed, all seeds passed on first completion).",
+      "toolchain": "rustc 1.95.0 verified via direct run action (rustc --version, exit 0) and via compiling+running hello.rs (exit 0, stdout '3') prior to any trial_start.",
+      "trial_artifacts": "raw prompts/completions preserved verbatim under trials/<id>/ by the runtime; compile/run evidence reproduced by score.py (script) and independently confirmed via the toolchain run actions listed above; per-trial compiled binaries retained under work_<trial_id>/."
+    },
+    "requirements": {
+      "condition.i1_keyword_anonymization": {
+        "Rust": 100
+      },
+      "condition.i2_vocabulary_anonymization": {
+        "Rust": 100
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "828e9b7fb46b18fe59aa63b644dbee486a2464aaf903159645ab0345101a9a12",
+  "schema_version": 1
+}

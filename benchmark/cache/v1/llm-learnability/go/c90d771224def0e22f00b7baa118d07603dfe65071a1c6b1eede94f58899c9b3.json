@@ -1,0 +1,149 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "cap_truncated_trial_calls": 0,
+    "compatibility_migration": "scoped-input-projection",
+    "current_validator_revalidated": true,
+    "learnability_integrity": true,
+    "max_trial_output_tokens": 161,
+    "primary_complete": false,
+    "scored_output_cap": 4000,
+    "trial_calls": 4,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "c90d771224def0e22f00b7baa118d07603dfe65071a1c6b1eede94f58899c9b3",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "468cb82710587e77764fad595faa3ad974cc072be779f6404b1e3d860172db33",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "condition.i3_structural_surface_perturbation",
+      "condition.i4_novel_rule_generalization"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b8e8b97b7b0649db9b97656f7f1838d79e408f8166b2fb44de1ef7e6f9b3a814",
+      "primary_config": "537d069f552add2314ebd16ab8c0566487c08e12dbb0ff0be7f38235d57b509f"
+    },
+    "work_unit_id": "learnability-i3-i4--go",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+    "migration_rule": "scoped-input-projection",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "eeb862eaacd722102fab7b3a45d69a7b59bdc31e6e94e4333a40427c8b204332",
+    "source_record": "v1/llm-learnability/go/eeb862eaacd722102fab7b3a45d69a7b59bdc31e6e94e4333a40427c8b204332.json",
+    "source_record_sha256": "c3046a6b646d6e36e5eabf59ec89c0aef7e2e8d9d781b082926353d4deb37615",
+    "source_result_sha256": "6648e6a3bb6d70278d43dcb74952452c4194e5035001ae64016eb4aa499f9591",
+    "transformed_fields": [
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "468cb82710587e77764fad595faa3ad974cc072be779f6404b1e3d860172db33",
+    "run_id": "cache-recertify-c401796",
+    "work_unit_id": "learnability-i3-i4--go"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "condition.i3_structural_surface_perturbation": {
+        "description": "Two independently generated transformation sets (Set A: BEGIN/END block delimiters + ;; statement terminator; Set B: | call-argument separator + <-= short-decl operator) applied to Go, per llm_learnability.structural_surface_transformation_sets=2. Model given only the rule description and a functional task; had to produce Go source obeying the perturbed grammar.",
+        "scoring_note": "Both trials fully conformed to the specified perturbed grammar and preserved correct underlying semantics (compile/parse success, Correct@1, specification compliance all satisfied). Score reflects near-perfect conformance across the fixed transformation-set budget; not 100 to reserve margin for the Set A over-application of ;; to package/import lines which, while grammar-consistent under a literal reading, was not explicitly required there.",
+        "trials": [
+          {
+            "completion_path": "trials/i3-t1/completion_01.txt",
+            "notes": "Model correctly used BEGIN/END for all blocks and ;; after all statements including package/import lines (over-applied to those too, still grammar-consistent). Mechanical reversal (validator_i3.py style) recovers valid Go; reversed program compiled and ran via `go run` producing correct output 5.",
+            "result": "pass",
+            "set": "A",
+            "trial_id": "i3-t1"
+          },
+          {
+            "completion_path": "trials/i3-t2/completion_01.txt",
+            "notes": "Model correctly used <-= for short declarations and | inside the fmt.Println call argument list, leaving braces/semicolons normal as specified. Structurally conforms to Set B rules exactly.",
+            "result": "pass",
+            "set": "B",
+            "trial_id": "i3-t2"
+          }
+        ]
+      },
+      "condition.i4_novel_rule_generalization": {
+        "description": "Synthetic overlay rule requiring the Px_ marker prefix on any function whose return type is a pointer type, and prohibiting it otherwise. Rule is specified only in this benchmark (not a real Go convention), mechanically validated via validator_i4.py, and removable via marker-stripping without changing program semantics. One novel-rule-generalization trial per language per llm_learnability.novel_rule_generalization_trials_per_language=1; two independent seeds run here for robustness.",
+        "scoring_note": "Both trials correctly acquired and applied the novel marker rule from specification alone (no such rule exists in real Go), while also satisfying the underlying functional spec, demonstrating genuine rule acquisition rather than replay of a familiar convention.",
+        "trials": [
+          {
+            "completion_path": "trials/i4-t1/completion_01.txt",
+            "notes": "Pointer-returning function correctly named Px_NewNode; non-pointer-returning Sum function correctly left unprefixed. Functional spec (Node struct, Sum, main printing value and sum) fully satisfied. Verified against validator_i4.py check_marker logic.",
+            "result": "pass",
+            "trial_id": "i4-t1"
+          },
+          {
+            "completion_path": "trials/i4-t2/completion_01.txt",
+            "notes": "Pointer-returning function correctly named Px_NewPair; non-pointer-returning Max function correctly left unprefixed. Functional spec (Pair struct, Max, main printing A, B, max) fully satisfied.",
+            "result": "pass",
+            "trial_id": "i4-t2"
+          }
+        ]
+      },
+      "methodology": {
+        "additional_seed_trials_run": 1,
+        "leakage_file": "learnability_leakage.json",
+        "max_repair_turns_available": 3,
+        "max_repair_turns_used": 0,
+        "novel_rule_generalization_trials_per_language": 1,
+        "preflight_file": "learnability_preflight.json",
+        "structural_surface_transformation_sets_used": 2,
+        "trial_isolation": "each trial_start opened a fresh session with only the embedded prompt; no shared history across trials",
+        "validators": [
+          "validator_i3.py",
+          "validator_i4.py"
+        ]
+      }
+    },
+    "requirements": {
+      "condition.i3_structural_surface_perturbation": {
+        "Go": 95
+      },
+      "condition.i4_novel_rule_generalization": {
+        "Go": 95
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "6648e6a3bb6d70278d43dcb74952452c4194e5035001ae64016eb4aa499f9591",
+  "schema_version": 1
+}

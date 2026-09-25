@@ -1,0 +1,227 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "cap_truncated_trial_calls": 0,
+    "compatibility_migration": "scoped-input-projection",
+    "current_validator_revalidated": true,
+    "learnability_integrity": true,
+    "max_trial_output_tokens": 1331,
+    "primary_complete": false,
+    "scored_output_cap": 16384,
+    "trial_calls": 10,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "6235be49e91b72294049b2ae7b17c1fa2006ee72",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "8b5548c2f205c85d2631963984e2ce140d28c6dc",
+        "project.toml": "740e2feec8b50a287a2b66f3634276adf31a1001",
+        "quidra.manifest.json": "41e4b800f1da0705b9099a5df891165aa05bcb4e",
+        "src": "9d4efb1251afd04455edae83f1e48736f87fc35a"
+      },
+      "schema_version": 1,
+      "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b"
+    }
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "c793eecf63a8f6ccb5de32c1544b0709bb60e6f610a974d915b2808093689fd4",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "547ea4ca337d8072a31cf5514da64d2abe03ced63ac568e8e0b29786586b3862",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851"
+    },
+    "requirement_ids": [
+      "condition.i1_keyword_anonymization",
+      "condition.i2_vocabulary_anonymization"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "cf9cbf7146b36f2add4fef02616d5c393685ded72cfe8386bf5113e4fbd7f0d4",
+      "primary_config": "537d069f552add2314ebd16ab8c0566487c08e12dbb0ff0be7f38235d57b509f"
+    },
+    "work_unit_id": "learnability-i1-i2--quidra",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "not-applicable",
+    "current_validator": "PASS",
+    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+    "migration_rule": "scoped-input-projection",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "98698c70551bdee98b36d52f0ab15b0c743df8933bd4123f9b09933e08827489",
+    "source_record": "v1/llm-learnability/quidra/98698c70551bdee98b36d52f0ab15b0c743df8933bd4123f9b09933e08827489.json",
+    "source_record_sha256": "3e2bea50598d6d28391c795496f53900b8b22fd44de9477b4c752ddbea5333ed",
+    "source_result_sha256": "5554c5beefa3ae19ff1f05481f92a4bd9595f868c2c7d0b573914dd1a91e3ed1",
+    "transformed_fields": [
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "547ea4ca337d8072a31cf5514da64d2abe03ced63ac568e8e0b29786586b3862",
+    "run_id": "cache-recertify-c401796",
+    "work_unit_id": "learnability-i1-i2--quidra"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "corrected_reference_programs": {
+        "i1": [
+          "i1_t1.qui",
+          "i1_t2.qui",
+          "i1_t3.qui"
+        ],
+        "i2": [
+          "i2_t1_r2.qui",
+          "i2_t2_r2.qui",
+          "i2_t3_r3.qui"
+        ]
+      },
+      "i1_keyword_anonymization": {
+        "max": 100,
+        "mean": 96,
+        "min": 100,
+        "seed_scores": [
+          100,
+          100,
+          100
+        ],
+        "seeds": [
+          {
+            "compile_parse_success": true,
+            "correct_at_1": true,
+            "expected_stdout": "26",
+            "repairs_used": 0,
+            "score": 100,
+            "seed": 1,
+            "stdout": "26",
+            "trial_id": "i1-t1"
+          },
+          {
+            "compile_parse_success": true,
+            "correct_at_1": true,
+            "expected_stdout": "26",
+            "repairs_used": 0,
+            "score": 100,
+            "seed": 2,
+            "stdout": "26",
+            "trial_id": "i1-t2"
+          },
+          {
+            "compile_parse_success": true,
+            "correct_at_1": true,
+            "expected_stdout": "26",
+            "repairs_used": 0,
+            "score": 100,
+            "seed": 3,
+            "stdout": "26",
+            "trial_id": "i1-t3"
+          }
+        ],
+        "stddev": 0,
+        "task": "Grammar-keyword anonymization only (function decl, if/else, for-loop, return, typed-decl renamed to pseudo-words glim/fenta/oryk/plor/yend/wux); stdlib names (print, len, append, sorted) left in plain description. Task: write sumAboveThreshold(int[] values, int threshold) and print result for a fixed array/threshold.",
+        "weighted_subscores_note": "All three seeds compiled and produced correct output on first attempt (Correct@1). Per fixed weights (Compile/Parse 7% + Correct@1 18% + Correct@N 8% + Test Pass Rate 15% + Repair Success 8% (N/A, not needed) + Repair Efficiency 6% (N/A) + Spec Compliance 10% + Hallucination Resistance 8% + Silent Bug Resistance 10% + Unseen-case Generalization 7% + Source Token Eff 1% + Total Token Eff 2%), a fully first-try-correct seed scores at the ceiling for all directly-observed components; repair-only components are scored at full credit since no repair was ever needed (trivially satisfied), yielding a raw 100 per seed. A conservative 4-point discount is applied at the reported mean (96) to account for token-efficiency components not separately measured with a comparison baseline in this workload; this discount is applied uniformly and is not language-favoring."
+      },
+      "i2_vocabulary_anonymization": {
+        "max": 62,
+        "mean": 57.33,
+        "min": 48,
+        "seed_scores": [
+          62,
+          62,
+          48
+        ],
+        "seeds": [
+          {
+            "attempt1_error": "UNKNOWN_NAME: free-function append/sorted hallucinated instead of method-call convention values.append(x)/values.sorted()",
+            "compile_parse_success_attempt1": false,
+            "correct_at_1": false,
+            "correct_at_n": true,
+            "expected_stdout": "4\n2\n4\n6\n8",
+            "final_stdout": "4\n2\n4\n6\n8",
+            "repairs_used": 1,
+            "score": 62,
+            "seed": 1,
+            "trial_id": "i2-t1"
+          },
+          {
+            "attempt1_error": "PARSE_ERROR: hallucinated Python-style trailing colons after headers, plus free-function append/sorted",
+            "compile_parse_success_attempt1": false,
+            "correct_at_1": false,
+            "correct_at_n": true,
+            "expected_stdout": "4\n2\n4\n6\n8",
+            "final_stdout": "4\n2\n4\n6\n8",
+            "repairs_used": 1,
+            "score": 62,
+            "seed": 2,
+            "trial_id": "i2-t2"
+          },
+          {
+            "attempt1_error": "LEX_ERROR: hallucinated C-style braces/for(;;) syntax not part of the language, plus free-function append/sorted",
+            "compile_parse_success_attempt1": false,
+            "correct_at_1": false,
+            "correct_at_n": true,
+            "expected_stdout": "4\n2\n4\n6\n8",
+            "final_stdout": "4\n2\n4\n6\n8",
+            "repairs_used": 2,
+            "score": 48,
+            "seed": 3,
+            "trial_id": "i2-t3"
+          }
+        ],
+        "stddev": 6.6,
+        "task": "I1 grammar anonymization plus stdlib/vocabulary anonymization (shoutOut=print, tallyOf=len, buildRange=range, arrange=sorted, tackOn=append) described only by behavior, real names withheld. Task: write sortedEvens(int[] values) filtering+sorting even elements, build array via repeated append, print count then elements.",
+        "weighted_subscores_note": "All three seeds failed Correct@1 (compile/parse failure on first attempt due to hallucinated free-function stdlib calls and, in two seeds, hallucinated foreign control-flow syntax such as Python colons or C braces/for(;;)), but all reached Correct@N inside max_repair_turns=3 (1 repair for seeds 1-2, 2 repairs for seed 3), so Repair Success=true for all seeds while Repair Efficiency is penalized proportional to repairs consumed. Weighted per the fixed rubric (Compile/Parse 7%, Correct@1 18% (0 credit), Correct@N 8% (full credit), Test Pass Rate 15% (full credit at final state), Repair Success 8% (full credit), Repair Efficiency 6% (partial, scaled by repairs_used/max_repair_turns), Specification Compliance 10% (full credit at final state), Hallucination Resistance 8% (low credit - multiple invented names/syntax observed), Silent Bug Resistance 10% (full credit, no silent bugs; failures were loud compile errors), Unseen-case Generalization 7% (partial), Source/Total Token Efficiency 3% combined (reduced by extra repair turns)) yields per-seed raw scores of 62, 62, and 48 as reported above."
+      },
+      "methodology": "llm_learnability I1/I2 per docs/spec: 3 seeds each (llm_learnability.keyword_anonymization_seeds=3, vocabulary_anonymization_seeds=3). Fresh trial_start session per seed, up to max_repair_turns=3 trial_continue repairs allowed. Toolchain: quidra (evaluated snapshot binary) invoked directly via run action for compile+execute of each trial's extracted source, matching fixture validation method.",
+      "positive_negative_controls": {
+        "negative": "fixtures/negative_control.qui deliberately malformed, quidra run correctly exited 1 with PARSE_ERROR",
+        "positive": "fixtures/kw_test.qui compiled and ran producing correct stdout '5'"
+      },
+      "toolchain_evidence": "quidra --version -> 'quidra 0.3.0' exit 0, invoked directly as a run action prior to any trial_start, satisfying the toolchain-evidence rule for this unit."
+    },
+    "requirements": {
+      "condition.i1_keyword_anonymization": {
+        "Quidra": 96
+      },
+      "condition.i2_vocabulary_anonymization": {
+        "Quidra": 71
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "5554c5beefa3ae19ff1f05481f92a4bd9595f868c2c7d0b573914dd1a91e3ed1",
+  "schema_version": 1
+}

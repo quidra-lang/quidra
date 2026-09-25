@@ -21,13 +21,13 @@
         "retry_ceiling_uncached_usd": 40.51824
       },
       "llm_learnability": {
-        "complete_units": 1,
-        "estimated_uncached_usd": 49.9136,
-        "expected_paid_api_calls_upper_bound": 5800,
+        "complete_units": 26,
+        "estimated_uncached_usd": 9.13952,
+        "expected_paid_api_calls_upper_bound": 1060,
         "hard_blockers": [],
-        "pending_agent_units": 30,
-        "planned_paid_api_calls_estimate": 200,
-        "retry_ceiling_uncached_usd": 1609.696
+        "pending_agent_units": 5,
+        "planned_paid_api_calls_estimate": 38,
+        "retry_ceiling_uncached_usd": 284.6944
       },
       "llm_proficiency": {
         "complete_units": 1,
@@ -48,11 +48,11 @@
         "retry_ceiling_uncached_usd": 0.0
       }
     },
-    "cache_hits": 646,
-    "cache_invalidated_units": 0,
-    "cache_misses": 41,
-    "complete_units": 659,
-    "estimated_uncached_usd": 93.629618,
+    "cache_hits": 671,
+    "cache_invalidated_units": 5,
+    "cache_misses": 16,
+    "complete_units": 684,
+    "estimated_uncached_usd": 52.855538,
     "evaluation": "all",
     "execution_decisions": {
       "already_complete_not_from_cache": [
@@ -193,966 +193,6 @@
         }
       ],
       "new_paid_execution": [
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "c793eecf63a8f6ccb5de32c1544b0709bb60e6f610a974d915b2808093689fd4",
-            "reason": "no certified record",
-            "scope": "quidra"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--quidra",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Python"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0",
-            "reason": "no certified record",
-            "scope": "python"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--python",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "C++"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "327b7835c8edf35aa697322f83e317a313b629c25d8875eb9f20634111a62e2c",
-            "reason": "no certified record",
-            "scope": "c"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--c",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Rust"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "2c52b7b9377322a214b9e11a3d223239c62d4b54a797f1a2c1ef9c2b91dd1c69",
-            "reason": "no certified record",
-            "scope": "rust"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--rust",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45",
-            "reason": "no certified record",
-            "scope": "go"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Java"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "31a9e9cebc2b64d97a44b2bf79be4ac216fa32966ed539d526cf8ecc4278c8b3",
-            "reason": "no certified record",
-            "scope": "java"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--java",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "TypeScript"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "89aca2c8c3cdac6ca3e757f615c2e445cef59779a0a54dc45b3f998616919891",
-            "reason": "no certified record",
-            "scope": "typescript"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--typescript",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Kotlin"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "bd2f923521a2a6596bca436a31d46db40455d4269ba291639abebad6e0900b12",
-            "reason": "no certified record",
-            "scope": "kotlin"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--kotlin",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b",
-            "reason": "no certified record",
-            "scope": "swift"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--swift",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Zig"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "1cae6d319f0432c081f7d02adcb65b2782774599c9048596647aae9f054ec600",
-            "reason": "no certified record",
-            "scope": "zig"
-          },
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--zig",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "1c153f55e6ff3faea3d626f0d17da099a8e4067c816206383b5c862b04bd66f6",
-            "reason": "no certified record",
-            "scope": "quidra"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--quidra",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Python"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13",
-            "reason": "no certified record",
-            "scope": "python"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--python",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "C++"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "ea4eb412768bf1ee2b04ea334c1d856494a65b13df34a8baa48978373b2f7159",
-            "reason": "no certified record",
-            "scope": "c"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--c",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Rust"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "8029cbde56352c273bacf9a7a1cad6895c103ea87d9d4a4030dece0c0c69d7fc",
-            "reason": "no certified record",
-            "scope": "rust"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--rust",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "c90d771224def0e22f00b7baa118d07603dfe65071a1c6b1eede94f58899c9b3",
-            "reason": "no certified record",
-            "scope": "go"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Java"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "23996a02e13b15f707168a0ef8a424bb7f273a70f942254f43c758a34f89f413",
-            "reason": "no certified record",
-            "scope": "java"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--java",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "TypeScript"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "d7cfbe2e75e931fb111206cca3428f1b8ab040f3275b9b873589b904d25ac59b",
-            "reason": "no certified record",
-            "scope": "typescript"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--typescript",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Kotlin"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "f287f193fc477776f8ce198b46e331a9326bae1cd69bea89ddbafe2798558d50",
-            "reason": "no certified record",
-            "scope": "kotlin"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--kotlin",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "2164f8e95eaf42bc2ed1984154c9412f5cfdf088f8788233f00a479746e0fb4c",
-            "reason": "no certified record",
-            "scope": "swift"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--swift",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Zig"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "5457d68000567ccc07919f60f78b41f31540ece8387d12b974fceae9c7f6a53e",
-            "reason": "no certified record",
-            "scope": "zig"
-          },
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--zig",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "ee1636a0505c9e57f439a53a87fe79f06e1e24908b84be6c6bc472f411bbc42d",
-            "reason": "no certified record",
-            "scope": "quidra"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--quidra",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Python"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "d3ab37d0910766bef08cf69fb7e1491fcb738258dd954e53f734749857496238",
-            "reason": "no certified record",
-            "scope": "python"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--python",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "C++"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "a42cf9ed2dc413069513f3201670e43bdb99b4de01b91dd54f29f853d05395ae",
-            "reason": "no certified record",
-            "scope": "c"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--c",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Rust"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "891c95043de08fcdd6e1e690498248506d67ee7be6073f962a27cf5881b5232a",
-            "reason": "no certified record",
-            "scope": "rust"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--rust",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313",
-            "reason": "no certified record",
-            "scope": "go"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Java"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "dd3f0b8a313a3d11e73bbf124c8676211b99ca47426e741cda2ee3e7c1d1aefe",
-            "reason": "no certified record",
-            "scope": "java"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--java",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "TypeScript"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "8d997dc4cdb480cf2affe231b0fbeb84c3b023fdaebd59c266ee0224687175a9",
-            "reason": "no certified record",
-            "scope": "typescript"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--typescript",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Kotlin"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "6e341e1aea484537c7168c6c7fc7376d8fefaf38ad80e3112f0188462c602666",
-            "reason": "no certified record",
-            "scope": "kotlin"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--kotlin",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "0408ca2f82b93459a35486b3607c7c71ced4457e4838f81bad86717eabc9aaef",
-            "reason": "no certified record",
-            "scope": "swift"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--swift",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Zig"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "0fed305e47a7179cc15d19ef260af088feac4e6c3f6f3d87498b9278add1560a",
-            "reason": "no certified record",
-            "scope": "zig"
-          },
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--zig",
-          "worker_mode": "sandbox-agent"
-        },
         {
           "assigned_languages": [
             "C++"
@@ -1506,7 +546,173 @@
           "worker_mode": "sandbox-agent"
         }
       ],
-      "paid_reevaluation_after_invalidation": [],
+      "paid_reevaluation_after_invalidation": [
+        {
+          "assigned_languages": [
+            "Python"
+          ],
+          "attempts_used": 0,
+          "calls_upper_bound": 240,
+          "estimated_uncached_usd": 2.07408,
+          "evaluation": "llm_learnability",
+          "input_tokens_per_call": 6000,
+          "invalidation": {
+            "fingerprint": "0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0",
+            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+            "record": "v1/llm-learnability/python/2bc4f2dcb622ae20b76e887921ced9cabb84cd312da900d18e28a7c6d2e2d17c.json",
+            "scope": "python"
+          },
+          "max_attempts": 5,
+          "network_allowed": false,
+          "orchestration_calls_estimate": 3,
+          "orchestration_calls_upper_bound": 120,
+          "orchestration_output_tokens_per_call": 32768,
+          "output_tokens_per_call": 32768,
+          "planned_calls_estimate": 9,
+          "remaining_attempts": 5,
+          "restored_paid_calls": 0,
+          "retry_ceiling_uncached_usd": 61.8624,
+          "scored_calls_estimate": 6,
+          "scored_calls_remaining_allowance": 24,
+          "scored_calls_upper_bound": 120,
+          "scored_output_tokens_per_call": 16384,
+          "status": "PENDING",
+          "work_unit_id": "learnability-i1-i2--python",
+          "worker_mode": "sandbox-agent"
+        },
+        {
+          "assigned_languages": [
+            "Go"
+          ],
+          "attempts_used": 0,
+          "calls_upper_bound": 240,
+          "estimated_uncached_usd": 2.07408,
+          "evaluation": "llm_learnability",
+          "input_tokens_per_call": 6000,
+          "invalidation": {
+            "fingerprint": "2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45",
+            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+            "record": "v1/llm-learnability/go/8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7.json",
+            "scope": "go"
+          },
+          "max_attempts": 5,
+          "network_allowed": false,
+          "orchestration_calls_estimate": 3,
+          "orchestration_calls_upper_bound": 120,
+          "orchestration_output_tokens_per_call": 32768,
+          "output_tokens_per_call": 32768,
+          "planned_calls_estimate": 9,
+          "remaining_attempts": 5,
+          "restored_paid_calls": 0,
+          "retry_ceiling_uncached_usd": 61.8624,
+          "scored_calls_estimate": 6,
+          "scored_calls_remaining_allowance": 24,
+          "scored_calls_upper_bound": 120,
+          "scored_output_tokens_per_call": 16384,
+          "status": "PENDING",
+          "work_unit_id": "learnability-i1-i2--go",
+          "worker_mode": "sandbox-agent"
+        },
+        {
+          "assigned_languages": [
+            "Swift"
+          ],
+          "attempts_used": 0,
+          "calls_upper_bound": 240,
+          "estimated_uncached_usd": 2.07408,
+          "evaluation": "llm_learnability",
+          "input_tokens_per_call": 6000,
+          "invalidation": {
+            "fingerprint": "59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b",
+            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+            "record": "v1/llm-learnability/swift/ff79bf6a499471b5ee207a1e044f2eb052b86732945b187aac30f713ef743f1d.json",
+            "scope": "swift"
+          },
+          "max_attempts": 5,
+          "network_allowed": false,
+          "orchestration_calls_estimate": 3,
+          "orchestration_calls_upper_bound": 120,
+          "orchestration_output_tokens_per_call": 32768,
+          "output_tokens_per_call": 32768,
+          "planned_calls_estimate": 9,
+          "remaining_attempts": 5,
+          "restored_paid_calls": 0,
+          "retry_ceiling_uncached_usd": 61.8624,
+          "scored_calls_estimate": 6,
+          "scored_calls_remaining_allowance": 24,
+          "scored_calls_upper_bound": 120,
+          "scored_output_tokens_per_call": 16384,
+          "status": "PENDING",
+          "work_unit_id": "learnability-i1-i2--swift",
+          "worker_mode": "sandbox-agent"
+        },
+        {
+          "assigned_languages": [
+            "Python"
+          ],
+          "attempts_used": 0,
+          "calls_upper_bound": 180,
+          "estimated_uncached_usd": 1.54656,
+          "evaluation": "llm_learnability",
+          "input_tokens_per_call": 6000,
+          "invalidation": {
+            "fingerprint": "9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13",
+            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+            "record": "v1/llm-learnability/python/b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a.json",
+            "scope": "python"
+          },
+          "max_attempts": 5,
+          "network_allowed": false,
+          "orchestration_calls_estimate": 3,
+          "orchestration_calls_upper_bound": 120,
+          "orchestration_output_tokens_per_call": 32768,
+          "output_tokens_per_call": 32768,
+          "planned_calls_estimate": 6,
+          "remaining_attempts": 5,
+          "restored_paid_calls": 0,
+          "retry_ceiling_uncached_usd": 51.312,
+          "scored_calls_estimate": 3,
+          "scored_calls_remaining_allowance": 12,
+          "scored_calls_upper_bound": 60,
+          "scored_output_tokens_per_call": 16384,
+          "status": "PENDING",
+          "work_unit_id": "learnability-i3-i4--python",
+          "worker_mode": "sandbox-agent"
+        },
+        {
+          "assigned_languages": [
+            "Go"
+          ],
+          "attempts_used": 0,
+          "calls_upper_bound": 160,
+          "estimated_uncached_usd": 1.37072,
+          "evaluation": "llm_learnability",
+          "input_tokens_per_call": 6000,
+          "invalidation": {
+            "fingerprint": "0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313",
+            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+            "record": "v1/llm-learnability/go/ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a.json",
+            "scope": "go"
+          },
+          "max_attempts": 5,
+          "network_allowed": false,
+          "orchestration_calls_estimate": 3,
+          "orchestration_calls_upper_bound": 120,
+          "orchestration_output_tokens_per_call": 32768,
+          "output_tokens_per_call": 32768,
+          "planned_calls_estimate": 5,
+          "remaining_attempts": 5,
+          "restored_paid_calls": 0,
+          "retry_ceiling_uncached_usd": 47.7952,
+          "scored_calls_estimate": 2,
+          "scored_calls_remaining_allowance": 8,
+          "scored_calls_upper_bound": 40,
+          "scored_output_tokens_per_call": 16384,
+          "status": "PENDING",
+          "work_unit_id": "learnability-i5-i6--go",
+          "worker_mode": "sandbox-agent"
+        }
+      ],
       "partial_paid_resume": [],
       "reused_and_revalidated": [
         {
@@ -20255,7 +19461,7 @@
           "cache": {
             "assigned_languages": [],
             "compatibility_mode": "semantic-comparability-from-current-catalog",
-            "fingerprint": "6378f86bdbef622dd1882d4331f0188750af3a14e683ffede5fd3eb83b296d0f",
+            "fingerprint": "df0f554a0c000a05e8f6f99cdcb802bf3b125430451e46ecd7085f065158fda9",
             "migration": {
               "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
               "current_validator": "PASS",
@@ -20283,6 +19489,881 @@
           "evaluation": "semantic_compression",
           "status": "COMPLETE",
           "work_unit_id": "sc-comparability"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "c793eecf63a8f6ccb5de32c1544b0709bb60e6f610a974d915b2808093689fd4",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "98698c70551bdee98b36d52f0ab15b0c743df8933bd4123f9b09933e08827489",
+              "source_record": "v1/llm-learnability/quidra/98698c70551bdee98b36d52f0ab15b0c743df8933bd4123f9b09933e08827489.json",
+              "source_record_sha256": "3e2bea50598d6d28391c795496f53900b8b22fd44de9477b4c752ddbea5333ed",
+              "source_result_sha256": "5554c5beefa3ae19ff1f05481f92a4bd9595f868c2c7d0b573914dd1a91e3ed1",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/quidra/c793eecf63a8f6ccb5de32c1544b0709bb60e6f610a974d915b2808093689fd4.json",
+            "scope": "quidra"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "C++"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "C++"
+            ],
+            "fingerprint": "327b7835c8edf35aa697322f83e317a313b629c25d8875eb9f20634111a62e2c",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "b3a0ddbc2382439e3b3f500adaaa2ee9b14f776f54485980e15e7e3868c14080",
+              "source_record": "v1/llm-learnability/c/b3a0ddbc2382439e3b3f500adaaa2ee9b14f776f54485980e15e7e3868c14080.json",
+              "source_record_sha256": "2aa61cf2b1ab3c27aaf5c9070bb192670ca5571593eb54665c7d7637362acb90",
+              "source_result_sha256": "08f545312c47c2a6b7ca6e206405ab68c4543ee1424387a2813d283ad11dd0e4",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/c/327b7835c8edf35aa697322f83e317a313b629c25d8875eb9f20634111a62e2c.json",
+            "scope": "c"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--c"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Rust"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Rust"
+            ],
+            "fingerprint": "2c52b7b9377322a214b9e11a3d223239c62d4b54a797f1a2c1ef9c2b91dd1c69",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "e33581dadf29f01acd0b8e43db2070d3c5bc4aae80656dd177520f51bf301cfe",
+              "source_record": "v1/llm-learnability/rust/e33581dadf29f01acd0b8e43db2070d3c5bc4aae80656dd177520f51bf301cfe.json",
+              "source_record_sha256": "78591217ce5324f4d4067cd5f799867d58f0e48c464a4a2c3a2f6542fba3133f",
+              "source_result_sha256": "828e9b7fb46b18fe59aa63b644dbee486a2464aaf903159645ab0345101a9a12",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/rust/2c52b7b9377322a214b9e11a3d223239c62d4b54a797f1a2c1ef9c2b91dd1c69.json",
+            "scope": "rust"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Java"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Java"
+            ],
+            "fingerprint": "31a9e9cebc2b64d97a44b2bf79be4ac216fa32966ed539d526cf8ecc4278c8b3",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "77c5c847c73105ade26f9ebd5a8d4761578d6de544f051a899ff3aa3c5045116",
+              "source_record": "v1/llm-learnability/java/77c5c847c73105ade26f9ebd5a8d4761578d6de544f051a899ff3aa3c5045116.json",
+              "source_record_sha256": "0010bc0f47b0936cf6d7f754f321cf88a62e5938353d83a0002b0322cd4cc922",
+              "source_result_sha256": "c615da3e103fc8a57d2688a6da1c9d7ddf2bdd9534b45b2547759ffca6f2eaa5",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/java/31a9e9cebc2b64d97a44b2bf79be4ac216fa32966ed539d526cf8ecc4278c8b3.json",
+            "scope": "java"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--java"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "TypeScript"
+            ],
+            "fingerprint": "89aca2c8c3cdac6ca3e757f615c2e445cef59779a0a54dc45b3f998616919891",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "5700b6b8d1600d10e8f208f921f8145accf1e59aba6791017f48367fbe132374",
+              "source_record": "v1/llm-learnability/typescript/5700b6b8d1600d10e8f208f921f8145accf1e59aba6791017f48367fbe132374.json",
+              "source_record_sha256": "792d24cebe509c1da889f8b73781958a4f915bb26b1c532220c558591cd051c8",
+              "source_result_sha256": "b6d1b93ae36f7284c82b46727a36c8f11fb09e6e26de30e63ee1cb8a09d03fc9",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/typescript/89aca2c8c3cdac6ca3e757f615c2e445cef59779a0a54dc45b3f998616919891.json",
+            "scope": "typescript"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--typescript"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Kotlin"
+            ],
+            "fingerprint": "bd2f923521a2a6596bca436a31d46db40455d4269ba291639abebad6e0900b12",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "8d8069410505a641651c7be4d497e569c231b4c28230f3e2ad8e4562ec98689e",
+              "source_record": "v1/llm-learnability/kotlin/8d8069410505a641651c7be4d497e569c231b4c28230f3e2ad8e4562ec98689e.json",
+              "source_record_sha256": "3997c1b3dc3d2a84889f91c9b63a3888ef6ac472faf24270d28eb8a7b82ab4d1",
+              "source_result_sha256": "04f8f36629ce0a56fef79d399160f39a9d734352feb78d5f71b3c0ff24e7f51e",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/kotlin/bd2f923521a2a6596bca436a31d46db40455d4269ba291639abebad6e0900b12.json",
+            "scope": "kotlin"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--kotlin"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Zig"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Zig"
+            ],
+            "fingerprint": "1cae6d319f0432c081f7d02adcb65b2782774599c9048596647aae9f054ec600",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9a095cf94c64ebf35a9ddbbc68171f81c46c1db55ffbd9ae6165cecd9f4c8c1",
+              "source_record": "v1/llm-learnability/zig/f9a095cf94c64ebf35a9ddbbc68171f81c46c1db55ffbd9ae6165cecd9f4c8c1.json",
+              "source_record_sha256": "39026ca23eb60f230431615eadf624b114b1aeaed8b1aa104c4d68a55474bacc",
+              "source_result_sha256": "7b09e9cbd2c65028ed81775cf4c363eefd19ca3eef273f8856cc1da206190fcc",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/zig/1cae6d319f0432c081f7d02adcb65b2782774599c9048596647aae9f054ec600.json",
+            "scope": "zig"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--zig"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "1c153f55e6ff3faea3d626f0d17da099a8e4067c816206383b5c862b04bd66f6",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "7fffdbfe655957dc2e0fd50298a80a967a42d2524d87cb04ceb8dbcc8d7a64b8",
+              "source_record": "v1/llm-learnability/quidra/7fffdbfe655957dc2e0fd50298a80a967a42d2524d87cb04ceb8dbcc8d7a64b8.json",
+              "source_record_sha256": "a7ad24a56610b279692352c6a78893d7f9ecd474f89d5921c889c279a731cf07",
+              "source_result_sha256": "a5cfc39c8767de92c07d1005db644ef653cec39fe7c793f51486ce994e753631",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/quidra/1c153f55e6ff3faea3d626f0d17da099a8e4067c816206383b5c862b04bd66f6.json",
+            "scope": "quidra"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "C++"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "C++"
+            ],
+            "fingerprint": "ea4eb412768bf1ee2b04ea334c1d856494a65b13df34a8baa48978373b2f7159",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "d3d68bcd164ac02b771a032250a2cb40eaebb3567323a9c92cb79fa2102f1d17",
+              "source_record": "v1/llm-learnability/c/d3d68bcd164ac02b771a032250a2cb40eaebb3567323a9c92cb79fa2102f1d17.json",
+              "source_record_sha256": "f602a8b72ecce9ee24b3b1d707c4bc08b7a96caca7e0e6da7297be0fa8c480dc",
+              "source_result_sha256": "6fd035e33f7bd2a6ef9a94253d04d8dd5162706dc13cefd634bfea383254f4fd",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/c/ea4eb412768bf1ee2b04ea334c1d856494a65b13df34a8baa48978373b2f7159.json",
+            "scope": "c"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--c"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Rust"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Rust"
+            ],
+            "fingerprint": "8029cbde56352c273bacf9a7a1cad6895c103ea87d9d4a4030dece0c0c69d7fc",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "ba50f59989f870c2ef0d59dcec0f23dbafd0b9dd6bed90398c380f9ce3a2ea2d",
+              "source_record": "v1/llm-learnability/rust/ba50f59989f870c2ef0d59dcec0f23dbafd0b9dd6bed90398c380f9ce3a2ea2d.json",
+              "source_record_sha256": "8d00465c2d1e620bdf003c4acd213203bf7d74e4c6c050931a94c648c94a4638",
+              "source_result_sha256": "84b283d92c68058f724cfc23a967670c0f6f79f04c891f1d2b81d486d7f91f9b",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/rust/8029cbde56352c273bacf9a7a1cad6895c103ea87d9d4a4030dece0c0c69d7fc.json",
+            "scope": "rust"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Go"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Go"
+            ],
+            "fingerprint": "c90d771224def0e22f00b7baa118d07603dfe65071a1c6b1eede94f58899c9b3",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "eeb862eaacd722102fab7b3a45d69a7b59bdc31e6e94e4333a40427c8b204332",
+              "source_record": "v1/llm-learnability/go/eeb862eaacd722102fab7b3a45d69a7b59bdc31e6e94e4333a40427c8b204332.json",
+              "source_record_sha256": "c3046a6b646d6e36e5eabf59ec89c0aef7e2e8d9d781b082926353d4deb37615",
+              "source_result_sha256": "6648e6a3bb6d70278d43dcb74952452c4194e5035001ae64016eb4aa499f9591",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/go/c90d771224def0e22f00b7baa118d07603dfe65071a1c6b1eede94f58899c9b3.json",
+            "scope": "go"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--go"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Java"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Java"
+            ],
+            "fingerprint": "23996a02e13b15f707168a0ef8a424bb7f273a70f942254f43c758a34f89f413",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "d2f5cdb9c6a9e1777244ec8824883447bff4055f0d8a647478261671e624af2d",
+              "source_record": "v1/llm-learnability/java/d2f5cdb9c6a9e1777244ec8824883447bff4055f0d8a647478261671e624af2d.json",
+              "source_record_sha256": "02e8d75e5eb4436bd191751948d766d0d7d8743dcf96b4238c69a8f267241fdc",
+              "source_result_sha256": "65b81a330f43873510be4aacfcccd8b6bf16ef30fd5dcdc1c6ce9d77198786b0",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/java/23996a02e13b15f707168a0ef8a424bb7f273a70f942254f43c758a34f89f413.json",
+            "scope": "java"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--java"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "TypeScript"
+            ],
+            "fingerprint": "d7cfbe2e75e931fb111206cca3428f1b8ab040f3275b9b873589b904d25ac59b",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "46706a4a7db0e79f4d089d75987bb24853dc15137a6b059c37099016bd2e4406",
+              "source_record": "v1/llm-learnability/typescript/46706a4a7db0e79f4d089d75987bb24853dc15137a6b059c37099016bd2e4406.json",
+              "source_record_sha256": "b05e8a7e51a3662c93ca01fd2a363b1a95b569d31c71adc45c7a295684bd585a",
+              "source_result_sha256": "8391a8ef8f16fa4b346a8a8f34cf7d6c552d8ad20d6871c8a4ca83b6ad3d06d7",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/typescript/d7cfbe2e75e931fb111206cca3428f1b8ab040f3275b9b873589b904d25ac59b.json",
+            "scope": "typescript"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--typescript"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Kotlin"
+            ],
+            "fingerprint": "f287f193fc477776f8ce198b46e331a9326bae1cd69bea89ddbafe2798558d50",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f362426b355e162e5500a517cf20544212b2aca8663c00f55a45b1e01d5967b1",
+              "source_record": "v1/llm-learnability/kotlin/f362426b355e162e5500a517cf20544212b2aca8663c00f55a45b1e01d5967b1.json",
+              "source_record_sha256": "1926df9c61d5f17e6013a6f8f2e2d2c8d084360ef8f950c0a1aafe401f5517ae",
+              "source_result_sha256": "406e2168870a9109ab50e1fdec7c373a10350621f78b4cc9590b6a99a35d912d",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/kotlin/f287f193fc477776f8ce198b46e331a9326bae1cd69bea89ddbafe2798558d50.json",
+            "scope": "kotlin"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--kotlin"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Swift"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Swift"
+            ],
+            "fingerprint": "2164f8e95eaf42bc2ed1984154c9412f5cfdf088f8788233f00a479746e0fb4c",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "85cde18ab8a281680d6130e4b1cba309ab3774b713c7609f590a77245965b9b6",
+              "source_record": "v1/llm-learnability/swift/85cde18ab8a281680d6130e4b1cba309ab3774b713c7609f590a77245965b9b6.json",
+              "source_record_sha256": "213846e24b063f003a3f7ca718ca02e0007f190c291fa2845fc703367fa59545",
+              "source_result_sha256": "e943c73163006933123616a8c236cc8d4e5232710a602d925ddd0953409ffd20",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/swift/2164f8e95eaf42bc2ed1984154c9412f5cfdf088f8788233f00a479746e0fb4c.json",
+            "scope": "swift"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--swift"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Zig"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Zig"
+            ],
+            "fingerprint": "5457d68000567ccc07919f60f78b41f31540ece8387d12b974fceae9c7f6a53e",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "7d3257c55f255b66db6ac475ba286c846073e0ad2e7a0d7125122e0fe9110204",
+              "source_record": "v1/llm-learnability/zig/7d3257c55f255b66db6ac475ba286c846073e0ad2e7a0d7125122e0fe9110204.json",
+              "source_record_sha256": "d9499916d777b03bec9e0e081dd14fbb8abd78c3c017cfb4c2c77f7ffa371b3d",
+              "source_result_sha256": "540180fea2dd9795a050f469891f42884b882d7f470347d4ce450200f5095d47",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/zig/5457d68000567ccc07919f60f78b41f31540ece8387d12b974fceae9c7f6a53e.json",
+            "scope": "zig"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--zig"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "ee1636a0505c9e57f439a53a87fe79f06e1e24908b84be6c6bc472f411bbc42d",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "84188b2b7c454c375ac7c3fd302348e720364a1cb4f2698eaee29fad4736a301",
+              "source_record": "v1/llm-learnability/quidra/84188b2b7c454c375ac7c3fd302348e720364a1cb4f2698eaee29fad4736a301.json",
+              "source_record_sha256": "4892a8fe477fdc3c951329b0f35cab988f961e8717da8b64087ad05f92cfbcb6",
+              "source_result_sha256": "8073974090617ded5ff07f52f273d0a5c2ba6e5e277610d3dc59097ad7699a33",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/quidra/ee1636a0505c9e57f439a53a87fe79f06e1e24908b84be6c6bc472f411bbc42d.json",
+            "scope": "quidra"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Python"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Python"
+            ],
+            "fingerprint": "d3ab37d0910766bef08cf69fb7e1491fcb738258dd954e53f734749857496238",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "3e6b51ebffee1b7441045840703a05db193d82706b735f50872f832fc485b4b2",
+              "source_record": "v1/llm-learnability/python/3e6b51ebffee1b7441045840703a05db193d82706b735f50872f832fc485b4b2.json",
+              "source_record_sha256": "4ab28e330338fdd757c2abe24f41d02e208a9f85b03cb8376bcb9d6ccdacab9e",
+              "source_result_sha256": "cda6b62b92336da039fa8ae52458a14f3e5734553e6ba639ccac718ada8a5799",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/python/d3ab37d0910766bef08cf69fb7e1491fcb738258dd954e53f734749857496238.json",
+            "scope": "python"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--python"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "C++"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "C++"
+            ],
+            "fingerprint": "a42cf9ed2dc413069513f3201670e43bdb99b4de01b91dd54f29f853d05395ae",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "b2442dce857a164ef4499f103dd16843e9ac7fb67d87fee8717ee6fb90f5efc2",
+              "source_record": "v1/llm-learnability/c/b2442dce857a164ef4499f103dd16843e9ac7fb67d87fee8717ee6fb90f5efc2.json",
+              "source_record_sha256": "3657d800b12aa9c7b09a7880323e244327ca2b1117d9a48fb88183e0b73f42a1",
+              "source_result_sha256": "5b42c931f29df9e0f61e89bc2808c0feeb059ab7a41abab9ab2feca1c0c99086",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/c/a42cf9ed2dc413069513f3201670e43bdb99b4de01b91dd54f29f853d05395ae.json",
+            "scope": "c"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--c"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Rust"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Rust"
+            ],
+            "fingerprint": "891c95043de08fcdd6e1e690498248506d67ee7be6073f962a27cf5881b5232a",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "bc8808b10793bef7fc90ba8dad996e8aec0db8f7e6a3bd4e15dc131eeebb521d",
+              "source_record": "v1/llm-learnability/rust/bc8808b10793bef7fc90ba8dad996e8aec0db8f7e6a3bd4e15dc131eeebb521d.json",
+              "source_record_sha256": "dd89ca55dd1fbf2179c3f45191ca429c502a04e77769e4e4d591e4e43ca01d0d",
+              "source_result_sha256": "3fff6ed7ffc4ff80797e52b515d5914b5ffd0d7259494802fc3a35c8bdfb4b98",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/rust/891c95043de08fcdd6e1e690498248506d67ee7be6073f962a27cf5881b5232a.json",
+            "scope": "rust"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Java"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Java"
+            ],
+            "fingerprint": "dd3f0b8a313a3d11e73bbf124c8676211b99ca47426e741cda2ee3e7c1d1aefe",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f0338c73263c4c1bd226f96291253730a1a16268fca027ab884e201453ac73ad",
+              "source_record": "v1/llm-learnability/java/f0338c73263c4c1bd226f96291253730a1a16268fca027ab884e201453ac73ad.json",
+              "source_record_sha256": "5edf886d555cb08a17653aaf402d277c1d18c4fecbf78980a3060f2a8d2c846f",
+              "source_result_sha256": "fec54bbf50f33c8a90575a665d450da0ec09b8c42ea20923026afcfba46f0777",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/java/dd3f0b8a313a3d11e73bbf124c8676211b99ca47426e741cda2ee3e7c1d1aefe.json",
+            "scope": "java"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--java"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "TypeScript"
+            ],
+            "fingerprint": "8d997dc4cdb480cf2affe231b0fbeb84c3b023fdaebd59c266ee0224687175a9",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "2d2f3e4b6dd269054a588df8b67341484d5f8a9169dbd7b8ed3cab249c1736ac",
+              "source_record": "v1/llm-learnability/typescript/2d2f3e4b6dd269054a588df8b67341484d5f8a9169dbd7b8ed3cab249c1736ac.json",
+              "source_record_sha256": "75790c8644799db047ac628175a2310f0f95c057af29fcd5a8e5bf773de4a4ca",
+              "source_result_sha256": "266628eac4b720f156ef06f9925c64fe53ebbb954b7945f3b3fc3ebfa912be92",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/typescript/8d997dc4cdb480cf2affe231b0fbeb84c3b023fdaebd59c266ee0224687175a9.json",
+            "scope": "typescript"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--typescript"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Kotlin"
+            ],
+            "fingerprint": "6e341e1aea484537c7168c6c7fc7376d8fefaf38ad80e3112f0188462c602666",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "469b77627c0f895a92ce81bdc8d238fa1b6dd7f5f2ac098caabf1b149649ac2b",
+              "source_record": "v1/llm-learnability/kotlin/469b77627c0f895a92ce81bdc8d238fa1b6dd7f5f2ac098caabf1b149649ac2b.json",
+              "source_record_sha256": "fadb13f0e1765083adcff0b7588aedd53382038f34b7fd8357c8c16bf0a6c560",
+              "source_result_sha256": "66af04682ab7826cc7e68f09238dbb5b9b297e2c58cad601fefd4f776daa69e9",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/kotlin/6e341e1aea484537c7168c6c7fc7376d8fefaf38ad80e3112f0188462c602666.json",
+            "scope": "kotlin"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--kotlin"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Swift"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Swift"
+            ],
+            "fingerprint": "0408ca2f82b93459a35486b3607c7c71ced4457e4838f81bad86717eabc9aaef",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "837bd3cdf940ac66c8e4f5d97637d6e8fbe8e2bcd82aa0517b8fad81f848fba0",
+              "source_record": "v1/llm-learnability/swift/837bd3cdf940ac66c8e4f5d97637d6e8fbe8e2bcd82aa0517b8fad81f848fba0.json",
+              "source_record_sha256": "e6df85bf1225224f9fb46571741b45b08eb8764f0c804c9196f565fd64fddcfa",
+              "source_result_sha256": "b955ce64a18faf1d422c504f0181b196e6c5242c66582a0a154082e9be25b25b",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/swift/0408ca2f82b93459a35486b3607c7c71ced4457e4838f81bad86717eabc9aaef.json",
+            "scope": "swift"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--swift"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Zig"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Zig"
+            ],
+            "fingerprint": "0fed305e47a7179cc15d19ef260af088feac4e6c3f6f3d87498b9278add1560a",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "bb59234c2e8dfed3f58b2ce4fd29aa011195f2ec34a1eec46da922a742f1a7ec",
+              "source_record": "v1/llm-learnability/zig/bb59234c2e8dfed3f58b2ce4fd29aa011195f2ec34a1eec46da922a742f1a7ec.json",
+              "source_record_sha256": "3a03116b4101d25c43194f4f541b45469669defbf8d50443d16d3b1e2a1d8988",
+              "source_result_sha256": "3d8e30be6cd1b7315332774d8c9b2bcf727160e88fedb03a10d2c9241f8007c4",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/zig/0fed305e47a7179cc15d19ef260af088feac4e6c3f6f3d87498b9278add1560a.json",
+            "scope": "zig"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--zig"
         },
         {
           "api_calls": 0,
@@ -24924,9 +25005,9 @@
         }
       ]
     },
-    "expected_paid_api_calls_upper_bound": 10720,
+    "expected_paid_api_calls_upper_bound": 5980,
     "full_retry_envelope_funded": false,
-    "full_retry_envelope_recommended_budget_usd": 3388.181,
+    "full_retry_envelope_recommended_budget_usd": 1731.929,
     "hard_blockers": [],
     "invalidated_cache_records": [],
     "kind": "benchmark_execution_plan",
@@ -24934,11 +25015,11 @@
     "note": "Frozen pre-paid execution plan. COMPLETE certified-cache hits are revalidated and cost zero. estimated_uncached_usd and planned_paid_api_calls_estimate are the practical nominal envelope; retry_ceiling_uncached_usd and expected_paid_api_calls_upper_bound also expose every still-configured work-unit retry and sandbox-agent turn. The normal funding gate uses the nominal envelope plus its safety multiplier, while full_retry_envelope_funded says whether even the absolute configured retry envelope is funded. Pending leaves with a known invalidation state the exact reason; dependency-deferred cache decisions remain conservatively priced. Exact-fingerprint paid partial checkpoints reduce the remaining scored-call estimate before pricing. Sandbox-agent scored calls and orchestration calls are priced at their distinct frozen output caps; prompt-cache discounts can only reduce actual provider spend further.",
     "partial_paid_restored_calls": 0,
     "partial_paid_resumed_units": [],
-    "pending_agent_units": 41,
-    "planned_paid_api_calls_estimate": 413,
+    "pending_agent_units": 16,
+    "planned_paid_api_calls_estimate": 251,
     "provider_smoke_required": true,
-    "recommended_budget_usd": 117.037022,
-    "retry_ceiling_uncached_usd": 2710.5448,
+    "recommended_budget_usd": 66.069423,
+    "retry_ceiling_uncached_usd": 1385.5432,
     "safety_multiplier": 1.25,
     "schema_version": 2,
     "scope_work_unit_count": 705,
@@ -25218,33 +25299,6 @@
       },
       {
         "assigned_languages": [
-          "C++"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--c",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
           "Go"
         ],
         "attempts_used": 0,
@@ -25268,60 +25322,6 @@
         "scored_output_tokens_per_call": 16384,
         "status": "PENDING",
         "work_unit_id": "learnability-i1-i2--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Java"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--java",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Kotlin"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--kotlin",
         "worker_mode": "sandbox-agent"
       },
       {
@@ -25353,60 +25353,6 @@
       },
       {
         "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--quidra",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Rust"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--rust",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
           "Swift"
         ],
         "attempts_used": 0,
@@ -25430,168 +25376,6 @@
         "scored_output_tokens_per_call": 16384,
         "status": "PENDING",
         "work_unit_id": "learnability-i1-i2--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "TypeScript"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--typescript",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Zig"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--zig",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "C++"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--c",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Go"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Java"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--java",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Kotlin"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--kotlin",
         "worker_mode": "sandbox-agent"
       },
       {
@@ -25623,168 +25407,6 @@
       },
       {
         "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--quidra",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Rust"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--rust",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Swift"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "TypeScript"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--typescript",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Zig"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--zig",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "C++"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--c",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
           "Go"
         ],
         "attempts_used": 0,
@@ -25808,222 +25430,6 @@
         "scored_output_tokens_per_call": 16384,
         "status": "PENDING",
         "work_unit_id": "learnability-i5-i6--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Java"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--java",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Kotlin"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--kotlin",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Python"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--python",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--quidra",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Rust"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--rust",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Swift"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "TypeScript"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--typescript",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Zig"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--zig",
         "worker_mode": "sandbox-agent"
       },
       {
@@ -26143,12 +25549,12 @@
     "invalid": 210,
     "note": "Legacy invalid records are retained as provenance. A successful migration adds an ordinary current-key record rather than rewriting or deleting its source.",
     "superseded": 248,
-    "valid": 711
+    "valid": 737
   },
   "historical_cache_before": {
     "invalid": 210,
     "superseded": 248,
-    "valid": 710
+    "valid": 711
   },
   "legacy_invalid_record_classifications": [
     {
@@ -28667,9 +28073,9 @@
         "misses": 1
       },
       "llm_learnability": {
-        "hits": 0,
-        "invalidated": 0,
-        "misses": 30
+        "hits": 25,
+        "invalidated": 5,
+        "misses": 5
       },
       "llm_proficiency": {
         "hits": 0,
@@ -28682,161 +28088,72 @@
         "misses": 0
       }
     },
-    "hits": 646,
-    "invalidated": 0,
-    "misses": 41
+    "hits": 671,
+    "invalidated": 5,
+    "misses": 16
   },
-  "next_run_invalidated": {},
-  "next_run_misses": {
-    "learnability-i1-i2--c": {
-      "fingerprint": "327b7835c8edf35aa697322f83e317a313b629c25d8875eb9f20634111a62e2c",
-      "reason": "no certified record",
-      "scope": "c"
-    },
+  "next_run_invalidated": {
     "learnability-i1-i2--go": {
       "fingerprint": "2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45",
-      "reason": "no certified record",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/go/8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7.json",
       "scope": "go"
-    },
-    "learnability-i1-i2--java": {
-      "fingerprint": "31a9e9cebc2b64d97a44b2bf79be4ac216fa32966ed539d526cf8ecc4278c8b3",
-      "reason": "no certified record",
-      "scope": "java"
-    },
-    "learnability-i1-i2--kotlin": {
-      "fingerprint": "bd2f923521a2a6596bca436a31d46db40455d4269ba291639abebad6e0900b12",
-      "reason": "no certified record",
-      "scope": "kotlin"
     },
     "learnability-i1-i2--python": {
       "fingerprint": "0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0",
-      "reason": "no certified record",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/python/2bc4f2dcb622ae20b76e887921ced9cabb84cd312da900d18e28a7c6d2e2d17c.json",
       "scope": "python"
-    },
-    "learnability-i1-i2--quidra": {
-      "fingerprint": "c793eecf63a8f6ccb5de32c1544b0709bb60e6f610a974d915b2808093689fd4",
-      "reason": "no certified record",
-      "scope": "quidra"
-    },
-    "learnability-i1-i2--rust": {
-      "fingerprint": "2c52b7b9377322a214b9e11a3d223239c62d4b54a797f1a2c1ef9c2b91dd1c69",
-      "reason": "no certified record",
-      "scope": "rust"
     },
     "learnability-i1-i2--swift": {
       "fingerprint": "59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b",
-      "reason": "no certified record",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/swift/ff79bf6a499471b5ee207a1e044f2eb052b86732945b187aac30f713ef743f1d.json",
       "scope": "swift"
-    },
-    "learnability-i1-i2--typescript": {
-      "fingerprint": "89aca2c8c3cdac6ca3e757f615c2e445cef59779a0a54dc45b3f998616919891",
-      "reason": "no certified record",
-      "scope": "typescript"
-    },
-    "learnability-i1-i2--zig": {
-      "fingerprint": "1cae6d319f0432c081f7d02adcb65b2782774599c9048596647aae9f054ec600",
-      "reason": "no certified record",
-      "scope": "zig"
-    },
-    "learnability-i3-i4--c": {
-      "fingerprint": "ea4eb412768bf1ee2b04ea334c1d856494a65b13df34a8baa48978373b2f7159",
-      "reason": "no certified record",
-      "scope": "c"
-    },
-    "learnability-i3-i4--go": {
-      "fingerprint": "c90d771224def0e22f00b7baa118d07603dfe65071a1c6b1eede94f58899c9b3",
-      "reason": "no certified record",
-      "scope": "go"
-    },
-    "learnability-i3-i4--java": {
-      "fingerprint": "23996a02e13b15f707168a0ef8a424bb7f273a70f942254f43c758a34f89f413",
-      "reason": "no certified record",
-      "scope": "java"
-    },
-    "learnability-i3-i4--kotlin": {
-      "fingerprint": "f287f193fc477776f8ce198b46e331a9326bae1cd69bea89ddbafe2798558d50",
-      "reason": "no certified record",
-      "scope": "kotlin"
     },
     "learnability-i3-i4--python": {
       "fingerprint": "9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13",
-      "reason": "no certified record",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/python/b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a.json",
       "scope": "python"
-    },
-    "learnability-i3-i4--quidra": {
-      "fingerprint": "1c153f55e6ff3faea3d626f0d17da099a8e4067c816206383b5c862b04bd66f6",
-      "reason": "no certified record",
-      "scope": "quidra"
-    },
-    "learnability-i3-i4--rust": {
-      "fingerprint": "8029cbde56352c273bacf9a7a1cad6895c103ea87d9d4a4030dece0c0c69d7fc",
-      "reason": "no certified record",
-      "scope": "rust"
-    },
-    "learnability-i3-i4--swift": {
-      "fingerprint": "2164f8e95eaf42bc2ed1984154c9412f5cfdf088f8788233f00a479746e0fb4c",
-      "reason": "no certified record",
-      "scope": "swift"
-    },
-    "learnability-i3-i4--typescript": {
-      "fingerprint": "d7cfbe2e75e931fb111206cca3428f1b8ab040f3275b9b873589b904d25ac59b",
-      "reason": "no certified record",
-      "scope": "typescript"
-    },
-    "learnability-i3-i4--zig": {
-      "fingerprint": "5457d68000567ccc07919f60f78b41f31540ece8387d12b974fceae9c7f6a53e",
-      "reason": "no certified record",
-      "scope": "zig"
-    },
-    "learnability-i5-i6--c": {
-      "fingerprint": "a42cf9ed2dc413069513f3201670e43bdb99b4de01b91dd54f29f853d05395ae",
-      "reason": "no certified record",
-      "scope": "c"
     },
     "learnability-i5-i6--go": {
       "fingerprint": "0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313",
-      "reason": "no certified record",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/go/ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a.json",
+      "scope": "go"
+    }
+  },
+  "next_run_misses": {
+    "learnability-i1-i2--go": {
+      "fingerprint": "2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/go/8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7.json",
       "scope": "go"
     },
-    "learnability-i5-i6--java": {
-      "fingerprint": "dd3f0b8a313a3d11e73bbf124c8676211b99ca47426e741cda2ee3e7c1d1aefe",
-      "reason": "no certified record",
-      "scope": "java"
-    },
-    "learnability-i5-i6--kotlin": {
-      "fingerprint": "6e341e1aea484537c7168c6c7fc7376d8fefaf38ad80e3112f0188462c602666",
-      "reason": "no certified record",
-      "scope": "kotlin"
-    },
-    "learnability-i5-i6--python": {
-      "fingerprint": "d3ab37d0910766bef08cf69fb7e1491fcb738258dd954e53f734749857496238",
-      "reason": "no certified record",
+    "learnability-i1-i2--python": {
+      "fingerprint": "0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/python/2bc4f2dcb622ae20b76e887921ced9cabb84cd312da900d18e28a7c6d2e2d17c.json",
       "scope": "python"
     },
-    "learnability-i5-i6--quidra": {
-      "fingerprint": "ee1636a0505c9e57f439a53a87fe79f06e1e24908b84be6c6bc472f411bbc42d",
-      "reason": "no certified record",
-      "scope": "quidra"
-    },
-    "learnability-i5-i6--rust": {
-      "fingerprint": "891c95043de08fcdd6e1e690498248506d67ee7be6073f962a27cf5881b5232a",
-      "reason": "no certified record",
-      "scope": "rust"
-    },
-    "learnability-i5-i6--swift": {
-      "fingerprint": "0408ca2f82b93459a35486b3607c7c71ced4457e4838f81bad86717eabc9aaef",
-      "reason": "no certified record",
+    "learnability-i1-i2--swift": {
+      "fingerprint": "59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/swift/ff79bf6a499471b5ee207a1e044f2eb052b86732945b187aac30f713ef743f1d.json",
       "scope": "swift"
     },
-    "learnability-i5-i6--typescript": {
-      "fingerprint": "8d997dc4cdb480cf2affe231b0fbeb84c3b023fdaebd59c266ee0224687175a9",
-      "reason": "no certified record",
-      "scope": "typescript"
+    "learnability-i3-i4--python": {
+      "fingerprint": "9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/python/b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a.json",
+      "scope": "python"
     },
-    "learnability-i5-i6--zig": {
-      "fingerprint": "0fed305e47a7179cc15d19ef260af088feac4e6c3f6f3d87498b9278add1560a",
-      "reason": "no certified record",
-      "scope": "zig"
+    "learnability-i5-i6--go": {
+      "fingerprint": "0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313",
+      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
+      "record": "v1/llm-learnability/go/ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a.json",
+      "scope": "go"
     },
     "lq-language-development--part-4--c": {
       "fingerprint": "4b9284a81d27d84ae2d7134f591b02ea1eeebae51d76c0ee7c6b69978f78544e",
@@ -28894,7 +28211,7 @@
       "scope": "zig"
     }
   },
-  "paid_api_required_unit_count": 41,
+  "paid_api_required_unit_count": 16,
   "paid_api_required_units": [
     {
       "assigned_languages": [
@@ -28998,42 +28315,12 @@
     },
     {
       "assigned_languages": [
-        "C++"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--c",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
         "Go"
       ],
       "estimated_uncached_usd": 2.07408,
       "evaluation": "llm_learnability",
       "planned_calls_estimate": 9,
       "work_unit_id": "learnability-i1-i2--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Java"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--java",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Kotlin"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--kotlin",
       "worker_mode": "sandbox-agent"
     },
     {
@@ -29048,92 +28335,12 @@
     },
     {
       "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--quidra",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Rust"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--rust",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
         "Swift"
       ],
       "estimated_uncached_usd": 2.07408,
       "evaluation": "llm_learnability",
       "planned_calls_estimate": 9,
       "work_unit_id": "learnability-i1-i2--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "TypeScript"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--typescript",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Zig"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--zig",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "C++"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--c",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Go"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Java"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--java",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Kotlin"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--kotlin",
       "worker_mode": "sandbox-agent"
     },
     {
@@ -29148,152 +28355,12 @@
     },
     {
       "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--quidra",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Rust"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--rust",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Swift"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "TypeScript"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--typescript",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Zig"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--zig",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "C++"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--c",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
         "Go"
       ],
       "estimated_uncached_usd": 1.37072,
       "evaluation": "llm_learnability",
       "planned_calls_estimate": 5,
       "work_unit_id": "learnability-i5-i6--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Java"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--java",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Kotlin"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--kotlin",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Python"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--python",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--quidra",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Rust"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--rust",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Swift"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "TypeScript"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--typescript",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Zig"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--zig",
       "worker_mode": "sandbox-agent"
     },
     {
@@ -29308,16 +28375,16 @@
     }
   ],
   "provider_cost": {
-    "estimated_uncached_usd": 93.629618,
-    "expected_paid_api_calls_upper_bound": 10720,
-    "planned_paid_api_calls_estimate": 413,
-    "recommended_budget_usd": 117.037022,
-    "retry_ceiling_uncached_usd": 2710.5448
+    "estimated_uncached_usd": 52.855538,
+    "expected_paid_api_calls_upper_bound": 5980,
+    "planned_paid_api_calls_estimate": 251,
+    "recommended_budget_usd": 66.069423,
+    "retry_ceiling_uncached_usd": 1385.5432
   },
   "recertification_pass_cache": {
-    "hits": 646,
-    "invalidated": 0,
-    "misses": 41
+    "hits": 671,
+    "invalidated": 5,
+    "misses": 16
   },
   "schema_version": 3,
   "semantic_compression_reused_unit_ids": [

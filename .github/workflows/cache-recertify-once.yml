@@ -19,6 +19,7 @@ on:
       - "benchmark/template/config/work_plan_templates.json"
       - "benchmark/template/methodology-assets/semantic_compression/**"
       - "benchmark/template/methodology-assets/ecosystem/**"
+      - "docs/**"
       - "benchmark/template/environment/environment.json"
       - "benchmark/template/runtime/**"
 

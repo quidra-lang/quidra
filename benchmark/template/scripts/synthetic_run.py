@@ -315,6 +315,19 @@ def unit_payload(
     for requirement_id in unit.get("requirement_ids", []):
         if requirement_id.startswith("gate.") or requirement_id.startswith("coverage."):
             requirements[requirement_id] = True
+        elif requirement_id.startswith("annotation.canonical_fragment--"):
+            probe_id = str(unit.get("canonical_probe_id") or "")
+            catalog = synthetic_canonical_catalog(root)
+            if probe_id not in catalog:
+                raise RunError(
+                    f"{unit.get('id')}: synthetic canonical owner has unknown probe "
+                    f"{probe_id!r}"
+                )
+            requirements[requirement_id] = True
+            evidence["canonical_fragments"] = {probe_id: catalog[probe_id]}
+            evidence["canonical_verification"] = synthetic_canonical_verification(
+                root, {probe_id: catalog[probe_id]}
+            )
         elif requirement_id.startswith("annotation.support_adjudication--"):
             # A support adjudication answers for the whole cohort with the full
             # canonical record consumed by comparability.

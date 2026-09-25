@@ -6121,6 +6121,13 @@ LEGACY_SC_SOURCE_PROVENANCE_ROOT = PurePosixPath(
     "provenance/semantic-compression"
 )
 
+# Proposal notes are intentionally outside the Semantic Compression language
+# specification.  They may be present in the broad historical repo/docs read
+# tree, but adding/editing them must not invalidate preserved paid judgments
+# when every scientific document byte is unchanged.  This list is deliberately
+# narrow and the projection below proves all non-excluded bytes match exactly.
+LEGACY_SC_NON_SCIENTIFIC_DOC_PATHS = ("candidates.md",)
+
 # The retained SC snapshots encode these two guard magnitudes as JSON floats
 # (8.0 / 3.0), while the current Primary file writes the mathematically
 # identical values as integers (8 / 3). Python's json round-trip preserves that
@@ -6184,6 +6191,110 @@ def _legacy_sc_source_projection_file(
         return None
 
 
+def _semantic_sc_docs_tree_hash(
+    path: Path, *, exclude_non_scientific: bool
+) -> str | None:
+    """Hash an SC docs tree exactly like cache_read_input_hashes, optionally
+    excluding the reviewed non-scientific proposal paths."""
+    if path.is_symlink() or not path.is_dir():
+        return None
+    excluded = (
+        set(LEGACY_SC_NON_SCIENTIFIC_DOC_PATHS)
+        if exclude_non_scientific
+        else set()
+    )
+    h = hashlib.sha256()
+    for child in sorted(path.rglob("*")):
+        if child.is_symlink():
+            return None
+        if not child.is_file():
+            continue
+        relative = child.relative_to(path).as_posix()
+        if relative in excluded:
+            continue
+        h.update(relative.encode("utf-8"))
+        h.update(b"\0")
+        h.update(sha256_file(child).encode("ascii"))
+        h.update(b"\n")
+    return h.hexdigest()
+
+
+def _project_semantic_sc_docs_read_hashes_if_safe(
+    root: Path,
+    record: dict[str, Any],
+    current_payload: dict[str, Any],
+    old: dict[str, Any],
+    current: dict[str, Any],
+) -> bool:
+    """Project repo/docs only when preserved source bytes prove the sole drift
+    is in the reviewed non-scientific proposal path."""
+    old_payload = record.get("fingerprint_payload") or {}
+    old_reads = old_payload.get("readable_input_content_hashes") or {}
+    current_reads = current_payload.get("readable_input_content_hashes") or {}
+    old_full = str(old_reads.get("repo/docs") or "")
+    current_full = str(current_reads.get("repo/docs") or "")
+    if not old_full or not current_full or old_full == current_full:
+        return False
+
+    run_id = str((record.get("provenance") or {}).get("run_id") or "")
+    expected_snapshot = LEGACY_SC_SOURCE_SNAPSHOTS.get(run_id)
+    if expected_snapshot is None:
+        return False
+    metadata_path = _legacy_sc_source_projection_metadata_path(root, run_id)
+    if not metadata_path.is_file():
+        return False
+    try:
+        metadata = json_load(metadata_path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if (
+        metadata.get("schema_version") != 1
+        or metadata.get("run_id") != run_id
+        or metadata.get("source_snapshot_commit") != expected_snapshot
+        or metadata.get("migration_rule")
+        != "semantic-source-snapshot-projection-v1"
+        or metadata.get("source_docs_projection_excluded_paths")
+        != list(LEGACY_SC_NON_SCIENTIFIC_DOC_PATHS)
+    ):
+        return False
+
+    source_docs = _legacy_sc_source_projection_file(
+        root, str(metadata.get("source_docs") or "")
+    )
+    current_docs = root / "repo" / "docs"
+    if source_docs is None or not source_docs.is_dir() or not current_docs.is_dir():
+        return False
+
+    source_full_actual = _semantic_sc_docs_tree_hash(
+        source_docs, exclude_non_scientific=False
+    )
+    source_projected = _semantic_sc_docs_tree_hash(
+        source_docs, exclude_non_scientific=True
+    )
+    current_full_actual = _semantic_sc_docs_tree_hash(
+        current_docs, exclude_non_scientific=False
+    )
+    current_projected = _semantic_sc_docs_tree_hash(
+        current_docs, exclude_non_scientific=True
+    )
+    if (
+        source_full_actual != old_full
+        or source_full_actual != metadata.get("source_docs_sha256")
+        or current_full_actual != current_full
+        or source_projected is None
+        or source_projected
+        != metadata.get("source_docs_sc_projection_sha256")
+        or current_projected != source_projected
+    ):
+        return False
+
+    for payload in (old, current):
+        reads = dict(payload.get("readable_input_content_hashes") or {})
+        reads.pop("repo/docs", None)
+        payload["readable_input_content_hashes"] = reads
+    return True
+
+
 def record_legacy_sc_source_projection_provenance(
     source: Path, evidence: Path, snapshot: str
 ) -> dict[str, Any] | None:
@@ -6204,7 +6315,8 @@ def record_legacy_sc_source_projection_provenance(
         evidence / "template" / "methodology"
         / EVALUATION_SPEC_FILES["semantic_compression"]
     )
-    if not primary.is_file() or not spec.is_file():
+    docs = evidence / "repo" / "docs"
+    if not primary.is_file() or not spec.is_file() or not docs.is_dir():
         raise BenchmarkError(
             f"{run_id}: recovered Semantic Compression source inputs are missing"
         )
@@ -6224,6 +6336,16 @@ def record_legacy_sc_source_projection_provenance(
             ensure_ascii=False,
         ).encode("utf-8")
     )
+    docs_full = _semantic_sc_docs_tree_hash(
+        docs, exclude_non_scientific=False
+    )
+    docs_projection = _semantic_sc_docs_tree_hash(
+        docs, exclude_non_scientific=True
+    )
+    if docs_full is None or docs_projection is None:
+        raise BenchmarkError(
+            f"{run_id}: recovered Semantic Compression docs tree is invalid"
+        )
     if (
         primary_full != migration.get("primary_config_full_sha256")
         or spec_full != migration.get("evaluation_spec_full_sha256")
@@ -6250,6 +6372,9 @@ def record_legacy_sc_source_projection_provenance(
         LEGACY_SC_SOURCE_PROVENANCE_ROOT / "source-files"
         / f"{spec_full}.semantic_compression.md"
     )
+    docs_rel = (
+        LEGACY_SC_SOURCE_PROVENANCE_ROOT / "source-docs" / docs_full
+    )
 
     for source_path, relative in ((primary, primary_rel), (spec, spec_rel)):
         destination = cache_root / Path(*relative.parts)
@@ -6262,6 +6387,21 @@ def record_legacy_sc_source_projection_provenance(
         else:
             destination.write_bytes(source_bytes)
 
+    docs_destination = cache_root / Path(*docs_rel.parts)
+    if docs_destination.exists():
+        if (
+            _semantic_sc_docs_tree_hash(
+                docs_destination, exclude_non_scientific=False
+            )
+            != docs_full
+        ):
+            raise BenchmarkError(
+                f"{run_id}: preserved SC docs provenance drifted: {docs_rel}"
+            )
+    else:
+        docs_destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(docs, docs_destination)
+
     metadata = {
         "schema_version": 1,
         "run_id": run_id,
@@ -6271,16 +6411,36 @@ def record_legacy_sc_source_projection_provenance(
         "source_primary_config_sc_projection_sha256": primary_projection,
         "source_evaluation_spec": spec_rel.as_posix(),
         "source_evaluation_spec_sha256": spec_full,
+        "source_docs": docs_rel.as_posix(),
+        "source_docs_sha256": docs_full,
+        "source_docs_sc_projection_sha256": docs_projection,
+        "source_docs_projection_excluded_paths": list(
+            LEGACY_SC_NON_SCIENTIFIC_DOC_PATHS
+        ),
         "migration_rule": "semantic-source-snapshot-projection-v1",
         "migration_rule_version": 1,
     }
     metadata_path = runs_root / f"{slug_id(run_id)}.json"
     if metadata_path.exists():
         existing = json_load(metadata_path)
-        if existing != metadata:
+        stable_keys = (
+            "schema_version",
+            "run_id",
+            "source_snapshot_commit",
+            "source_primary_config",
+            "source_primary_config_sha256",
+            "source_primary_config_sc_projection_sha256",
+            "source_evaluation_spec",
+            "source_evaluation_spec_sha256",
+            "migration_rule",
+            "migration_rule_version",
+        )
+        if any(existing.get(key) != metadata.get(key) for key in stable_keys):
             raise BenchmarkError(
                 f"{run_id}: preserved SC source projection metadata drifted"
             )
+        if existing != metadata:
+            json_dump(metadata_path, metadata)
     else:
         json_dump(metadata_path, metadata)
     return metadata
@@ -9336,6 +9496,9 @@ def _semantic_validator_recertification_payloads_compatible(
 
     old = _validator_recertification_payload(old_payload, cfg)
     current = _validator_recertification_payload(current_payload, cfg)
+    _project_semantic_sc_docs_read_hashes_if_safe(
+        root, record, current_payload, old, current
+    )
     if old == current and not projection_required:
         return True
 
@@ -9416,6 +9579,9 @@ def _semantic_validator_recertification_mismatch_summary(
 
     old = _validator_recertification_payload(old_payload, cfg)
     current = _validator_recertification_payload(current_payload, cfg)
+    _project_semantic_sc_docs_read_hashes_if_safe(
+        root, record, current_payload, old, current
+    )
     differing: list[str] = []
     for key in sorted(set(old) | set(current)):
         old_value = old.get(key)

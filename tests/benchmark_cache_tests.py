@@ -2024,6 +2024,124 @@ def assert_semantic_legacy_full_hash_projection_is_explicit() -> None:
         )
 
 
+def assert_semantic_docs_projection_ignores_only_candidates() -> None:
+    """SC cache may cross proposal-only docs drift, never normative docs drift."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        run_id = "2026-09-23-fce5cfa-gh16"
+        source_docs_rel = (
+            benchmark.LEGACY_SC_SOURCE_PROVENANCE_ROOT
+            / "source-docs"
+            / "fixture"
+        )
+        source_docs = root / "cache" / Path(*source_docs_rel.parts)
+        (source_docs / "spec").mkdir(parents=True)
+        (source_docs / "spec/language.md").write_text(
+            "normative language bytes\n", encoding="utf-8"
+        )
+        (source_docs / "packages.md").write_text(
+            "package bytes\n", encoding="utf-8"
+        )
+        source_full = benchmark._semantic_sc_docs_tree_hash(
+            source_docs, exclude_non_scientific=False
+        )
+        source_projected = benchmark._semantic_sc_docs_tree_hash(
+            source_docs, exclude_non_scientific=True
+        )
+        assert source_full and source_projected
+
+        metadata_path = benchmark._legacy_sc_source_projection_metadata_path(
+            root, run_id
+        )
+        metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        benchmark.json_dump(
+            metadata_path,
+            {
+                "schema_version": 1,
+                "run_id": run_id,
+                "source_snapshot_commit":
+                    benchmark.LEGACY_SC_SOURCE_SNAPSHOTS[run_id],
+                "source_docs": source_docs_rel.as_posix(),
+                "source_docs_sha256": source_full,
+                "source_docs_sc_projection_sha256": source_projected,
+                "source_docs_projection_excluded_paths": list(
+                    benchmark.LEGACY_SC_NON_SCIENTIFIC_DOC_PATHS
+                ),
+                "migration_rule": "semantic-source-snapshot-projection-v1",
+                "migration_rule_version": 1,
+            },
+        )
+
+        current_docs = root / "repo/docs"
+        (current_docs / "spec").mkdir(parents=True, exist_ok=True)
+        (current_docs / "spec/language.md").write_text(
+            "normative language bytes\n", encoding="utf-8"
+        )
+        (current_docs / "packages.md").write_text(
+            "package bytes\n", encoding="utf-8"
+        )
+        (current_docs / "candidates.md").write_text(
+            "proposal only\n", encoding="utf-8"
+        )
+        current_full = benchmark._semantic_sc_docs_tree_hash(
+            current_docs, exclude_non_scientific=False
+        )
+        record = {
+            "provenance": {"run_id": run_id},
+            "fingerprint_payload": {
+                "readable_input_content_hashes": {"repo/docs": source_full}
+            },
+        }
+        current_payload = {
+            "readable_input_content_hashes": {"repo/docs": current_full}
+        }
+        old_normalized = json.loads(json.dumps(record["fingerprint_payload"]))
+        current_normalized = json.loads(json.dumps(current_payload))
+        assert benchmark._project_semantic_sc_docs_read_hashes_if_safe(
+            root,
+            record,
+            current_payload,
+            old_normalized,
+            current_normalized,
+        )
+        assert old_normalized["readable_input_content_hashes"] == {}
+        assert current_normalized["readable_input_content_hashes"] == {}
+
+        # Proposal edits remain irrelevant.
+        (current_docs / "candidates.md").write_text(
+            "different proposal bytes\n", encoding="utf-8"
+        )
+        current_payload["readable_input_content_hashes"]["repo/docs"] = (
+            benchmark._semantic_sc_docs_tree_hash(
+                current_docs, exclude_non_scientific=False
+            )
+        )
+        assert benchmark._project_semantic_sc_docs_read_hashes_if_safe(
+            root,
+            record,
+            current_payload,
+            json.loads(json.dumps(record["fingerprint_payload"])),
+            json.loads(json.dumps(current_payload)),
+        )
+
+        # Any normative documentation change must fail closed.
+        (current_docs / "spec/language.md").write_text(
+            "changed normative language bytes\n", encoding="utf-8"
+        )
+        current_payload["readable_input_content_hashes"]["repo/docs"] = (
+            benchmark._semantic_sc_docs_tree_hash(
+                current_docs, exclude_non_scientific=False
+            )
+        )
+        assert not benchmark._project_semantic_sc_docs_read_hashes_if_safe(
+            root,
+            record,
+            current_payload,
+            json.loads(json.dumps(record["fingerprint_payload"])),
+            json.loads(json.dumps(current_payload)),
+        )
+
+
 def assert_semantic_owner_cross_run_density_requires_exact_experiment_identity() -> None:
     """Cross-run density reuse requires an identical shared SC experiment."""
     with tempfile.TemporaryDirectory() as td:
@@ -2812,6 +2930,7 @@ def main() -> None:
     assert_ecosystem_snapshot_recertifies_under_current_validator()
     assert_semantic_validator_recertification_is_narrow()
     assert_semantic_legacy_full_hash_projection_is_explicit()
+    assert_semantic_docs_projection_ignores_only_candidates()
     assert_semantic_owner_cross_run_density_requires_exact_experiment_identity()
     assert_semantic_recertification_requires_exact_canonical_fragments()
     assert_budget_plan_excludes_complete_units()

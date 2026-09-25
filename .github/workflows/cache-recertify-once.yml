@@ -11,6 +11,7 @@ on:
     paths:
       - ".github/workflows/cache-recertify-once.yml"
       - "benchmark/template/scripts/benchmark.py"
+      - "benchmark/template/scripts/production_run.py"
       - "benchmark/template/scripts/audit_proficiency_legacy.py"
       - "benchmark/template/scripts/adversarial_measure.py"
       - "benchmark/template/scripts/micro_measure.py"

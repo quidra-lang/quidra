@@ -21,13 +21,13 @@
         "retry_ceiling_uncached_usd": 40.51824
       },
       "llm_learnability": {
-        "complete_units": 26,
-        "estimated_uncached_usd": 9.13952,
-        "expected_paid_api_calls_upper_bound": 1060,
+        "complete_units": 33,
+        "estimated_uncached_usd": 0.0,
+        "expected_paid_api_calls_upper_bound": 0,
         "hard_blockers": [],
-        "pending_agent_units": 5,
-        "planned_paid_api_calls_estimate": 38,
-        "retry_ceiling_uncached_usd": 284.6944
+        "pending_agent_units": 0,
+        "planned_paid_api_calls_estimate": 0,
+        "retry_ceiling_uncached_usd": 0.0
       },
       "llm_proficiency": {
         "complete_units": 1,
@@ -48,11 +48,11 @@
         "retry_ceiling_uncached_usd": 0.0
       }
     },
-    "cache_hits": 671,
-    "cache_invalidated_units": 5,
-    "cache_misses": 16,
-    "complete_units": 684,
-    "estimated_uncached_usd": 52.855538,
+    "cache_hits": 676,
+    "cache_invalidated_units": 0,
+    "cache_misses": 11,
+    "complete_units": 691,
+    "estimated_uncached_usd": 43.716018,
     "evaluation": "all",
     "execution_decisions": {
       "already_complete_not_from_cache": [
@@ -115,6 +115,20 @@
         {
           "api_calls": 0,
           "assigned_languages": [],
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-integrity"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "llm_learnability-aggregate"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
           "evaluation": "language_quality",
           "status": "COMPLETE",
           "work_unit_id": "lq-coverage"
@@ -151,22 +165,6 @@
       "blocked": [],
       "deferred_cache_decision": [],
       "machine_only": [
-        {
-          "api_calls": 0,
-          "assigned_languages": [],
-          "evaluation": "llm_learnability",
-          "runner_action": "learnability-integrity",
-          "status": "PENDING",
-          "work_unit_id": "learnability-integrity"
-        },
-        {
-          "api_calls": 0,
-          "assigned_languages": [],
-          "evaluation": "llm_learnability",
-          "runner_action": "aggregate-primary",
-          "status": "PENDING",
-          "work_unit_id": "llm_learnability-aggregate"
-        },
         {
           "api_calls": 0,
           "assigned_languages": [],
@@ -546,173 +544,7 @@
           "worker_mode": "sandbox-agent"
         }
       ],
-      "paid_reevaluation_after_invalidation": [
-        {
-          "assigned_languages": [
-            "Python"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "invalidation": {
-            "fingerprint": "0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0",
-            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-            "record": "v1/llm-learnability/python/2bc4f2dcb622ae20b76e887921ced9cabb84cd312da900d18e28a7c6d2e2d17c.json",
-            "scope": "python"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--python",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "invalidation": {
-            "fingerprint": "2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45",
-            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-            "record": "v1/llm-learnability/go/8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7.json",
-            "scope": "go"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 240,
-          "estimated_uncached_usd": 2.07408,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "invalidation": {
-            "fingerprint": "59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b",
-            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-            "record": "v1/llm-learnability/swift/ff79bf6a499471b5ee207a1e044f2eb052b86732945b187aac30f713ef743f1d.json",
-            "scope": "swift"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 9,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 61.8624,
-          "scored_calls_estimate": 6,
-          "scored_calls_remaining_allowance": 24,
-          "scored_calls_upper_bound": 120,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i1-i2--swift",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Python"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 180,
-          "estimated_uncached_usd": 1.54656,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "invalidation": {
-            "fingerprint": "9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13",
-            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-            "record": "v1/llm-learnability/python/b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a.json",
-            "scope": "python"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 6,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 51.312,
-          "scored_calls_estimate": 3,
-          "scored_calls_remaining_allowance": 12,
-          "scored_calls_upper_bound": 60,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i3-i4--python",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 160,
-          "estimated_uncached_usd": 1.37072,
-          "evaluation": "llm_learnability",
-          "input_tokens_per_call": 6000,
-          "invalidation": {
-            "fingerprint": "0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313",
-            "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-            "record": "v1/llm-learnability/go/ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a.json",
-            "scope": "go"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 5,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 47.7952,
-          "scored_calls_estimate": 2,
-          "scored_calls_remaining_allowance": 8,
-          "scored_calls_upper_bound": 40,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "learnability-i5-i6--go",
-          "worker_mode": "sandbox-agent"
-        }
-      ],
+      "paid_reevaluation_after_invalidation": [],
       "partial_paid_resume": [],
       "reused_and_revalidated": [
         {
@@ -19461,7 +19293,7 @@
           "cache": {
             "assigned_languages": [],
             "compatibility_mode": "semantic-comparability-from-current-catalog",
-            "fingerprint": "9e9c9f3b5133f2ec1286e0904a5776080a2ad3899bf74e98f8725f4057a0817d",
+            "fingerprint": "1e8fa57671d3bdce2abd4e706a581ae9ed3f66c151b8316027786026e27c224e",
             "migration": {
               "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
               "current_validator": "PASS",
@@ -19524,6 +19356,41 @@
           "evaluation": "llm_learnability",
           "status": "COMPLETE",
           "work_unit_id": "learnability-i1-i2--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Python"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Python"
+            ],
+            "fingerprint": "0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "2bc4f2dcb622ae20b76e887921ced9cabb84cd312da900d18e28a7c6d2e2d17c",
+              "source_record": "v1/llm-learnability/python/2bc4f2dcb622ae20b76e887921ced9cabb84cd312da900d18e28a7c6d2e2d17c.json",
+              "source_record_sha256": "fca3c1752960d4dfa95550f0e317f8d7727b166d6e64d400f98e65d4cbd8331e",
+              "source_result_sha256": "00a93709cb24e3c94ef2cc436dabc00b9087e01a6e4663d12369178fcaf92290",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/python/0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0.json",
+            "scope": "python"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--python"
         },
         {
           "api_calls": 0,
@@ -19594,6 +19461,41 @@
           "evaluation": "llm_learnability",
           "status": "COMPLETE",
           "work_unit_id": "learnability-i1-i2--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Go"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Go"
+            ],
+            "fingerprint": "2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7",
+              "source_record": "v1/llm-learnability/go/8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7.json",
+              "source_record_sha256": "9a2a2fe8fdfb151cbeef1905a00e15c1b04a14901cf5f3c97bec9158e844dfee",
+              "source_result_sha256": "f84e444edb9a6026200d9298a196795939429fb749da2bf0163762bfa4fd36bc",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/go/2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45.json",
+            "scope": "go"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--go"
         },
         {
           "api_calls": 0,
@@ -19703,6 +19605,41 @@
         {
           "api_calls": 0,
           "assigned_languages": [
+            "Swift"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Swift"
+            ],
+            "fingerprint": "59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "ff79bf6a499471b5ee207a1e044f2eb052b86732945b187aac30f713ef743f1d",
+              "source_record": "v1/llm-learnability/swift/ff79bf6a499471b5ee207a1e044f2eb052b86732945b187aac30f713ef743f1d.json",
+              "source_record_sha256": "ecc57050ecc058b93343644d1961445ffb60f51169578da70fb4f4613e03319e",
+              "source_result_sha256": "a9b47ae64b682898fe3b2c7245d781040a2aa0dd638421043743d2a7781cdd28",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/swift/59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b.json",
+            "scope": "swift"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i1-i2--swift"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
             "Zig"
           ],
           "cache": {
@@ -19769,6 +19706,41 @@
           "evaluation": "llm_learnability",
           "status": "COMPLETE",
           "work_unit_id": "learnability-i3-i4--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Python"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Python"
+            ],
+            "fingerprint": "9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a",
+              "source_record": "v1/llm-learnability/python/b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a.json",
+              "source_record_sha256": "03ce8e5cb5fddbb15137c91a2b329d55f80391e1974d7a9cf0427c8b5a43966e",
+              "source_result_sha256": "4bcbe7f21bf664a12bbb71370ec9d4387e83f0a58e9f0fb9776d616d2a62db85",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/python/9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13.json",
+            "scope": "python"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i3-i4--python"
         },
         {
           "api_calls": 0,
@@ -20189,6 +20161,41 @@
           "evaluation": "llm_learnability",
           "status": "COMPLETE",
           "work_unit_id": "learnability-i5-i6--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Go"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Go"
+            ],
+            "fingerprint": "0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313",
+            "migration": {
+              "current_mechanical_verification": "not-applicable",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
+              "migration_rule": "scoped-input-projection",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a",
+              "source_record": "v1/llm-learnability/go/ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a.json",
+              "source_record_sha256": "28cefecb4b577fb33793f390f542f5150cc0d25adb355dd7229333590f56e9e8",
+              "source_result_sha256": "9103c475ac21db2607f0a18c3636eabae980fe05936b0e0513dab83116a42528",
+              "transformed_fields": [
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/llm-learnability/go/0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313.json",
+            "scope": "go"
+          },
+          "evaluation": "llm_learnability",
+          "status": "COMPLETE",
+          "work_unit_id": "learnability-i5-i6--go"
         },
         {
           "api_calls": 0,
@@ -25005,9 +25012,9 @@
         }
       ]
     },
-    "expected_paid_api_calls_upper_bound": 5980,
+    "expected_paid_api_calls_upper_bound": 4920,
     "full_retry_envelope_funded": false,
-    "full_retry_envelope_recommended_budget_usd": 1731.929,
+    "full_retry_envelope_recommended_budget_usd": 1376.061,
     "hard_blockers": [],
     "invalidated_cache_records": [],
     "kind": "benchmark_execution_plan",
@@ -25015,11 +25022,11 @@
     "note": "Frozen pre-paid execution plan. COMPLETE certified-cache hits are revalidated and cost zero. estimated_uncached_usd and planned_paid_api_calls_estimate are the practical nominal envelope; retry_ceiling_uncached_usd and expected_paid_api_calls_upper_bound also expose every still-configured work-unit retry and sandbox-agent turn. The normal funding gate uses the nominal envelope plus its safety multiplier, while full_retry_envelope_funded says whether even the absolute configured retry envelope is funded. Pending leaves with a known invalidation state the exact reason; dependency-deferred cache decisions remain conservatively priced. Exact-fingerprint paid partial checkpoints reduce the remaining scored-call estimate before pricing. Sandbox-agent scored calls and orchestration calls are priced at their distinct frozen output caps; prompt-cache discounts can only reduce actual provider spend further.",
     "partial_paid_restored_calls": 0,
     "partial_paid_resumed_units": [],
-    "pending_agent_units": 16,
-    "planned_paid_api_calls_estimate": 251,
+    "pending_agent_units": 11,
+    "planned_paid_api_calls_estimate": 213,
     "provider_smoke_required": true,
-    "recommended_budget_usd": 66.069423,
-    "retry_ceiling_uncached_usd": 1385.5432,
+    "recommended_budget_usd": 54.645022,
+    "retry_ceiling_uncached_usd": 1100.8488,
     "safety_multiplier": 1.25,
     "schema_version": 2,
     "scope_work_unit_count": 705,
@@ -25299,141 +25306,6 @@
       },
       {
         "assigned_languages": [
-          "Go"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Python"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--python",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Swift"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 240,
-        "estimated_uncached_usd": 2.07408,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 9,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 61.8624,
-        "scored_calls_estimate": 6,
-        "scored_calls_remaining_allowance": 24,
-        "scored_calls_upper_bound": 120,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i1-i2--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Python"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 180,
-        "estimated_uncached_usd": 1.54656,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 6,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 51.312,
-        "scored_calls_estimate": 3,
-        "scored_calls_remaining_allowance": 12,
-        "scored_calls_upper_bound": 60,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i3-i4--python",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Go"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 160,
-        "estimated_uncached_usd": 1.37072,
-        "evaluation": "llm_learnability",
-        "input_tokens_per_call": 6000,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 5,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 47.7952,
-        "scored_calls_estimate": 2,
-        "scored_calls_remaining_allowance": 8,
-        "scored_calls_upper_bound": 40,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "learnability-i5-i6--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
           "C++"
         ],
         "attempts_used": 0,
@@ -25549,12 +25421,12 @@
     "invalid": 210,
     "note": "Legacy invalid records are retained as provenance. A successful migration adds an ordinary current-key record rather than rewriting or deleting its source.",
     "superseded": 248,
-    "valid": 738
+    "valid": 744
   },
   "historical_cache_before": {
     "invalid": 210,
     "superseded": 248,
-    "valid": 737
+    "valid": 738
   },
   "legacy_invalid_record_classifications": [
     {
@@ -28073,9 +27945,9 @@
         "misses": 1
       },
       "llm_learnability": {
-        "hits": 25,
-        "invalidated": 5,
-        "misses": 5
+        "hits": 30,
+        "invalidated": 0,
+        "misses": 0
       },
       "llm_proficiency": {
         "hits": 0,
@@ -28088,73 +27960,12 @@
         "misses": 0
       }
     },
-    "hits": 671,
-    "invalidated": 5,
-    "misses": 16
+    "hits": 676,
+    "invalidated": 0,
+    "misses": 11
   },
-  "next_run_invalidated": {
-    "learnability-i1-i2--go": {
-      "fingerprint": "2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/go/8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7.json",
-      "scope": "go"
-    },
-    "learnability-i1-i2--python": {
-      "fingerprint": "0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/python/2bc4f2dcb622ae20b76e887921ced9cabb84cd312da900d18e28a7c6d2e2d17c.json",
-      "scope": "python"
-    },
-    "learnability-i1-i2--swift": {
-      "fingerprint": "59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/swift/ff79bf6a499471b5ee207a1e044f2eb052b86732945b187aac30f713ef743f1d.json",
-      "scope": "swift"
-    },
-    "learnability-i3-i4--python": {
-      "fingerprint": "9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/python/b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a.json",
-      "scope": "python"
-    },
-    "learnability-i5-i6--go": {
-      "fingerprint": "0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/go/ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a.json",
-      "scope": "go"
-    }
-  },
+  "next_run_invalidated": {},
   "next_run_misses": {
-    "learnability-i1-i2--go": {
-      "fingerprint": "2af8330fc31777c9b14068ec035c7faa12f5ac476951ad83f665a52c4f5bef45",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/go/8aad9316830dca1ccbb482c436ba3cf3244f3d8090738c812a75043ccfa103a7.json",
-      "scope": "go"
-    },
-    "learnability-i1-i2--python": {
-      "fingerprint": "0906fed8303ee75937f463f5a42f2e541f87062ee2ffc7caad11dcd988da5cd0",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/python/2bc4f2dcb622ae20b76e887921ced9cabb84cd312da900d18e28a7c6d2e2d17c.json",
-      "scope": "python"
-    },
-    "learnability-i1-i2--swift": {
-      "fingerprint": "59aef4685550af64d634daf042c5ca487630ae0fe9c8c3980205a89a22b5fd1b",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/swift/ff79bf6a499471b5ee207a1e044f2eb052b86732945b187aac30f713ef743f1d.json",
-      "scope": "swift"
-    },
-    "learnability-i3-i4--python": {
-      "fingerprint": "9ea40e88bf1b670f63f97fb3f1fe86944dfd27054f05135579871426804f6a13",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/python/b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a.json",
-      "scope": "python"
-    },
-    "learnability-i5-i6--go": {
-      "fingerprint": "0d223ba4f4c514e80bd93c4563ca6d64bda7baa8017e967d91c311db1949c313",
-      "reason": "the record carries no scored-cap evidence; run cache-annotate-caps on the run's evidence before it can be reused",
-      "record": "v1/llm-learnability/go/ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a.json",
-      "scope": "go"
-    },
     "lq-language-development--part-4--c": {
       "fingerprint": "4b9284a81d27d84ae2d7134f591b02ea1eeebae51d76c0ee7c6b69978f78544e",
       "reason": "no certified record",
@@ -28211,7 +28022,7 @@
       "scope": "zig"
     }
   },
-  "paid_api_required_unit_count": 16,
+  "paid_api_required_unit_count": 11,
   "paid_api_required_units": [
     {
       "assigned_languages": [
@@ -28315,56 +28126,6 @@
     },
     {
       "assigned_languages": [
-        "Go"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Python"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--python",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Swift"
-      ],
-      "estimated_uncached_usd": 2.07408,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 9,
-      "work_unit_id": "learnability-i1-i2--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Python"
-      ],
-      "estimated_uncached_usd": 1.54656,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 6,
-      "work_unit_id": "learnability-i3-i4--python",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Go"
-      ],
-      "estimated_uncached_usd": 1.37072,
-      "evaluation": "llm_learnability",
-      "planned_calls_estimate": 5,
-      "work_unit_id": "learnability-i5-i6--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
         "C++"
       ],
       "estimated_uncached_usd": 1.012956,
@@ -28375,16 +28136,16 @@
     }
   ],
   "provider_cost": {
-    "estimated_uncached_usd": 52.855538,
-    "expected_paid_api_calls_upper_bound": 5980,
-    "planned_paid_api_calls_estimate": 251,
-    "recommended_budget_usd": 66.069423,
-    "retry_ceiling_uncached_usd": 1385.5432
+    "estimated_uncached_usd": 43.716018,
+    "expected_paid_api_calls_upper_bound": 4920,
+    "planned_paid_api_calls_estimate": 213,
+    "recommended_budget_usd": 54.645022,
+    "retry_ceiling_uncached_usd": 1100.8488
   },
   "recertification_pass_cache": {
-    "hits": 671,
-    "invalidated": 5,
-    "misses": 16
+    "hits": 676,
+    "invalidated": 0,
+    "misses": 11
   },
   "schema_version": 3,
   "semantic_compression_reused_unit_ids": [

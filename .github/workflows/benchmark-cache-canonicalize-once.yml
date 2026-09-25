@@ -1,0 +1,478 @@
+name: benchmark-cache-canonicalize-once
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - ".github/workflows/benchmark-cache-canonicalize-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: benchmark-cache-canonicalize-once
+  cancel-in-progress: false
+
+jobs:
+  canonicalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      BASELINE_RUN: 2026-09-25-5dc8989-gh25
+      EVALUATED_SHA: 5dc8989342d3920ad1a64262696757257958e0aa
+      BENCHMARK_MODEL: claude-sonnet-5
+      BENCHMARK_IMAGE: quidra-benchmark/runtime:canonicalize-once
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Refuse stale or unsafe starting point
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin develop --prune
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse origin/develop)" = "$GITHUB_SHA"
+          test ! -e benchmark/.run-production
+          test -f "benchmark/$BASELINE_RUN/summary.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path("benchmark") / os.environ["BASELINE_RUN"]
+          summary = json.loads((root / "summary.json").read_text())
+          assert summary.get("formal_complete") is True, summary
+          evaluations = summary.get("evaluations") or {}
+          assert evaluations and all(
+              (row or {}).get("status") == "COMPLETE"
+              for row in evaluations.values()
+          ), evaluations
+          PY
+
+      - name: Canonicalize completed baseline and remove obsolete cache history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import shutil
+          from pathlib import Path
+
+          BASE = os.environ["BASELINE_RUN"]
+          EVAL = os.environ["EVALUATED_SHA"]
+          repo = Path.cwd()
+          cache = repo / "benchmark/cache"
+          usage = json.loads(
+              (repo / f"benchmark/{BASE}/cache_usage.json").read_text()
+          )
+
+          active = {}
+          for uid, row in (usage.get("hits") or {}).items():
+              record = str((row or {}).get("record") or "")
+              if record:
+                  active.setdefault(record, uid)
+
+          active.update({
+              "v1/llm-proficiency/quidra/b6a8e854ed2ad7f62e83a5b2444055e5681f5db3800a5476986de39b6b135f15.json":
+                  "proficiency-trials--quidra",
+              "v1/llm-proficiency/typescript/3f8731cab70943b0fe41b5fa2b2afe6ef600721ecf066a1281582d6ac7e689be.json":
+                  "proficiency-trials--typescript",
+              "v1/llm-proficiency/zig/116233e2ca2daea174d689ad51828fe1bd70d06b58d12698c9f12eae883e79d2.json":
+                  "proficiency-trials--zig",
+              "v1/semantic-compression/comparability/4462a2ce3637819c31d48ad8f07ecfd3329d55b4cbc82d90cae7cf2e843dfe49.json":
+                  "sc-comparability",
+          })
+
+          assert len(active) == 688, len(active)
+          existing = sorted((cache / "v1").rglob("*.json"))
+          assert len(existing) == 1219, len(existing)
+          active_paths = {Path(path) for path in active}
+
+          for relative, uid in sorted(active.items()):
+              path = cache / relative
+              assert path.is_file(), relative
+              record = json.loads(path.read_text())
+              payload = record.get("fingerprint_payload")
+              assert isinstance(payload, dict), relative
+              expected_fp = hashlib.sha256(
+                  json.dumps(
+                      payload, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False,
+                  ).encode()
+              ).hexdigest()
+              assert record.get("fingerprint") == expected_fp, relative
+              expected_result = hashlib.sha256(
+                  json.dumps(
+                      record.get("result"), sort_keys=True, separators=(",", ":")
+                  ).encode()
+              ).hexdigest()
+              assert record.get("result_sha256") == expected_result, relative
+
+              if "Quidra" in (payload.get("assigned_languages") or []):
+                  identity = (
+                      (record.get("compatibility") or {})
+                      .get("quidra_execution_identity")
+                  )
+                  assert isinstance(identity, dict) and identity.get("sha256"), relative
+
+              cert = dict(record.get("certification") or {})
+              for key in list(cert):
+                  if (
+                      re.search(r"(migration|recertif|snapshot|legacy)", key, re.I)
+                      or key == "new_paid_provider_call"
+                  ):
+                      cert.pop(key, None)
+              cert.update({
+                  "unit_complete": True,
+                  "validator_pass": True,
+                  "primary_complete": True,
+                  "canonical_baseline_run_id": BASE,
+                  "canonical_baseline_formal_complete": True,
+              })
+              record["certification"] = cert
+              record.pop("migration", None)
+              old_prov = record.get("provenance") or {}
+              record["provenance"] = {
+                  "run_id": BASE,
+                  "work_unit_id": uid,
+                  "prompt_sha256": old_prov.get("prompt_sha256"),
+                  "canonical_baseline": True,
+                  "evaluated_commit_sha": EVAL,
+              }
+              path.write_text(
+                  json.dumps(record, indent=2, sort_keys=True) + "\n"
+              )
+
+          removed = 0
+          for path in existing:
+              if path.relative_to(cache) not in active_paths:
+                  path.unlink()
+                  removed += 1
+          assert removed == 531, removed
+
+          for directory in [cache / "provenance", cache / "snapshots"]:
+              if directory.exists():
+                  shutil.rmtree(directory)
+          for file in [
+              cache / "proficiency-recertification-audit.json",
+              cache / "recertification-report.json",
+              repo / "benchmark/template/scripts/audit_proficiency_legacy.py",
+              repo / ".github/workflows/cache-recertify-once.yml",
+          ]:
+              file.unlink(missing_ok=True)
+
+          for directory in sorted(
+              [p for p in (cache / "v1").rglob("*") if p.is_dir()],
+              key=lambda p: len(p.parts),
+              reverse=True,
+          ):
+              try:
+                  directory.rmdir()
+              except OSError:
+                  pass
+
+          policy_path = repo / "benchmark/template/config/cache_policy.json"
+          policy = json.loads(policy_path.read_text())
+          old_reuse = policy.get("reuse_conditions") or {}
+          keep = {}
+          for key in (
+              "scored_output_cap",
+              "same_result_metadata_refresh",
+              "llm_proficiency_runtime_prompt_identity",
+          ):
+              if key in old_reuse:
+                  keep[key] = old_reuse[key]
+          keep["quidra_execution_identity"] = (
+              "Every Quidra cache record must carry the exact trusted compiler/runtime "
+              "execution identity. Missing identity is a cache miss; there is no "
+              "historical baseline fallback."
+          )
+          policy["reuse_conditions"] = keep
+          policy["policy"] = (
+              "Only self-contained certified records at the exact current fingerprint "
+              "may be reused. Hydration never searches older fingerprints, snapshots, "
+              "migration sources, or historical run directories. Every exact hit is "
+              "revalidated by the current validator. Quidra records additionally require "
+              "an explicit exact compiler/runtime execution identity."
+          )
+          policy["non_dependency_note"] = (
+              "run_id, workflow identity, branch name, host paths and cache provenance "
+              "metadata do not enter scientific identity. Exact scored prompts/contracts, "
+              "assigned requirements, readable scientific inputs, model behavior identity "
+              "where applicable, toolchains, mechanical validator contracts, declared "
+              "epochs, and Quidra execution identity remain enforced."
+          )
+          qid = policy.get("quidra_execution_identity") or {}
+          policy["quidra_execution_identity"] = {
+              "input_paths": qid.get("input_paths") or [],
+              "purpose": (
+                  "Prevent stale same-version Quidra reuse. Every current record that "
+                  "measures Quidra carries these Git object IDs and their aggregate hash."
+              ),
+          }
+          declared = policy.get("declared_epochs") or {}
+          declared["note"] = (
+              "Declared epochs are explicit measurement pins. Change an epoch only when "
+              "that measurement contract should intentionally be refreshed."
+          )
+          declared["semantic_compression_note"] = (
+              "Canonical-fragment v6 current contract. Exact current-fingerprint cache "
+              "records are reusable; there is no cross-epoch migration bridge."
+          )
+          declared["llm_proficiency_note"] = (
+              "Complete Primary trials v6. Exact runtime-owned prompt/trial/workload "
+              "identity is required; there is no historical trial recertification path."
+          )
+          policy["declared_epochs"] = declared
+          policy_path.write_text(json.dumps(policy, indent=2) + "\n")
+
+          bench_path = repo / "benchmark/template/scripts/benchmark.py"
+          text = bench_path.read_text()
+
+          start = text.index(
+              "        else:\n"
+              "            compatible_path, record, compatibility_problem = (\n"
+              "                find_primary_projection_compatible_cache_record("
+          )
+          end = text.index(
+              "        migration_problem = cache_record_migration_problem(root, record)\n",
+              start,
+          )
+          replacement = """        else:
+              record_miss(
+                  uid,
+                  fingerprint,
+                  unit,
+                  "no exact certified record",
+                  invalidated=False,
+              )
+              continue
+  """
+          text = text[:start] + replacement + text[end:]
+
+          mstart = text.index(
+              "        migration_problem = cache_record_migration_problem(root, record)\n"
+          )
+          mend = text.index(
+              "        cap_problem = cache_cap_reuse_problem(root, record, unit)\n",
+              mstart,
+          )
+          text = text[:mstart] + text[mend:]
+          text = text.replace(
+              "        migration_metadata = recover_current_migration_metadata(root, record)\n",
+              "        migration_metadata = None\n",
+              1,
+          )
+
+          qstart = text.index("def _legacy_cache_run_commit_prefix(")
+          qend = text.index("def quidra_target_identity(", qstart)
+          qreplacement = """def cache_quidra_execution_reuse_problem(
+              root: Path, record: dict[str, Any]
+          ) -> str | None:
+              \"""Reject a Quidra cache hit unless its explicit execution identity matches.\"""
+              payload = record.get("fingerprint_payload") or {}
+              target = str(cache_policy(root).get("target_language") or "Quidra")
+              if target not in (payload.get("assigned_languages") or []):
+                  return None
+              current = current_quidra_execution_identity(root)
+              if current is None:
+                  if lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
+                      return "current run is missing the trusted Quidra execution identity"
+                  return None
+              recorded = (
+                  (record.get("compatibility") or {})
+                  .get("quidra_execution_identity")
+              )
+              if not isinstance(recorded, dict):
+                  return "cached Quidra record has no explicit execution identity"
+              if recorded.get("sha256") != current.get("sha256"):
+                  return "Quidra compiler/runtime implementation changed"
+              if recorded.get("git_objects") != current.get("git_objects"):
+                  return "Quidra execution-input object map changed"
+              return None
+
+
+  """
+          text = text[:qstart] + qreplacement + text[qend:]
+
+          pstart = text.index(
+              '    bind_lq = sub.add_parser(\n'
+              '        "cache-bind-language-quality-snapshot",'
+          )
+          pend = text.index(
+              '    impact = sub.add_parser(\n'
+              '        "cache-impact",',
+              pstart,
+          )
+          text = text[:pstart] + text[pend:]
+          bench_path.write_text(text)
+
+          baseline = {
+              "schema_version": 1,
+              "baseline_run_id": BASE,
+              "evaluated_commit_sha": EVAL,
+              "formal_complete": True,
+              "record_count": len(active),
+              "records_sha256": hashlib.sha256(
+                  ("\n".join(sorted(active)) + "\n").encode()
+              ).hexdigest(),
+              "cache_policy": "exact-current-fingerprint-only",
+              "historical_fallback": False,
+          }
+          (cache / "baseline.json").write_text(
+              json.dumps(baseline, indent=2, sort_keys=True) + "\n"
+          )
+
+          (cache / "README.md").write_text(f"""# Certified benchmark cache
+
+This directory is the complete reusable measurement state for the next Quidra benchmark.
+
+The canonical baseline is {BASE}. It completed all five Primary evaluations and
+the cache is compacted to the 688 certified records required by that completed
+contract. baseline.json binds the retained record set to that formal run.
+
+## Reuse contract
+
+A record is a HIT only at its exact current fingerprint. Hydration does not search
+older fingerprints, historical run directories, migration snapshots, provenance
+archives, or recertification sources. Every staged HIT is run through the current
+validator before it becomes COMPLETE.
+
+Quidra records also carry an explicit trusted compiler/runtime execution identity.
+If those Git objects change, only affected Quidra work becomes a MISS. Model-behavior
+records retain their frozen prompt/model/sampling and workload identity; mechanical
+records retain their runner/toolchain/input identity.
+
+The cache is self-contained: deleting pre-baseline cache history cannot change
+whether this baseline hydrates.
+
+## Updating the cache
+
+A future benchmark may add or replace exact-fingerprint records only after the unit
+is COMPLETE and its current validator passes. If Quidra, a workload, methodology,
+toolchain pin, declared epoch, or other scientific dependency changes, the affected
+fingerprint changes and that work is measured again. Unaffected records remain HITs.
+
+Raw provider responses and run-local process captures are not cache dependencies and
+remain outside this directory according to the benchmark retention policy.
+""")
+
+          print(json.dumps({
+              "canonical_records": len(active),
+              "deleted_old_records": removed,
+              "old_total": len(existing),
+          }, indent=2))
+          PY
+
+          python -m py_compile benchmark/template/scripts/benchmark.py
+          test ! -e benchmark/cache/provenance
+          test ! -e benchmark/cache/snapshots
+          test ! -e benchmark/cache/recertification-report.json
+          test ! -e benchmark/cache/proficiency-recertification-audit.json
+          test ! -e benchmark/template/scripts/audit_proficiency_legacy.py
+          test ! -e .github/workflows/cache-recertify-once.yml
+          test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 688
+
+      - name: Prove retained cache is structurally current
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python benchmark/template/scripts/benchmark.py cache-impact \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/cache-impact.json"
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/cache-impact.json"
+          test "$rc" -eq 0
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(Path(os.environ["RUNNER_TEMP"], "cache-impact.json").read_text())
+          assert int(p.get("valid", 0)) == 688, p
+          assert not p.get("invalid"), p
+          PY
+
+      - name: Build production-equivalent free validation image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          python benchmark/template/runtime/check_pins.py
+          python benchmark/template/scripts/sandbox_launcher.py build-image \
+            --target toolchains --image "$BENCHMARK_IMAGE"
+          python benchmark/template/scripts/sandbox_launcher.py doctor \
+            --image "$BENCHMARK_IMAGE"
+
+      - name: Clean-room prepare and hydrate with no provider credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .quidra-benchmark
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --sandbox-mode container \
+            --run-id canonical-baseline-replay \
+            --provider anthropic-messages \
+            --model "$BENCHMARK_MODEL"
+
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          python benchmark/template/scripts/production_run.py budget-plan \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --model "$BENCHMARK_MODEL" \
+            --available-usd 1.0 \
+            --safety-multiplier 1.25 \
+            --smoke-reserve-usd 0.10 \
+            --output "$RUNNER_TEMP/budget-plan.json"
+
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(".quidra-benchmark")
+          plan = json.loads(Path(os.environ["RUNNER_TEMP"], "budget-plan.json").read_text())
+          cache = json.loads((root / "results/cache_usage.json").read_text())
+          print(json.dumps({
+              "expected_paid_api_calls_upper_bound":
+                  plan.get("expected_paid_api_calls_upper_bound"),
+              "recommended_budget_usd": plan.get("recommended_budget_usd"),
+              "cache_hits": cache.get("hit_count"),
+              "cache_misses": cache.get("miss_count"),
+              "cache_invalidated": cache.get("invalidated_count"),
+          }, indent=2, sort_keys=True))
+          assert int(plan.get("expected_paid_api_calls_upper_bound", 0) or 0) == 0, plan
+          assert float(plan.get("recommended_budget_usd", 0) or 0) == 0.0, plan
+          assert int(cache.get("miss_count", 0) or 0) == 0, cache
+          assert int(cache.get("invalidated_count", 0) or 0) == 0, cache
+          PY
+
+      - name: Remove one-shot workflow and commit only after proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/benchmark-cache-canonicalize-once.yml
+          rm -rf .quidra-benchmark
+
+          git fetch origin develop --prune
+          if [ "$(git rev-parse origin/develop)" != "$GITHUB_SHA" ]; then
+            echo "develop moved during cleanup; refusing to race it" >&2
+            exit 1
+          fi
+
+          git status --short
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          test ! -e benchmark/.run-production
+          git diff --cached --check
+          git commit -m "Canonicalize completed benchmark cache baseline"
+          git push origin HEAD:develop

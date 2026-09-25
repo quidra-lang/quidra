@@ -201,6 +201,12 @@ NON_RETRYABLE_TOKENS = (
     # chance of making progress. Fix the policy/runtime first, then resume.
     "sandbox filesystem policy violation",
     "sandbox filesystem audit is unavailable",
+    # Protocol repair already ran inside the session. Do not purchase another
+    # whole-unit attempt after its bounded repair budget was exhausted.
+    "protocol_contract_violated",
+    # Revalidate preserved trials after fixing evidence/validator discrepancies;
+    # buying new generations cannot repair a deterministic integrity rejection.
+    "trial integrity:",
 )
 
 
@@ -613,8 +619,11 @@ def nominal_sandbox_scored_calls(
                 needed += 1
                 continue
             last = calls[-1] if isinstance(calls[-1], dict) else {}
-            verification = last.get("verification")
-            if isinstance(verification, dict) and verification.get("test_passed") is True:
+            try:
+                verification = benchmark.proficiency_trusted_verification(root, last)
+            except (benchmark.BenchmarkError, OSError, ValueError):
+                verification = {}
+            if benchmark.proficiency_public_repair_gate_passed(verification):
                 continue
             repairs_used = max(0, len(calls) - 1)
             if repairs_used < max_repairs:

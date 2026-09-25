@@ -2036,6 +2036,11 @@ def test_gateway_enforces_per_task_spend_ceilings() -> None:
         "a deterministic failure would be retried at full price",
     )
     check(
+        not production_run.is_retryable("sandbox agent error: protocol_contract_violated")
+        and not production_run.is_retryable("trial integrity: stopped after 0 repairs"),
+        "exhausted protocol repair or integrity failure bought another whole-unit retry",
+    )
+    check(
         production_run.is_retryable("sandbox agent error: inference transport failure: timed out"),
         "a transient failure would not be retried",
     )
@@ -2919,6 +2924,33 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 f"worker-readable verification summary is too broad: {summary}",
             )
 
+            # Integrity must use the same public stopping gate as the worker,
+            # even when score-only hidden cases fail and the visible projection
+            # deliberately omits test_passed.
+            call = {
+                "completion_sha256": hardcoded["source_sha256"],
+                "verification": summary,
+                "verification_path": str((trusted_dir.parent / "hardcoded" / "verification.json").relative_to(root)),
+            }
+            trace = {"trials": {"trials": {trial_id: {"calls": [call]}}}}
+            agent_dir = root / "work/agents/test-worker"
+            agent_dir.mkdir(parents=True, exist_ok=True)
+            metrics = benchmark.proficiency_runtime_metrics(root, trace)
+            benchmark.json_dump(agent_dir / "result.json", {
+                "requirements": {key: {"Python": value} for key, value in (metrics or {}).items()}
+            })
+            problems = benchmark.proficiency_runtime_verification_problems(
+                root, {"id": "trial", "assigned_agent_id": "test-worker", "assigned_languages": ["Python"]},
+                agent_dir, trace,
+            )
+            check(not any("stopped after" in p for p in problems), f"public-pass trial rejected by integrity: {problems}")
+            benchmark.json_dump(agent_dir / "trials" / trial_id / "session.json", {"calls": [call]})
+            planner = load(SCRIPTS / "production_run.py", "public_gate_budget_test")
+            needed = planner.nominal_sandbox_scored_calls(
+                root, {"evaluation": "llm_proficiency", "assigned_agent_id": "test-worker"}, 72, 1
+            )
+            check(needed == 17, f"budget charged a completed public-gate trial again: {needed}")
+
             extra_stdout = benchmark.verify_proficiency_completion(
                 root,
                 "Python",
@@ -3553,6 +3585,12 @@ def test_agent_action_turns_parse_batches_and_control_characters() -> None:
     check(
         gateway_client.parse_model_json_batch('```json\n{"action":"final"}\n```') == [{"action": "final"}],
         "a single fenced action was not accepted by the batch parser",
+    )
+    check(
+        gateway_client.parse_model_json_batch(
+            '```json\n{"action":"run","argv":["true"]}\n{"action":"final"}\n```'
+        ) == [{"action": "run", "argv": ["true"]}, {"action": "final"}],
+        "JSONL in one code fence was rejected",
     )
     for label, completion in (
         ("no object", "I will start now."),

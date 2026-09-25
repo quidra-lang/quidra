@@ -15614,11 +15614,14 @@ def proficiency_runtime_verification_problems(
         per_trial[str(trial_id)] = trial_rows
         if calls:
             last = calls[-1] if isinstance(calls[-1], dict) else {}
-            last_verification = last.get("verification")
-            terminal_success = (
-                isinstance(last_verification, dict)
-                and last_verification.get("test_passed") is True
-            )
+            # The worker projection deliberately omits hidden score verdicts.
+            # Stop repairs on the trusted PUBLIC gate, exactly as TrialManager
+            # does; hidden failures must never grant additional scored calls.
+            try:
+                last_verification = proficiency_trusted_verification(root, last)
+            except (BenchmarkError, OSError, ValueError):
+                last_verification = {}
+            terminal_success = proficiency_public_repair_gate_passed(last_verification)
             repairs_used = max(0, len(calls) - 1)
             if not terminal_success and repairs_used < max_repairs:
                 problems.append(

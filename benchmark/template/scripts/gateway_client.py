@@ -244,7 +244,23 @@ def _json_object_candidates(text: str) -> list[str]:
     """Every top-level JSON object a completion carries, in order of appearance."""
     stripped = text.strip()
     fenced = re.findall(r"```(?:[A-Za-z0-9_-]*)\n(.*?)```", stripped, re.S)
-    candidates = [block.strip() for block in fenced] if fenced else []
+    candidates = []
+    if fenced:
+        # A fence is packaging, not an object boundary: one fence may contain
+        # JSONL action objects. Decode the entire block so a malformed tail is
+        # rejected before any action executes rather than silently discarded.
+        decoder = json.JSONDecoder(strict=False)
+        for block in fenced:
+            remaining = block.strip()
+            while remaining:
+                try:
+                    _, end = decoder.raw_decode(remaining)
+                except json.JSONDecodeError as exc:
+                    raise GatewayClientError(
+                        f"model completion is not valid JSON: {exc}"
+                    ) from exc
+                candidates.append(remaining[:end])
+                remaining = remaining[end:].strip()
     if not candidates:
         spans = _json_object_spans(stripped)
         candidates = [stripped[start:end] for start, end in spans]

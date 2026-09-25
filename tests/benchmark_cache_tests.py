@@ -2916,7 +2916,54 @@ def assert_language_quality_snapshot_migration_hash_ratchets() -> None:
         )
 
 
+def assert_learnability_worker_core_projection_is_nonsemantic_only() -> None:
+    old = """# Benchmark Worker Core Rules
+
+1. Keep the scored contract fixed.
+2. Independent scored LLM trials must not share previous trial generations.
+"""
+    current = old + """
+### Semantic Compression support adjudication exception
+For support adjudication only, return UTF-8 text leaves instead of result.json.
+"""
+    assert (
+        benchmark._learnability_worker_core_projection(old)
+        == benchmark._learnability_worker_core_projection(current)
+    ), "SC-only JSON/TXT transport drift must not repurchase Learnability"
+
+    substantive = current.replace(
+        "must not share previous trial generations",
+        "may share previous trial generations",
+    )
+    assert (
+        benchmark._learnability_worker_core_projection(old)
+        != benchmark._learnability_worker_core_projection(substantive)
+    ), "a Learnability-relevant worker rule change must remain a cache miss"
+
+    old_components = [
+        {"kind": "task", "sha256": "a" * 64},
+        {"kind": "embedded:worker_core.md", "sha256": "b" * 64},
+        {"kind": "embedded:benchmark_metadata.json", "sha256": "c" * 64},
+    ]
+    current_components = [
+        {"kind": "task", "sha256": "a" * 64},
+        {"kind": "embedded:worker_core.md", "sha256": "d" * 64},
+        {"kind": "embedded:benchmark_metadata.json", "sha256": "c" * 64},
+    ]
+    assert benchmark._prompt_component_signature_without_scoped(
+        old_components, "llm_learnability"
+    ) == benchmark._prompt_component_signature_without_scoped(
+        current_components, "llm_learnability"
+    )
+    assert benchmark._prompt_component_signature_without_scoped(
+        old_components, "llm_proficiency"
+    ) != benchmark._prompt_component_signature_without_scoped(
+        current_components, "llm_proficiency"
+    )
+
+
 def main() -> None:
+    assert_learnability_worker_core_projection_is_nonsemantic_only()
     assert_language_quality_snapshot_migration_hash_ratchets()
     assert_certified_checkpoint_promotes_prompt_dependencies()
     assert_partial_paid_checkpoint_roundtrip()

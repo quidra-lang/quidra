@@ -1705,6 +1705,61 @@ def assert_proficiency_budget_nominal_is_one_next_call_per_trial() -> None:
             root, unit, trial_count * repair_factor, 2
         ) == trial_count - 1
 
+        # Cancellation edge: the paid response may be durably committed to the
+        # trusted checkpoint before session.json is updated. Execution restores
+        # that call on resume, so the budget planner must credit it too.
+        trial_id = ids[1]
+        completion_sha = benchmark.sha256_bytes(
+            f"{trial_id}-completion-2".encode("utf-8")
+        )
+        verification = {
+            "schema_version": 2,
+            "trial_id": trial_id,
+            "language": "Python",
+            "workload": trial_manifest[trial_id]["workload"],
+            "source_sha256": completion_sha,
+            "workload_contract_sha256": contract_sha,
+            "compile_parse_ok": True,
+            "oracle_tests": [{
+                "id": "public",
+                "hidden": False,
+                "passed": True,
+            }],
+        }
+        verification_path = (
+            trusted_root / trial_id / "call_02" / "verification.json"
+        )
+        benchmark.json_dump(verification_path, verification)
+        prompt = "repair prompt"
+        completion = "repaired completion"
+        record = {
+            "call": 2,
+            "prompt": prompt,
+            "completion": completion,
+            "prompt_sha256": benchmark.sha256_bytes(prompt.encode("utf-8")),
+            "completion_sha256": completion_sha,
+            "verification": benchmark.proficiency_verification_summary(
+                verification
+            ),
+            "verification_path": verification_path.relative_to(root).as_posix(),
+        }
+        checkpoint_path = (
+            root / "work/root/trial-checkpoints"
+            / unit["assigned_agent_id"] / trial_id / "call_02.json"
+        )
+        benchmark.json_dump(checkpoint_path, {
+            "schema_version": 1,
+            "kind": "paid-trial-call-checkpoint-v1",
+            "agent_id": unit["assigned_agent_id"],
+            "evaluation": "llm_proficiency",
+            "trial_id": trial_id,
+            "call": 2,
+            "record": record,
+        })
+        assert production.nominal_sandbox_scored_calls(
+            root, unit, trial_count * repair_factor, 3
+        ) == trial_count - 2
+
 
 def assert_learnability_budget_nominal_is_one_next_call_per_trial() -> None:
     """Learnability nominal spend funds Primary calls, not every repair ceiling."""

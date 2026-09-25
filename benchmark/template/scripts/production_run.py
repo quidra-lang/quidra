@@ -606,10 +606,15 @@ def _proficiency_budget_calls(
                 checkpoint.get("schema_version") != 1
                 or checkpoint.get("kind") != "paid-trial-call-checkpoint-v1"
                 or checkpoint.get("agent_id") != agent_id
+                or checkpoint.get("evaluation") != "llm_proficiency"
                 or checkpoint.get("trial_id") != trial_id
                 or int(checkpoint.get("call", 0) or 0) != next_call
                 or not isinstance(record, dict)
                 or int(record.get("call", 0) or 0) != next_call
+                or record.get("prompt_path")
+                != (Path("trials") / trial_id / f"prompt_{next_call:02d}.txt").as_posix()
+                or record.get("completion_path")
+                != (Path("trials") / trial_id / f"completion_{next_call:02d}.txt").as_posix()
             ):
                 break
             prompt = record.get("prompt")

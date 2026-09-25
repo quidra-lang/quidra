@@ -574,6 +574,11 @@ runs:
           echo "$unexpected"
           exit 1
         fi
+        # checkpoint-cache may have just created ignored/untracked files that
+        # are already tracked by a previous remote checkpoint. Remove only
+        # untracked generated state before switching, after the local snapshot
+        # has been archived above, so checkout cannot fail on those collisions.
+        git clean -fdx -- benchmark/cache benchmark/template/prompts "$checkpoint_dir"
         git checkout -B benchmark origin/benchmark
         rm -rf benchmark/cache benchmark/template/prompts "$checkpoint_dir"
         tar -xzf "$RUNNER_TEMP/updated-cache.tgz"

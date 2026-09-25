@@ -196,6 +196,11 @@ NON_RETRYABLE_TOKENS = (
     "max_tokens",
     "output limit",
     "gateway refused",
+    # Sandbox policy failures are deterministic for the same process/action.
+    # Retrying them can buy the same orchestration turn repeatedly without any
+    # chance of making progress. Fix the policy/runtime first, then resume.
+    "sandbox filesystem policy violation",
+    "sandbox filesystem audit is unavailable",
 )
 
 
@@ -205,7 +210,7 @@ def classify_failure(detail: str) -> str:
         return "budget-plan-defect"
     if any(token in lowered for token in (
         "gateway", "provider", "transport", "connection", "timed out", "timeout",
-        "rate limit", "http 429", "http 5",
+        "rate limit", "http 429", "http 5", "sandbox filesystem",
     )):
         return "infrastructure"
     return "ordinary-incomplete"

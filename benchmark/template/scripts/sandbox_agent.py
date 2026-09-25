@@ -299,6 +299,15 @@ def act_write_file(action: dict[str, Any], perms: Permissions) -> dict[str, Any]
 
 
 _WORKSPACE_PATH_RE = re.compile(r"/quidra-benchmark(?:/[^\\\"'\s,)]*)?")
+_TRACE_SYSCALL_RE = re.compile(
+    r"^(?:\\[pid\\s+\\d+\\]\\s+|\\d+\\s+)?([A-Za-z0-9_]+)\\("
+)
+_TRACE_MISSING_PATH_RE = re.compile(r"=\\s*-1\\s+(?:ENOENT|ENOTDIR)\\b")
+_METADATA_ONLY_SYSCALLS = frozenset({
+    "access", "faccessat", "faccessat2",
+    "stat", "stat64", "lstat", "lstat64", "newfstatat", "statx",
+    "readlink", "readlinkat",
+})
 
 
 def _sandbox_subprocess_allowed_roots(perms: Permissions) -> list[Path]:
@@ -332,6 +341,26 @@ def _sandbox_subprocess_access_problem(
                 return f"unparseable workspace path in subprocess trace: {candidate}"
             if any(_is_within(path, root) for root in allowed):
                 continue
+
+            # Toolchains routinely probe upward for optional project files such
+            # as go.work or tsconfig.json. A failed ENOENT/ENOTDIR lookup exposes
+            # no file contents and must not turn a valid compile into a policy
+            # failure. Successful access to the same undeclared path is still
+            # rejected below.
+            if _TRACE_MISSING_PATH_RE.search(line):
+                continue
+
+            # Metadata-only probes of ancestor directories are also required by
+            # ordinary path discovery. They reveal no directory contents. Keep
+            # open/openat and connect out of this exception so a subprocess still
+            # cannot enumerate the workspace or reach the gateway/sibling agents.
+            match = _TRACE_SYSCALL_RE.match(line.lstrip())
+            syscall = match.group(1) if match else ""
+            if syscall in _METADATA_ONLY_SYSCALLS and any(
+                path != root and _is_within(root, path) for root in allowed
+            ):
+                continue
+
             return f"undeclared workspace access: {candidate}"
     return None
 

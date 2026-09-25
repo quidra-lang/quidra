@@ -420,6 +420,41 @@ def test_sandbox_subprocess_trace_rejects_undeclared_workspace_access() -> None:
         sandbox_agent._sandbox_subprocess_access_problem(allowed, policy) is None,
         "declared subprocess workspace access was rejected",
     )
+
+    # Real compilers walk toward the filesystem root looking for optional
+    # project files. Missing probes (go.work, tsconfig.json, etc.) reveal no
+    # contents and must not make every language fail before its scored trials.
+    missing_project_files = (
+        '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/go.work", O_RDONLY) = -1 ENOENT (No such file or directory)\\n'
+        '1 statx(AT_FDCWD, "/quidra-benchmark/work/agents/tsconfig.json", 0, STATX_ALL, 0x0) = -1 ENOENT (No such file or directory)\\n'
+    )
+    check(
+        sandbox_agent._sandbox_subprocess_access_problem(
+            missing_project_files, policy
+        ) is None,
+        "missing toolchain project-file probes were rejected",
+    )
+
+    ancestor_metadata = (
+        '1 newfstatat(AT_FDCWD, "/quidra-benchmark", {st_mode=S_IFDIR|0755}, 0) = 0\\n'
+        '1 statx(AT_FDCWD, "/quidra-benchmark/work/agents", 0, STATX_ALL, {stx_mode=S_IFDIR|0755}) = 0\\n'
+    )
+    check(
+        sandbox_agent._sandbox_subprocess_access_problem(
+            ancestor_metadata, policy
+        ) is None,
+        "metadata-only ancestor probes were rejected",
+    )
+
+    ancestor_open = (
+        '1 openat(AT_FDCWD, "/quidra-benchmark", O_RDONLY|O_DIRECTORY) = 3\\n'
+    )
+    problem = sandbox_agent._sandbox_subprocess_access_problem(ancestor_open, policy)
+    check(
+        problem is not None and "undeclared workspace access" in problem,
+        f"workspace-root directory open escaped the subprocess audit: {problem}",
+    )
+
     sibling = (
         '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/worker-b/result.json", O_RDONLY) = 3\\n'
     )

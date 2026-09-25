@@ -1142,15 +1142,13 @@ def build_budget_plan(
                 **row,
                 "invalidation": invalid,
             })
-        elif isinstance(miss, dict) and str(miss.get("reason") or "") == "no certified record":
+        elif isinstance(miss, dict):
+            # A miss that was not also marked invalidated is a genuinely new
+            # exact-fingerprint execution. Do not classify by reason text:
+            # exact-key cache wording may evolve without changing this state.
             decisions["new_paid_execution"].append({
                 **row,
                 "cache_miss": miss,
-            })
-        elif isinstance(miss, dict):
-            decisions["paid_reevaluation_after_invalidation"].append({
-                **row,
-                "invalidation": miss,
             })
         else:
             # A downstream fingerprint can depend on an upstream output that

@@ -875,6 +875,62 @@ def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
         assert benchmark.cache_cap_reuse_problem(root, record, unit) is None
 
 
+def assert_proficiency_cache_uses_runtime_prompt_identity_not_packet_wrapper() -> None:
+    """Outer Task-Packet serialization is not the scored Proficiency experiment."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        unit, task = create_cacheable_task(root)
+        unit.update({
+            "id": "proficiency-trials--python",
+            "evaluation": "llm_proficiency",
+            "assigned_languages": ["Python"],
+            "requirement_ids": ["metric.correct_at_1"],
+            "input_hashes": {
+                "primary_config": benchmark.primary_config_projection_sha256(
+                    root, "llm_proficiency"
+                ),
+                "benchmark_metadata": benchmark.sha256_file(
+                    root / "template/config/benchmark_metadata.json"
+                ),
+                "evaluation_spec_sections": benchmark.evaluation_spec_projection_sha256(
+                    root, "llm_proficiency", []
+                ),
+            },
+            "network_allowed": False,
+            "max_output_tokens_per_call": 16384,
+        })
+        pair = benchmark.cache_fingerprint(root, unit, task)
+        assert pair is not None
+        fingerprint, payload = pair
+        assert "exact_task_packet_sha256" not in payload, payload
+        assert payload["semantic_evidence_contract"] == (
+            "llm-proficiency-runtime-owned-trials-v1"
+        )
+        assert payload["proficiency_primary_trial_set_sha256"] == (
+            benchmark.proficiency_primary_trial_set_sha256(root)
+        )
+        assert payload["proficiency_primary_prompt_set_sha256"] == (
+            benchmark.proficiency_primary_prompt_set_sha256(root, "Python")
+        )
+
+        # Simulate a JSON/TXT-style outer packet reserialization. The runtime
+        # still sends the exact same scored prompts, so the scientific key stays.
+        repacked = dict(task)
+        repacked["prompt_sha256"] = "f" * 64
+        assert benchmark.cache_fingerprint(root, unit, repacked)[0] == fingerprint
+
+        # But a change to what the evaluated model actually sees must re-key.
+        environment_path = root / "template/environment/environment.json"
+        environment_bytes = environment_path.read_bytes()
+        environment = benchmark.json_load(environment_path)
+        environment["frozen_toolchain_recipes"]["Python"]["run"] = (
+            "python3 -B FILE.py"
+        )
+        benchmark.json_dump(environment_path, environment)
+        assert benchmark.cache_fingerprint(root, unit, repacked)[0] != fingerprint
+        environment_path.write_bytes(environment_bytes)
+
+
 def assert_execution_identity_paths_are_policy_authoritative() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
@@ -3079,6 +3135,7 @@ def main() -> None:
     assert_quidra_execution_identity_reuse_guard()
     assert_cached_validator_rejection_becomes_miss()
     assert_proficiency_cache_requires_exact_primary_trial_set()
+    assert_proficiency_cache_uses_runtime_prompt_identity_not_packet_wrapper()
     with tempfile.TemporaryDirectory() as mechanical_td:
         # Its own workspace: the test freezes a manifest of one mechanical unit.
         assert_mechanical_measurements_are_cacheable(make_workspace(Path(mechanical_td)), Path(mechanical_td))

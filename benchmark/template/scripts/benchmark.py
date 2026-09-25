@@ -9038,8 +9038,24 @@ def cache_fingerprint_payload(
         workload_contract_path = root / PROFICIENCY_WORKLOADS_RELATIVE
         if not workload_contract_path.is_file():
             return None
+        if len(assigned) != 1:
+            return None
+        # The outer sandbox Task Packet is orchestration/transport. The scored
+        # Proficiency experiment is the runtime-owned frozen trial set below.
+        # A JSON/TXT wrapper change or packet-serialization edit must not
+        # repurchase the same scored model calls.
+        payload.pop("exact_task_packet_sha256", None)
+        payload["semantic_evidence_contract"] = (
+            "llm-proficiency-runtime-owned-trials-v1"
+        )
         payload["proficiency_workload_contract_sha256"] = sha256_file(
             workload_contract_path
+        )
+        payload["proficiency_primary_trial_set_sha256"] = (
+            proficiency_primary_trial_set_sha256(root)
+        )
+        payload["proficiency_primary_prompt_set_sha256"] = (
+            proficiency_primary_prompt_set_sha256(root, assigned[0])
         )
     if mechanical:
         payload["result_kind"] = "mechanical"

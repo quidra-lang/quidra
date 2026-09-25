@@ -89,6 +89,11 @@
       "mode": "nonsemantic-cross-evaluation-transport-projection",
       "migration_rule_version": 1,
       "reason": "Historical LLM Learnability results may cross worker_core drift only when the differing worker_core content is confined to the Semantic Compression-only support-adjudication output-transport section. The remaining worker rules, exact Learnability task component, I1-I6/scoring methodology bodies, evaluation-scoped Primary configuration, assigned requirements, model/provider/sampling, language/toolchain identity and readable scientific inputs must still match. Current hydration reruns the current validator. A Learnability-relevant worker rule change remains a MISS."
+    },
+    "llm_proficiency_runtime_prompt_identity": {
+      "mode": "runtime-owned-scored-prompt-identity",
+      "migration_rule_version": 1,
+      "reason": "For LLM Proficiency, the outer sandbox Task Packet is orchestration/transport rather than the scored model input. Certified-cache identity therefore ignores exact outer packet serialization and is anchored instead to the exact frozen Primary trial IDs, per-language runtime-owned scored prompt set, hidden-oracle workload contract, evaluation-scoped Primary/methodology/requirements, model/provider/sampling, language/toolchain identity, readable scientific inputs and current validation. JSON/TXT or equivalent wrapper-only changes do not repurchase the same scored experiment; any change to a scored prompt or contract does."
     }
   },
   "epochs": {

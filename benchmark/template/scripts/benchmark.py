@@ -19259,6 +19259,211 @@ def annotate_cache_cap_evidence(
     }
 
 
+
+def recover_proficiency_archived_attempts(root: Path) -> dict[str, Any]:
+    """Revalidate archived Proficiency attempts without purchasing new inference.
+
+    Historical runner/validator defects can leave a scientifically complete paid
+    trial unit PENDING even though its archived attempt contains the full result,
+    trace, trial sessions and trusted verifier evidence. Recovery is deliberately
+    fail-closed: an archived attempt is promoted only when the current result
+    validator and every current Proficiency integrity check accept the preserved
+    bytes. Genuine failed trials remain failed observations; exhausting the
+    frozen repair budget is terminal and does not make the unit incomplete.
+
+    The immutable Actions artifact remains the provenance source. This function
+    mutates only the extracted recovery workspace used for cache recertification.
+    It never invokes the provider and never fabricates missing trials.
+    """
+    manifest_path = root / "work" / "root" / "manifest.json"
+    ledger_path = root / "work" / "root" / "ledger.json"
+    if not manifest_path.is_file() or not ledger_path.is_file():
+        raise BenchmarkError("archived Proficiency recovery requires manifest and ledger")
+
+    manifest = json_load(manifest_path)
+    ledger = json_load(ledger_path)
+    if ledger.get("manifest_sha256") != sha256_file(manifest_path):
+        raise BenchmarkError("archived Proficiency recovery found a changed manifest")
+
+    recovered: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    backup_root = root / "work" / "root" / ".proficiency-recovery-backup"
+    if backup_root.exists():
+        shutil.rmtree(backup_root)
+    backup_root.mkdir(parents=True, exist_ok=True)
+
+    try:
+        for unit in manifest.get("work_units", []):
+            uid = str(unit.get("id") or "")
+            if (
+                unit.get("evaluation") != "llm_proficiency"
+                or unit.get("execution_kind", "agent") != "agent"
+                or not uid.startswith("proficiency-trials--")
+            ):
+                continue
+
+            state = (ledger.get("units", {}).get(uid) or {})
+            if (
+                state.get("status") == "COMPLETE"
+                and state.get("validation_result") == "PASS"
+            ):
+                continue
+
+            agent_id = str(unit.get("assigned_agent_id") or "")
+            if not agent_id:
+                skipped.append({
+                    "work_unit_id": uid,
+                    "reason": "archived unit has no assigned agent",
+                })
+                continue
+
+            active = root / "work" / "agents" / agent_id
+            attempt_root = root / "work" / "attempts" / uid
+            candidates = [
+                path
+                for path in sorted(attempt_root.glob("attempt-*"), reverse=True)
+                if (
+                    (path / "task.json").is_file()
+                    and (path / "result.json").is_file()
+                    and (path / "agent_trace.json").is_file()
+                )
+            ]
+            if not candidates:
+                skipped.append({
+                    "work_unit_id": uid,
+                    "reason": "no completed archived attempt with task/result/trace",
+                })
+                continue
+
+            backup = backup_root / agent_id
+            if active.exists():
+                shutil.move(str(active), str(backup))
+
+            accepted: Path | None = None
+            rejected: list[dict[str, str]] = []
+            for candidate in candidates:
+                if active.exists():
+                    shutil.rmtree(active)
+                shutil.copytree(candidate, active)
+                try:
+                    trace = json_load(active / "agent_trace.json")
+                    project_proficiency_runtime_metrics(root, unit, active, trace)
+                    rc = cmd_result_check(argparse.Namespace(
+                        workspace=str(root), id=agent_id
+                    ))
+                    if rc != 0:
+                        raise BenchmarkError(
+                            f"current result validator returned {rc}"
+                        )
+
+                    infrastructure, problems = trial_unit_problems(unit, active)
+                    if infrastructure:
+                        raise BenchmarkError(
+                            "archived attempt has an infrastructure defect: "
+                            + "; ".join(problems)
+                        )
+                    if problems:
+                        raise BenchmarkError(
+                            "current Proficiency integrity rejected archived attempt: "
+                            + "; ".join(problems)
+                        )
+
+                    failed_gates = failed_gate_requirements(root, unit)
+                    if failed_gates:
+                        raise BenchmarkError(
+                            "current required gate failed: "
+                            + ", ".join(failed_gates)
+                        )
+                    accepted = candidate
+                    break
+                except (BenchmarkError, OSError, ValueError, KeyError) as exc:
+                    rejected.append({
+                        "attempt": candidate.name,
+                        "reason": " ".join(str(exc).split())[:1200],
+                    })
+
+            if accepted is None:
+                if active.exists():
+                    shutil.rmtree(active)
+                if backup.exists():
+                    shutil.move(str(backup), str(active))
+                skipped.append({
+                    "work_unit_id": uid,
+                    "reason": "no archived attempt passes current validation",
+                    "attempts": rejected,
+                })
+                continue
+
+            evidence = normalize_paths(
+                unit.get("evidence_paths", []), root
+            )
+            missing = [path for path in evidence if not Path(path).is_file()]
+            if missing:
+                if active.exists():
+                    shutil.rmtree(active)
+                if backup.exists():
+                    shutil.move(str(backup), str(active))
+                skipped.append({
+                    "work_unit_id": uid,
+                    "reason": "revalidated attempt is missing declared evidence",
+                    "paths": missing,
+                })
+                continue
+
+            now = dt.datetime.now(dt.timezone.utc).isoformat()
+            state.update({
+                "status": "COMPLETE",
+                "evidence_paths": evidence,
+                "validation_result": "PASS",
+                "blocker": None,
+                "blocker_class": None,
+                "heartbeat_at_utc": None,
+                "updated_at_utc": now,
+            })
+            ledger["units"][uid] = state
+            if backup.exists():
+                shutil.rmtree(backup)
+
+            recovered.append({
+                "work_unit_id": uid,
+                "agent_id": agent_id,
+                "source_attempt": accepted.name,
+                "result_sha256": sha256_file(active / "result.json"),
+                "agent_trace_sha256": sha256_file(active / "agent_trace.json"),
+                "paid_api_calls": 0,
+            })
+    finally:
+        if backup_root.exists():
+            shutil.rmtree(backup_root)
+
+    json_dump(ledger_path, ledger)
+    result = {
+        "schema_version": 1,
+        "kind": "proficiency-archived-attempt-current-validator-recovery",
+        "recovered": recovered,
+        "recovered_unit_count": len(recovered),
+        "skipped": skipped,
+        "paid_api_calls": 0,
+        "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+    }
+    json_dump(
+        root / "results" / "proficiency_archived_attempt_recovery.json",
+        result,
+    )
+    return result
+
+
+def cmd_cache_recover_proficiency_attempts(args: argparse.Namespace) -> int:
+    evidence = Path(args.evidence).resolve()
+    if not evidence.is_dir():
+        raise BenchmarkError(
+            f"Proficiency recovery evidence directory does not exist: {evidence}"
+        )
+    result = recover_proficiency_archived_attempts(evidence)
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def promote_from_evidence(source: Path, evidence: Path, snapshot: str) -> dict[str, Any]:
     """Promote the certifiable units of a run that never finalized.
 
@@ -21708,6 +21913,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     annotate.add_argument("--force", action="store_true", help="rewrite existing evidence")
     annotate.set_defaults(func=cmd_cache_annotate_caps)
+
+    recover_proficiency = sub.add_parser(
+        "cache-recover-proficiency-attempts",
+        help="revalidate archived Proficiency attempts with the current validator without provider calls",
+    )
+    recover_proficiency.add_argument(
+        "--evidence",
+        required=True,
+        help="extracted retained/full benchmark workspace containing work/attempts",
+    )
+    recover_proficiency.set_defaults(func=cmd_cache_recover_proficiency_attempts)
 
     promote = sub.add_parser(
         "cache-promote-evidence",

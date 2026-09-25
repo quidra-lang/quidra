@@ -1032,6 +1032,118 @@ def assert_proficiency_cache_uses_runtime_prompt_identity_not_packet_wrapper() -
         environment_path.write_bytes(environment_bytes)
 
 
+
+def assert_archived_proficiency_recovery_is_free_and_fail_closed() -> None:
+    def run_case(*, integrity_problems: list[str]) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = make_workspace(Path(td))
+            uid = "proficiency-trials--python"
+            agent_id = "worker-proficiency-trials--python"
+            result_path = root / "work/agents" / agent_id / "result.json"
+            unit = {
+                "id": uid,
+                "evaluation": "llm_proficiency",
+                "phase": "measurement",
+                "execution_kind": "agent",
+                "worker_mode": "sandbox-agent",
+                "result_kind": "requirements",
+                "goal": "Synthetic archived Proficiency recovery contract.",
+                "assigned_agent_id": agent_id,
+                "assigned_languages": ["Python"],
+                "dependencies": [],
+                "input_hashes": {},
+                "requirement_ids": ["metric.correct_at_1"],
+                "read_paths": [],
+                "evidence_paths": [str(result_path)],
+                "validator_command": "synthetic-current-validator",
+                "network_allowed": False,
+                "prompt_sections": [],
+                "max_attempts": 3,
+                "max_llm_calls": 72,
+                "estimated_input_tokens_per_call": 1,
+                "max_output_tokens_per_call": 1,
+            }
+            freeze_manifest(root, unit)
+            ledger_path = root / "work/root/ledger.json"
+            ledger = benchmark.json_load(ledger_path)
+            ledger["units"][uid].update({
+                "status": "PENDING",
+                "attempts": 1,
+                "validation_result": "FAIL",
+                "attempt_history": [{
+                    "attempt": 1,
+                    "started_at_utc": "2026-09-25T00:00:00+00:00",
+                    "finished_at_utc": "2026-09-25T00:01:00+00:00",
+                    "result": "RETRY",
+                }],
+            })
+            benchmark.json_dump(ledger_path, ledger)
+
+            active = root / "work/agents" / agent_id
+            active.mkdir(parents=True, exist_ok=True)
+            benchmark.json_dump(active / "resume_trace.json", {"original": True})
+
+            archived = root / "work/attempts" / uid / "attempt-01"
+            archived.mkdir(parents=True, exist_ok=True)
+            benchmark.json_dump(archived / "task.json", {"evaluation": "llm_proficiency"})
+            benchmark.json_dump(archived / "result.json", {
+                "schema_version": 1,
+                "evaluation": "llm_proficiency",
+                "requirements": {"metric.correct_at_1": {"Python": 100.0}},
+            })
+            benchmark.json_dump(archived / "agent_trace.json", {
+                "trace": [{"action": "trial_start"}],
+                "trials": {"trials": {}},
+            })
+
+            originals = (
+                benchmark.project_proficiency_runtime_metrics,
+                benchmark.cmd_result_check,
+                benchmark.trial_unit_problems,
+                benchmark.failed_gate_requirements,
+            )
+            try:
+                benchmark.project_proficiency_runtime_metrics = (
+                    lambda *_args, **_kwargs: None
+                )
+                benchmark.cmd_result_check = lambda *_args, **_kwargs: 0
+                benchmark.trial_unit_problems = (
+                    lambda *_args, **_kwargs: (False, list(integrity_problems))
+                )
+                benchmark.failed_gate_requirements = (
+                    lambda *_args, **_kwargs: []
+                )
+                report = benchmark.recover_proficiency_archived_attempts(root)
+            finally:
+                (
+                    benchmark.project_proficiency_runtime_metrics,
+                    benchmark.cmd_result_check,
+                    benchmark.trial_unit_problems,
+                    benchmark.failed_gate_requirements,
+                ) = originals
+
+            state = benchmark.json_load(ledger_path)["units"][uid]
+            if not integrity_problems:
+                assert report["recovered_unit_count"] == 1, report
+                assert report["paid_api_calls"] == 0, report
+                assert state["status"] == "COMPLETE", state
+                assert state["validation_result"] == "PASS", state
+                assert state["attempts"] == 1, state
+                assert state["attempt_history"][-1]["result"] == "RETRY", state
+                assert (active / "result.json").is_file()
+                assert not (active / "resume_trace.json").is_file()
+            else:
+                assert report["recovered_unit_count"] == 0, report
+                assert state["status"] == "PENDING", state
+                assert state["validation_result"] == "FAIL", state
+                assert benchmark.json_load(active / "resume_trace.json") == {
+                    "original": True
+                }
+
+    run_case(integrity_problems=[])
+    run_case(integrity_problems=["missing required Primary trials"])
+
+
 def assert_execution_identity_paths_are_policy_authoritative() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
@@ -3415,6 +3527,7 @@ def main() -> None:
     assert_cached_validator_rejection_becomes_miss()
     assert_proficiency_cache_requires_exact_primary_trial_set()
     assert_proficiency_cache_uses_runtime_prompt_identity_not_packet_wrapper()
+    assert_archived_proficiency_recovery_is_free_and_fail_closed()
     with tempfile.TemporaryDirectory() as mechanical_td:
         # Its own workspace: the test freezes a manifest of one mechanical unit.
         assert_mechanical_measurements_are_cacheable(make_workspace(Path(mechanical_td)), Path(mechanical_td))

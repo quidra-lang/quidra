@@ -2343,6 +2343,58 @@ def test_semantic_compression_metrics_are_recomputed_from_the_evidence() -> None
         def write_shards(invented: dict[str, float]) -> None:
             units = []
             for position, language in enumerate(languages):
+                # Current SC derives support/capability points from one
+                # canonical probe owner per language × probe. This test is
+                # about runner-side normalization, so give every synthetic
+                # probe an unambiguous FULL owner rather than relying on the
+                # retired language-wide coverage owner as fragment authority.
+                for probe_id in support_probes:
+                    probe_slug = probe_id.lower().replace(".", "-")
+                    owner_probe_uid = (
+                        f"sc-canonical--{benchmark.slug_id(language)}--{probe_slug}"
+                    )
+                    owner_probe_agent = f"worker-{owner_probe_uid}"
+                    units.append({
+                        "id": owner_probe_uid,
+                        "evaluation": "semantic_compression",
+                        "assigned_languages": [language],
+                        "assigned_agent_id": owner_probe_agent,
+                        "execution_kind": "agent",
+                        "result_kind": "requirements",
+                        "phase": "measurement",
+                        "requirement_ids": [
+                            benchmark.CANONICAL_FRAGMENT_PREFIX + probe_slug
+                        ],
+                        "input_hashes": {},
+                        "validator_command": "true",
+                        "worker_mode": "packet-only",
+                        "network_allowed": False,
+                        "dependencies": [],
+                        "canonical_fragment_owner": True,
+                        "canonical_probe_id": probe_id,
+                    })
+                    probe_dir = root / "work" / "agents" / owner_probe_agent
+                    probe_dir.mkdir(parents=True, exist_ok=True)
+                    benchmark.json_dump(probe_dir / "result.json", {
+                        "schema_version": 1,
+                        "evaluation": "semantic_compression",
+                        "requirements": {},
+                        "evidence": {
+                            "canonical_fragments": {
+                                probe_id: {
+                                    "level": "FULL",
+                                    "fragment": f"synthetic_{probe_slug}()",
+                                    "partial_reasons": [],
+                                    "none_reason": None,
+                                    "justification": (
+                                        "synthetic FULL support for runner normalization"
+                                    ),
+                                    "citation": "synthetic isolation fixture",
+                                }
+                            }
+                        },
+                    })
+
                 owner_uid = f"sc-capability-coverage--{language.lower()}"
                 owner_agent = f"worker-{owner_uid}"
                 units.append({
@@ -2569,8 +2621,19 @@ def test_the_comparability_audit_reviews_blinded_annotations() -> None:
             "a language name survived into the blinded sample",
         )
         check(
-            "let n = 7" in raw,
-            "the authored fragments must reach the audit verbatim",
+            "let n = 7" not in raw,
+            (
+                "canonical fragments must not be duplicated into the blinded "
+                "comparability packet; support provenance remains in trusted evidence"
+            ),
+        )
+        check(
+            all(
+                entry.get("support") == "FULL"
+                and (entry.get("support_adjudication") or {}).get("level") == "FULL"
+                for entry in entries
+            ),
+            "the blinded sample lost the authoritative reconciled support decision",
         )
         blinding = benchmark.json_load(root / "work" / "root" / "comparability_blinding.json")
         check(

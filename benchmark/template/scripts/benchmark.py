@@ -20142,15 +20142,81 @@ def _partial_paid_file_record(
 def _partial_paid_call_count(agent_dir: Path, worker_mode: str) -> int:
     if worker_mode == "packet-only":
         return len(_packet_paid_response_records(agent_dir))
+
+    journal_count = 0
     journal = agent_dir / "trial_call_journal.json"
-    if not journal.is_file():
-        return 0
-    try:
-        payload = json_load(journal)
-    except (OSError, json.JSONDecodeError, TypeError, ValueError):
-        return 0
-    calls = payload.get("calls")
-    return len(calls) if isinstance(calls, list) else 0
+    if journal.is_file():
+        try:
+            payload = json_load(journal)
+            calls = payload.get("calls")
+            if payload.get("schema_version") == 1 and isinstance(calls, list):
+                journal_count = len(calls)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            pass
+
+    # session.json is runtime-owned and atomically replaced before the compact
+    # journal. Count only self-consistent persisted calls so a process death in
+    # that tiny window is still exported to the private paid-state store. The
+    # sandbox runtime performs the stricter verifier/path checks on restoration
+    # before any such call can affect a scored result.
+    session_count = 0
+    trials = agent_dir / "trials"
+    if trials.is_dir():
+        for session_path in sorted(trials.glob("*/session.json")):
+            try:
+                session = json_load(session_path)
+                records = session.get("calls")
+                if (
+                    session.get("schema_version") != 1
+                    or session.get("trial_id") != session_path.parent.name
+                    or not isinstance(records, list)
+                ):
+                    continue
+                valid = 0
+                for expected_call, record in enumerate(records, start=1):
+                    if (
+                        not isinstance(record, dict)
+                        or int(record.get("call", 0) or 0) != expected_call
+                    ):
+                        break
+                    prompt = record.get("prompt")
+                    completion = record.get("completion")
+                    if not isinstance(prompt, str) or not isinstance(completion, str):
+                        break
+                    if sha256_bytes(prompt.encode("utf-8")) != record.get(
+                        "prompt_sha256"
+                    ):
+                        break
+                    if sha256_bytes(completion.encode("utf-8")) != record.get(
+                        "completion_sha256"
+                    ):
+                        break
+                    prompt_rel = record.get("prompt_path")
+                    completion_rel = record.get("completion_path")
+                    if not isinstance(prompt_rel, str) or not isinstance(
+                        completion_rel, str
+                    ):
+                        break
+                    prompt_path = agent_dir / prompt_rel
+                    completion_path = agent_dir / completion_rel
+                    if (
+                        not require_under(prompt_path, agent_dir).is_file()
+                        or not require_under(completion_path, agent_dir).is_file()
+                        or prompt_path.read_text(encoding="utf-8") != prompt
+                        or completion_path.read_text(encoding="utf-8") != completion
+                    ):
+                        break
+                    valid += 1
+                session_count += valid
+            except (
+                OSError,
+                json.JSONDecodeError,
+                TypeError,
+                ValueError,
+                BenchmarkError,
+            ):
+                continue
+    return max(journal_count, session_count)
 
 
 def export_partial_paid_checkpoints(

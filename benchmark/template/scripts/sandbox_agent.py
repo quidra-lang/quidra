@@ -522,7 +522,92 @@ class Trials:
         self.trusted_verification_dir = (
             root / "work" / "root" / "proficiency-verification" / agent_id
         )
+        # session.json is itself runtime-owned and written atomically before the
+        # compact journal. If a process dies in that tiny interval, recover the
+        # paid call from the verbatim session instead of purchasing it again.
+        self._recover_unjournaled_session_calls()
         self._restore_sessions()
+
+    def _recover_unjournaled_session_calls(self) -> None:
+        """Ratchet complete runtime-owned session calls into the compact journal.
+
+        The provider reply, prompt/completion files, trusted Proficiency
+        verification and session.json all reach disk before _checkpoint_call.
+        A crash after that atomic session replace but before the journal replace
+        used to leave one paid call invisible to cross-run export/resume. The
+        worker cannot write trials/, so a structurally complete session is a
+        trusted fallback commit source. _restore_sessions immediately performs
+        the full hash/path/verifier validation before any recovered call is used.
+        """
+        journal_counts: dict[str, int] = {}
+        if self.call_journal_path.is_file():
+            try:
+                payload = benchmark.json_load(self.call_journal_path)
+            except (OSError, json.JSONDecodeError) as exc:
+                raise AgentFailure(
+                    f"trial_call_journal.json is unreadable: {exc}"
+                ) from exc
+            rows = payload.get("calls")
+            if payload.get("schema_version") != 1 or not isinstance(rows, list):
+                raise AgentFailure("trial_call_journal.json is malformed")
+            for row in rows:
+                if not isinstance(row, dict):
+                    raise AgentFailure(
+                        "trial_call_journal.json contains a non-object call"
+                    )
+                trial_id = self._valid_id(row.get("trial_id"))
+                call = int(row.get("call", 0) or 0)
+                expected = journal_counts.get(trial_id, 0) + 1
+                if call != expected:
+                    raise AgentFailure(
+                        f"trial call journal is non-sequential for {trial_id!r}: "
+                        f"got call {call}, expected {expected}"
+                    )
+                journal_counts[trial_id] = call
+
+        if not self.records_dir.is_dir():
+            return
+        for trial_dir in sorted(p for p in self.records_dir.iterdir() if p.is_dir()):
+            trial_id = self._valid_id(trial_dir.name)
+            self._require_allowed_trial_id(trial_id)
+            session_path = trial_dir / "session.json"
+            if not session_path.is_file():
+                continue
+            try:
+                session = benchmark.json_load(session_path)
+            except (OSError, json.JSONDecodeError) as exc:
+                raise AgentFailure(
+                    f"trial session {trial_id!r} is unreadable: {exc}"
+                ) from exc
+            records = session.get("calls")
+            if (
+                session.get("schema_version") != 1
+                or session.get("trial_id") != trial_id
+                or not isinstance(records, list)
+            ):
+                raise AgentFailure(
+                    f"trial session {trial_id!r} has invalid session metadata"
+                )
+            recorded = int(journal_counts.get(trial_id, 0) or 0)
+            if len(records) <= recorded:
+                continue
+            for expected_call, record in enumerate(records, start=1):
+                if not isinstance(record, dict) or int(
+                    record.get("call", 0) or 0
+                ) != expected_call:
+                    raise AgentFailure(
+                        f"trial session {trial_id!r} has non-sequential calls"
+                    )
+                if expected_call <= recorded:
+                    continue
+                if expected_call != recorded + 1:
+                    raise AgentFailure(
+                        f"trial session {trial_id!r} cannot recover call "
+                        f"{expected_call} after journal call {recorded}"
+                    )
+                self._checkpoint_call(trial_id, record)
+                recorded = expected_call
+                journal_counts[trial_id] = recorded
 
     def _resumed_call_counts(self) -> dict[str, int]:
         """Accepted scored calls from the finest trusted runtime checkpoint.

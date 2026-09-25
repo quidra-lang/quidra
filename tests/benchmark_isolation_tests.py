@@ -1748,8 +1748,8 @@ def test_trials_are_runtime_owned_fresh_sessions() -> None:
         check(all("stop_reason" in r for r in audit), "the audit log does not record stop reasons")
 
 
-def test_paid_trial_calls_resume_from_the_atomic_runtime_journal() -> None:
-    """A lost enclosing batch must not make already-paid trial calls run again."""
+def test_paid_trial_calls_resume_from_runtime_session_after_journal_interruption() -> None:
+    """A session persisted before journal loss must not buy scored calls again."""
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         agent_id = "worker-trial-resume"
@@ -1802,14 +1802,16 @@ def test_paid_trial_calls_resume_from_the_atomic_runtime_journal() -> None:
             f"paid calls were not journaled individually: {journal}",
         )
 
-        # Model the exact crash window this journal closes: both provider calls and
-        # session files reached disk, but the enclosing batch action never reached
-        # the orchestration trace/checkpoint. The old implementation would pay for
-        # both calls again on the retry.
+        # Model the narrowest paid-call crash window: the runtime-owned session
+        # and verbatim call files reached disk, but both the compact journal and
+        # enclosing orchestration trace were lost before their next atomic write.
+        # The retry must ratchet those session calls back into the journal instead
+        # of paying for either scored call again.
         previous = json.loads((agent_dir / "agent_trace.json").read_text(encoding="utf-8"))
         previous["trace"] = []
         previous["trials"] = {"trials": {}}
         benchmark.json_dump(agent_dir / "resume_trace.json", previous)
+        (agent_dir / "trial_call_journal.json").unlink()
         (agent_dir / "agent_trace.json").unlink()
         (agent_dir / "result.json").unlink()
 
@@ -1855,6 +1857,14 @@ def test_paid_trial_calls_resume_from_the_atomic_runtime_journal() -> None:
             and {row.get("observation", {}).get("trial_id") for row in recovered}
             == {"r-t1", "r-t2"},
             f"journaled calls were not reconstructed into the audit trace: {recovered}",
+        )
+        rebuilt_journal = json.loads(
+            (agent_dir / "trial_call_journal.json").read_text(encoding="utf-8")
+        )
+        check(
+            [(row["trial_id"], row["call"]) for row in rebuilt_journal.get("calls", [])]
+            == [("r-t1", 1), ("r-t2", 1)],
+            f"runtime sessions did not rebuild the paid-call journal: {rebuilt_journal}",
         )
         check(
             final_trace.get("trials", {}).get("used") == 2,

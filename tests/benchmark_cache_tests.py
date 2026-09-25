@@ -2888,6 +2888,7 @@ def assert_partial_paid_checkpoint_roundtrip() -> None:
                 "schema_version": 1,
                 "trial_id": "case-t1",
                 "calls": [{
+                    "call": 1,
                     "prompt": prompt,
                     "prompt_sha256": benchmark.sha256_bytes(prompt.encode()),
                     "completion_sha256": benchmark.sha256_bytes(completion.encode()),
@@ -2947,6 +2948,18 @@ def assert_partial_paid_checkpoint_roundtrip() -> None:
         # Re-exporting identical state must not generate a new cache save.
         again = benchmark.export_partial_paid_checkpoints(root, store)
         assert again["updated_unit_count"] == 0, again
+
+        # If the process dies after atomic session persistence but before the
+        # compact journal update, the private cross-run exporter must still see
+        # the already-paid call. The next sandbox-agent invocation rebuilds the
+        # journal from this runtime-owned session.
+        (agent_dir / "trial_call_journal.json").unlink()
+        session_only_store = base / "paid-state-session-only"
+        session_only = benchmark.export_partial_paid_checkpoints(
+            root, session_only_store
+        )
+        assert session_only["updated_unit_count"] == 1, session_only
+        assert session_only["exported_units"][0]["paid_call_count"] == 1, session_only
 
         # Raw paid calls remain durable after the leaf itself becomes COMPLETE.
         # The certified result cache owns the validated result; this separate

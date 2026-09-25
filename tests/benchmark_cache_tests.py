@@ -1054,7 +1054,10 @@ def assert_archived_proficiency_recovery_is_free_and_fail_closed() -> None:
                 "input_hashes": {},
                 "requirement_ids": ["metric.correct_at_1"],
                 "read_paths": [],
-                "evidence_paths": [str(result_path)],
+                "evidence_paths": [str(
+                    benchmark.CANONICAL_WORKSPACE
+                    / "work" / "agents" / agent_id / "result.json"
+                )],
                 "validator_command": "synthetic-current-validator",
                 "network_allowed": False,
                 "prompt_sections": [],
@@ -1128,6 +1131,7 @@ def assert_archived_proficiency_recovery_is_free_and_fail_closed() -> None:
                 assert report["paid_api_calls"] == 0, report
                 assert state["status"] == "COMPLETE", state
                 assert state["validation_result"] == "PASS", state
+                assert state["evidence_paths"] == [str(result_path)], state
                 assert state["attempts"] == 1, state
                 assert state["attempt_history"][-1]["result"] == "RETRY", state
                 assert (active / "result.json").is_file()

@@ -155,6 +155,24 @@ jobs:
             "benchmark-2026-09-23-61f50c1-gh22" \
             61f50c1a8c1518f6d6abcb9b1468e4a9e0aa0610
 
+          # Older certified trial records predate scored-cap annotations. The
+          # retained agent traces already contain the exact cap, stop reasons,
+          # and output-token usage, so attach that evidence without inference or
+          # changing result/fingerprint bytes. This must happen before hydration;
+          # otherwise a scientifically identical record is rejected solely for
+          # missing migration-era metadata.
+          for run_id in \
+            "2026-09-22-56f2c65-gh3" \
+            "2026-09-23-1231af5-gh12" \
+            "2026-09-23-fce5cfa-gh16" \
+            "2026-09-23-61f50c1-gh22"
+          do
+            python benchmark/template/scripts/benchmark.py cache-annotate-caps \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --evidence "$evidence_root/$run_id" \
+              | tee "$evidence_root/$run_id.cap-annotation.json"
+          done
+
           # Bind the reviewed Language Quality component judgments to the
           # exact retained paid evidence now present in benchmark/cache. This
           # performs no inference/provider call and fails closed if any reviewed

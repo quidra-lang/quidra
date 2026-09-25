@@ -1,0 +1,144 @@
+name: benchmark-cleanup-once
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - ".github/workflows/benchmark-cleanup-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: benchmark-cleanup-once
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+      BENCHMARK_MODEL: claude-sonnet-5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Freeze current develop head
+        run: echo "START_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Canonicalize successful cache and remove legacy state
+        run: |
+          set -euo pipefail
+          python .github/scripts/benchmark_cleanup_once.py
+          python -m py_compile             benchmark/template/scripts/benchmark.py             benchmark/template/scripts/production_run.py             benchmark/template/scripts/sandbox_launcher.py
+          test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 688
+          test ! -e benchmark/cache/provenance
+          test ! -e benchmark/cache/snapshots
+          test ! -e benchmark/cache/recertification-report.json
+          test ! -e benchmark/cache/proficiency-recertification-audit.json
+          test ! -e benchmark/template/scripts/audit_proficiency_legacy.py
+          test ! -e .github/workflows/cache-recertify-once.yml
+          test ! -e .github/workflows/benchmark-paid-state-keepalive.yml
+
+      - name: Check structural cache impact
+        run: |
+          set -euo pipefail
+          set +e
+          python benchmark/template/scripts/benchmark.py cache-impact             --source-repo "$GITHUB_WORKSPACE"             --output "$RUNNER_TEMP/cache-impact.json" > /dev/null
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/cache-impact.json"
+          if [ "$rc" -ne 0 ]; then
+            exit "$rc"
+          fi
+          python - "$RUNNER_TEMP/cache-impact.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text())
+          assert not report.get("invalid"), report.get("invalid")
+          PY
+
+      - name: Reclaim runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc             /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Build the exact pinned benchmark image
+        run: |
+          set -euo pipefail
+          python benchmark/template/runtime/check_pins.py
+          python benchmark/template/scripts/sandbox_launcher.py build-image             --target toolchains --image "$BENCHMARK_IMAGE"
+          python benchmark/template/scripts/sandbox_launcher.py doctor             --image "$BENCHMARK_IMAGE"
+
+      - name: Prove a clean replay hydrates without paid inference
+        run: |
+          set -euo pipefail
+          rm -rf .quidra-benchmark
+          python benchmark/template/scripts/benchmark.py init             --source-repo "$GITHUB_WORKSPACE"             --sandbox-mode container             --run-id canonical-cache-replay             --provider anthropic-messages             --model "$BENCHMARK_MODEL"
+
+          python benchmark/template/scripts/sandbox_launcher.py run             --source-repo "$GITHUB_WORKSPACE"             --image "$BENCHMARK_IMAGE"             --provider fake             -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          python benchmark/template/scripts/production_run.py budget-plan             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark"             --model "$BENCHMARK_MODEL"             --available-usd 0             --safety-multiplier 1.25             --smoke-reserve-usd 0             --output "$RUNNER_TEMP/budget-plan.json"             > "$RUNNER_TEMP/budget-plan.stdout"
+
+          cat "$RUNNER_TEMP/budget-plan.json"
+          python - "$RUNNER_TEMP/budget-plan.json"                    "$GITHUB_WORKSPACE/.quidra-benchmark/results/cache_status.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          plan = json.loads(Path(sys.argv[1]).read_text())
+          cache = json.loads(Path(sys.argv[2]).read_text())
+          assert not plan.get("hard_blockers"), plan.get("hard_blockers")
+          assert int(plan.get("expected_paid_api_calls_upper_bound", 0) or 0) == 0, plan
+          assert float(plan.get("recommended_budget_usd", 0) or 0) == 0.0, plan
+          assert not cache.get("misses"), cache.get("misses")
+          assert not cache.get("invalidated"), cache.get("invalidated")
+          print(json.dumps({
+              "cache_hits": len(cache.get("hits", {})),
+              "paid_calls_upper_bound": 0,
+              "recommended_budget_usd": 0.0,
+          }, indent=2))
+          PY
+
+          python benchmark/template/scripts/sandbox_launcher.py run             --source-repo "$GITHUB_WORKSPACE"             --image "$BENCHMARK_IMAGE"             --provider fake             -- python3 /quidra-benchmark/template/scripts/benchmark.py advance
+
+          python benchmark/template/scripts/sandbox_launcher.py run             --source-repo "$GITHUB_WORKSPACE"             --image "$BENCHMARK_IMAGE"             --provider fake             -- python3 /quidra-benchmark/template/scripts/benchmark.py finalize
+
+          python - "$GITHUB_WORKSPACE/.quidra-benchmark/results/finalization.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          result = json.loads(Path(sys.argv[1]).read_text())
+          assert result.get("formal_complete") is True, result
+          PY
+
+      - name: Remove one-shot cleanup machinery
+        run: |
+          set -euo pipefail
+          rm -f .github/scripts/benchmark_cleanup_once.py
+          rm -f .github/workflows/benchmark-cleanup-once.yml
+          rmdir .github/scripts 2>/dev/null || true
+
+      - name: Commit and push cleanup to latest develop
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git diff --cached --quiet && {
+            echo "No cleanup changes staged"
+            exit 1
+          }
+          git commit -m "Canonicalize benchmark cache baseline"
+
+          git fetch origin develop
+          remote_sha="$(git rev-parse origin/develop)"
+          if [ "$remote_sha" != "$START_SHA" ]; then
+            git rebase origin/develop
+          fi
+          git push origin HEAD:develop

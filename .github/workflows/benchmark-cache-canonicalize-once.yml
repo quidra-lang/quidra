@@ -43,11 +43,20 @@ jobs:
           from pathlib import Path
           root = Path("benchmark") / os.environ["BASELINE_RUN"]
           summary = json.loads((root / "summary.json").read_text())
-          assert summary.get("formal_complete") is True, summary
-          evaluations = summary.get("evaluations") or {}
-          assert evaluations and all(
-              (row or {}).get("status") == "COMPLETE"
-              for row in evaluations.values()
+          assert (summary.get("evaluated") or {}).get("commit_sha") == os.environ["EVALUATED_SHA"], summary
+          evaluations = summary.get("primary_evaluations") or {}
+          expected = {
+              "semantic_compression",
+              "llm_learnability",
+              "language_quality",
+              "ecosystem",
+              "llm_proficiency",
+          }
+          assert set(evaluations) == expected, evaluations
+          assert all(
+              (evaluations[name] or {}).get("status") == "COMPLETE"
+              and not (evaluations[name] or {}).get("blockers")
+              for name in expected
           ), evaluations
           PY
 

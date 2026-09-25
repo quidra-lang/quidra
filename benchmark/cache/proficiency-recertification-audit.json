@@ -1,7 +1,7 @@
 {
   "category_D_candidate_trials": 0,
   "category_E_trials": 122,
-  "current_certified_trial_count": 126,
+  "current_certified_trial_count": 180,
   "hidden_feedback_detected_trials": 0,
   "migration_rule": "llm-proficiency-current-contract-trial-audit",
   "migration_rule_version": 1,

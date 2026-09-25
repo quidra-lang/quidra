@@ -5,7 +5,6 @@ import ast
 import json
 import re
 import shutil
-import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -94,7 +93,6 @@ def delete_legacy_assets() -> None:
         ROOT / "benchmark/template/scripts/audit_proficiency_legacy.py",
         ROOT / ".github/workflows/cache-recertify-once.yml",
         ROOT / ".github/workflows/benchmark-paid-state-keepalive.yml",
-        ROOT / ".github/workflows/benchmark-cache-canonicalize-once.yml",
     ]:
         if path.exists():
             path.unlink()
@@ -492,30 +490,6 @@ def main() -> None:
         "deleted_old_cache_records": 532,
         "canonicalized_records": len(records),
     }, indent=2))
-
-    # benchmark.py init refuses a dirty checkout. Make a local-only checkpoint
-    # so replay validation evaluates exactly this canonicalized state. Nothing
-    # is pushed here; the workflow performs the guarded push only after replay.
-    subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=ROOT, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"],
-        cwd=ROOT, check=True,
-    )
-    subprocess.run(["git", "add", "-A"], cwd=ROOT, check=True)
-    subprocess.run(["git", "diff", "--cached", "--check"], cwd=ROOT, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Stage canonical benchmark cache for replay validation"],
-        cwd=ROOT, check=True,
-    )
-    dirty = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=ROOT,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.strip()
-    if dirty:
-        raise SystemExit(f"cleanup checkpoint is not clean: {dirty}")
 
 if __name__ == "__main__":
     main()

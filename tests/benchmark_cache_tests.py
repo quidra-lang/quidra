@@ -375,6 +375,107 @@ def assert_scored_cap_governs_reuse(root: Path, unit: dict, task: dict) -> None:
     assert again["annotated"] == [] and again["skipped"][0]["reason"] == "already annotated"
     assert "cut off" in str(problem(root, annotated, trial_unit))
 
+    # A validator-only cache-key migration can leave an identical paid result
+    # under a second provenance record whose retained workspace lacks the
+    # original trace. Inherit cap evidence only from a direct trace-backed
+    # record with the exact same scientific payload, prompt and result.
+    migrated_run = "migration-run"
+    inherited_result = {"x": 2}
+    inherited_result_raw = json.dumps(
+        inherited_result, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    inherited_result_sha = benchmark.sha256_bytes(inherited_result_raw)
+    inherited_prompt = "d" * 64
+    scientific_payload = {
+        "schema_version": 1,
+        "evaluation": "llm_learnability",
+        "work_unit_id": "learnability-i1-i2--python",
+        "exact_task_packet_sha256": inherited_prompt,
+        "model": "claude-sonnet-5",
+        "provider": "anthropic-messages",
+        "toolchains": {"Python": "3.12.3"},
+    }
+    donor_path = record_path.with_name("c" * 64 + ".json")
+    inherited_path = record_path.with_name("d" * 64 + ".json")
+    mismatch_path = record_path.with_name("e" * 64 + ".json")
+    donor_record = {
+        "schema_version": 1,
+        "fingerprint": "c" * 64,
+        "fingerprint_payload": {
+            **scientific_payload,
+            "validator_contract": "legacy runner spelling",
+        },
+        "evaluation": "llm_learnability",
+        "result": inherited_result,
+        "result_sha256": inherited_result_sha,
+        "certification": {
+            "learnability_integrity": True,
+            "validator_pass": True,
+            "unit_complete": True,
+            "primary_complete": False,
+            "scored_output_cap": 4000,
+            "trial_calls": 6,
+            "cap_truncated_trial_calls": 0,
+            "max_trial_output_tokens": 188,
+            "cap_evidence_source": "agent_trace.json retained by donor-run",
+        },
+        "provenance": {
+            "run_id": "donor-run",
+            "work_unit_id": "learnability-i1-i2--python",
+            "prompt_sha256": inherited_prompt,
+        },
+    }
+    inherited_record = {
+        **donor_record,
+        "fingerprint": "d" * 64,
+        "fingerprint_payload": scientific_payload,
+        "certification": {
+            "learnability_integrity": True,
+            "validator_pass": True,
+            "unit_complete": True,
+            "primary_complete": False,
+        },
+        "provenance": {
+            "run_id": migrated_run,
+            "work_unit_id": "learnability-i1-i2--python",
+            "prompt_sha256": inherited_prompt,
+        },
+    }
+    mismatch_record = json.loads(json.dumps(inherited_record))
+    mismatch_record["fingerprint"] = "e" * 64
+    mismatch_record["fingerprint_payload"]["model"] = "different-model"
+    benchmark.json_dump(donor_path, donor_record)
+    benchmark.json_dump(inherited_path, inherited_record)
+    benchmark.json_dump(mismatch_path, mismatch_record)
+    benchmark.json_dump(
+        evidence / "run.json", {"schema_version": 1, "run_id": migrated_run}
+    )
+    benchmark.json_dump(evidence / "work" / "root" / "manifest.json", {
+        "schema_version": 1,
+        "work_units": [{
+            "id": "learnability-i1-i2--python",
+            "evaluation": "llm_learnability",
+            "assigned_agent_id": "worker-without-retained-trace",
+            "max_output_tokens_per_call": 4000,
+        }],
+    })
+    inherited_summary = benchmark.annotate_cache_cap_evidence(source, evidence)
+    inherited = benchmark.json_load(inherited_path)
+    assert inherited["certification"]["scored_output_cap"] == 4000
+    assert inherited["certification"]["cap_truncated_trial_calls"] == 0
+    assert inherited["certification"]["max_trial_output_tokens"] == 188
+    assert inherited["certification"]["cap_evidence_inherited_from"].endswith(
+        "c" * 64 + ".json"
+    )
+    assert any(
+        row.get("work_unit_id") == "learnability-i1-i2--python"
+        and row.get("cap_evidence_inherited_from")
+        for row in inherited_summary["annotated"]
+    ), inherited_summary
+    assert "scored_output_cap" not in (
+        benchmark.json_load(mismatch_path).get("certification") or {}
+    ), "scientifically different records must not inherit cap evidence"
+
 
 def assert_accepted_trial_start_marks_the_scored_boundary() -> None:
     """A trial_start the runtime refused is not the first scored trial.

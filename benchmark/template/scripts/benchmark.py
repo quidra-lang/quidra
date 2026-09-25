@@ -19079,6 +19079,87 @@ def cache_certification_for_unit(
     return certification
 
 
+CAP_EVIDENCE_FIELDS = (
+    "scored_output_cap",
+    "trial_calls",
+    "cap_truncated_trial_calls",
+    "max_trial_output_tokens",
+)
+
+
+def equivalent_direct_cap_evidence(
+    source: Path, target_path: Path, target: dict[str, Any]
+) -> tuple[Path, dict[str, Any]] | None:
+    """Find direct trace-backed cap evidence for the exact same paid result.
+
+    A few legacy records were re-keyed when validator_contract stopped being
+    part of paid-result identity. Their result/prompt bytes are identical to
+    the earlier record, but the later retained workspace no longer contains
+    the original agent trace. Cap evidence may cross only that runner-owned key
+    seam: every scientific fingerprint field, work unit, prompt and result must
+    match exactly, and the donor itself must be certified directly from a
+    retained agent_trace.json. Any disagreement fails closed.
+    """
+    evaluation = str(
+        target.get("evaluation")
+        or (target.get("fingerprint_payload") or {}).get("evaluation")
+        or ""
+    )
+    if evaluation not in TRIAL_EVALUATIONS:
+        return None
+    provenance = target.get("provenance") or {}
+    uid = str(provenance.get("work_unit_id") or "")
+    prompt = str(provenance.get("prompt_sha256") or "")
+    result_sha = str(target.get("result_sha256") or "")
+    payload = dict(target.get("fingerprint_payload") or {})
+    if not uid or not prompt or not result_sha or not payload:
+        return None
+    payload.pop("validator_contract", None)
+
+    cache_tree = source / "benchmark" / "cache" / "v1" / slug_id(evaluation)
+    matches: list[tuple[Path, dict[str, Any]]] = []
+    for candidate_path in sorted(cache_tree.rglob("*.json")):
+        if candidate_path == target_path:
+            continue
+        candidate = json_load(candidate_path)
+        candidate_provenance = candidate.get("provenance") or {}
+        candidate_certification = candidate.get("certification") or {}
+        if (
+            candidate_certification.get("validator_pass") is not True
+            or candidate_certification.get("unit_complete") is not True
+            or any(
+                field not in candidate_certification
+                for field in CAP_EVIDENCE_FIELDS
+            )
+            or not str(candidate_certification.get("cap_evidence_source") or "").startswith(
+                "agent_trace.json retained by "
+            )
+            or str(candidate_provenance.get("work_unit_id") or "") != uid
+            or str(candidate_provenance.get("prompt_sha256") or "") != prompt
+            or str(candidate.get("result_sha256") or "") != result_sha
+            or candidate.get("result") != target.get("result")
+        ):
+            continue
+        candidate_payload = dict(candidate.get("fingerprint_payload") or {})
+        candidate_payload.pop("validator_contract", None)
+        if candidate_payload != payload:
+            continue
+        matches.append((candidate_path, candidate))
+
+    if not matches:
+        return None
+    signatures = {
+        tuple(
+            int((candidate.get("certification") or {})[field])
+            for field in CAP_EVIDENCE_FIELDS
+        )
+        for _, candidate in matches
+    }
+    if len(signatures) != 1:
+        return None
+    return matches[0]
+
+
 def annotate_cache_cap_evidence(
     source: Path, evidence: Path, force: bool = False
 ) -> dict[str, Any]:
@@ -19115,25 +19196,57 @@ def annotate_cache_cap_evidence(
             if unit is None:
                 skipped.append({**entry, "reason": "unit is not in the evidence manifest"})
                 continue
-            trace_path = (
-                evidence / "work" / "agents" / str(unit.get("assigned_agent_id") or "")
-                / "agent_trace.json"
-            )
-            if not trace_path.is_file():
-                skipped.append({**entry, "reason": "agent_trace.json is not in the evidence"})
-                continue
             certification = record.setdefault("certification", {})
             if not force and all(key in certification for key in required):
                 skipped.append({**entry, "reason": "already annotated"})
                 continue
-            certification.update(trial_cap_evidence(unit, json_load(trace_path)))
-            certification["cap_evidence_source"] = f"agent_trace.json retained by {run_id}"
+            trace_path = (
+                evidence / "work" / "agents" / str(unit.get("assigned_agent_id") or "")
+                / "agent_trace.json"
+            )
+            if trace_path.is_file():
+                certification.update(trial_cap_evidence(unit, json_load(trace_path)))
+                certification["cap_evidence_source"] = (
+                    f"agent_trace.json retained by {run_id}"
+                )
+            else:
+                donor = equivalent_direct_cap_evidence(source, path, record)
+                if donor is None:
+                    skipped.append({
+                        **entry,
+                        "reason": "agent_trace.json is not in the evidence",
+                    })
+                    continue
+                donor_path, donor_record = donor
+                donor_certification = donor_record["certification"]
+                certification.update({
+                    field: donor_certification[field]
+                    for field in CAP_EVIDENCE_FIELDS
+                })
+                certification["cap_evidence_source"] = donor_certification[
+                    "cap_evidence_source"
+                ]
+                certification["cap_evidence_inherited_from"] = (
+                    donor_path.relative_to(source).as_posix()
+                )
+                certification["cap_evidence_inherited_record_sha256"] = sha256_file(
+                    donor_path
+                )
             path.write_text(
                 json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
             annotated.append({
                 **entry,
                 **{key: certification[key] for key in required},
+                **(
+                    {
+                        "cap_evidence_inherited_from": certification[
+                            "cap_evidence_inherited_from"
+                        ]
+                    }
+                    if "cap_evidence_inherited_from" in certification
+                    else {}
+                ),
             })
     return {
         "schema_version": 1,

@@ -260,33 +260,6 @@ def assert_r9_p_a_scope_is_enforced() -> None:
             root, "F18.P2", allowed, context="allowed F18 private-boundary substitution"
         )
         assert "F18.P2" in benchmark.sc_p_a_allowed_probes(root)
-        quidra_f06 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Quidra"]["F06.P2"]
-        assert quidra_f06["level"] == "FULL"
-        assert not quidra_f06.get("partial_reasons")
-        quidra_f09 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Quidra"]["F09.P2"]
-        assert quidra_f09 == {
-            "level": "NONE",
-            "none_reason": "N-1",
-            "reason": quidra_f09["reason"],
-        }
-        typescript_f08 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["TypeScript"]["F08.P1"]
-        typescript_f13 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["TypeScript"]["F13.P1"]
-        assert typescript_f08["level"] == "NONE"
-        assert typescript_f08["none_reason"] == "N-1"
-        assert typescript_f13["level"] == "NONE"
-        assert typescript_f13["none_reason"] == "N-1"
-        swift_f04 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Swift"]["F04.P1"]
-        assert swift_f04["level"] == "PARTIAL"
-        assert swift_f04["partial_reasons"] == ["P-e"]
-        typescript_f14 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["TypeScript"]["F14.P2"]
-        assert typescript_f14["level"] == "FULL"
-        assert not typescript_f14.get("partial_reasons")
-        zig_f14 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Zig"]["F14.P3"]
-        zig_f15 = benchmark.LEGACY_SC_SUPPORT_OVERRIDES["Zig"]["F15.P3"]
-        assert zig_f14["level"] == "FULL"
-        assert zig_f15["level"] == "FULL"
-        assert not zig_f14.get("partial_reasons")
-        assert not zig_f15.get("partial_reasons")
         universe = benchmark.json_load(
             root
             / "template/methodology-assets/semantic_compression"

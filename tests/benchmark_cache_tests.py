@@ -1270,6 +1270,29 @@ def assert_budget_plan_exposes_configured_retry_ceiling() -> None:
         assert row["output_tokens_per_call"] == int(
             sandbox_runtime["orchestration_max_output_tokens"]
         ), row
+        assert row["scored_output_tokens_per_call"] == int(
+            unit["max_output_tokens_per_call"]
+        ), row
+        assert row["orchestration_output_tokens_per_call"] == int(
+            sandbox_runtime["orchestration_max_output_tokens"]
+        ), row
+        assert row["scored_calls_estimate"] == int(unit["max_llm_calls"]), row
+        assert row["orchestration_calls_estimate"] == min(3, max_turns), row
+        # The legacy flattened estimator priced the scored call at the larger
+        # orchestration cap. The execution plan must now price the two call
+        # classes separately without changing either call budget.
+        pricing = benchmark.gateway_config(root)["anthropic_pricing"][
+            "claude-sonnet-5"
+        ]
+        flattened_per_call = (
+            row["input_tokens_per_call"]
+            * float(pricing["input_usd_per_million_tokens"])
+            + row["output_tokens_per_call"]
+            * float(pricing["output_usd_per_million_tokens"])
+        ) / 1_000_000.0
+        assert row["estimated_uncached_usd"] < (
+            row["planned_calls_estimate"] * flattened_per_call
+        ), row
         assert row["planned_calls_estimate"] == 1 + min(3, max_turns), row
         assert row["remaining_attempts"] == 3, row
         assert row["calls_upper_bound"] == 3 * (1 + max_turns), row

@@ -855,17 +855,50 @@ def build_budget_plan(
                 f"{uid}: unsupported worker mode in budget plan: {worker_mode!r}"
             )
 
+        network_cost = (
+            search_uses * search_price
+            if bool(unit.get("network_allowed"))
+            else 0.0
+        )
         per_call_cost = (
             input_tokens * input_price / 1_000_000.0
             + output_tokens * output_price / 1_000_000.0
-            + (
-                search_uses * search_price
-                if bool(unit.get("network_allowed"))
-                else 0.0
-            )
+            + network_cost
         )
-        estimate = planned_calls * per_call_cost
-        retry_ceiling = calls * per_call_cost
+        if worker_mode == "sandbox-agent":
+            # Scored trials and the agent's own orchestration turns have
+            # different output caps. Flattening both to the larger
+            # orchestration cap made the no-provider budget plan charge every
+            # Proficiency/Learnability trial as though it could emit a 32k
+            # orchestration turn. Keep the conservative input estimate, but
+            # price each call class at the cap that dispatch actually uses.
+            scored_output_tokens = max(
+                int(unit.get("max_output_tokens_per_call", 0) or 0), 1
+            )
+            orchestration_output_tokens = max(orchestration_output, 1)
+            scored_per_call_cost = (
+                input_tokens * input_price / 1_000_000.0
+                + scored_output_tokens * output_price / 1_000_000.0
+                + network_cost
+            )
+            orchestration_per_call_cost = (
+                input_tokens * input_price / 1_000_000.0
+                + orchestration_output_tokens * output_price / 1_000_000.0
+                + network_cost
+            )
+            estimate = (
+                scored_calls * scored_per_call_cost
+                + orchestration_turn_estimate * orchestration_per_call_cost
+            )
+            retry_ceiling = (
+                retry_scored_calls * scored_per_call_cost
+                + remaining_attempts
+                * orchestration_turn_ceiling
+                * orchestration_per_call_cost
+            )
+        else:
+            estimate = planned_calls * per_call_cost
+            retry_ceiling = calls * per_call_cost
         total_estimate += estimate
         retry_ceiling_total += retry_ceiling
         planned_calls_estimate += planned_calls
@@ -892,6 +925,22 @@ def build_budget_plan(
             "calls_upper_bound": calls,
             "input_tokens_per_call": input_tokens,
             "output_tokens_per_call": output_tokens,
+            **(
+                {
+                    "scored_calls_estimate": scored_calls,
+                    "orchestration_calls_estimate": orchestration_turn_estimate,
+                    "scored_calls_upper_bound": retry_scored_calls,
+                    "orchestration_calls_upper_bound": (
+                        remaining_attempts * orchestration_turn_ceiling
+                    ),
+                    "scored_output_tokens_per_call": scored_output_tokens,
+                    "orchestration_output_tokens_per_call": (
+                        orchestration_output_tokens
+                    ),
+                }
+                if worker_mode == "sandbox-agent"
+                else {}
+            ),
             "network_allowed": bool(unit.get("network_allowed")),
             "estimated_uncached_usd": round(estimate, 6),
             "retry_ceiling_uncached_usd": round(retry_ceiling, 6),
@@ -1003,7 +1052,9 @@ def build_budget_plan(
             "known invalidation state the exact reason; dependency-deferred cache "
             "decisions remain conservatively priced. Exact-fingerprint paid partial "
             "checkpoints reduce the remaining scored-call estimate before pricing. "
-            "Prompt-cache discounts can only reduce actual provider spend further."
+            "Sandbox-agent scored calls and orchestration calls are priced at "
+            "their distinct frozen output caps; prompt-cache discounts can only "
+            "reduce actual provider spend further."
         ),
     }
 

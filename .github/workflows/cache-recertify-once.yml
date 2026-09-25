@@ -44,6 +44,9 @@ jobs:
           ref: develop
           fetch-depth: 0
 
+      - name: Freeze checked-out develop base
+        run: echo "RECERT_BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -276,10 +279,9 @@ jobs:
           # run is queued, so bind the workspace to the commit we actually
           # checked out. The final push step independently rechecks origin/develop
           # and fails closed when benchmark-scientific inputs moved.
-          checkout_sha="$(git rev-parse HEAD)"
           python benchmark/template/scripts/benchmark.py refresh-cache-snapshot \
             --source-repo "$GITHUB_WORKSPACE" \
-            --expected-commit "$checkout_sha"
+            --expected-commit "$RECERT_BASE_SHA"
           git restore --source=HEAD --staged --worktree -- \
             benchmark/cache benchmark/template/prompts
           git clean -fd -- benchmark/cache benchmark/template/prompts
@@ -704,7 +706,7 @@ jobs:
             --source-repo "$GITHUB_WORKSPACE"
           git add -f benchmark/cache benchmark/template/prompts
           if ! git diff --cached --quiet; then
-            if [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ]; then
+            if [ "$(git rev-parse HEAD)" = "$RECERT_BASE_SHA" ]; then
               git -c user.name="github-actions[bot]" \
                   -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
                   commit -m "benchmark: checkpoint recertified paid cache"
@@ -717,13 +719,13 @@ jobs:
 
           git fetch origin develop
           remote_head="$(git rev-parse origin/develop)"
-          if [ "$remote_head" != "$GITHUB_SHA" ]; then
+          if [ "$remote_head" != "$RECERT_BASE_SHA" ]; then
             # A concurrent documentation/test-only commit must not waste a
             # completed six-hour recertification. Reuse it only when every
             # scientific input that can affect cached benchmark meaning stayed
             # byte-identical; otherwise fail closed and let a fresh run start
             # from the newer develop commit.
-            if ! git diff --quiet "$GITHUB_SHA" "$remote_head" -- \
+            if ! git diff --quiet "$RECERT_BASE_SHA" "$remote_head" -- \
               benchmark/template \
               benchmark/master_prompt.md \
               CMakeLists.txt project.toml quidra.manifest.json \

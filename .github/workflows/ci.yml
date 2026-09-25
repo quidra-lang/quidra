@@ -247,13 +247,33 @@ jobs:
             scripts
             src
             tests
+      - name: Identify vcpkg binary cache ABI
+        id: vcpkg-cache-abi
+        shell: pwsh
+        run: |
+          $vcpkgRevision = (git -C "$env:VCPKG_INSTALLATION_ROOT" rev-parse HEAD).Trim()
+          if (-not $vcpkgRevision) { throw "Could not determine the vcpkg revision" }
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installationPath = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+          if (-not $installationPath) { throw "Could not locate Visual Studio" }
+
+          $msvcRoot = Join-Path $installationPath "VC\Tools\MSVC"
+          $msvcVersion = (Get-ChildItem $msvcRoot -Directory | Sort-Object Name -Descending | Select-Object -First 1).Name
+          if (-not $msvcVersion) { throw "Could not determine the MSVC toolset version" }
+
+          "vcpkg_revision=$vcpkgRevision" >> $env:GITHUB_OUTPUT
+          "msvc_version=$msvcVersion" >> $env:GITHUB_OUTPUT
       - name: Restore vcpkg binary cache
         uses: actions/cache@v4
         with:
           path: .vcpkg-binary-cache
-          key: vcpkg-windows-x64-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          # vcpkg packages are ABI-sensitive. Keep cache reuse within the
+          # exact hosted MSVC toolset and vcpkg revision so a stale Actions
+          # cache cannot report a hit while vcpkg restores zero packages.
+          key: vcpkg-windows-x64-${{ runner.os }}-msvc${{ steps.vcpkg-cache-abi.outputs.msvc_version }}-vcpkg${{ steps.vcpkg-cache-abi.outputs.vcpkg_revision }}-${{ hashFiles('.github/workflows/ci.yml') }}
           restore-keys: |
-            vcpkg-windows-x64-${{ runner.os }}-
+            vcpkg-windows-x64-${{ runner.os }}-msvc${{ steps.vcpkg-cache-abi.outputs.msvc_version }}-vcpkg${{ steps.vcpkg-cache-abi.outputs.vcpkg_revision }}-
       - name: Prepare vcpkg binary cache
         shell: pwsh
         run: New-Item -ItemType Directory -Force -Path .vcpkg-binary-cache | Out-Null

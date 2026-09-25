@@ -147,6 +147,42 @@ jobs:
               | tee "$evidence_root/${run_id}.cap-annotation.json"
           }
 
+          recover_completed_handoff_workspace() {
+            run_id="$1"
+            workflow_run="$2"
+            artifact_name="$3"
+            snapshot="$4"
+            artifact_id="$(
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${workflow_run}/artifacts" \
+                --jq ".artifacts[] | select(.name == \"${artifact_name}\") | .id" \
+                | head -n 1
+            )"
+            test -n "$artifact_id" || {
+              echo "::error::artifact not found: ${artifact_name} (run ${workflow_run})"
+              exit 1
+            }
+
+            zip="$evidence_root/${artifact_id}.zip"
+            tgz="$evidence_root/${artifact_id}.workspace.tgz"
+            dst="$evidence_root/${run_id}"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$zip"
+            unzip -p "$zip" 'workspace.tgz' > "$tgz"
+            rm -rf "$dst"
+            mkdir -p "$dst"
+            tar -xzf "$tgz" -C "$dst" --strip-components=1
+
+            python benchmark/template/scripts/benchmark.py cache-promote-evidence \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --evidence "$dst" \
+              --snapshot "$snapshot" \
+              | tee "$evidence_root/${run_id}.promotion.json"
+
+            python benchmark/template/scripts/benchmark.py cache-annotate-caps \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --evidence "$dst" \
+              | tee "$evidence_root/${run_id}.cap-annotation.json"
+          }
+
           recover_proficiency_workspace() {
             run_id="$1"
             workflow_run="$2"
@@ -231,6 +267,16 @@ jobs:
             35849683595 \
             "benchmark-2026-09-23-61f50c1-gh22" \
             61f50c1a8c1518f6d6abcb9b1468e4a9e0aa0610
+          # Run #24 Language Quality completed successfully, including the
+          # C++ design shard that older recertification still priced as a MISS.
+          # Promote the retained COMPLETE+PASS workspace through the current
+          # cache validator instead of purchasing the same judgment again.
+          recover_completed_handoff_workspace \
+            "2026-09-25-3c20e44-gh24-language-quality" \
+            36132696324 \
+            "benchmark-2026-09-25-3c20e44-gh24-language-quality" \
+            3c20e44444aa2b11a9ebbaf9a357b2658982e4b3
+
           # Run #24 contains complete Proficiency attempts that the old validator
           # incorrectly returned to PENDING after reading a sanitized verification
           # field that intentionally omitted the terminal verdict. Re-run only

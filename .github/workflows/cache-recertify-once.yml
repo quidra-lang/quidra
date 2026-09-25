@@ -619,6 +619,8 @@ jobs:
               exit 1
             fi
             echo "develop moved only outside benchmark-scientific inputs; rebasing checkpoint onto $remote_head"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git rebase origin/develop
           fi
           if [ "$(git rev-parse HEAD)" = "$remote_head" ]; then

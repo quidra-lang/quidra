@@ -132,6 +132,16 @@ jobs:
               --evidence "$dst" \
               --snapshot "$snapshot" \
               | tee "$evidence_root/${run_id}.promotion.json"
+
+            # Older paid trial records can predate scored-output-cap
+            # certification even when their retained traces prove that the cap
+            # never truncated a completion. Add only that mechanical
+            # certification from the exact retained agent_trace.json; the
+            # result bytes and historical fingerprint stay unchanged.
+            python benchmark/template/scripts/benchmark.py cache-annotate-caps \
+              --source-repo "$GITHUB_WORKSPACE" \
+              --evidence "$dst" \
+              | tee "$evidence_root/${run_id}.cap-annotation.json"
           }
 
           recover_evidence \

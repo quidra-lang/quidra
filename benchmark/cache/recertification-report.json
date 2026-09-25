@@ -19461,7 +19461,7 @@
           "cache": {
             "assigned_languages": [],
             "compatibility_mode": "semantic-comparability-from-current-catalog",
-            "fingerprint": "df0f554a0c000a05e8f6f99cdcb802bf3b125430451e46ecd7085f065158fda9",
+            "fingerprint": "9e9c9f3b5133f2ec1286e0904a5776080a2ad3899bf74e98f8725f4057a0817d",
             "migration": {
               "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
               "current_validator": "PASS",
@@ -25549,12 +25549,12 @@
     "invalid": 210,
     "note": "Legacy invalid records are retained as provenance. A successful migration adds an ordinary current-key record rather than rewriting or deleting its source.",
     "superseded": 248,
-    "valid": 737
+    "valid": 738
   },
   "historical_cache_before": {
     "invalid": 210,
     "superseded": 248,
-    "valid": 711
+    "valid": 737
   },
   "legacy_invalid_record_classifications": [
     {

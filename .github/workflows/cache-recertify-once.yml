@@ -260,9 +260,15 @@ jobs:
           # provenance, then restore the checkout before any certification step.
           rsync -a benchmark/cache/ "$GITHUB_WORKSPACE/.quidra-benchmark/cache/"
           rsync -a benchmark/cache/ "$recovered_cache/"
+          # actions/checkout intentionally follows the latest develop rather than
+          # pinning the event SHA. A test-only commit can land while an earlier
+          # run is queued, so bind the workspace to the commit we actually
+          # checked out. The final push step independently rechecks origin/develop
+          # and fails closed when benchmark-scientific inputs moved.
+          checkout_sha="$(git rev-parse HEAD)"
           python benchmark/template/scripts/benchmark.py refresh-cache-snapshot \
             --source-repo "$GITHUB_WORKSPACE" \
-            --expected-commit "$GITHUB_SHA"
+            --expected-commit "$checkout_sha"
           git restore --source=HEAD --staged --worktree -- \
             benchmark/cache benchmark/template/prompts
           git clean -fd -- benchmark/cache benchmark/template/prompts

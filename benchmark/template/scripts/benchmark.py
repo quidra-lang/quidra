@@ -10832,7 +10832,92 @@ def _language_quality_snapshot_migration_source(
         raise BenchmarkError(
             "Language Quality migration snapshot must be frozen and bound"
         )
+    current_rubric = language_quality_design_rubric_asset(root)
+    if snapshot.get("rubric_set_id") != current_rubric.get("rubric_set_id"):
+        raise BenchmarkError(
+            "Language Quality migration snapshot rubric no longer matches current"
+        )
     return relative_path, path, snapshot
+
+
+def _language_quality_cached_metric_source_is_valid(
+    root: Path,
+    language: str,
+    requirement_id: str,
+    provenance: dict[str, Any],
+) -> bool:
+    """Verify the exact preserved paid evidence named by one recertified metric.
+
+    A later snapshot binding may select a newer retained copy of equivalent
+    evidence.  Existing current-key cache must not become invalid merely because
+    that bookkeeping choice changed: the record remains scientifically valid
+    when its own source bytes, result hash, metric-evidence hash, run identity,
+    language and work-unit identity are all still independently verifiable.
+    """
+    raw = str(provenance.get("source_record") or "")
+    prefix = "benchmark/cache/"
+    if raw.startswith(prefix):
+        raw = raw[len(prefix):]
+    rel = PurePosixPath(raw)
+    if (
+        not raw
+        or rel.is_absolute()
+        or any(part in {"", ".", ".."} for part in rel.parts)
+        or len(rel.parts) < 4
+        or rel.parts[0] != "v1"
+        or rel.parts[1] != "language-quality"
+        or rel.suffix != ".json"
+    ):
+        return False
+    source_path = require_under(root / "cache" / Path(*rel.parts), root / "cache")
+    if not source_path.is_file():
+        return False
+    try:
+        source = json_load(source_path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if _cache_record_self_integrity_problem(source):
+        return False
+    if sha256_file(source_path) != provenance.get("source_record_sha256"):
+        return False
+    if source.get("result_sha256") != provenance.get("source_result_sha256"):
+        return False
+    if str(source.get("evaluation") or "") != "language_quality":
+        return False
+    if [str(value) for value in (source.get("assigned_languages") or [])] != [language]:
+        return False
+
+    part = LQ_DESIGN_PART_BY_METRIC.get(requirement_id)
+    if part is None:
+        return False
+    expected_uid = (
+        f"lq-language-development--part-{part}--{slug_id(language)}"
+    )
+    source_provenance = source.get("provenance") or {}
+    if str(source_provenance.get("work_unit_id") or "") != expected_uid:
+        return False
+    if str(source_provenance.get("run_id") or "") != str(
+        provenance.get("source_run_id") or ""
+    ):
+        return False
+
+    source_result = source.get("result")
+    if not isinstance(source_result, dict):
+        return False
+    metric_evidence = _language_quality_legacy_metric_evidence(
+        source_result, requirement_id
+    )
+    if metric_evidence is None:
+        return False
+    evidence_hash = sha256_bytes(
+        json.dumps(
+            metric_evidence,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+    return evidence_hash == provenance.get("source_evidence_sha256")
 
 
 def _language_quality_snapshot_supports_cached_record(
@@ -10840,10 +10925,12 @@ def _language_quality_snapshot_supports_cached_record(
 ) -> bool:
     """Prove a current bound LQ snapshot still attests one recertified record.
 
-    Snapshot bookkeeping fields may change when the retained evidence set is
-    rebound/checkpointed.  That byte-level change must not invalidate a current
-    record if the snapshot still contains exactly the component judgments and
-    exact legacy-evidence hashes from which that record was certified.
+    Snapshot binding/checkpoint bookkeeping may change its byte hash or choose a
+    newer retained copy of equivalent source evidence.  Reuse is allowed only
+    when today's bound snapshot keeps the exact same component judgments and the
+    record's own paid-evidence provenance still verifies independently.  A
+    changed component level, rubric, source byte hash, result hash or evidence
+    hash therefore still fails closed.
     """
     if str(record.get("evaluation") or "") != "language_quality":
         return False
@@ -10902,18 +10989,13 @@ def _language_quality_snapshot_supports_cached_record(
         provenance = metric_evidence.get("recertification_provenance")
         if not isinstance(provenance, dict):
             return False
-        for key in (
-            "source_record",
-            "source_record_sha256",
-            "source_result_sha256",
-            "source_evidence_sha256",
-            "source_run_id",
-        ):
-            if provenance.get(key) != row.get(key):
-                return False
         if provenance.get("legacy_score_used_for_component_levels") is not False:
             return False
         if provenance.get("new_paid_provider_call") is not False:
+            return False
+        if not _language_quality_cached_metric_source_is_valid(
+            root, language, rid, provenance
+        ):
             return False
     return True
 

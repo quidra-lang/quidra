@@ -164,6 +164,17 @@ jobs:
             dst="$evidence_root/${run_id}"
             gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$zip"
             unzip -p "$zip" 'workspace.tgz' > "$tgz"
+
+            # The handoff also carries the cumulative private paid-call store.
+            # Preserve it for the free partial-paid-import preflight below so
+            # incomplete Zig/TypeScript/Quidra work is priced from already-paid
+            # calls rather than from zero. This is only state hydration; no
+            # provider is contacted.
+            paid_tgz="$evidence_root/${artifact_id}.paid-state.tgz"
+            unzip -p "$zip" 'paid-state.tgz' > "$paid_tgz"
+            mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+            tar -xzf "$paid_tgz" -C "$RUNNER_TEMP/benchmark-paid-state"
+
             rm -rf "$dst"
             mkdir -p "$dst"
             # benchmark-primary handoffs package .quidra-benchmark as the archive root.
@@ -288,6 +299,11 @@ jobs:
 
           cp "$GITHUB_WORKSPACE/.quidra-benchmark/results/cache_status.json" \
             "$RUNNER_TEMP/recertification-cache-status.json"
+
+          python benchmark/template/scripts/benchmark.py partial-paid-import \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --store "$RUNNER_TEMP/benchmark-paid-state" \
+            | tee "$RUNNER_TEMP/recertification-partial-paid-import.json"
 
           python benchmark/template/scripts/production_run.py budget-plan \
             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
@@ -426,6 +442,14 @@ jobs:
           cp "$GITHUB_WORKSPACE/.quidra-benchmark/results/cache_status.json" \
             "$RUNNER_TEMP/next-run-cache-status.json"
 
+          # Re-import the exact same retained paid-call store into the fresh
+          # next-run workspace. The final budget report must model what
+          # production will actually do after its own partial-paid-import.
+          python benchmark/template/scripts/benchmark.py partial-paid-import \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --store "$RUNNER_TEMP/benchmark-paid-state" \
+            | tee "$RUNNER_TEMP/next-run-partial-paid-import.json"
+
           python benchmark/template/scripts/production_run.py budget-plan \
             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
             --model claude-sonnet-5 \
@@ -464,6 +488,9 @@ jobs:
           )
           proficiency = json.loads(
               Path("benchmark/cache/proficiency-recertification-audit.json").read_text()
+          )
+          partial_paid = json.loads(
+              (runner_temp / "next-run-partial-paid-import.json").read_text()
           )
           manifest = json.loads((root / "work/root/manifest.json").read_text())
           units = {str(row["id"]): row for row in manifest.get("work_units", [])}
@@ -647,6 +674,7 @@ jobs:
               "next_run_invalidated": next_invalidated,
               "paid_api_required_units": paid_units,
               "paid_api_required_unit_count": len(paid_units),
+              "partial_paid_import": partial_paid,
               "provider_cost": {
                   "estimated_uncached_usd": budget.get("estimated_uncached_usd"),
                   "recommended_budget_usd": budget.get("recommended_budget_usd"),

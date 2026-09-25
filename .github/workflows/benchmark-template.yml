@@ -681,6 +681,15 @@ jobs:
               assert (dest / "validators/micro/check_micro.py").is_file()
           PY
 
+      # Fast, independent contracts for paid-call durability run before the
+      # expensive deterministic integration pass. This keeps trial-checkpoint
+      # regressions visible even when a newer develop push cancels the long job.
+      - name: Certified cache reuse contract
+        run: python tests/benchmark_cache_tests.py
+
+      - name: Credential-less gateway and sandbox-agent isolation
+        run: python tests/benchmark_isolation_tests.py
+
       - name: Exercise deterministic runner
         env:
           QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED: packet-gateway-v1
@@ -1475,17 +1484,11 @@ jobs:
           rm -rf "$REPO"
 
 
-      - name: Certified cache reuse contract
-        run: python tests/benchmark_cache_tests.py
-
       - name: Semantic Compression reconciliation contract
         run: python tests/benchmark_semantic_compression_tests.py
 
       - name: Mechanical adversarial scorer replays the frozen decision list
         run: python tests/benchmark_adversarial_tests.py
-
-      - name: Credential-less gateway and sandbox-agent isolation
-        run: python tests/benchmark_isolation_tests.py
 
       - name: Attestation strings alone must not pass preflight
         run: |

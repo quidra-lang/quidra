@@ -565,6 +565,61 @@ def run_production(
 
 
 
+def nominal_sandbox_scored_calls(
+    root: Path,
+    unit: dict[str, Any],
+    max_scored_calls: int,
+    restored_paid_calls: int,
+) -> int:
+    """Estimate the next healthy-run scored calls without pretending every repair fires.
+
+    max_llm_calls is an execution ceiling: for Proficiency it includes every
+    possible repair turn for every frozen trial. A nominal budget should instead
+    fund one next call for each unresolved Primary trial. The full repair budget
+    remains in the separately reported retry ceiling.
+    """
+    remaining_allowance = max(0, int(max_scored_calls) - int(restored_paid_calls))
+    if str(unit.get("evaluation") or "") != "llm_proficiency":
+        return remaining_allowance
+    if remaining_allowance <= 0:
+        return 0
+
+    required = benchmark.proficiency_required_trial_ids(root)
+    max_repairs = int(
+        benchmark.json_load(root / "template/config/primary.json")
+        ["llm_proficiency"]["max_repair_turns"]
+    )
+    agent_id = str(unit.get("assigned_agent_id") or "")
+    trials_root = root / "work" / "agents" / agent_id / "trials"
+    needed = 0
+    for trial_id in required:
+        session_path = trials_root / trial_id / "session.json"
+        if not session_path.is_file():
+            needed += 1
+            continue
+        try:
+            session = json_load(session_path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            # Corrupt restored state is not assumed reusable by the budget plan.
+            # The execution/validation path will fail closed; reserve one next
+            # scored call here rather than the whole repair ceiling.
+            needed += 1
+            continue
+        calls = session.get("calls")
+        if not isinstance(calls, list) or not calls:
+            needed += 1
+            continue
+        last = calls[-1] if isinstance(calls[-1], dict) else {}
+        verification = last.get("verification")
+        if isinstance(verification, dict) and verification.get("test_passed") is True:
+            continue
+        repairs_used = max(0, len(calls) - 1)
+        if repairs_used < max_repairs:
+            needed += 1
+
+    return min(needed, remaining_allowance)
+
+
 def build_budget_plan(
     root: Path,
     model: str,
@@ -825,7 +880,12 @@ def build_budget_plan(
                 (scoped_partial_by_unit.get(uid) or {}).get("restored_paid_calls", 0) or 0
             )
             max_scored_calls = int(unit.get("max_llm_calls", 0) or 0)
-            scored_calls = max(0, max_scored_calls - restored_paid)
+            remaining_scored_allowance = max(
+                0, max_scored_calls - restored_paid
+            )
+            scored_calls = nominal_sandbox_scored_calls(
+                root, unit, max_scored_calls, restored_paid
+            )
             planned_calls = max(
                 1, scored_calls + orchestration_turn_estimate
             )
@@ -837,7 +897,7 @@ def build_budget_plan(
             # possible failure on every leaf would make a healthy run needlessly
             # impossible to start.
             retry_scored_calls = (
-                scored_calls
+                remaining_scored_allowance
                 + max(0, remaining_attempts - 1) * max_scored_calls
             )
             calls = max(
@@ -928,6 +988,7 @@ def build_budget_plan(
             **(
                 {
                     "scored_calls_estimate": scored_calls,
+                    "scored_calls_remaining_allowance": remaining_scored_allowance,
                     "orchestration_calls_estimate": orchestration_turn_estimate,
                     "scored_calls_upper_bound": retry_scored_calls,
                     "orchestration_calls_upper_bound": (

@@ -1,3 +1,4 @@
+# one-shot trigger after workflow registration
 name: benchmark-cache-canonicalize-once
 
 on:

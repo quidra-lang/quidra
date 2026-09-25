@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: benchmark-cleanup-once
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   cleanup:
@@ -60,6 +60,20 @@ jobs:
           report = json.loads(Path(sys.argv[1]).read_text())
           assert not report.get("invalid"), report.get("invalid")
           PY
+
+      - name: Create unpushed clean candidate commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && {
+            echo "No cleanup changes staged"
+            exit 1
+          }
+          git commit -m "Canonicalize benchmark cache baseline"
+          test -z "$(git status --porcelain=v1)"
+          echo "CANDIDATE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Reclaim runner disk
         run: |
@@ -112,29 +126,25 @@ jobs:
           assert result.get("formal_complete") is True, result
           PY
 
-      - name: Remove one-shot cleanup machinery
+      - name: Remove one-shot machinery from the candidate commit
         run: |
           set -euo pipefail
           rm -f .github/scripts/benchmark_cleanup_once.py
           rm -f .github/workflows/benchmark-cleanup-once.yml
           rmdir .github/scripts 2>/dev/null || true
+          git add -A
+          git commit --amend --no-edit
+          test ! -e .github/scripts/benchmark_cleanup_once.py
+          test ! -e .github/workflows/benchmark-cleanup-once.yml
+          test -z "$(git status --porcelain=v1)"
 
-      - name: Commit and push cleanup to latest develop
+      - name: Push verified cleanup to latest develop
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --stat
-          git diff --cached --quiet && {
-            echo "No cleanup changes staged"
-            exit 1
-          }
-          git commit -m "Canonicalize benchmark cache baseline"
-
           git fetch origin develop
           remote_sha="$(git rev-parse origin/develop)"
           if [ "$remote_sha" != "$START_SHA" ]; then
             git rebase origin/develop
           fi
+          test -z "$(git status --porcelain=v1)"
           git push origin HEAD:develop

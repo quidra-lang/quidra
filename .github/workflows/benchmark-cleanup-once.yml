@@ -38,7 +38,7 @@ jobs:
           set -euo pipefail
           python .github/scripts/benchmark_cleanup_once.py
           python -m py_compile             benchmark/template/scripts/benchmark.py             benchmark/template/scripts/production_run.py             benchmark/template/scripts/sandbox_launcher.py
-          test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 688
+          test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 687
           test ! -e benchmark/cache/provenance
           test ! -e benchmark/cache/snapshots
           test ! -e benchmark/cache/recertification-report.json

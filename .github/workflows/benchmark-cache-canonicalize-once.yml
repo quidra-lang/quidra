@@ -339,36 +339,36 @@ jobs:
 
           (cache / "README.md").write_text(f"""# Certified benchmark cache
 
-This directory is the complete reusable measurement state for the next Quidra benchmark.
+          This directory is the complete reusable measurement state for the next Quidra benchmark.
 
-The canonical baseline is {BASE}. It completed all five Primary evaluations and
-the cache is compacted to the 688 certified records required by that completed
-contract. baseline.json binds the retained record set to that formal run.
+          The canonical baseline is {BASE}. It completed all five Primary evaluations and
+          the cache is compacted to the 688 certified records required by that completed
+          contract. baseline.json binds the retained record set to that formal run.
 
-## Reuse contract
+          ## Reuse contract
 
-A record is a HIT only at its exact current fingerprint. Hydration does not search
-older fingerprints, historical run directories, migration snapshots, provenance
-archives, or recertification sources. Every staged HIT is run through the current
-validator before it becomes COMPLETE.
+          A record is a HIT only at its exact current fingerprint. Hydration does not search
+          older fingerprints, historical run directories, migration snapshots, provenance
+          archives, or recertification sources. Every staged HIT is run through the current
+          validator before it becomes COMPLETE.
 
-Quidra records also carry an explicit trusted compiler/runtime execution identity.
-If those Git objects change, only affected Quidra work becomes a MISS. Model-behavior
-records retain their frozen prompt/model/sampling and workload identity; mechanical
-records retain their runner/toolchain/input identity.
+          Quidra records also carry an explicit trusted compiler/runtime execution identity.
+          If those Git objects change, only affected Quidra work becomes a MISS. Model-behavior
+          records retain their frozen prompt/model/sampling and workload identity; mechanical
+          records retain their runner/toolchain/input identity.
 
-The cache is self-contained: deleting pre-baseline cache history cannot change
-whether this baseline hydrates.
+          The cache is self-contained: deleting pre-baseline cache history cannot change
+          whether this baseline hydrates.
 
-## Updating the cache
+          ## Updating the cache
 
-A future benchmark may add or replace exact-fingerprint records only after the unit
-is COMPLETE and its current validator passes. If Quidra, a workload, methodology,
-toolchain pin, declared epoch, or other scientific dependency changes, the affected
-fingerprint changes and that work is measured again. Unaffected records remain HITs.
+          A future benchmark may add or replace exact-fingerprint records only after the unit
+          is COMPLETE and its current validator passes. If Quidra, a workload, methodology,
+          toolchain pin, declared epoch, or other scientific dependency changes, the affected
+          fingerprint changes and that work is measured again. Unaffected records remain HITs.
 
-Raw provider responses and run-local process captures are not cache dependencies and
-remain outside this directory according to the benchmark retention policy.
+          Raw provider responses and run-local process captures are not cache dependencies and
+          remain outside this directory according to the benchmark retention policy.
           """)
 
           print(json.dumps({

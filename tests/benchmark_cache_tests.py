@@ -1736,6 +1736,12 @@ def assert_proficiency_budget_nominal_is_one_next_call_per_trial() -> None:
             "call": 2,
             "prompt": prompt,
             "completion": completion,
+            "prompt_path": (
+                Path("trials") / trial_id / "prompt_02.txt"
+            ).as_posix(),
+            "completion_path": (
+                Path("trials") / trial_id / "completion_02.txt"
+            ).as_posix(),
             "prompt_sha256": benchmark.sha256_bytes(prompt.encode("utf-8")),
             "completion_sha256": completion_sha,
             "verification": benchmark.proficiency_verification_summary(

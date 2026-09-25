@@ -261,7 +261,7 @@ jobs:
                   invalidated=False,
               )
               continue
-  """
+          """
           text = text[:start] + replacement + text[end:]
 
           mstart = text.index(
@@ -306,7 +306,7 @@ jobs:
               return None
 
 
-  """
+          """
           text = text[:qstart] + qreplacement + text[qend:]
 
           pstart = text.index(
@@ -369,7 +369,7 @@ fingerprint changes and that work is measured again. Unaffected records remain H
 
 Raw provider responses and run-local process captures are not cache dependencies and
 remain outside this directory according to the benchmark retention policy.
-""")
+          """)
 
           print(json.dumps({
               "canonical_records": len(active),

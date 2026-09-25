@@ -12,13 +12,13 @@
         "retry_ceiling_uncached_usd": 0.0
       },
       "language_quality": {
-        "complete_units": 56,
-        "estimated_uncached_usd": 1.012956,
-        "expected_paid_api_calls_upper_bound": 120,
+        "complete_units": 58,
+        "estimated_uncached_usd": 0.0,
+        "expected_paid_api_calls_upper_bound": 0,
         "hard_blockers": [],
-        "pending_agent_units": 1,
-        "planned_paid_api_calls_estimate": 3,
-        "retry_ceiling_uncached_usd": 40.51824
+        "pending_agent_units": 0,
+        "planned_paid_api_calls_estimate": 0,
+        "retry_ceiling_uncached_usd": 0.0
       },
       "llm_learnability": {
         "complete_units": 33,
@@ -30,13 +30,13 @@
         "retry_ceiling_uncached_usd": 0.0
       },
       "llm_proficiency": {
-        "complete_units": 1,
-        "estimated_uncached_usd": 42.703062,
-        "expected_paid_api_calls_upper_bound": 4800,
+        "complete_units": 8,
+        "estimated_uncached_usd": 9.932144,
+        "expected_paid_api_calls_upper_bound": 1356,
         "hard_blockers": [],
-        "pending_agent_units": 10,
-        "planned_paid_api_calls_estimate": 210,
-        "retry_ceiling_uncached_usd": 1060.33056
+        "pending_agent_units": 3,
+        "planned_paid_api_calls_estimate": 47,
+        "retry_ceiling_uncached_usd": 302.995016
       },
       "semantic_compression": {
         "complete_units": 518,
@@ -48,11 +48,11 @@
         "retry_ceiling_uncached_usd": 0.0
       }
     },
-    "cache_hits": 676,
+    "cache_hits": 684,
     "cache_invalidated_units": 0,
-    "cache_misses": 11,
-    "complete_units": 691,
-    "estimated_uncached_usd": 43.716018,
+    "cache_misses": 3,
+    "complete_units": 700,
+    "estimated_uncached_usd": 9.932144,
     "evaluation": "all",
     "execution_decisions": {
       "already_complete_not_from_cache": [
@@ -136,6 +136,13 @@
         {
           "api_calls": 0,
           "assigned_languages": [],
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "language_quality-aggregate"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
           "evaluation": "ecosystem",
           "status": "COMPLETE",
           "work_unit_id": "ecosystem-gates--part-1"
@@ -168,14 +175,6 @@
         {
           "api_calls": 0,
           "assigned_languages": [],
-          "evaluation": "language_quality",
-          "runner_action": "aggregate-primary",
-          "status": "PENDING",
-          "work_unit_id": "language_quality-aggregate"
-        },
-        {
-          "api_calls": 0,
-          "assigned_languages": [],
           "evaluation": "llm_proficiency",
           "runner_action": "proficiency-integrity",
           "status": "PENDING",
@@ -193,38 +192,6 @@
       "new_paid_execution": [
         {
           "assigned_languages": [
-            "C++"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "4b9284a81d27d84ae2d7134f591b02ea1eeebae51d76c0ee7c6b69978f78544e",
-            "reason": "no certified record",
-            "scope": "c"
-          },
-          "calls_upper_bound": 120,
-          "estimated_uncached_usd": 1.012956,
-          "evaluation": "language_quality",
-          "input_tokens_per_call": 4986,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 3,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 40.51824,
-          "scored_calls_estimate": 0,
-          "scored_calls_remaining_allowance": 0,
-          "scored_calls_upper_bound": 0,
-          "scored_output_tokens_per_call": 1,
-          "status": "PENDING",
-          "work_unit_id": "lq-language-development--part-4--c",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
             "Quidra"
           ],
           "attempts_used": 0,
@@ -233,8 +200,8 @@
             "reason": "no certified record",
             "scope": "quidra"
           },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.27068,
+          "calls_upper_bound": 450,
+          "estimated_uncached_usd": 3.7308,
           "evaluation": "llm_proficiency",
           "input_tokens_per_call": 8060,
           "max_attempts": 5,
@@ -243,176 +210,16 @@
           "orchestration_calls_upper_bound": 120,
           "orchestration_output_tokens_per_call": 32768,
           "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
+          "planned_calls_estimate": 18,
           "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.0416,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
+          "restored_paid_calls": 30,
+          "retry_ceiling_uncached_usd": 100.6428,
+          "scored_calls_estimate": 15,
+          "scored_calls_remaining_allowance": 42,
+          "scored_calls_upper_bound": 330,
           "scored_output_tokens_per_call": 16384,
           "status": "PENDING",
           "work_unit_id": "proficiency-trials--quidra",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Python"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "f955fdd8c5f87a2b2eb1e75456f932f5a0cd41aea775b65e79cfb0969ba56e8f",
-            "reason": "no certified record",
-            "scope": "python"
-          },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.270344,
-          "evaluation": "llm_proficiency",
-          "input_tokens_per_call": 8052,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.03392,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "proficiency-trials--python",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "C++"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "0e4ad76fa67de64425d75f150e50c659c545fa544d6324478b009c3925737a5d",
-            "reason": "no certified record",
-            "scope": "c"
-          },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.270092,
-          "evaluation": "llm_proficiency",
-          "input_tokens_per_call": 8046,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.02816,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "proficiency-trials--c",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Rust"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "4cf40231145f6fdf9671de138572fb175b5fe5467c3800ebc31d06db1e08fe17",
-            "reason": "no certified record",
-            "scope": "rust"
-          },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.270218,
-          "evaluation": "llm_proficiency",
-          "input_tokens_per_call": 8049,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.03104,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "proficiency-trials--rust",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Go"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "29cb34beefe022c0c6fb57d2cd69935cb0b59700df0d2f052a86cfcb37882f81",
-            "reason": "no certified record",
-            "scope": "go"
-          },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.270092,
-          "evaluation": "llm_proficiency",
-          "input_tokens_per_call": 8046,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.02816,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "proficiency-trials--go",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Java"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "d18fc181b97d575373588f9653bc25b46e9e001a18b57b0abcdde767ecd2beaf",
-            "reason": "no certified record",
-            "scope": "java"
-          },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.270218,
-          "evaluation": "llm_proficiency",
-          "input_tokens_per_call": 8049,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.03104,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "proficiency-trials--java",
           "worker_mode": "sandbox-agent"
         },
         {
@@ -425,8 +232,8 @@
             "reason": "no certified record",
             "scope": "typescript"
           },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.270596,
+          "calls_upper_bound": 430,
+          "estimated_uncached_usd": 1.931168,
           "evaluation": "llm_proficiency",
           "input_tokens_per_call": 8058,
           "max_attempts": 5,
@@ -435,80 +242,16 @@
           "orchestration_calls_upper_bound": 120,
           "orchestration_output_tokens_per_call": 32768,
           "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
+          "planned_calls_estimate": 8,
           "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.03968,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
+          "restored_paid_calls": 50,
+          "retry_ceiling_uncached_usd": 97.04188,
+          "scored_calls_estimate": 5,
+          "scored_calls_remaining_allowance": 22,
+          "scored_calls_upper_bound": 310,
           "scored_output_tokens_per_call": 16384,
           "status": "PENDING",
           "work_unit_id": "proficiency-trials--typescript",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Kotlin"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "0e1bee995bbde5995604a5bbf0dbb07902266dcd8f0ac1297692903ad3d18bbc",
-            "reason": "no certified record",
-            "scope": "kotlin"
-          },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.270344,
-          "evaluation": "llm_proficiency",
-          "input_tokens_per_call": 8052,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.03392,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "proficiency-trials--kotlin",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "assigned_languages": [
-            "Swift"
-          ],
-          "attempts_used": 0,
-          "cache_miss": {
-            "fingerprint": "20181e0c193d113c42463da72863ff706675f9e257f74406e36d1431b3b77efe",
-            "reason": "no certified record",
-            "scope": "swift"
-          },
-          "calls_upper_bound": 480,
-          "estimated_uncached_usd": 4.270302,
-          "evaluation": "llm_proficiency",
-          "input_tokens_per_call": 8051,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "orchestration_calls_estimate": 3,
-          "orchestration_calls_upper_bound": 120,
-          "orchestration_output_tokens_per_call": 32768,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 21,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.03296,
-          "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
-          "scored_output_tokens_per_call": 16384,
-          "status": "PENDING",
-          "work_unit_id": "proficiency-trials--swift",
           "worker_mode": "sandbox-agent"
         },
         {
@@ -521,7 +264,7 @@
             "reason": "no certified record",
             "scope": "zig"
           },
-          "calls_upper_bound": 480,
+          "calls_upper_bound": 476,
           "estimated_uncached_usd": 4.270176,
           "evaluation": "llm_proficiency",
           "input_tokens_per_call": 8048,
@@ -533,11 +276,11 @@
           "output_tokens_per_call": 32768,
           "planned_calls_estimate": 21,
           "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 106.03008,
+          "restored_paid_calls": 4,
+          "retry_ceiling_uncached_usd": 105.310336,
           "scored_calls_estimate": 18,
-          "scored_calls_remaining_allowance": 72,
-          "scored_calls_upper_bound": 360,
+          "scored_calls_remaining_allowance": 68,
+          "scored_calls_upper_bound": 356,
           "scored_output_tokens_per_call": 16384,
           "status": "PENDING",
           "work_unit_id": "proficiency-trials--zig",
@@ -545,7 +288,113 @@
         }
       ],
       "paid_reevaluation_after_invalidation": [],
-      "partial_paid_resume": [],
+      "partial_paid_resume": [
+        {
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "attempts_used": 0,
+          "calls_upper_bound": 450,
+          "checkpoint": {
+            "fingerprint": "b6a8e854ed2ad7f62e83a5b2444055e5681f5db3800a5476986de39b6b135f15",
+            "record": "v1/b6/b6a8e854ed2ad7f62e83a5b2444055e5681f5db3800a5476986de39b6b135f15/manifest.json",
+            "restored_files": 140,
+            "restored_paid_calls": 30,
+            "work_unit_id": "proficiency-trials--quidra",
+            "worker_mode": "sandbox-agent"
+          },
+          "estimated_uncached_usd": 3.7308,
+          "evaluation": "llm_proficiency",
+          "input_tokens_per_call": 8060,
+          "max_attempts": 5,
+          "network_allowed": false,
+          "orchestration_calls_estimate": 3,
+          "orchestration_calls_upper_bound": 120,
+          "orchestration_output_tokens_per_call": 32768,
+          "output_tokens_per_call": 32768,
+          "planned_calls_estimate": 18,
+          "remaining_attempts": 5,
+          "restored_paid_calls": 30,
+          "retry_ceiling_uncached_usd": 100.6428,
+          "scored_calls_estimate": 15,
+          "scored_calls_remaining_allowance": 42,
+          "scored_calls_upper_bound": 330,
+          "scored_output_tokens_per_call": 16384,
+          "status": "PENDING",
+          "work_unit_id": "proficiency-trials--quidra",
+          "worker_mode": "sandbox-agent"
+        },
+        {
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "attempts_used": 0,
+          "calls_upper_bound": 430,
+          "checkpoint": {
+            "fingerprint": "3f8731cab70943b0fe41b5fa2b2afe6ef600721ecf066a1281582d6ac7e689be",
+            "record": "v1/3f/3f8731cab70943b0fe41b5fa2b2afe6ef600721ecf066a1281582d6ac7e689be/manifest.json",
+            "restored_files": 217,
+            "restored_paid_calls": 50,
+            "work_unit_id": "proficiency-trials--typescript",
+            "worker_mode": "sandbox-agent"
+          },
+          "estimated_uncached_usd": 1.931168,
+          "evaluation": "llm_proficiency",
+          "input_tokens_per_call": 8058,
+          "max_attempts": 5,
+          "network_allowed": false,
+          "orchestration_calls_estimate": 3,
+          "orchestration_calls_upper_bound": 120,
+          "orchestration_output_tokens_per_call": 32768,
+          "output_tokens_per_call": 32768,
+          "planned_calls_estimate": 8,
+          "remaining_attempts": 5,
+          "restored_paid_calls": 50,
+          "retry_ceiling_uncached_usd": 97.04188,
+          "scored_calls_estimate": 5,
+          "scored_calls_remaining_allowance": 22,
+          "scored_calls_upper_bound": 310,
+          "scored_output_tokens_per_call": 16384,
+          "status": "PENDING",
+          "work_unit_id": "proficiency-trials--typescript",
+          "worker_mode": "sandbox-agent"
+        },
+        {
+          "assigned_languages": [
+            "Zig"
+          ],
+          "attempts_used": 0,
+          "calls_upper_bound": 476,
+          "checkpoint": {
+            "fingerprint": "116233e2ca2daea174d689ad51828fe1bd70d06b58d12698c9f12eae883e79d2",
+            "record": "v1/11/116233e2ca2daea174d689ad51828fe1bd70d06b58d12698c9f12eae883e79d2/manifest.json",
+            "restored_files": 22,
+            "restored_paid_calls": 4,
+            "work_unit_id": "proficiency-trials--zig",
+            "worker_mode": "sandbox-agent"
+          },
+          "estimated_uncached_usd": 4.270176,
+          "evaluation": "llm_proficiency",
+          "input_tokens_per_call": 8048,
+          "max_attempts": 5,
+          "network_allowed": false,
+          "orchestration_calls_estimate": 3,
+          "orchestration_calls_upper_bound": 120,
+          "orchestration_output_tokens_per_call": 32768,
+          "output_tokens_per_call": 32768,
+          "planned_calls_estimate": 21,
+          "remaining_attempts": 5,
+          "restored_paid_calls": 4,
+          "retry_ceiling_uncached_usd": 105.310336,
+          "scored_calls_estimate": 18,
+          "scored_calls_remaining_allowance": 68,
+          "scored_calls_upper_bound": 356,
+          "scored_output_tokens_per_call": 16384,
+          "status": "PENDING",
+          "work_unit_id": "proficiency-trials--zig",
+          "worker_mode": "sandbox-agent"
+        }
+      ],
       "reused_and_revalidated": [
         {
           "api_calls": 0,
@@ -19293,7 +19142,7 @@
           "cache": {
             "assigned_languages": [],
             "compatibility_mode": "semantic-comparability-from-current-catalog",
-            "fingerprint": "8d16fe33a43a45b8163b2160e787750516d21ba001677c87078bcfb3cdc00b60",
+            "fingerprint": "d4930fe10d2a98e948e136663f2697f137fbb155269419ca372857f0cb7950c8",
             "migration": {
               "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
               "current_validator": "PASS",
@@ -21707,6 +21556,23 @@
           "evaluation": "language_quality",
           "status": "COMPLETE",
           "work_unit_id": "lq-language-development--part-4--python"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "C++"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "C++"
+            ],
+            "fingerprint": "4b9284a81d27d84ae2d7134f591b02ea1eeebae51d76c0ee7c6b69978f78544e",
+            "record": "v1/language-quality/c/4b9284a81d27d84ae2d7134f591b02ea1eeebae51d76c0ee7c6b69978f78544e.json",
+            "scope": "c"
+          },
+          "evaluation": "language_quality",
+          "status": "COMPLETE",
+          "work_unit_id": "lq-language-development--part-4--c"
         },
         {
           "api_calls": 0,
@@ -25009,24 +24875,147 @@
           "evaluation": "ecosystem",
           "status": "COMPLETE",
           "work_unit_id": "ecosystem-tooling--part-5--zig"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Python"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Python"
+            ],
+            "fingerprint": "f955fdd8c5f87a2b2eb1e75456f932f5a0cd41aea775b65e79cfb0969ba56e8f",
+            "record": "v1/llm-proficiency/python/f955fdd8c5f87a2b2eb1e75456f932f5a0cd41aea775b65e79cfb0969ba56e8f.json",
+            "scope": "python"
+          },
+          "evaluation": "llm_proficiency",
+          "status": "COMPLETE",
+          "work_unit_id": "proficiency-trials--python"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "C++"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "C++"
+            ],
+            "fingerprint": "0e4ad76fa67de64425d75f150e50c659c545fa544d6324478b009c3925737a5d",
+            "record": "v1/llm-proficiency/c/0e4ad76fa67de64425d75f150e50c659c545fa544d6324478b009c3925737a5d.json",
+            "scope": "c"
+          },
+          "evaluation": "llm_proficiency",
+          "status": "COMPLETE",
+          "work_unit_id": "proficiency-trials--c"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Rust"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Rust"
+            ],
+            "fingerprint": "4cf40231145f6fdf9671de138572fb175b5fe5467c3800ebc31d06db1e08fe17",
+            "record": "v1/llm-proficiency/rust/4cf40231145f6fdf9671de138572fb175b5fe5467c3800ebc31d06db1e08fe17.json",
+            "scope": "rust"
+          },
+          "evaluation": "llm_proficiency",
+          "status": "COMPLETE",
+          "work_unit_id": "proficiency-trials--rust"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Go"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Go"
+            ],
+            "fingerprint": "29cb34beefe022c0c6fb57d2cd69935cb0b59700df0d2f052a86cfcb37882f81",
+            "record": "v1/llm-proficiency/go/29cb34beefe022c0c6fb57d2cd69935cb0b59700df0d2f052a86cfcb37882f81.json",
+            "scope": "go"
+          },
+          "evaluation": "llm_proficiency",
+          "status": "COMPLETE",
+          "work_unit_id": "proficiency-trials--go"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Java"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Java"
+            ],
+            "fingerprint": "d18fc181b97d575373588f9653bc25b46e9e001a18b57b0abcdde767ecd2beaf",
+            "record": "v1/llm-proficiency/java/d18fc181b97d575373588f9653bc25b46e9e001a18b57b0abcdde767ecd2beaf.json",
+            "scope": "java"
+          },
+          "evaluation": "llm_proficiency",
+          "status": "COMPLETE",
+          "work_unit_id": "proficiency-trials--java"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Kotlin"
+            ],
+            "fingerprint": "0e1bee995bbde5995604a5bbf0dbb07902266dcd8f0ac1297692903ad3d18bbc",
+            "record": "v1/llm-proficiency/kotlin/0e1bee995bbde5995604a5bbf0dbb07902266dcd8f0ac1297692903ad3d18bbc.json",
+            "scope": "kotlin"
+          },
+          "evaluation": "llm_proficiency",
+          "status": "COMPLETE",
+          "work_unit_id": "proficiency-trials--kotlin"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Swift"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Swift"
+            ],
+            "fingerprint": "20181e0c193d113c42463da72863ff706675f9e257f74406e36d1431b3b77efe",
+            "record": "v1/llm-proficiency/swift/20181e0c193d113c42463da72863ff706675f9e257f74406e36d1431b3b77efe.json",
+            "scope": "swift"
+          },
+          "evaluation": "llm_proficiency",
+          "status": "COMPLETE",
+          "work_unit_id": "proficiency-trials--swift"
         }
       ]
     },
-    "expected_paid_api_calls_upper_bound": 4920,
+    "expected_paid_api_calls_upper_bound": 1356,
     "full_retry_envelope_funded": false,
-    "full_retry_envelope_recommended_budget_usd": 1376.061,
+    "full_retry_envelope_recommended_budget_usd": 378.74377,
     "hard_blockers": [],
     "invalidated_cache_records": [],
     "kind": "benchmark_execution_plan",
     "model": "claude-sonnet-5",
     "note": "Frozen pre-paid execution plan. COMPLETE certified-cache hits are revalidated and cost zero. estimated_uncached_usd and planned_paid_api_calls_estimate are the practical nominal envelope; retry_ceiling_uncached_usd and expected_paid_api_calls_upper_bound also expose every still-configured work-unit retry and sandbox-agent turn. The normal funding gate uses the nominal envelope plus its safety multiplier, while full_retry_envelope_funded says whether even the absolute configured retry envelope is funded. Pending leaves with a known invalidation state the exact reason; dependency-deferred cache decisions remain conservatively priced. Exact-fingerprint paid partial checkpoints reduce the remaining scored-call estimate before pricing. Sandbox-agent scored calls and orchestration calls are priced at their distinct frozen output caps; prompt-cache discounts can only reduce actual provider spend further.",
-    "partial_paid_restored_calls": 0,
-    "partial_paid_resumed_units": [],
-    "pending_agent_units": 11,
-    "planned_paid_api_calls_estimate": 213,
+    "partial_paid_restored_calls": 84,
+    "partial_paid_resumed_units": [
+      "proficiency-trials--quidra",
+      "proficiency-trials--typescript",
+      "proficiency-trials--zig"
+    ],
+    "pending_agent_units": 3,
+    "planned_paid_api_calls_estimate": 47,
     "provider_smoke_required": true,
-    "recommended_budget_usd": 54.645022,
-    "retry_ceiling_uncached_usd": 1100.8488,
+    "recommended_budget_usd": 12.41518,
+    "retry_ceiling_uncached_usd": 302.995016,
     "safety_multiplier": 1.25,
     "schema_version": 2,
     "scope_work_unit_count": 705,
@@ -25036,199 +25025,10 @@
     "units": [
       {
         "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.27068,
-        "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8060,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.0416,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "proficiency-trials--quidra",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "TypeScript"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.270596,
-        "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8058,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.03968,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "proficiency-trials--typescript",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Kotlin"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.270344,
-        "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8052,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.03392,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "proficiency-trials--kotlin",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Python"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.270344,
-        "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8052,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.03392,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "proficiency-trials--python",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Swift"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.270302,
-        "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8051,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.03296,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "proficiency-trials--swift",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Java"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.270218,
-        "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8049,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.03104,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "proficiency-trials--java",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Rust"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.270218,
-        "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8049,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.03104,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
-        "scored_output_tokens_per_call": 16384,
-        "status": "PENDING",
-        "work_unit_id": "proficiency-trials--rust",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
           "Zig"
         ],
         "attempts_used": 0,
-        "calls_upper_bound": 480,
+        "calls_upper_bound": 476,
         "estimated_uncached_usd": 4.270176,
         "evaluation": "llm_proficiency",
         "input_tokens_per_call": 8048,
@@ -25240,11 +25040,11 @@
         "output_tokens_per_call": 32768,
         "planned_calls_estimate": 21,
         "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.03008,
+        "restored_paid_calls": 4,
+        "retry_ceiling_uncached_usd": 105.310336,
         "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
+        "scored_calls_remaining_allowance": 68,
+        "scored_calls_upper_bound": 356,
         "scored_output_tokens_per_call": 16384,
         "status": "PENDING",
         "work_unit_id": "proficiency-trials--zig",
@@ -25252,83 +25052,56 @@
       },
       {
         "assigned_languages": [
-          "C++"
+          "Quidra"
         ],
         "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.270092,
+        "calls_upper_bound": 450,
+        "estimated_uncached_usd": 3.7308,
         "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8046,
+        "input_tokens_per_call": 8060,
         "max_attempts": 5,
         "network_allowed": false,
         "orchestration_calls_estimate": 3,
         "orchestration_calls_upper_bound": 120,
         "orchestration_output_tokens_per_call": 32768,
         "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
+        "planned_calls_estimate": 18,
         "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.02816,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
+        "restored_paid_calls": 30,
+        "retry_ceiling_uncached_usd": 100.6428,
+        "scored_calls_estimate": 15,
+        "scored_calls_remaining_allowance": 42,
+        "scored_calls_upper_bound": 330,
         "scored_output_tokens_per_call": 16384,
         "status": "PENDING",
-        "work_unit_id": "proficiency-trials--c",
+        "work_unit_id": "proficiency-trials--quidra",
         "worker_mode": "sandbox-agent"
       },
       {
         "assigned_languages": [
-          "Go"
+          "TypeScript"
         ],
         "attempts_used": 0,
-        "calls_upper_bound": 480,
-        "estimated_uncached_usd": 4.270092,
+        "calls_upper_bound": 430,
+        "estimated_uncached_usd": 1.931168,
         "evaluation": "llm_proficiency",
-        "input_tokens_per_call": 8046,
+        "input_tokens_per_call": 8058,
         "max_attempts": 5,
         "network_allowed": false,
         "orchestration_calls_estimate": 3,
         "orchestration_calls_upper_bound": 120,
         "orchestration_output_tokens_per_call": 32768,
         "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 21,
+        "planned_calls_estimate": 8,
         "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 106.02816,
-        "scored_calls_estimate": 18,
-        "scored_calls_remaining_allowance": 72,
-        "scored_calls_upper_bound": 360,
+        "restored_paid_calls": 50,
+        "retry_ceiling_uncached_usd": 97.04188,
+        "scored_calls_estimate": 5,
+        "scored_calls_remaining_allowance": 22,
+        "scored_calls_upper_bound": 310,
         "scored_output_tokens_per_call": 16384,
         "status": "PENDING",
-        "work_unit_id": "proficiency-trials--go",
-        "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "C++"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 120,
-        "estimated_uncached_usd": 1.012956,
-        "evaluation": "language_quality",
-        "input_tokens_per_call": 4986,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "orchestration_calls_estimate": 3,
-        "orchestration_calls_upper_bound": 120,
-        "orchestration_output_tokens_per_call": 32768,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 3,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 40.51824,
-        "scored_calls_estimate": 0,
-        "scored_calls_remaining_allowance": 0,
-        "scored_calls_upper_bound": 0,
-        "scored_output_tokens_per_call": 1,
-        "status": "PENDING",
-        "work_unit_id": "lq-language-development--part-4--c",
+        "work_unit_id": "proficiency-trials--typescript",
         "worker_mode": "sandbox-agent"
       }
     ]
@@ -25421,12 +25194,12 @@
     "invalid": 210,
     "note": "Legacy invalid records are retained as provenance. A successful migration adds an ordinary current-key record rather than rewriting or deleting its source.",
     "superseded": 248,
-    "valid": 747
+    "valid": 757
   },
   "historical_cache_before": {
     "invalid": 210,
     "superseded": 248,
-    "valid": 746
+    "valid": 756
   },
   "legacy_invalid_record_classifications": [
     {
@@ -27925,13 +27698,21 @@
   "llm_proficiency_legacy_trial_audit": {
     "category_D_candidate_trials": 0,
     "category_E_trials": 122,
-    "current_certified_trial_count": 0,
+    "current_certified_trial_count": 126,
     "hidden_feedback_detected_trials": 0,
     "source_records": 11,
     "source_trials": 122
   },
-  "llm_proficiency_reused_unit_ids": [],
-  "llm_proficiency_reused_units": 0,
+  "llm_proficiency_reused_unit_ids": [
+    "proficiency-trials--c",
+    "proficiency-trials--go",
+    "proficiency-trials--java",
+    "proficiency-trials--kotlin",
+    "proficiency-trials--python",
+    "proficiency-trials--rust",
+    "proficiency-trials--swift"
+  ],
+  "llm_proficiency_reused_units": 7,
   "next_run_current_task_cache": {
     "by_evaluation": {
       "ecosystem": {
@@ -27940,9 +27721,9 @@
         "misses": 0
       },
       "language_quality": {
-        "hits": 55,
+        "hits": 56,
         "invalidated": 0,
-        "misses": 1
+        "misses": 0
       },
       "llm_learnability": {
         "hits": 30,
@@ -27950,9 +27731,9 @@
         "misses": 0
       },
       "llm_proficiency": {
-        "hits": 0,
+        "hits": 7,
         "invalidated": 0,
-        "misses": 10
+        "misses": 3
       },
       "semantic_compression": {
         "hits": 511,
@@ -27960,56 +27741,16 @@
         "misses": 0
       }
     },
-    "hits": 676,
+    "hits": 684,
     "invalidated": 0,
-    "misses": 11
+    "misses": 3
   },
   "next_run_invalidated": {},
   "next_run_misses": {
-    "lq-language-development--part-4--c": {
-      "fingerprint": "4b9284a81d27d84ae2d7134f591b02ea1eeebae51d76c0ee7c6b69978f78544e",
-      "reason": "no certified record",
-      "scope": "c"
-    },
-    "proficiency-trials--c": {
-      "fingerprint": "0e4ad76fa67de64425d75f150e50c659c545fa544d6324478b009c3925737a5d",
-      "reason": "no certified record",
-      "scope": "c"
-    },
-    "proficiency-trials--go": {
-      "fingerprint": "29cb34beefe022c0c6fb57d2cd69935cb0b59700df0d2f052a86cfcb37882f81",
-      "reason": "no certified record",
-      "scope": "go"
-    },
-    "proficiency-trials--java": {
-      "fingerprint": "d18fc181b97d575373588f9653bc25b46e9e001a18b57b0abcdde767ecd2beaf",
-      "reason": "no certified record",
-      "scope": "java"
-    },
-    "proficiency-trials--kotlin": {
-      "fingerprint": "0e1bee995bbde5995604a5bbf0dbb07902266dcd8f0ac1297692903ad3d18bbc",
-      "reason": "no certified record",
-      "scope": "kotlin"
-    },
-    "proficiency-trials--python": {
-      "fingerprint": "f955fdd8c5f87a2b2eb1e75456f932f5a0cd41aea775b65e79cfb0969ba56e8f",
-      "reason": "no certified record",
-      "scope": "python"
-    },
     "proficiency-trials--quidra": {
       "fingerprint": "b6a8e854ed2ad7f62e83a5b2444055e5681f5db3800a5476986de39b6b135f15",
       "reason": "no certified record",
       "scope": "quidra"
-    },
-    "proficiency-trials--rust": {
-      "fingerprint": "4cf40231145f6fdf9671de138572fb175b5fe5467c3800ebc31d06db1e08fe17",
-      "reason": "no certified record",
-      "scope": "rust"
-    },
-    "proficiency-trials--swift": {
-      "fingerprint": "20181e0c193d113c42463da72863ff706675f9e257f74406e36d1431b3b77efe",
-      "reason": "no certified record",
-      "scope": "swift"
     },
     "proficiency-trials--typescript": {
       "fingerprint": "3f8731cab70943b0fe41b5fa2b2afe6ef600721ecf066a1281582d6ac7e689be",
@@ -28022,78 +27763,8 @@
       "scope": "zig"
     }
   },
-  "paid_api_required_unit_count": 11,
+  "paid_api_required_unit_count": 3,
   "paid_api_required_units": [
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 4.27068,
-      "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--quidra",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "TypeScript"
-      ],
-      "estimated_uncached_usd": 4.270596,
-      "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--typescript",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Kotlin"
-      ],
-      "estimated_uncached_usd": 4.270344,
-      "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--kotlin",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Python"
-      ],
-      "estimated_uncached_usd": 4.270344,
-      "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--python",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Swift"
-      ],
-      "estimated_uncached_usd": 4.270302,
-      "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--swift",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Java"
-      ],
-      "estimated_uncached_usd": 4.270218,
-      "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--java",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Rust"
-      ],
-      "estimated_uncached_usd": 4.270218,
-      "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--rust",
-      "worker_mode": "sandbox-agent"
-    },
     {
       "assigned_languages": [
         "Zig"
@@ -28106,46 +27777,68 @@
     },
     {
       "assigned_languages": [
-        "C++"
+        "Quidra"
       ],
-      "estimated_uncached_usd": 4.270092,
+      "estimated_uncached_usd": 3.7308,
       "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--c",
+      "planned_calls_estimate": 18,
+      "work_unit_id": "proficiency-trials--quidra",
       "worker_mode": "sandbox-agent"
     },
     {
       "assigned_languages": [
-        "Go"
+        "TypeScript"
       ],
-      "estimated_uncached_usd": 4.270092,
+      "estimated_uncached_usd": 1.931168,
       "evaluation": "llm_proficiency",
-      "planned_calls_estimate": 21,
-      "work_unit_id": "proficiency-trials--go",
-      "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "C++"
-      ],
-      "estimated_uncached_usd": 1.012956,
-      "evaluation": "language_quality",
-      "planned_calls_estimate": 3,
-      "work_unit_id": "lq-language-development--part-4--c",
+      "planned_calls_estimate": 8,
+      "work_unit_id": "proficiency-trials--typescript",
       "worker_mode": "sandbox-agent"
     }
   ],
+  "partial_paid_import": {
+    "imported_unit_count": 3,
+    "imported_units": [
+      {
+        "fingerprint": "b6a8e854ed2ad7f62e83a5b2444055e5681f5db3800a5476986de39b6b135f15",
+        "record": "v1/b6/b6a8e854ed2ad7f62e83a5b2444055e5681f5db3800a5476986de39b6b135f15/manifest.json",
+        "restored_files": 140,
+        "restored_paid_calls": 30,
+        "work_unit_id": "proficiency-trials--quidra",
+        "worker_mode": "sandbox-agent"
+      },
+      {
+        "fingerprint": "3f8731cab70943b0fe41b5fa2b2afe6ef600721ecf066a1281582d6ac7e689be",
+        "record": "v1/3f/3f8731cab70943b0fe41b5fa2b2afe6ef600721ecf066a1281582d6ac7e689be/manifest.json",
+        "restored_files": 217,
+        "restored_paid_calls": 50,
+        "work_unit_id": "proficiency-trials--typescript",
+        "worker_mode": "sandbox-agent"
+      },
+      {
+        "fingerprint": "116233e2ca2daea174d689ad51828fe1bd70d06b58d12698c9f12eae883e79d2",
+        "record": "v1/11/116233e2ca2daea174d689ad51828fe1bd70d06b58d12698c9f12eae883e79d2/manifest.json",
+        "restored_files": 22,
+        "restored_paid_calls": 4,
+        "work_unit_id": "proficiency-trials--zig",
+        "worker_mode": "sandbox-agent"
+      }
+    ],
+    "rejected": [],
+    "restored_paid_calls": 84,
+    "schema_version": 1
+  },
   "provider_cost": {
-    "estimated_uncached_usd": 43.716018,
-    "expected_paid_api_calls_upper_bound": 4920,
-    "planned_paid_api_calls_estimate": 213,
-    "recommended_budget_usd": 54.645022,
-    "retry_ceiling_uncached_usd": 1100.8488
+    "estimated_uncached_usd": 9.932144,
+    "expected_paid_api_calls_upper_bound": 1356,
+    "planned_paid_api_calls_estimate": 47,
+    "recommended_budget_usd": 12.41518,
+    "retry_ceiling_uncached_usd": 302.995016
   },
   "recertification_pass_cache": {
-    "hits": 676,
+    "hits": 684,
     "invalidated": 0,
-    "misses": 11
+    "misses": 3
   },
   "schema_version": 3,
   "semantic_compression_reused_unit_ids": [

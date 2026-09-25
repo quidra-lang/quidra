@@ -29,14 +29,16 @@ def dump(path: Path, value) -> None:
 
 def active_cache() -> dict[str, str]:
     usage = load(BENCH / BASELINE / "cache_usage.json")
-    out: dict[str, str] = {}
+    by_uid: dict[str, str] = {}
     for uid, row in (usage.get("hits") or {}).items():
         record = row.get("record")
         if record:
-            out.setdefault(str(record), str(uid))
-    out.update(NEW_RECORDS)
-    if len(out) != 688:
-        raise SystemExit(f"expected 688 baseline records, found {len(out)}")
+            by_uid[str(uid)] = str(record)
+    for record, uid in NEW_RECORDS.items():
+        by_uid[uid] = record
+    out = {record: uid for uid, record in by_uid.items()}
+    if len(out) != 687:
+        raise SystemExit(f"expected 687 baseline records, found {len(out)}")
     return out
 
 def canonicalize_cache(active: dict[str, str]) -> None:
@@ -472,8 +474,8 @@ def main() -> None:
     cleanup_runner()
 
     records = list((CACHE / "v1").rglob("*.json"))
-    if len(records) != 688:
-        raise SystemExit(f"expected 688 retained records, found {len(records)}")
+    if len(records) != 687:
+        raise SystemExit(f"expected 687 retained records, found {len(records)}")
     for path in records:
         obj = load(path)
         if "migration" in obj:
@@ -485,7 +487,7 @@ def main() -> None:
     print(json.dumps({
         "baseline": BASELINE,
         "retained_cache_records": len(records),
-        "deleted_old_cache_records": 531,
+        "deleted_old_cache_records": 532,
         "canonicalized_records": len(records),
     }, indent=2))
 

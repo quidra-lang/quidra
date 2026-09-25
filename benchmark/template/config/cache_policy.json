@@ -84,6 +84,11 @@
       "mode": "exact-artifact-current-toolchain-evidence-recertification",
       "migration_rule_version": 1,
       "reason": "A reusable comparison-language artifact audit measures whether exact frozen source remains semantically usable under the exact current toolchain. Historical paid audit evidence is reusable only when the artifact Git object/content hash, assigned language, exact observed toolchain, runtime pins, cache epoch and audited artifact ID all match. Provider/model, prompt serialization, packet transport, network permission and validator spelling identify the judge/orchestration rather than the measured artifact. A projected audit must pass the current validator before promotion; disagreement between semantically identical historical verdicts is an invalidation, not an arbitrary choice."
+    },
+    "llm_learnability_worker_core_projection": {
+      "mode": "nonsemantic-cross-evaluation-transport-projection",
+      "migration_rule_version": 1,
+      "reason": "Historical LLM Learnability results may cross worker_core drift only when the differing worker_core content is confined to the Semantic Compression-only support-adjudication output-transport section. The remaining worker rules, exact Learnability task component, I1-I6/scoring methodology bodies, evaluation-scoped Primary configuration, assigned requirements, model/provider/sampling, language/toolchain identity and readable scientific inputs must still match. Current hydration reruns the current validator. A Learnability-relevant worker rule change remains a MISS."
     }
   },
   "epochs": {

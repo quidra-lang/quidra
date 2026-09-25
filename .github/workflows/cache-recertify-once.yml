@@ -242,7 +242,7 @@ jobs:
               source = str(migration.get("source_record") or "")
               digest = str(migration.get("source_record_sha256") or "")
               if source and digest:
-                  expected_sources[source] = digest
+                  expected_sources.setdefault(source, set()).add(digest)
 
           for source in sorted(recovered.rglob("*")):
               if not source.is_file():
@@ -251,17 +251,26 @@ jobs:
               destination = current / rel
               data = source.read_bytes()
               digest = hashlib.sha256(data).hexdigest()
-              expected = expected_sources.get(rel.as_posix())
+              expected = expected_sources.get(rel.as_posix(), set())
               if destination.exists():
                   current_digest = hashlib.sha256(
                       destination.read_bytes()
                   ).hexdigest()
-                  if expected == digest and current_digest != expected:
+                  # Several retained migrations may name different historical
+                  # byte generations at the same legacy source path. Keep any
+                  # currently present generation that satisfies one retained
+                  # provenance edge; otherwise restore the recovered generation
+                  # when it satisfies one. Older unmatched records remain
+                  # explicitly invalid/superseded rather than deleting history
+                  # or forcing one mutable path to impersonate multiple hashes.
+                  if current_digest in expected:
+                      continue
+                  if digest in expected:
                       destination.write_bytes(data)
-                  elif expected and current_digest != expected:
+                  elif expected:
                       raise SystemExit(
                           f"migration source hash mismatch for {rel}: "
-                          f"expected {expected}, recovered {digest}, "
+                          f"expected one of {sorted(expected)}, recovered {digest}, "
                           f"current {current_digest}"
                       )
                   continue

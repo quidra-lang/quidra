@@ -1016,14 +1016,18 @@ def assert_premeasurement_gate_is_wired() -> None:
     units = plan["evaluations"]["semantic_compression"]["units"]
     gate = next(unit for unit in units if unit["id"] == "sc-premeasurement-validation")
     assert gate["runner_action"] == "semantic-premeasurement-validation", gate
-    assert gate["dependencies"] == ["sc-metrics-hidden-coverage--part-2"], gate
+    assert gate["dependencies"] == [
+        "sc-canonical-fragment",
+        "sc-capability-coverage",
+    ], gate
     consumers = [
         unit for unit in units
-        if unit.get("canonical_fragment_source_requirement") == "metric.capability_coverage"
+        if unit.get("canonical_fragment_source_requirement")
+        == "annotation.canonical_fragment--"
     ]
     assert len(consumers) == 5, [unit["id"] for unit in consumers]
     for unit in consumers:
-        assert "sc-metrics-hidden-coverage--part-2" in unit["dependencies"], unit
+        assert "sc-capability-coverage" in unit["dependencies"], unit
         assert "sc-premeasurement-validation" in unit["dependencies"], unit
 
 

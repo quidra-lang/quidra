@@ -86,9 +86,9 @@
       "reason": "A reusable comparison-language artifact audit measures whether exact frozen source remains semantically usable under the exact current toolchain. Historical paid audit evidence is reusable only when the artifact Git object/content hash, assigned language, exact observed toolchain, runtime pins, cache epoch and audited artifact ID all match. Provider/model, prompt serialization, packet transport, network permission and validator spelling identify the judge/orchestration rather than the measured artifact. A projected audit must pass the current validator before promotion; disagreement between semantically identical historical verdicts is an invalidation, not an arbitrary choice."
     },
     "llm_learnability_worker_core_projection": {
-      "mode": "nonsemantic-task-and-cross-evaluation-transport-projection",
+      "mode": "nonsemantic-cross-evaluation-transport-projection",
       "migration_rule_version": 1,
-      "reason": "Historical LLM Learnability results may cross runner-owned Task Packet/output-transport drift only when the scientific contract is unchanged. The outer task component is orchestration/serialization, including changes such as JSON versus text result transport. worker_core drift is allowed only for the Semantic Compression-only support-adjudication output-transport section. The remaining worker rules, benchmark metadata, I1-I6/scoring methodology bodies, evaluation-scoped Primary configuration, assigned requirements, model/provider/sampling, language/toolchain identity, network policy and readable scientific inputs must still match. Current hydration reruns the current validator. A Learnability-relevant worker rule or scientific-input change remains a MISS."
+      "reason": "Historical LLM Learnability results may cross worker_core drift only when the differing worker_core content is confined to the Semantic Compression-only support-adjudication output-transport section. The remaining worker rules, exact Learnability task component, I1-I6/scoring methodology bodies, evaluation-scoped Primary configuration, assigned requirements, model/provider/sampling, language/toolchain identity and readable scientific inputs must still match. Current hydration reruns the current validator. A Learnability-relevant worker rule change remains a MISS."
     }
   },
   "epochs": {

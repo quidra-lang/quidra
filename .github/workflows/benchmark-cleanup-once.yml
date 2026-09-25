@@ -26,10 +26,6 @@ jobs:
           ref: develop
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Freeze current develop head
         run: echo "START_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 

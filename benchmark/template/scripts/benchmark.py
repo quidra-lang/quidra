@@ -10398,6 +10398,12 @@ def bind_language_quality_snapshot(source: Path) -> dict[str, Any]:
     if snapshot.get("rubric_set_id") != asset.get("rubric_set_id"):
         raise BenchmarkError("Language Quality snapshot rubric no longer matches")
 
+    original_language_bindings = json.dumps(
+        snapshot.get("languages") or {},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
     bound_rows = 0
     target = str(
         json_load(source / "benchmark/template/config/cache_policy.json").get(
@@ -10486,7 +10492,19 @@ def bind_language_quality_snapshot(source: Path) -> dict[str, Any]:
 
     snapshot["bound"] = True
     snapshot["binding_schema_version"] = 1
-    snapshot["bound_source_commit"] = run_capture(["git", "rev-parse", "HEAD"], source)
+    current_language_bindings = json.dumps(
+        snapshot.get("languages") or {},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    if (
+        current_language_bindings != original_language_bindings
+        or not str(snapshot.get("bound_source_commit") or "").strip()
+    ):
+        snapshot["bound_source_commit"] = run_capture(
+            ["git", "rev-parse", "HEAD"], source
+        )
     snapshot["bound_metric_rows"] = bound_rows
     path.write_text(
         json.dumps(snapshot, indent=2, sort_keys=True) + "\n",

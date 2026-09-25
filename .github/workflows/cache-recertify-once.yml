@@ -183,6 +183,17 @@ jobs:
             # benchmark-primary handoffs package .quidra-benchmark as the archive root.
             tar -xzf "$tgz" -C "$dst" --strip-components=1
 
+            # The artifact workspace can be newer than paid-state.tgz at the
+            # cancellation boundary. Ratchet the private paid store from the
+            # runtime-authored journal/trusted call checkpoints before importing
+            # it into a fresh run. This recovered two TypeScript calls in run #24
+            # (one journaled and one trusted-checkpoint-only) without inference.
+            python benchmark/template/scripts/benchmark.py partial-paid-export \
+              --workspace "$dst" \
+              --store "$RUNNER_TEMP/benchmark-paid-state" \
+              --evaluation llm_proficiency \
+              | tee "$evidence_root/${run_id}.partial-paid-merge.json"
+
             python benchmark/template/scripts/benchmark.py \
               cache-recover-proficiency-attempts \
               --evidence "$dst" \

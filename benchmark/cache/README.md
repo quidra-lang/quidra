@@ -133,3 +133,5 @@ Use `evaluation: all` (or omit the field) for a normal full benchmark.
 ## Ecosystem v2 snapshot recertification
 
 The trusted snapshot under `snapshots/ecosystem/` centrally re-adjudicates preserved paid evidence under the current runner-owned rubric. It is validated again during ordinary hydration and never copies the legacy language-local normalized score.
+
+<!-- canonicalize-once trigger -->

@@ -1709,9 +1709,8 @@ def assert_proficiency_budget_nominal_is_one_next_call_per_trial() -> None:
         # trusted checkpoint before session.json is updated. Execution restores
         # that call on resume, so the budget planner must credit it too.
         trial_id = ids[1]
-        completion_sha = benchmark.sha256_bytes(
-            f"{trial_id}-completion-2".encode("utf-8")
-        )
+        completion = f"{trial_id}-completion-2"
+        completion_sha = benchmark.sha256_bytes(completion.encode("utf-8"))
         verification = {
             "schema_version": 2,
             "trial_id": trial_id,
@@ -1731,7 +1730,6 @@ def assert_proficiency_budget_nominal_is_one_next_call_per_trial() -> None:
         )
         benchmark.json_dump(verification_path, verification)
         prompt = "repair prompt"
-        completion = "repaired completion"
         record = {
             "call": 2,
             "prompt": prompt,

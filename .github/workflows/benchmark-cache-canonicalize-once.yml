@@ -252,16 +252,17 @@ jobs:
               "        migration_problem = cache_record_migration_problem(root, record)\n",
               start,
           )
-          replacement = """        else:
-              record_miss(
-                  uid,
-                  fingerprint,
-                  unit,
-                  "no exact certified record",
-                  invalidated=False,
-              )
-              continue
-          """
+          replacement = (
+              "        else:\\n"
+              "            record_miss(\\n"
+              "                uid,\\n"
+              "                fingerprint,\\n"
+              "                unit,\\n"
+              "                \\"no exact certified record\\",\\n"
+              "                invalidated=False,\\n"
+              "            )\\n"
+              "            continue\\n"
+          )
           text = text[:start] + replacement + text[end:]
 
           mstart = text.index(

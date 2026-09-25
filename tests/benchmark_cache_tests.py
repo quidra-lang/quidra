@@ -2900,6 +2900,34 @@ def assert_partial_paid_checkpoint_roundtrip() -> None:
                 }],
             },
         )
+        trusted_call_dir = (
+            root / "work/root/trial-checkpoints" / agent_id / "case-t1"
+        )
+        benchmark.json_dump(
+            trusted_call_dir / "call_01.json",
+            {
+                "schema_version": 1,
+                "kind": "paid-trial-call-checkpoint-v1",
+                "agent_id": agent_id,
+                "evaluation": unit["evaluation"],
+                "trial_id": "case-t1",
+                "call": 1,
+                "record": {
+                    "call": 1,
+                    "prompt": prompt,
+                    "prompt_sha256": benchmark.sha256_bytes(prompt.encode()),
+                    "prompt_path": "trials/case-t1/prompt_01.txt",
+                    "completion": completion,
+                    "completion_sha256": benchmark.sha256_bytes(completion.encode()),
+                    "completion_path": "trials/case-t1/completion_01.txt",
+                    "stop_reason": "end_turn",
+                    "incomplete": None,
+                    "usage": {"input_tokens": 10, "output_tokens": 10},
+                    "verification": None,
+                    "verification_path": None,
+                },
+            },
+        )
         benchmark.json_dump(
             agent_dir / "trial_call_journal.json",
             {
@@ -2944,40 +2972,47 @@ def assert_partial_paid_checkpoint_roundtrip() -> None:
         assert restored["restored_paid_calls"] == 1, restored
         assert (trial_dir / "completion_01.txt").read_text() == completion
         assert (agent_dir / "trial_call_journal.json").is_file()
+        assert (
+            root / "work/root/trial-checkpoints" / agent_id
+            / "case-t1/call_01.json"
+        ).is_file()
         assert (agent_dir / "resume_trace.json").is_file()
 
         # Re-exporting identical state must not generate a new cache save.
         again = benchmark.export_partial_paid_checkpoints(root, store)
         assert again["updated_unit_count"] == 0, again
 
-        # If the process dies after atomic session persistence but before the
-        # compact journal update, the private cross-run exporter must still see
-        # the already-paid call. The next sandbox-agent invocation rebuilds the
-        # journal from this runtime-owned session.
-        (agent_dir / "trial_call_journal.json").unlink()
-        session_only_store = base / "paid-state-session-only"
-        session_only = benchmark.export_partial_paid_checkpoints(
-            root, session_only_store
-        )
-        assert session_only["updated_unit_count"] == 1, session_only
-        assert session_only["exported_units"][0]["paid_call_count"] == 1, session_only
-
-        # Prove the session-only checkpoint survives a true cross-run roundtrip:
-        # remove all local runtime-owned paid state, import from the private store,
-        # and retain the paid-call count even though no compact journal existed at
-        # export time. sandbox_agent rebuilds that journal before using the call.
+        # The trusted checkpoint is self-contained and outside worker authority.
+        # Lose every worker-side trial/session/journal file before export; the
+        # already-paid call must still survive a true cross-run roundtrip.
         shutil.rmtree(agent_dir / "trials")
+        (agent_dir / "trial_call_journal.json").unlink()
         for name in ("resume_trace.json", "agent_trace.partial.json", "agent_trace.json"):
             path = agent_dir / name
             if path.exists():
                 path.unlink()
-        restored_session_only = benchmark.import_partial_paid_checkpoints(
-            root, session_only_store
+
+        trusted_only_store = base / "paid-state-trusted-only"
+        trusted_only = benchmark.export_partial_paid_checkpoints(
+            root, trusted_only_store
         )
-        assert restored_session_only["imported_unit_count"] == 1, restored_session_only
-        assert restored_session_only["restored_paid_calls"] == 1, restored_session_only
-        assert (trial_dir / "session.json").is_file()
+        assert trusted_only["updated_unit_count"] == 1, trusted_only
+        assert trusted_only["exported_units"][0]["paid_call_count"] == 1, trusted_only
+
+        # Remove even the local trusted record, then restore it solely from the
+        # private cross-run paid-state store.
+        shutil.rmtree(root / "work/root/trial-checkpoints" / agent_id)
+        restored_trusted_only = benchmark.import_partial_paid_checkpoints(
+            root, trusted_only_store
+        )
+        assert restored_trusted_only["imported_unit_count"] == 1, restored_trusted_only
+        assert restored_trusted_only["restored_paid_calls"] == 1, restored_trusted_only
+        assert (
+            root / "work/root/trial-checkpoints" / agent_id
+            / "case-t1/call_01.json"
+        ).is_file()
         assert not (agent_dir / "trial_call_journal.json").exists()
+        assert not (agent_dir / "trials").exists()
 
         # Raw paid calls remain durable after the leaf itself becomes COMPLETE.
         # The certified result cache owns the validated result; this separate

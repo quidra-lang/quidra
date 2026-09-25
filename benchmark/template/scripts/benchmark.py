@@ -20139,84 +20139,71 @@ def _partial_paid_file_record(
     }
 
 
-def _partial_paid_call_count(agent_dir: Path, worker_mode: str) -> int:
+def _partial_paid_call_count(
+    root: Path,
+    agent_dir: Path,
+    agent_id: str,
+    worker_mode: str,
+) -> int:
     if worker_mode == "packet-only":
         return len(_packet_paid_response_records(agent_dir))
 
-    journal_count = 0
+    call_keys: set[tuple[str, int]] = set()
     journal = agent_dir / "trial_call_journal.json"
     if journal.is_file():
         try:
             payload = json_load(journal)
             calls = payload.get("calls")
             if payload.get("schema_version") == 1 and isinstance(calls, list):
-                journal_count = len(calls)
+                per_trial: dict[str, int] = {}
+                for row in calls:
+                    if not isinstance(row, dict):
+                        break
+                    trial_id = str(row.get("trial_id") or "")
+                    call = int(row.get("call", 0) or 0)
+                    expected = per_trial.get(trial_id, 0) + 1
+                    if not trial_id or call != expected:
+                        break
+                    per_trial[trial_id] = call
+                    call_keys.add((trial_id, call))
         except (OSError, json.JSONDecodeError, TypeError, ValueError):
             pass
 
-    # session.json is runtime-owned and atomically replaced before the compact
-    # journal. Count only self-consistent persisted calls so a process death in
-    # that tiny window is still exported to the private paid-state store. The
-    # sandbox runtime performs the stricter verifier/path checks on restoration
-    # before any such call can affect a scored result.
-    session_count = 0
-    trials = agent_dir / "trials"
-    if trials.is_dir():
-        for session_path in sorted(trials.glob("*/session.json")):
+    trusted = root / "work" / "root" / "trial-checkpoints" / agent_id
+    if trusted.is_dir():
+        for path in sorted(trusted.glob("*/call_*.json")):
             try:
-                session = json_load(session_path)
-                records = session.get("calls")
+                checkpoint = json_load(path)
+                trial_id = str(checkpoint.get("trial_id") or "")
+                call = int(checkpoint.get("call", 0) or 0)
+                record = checkpoint.get("record")
                 if (
-                    session.get("schema_version") != 1
-                    or session.get("trial_id") != session_path.parent.name
-                    or not isinstance(records, list)
+                    checkpoint.get("schema_version") != 1
+                    or checkpoint.get("kind") != "paid-trial-call-checkpoint-v1"
+                    or checkpoint.get("agent_id") != agent_id
+                    or not trial_id
+                    or call <= 0
+                    or path.parent.name != trial_id
+                    or path.name != f"call_{call:02d}.json"
+                    or not isinstance(record, dict)
+                    or int(record.get("call", 0) or 0) != call
                 ):
                     continue
-                valid = 0
-                for expected_call, record in enumerate(records, start=1):
-                    if (
-                        not isinstance(record, dict)
-                        or int(record.get("call", 0) or 0) != expected_call
-                    ):
-                        break
-                    prompt = record.get("prompt")
-                    completion = record.get("completion")
-                    if not isinstance(prompt, str) or not isinstance(completion, str):
-                        break
-                    if sha256_bytes(prompt.encode("utf-8")) != record.get(
-                        "prompt_sha256"
-                    ):
-                        break
-                    if sha256_bytes(completion.encode("utf-8")) != record.get(
-                        "completion_sha256"
-                    ):
-                        break
-                    prompt_rel = record.get("prompt_path")
-                    completion_rel = record.get("completion_path")
-                    if not isinstance(prompt_rel, str) or not isinstance(
-                        completion_rel, str
-                    ):
-                        break
-                    prompt_path = agent_dir / prompt_rel
-                    completion_path = agent_dir / completion_rel
-                    if (
-                        not require_under(prompt_path, agent_dir).is_file()
-                        or not require_under(completion_path, agent_dir).is_file()
-                        or prompt_path.read_text(encoding="utf-8") != prompt
-                        or completion_path.read_text(encoding="utf-8") != completion
-                    ):
-                        break
-                    valid += 1
-                session_count += valid
-            except (
-                OSError,
-                json.JSONDecodeError,
-                TypeError,
-                ValueError,
-                BenchmarkError,
-            ):
+                prompt = record.get("prompt")
+                completion = record.get("completion")
+                if not isinstance(prompt, str) or not isinstance(completion, str):
+                    continue
+                if (
+                    sha256_bytes(prompt.encode("utf-8"))
+                    != record.get("prompt_sha256")
+                    or sha256_bytes(completion.encode("utf-8"))
+                    != record.get("completion_sha256")
+                ):
+                    continue
+                call_keys.add((trial_id, call))
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
                 continue
-    return max(journal_count, session_count)
+    return len(call_keys)
 
 
 def export_partial_paid_checkpoints(
@@ -20262,7 +20249,9 @@ def export_partial_paid_checkpoints(
             continue
         fingerprint, payload = pair
         worker_mode = str(unit.get("worker_mode") or "packet-only")
-        paid_calls = _partial_paid_call_count(agent_dir, worker_mode)
+        paid_calls = _partial_paid_call_count(
+            root, agent_dir, agent_id, worker_mode
+        )
         if paid_calls <= 0:
             continue
 
@@ -20279,6 +20268,16 @@ def export_partial_paid_checkpoints(
                 for source in sorted(p for p in trials.rglob("*") if p.is_file()):
                     rel = source.relative_to(agent_dir).as_posix()
                     file_specs.append((source, f"{agent_prefix}/{rel}"))
+            trusted_calls = (
+                root / "work" / "root" / "trial-checkpoints" / agent_id
+            )
+            if trusted_calls.is_dir():
+                for source in sorted(
+                    p for p in trusted_calls.rglob("*") if p.is_file()
+                ):
+                    file_specs.append(
+                        (source, source.relative_to(root).as_posix())
+                    )
             for name in (
                 "trial_call_journal.json",
                 "learnability_preflight.json",
@@ -20323,6 +20322,24 @@ def export_partial_paid_checkpoints(
                             verification_paths.update(
                                 p for p in candidate.rglob("*") if p.is_file()
                             )
+            if trusted_calls.is_dir():
+                for checkpoint_path in trusted_calls.glob("*/call_*.json"):
+                    try:
+                        checkpoint = json_load(checkpoint_path)
+                        raw = (checkpoint.get("record") or {}).get(
+                            "verification_path"
+                        )
+                    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                        continue
+                    if not isinstance(raw, str) or not raw:
+                        continue
+                    candidate = require_under(root / raw, root)
+                    if candidate.is_file():
+                        verification_paths.add(candidate)
+                    elif candidate.is_dir():
+                        verification_paths.update(
+                            p for p in candidate.rglob("*") if p.is_file()
+                        )
             for source in sorted(verification_paths):
                 rel = source.relative_to(root).as_posix()
                 if not rel.startswith("work/root/proficiency-verification/"):
@@ -20413,6 +20430,9 @@ def _partial_paid_restore_allowed(
         raise BenchmarkError(f"invalid paid checkpoint restore path: {relative!r}")
     agent_prefix = PurePosixPath("work") / "agents" / agent_id
     trusted_prefix = PurePosixPath("work") / "root" / "proficiency-verification"
+    trial_checkpoint_prefix = (
+        PurePosixPath("work") / "root" / "trial-checkpoints" / agent_id
+    )
     allowed_agent = False
     try:
         suffix = rel.relative_to(agent_prefix)
@@ -20433,7 +20453,13 @@ def _partial_paid_restore_allowed(
         allowed_trusted = True
     except ValueError:
         pass
-    if not (allowed_agent or allowed_trusted):
+    allowed_trial_checkpoint = False
+    try:
+        rel.relative_to(trial_checkpoint_prefix)
+        allowed_trial_checkpoint = True
+    except ValueError:
+        pass
+    if not (allowed_agent or allowed_trusted or allowed_trial_checkpoint):
         raise BenchmarkError(
             f"paid checkpoint restore path is outside the allowed state: {relative}"
         )

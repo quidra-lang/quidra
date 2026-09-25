@@ -522,92 +522,262 @@ class Trials:
         self.trusted_verification_dir = (
             root / "work" / "root" / "proficiency-verification" / agent_id
         )
-        # session.json is itself runtime-owned and written atomically before the
-        # compact journal. If a process dies in that tiny interval, recover the
-        # paid call from the verbatim session instead of purchasing it again.
-        self._recover_unjournaled_session_calls()
+        self.trusted_call_checkpoint_dir = (
+            root / "work" / "root" / "trial-checkpoints" / agent_id
+        )
+        # The first durable write after a scored provider reply lives outside
+        # worker authority. Recovery can rebuild all worker-side trial state from
+        # this record without buying the same scored call again.
+        self._recover_trusted_call_checkpoints()
         self._restore_sessions()
 
-    def _recover_unjournaled_session_calls(self) -> None:
-        """Ratchet complete runtime-owned session calls into the compact journal.
+    def _trusted_call_checkpoint_path(self, trial_id: str, call: int) -> Path:
+        return self.trusted_call_checkpoint_dir / trial_id / f"call_{call:02d}.json"
 
-        The provider reply, prompt/completion files, trusted Proficiency
-        verification and session.json all reach disk before _checkpoint_call.
-        A crash after that atomic session replace but before the journal replace
-        used to leave one paid call invisible to cross-run export/resume. The
-        worker cannot write trials/, so a structurally complete session is a
-        trusted fallback commit source. _restore_sessions immediately performs
-        the full hash/path/verifier validation before any recovered call is used.
-        """
-        journal_counts: dict[str, int] = {}
-        if self.call_journal_path.is_file():
-            try:
-                payload = benchmark.json_load(self.call_journal_path)
-            except (OSError, json.JSONDecodeError) as exc:
-                raise AgentFailure(
-                    f"trial_call_journal.json is unreadable: {exc}"
-                ) from exc
-            rows = payload.get("calls")
-            if payload.get("schema_version") != 1 or not isinstance(rows, list):
-                raise AgentFailure("trial_call_journal.json is malformed")
-            for row in rows:
-                if not isinstance(row, dict):
-                    raise AgentFailure(
-                        "trial_call_journal.json contains a non-object call"
-                    )
-                trial_id = self._valid_id(row.get("trial_id"))
-                call = int(row.get("call", 0) or 0)
-                expected = journal_counts.get(trial_id, 0) + 1
-                if call != expected:
-                    raise AgentFailure(
-                        f"trial call journal is non-sequential for {trial_id!r}: "
-                        f"got call {call}, expected {expected}"
-                    )
-                journal_counts[trial_id] = call
+    def _write_trusted_call_checkpoint(
+        self, trial_id: str, record: dict[str, Any]
+    ) -> None:
+        """Atomically persist one paid scored reply outside worker authority."""
+        call = int(record.get("call", 0) or 0)
+        if call <= 0:
+            raise AgentFailure(
+                f"refusing trusted checkpoint with invalid call number: {call}"
+            )
+        benchmark.json_dump(
+            self._trusted_call_checkpoint_path(trial_id, call),
+            {
+                "schema_version": 1,
+                "kind": "paid-trial-call-checkpoint-v1",
+                "agent_id": self.agent_id,
+                "evaluation": self.evaluation,
+                "trial_id": trial_id,
+                "call": call,
+                "record": record,
+            },
+        )
 
-        if not self.records_dir.is_dir():
+    def _recover_trusted_call_checkpoints(self) -> None:
+        """Reconstruct session/journal state from trusted paid-call records."""
+        if not self.trusted_call_checkpoint_dir.is_dir():
             return
-        for trial_dir in sorted(p for p in self.records_dir.iterdir() if p.is_dir()):
-            trial_id = self._valid_id(trial_dir.name)
+
+        recovered_by_trial: dict[str, list[dict[str, Any]]] = {}
+        for trusted_trial_dir in sorted(
+            p for p in self.trusted_call_checkpoint_dir.iterdir() if p.is_dir()
+        ):
+            trial_id = self._valid_id(trusted_trial_dir.name)
             self._require_allowed_trial_id(trial_id)
-            session_path = trial_dir / "session.json"
-            if not session_path.is_file():
-                continue
-            try:
-                session = benchmark.json_load(session_path)
-            except (OSError, json.JSONDecodeError) as exc:
-                raise AgentFailure(
-                    f"trial session {trial_id!r} is unreadable: {exc}"
-                ) from exc
-            records = session.get("calls")
-            if (
-                session.get("schema_version") != 1
-                or session.get("trial_id") != trial_id
-                or not isinstance(records, list)
+            checkpoint_records: list[dict[str, Any]] = []
+
+            for checkpoint_path in sorted(trusted_trial_dir.glob("call_*.json")):
+                try:
+                    checkpoint = benchmark.json_load(checkpoint_path)
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise AgentFailure(
+                        f"trusted trial checkpoint is unreadable: {checkpoint_path}: {exc}"
+                    ) from exc
+                call = int(checkpoint.get("call", 0) or 0)
+                record = checkpoint.get("record")
+                if (
+                    checkpoint.get("schema_version") != 1
+                    or checkpoint.get("kind") != "paid-trial-call-checkpoint-v1"
+                    or checkpoint.get("agent_id") != self.agent_id
+                    or checkpoint.get("evaluation") != self.evaluation
+                    or checkpoint.get("trial_id") != trial_id
+                    or call <= 0
+                    or checkpoint_path.name != f"call_{call:02d}.json"
+                    or not isinstance(record, dict)
+                    or int(record.get("call", 0) or 0) != call
+                ):
+                    raise AgentFailure(
+                        f"trusted trial checkpoint metadata is invalid: {checkpoint_path}"
+                    )
+                record = dict(record)
+                prompt = record.get("prompt")
+                completion = record.get("completion")
+                if not isinstance(prompt, str) or not isinstance(completion, str):
+                    raise AgentFailure(
+                        f"trusted trial checkpoint lacks verbatim text: {checkpoint_path}"
+                    )
+                if (
+                    benchmark.sha256_bytes(prompt.encode("utf-8"))
+                    != record.get("prompt_sha256")
+                    or benchmark.sha256_bytes(completion.encode("utf-8"))
+                    != record.get("completion_sha256")
+                ):
+                    raise AgentFailure(
+                        f"trusted trial checkpoint text hash changed: {checkpoint_path}"
+                    )
+
+                expected_prompt_rel = (
+                    Path("trials") / trial_id / f"prompt_{call:02d}.txt"
+                ).as_posix()
+                expected_completion_rel = (
+                    Path("trials") / trial_id / f"completion_{call:02d}.txt"
+                ).as_posix()
+                if (
+                    record.get("prompt_path") != expected_prompt_rel
+                    or record.get("completion_path") != expected_completion_rel
+                ):
+                    raise AgentFailure(
+                        f"trusted trial checkpoint path contract changed: {checkpoint_path}"
+                    )
+
+                # Recreate worker-readable verbatim evidence if the process died
+                # before those secondary files were committed.
+                for relative, value in (
+                    (expected_prompt_rel, prompt),
+                    (expected_completion_rel, completion),
+                ):
+                    target = self.agent_dir / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    if target.exists():
+                        if not target.is_file() or target.read_text(encoding="utf-8") != value:
+                            raise AgentFailure(
+                                f"trusted paid-call file conflicts with checkpoint: {target}"
+                            )
+                    else:
+                        tmp = target.with_name(target.name + ".trusted-recovery.tmp")
+                        tmp.write_text(value, encoding="utf-8")
+                        os.replace(tmp, target)
+
+                # Verification is free/deterministic. If a crash happened before
+                # it was committed, replay it from the preserved paid completion.
+                if self.evaluation == "llm_proficiency":
+                    if self.proficiency_language is None:
+                        raise AgentFailure(
+                            "trusted Proficiency checkpoint has no assigned language"
+                        )
+                    verification = None
+                    raw_verification_path = record.get("verification_path")
+                    if isinstance(raw_verification_path, str) and raw_verification_path:
+                        candidate = self.root / raw_verification_path
+                        if (
+                            _is_within(candidate, self.trusted_verification_dir)
+                            and candidate.is_file()
+                        ):
+                            loaded = benchmark.json_load(candidate)
+                            if (
+                                benchmark.proficiency_verification_summary(loaded)
+                                == record.get("verification")
+                            ):
+                                verification = loaded
+                    if verification is None:
+                        verify_dir = (
+                            self.trusted_verification_dir
+                            / trial_id
+                            / f"call_{call:02d}"
+                        )
+                        try:
+                            verification = benchmark.verify_proficiency_completion(
+                                self.root,
+                                self.proficiency_language,
+                                trial_id,
+                                completion,
+                                verify_dir,
+                            )
+                        except benchmark.BenchmarkError as exc:
+                            raise AgentFailure(
+                                f"trusted Proficiency recovery verifier failed: {exc}"
+                            ) from exc
+                        record["verification_path"] = (
+                            verify_dir / "verification.json"
+                        ).relative_to(self.root).as_posix()
+                        record["verification"] = (
+                            benchmark.proficiency_verification_summary(verification)
+                        )
+                        self._write_trusted_call_checkpoint(trial_id, record)
+
+                checkpoint_records.append(record)
+
+            checkpoint_records.sort(key=lambda row: int(row["call"]))
+            if len({int(row["call"]) for row in checkpoint_records}) != len(
+                checkpoint_records
             ):
                 raise AgentFailure(
-                    f"trial session {trial_id!r} has invalid session metadata"
+                    f"trusted trial checkpoints duplicate a call for {trial_id!r}"
                 )
-            recorded = int(journal_counts.get(trial_id, 0) or 0)
-            if len(records) <= recorded:
-                continue
-            for expected_call, record in enumerate(records, start=1):
-                if not isinstance(record, dict) or int(
-                    record.get("call", 0) or 0
-                ) != expected_call:
+            if checkpoint_records:
+                recovered_by_trial[trial_id] = checkpoint_records
+
+        # Merge trusted records into session.json. Existing legacy calls remain
+        # valid only when they precede or exactly match the trusted records.
+        for trial_id, checkpoint_records in sorted(recovered_by_trial.items()):
+            trial_dir = self.records_dir / trial_id
+            trial_dir.mkdir(parents=True, exist_ok=True)
+            session_path = trial_dir / "session.json"
+            session_records: list[dict[str, Any]] = []
+            if session_path.is_file():
+                try:
+                    session = benchmark.json_load(session_path)
+                except (OSError, json.JSONDecodeError) as exc:
                     raise AgentFailure(
-                        f"trial session {trial_id!r} has non-sequential calls"
+                        f"trial session {trial_id!r} is unreadable: {exc}"
+                    ) from exc
+                if (
+                    session.get("schema_version") != 1
+                    or session.get("trial_id") != trial_id
+                    or not isinstance(session.get("calls"), list)
+                ):
+                    raise AgentFailure(
+                        f"trial session {trial_id!r} has invalid session metadata"
                     )
-                if expected_call <= recorded:
+                session_records = list(session["calls"])
+
+            for record in checkpoint_records:
+                call = int(record["call"])
+                if call <= len(session_records):
+                    if session_records[call - 1] != record:
+                        raise AgentFailure(
+                            f"trial session disagrees with trusted checkpoint "
+                            f"for {trial_id!r} call {call}"
+                        )
                     continue
-                if expected_call != recorded + 1:
+                if call != len(session_records) + 1:
                     raise AgentFailure(
-                        f"trial session {trial_id!r} cannot recover call "
-                        f"{expected_call} after journal call {recorded}"
+                        f"trusted checkpoint for {trial_id!r} has a gap before call {call}"
+                    )
+                session_records.append(record)
+
+            benchmark.json_dump(
+                session_path,
+                {
+                    "schema_version": 1,
+                    "trial_id": trial_id,
+                    "calls": session_records,
+                },
+            )
+
+        # Finally ratchet trusted records into the compact journal. Existing
+        # journal-only legacy calls can precede new trusted records.
+        journal_counts: dict[str, int] = {}
+        for row in self._journal_rows():
+            if not isinstance(row, dict):
+                raise AgentFailure("trial call journal contains a non-object call")
+            trial_id = self._valid_id(row.get("trial_id"))
+            call = int(row.get("call", 0) or 0)
+            expected = journal_counts.get(trial_id, 0) + 1
+            if call != expected:
+                raise AgentFailure(
+                    f"trial call journal is non-sequential for {trial_id!r}: "
+                    f"got {call}, expected {expected}"
+                )
+            journal_counts[trial_id] = call
+
+        for trial_id, records in sorted(recovered_by_trial.items()):
+            recorded = int(journal_counts.get(trial_id, 0) or 0)
+            for record in records:
+                call = int(record["call"])
+                if call <= recorded:
+                    continue
+                if call != recorded + 1:
+                    raise AgentFailure(
+                        f"trusted checkpoint for {trial_id!r} cannot bridge "
+                        f"journal call {recorded} to call {call}"
                     )
                 self._checkpoint_call(trial_id, record)
-                recorded = expected_call
-                journal_counts[trial_id] = recorded
+                recorded = call
+                journal_counts[trial_id] = call
 
     def _resumed_call_counts(self) -> dict[str, int]:
         """Accepted scored calls from the finest trusted runtime checkpoint.
@@ -932,12 +1102,31 @@ class Trials:
         trial_dir.mkdir(parents=True, exist_ok=True)
         prompt_path = trial_dir / f"prompt_{call:02d}.txt"
         completion_path = trial_dir / f"completion_{call:02d}.txt"
-        prompt_path.write_text(prompt_text, encoding="utf-8")
-        completion_path.write_text(completion, encoding="utf-8")
         agent_dir = self.records_dir.parent
+        record = {
+            "call": call,
+            "prompt": prompt_text,
+            "prompt_sha256": benchmark.sha256_bytes(prompt_text.encode("utf-8")),
+            "prompt_path": prompt_path.relative_to(agent_dir).as_posix(),
+            "completion": completion,
+            "completion_sha256": benchmark.sha256_bytes(completion.encode("utf-8")),
+            "completion_path": completion_path.relative_to(agent_dir).as_posix(),
+            "stop_reason": response.get("stop_reason"),
+            "incomplete": incomplete,
+            "usage": response.get("usage", {}),
+            "verification": None,
+            "verification_path": None,
+        }
+        # Earliest durable commit after the paid provider reply. This trusted
+        # record is self-contained and cannot be written by the scored worker.
+        self._write_trusted_call_checkpoint(trial_id, record)
+
+        for path, value in ((prompt_path, prompt_text), (completion_path, completion)):
+            tmp = path.with_name(path.name + ".paid-call.tmp")
+            tmp.write_text(value, encoding="utf-8")
+            os.replace(tmp, path)
 
         verification = None
-        verification_path = None
         if self.evaluation == "llm_proficiency":
             if self.proficiency_language is None:
                 raise AgentFailure("LLM Proficiency target language is unavailable")
@@ -956,39 +1145,24 @@ class Trials:
                 raise AgentFailure(
                     f"trusted Proficiency verifier failed: {exc}"
                 ) from exc
-            verification_path = (
+            record["verification_path"] = (
                 verify_dir / "verification.json"
             ).relative_to(self.root).as_posix()
+            record["verification"] = (
+                benchmark.proficiency_verification_summary(verification)
+            )
             session.setdefault("trusted_verifications", []).append(verification)
+            # Ratchet the same paid call with free verifier evidence.
+            self._write_trusted_call_checkpoint(trial_id, record)
 
-        verification_summary = (
-            benchmark.proficiency_verification_summary(verification)
-            if isinstance(verification, dict)
-            else None
-        )
-        session["records"].append({
-            "call": call,
-            "prompt": prompt_text,
-            "prompt_sha256": benchmark.sha256_bytes(prompt_text.encode("utf-8")),
-            "prompt_path": prompt_path.relative_to(agent_dir).as_posix(),
-            "completion": completion,
-            "completion_sha256": benchmark.sha256_bytes(completion.encode("utf-8")),
-            "completion_path": completion_path.relative_to(agent_dir).as_posix(),
-            "stop_reason": response.get("stop_reason"),
-            "incomplete": incomplete,
-            "usage": response.get("usage", {}),
-            "verification": verification_summary,
-            "verification_path": verification_path,
-        })
+        session["records"].append(record)
         benchmark.json_dump(trial_dir / "session.json", {
             "schema_version": 1,
             "trial_id": trial_id,
             "calls": session["records"],
         })
-        # This is the paid-call commit point. If the worker or a later member of
-        # a batch dies after here, the next attempt can prove and restore exactly
-        # this call instead of purchasing it again.
-        self._checkpoint_call(trial_id, session["records"][-1])
+        # Secondary compact index for trace reconstruction and legacy recovery.
+        self._checkpoint_call(trial_id, record)
         session["messages"].append({"role": "assistant", "content": completion})
         verification_view = None
         if isinstance(verification, dict):

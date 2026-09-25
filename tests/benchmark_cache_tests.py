@@ -2628,12 +2628,81 @@ def assert_certified_checkpoint_promotes_prompt_dependencies() -> None:
 
 
 def assert_language_quality_snapshot_migration_hash_ratchets() -> None:
-    """LQ snapshot bookkeeping changes must not invalidate unchanged evidence."""
+    """LQ snapshot rebinds may change provenance choice, never the judgment."""
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         rel = Path("snapshots/language_quality/2026-09-design-rubric-v1.json")
         path = root / "cache" / rel
         path.parent.mkdir(parents=True, exist_ok=True)
+
+        source_dir = root / "cache/v1/language-quality/python"
+        source_dir.mkdir(parents=True, exist_ok=True)
+
+        def write_paid_source(name: str, run_id: str, observation: str) -> dict:
+            source_path = source_dir / name
+            source_result = {
+                "schema_version": 1,
+                "evaluation": "language_quality",
+                "requirements": {"metric.readability": {"Python": 80}},
+                "evidence": {
+                    "readability": {"observations": [observation]}
+                },
+            }
+            payload = {
+                "schema_version": 1,
+                "evaluation": "language_quality",
+                "work_unit_id": "lq-language-development--part-1--python",
+            }
+            raw_result = json.dumps(
+                source_result, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+            raw_payload = json.dumps(
+                payload, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+            source = {
+                "schema_version": 1,
+                "fingerprint": benchmark.sha256_bytes(raw_payload),
+                "fingerprint_payload": payload,
+                "evaluation": "language_quality",
+                "assigned_languages": ["Python"],
+                "result": source_result,
+                "result_sha256": benchmark.sha256_bytes(raw_result),
+                "certification": {
+                    "unit_complete": True,
+                    "primary_complete": False,
+                    "validator_pass": True,
+                },
+                "provenance": {
+                    "run_id": run_id,
+                    "work_unit_id": "lq-language-development--part-1--python",
+                },
+            }
+            benchmark.json_dump(source_path, source)
+            metric_evidence = source_result["evidence"]["readability"]
+            return {
+                "source_record": (
+                    "benchmark/cache/"
+                    + source_path.relative_to(root / "cache").as_posix()
+                ),
+                "source_record_sha256": benchmark.sha256_file(source_path),
+                "source_result_sha256": source["result_sha256"],
+                "source_evidence_sha256": benchmark.sha256_bytes(
+                    json.dumps(
+                        metric_evidence,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        ensure_ascii=False,
+                    ).encode("utf-8")
+                ),
+                "source_run_id": run_id,
+            }
+
+        original_source = write_paid_source(
+            "legacy-old.json", "legacy-paid-run-old", "preserved paid rationale"
+        )
+        rebound_source = write_paid_source(
+            "legacy-new.json", "legacy-paid-run-new", "newer retained copy"
+        )
 
         levels = {
             "local_intent_visibility": 3,
@@ -2643,19 +2712,18 @@ def assert_language_quality_snapshot_migration_hash_ratchets() -> None:
             "control_effect_traceability": 3,
         }
         row = {
-            "component_levels": levels,
+            "component_levels": dict(levels),
             "score_0_100": 75,
-            "source_record": "v1/language-quality/python/legacy.json",
-            "source_record_sha256": "1" * 64,
-            "source_result_sha256": "2" * 64,
-            "source_evidence_sha256": "3" * 64,
-            "source_run_id": "legacy-paid-run",
+            **original_source,
         }
         snapshot = {
             "schema_version": 1,
             "frozen": True,
             "bound": True,
             "snapshot_id": "lq-test-snapshot",
+            "rubric_set_id": benchmark.language_quality_design_rubric_asset(root)[
+                "rubric_set_id"
+            ],
             "languages": {"Python": {"metrics": {"metric.readability": row}}},
             "bound_source_commit": "old",
         }
@@ -2674,11 +2742,7 @@ def assert_language_quality_snapshot_migration_hash_ratchets() -> None:
                 "metric.readability": {
                     "component_levels": dict(levels),
                     "recertification_provenance": {
-                        "source_record": row["source_record"],
-                        "source_record_sha256": row["source_record_sha256"],
-                        "source_result_sha256": row["source_result_sha256"],
-                        "source_evidence_sha256": row["source_evidence_sha256"],
-                        "source_run_id": row["source_run_id"],
+                        **original_source,
                         "legacy_score_used_for_component_levels": False,
                         "new_paid_provider_call": False,
                     },
@@ -2707,9 +2771,12 @@ def assert_language_quality_snapshot_migration_hash_ratchets() -> None:
             },
         }
 
-        # Binding/checkpoint bookkeeping changes the snapshot bytes without
-        # changing the adjudicated component levels or exact legacy evidence.
+        # A later binding may select a newer retained evidence copy while the
+        # current rubric judgment itself stays exactly the same.
         snapshot["bound_source_commit"] = "new"
+        snapshot["languages"]["Python"]["metrics"]["metric.readability"].update(
+            rebound_source
+        )
         benchmark.json_dump(path, snapshot)
         current_hash = benchmark.sha256_file(path)
         assert current_hash != stale_hash

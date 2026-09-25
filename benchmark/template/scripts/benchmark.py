@@ -9221,11 +9221,47 @@ def _primary_config_from_prompt_store(
 
 
 def _scoped_prompt_component_kinds(evaluation: str) -> set[str]:
-    return {
+    scoped = {
         "embedded:primary.json",
         f"embedded:{EVALUATION_SPEC_FILES[evaluation]}",
         "embedded:assigned_requirements.json",
     }
+    # Learnability measures the model's scored trial behavior under I1-I6, not
+    # unrelated worker transport instructions. Historical paid packets differ
+    # from the current worker core only by the Semantic Compression-only text
+    # leaf output exception. Compare a narrow semantic projection of worker_core
+    # below instead of letting that unrelated JSON/TXT transport change repurchase
+    # all Learnability trials.
+    if evaluation == "llm_learnability":
+        scoped.add("embedded:worker_core.md")
+    return scoped
+
+
+LEARNABILITY_NONSCIENTIFIC_WORKER_CORE_HEADING = (
+    "### Semantic Compression support adjudication exception"
+)
+
+
+def _learnability_worker_core_projection(body: str) -> str:
+    """Remove only the SC-specific output-transport section from worker_core.
+
+    Everything else remains byte-significant. This makes a JSON/TXT-style
+    transport change in another evaluation non-scientific for Learnability,
+    while any rule that can affect Learnability trial behavior still causes a
+    cache miss.
+    """
+    lines = body.splitlines()
+    projected: list[str] = []
+    skipping = False
+    for line in lines:
+        if line.strip() == LEARNABILITY_NONSCIENTIFIC_WORKER_CORE_HEADING:
+            skipping = True
+            continue
+        if skipping and line.startswith("### "):
+            skipping = False
+        if not skipping:
+            projected.append(line)
+    return "\n".join(projected).strip()
 
 
 def _prompt_component_signature_without_scoped(
@@ -9339,6 +9375,20 @@ def _legacy_primary_prompt_compatible(
         task.get("prompt_components", []) or [], evaluation
     ):
         return False
+    if evaluation == "llm_learnability":
+        old_worker_core = _stored_prompt_component_body(
+            store_root, old_prompt, "embedded:worker_core.md"
+        )
+        current_worker_core = _task_prompt_component_body(
+            task, "embedded:worker_core.md"
+        )
+        if (
+            old_worker_core is None
+            or current_worker_core is None
+            or _learnability_worker_core_projection(old_worker_core)
+            != _learnability_worker_core_projection(current_worker_core)
+        ):
+            return False
     old_primary = _primary_config_from_prompt_store(store_root, old_prompt)
     if old_primary is None or primary_config_projection_from_data(
         old_primary, evaluation
@@ -10723,7 +10773,10 @@ CACHE_MIGRATION_RULES: dict[str, dict[str, Any]] = {
         "reason": (
             "Legacy paid evidence is scientifically unchanged; only the scoped "
             "Task Packet/fingerprint representation changed. Every non-scoped "
-            "dependency and selected prompt component was proved identical."
+            "dependency and selected prompt component was proved identical, except "
+            "that Learnability may project away the explicitly Semantic Compression-"
+            "only worker-core output-transport section after the remaining worker "
+            "rules compare byte-for-byte."
         ),
         "transformed_fields": [
             "fingerprint",

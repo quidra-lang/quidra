@@ -2222,22 +2222,25 @@ jobs:
           (cache / "baseline.json").write_text(
               json.dumps(baseline, indent=2, sort_keys=True) + "\n"
           )
-          (cache / "README.md").write_text(f"""# Certified benchmark cache
-
-This directory is the complete reusable measurement state for the next Quidra benchmark.
-
-The canonical baseline is {BASE}. It completed all five Primary evaluations. The
-cache is compacted to the 688 certified records required by that completed contract.
-
-A record is a HIT only at its exact current fingerprint. Hydration does not search
-older fingerprints, historical run directories, migration snapshots, provenance
-archives, or recertification sources. Every HIT is revalidated by the current
-validator. Quidra records additionally carry an explicit compiler/runtime execution
-identity.
-
-The cache is self-contained: pre-baseline cache history is not required for reuse.
-A future scientific input change creates a MISS only for the affected fingerprint.
-""")
+          readme_lines = [
+              "# Certified benchmark cache",
+              "",
+              "This directory is the complete reusable measurement state for the next Quidra benchmark.",
+              "",
+              f"The canonical baseline is {BASE}. It completed all five Primary evaluations. The",
+              "cache is compacted to the 688 certified records required by that completed contract.",
+              "",
+              "A record is a HIT only at its exact current fingerprint. Hydration does not search",
+              "older fingerprints, historical run directories, migration snapshots, provenance",
+              "archives, or recertification sources. Every HIT is revalidated by the current",
+              "validator. Quidra records additionally carry an explicit compiler/runtime execution",
+              "identity.",
+              "",
+              "The cache is self-contained: pre-baseline cache history is not required for reuse.",
+              "A future scientific input change creates a MISS only for the affected fingerprint.",
+              "",
+          ]
+          (cache / "README.md").write_text("\n".join(readme_lines))
           print(json.dumps({
               "canonical_records": 688,
               "deleted_old_records": removed,

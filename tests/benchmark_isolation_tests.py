@@ -413,8 +413,8 @@ def test_sandbox_subprocess_trace_rejects_undeclared_workspace_access() -> None:
 
     policy = Policy()
     allowed = (
-        '1 openat(AT_FDCWD, "/quidra-benchmark/repo/docs/allowed.md", O_RDONLY) = 3\n'
-        '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/worker-a/result.json", O_WRONLY) = 4\n'
+        '1 openat(AT_FDCWD, "/quidra-benchmark/repo/docs/allowed.md", O_RDONLY) = 3\\n'
+        '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/worker-a/result.json", O_WRONLY) = 4\\n'
     )
     check(
         sandbox_agent._sandbox_subprocess_access_problem(allowed, policy) is None,
@@ -456,7 +456,7 @@ def test_sandbox_subprocess_trace_rejects_undeclared_workspace_access() -> None:
     )
 
     sibling = (
-        '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/worker-b/result.json", O_RDONLY) = 3\n'
+        '1 openat(AT_FDCWD, "/quidra-benchmark/work/agents/worker-b/result.json", O_RDONLY) = 3\\n'
     )
     problem = sandbox_agent._sandbox_subprocess_access_problem(sibling, policy)
     check(
@@ -464,7 +464,7 @@ def test_sandbox_subprocess_trace_rejects_undeclared_workspace_access() -> None:
         f"sibling-worker access escaped the subprocess audit: {problem}",
     )
     gateway = (
-        '1 connect(3, {sa_family=AF_UNIX, sun_path="/quidra-benchmark/gateway/inference.sock"}, 110) = 0\n'
+        '1 connect(3, {sa_family=AF_UNIX, sun_path="/quidra-benchmark/gateway/inference.sock"}, 110) = 0\\n'
     )
     problem = sandbox_agent._sandbox_subprocess_access_problem(gateway, policy)
     check(
@@ -1349,9 +1349,9 @@ def test_exec_provider_contract() -> None:
             "# A real CLI answers from its own authenticated session; the stub\n"
             "# reports what it received and whether it holds the credential.\n"
             "sys.stdout.write(\n"
-            "    'turns=%d\n' % conversation.count('<<<')\n"
-            "    + 'saw_packet=%s\n' % ('yes' if 'TASK BODY' in conversation else 'no')\n"
-            "    + 'credential_present=%s\n'\n"
+            "    'turns=%d\\n' % conversation.count('<<<')\n"
+            "    + 'saw_packet=%s\\n' % ('yes' if 'TASK BODY' in conversation else 'no')\n"
+            "    + 'credential_present=%s\\n'\n"
             "      % ('yes' if os.environ.get('ANTHROPIC_API_KEY') else 'no')\n"
             ")\n",
             encoding="utf-8",
@@ -1398,7 +1398,7 @@ def test_exec_provider_contract() -> None:
 
         failing = tmp / "failing_cli.py"
         failing.write_text(
-            "import sys\nsys.stderr.write('session expired\n')\nsys.exit(3)\n",
+            "import sys\nsys.stderr.write('session expired\\n')\nsys.exit(3)\n",
             encoding="utf-8",
         )
         broken = inference_gateway.ExecProvider([sys.executable, str(failing)], timeout=30)
@@ -1424,7 +1424,7 @@ def test_exec_provider_errors_reach_the_sandbox_scrubbed() -> None:
         leaky = tmp / "leaky_cli.py"
         leaky.write_text(
             "import sys\n"
-            "sys.stderr.write('auth failed for key %s at %s\n' %\n"
+            "sys.stderr.write('auth failed for key %s at %s\\n' %\n"
             "                 (sys.argv[1], sys.argv[2]))\n"
             "sys.exit(1)\n",
             encoding="utf-8",

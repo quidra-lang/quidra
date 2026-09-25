@@ -2672,7 +2672,7 @@ def assert_language_quality_snapshot_migration_hash_ratchets() -> None:
                     "new_paid_benchmark_provider_call": False,
                 },
                 "metric.readability": {
-                    "component_levels": levels,
+                    "component_levels": dict(levels),
                     "recertification_provenance": {
                         "source_record": row["source_record"],
                         "source_record_sha256": row["source_record_sha256"],

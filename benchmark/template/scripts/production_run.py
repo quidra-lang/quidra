@@ -576,6 +576,69 @@ def run_production(
 
 
 
+def _proficiency_budget_calls(
+    root: Path,
+    agent_id: str,
+    trial_id: str,
+    session_calls: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Include contiguous trusted calls committed just before cancellation.
+
+    The trusted call checkpoint is the first durable write after a paid scored
+    completion. A cancellation can therefore leave call N checkpointed while
+    session.json still ends at N-1. sandbox_agent reconstructs that call before
+    execution; budget planning must see the same state or it charges one call
+    that production will never purchase.
+    """
+    calls = [dict(row) for row in session_calls if isinstance(row, dict)]
+    checkpoint_dir = (
+        root / "work" / "root" / "trial-checkpoints" / agent_id / trial_id
+    )
+    next_call = len(calls) + 1
+    while checkpoint_dir.is_dir():
+        path = checkpoint_dir / f"call_{next_call:02d}.json"
+        if not path.is_file():
+            break
+        try:
+            checkpoint = json_load(path)
+            record = checkpoint.get("record")
+            if (
+                checkpoint.get("schema_version") != 1
+                or checkpoint.get("kind") != "paid-trial-call-checkpoint-v1"
+                or checkpoint.get("agent_id") != agent_id
+                or checkpoint.get("trial_id") != trial_id
+                or int(checkpoint.get("call", 0) or 0) != next_call
+                or not isinstance(record, dict)
+                or int(record.get("call", 0) or 0) != next_call
+            ):
+                break
+            prompt = record.get("prompt")
+            completion = record.get("completion")
+            if not isinstance(prompt, str) or not isinstance(completion, str):
+                break
+            if (
+                benchmark.sha256_bytes(prompt.encode("utf-8"))
+                != record.get("prompt_sha256")
+                or benchmark.sha256_bytes(completion.encode("utf-8"))
+                != record.get("completion_sha256")
+            ):
+                break
+            # This validates the sanitized projection, trusted evidence path and
+            # completion hash together. A malformed checkpoint is never credited.
+            benchmark.proficiency_trusted_verification(root, record)
+        except (
+            benchmark.BenchmarkError,
+            OSError,
+            json.JSONDecodeError,
+            TypeError,
+            ValueError,
+        ):
+            break
+        calls.append(dict(record))
+        next_call += 1
+    return calls
+
+
 def nominal_sandbox_scored_calls(
     root: Path,
     unit: dict[str, Any],
@@ -615,10 +678,18 @@ def nominal_sandbox_scored_calls(
                 needed += 1
                 continue
             calls = session.get("calls")
-            if not isinstance(calls, list) or not calls:
+            if not isinstance(calls, list):
+                calls = []
+            calls = _proficiency_budget_calls(
+                root,
+                agent_id,
+                trial_id,
+                [row for row in calls if isinstance(row, dict)],
+            )
+            if not calls:
                 needed += 1
                 continue
-            last = calls[-1] if isinstance(calls[-1], dict) else {}
+            last = calls[-1]
             try:
                 verification = benchmark.proficiency_trusted_verification(root, last)
             except (benchmark.BenchmarkError, OSError, ValueError):

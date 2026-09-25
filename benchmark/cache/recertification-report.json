@@ -39,20 +39,20 @@
         "retry_ceiling_uncached_usd": 1650.15456
       },
       "semantic_compression": {
-        "complete_units": 491,
-        "estimated_uncached_usd": 10.447806,
-        "expected_paid_api_calls_upper_bound": 128,
+        "complete_units": 518,
+        "estimated_uncached_usd": 0.0,
+        "expected_paid_api_calls_upper_bound": 0,
         "hard_blockers": [],
-        "pending_agent_units": 26,
-        "planned_paid_api_calls_estimate": 26,
-        "retry_ceiling_uncached_usd": 51.583666
+        "pending_agent_units": 0,
+        "planned_paid_api_calls_estimate": 0,
+        "retry_ceiling_uncached_usd": 0.0
       }
     },
-    "cache_hits": 620,
-    "cache_invalidated_units": 5,
-    "cache_misses": 46,
-    "complete_units": 632,
-    "estimated_uncached_usd": 449.327812,
+    "cache_hits": 646,
+    "cache_invalidated_units": 0,
+    "cache_misses": 41,
+    "complete_units": 659,
+    "estimated_uncached_usd": 438.880006,
     "evaluation": "all",
     "execution_decisions": {
       "already_complete_not_from_cache": [
@@ -101,6 +101,13 @@
         {
           "api_calls": 0,
           "assigned_languages": [],
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "semantic_compression-aggregate"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
           "evaluation": "llm_learnability",
           "status": "COMPLETE",
           "work_unit_id": "learnability-coverage"
@@ -142,416 +149,8 @@
         }
       ],
       "blocked": [],
-      "deferred_cache_decision": [
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f04-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f08-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f10-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f20-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f01-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f02-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f03-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f05-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f06-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f07-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f09-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f11-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f12-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f13-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f14-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f15-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f16-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f17-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f18-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 1.63841,
-          "status": "PENDING",
-          "work_unit_id": "sc-support-adjudication--f19-p1",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [],
-          "attempts_used": 0,
-          "calls_upper_bound": 3,
-          "estimated_uncached_usd": 0.327682,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 1,
-          "max_attempts": 3,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "reason": "exact cache fingerprint waits for unresolved dependencies",
-          "remaining_attempts": 3,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 0.983046,
-          "status": "PENDING",
-          "work_unit_id": "sc-comparability",
-          "worker_mode": "packet-only"
-        }
-      ],
+      "deferred_cache_decision": [],
       "machine_only": [
-        {
-          "api_calls": 0,
-          "assigned_languages": [],
-          "evaluation": "semantic_compression",
-          "runner_action": "aggregate-primary",
-          "status": "PENDING",
-          "work_unit_id": "semantic_compression-aggregate"
-        },
         {
           "api_calls": 0,
           "assigned_languages": [],
@@ -600,7 +199,7 @@
           ],
           "attempts_used": 0,
           "cache_miss": {
-            "fingerprint": "ad5a24dc5b2a707215234fa06cf14c18bbaec0d9c2ea3b897b1241221a85d67e",
+            "fingerprint": "c793eecf63a8f6ccb5de32c1544b0709bb60e6f610a974d915b2808093689fd4",
             "reason": "no certified record",
             "scope": "quidra"
           },
@@ -850,7 +449,7 @@
           ],
           "attempts_used": 0,
           "cache_miss": {
-            "fingerprint": "001b0c5ca23e75947705ec861cd90f8ab243456f7cf524a20113ea3cebda5133",
+            "fingerprint": "1c153f55e6ff3faea3d626f0d17da099a8e4067c816206383b5c862b04bd66f6",
             "reason": "no certified record",
             "scope": "quidra"
           },
@@ -1100,7 +699,7 @@
           ],
           "attempts_used": 0,
           "cache_miss": {
-            "fingerprint": "2af1fb76eeba7984a5a23f8c1d6a9547bf9781ca243956c21bf6fe5623dfea1a",
+            "fingerprint": "ee1636a0505c9e57f439a53a87fe79f06e1e24908b84be6c6bc472f411bbc42d",
             "reason": "no certified record",
             "scope": "quidra"
           },
@@ -1375,7 +974,7 @@
           ],
           "attempts_used": 0,
           "cache_miss": {
-            "fingerprint": "8b5986ba8d6381ee9c9f0a0ae3f3d60bad576c0896e4469f737e695eeb292a7c",
+            "fingerprint": "f226a6810ae51dadeb75b63b7edd93698aea6d821d5cc803e3438b2473bd133c",
             "reason": "no certified record",
             "scope": "quidra"
           },
@@ -1620,135 +1219,45 @@
           "worker_mode": "sandbox-agent"
         }
       ],
-      "paid_reevaluation_after_invalidation": [
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.71299,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 192655,
-          "invalidation": {
-            "fingerprint": "15e03edb962b35a80aaf8aa2011fa1b0e72a1aced260f850258d1b4e24635991",
-            "reason": "all Semantic Compression validator-recertification candidates were incompatible: e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-            "scope": "quidra"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 3.56495,
-          "status": "PENDING",
-          "work_unit_id": "sc-metrics-local--part-1--quidra",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.712998,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 192659,
-          "invalidation": {
-            "fingerprint": "34df386709d3129f73aff106b7793da7d273346a346cf9758fdedefc2d3d43c3",
-            "reason": "all Semantic Compression validator-recertification candidates were incompatible: 0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-            "scope": "quidra"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 3.56499,
-          "status": "PENDING",
-          "work_unit_id": "sc-metrics-local--part-3--quidra",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.712992,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 192656,
-          "invalidation": {
-            "fingerprint": "e32f3ad5608070c028639339fa506b64b3b8f3a424b1d5ec051ccc669153e3be",
-            "reason": "all Semantic Compression validator-recertification candidates were incompatible: dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]; e76cf044fcd871cfcbd88c37198b0b2ccd9d234abcce94df4157862cdc5d265b.json: normalized fields differ: frozen_sampling[effort,effort_source], quidra_target[language_version,version], readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-            "scope": "quidra"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 3.56496,
-          "status": "PENDING",
-          "work_unit_id": "sc-metrics-local--part-2--quidra",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.713636,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 192978,
-          "invalidation": {
-            "fingerprint": "51124efb7849372e7cc9d5991e0abd7f22a80a4fb0779d435d8bf53efd6126b8",
-            "reason": "all Semantic Compression validator-recertification candidates were incompatible: 184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-            "scope": "quidra"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 3.56818,
-          "status": "PENDING",
-          "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra",
-          "worker_mode": "packet-only"
-        },
-        {
-          "assigned_languages": [
-            "Quidra"
-          ],
-          "attempts_used": 0,
-          "calls_upper_bound": 5,
-          "estimated_uncached_usd": 0.713868,
-          "evaluation": "semantic_compression",
-          "input_tokens_per_call": 193094,
-          "invalidation": {
-            "fingerprint": "74d32e723a368ebdc85b610a7f100d09ee33d1fb710361b495940a6479dd52d3",
-            "reason": "all Semantic Compression validator-recertification candidates were incompatible: 7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-            "scope": "quidra"
-          },
-          "max_attempts": 5,
-          "network_allowed": false,
-          "output_tokens_per_call": 32768,
-          "planned_calls_estimate": 1,
-          "remaining_attempts": 5,
-          "restored_paid_calls": 0,
-          "retry_ceiling_uncached_usd": 3.56934,
-          "status": "PENDING",
-          "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra",
-          "worker_mode": "packet-only"
-        }
-      ],
+      "paid_reevaluation_after_invalidation": [],
       "partial_paid_resume": [],
       "reused_and_revalidated": [
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "46733f542a839712869c9d91e846d4ec021f91f075336200ef90b7c8514c4e6c",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+              "migration_rule": "semantic-legacy-consumer-recertification",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3",
+              "source_record": "v1/semantic-compression/quidra/e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json",
+              "source_record_sha256": "1a70edbbaaa3175122678f3dd363e93422d270deae7d92b1b42dce45b04f02f9",
+              "source_result_sha256": "939a4110be57a5271cc0b0fb055dccfd32ea224faf6228aa0488432ffe530f1e",
+              "transformed_fields": [
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/quidra/46733f542a839712869c9d91e846d4ec021f91f075336200ef90b7c8514c4e6c.json",
+            "scope": "quidra"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-metrics-local--part-1--quidra"
+        },
         {
           "api_calls": 0,
           "assigned_languages": [
@@ -2072,6 +1581,42 @@
           "evaluation": "semantic_compression",
           "status": "COMPLETE",
           "work_unit_id": "sc-metrics-local--part-1--zig"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "e7a89cbc2ebbaf2848395589f331966d27d33cee3ec27f93045c07c210744ca1",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+              "migration_rule": "semantic-legacy-consumer-recertification",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826",
+              "source_record": "v1/semantic-compression/quidra/0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826.json",
+              "source_record_sha256": "6f240f34da8dce06df0828febff205754342a479ef34df4fa6bc8f4e1f9835e0",
+              "source_result_sha256": "6df819694fdf36a7e8e589a5a5c065bbf64afce50746a546b892a94abc11bd41",
+              "transformed_fields": [
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/quidra/e7a89cbc2ebbaf2848395589f331966d27d33cee3ec27f93045c07c210744ca1.json",
+            "scope": "quidra"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-metrics-local--part-3--quidra"
         },
         {
           "api_calls": 0,
@@ -2400,6 +1945,42 @@
         {
           "api_calls": 0,
           "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "7061d6e0e7f236cb722ea7e7ef83b463fead62ae6a1d714b933a3e88962c5e69",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+              "migration_rule": "semantic-legacy-consumer-recertification",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc",
+              "source_record": "v1/semantic-compression/quidra/dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc.json",
+              "source_record_sha256": "dcb19677ec53ddc052d0c6112b5436bc46003fd05bd6e40ecad99cf891ed16f5",
+              "source_result_sha256": "15e473f14727bf34f558bd3b751462a3e24ca7ed6f11b9b217b4904592673ceb",
+              "transformed_fields": [
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/quidra/7061d6e0e7f236cb722ea7e7ef83b463fead62ae6a1d714b933a3e88962c5e69.json",
+            "scope": "quidra"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-metrics-local--part-2--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
             "Python"
           ],
           "cache": {
@@ -2724,6 +2305,42 @@
         {
           "api_calls": 0,
           "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "33e2bebb868650971ce1ef2f85c81bf52a0fd2b75e1876f16fb46adc0467eba6",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+              "migration_rule": "semantic-legacy-consumer-recertification",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3",
+              "source_record": "v1/semantic-compression/quidra/184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3.json",
+              "source_record_sha256": "88231692c86fe8f4258c4c950edf786986f1fa4c004fa3fde203cbb7e67970a6",
+              "source_result_sha256": "7086625aeb632e2708a53ea353b9bf58abc4b1cc0aca194c2668afc607b10f01",
+              "transformed_fields": [
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/quidra/33e2bebb868650971ce1ef2f85c81bf52a0fd2b75e1876f16fb46adc0467eba6.json",
+            "scope": "quidra"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
             "Python"
           ],
           "cache": {
@@ -3044,6 +2661,42 @@
           "evaluation": "semantic_compression",
           "status": "COMPLETE",
           "work_unit_id": "sc-metrics-hidden-coverage--part-1--zig"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "cache": {
+            "assigned_languages": [
+              "Quidra"
+            ],
+            "fingerprint": "a75e4ac4a7ac650a87ef861d0ffe065c4b42477ecaed710c7e424a0bd37ffdec",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
+              "migration_rule": "semantic-legacy-consumer-recertification",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde",
+              "source_record": "v1/semantic-compression/quidra/7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde.json",
+              "source_record_sha256": "8442156707244fae9054fe104ab059b3b894e68e29f1ef56c475bb5cd0d2bb94",
+              "source_result_sha256": "9acb02de5f7d72ac1a53737c5c86807e1b761a1b0118b8110fde42de0a934add",
+              "transformed_fields": [
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/quidra/a75e4ac4a7ac650a87ef861d0ffe065c4b42477ecaed710c7e424a0bd37ffdec.json",
+            "scope": "quidra"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra"
         },
         {
           "api_calls": 0,
@@ -19651,6 +19304,701 @@
         },
         {
           "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "bdfc46d23d77d9d0ac48ce21ac566370f0c84d7d9f4a62214f5c0b86a303fa8a",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f04-p1/bdfc46d23d77d9d0ac48ce21ac566370f0c84d7d9f4a62214f5c0b86a303fa8a.json",
+            "scope": "cohort-f04-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f04-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "bbd4b3a7cb19956f99aaa8b349d3bce4c136204452c89a9012f4788d564e523e",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f08-p1/bbd4b3a7cb19956f99aaa8b349d3bce4c136204452c89a9012f4788d564e523e.json",
+            "scope": "cohort-f08-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f08-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "f822bc3c4d828905043c4acb25631b3eced0fcb4024248546929196313ba71c1",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f10-p1/f822bc3c4d828905043c4acb25631b3eced0fcb4024248546929196313ba71c1.json",
+            "scope": "cohort-f10-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f10-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "4be74610590baf9c3eabede311e61c60851341c2ab97ad6c923c5f7508382198",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f20-p1/4be74610590baf9c3eabede311e61c60851341c2ab97ad6c923c5f7508382198.json",
+            "scope": "cohort-f20-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f20-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "fafd54f2aef1d1d7c26685da8c929c96185af988d600a6ab2a722926cbfefaa0",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f01-p1/fafd54f2aef1d1d7c26685da8c929c96185af988d600a6ab2a722926cbfefaa0.json",
+            "scope": "cohort-f01-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f01-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "044c2f96b61779b817948fe6ac9fd59da34d031aacbb8cac8f332ddbf7e974b1",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f02-p1/044c2f96b61779b817948fe6ac9fd59da34d031aacbb8cac8f332ddbf7e974b1.json",
+            "scope": "cohort-f02-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f02-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "bd1a9ae7b4145ae59aa8c85b2a4e37bab1175f60ecb907c7bb7c6448421d4db1",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f03-p1/bd1a9ae7b4145ae59aa8c85b2a4e37bab1175f60ecb907c7bb7c6448421d4db1.json",
+            "scope": "cohort-f03-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f03-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "b18b0336253648110f18b7121ecd5a3db48eee9cde3801b6015414888400526e",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f05-p1/b18b0336253648110f18b7121ecd5a3db48eee9cde3801b6015414888400526e.json",
+            "scope": "cohort-f05-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f05-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "cff7ebc9ddc9235852d2b77112ecd797f6a59ad005b3d95ab6b56b8fd2c7d0c1",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f06-p1/cff7ebc9ddc9235852d2b77112ecd797f6a59ad005b3d95ab6b56b8fd2c7d0c1.json",
+            "scope": "cohort-f06-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f06-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "ee7171831e0bcb633173acba131f3ba1c7a1c63a95277e576c877c93d114bd4a",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f07-p1/ee7171831e0bcb633173acba131f3ba1c7a1c63a95277e576c877c93d114bd4a.json",
+            "scope": "cohort-f07-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f07-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "5dbfa697cedbbbe31efaaa265ad681020ce71909868ab05364de7706f71b0da2",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f09-p1/5dbfa697cedbbbe31efaaa265ad681020ce71909868ab05364de7706f71b0da2.json",
+            "scope": "cohort-f09-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f09-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "0f71f5c89dcb649fc3361c604e60bffd439c2dcbdb272d98e53533f487573af8",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f11-p1/0f71f5c89dcb649fc3361c604e60bffd439c2dcbdb272d98e53533f487573af8.json",
+            "scope": "cohort-f11-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f11-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "cdddb03c1923fca96c295c67c37433ff82807810b9b96eb9043328d80c0ee841",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f12-p1/cdddb03c1923fca96c295c67c37433ff82807810b9b96eb9043328d80c0ee841.json",
+            "scope": "cohort-f12-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f12-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "bf2c8fc67742536ba06e5605225dd98e988bed10e529f295994f3db220bcc42b",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f13-p1/bf2c8fc67742536ba06e5605225dd98e988bed10e529f295994f3db220bcc42b.json",
+            "scope": "cohort-f13-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f13-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "7b3c31bb64c1a6800e6ee5b548bcbbb1f41b106cbe903946836c64ce4f272680",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f14-p1/7b3c31bb64c1a6800e6ee5b548bcbbb1f41b106cbe903946836c64ce4f272680.json",
+            "scope": "cohort-f14-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f14-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "c60b6d9ee979a75439db00bc83c9dcc7abfbefc6cece81f29ca630d41d3bcd00",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f15-p1/c60b6d9ee979a75439db00bc83c9dcc7abfbefc6cece81f29ca630d41d3bcd00.json",
+            "scope": "cohort-f15-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f15-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "cddbbe1ec19642d1504344b1ce024676877238dbad2937f52d192518aed23b27",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f16-p1/cddbbe1ec19642d1504344b1ce024676877238dbad2937f52d192518aed23b27.json",
+            "scope": "cohort-f16-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f16-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "8e9d7a27607f0ebbbad518c587946bca447ab1862f73847e1147687960ca12b6",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f17-p1/8e9d7a27607f0ebbbad518c587946bca447ab1862f73847e1147687960ca12b6.json",
+            "scope": "cohort-f17-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f17-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "2e1bf85c615f95ba113002ba6ddb7cfb1c37f05db6aeae4a29a85b0eff5e27b2",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f18-p1/2e1bf85c615f95ba113002ba6ddb7cfb1c37f05db6aeae4a29a85b0eff5e27b2.json",
+            "scope": "cohort-f18-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f18-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "fingerprint": "68297ae90e3c4c8e24415889b07a5ab50574e4e7bb8c29b1d1ac03d426c086f1",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
+              "migration_rule": "semantic-support-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/cohort-f19-p1/68297ae90e3c4c8e24415889b07a5ab50574e4e7bb8c29b1d1ac03d426c086f1.json",
+            "scope": "cohort-f19-p1"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-support-adjudication--f19-p1"
+        },
+        {
+          "api_calls": 0,
+          "assigned_languages": [],
+          "cache": {
+            "assigned_languages": [],
+            "compatibility_mode": "semantic-comparability-from-current-catalog",
+            "fingerprint": "8d72bbc9a895a15222e92a0219c6e6f24cff83a34b4db64a0145f8c7778469a1",
+            "migration": {
+              "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
+              "current_validator": "PASS",
+              "migration_reason": "For the legacy bridge, comparability is derived after every current canonical owner, metric consumer and support-adjudication dependency has passed the current validator, leaving one support authority.",
+              "migration_rule": "semantic-comparability-from-current-catalog",
+              "migration_rule_version": 1,
+              "schema_version": 1,
+              "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
+              "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+              "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
+              "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
+              "transformed_fields": [
+                "requirements",
+                "evidence",
+                "fingerprint",
+                "fingerprint_payload",
+                "provenance",
+                "certification"
+              ]
+            },
+            "record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
+            "scope": "comparability",
+            "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843"
+          },
+          "evaluation": "semantic_compression",
+          "status": "COMPLETE",
+          "work_unit_id": "sc-comparability"
+        },
+        {
+          "api_calls": 0,
           "assigned_languages": [
             "C++"
           ],
@@ -19794,8 +20142,8 @@
           "assigned_languages": [],
           "cache": {
             "assigned_languages": [],
-            "fingerprint": "56893dfbbae8c21c4e64c088f6cf4ab94aa4ab98833f26ee33c445fcfde15736",
-            "record": "v1/language-quality/mechanical-quidra-audit/56893dfbbae8c21c4e64c088f6cf4ab94aa4ab98833f26ee33c445fcfde15736.json",
+            "fingerprint": "6df0745f9f29d1b0892a0a9a4511784825b121769a302e9fb8ad5c3db5696a7a",
+            "record": "v1/language-quality/mechanical-quidra-audit/6df0745f9f29d1b0892a0a9a4511784825b121769a302e9fb8ad5c3db5696a7a.json",
             "scope": "mechanical-quidra-audit"
           },
           "evaluation": "language_quality",
@@ -21416,7 +21764,7 @@
             "assigned_languages": [
               "Quidra"
             ],
-            "fingerprint": "cc15550cb8dae28afb7ce312aab2ecde8d4589f10704a78b3b70ecce1372a613",
+            "fingerprint": "496d3fa81a275936fc8227d648ffa2c6554e653eeb67aad7bcccd579606b4a7c",
             "migration": {
               "current_mechanical_verification": "not-applicable",
               "current_validator": "PASS",
@@ -21436,7 +21784,7 @@
                 "certification"
               ]
             },
-            "record": "v1/ecosystem/quidra/cc15550cb8dae28afb7ce312aab2ecde8d4589f10704a78b3b70ecce1372a613.json",
+            "record": "v1/ecosystem/quidra/496d3fa81a275936fc8227d648ffa2c6554e653eeb67aad7bcccd579606b4a7c.json",
             "scope": "quidra"
           },
           "evaluation": "ecosystem",
@@ -21776,7 +22124,7 @@
             "assigned_languages": [
               "Quidra"
             ],
-            "fingerprint": "dfa2f4befa64da49a00d6826524299cead076060dae31f5313cc578d4ae9546b",
+            "fingerprint": "e64c5d978581394ce85192ab549436fc5af7eae6c8ecebd1cc66b5ed170ae816",
             "migration": {
               "current_mechanical_verification": "not-applicable",
               "current_validator": "PASS",
@@ -21796,7 +22144,7 @@
                 "certification"
               ]
             },
-            "record": "v1/ecosystem/quidra/dfa2f4befa64da49a00d6826524299cead076060dae31f5313cc578d4ae9546b.json",
+            "record": "v1/ecosystem/quidra/e64c5d978581394ce85192ab549436fc5af7eae6c8ecebd1cc66b5ed170ae816.json",
             "scope": "quidra"
           },
           "evaluation": "ecosystem",
@@ -22136,7 +22484,7 @@
             "assigned_languages": [
               "Quidra"
             ],
-            "fingerprint": "7b7cb8bbfb557b199b77908dcc6b8abf9dcc4bd2f422dd168fe2b58193a3e76d",
+            "fingerprint": "9a427c48cefebb4ce734054ae9f22054c976267e6c4dd898875e64c2b6a1eb7b",
             "migration": {
               "current_mechanical_verification": "not-applicable",
               "current_validator": "PASS",
@@ -22156,7 +22504,7 @@
                 "certification"
               ]
             },
-            "record": "v1/ecosystem/quidra/7b7cb8bbfb557b199b77908dcc6b8abf9dcc4bd2f422dd168fe2b58193a3e76d.json",
+            "record": "v1/ecosystem/quidra/9a427c48cefebb4ce734054ae9f22054c976267e6c4dd898875e64c2b6a1eb7b.json",
             "scope": "quidra"
           },
           "evaluation": "ecosystem",
@@ -22496,7 +22844,7 @@
             "assigned_languages": [
               "Quidra"
             ],
-            "fingerprint": "da0a2fce3c531e0318ea829caa89b2904b81ade313c1d2326ed188c97a5be2d9",
+            "fingerprint": "f4fb9f7507f25db26297d8e4c741e9716b823b8fbe5be60ef74fa5bffef6b7ba",
             "migration": {
               "current_mechanical_verification": "not-applicable",
               "current_validator": "PASS",
@@ -22516,7 +22864,7 @@
                 "certification"
               ]
             },
-            "record": "v1/ecosystem/quidra/da0a2fce3c531e0318ea829caa89b2904b81ade313c1d2326ed188c97a5be2d9.json",
+            "record": "v1/ecosystem/quidra/f4fb9f7507f25db26297d8e4c741e9716b823b8fbe5be60ef74fa5bffef6b7ba.json",
             "scope": "quidra"
           },
           "evaluation": "ecosystem",
@@ -22856,7 +23204,7 @@
             "assigned_languages": [
               "Quidra"
             ],
-            "fingerprint": "7d995985e19326033f3b3179145a6efe0c45547bae93fab0058084ec9f426300",
+            "fingerprint": "02a66604aaf7efc3eb47e90971be91b7d473d50ea27d34c261720a234cd09aa2",
             "migration": {
               "current_mechanical_verification": "not-applicable",
               "current_validator": "PASS",
@@ -22876,7 +23224,7 @@
                 "certification"
               ]
             },
-            "record": "v1/ecosystem/quidra/7d995985e19326033f3b3179145a6efe0c45547bae93fab0058084ec9f426300.json",
+            "record": "v1/ecosystem/quidra/02a66604aaf7efc3eb47e90971be91b7d473d50ea27d34c261720a234cd09aa2.json",
             "scope": "quidra"
           },
           "evaluation": "ecosystem",
@@ -23216,7 +23564,7 @@
             "assigned_languages": [
               "Quidra"
             ],
-            "fingerprint": "e3e3ef37a807e8aa3898d60a68f1d36ef2a9f75fb09d7830615754f8fec54184",
+            "fingerprint": "cd709e17234056e14b158671df4e34fea685d9bd3cbc3819d1ad29d7100ee471",
             "migration": {
               "current_mechanical_verification": "not-applicable",
               "current_validator": "PASS",
@@ -23236,7 +23584,7 @@
                 "certification"
               ]
             },
-            "record": "v1/ecosystem/quidra/e3e3ef37a807e8aa3898d60a68f1d36ef2a9f75fb09d7830615754f8fec54184.json",
+            "record": "v1/ecosystem/quidra/cd709e17234056e14b158671df4e34fea685d9bd3cbc3819d1ad29d7100ee471.json",
             "scope": "quidra"
           },
           "evaluation": "ecosystem",
@@ -23576,7 +23924,7 @@
             "assigned_languages": [
               "Quidra"
             ],
-            "fingerprint": "a5952a70af937663dda1e804494d77b742b10a7136ad2a4b36aba8eeccad4dde",
+            "fingerprint": "5f0a1e34b00dfdefbd151654a4a31fdc99083497d6a1989e3f21d8ffa499fc00",
             "migration": {
               "current_mechanical_verification": "not-applicable",
               "current_validator": "PASS",
@@ -23596,7 +23944,7 @@
                 "certification"
               ]
             },
-            "record": "v1/ecosystem/quidra/a5952a70af937663dda1e804494d77b742b10a7136ad2a4b36aba8eeccad4dde.json",
+            "record": "v1/ecosystem/quidra/5f0a1e34b00dfdefbd151654a4a31fdc99083497d6a1989e3f21d8ffa499fc00.json",
             "scope": "quidra"
           },
           "evaluation": "ecosystem",
@@ -23936,7 +24284,7 @@
             "assigned_languages": [
               "Quidra"
             ],
-            "fingerprint": "64f3b2e4b90acf8aab1a23b5cf81028c89df18075e979b2097cec48f9df4417c",
+            "fingerprint": "3ceded0641b306b0cda8a3192b41710b9b260faf6f7c41ebd4f0920314de1031",
             "migration": {
               "current_mechanical_verification": "not-applicable",
               "current_validator": "PASS",
@@ -23956,7 +24304,7 @@
                 "certification"
               ]
             },
-            "record": "v1/ecosystem/quidra/64f3b2e4b90acf8aab1a23b5cf81028c89df18075e979b2097cec48f9df4417c.json",
+            "record": "v1/ecosystem/quidra/3ceded0641b306b0cda8a3192b41710b9b260faf6f7c41ebd4f0920314de1031.json",
             "scope": "quidra"
           },
           "evaluation": "ecosystem",
@@ -24289,9 +24637,9 @@
         }
       ]
     },
-    "expected_paid_api_calls_upper_bound": 10848,
+    "expected_paid_api_calls_upper_bound": 10720,
     "full_retry_envelope_funded": false,
-    "full_retry_envelope_recommended_budget_usd": 4640.500582,
+    "full_retry_envelope_recommended_budget_usd": 4576.021,
     "hard_blockers": [],
     "invalidated_cache_records": [],
     "kind": "benchmark_execution_plan",
@@ -24299,11 +24647,11 @@
     "note": "Frozen pre-paid execution plan. COMPLETE certified-cache hits are revalidated and cost zero. estimated_uncached_usd and planned_paid_api_calls_estimate are the practical nominal envelope; retry_ceiling_uncached_usd and expected_paid_api_calls_upper_bound also expose every still-configured work-unit retry and sandbox-agent turn. The normal funding gate uses the nominal envelope plus its safety multiplier, while full_retry_envelope_funded says whether even the absolute configured retry envelope is funded. Pending leaves with a known invalidation state the exact reason; dependency-deferred cache decisions remain conservatively priced. Exact-fingerprint paid partial checkpoints reduce the remaining scored-call estimate before pricing. Prompt-cache discounts can only reduce actual provider spend further.",
     "partial_paid_restored_calls": 0,
     "partial_paid_resumed_units": [],
-    "pending_agent_units": 67,
-    "planned_paid_api_calls_estimate": 1309,
+    "pending_agent_units": 41,
+    "planned_paid_api_calls_estimate": 1283,
     "provider_smoke_required": true,
-    "recommended_budget_usd": 561.659765,
-    "retry_ceiling_uncached_usd": 3712.400466,
+    "recommended_budget_usd": 548.600008,
+    "retry_ceiling_uncached_usd": 3660.8168,
     "safety_multiplier": 1.25,
     "schema_version": 2,
     "scope_work_unit_count": 705,
@@ -25130,484 +25478,6 @@
         "status": "PENDING",
         "work_unit_id": "lq-language-development--part-4--c",
         "worker_mode": "sandbox-agent"
-      },
-      {
-        "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.713868,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 193094,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 3.56934,
-        "status": "PENDING",
-        "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.713636,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 192978,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 3.56818,
-        "status": "PENDING",
-        "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.712998,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 192659,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 3.56499,
-        "status": "PENDING",
-        "work_unit_id": "sc-metrics-local--part-3--quidra",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.712992,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 192656,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 3.56496,
-        "status": "PENDING",
-        "work_unit_id": "sc-metrics-local--part-2--quidra",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [
-          "Quidra"
-        ],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.71299,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 192655,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 3.56495,
-        "status": "PENDING",
-        "work_unit_id": "sc-metrics-local--part-1--quidra",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 3,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 3,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 3,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 0.983046,
-        "status": "PENDING",
-        "work_unit_id": "sc-comparability",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f01-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f02-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f03-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f04-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f05-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f06-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f07-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f08-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f09-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f10-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f11-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f12-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f13-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f14-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f15-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f16-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f17-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f18-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f19-p1",
-        "worker_mode": "packet-only"
-      },
-      {
-        "assigned_languages": [],
-        "attempts_used": 0,
-        "calls_upper_bound": 5,
-        "estimated_uncached_usd": 0.327682,
-        "evaluation": "semantic_compression",
-        "input_tokens_per_call": 1,
-        "max_attempts": 5,
-        "network_allowed": false,
-        "output_tokens_per_call": 32768,
-        "planned_calls_estimate": 1,
-        "remaining_attempts": 5,
-        "restored_paid_calls": 0,
-        "retry_ceiling_uncached_usd": 1.63841,
-        "status": "PENDING",
-        "work_unit_id": "sc-support-adjudication--f20-p1",
-        "worker_mode": "packet-only"
       }
     ]
   },
@@ -25696,15 +25566,15 @@
   ],
   "ecosystem_reused_units": 80,
   "historical_cache_after": {
-    "invalid": 229,
+    "invalid": 210,
     "note": "Legacy invalid records are retained as provenance. A successful migration adds an ordinary current-key record rather than rewriting or deleting its source.",
     "superseded": 248,
-    "valid": 690
+    "valid": 710
   },
   "historical_cache_before": {
-    "invalid": 229,
-    "superseded": 240,
-    "valid": 671
+    "invalid": 210,
+    "superseded": 248,
+    "valid": 709
   },
   "legacy_invalid_record_classifications": [
     {
@@ -25726,8 +25596,7 @@
         "measurement_script:adversarial_measure.py"
       ],
       "classification": "C",
-      "classification_reason": "current validator accepted compatibility migration",
-      "compatibility_mode": "micro-measure-input-projection",
+      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
       "disposition": "recertified-current-cache",
       "evaluation": "language_quality",
       "record": "benchmark/cache/v1/language-quality/mechanical-micro-measure/a47881a6b4cf6ef7ccf6e12fa9edce477f57f0ff8ef6c3bff999e38201bfb1fd.json",
@@ -25735,7 +25604,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/language_quality",
         "primary_config",
         "measurement_script:adversarial_measure.py"
@@ -25755,96 +25623,8 @@
       "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
       "disposition": "recertified-current-cache",
       "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/mechanical-quidra-audit/6df0745f9f29d1b0892a0a9a4511784825b121769a302e9fb8ad5c3db5696a7a.json",
+      "record": "benchmark/cache/v1/language-quality/mechanical-quidra-audit/56893dfbbae8c21c4e64c088f6cf4ab94aa4ab98833f26ee33c445fcfde15736.json",
       "work_unit_id": "lq-quidra-audit"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "C",
-      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
-      "disposition": "recertified-current-cache",
-      "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/quidra/139d72de57bf1b4c9ef4008e99bf31f20c38675e069a6bc371552438ebdee50f.json",
-      "work_unit_id": "lq-language-development--part-1--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "C",
-      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
-      "disposition": "recertified-current-cache",
-      "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/quidra/2503ae7adff3c85f56efc4c9d803dc65305913bf12a9ff33b1197f2bfde7c1f5.json",
-      "work_unit_id": "lq-language-development--part-3--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "C",
-      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
-      "disposition": "recertified-current-cache",
-      "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/quidra/2b64e6388a89afca72d4b859bd4a1607a3223e5b66e8793d1481a3a5aad390b6.json",
-      "work_unit_id": "lq-language-development--part-3--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "C",
-      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
-      "disposition": "recertified-current-cache",
-      "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/quidra/344c760e7ddcf6c770c53a201422dc801e961def495308fa85cfbb295843251f.json",
-      "work_unit_id": "lq-language-development--part-1--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "C",
-      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
-      "disposition": "recertified-current-cache",
-      "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/quidra/80b50af5a96562d866702d681812b5f9ba810a85aa10fe1a0141846a0959b085.json",
-      "work_unit_id": "lq-language-development--part-2--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "C",
-      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
-      "disposition": "recertified-current-cache",
-      "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/quidra/81f7158d1c57295d30b7756a5edc6e4943830bf8d433b29c8c728c96a8e31ab4.json",
-      "work_unit_id": "lq-language-development--part-4--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "C",
-      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
-      "disposition": "recertified-current-cache",
-      "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/quidra/dd2b28fc45d206d0c5aee37fb973ba5c59ca1e13992b58ec287be3df92ace5e4.json",
-      "work_unit_id": "lq-language-development--part-4--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "C",
-      "classification_reason": "preserved paid Language Quality evidence was independently reprojected to the current fixed rubric and passed the current validator",
-      "disposition": "recertified-current-cache",
-      "evaluation": "language_quality",
-      "record": "benchmark/cache/v1/language-quality/quidra/e7d7d7039f8ada1d360c8a495eed4e952e0b4b8fa64d1a5eefdc70a62e6d2fcd.json",
-      "work_unit_id": "lq-language-development--part-2--quidra"
     },
     {
       "changed": [
@@ -25889,39 +25669,6 @@
       "evaluation": "language_quality",
       "record": "benchmark/cache/v1/language-quality/swift/c5447e8237b14625b521f0b88c07508c208df658b95941b7267ce3e25c502ba9.json",
       "work_unit_id": "lq-language-development--part-2--swift"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "llm_learnability",
-      "record": "benchmark/cache/v1/llm-learnability/quidra/7fffdbfe655957dc2e0fd50298a80a967a42d2524d87cb04ceb8dbcc8d7a64b8.json",
-      "work_unit_id": "learnability-i3-i4--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "llm_learnability",
-      "record": "benchmark/cache/v1/llm-learnability/quidra/84188b2b7c454c375ac7c3fd302348e720364a1cb4f2698eaee29fad4736a301.json",
-      "work_unit_id": "learnability-i5-i6--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "llm_learnability",
-      "record": "benchmark/cache/v1/llm-learnability/quidra/98698c70551bdee98b36d52f0ab15b0c743df8933bd4123f9b09933e08827489.json",
-      "work_unit_id": "learnability-i1-i2--quidra"
     },
     {
       "changed": [
@@ -25985,7 +25732,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "primary_config",
         "cache_epoch"
       ],
@@ -26276,9 +26022,10 @@
       "changed": [
         "template/methodology-assets/semantic_compression"
       ],
-      "classification": "E",
-      "classification_reason": "legacy capability-coverage owner lacks the current complete canonical-fragment verification fixture; current build/run/stdout verification cannot be reconstructed safely from its score alone",
-      "disposition": "paid-rerun-required",
+      "classification": "D",
+      "classification_reason": "current validator accepted compatibility migration",
+      "compatibility_mode": "semantic-comparability-from-current-catalog",
+      "disposition": "recertified-current-cache",
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-2--c"
@@ -26294,39 +26041,6 @@
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/c/fdf72d9553f9c555ddebb58dbba9ab73f832c1a803ddc0ed143b3365c67d84d7.json",
       "work_unit_id": "sc-metrics-hidden-coverage--part-1--c"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "semantic_compression",
-      "record": "benchmark/cache/v1/semantic-compression/comparability/9413bd99c9d1e210af2847d2f8409c3baddeabe411031601c13f4a537e031561.json",
-      "work_unit_id": "sc-comparability"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "semantic_compression",
-      "record": "benchmark/cache/v1/semantic-compression/comparability/c14326515484b721038c3784ae9a68d70b99d570289f817b05cb17446df9e61b.json",
-      "work_unit_id": "sc-comparability"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "semantic_compression",
-      "record": "benchmark/cache/v1/semantic-compression/comparability/d7dcac2bcbc426dc7e0bf3f03348426afaa02b5d9a47a068cb370fc6e38943f3.json",
-      "work_unit_id": "sc-comparability"
     },
     {
       "changed": [
@@ -27254,7 +26968,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
@@ -27267,7 +26980,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression"
       ],
       "classification": "E",
@@ -27279,7 +26991,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
@@ -27292,29 +27003,6 @@
     },
     {
       "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "semantic_compression",
-      "record": "benchmark/cache/v1/semantic-compression/quidra/33e2bebb868650971ce1ef2f85c81bf52a0fd2b75e1876f16fb46adc0467eba6.json",
-      "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "semantic_compression",
-      "record": "benchmark/cache/v1/semantic-compression/quidra/46733f542a839712869c9d91e846d4ec021f91f075336200ef90b7c8514c4e6c.json",
-      "work_unit_id": "sc-metrics-local--part-1--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression"
       ],
       "classification": "E",
@@ -27326,18 +27014,6 @@
     },
     {
       "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "semantic_compression",
-      "record": "benchmark/cache/v1/semantic-compression/quidra/7061d6e0e7f236cb722ea7e7ef83b463fead62ae6a1d714b933a3e88962c5e69.json",
-      "work_unit_id": "sc-metrics-local--part-2--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
@@ -27350,18 +27026,6 @@
     },
     {
       "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "semantic_compression",
-      "record": "benchmark/cache/v1/semantic-compression/quidra/a75e4ac4a7ac650a87ef861d0ffe065c4b42477ecaed710c7e424a0bd37ffdec.json",
-      "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression"
       ],
       "classification": "E",
@@ -27373,7 +27037,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression"
       ],
       "classification": "E",
@@ -27385,7 +27048,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
@@ -27398,7 +27060,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
@@ -27411,7 +27072,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression"
       ],
       "classification": "E",
@@ -27423,7 +27083,6 @@
     },
     {
       "changed": [
-        "repo/docs",
         "template/methodology-assets/semantic_compression",
         "cache_epoch"
       ],
@@ -27449,17 +27108,6 @@
       "evaluation": "semantic_compression",
       "record": "benchmark/cache/v1/semantic-compression/quidra/e76cf044fcd871cfcbd88c37198b0b2ccd9d234abcce94df4157862cdc5d265b.json",
       "work_unit_id": "sc-metrics-local--part-2--quidra"
-    },
-    {
-      "changed": [
-        "repo/docs"
-      ],
-      "classification": "E",
-      "classification_reason": "no current compatibility migration proved semantic equivalence",
-      "disposition": "paid-rerun-required",
-      "evaluation": "semantic_compression",
-      "record": "benchmark/cache/v1/semantic-compression/quidra/e7a89cbc2ebbaf2848395589f331966d27d33cee3ec27f93045c07c210744ca1.json",
-      "work_unit_id": "sc-metrics-local--part-3--quidra"
     },
     {
       "changed": [
@@ -28421,7 +28069,7 @@
       "work_unit_id": "sc-metrics-local--part-2--zig"
     }
   ],
-  "legacy_invalid_record_count": 229,
+  "legacy_invalid_record_count": 210,
   "llm_proficiency_legacy_trial_audit": {
     "category_D_candidate_trials": 0,
     "category_E_trials": 122,
@@ -28455,42 +28103,16 @@
         "misses": 10
       },
       "semantic_compression": {
-        "hits": 485,
-        "invalidated": 5,
-        "misses": 5
+        "hits": 511,
+        "invalidated": 0,
+        "misses": 0
       }
     },
-    "hits": 620,
-    "invalidated": 5,
-    "misses": 46
+    "hits": 646,
+    "invalidated": 0,
+    "misses": 41
   },
-  "next_run_invalidated": {
-    "sc-metrics-hidden-coverage--part-1--quidra": {
-      "fingerprint": "51124efb7849372e7cc9d5991e0abd7f22a80a4fb0779d435d8bf53efd6126b8",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: 184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    },
-    "sc-metrics-hidden-coverage--part-3--quidra": {
-      "fingerprint": "74d32e723a368ebdc85b610a7f100d09ee33d1fb710361b495940a6479dd52d3",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: 7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    },
-    "sc-metrics-local--part-1--quidra": {
-      "fingerprint": "15e03edb962b35a80aaf8aa2011fa1b0e72a1aced260f850258d1b4e24635991",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    },
-    "sc-metrics-local--part-2--quidra": {
-      "fingerprint": "e32f3ad5608070c028639339fa506b64b3b8f3a424b1d5ec051ccc669153e3be",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]; e76cf044fcd871cfcbd88c37198b0b2ccd9d234abcce94df4157862cdc5d265b.json: normalized fields differ: frozen_sampling[effort,effort_source], quidra_target[language_version,version], readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    },
-    "sc-metrics-local--part-3--quidra": {
-      "fingerprint": "34df386709d3129f73aff106b7793da7d273346a346cf9758fdedefc2d3d43c3",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: 0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    }
-  },
+  "next_run_invalidated": {},
   "next_run_misses": {
     "learnability-i1-i2--c": {
       "fingerprint": "327b7835c8edf35aa697322f83e317a313b629c25d8875eb9f20634111a62e2c",
@@ -28518,7 +28140,7 @@
       "scope": "python"
     },
     "learnability-i1-i2--quidra": {
-      "fingerprint": "ad5a24dc5b2a707215234fa06cf14c18bbaec0d9c2ea3b897b1241221a85d67e",
+      "fingerprint": "c793eecf63a8f6ccb5de32c1544b0709bb60e6f610a974d915b2808093689fd4",
       "reason": "no certified record",
       "scope": "quidra"
     },
@@ -28568,7 +28190,7 @@
       "scope": "python"
     },
     "learnability-i3-i4--quidra": {
-      "fingerprint": "001b0c5ca23e75947705ec861cd90f8ab243456f7cf524a20113ea3cebda5133",
+      "fingerprint": "1c153f55e6ff3faea3d626f0d17da099a8e4067c816206383b5c862b04bd66f6",
       "reason": "no certified record",
       "scope": "quidra"
     },
@@ -28618,7 +28240,7 @@
       "scope": "python"
     },
     "learnability-i5-i6--quidra": {
-      "fingerprint": "2af1fb76eeba7984a5a23f8c1d6a9547bf9781ca243956c21bf6fe5623dfea1a",
+      "fingerprint": "ee1636a0505c9e57f439a53a87fe79f06e1e24908b84be6c6bc472f411bbc42d",
       "reason": "no certified record",
       "scope": "quidra"
     },
@@ -28673,7 +28295,7 @@
       "scope": "python"
     },
     "proficiency-trials--quidra": {
-      "fingerprint": "8b5986ba8d6381ee9c9f0a0ae3f3d60bad576c0896e4469f737e695eeb292a7c",
+      "fingerprint": "f226a6810ae51dadeb75b63b7edd93698aea6d821d5cc803e3438b2473bd133c",
       "reason": "no certified record",
       "scope": "quidra"
     },
@@ -28696,34 +28318,9 @@
       "fingerprint": "5a53a080635f695c831fe5acd0781071fb69c9fb38d5eec35db736a2b695dd6f",
       "reason": "no certified record",
       "scope": "zig"
-    },
-    "sc-metrics-hidden-coverage--part-1--quidra": {
-      "fingerprint": "51124efb7849372e7cc9d5991e0abd7f22a80a4fb0779d435d8bf53efd6126b8",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: 184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    },
-    "sc-metrics-hidden-coverage--part-3--quidra": {
-      "fingerprint": "74d32e723a368ebdc85b610a7f100d09ee33d1fb710361b495940a6479dd52d3",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: 7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    },
-    "sc-metrics-local--part-1--quidra": {
-      "fingerprint": "15e03edb962b35a80aaf8aa2011fa1b0e72a1aced260f850258d1b4e24635991",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    },
-    "sc-metrics-local--part-2--quidra": {
-      "fingerprint": "e32f3ad5608070c028639339fa506b64b3b8f3a424b1d5ec051ccc669153e3be",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]; e76cf044fcd871cfcbd88c37198b0b2ccd9d234abcce94df4157862cdc5d265b.json: normalized fields differ: frozen_sampling[effort,effort_source], quidra_target[language_version,version], readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
-    },
-    "sc-metrics-local--part-3--quidra": {
-      "fingerprint": "34df386709d3129f73aff106b7793da7d273346a346cf9758fdedefc2d3d43c3",
-      "reason": "all Semantic Compression validator-recertification candidates were incompatible: 0964f12bc1c52948f3a6fb2e37918f819c274955bcbf73ffaf413559bfaf7826.json: normalized fields differ: readable_input_content_hashes[repo/docs], unit_input_hashes[evaluation_spec_sections]",
-      "scope": "quidra"
     }
   },
-  "paid_api_required_unit_count": 67,
+  "paid_api_required_unit_count": 41,
   "paid_api_required_units": [
     {
       "assigned_languages": [
@@ -29134,237 +28731,19 @@
       "planned_calls_estimate": 3,
       "work_unit_id": "lq-language-development--part-4--c",
       "worker_mode": "sandbox-agent"
-    },
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.713868,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.713636,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.712998,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-metrics-local--part-3--quidra",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.712992,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-metrics-local--part-2--quidra",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [
-        "Quidra"
-      ],
-      "estimated_uncached_usd": 0.71299,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-metrics-local--part-1--quidra",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-comparability",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f01-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f02-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f03-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f04-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f05-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f06-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f07-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f08-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f09-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f10-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f11-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f12-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f13-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f14-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f15-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f16-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f17-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f18-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f19-p1",
-      "worker_mode": "packet-only"
-    },
-    {
-      "assigned_languages": [],
-      "estimated_uncached_usd": 0.327682,
-      "evaluation": "semantic_compression",
-      "planned_calls_estimate": 1,
-      "work_unit_id": "sc-support-adjudication--f20-p1",
-      "worker_mode": "packet-only"
     }
   ],
   "provider_cost": {
-    "estimated_uncached_usd": 449.327812,
-    "expected_paid_api_calls_upper_bound": 10848,
-    "planned_paid_api_calls_estimate": 1309,
-    "recommended_budget_usd": 561.659765,
-    "retry_ceiling_uncached_usd": 3712.400466
+    "estimated_uncached_usd": 438.880006,
+    "expected_paid_api_calls_upper_bound": 10720,
+    "planned_paid_api_calls_estimate": 1283,
+    "recommended_budget_usd": 548.600008,
+    "retry_ceiling_uncached_usd": 3660.8168
   },
   "recertification_pass_cache": {
-    "hits": 617,
-    "invalidated": 5,
-    "misses": 49
+    "hits": 646,
+    "invalidated": 0,
+    "misses": 41
   },
   "schema_version": 3,
   "semantic_compression_reused_unit_ids": [
@@ -29808,11 +29187,13 @@
     "sc-canonical-fragment--zig--f19-p2",
     "sc-canonical-fragment--zig--f20-p1",
     "sc-canonical-fragment--zig--f20-p2",
+    "sc-comparability",
     "sc-metrics-hidden-coverage--part-1--c",
     "sc-metrics-hidden-coverage--part-1--go",
     "sc-metrics-hidden-coverage--part-1--java",
     "sc-metrics-hidden-coverage--part-1--kotlin",
     "sc-metrics-hidden-coverage--part-1--python",
+    "sc-metrics-hidden-coverage--part-1--quidra",
     "sc-metrics-hidden-coverage--part-1--rust",
     "sc-metrics-hidden-coverage--part-1--swift",
     "sc-metrics-hidden-coverage--part-1--typescript",
@@ -29822,6 +29203,7 @@
     "sc-metrics-hidden-coverage--part-3--java",
     "sc-metrics-hidden-coverage--part-3--kotlin",
     "sc-metrics-hidden-coverage--part-3--python",
+    "sc-metrics-hidden-coverage--part-3--quidra",
     "sc-metrics-hidden-coverage--part-3--rust",
     "sc-metrics-hidden-coverage--part-3--swift",
     "sc-metrics-hidden-coverage--part-3--typescript",
@@ -29831,6 +29213,7 @@
     "sc-metrics-local--part-1--java",
     "sc-metrics-local--part-1--kotlin",
     "sc-metrics-local--part-1--python",
+    "sc-metrics-local--part-1--quidra",
     "sc-metrics-local--part-1--rust",
     "sc-metrics-local--part-1--swift",
     "sc-metrics-local--part-1--typescript",
@@ -29840,6 +29223,7 @@
     "sc-metrics-local--part-2--java",
     "sc-metrics-local--part-2--kotlin",
     "sc-metrics-local--part-2--python",
+    "sc-metrics-local--part-2--quidra",
     "sc-metrics-local--part-2--rust",
     "sc-metrics-local--part-2--swift",
     "sc-metrics-local--part-2--typescript",
@@ -29849,10 +29233,31 @@
     "sc-metrics-local--part-3--java",
     "sc-metrics-local--part-3--kotlin",
     "sc-metrics-local--part-3--python",
+    "sc-metrics-local--part-3--quidra",
     "sc-metrics-local--part-3--rust",
     "sc-metrics-local--part-3--swift",
     "sc-metrics-local--part-3--typescript",
-    "sc-metrics-local--part-3--zig"
+    "sc-metrics-local--part-3--zig",
+    "sc-support-adjudication--f01-p1",
+    "sc-support-adjudication--f02-p1",
+    "sc-support-adjudication--f03-p1",
+    "sc-support-adjudication--f04-p1",
+    "sc-support-adjudication--f05-p1",
+    "sc-support-adjudication--f06-p1",
+    "sc-support-adjudication--f07-p1",
+    "sc-support-adjudication--f08-p1",
+    "sc-support-adjudication--f09-p1",
+    "sc-support-adjudication--f10-p1",
+    "sc-support-adjudication--f11-p1",
+    "sc-support-adjudication--f12-p1",
+    "sc-support-adjudication--f13-p1",
+    "sc-support-adjudication--f14-p1",
+    "sc-support-adjudication--f15-p1",
+    "sc-support-adjudication--f16-p1",
+    "sc-support-adjudication--f17-p1",
+    "sc-support-adjudication--f18-p1",
+    "sc-support-adjudication--f19-p1",
+    "sc-support-adjudication--f20-p1"
   ],
-  "semantic_compression_reused_units": 485
+  "semantic_compression_reused_units": 511
 }

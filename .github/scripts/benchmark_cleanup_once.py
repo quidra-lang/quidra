@@ -176,7 +176,7 @@ def drop_function(text: str, name: str) -> str:
     lines = text.splitlines(keepends=True)
     return "".join(lines[:node.lineno - 1] + lines[node.end_lineno:])
 
-HYDRATE = r"""
+HYDRATE = r'''
 def hydrate_certified_cache(
     root: Path, evaluation: str | None = None, *, mechanical_only: bool = False
 ) -> int:
@@ -318,9 +318,9 @@ def hydrate_certified_cache(
         hits += 1
     _write_cache_status(root, status)
     return hits
-"""
+'''
 
-QUIDRA_REUSE = r"""
+QUIDRA_REUSE = r'''
 def cache_quidra_execution_reuse_problem(
     root: Path, record: dict[str, Any]
 ) -> str | None:
@@ -342,7 +342,7 @@ def cache_quidra_execution_reuse_problem(
     if recorded.get("git_objects") != current.get("git_objects"):
         return "Quidra execution-input object map changed"
     return None
-"""
+'''
 
 def cleanup_runner() -> None:
     text = RUNNER.read_text(encoding="utf-8")

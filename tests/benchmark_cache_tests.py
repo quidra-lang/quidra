@@ -2962,6 +2962,23 @@ def assert_partial_paid_checkpoint_roundtrip() -> None:
         assert session_only["updated_unit_count"] == 1, session_only
         assert session_only["exported_units"][0]["paid_call_count"] == 1, session_only
 
+        # Prove the session-only checkpoint survives a true cross-run roundtrip:
+        # remove all local runtime-owned paid state, import from the private store,
+        # and retain the paid-call count even though no compact journal existed at
+        # export time. sandbox_agent rebuilds that journal before using the call.
+        shutil.rmtree(agent_dir / "trials")
+        for name in ("resume_trace.json", "agent_trace.partial.json", "agent_trace.json"):
+            path = agent_dir / name
+            if path.exists():
+                path.unlink()
+        restored_session_only = benchmark.import_partial_paid_checkpoints(
+            root, session_only_store
+        )
+        assert restored_session_only["imported_unit_count"] == 1, restored_session_only
+        assert restored_session_only["restored_paid_calls"] == 1, restored_session_only
+        assert (trial_dir / "session.json").is_file()
+        assert not (agent_dir / "trial_call_journal.json").exists()
+
         # Raw paid calls remain durable after the leaf itself becomes COMPLETE.
         # The certified result cache owns the validated result; this separate
         # exact-fingerprint store lets a later validator/grader revision replay

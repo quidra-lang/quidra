@@ -10799,20 +10799,160 @@ def cache_migration_metadata(
     }
 
 
+def _language_quality_snapshot_migration_source(
+    root: Path,
+) -> tuple[Path, Path, dict[str, Any]]:
+    """Return the current bound LQ snapshot used by design-cache migration."""
+    cfg = (
+        (cache_policy(root).get("reuse_conditions") or {}).get(
+            "language_quality_snapshot_recertification"
+        )
+        or {}
+    )
+    relative = str(cfg.get("path") or "")
+    rel = PurePosixPath(relative)
+    if (
+        not relative
+        or rel.is_absolute()
+        or any(part in {"", ".", ".."} for part in rel.parts)
+    ):
+        raise BenchmarkError("Language Quality snapshot provenance path is invalid")
+    relative_path = Path(*rel.parts)
+    path = require_under(root / "cache" / relative_path, root / "cache")
+    if not path.is_file():
+        raise BenchmarkError(
+            "Language Quality snapshot required for migration provenance is missing"
+        )
+    snapshot = json_load(path)
+    if (
+        snapshot.get("schema_version") != 1
+        or snapshot.get("frozen") is not True
+        or snapshot.get("bound") is not True
+    ):
+        raise BenchmarkError(
+            "Language Quality migration snapshot must be frozen and bound"
+        )
+    return relative_path, path, snapshot
+
+
+def _language_quality_snapshot_supports_cached_record(
+    root: Path, record: dict[str, Any]
+) -> bool:
+    """Prove a current bound LQ snapshot still attests one recertified record.
+
+    Snapshot bookkeeping fields may change when the retained evidence set is
+    rebound/checkpointed.  That byte-level change must not invalidate a current
+    record if the snapshot still contains exactly the component judgments and
+    exact legacy-evidence hashes from which that record was certified.
+    """
+    if str(record.get("evaluation") or "") != "language_quality":
+        return False
+    try:
+        _, _, snapshot = _language_quality_snapshot_migration_source(root)
+    except (BenchmarkError, OSError, ValueError, TypeError, json.JSONDecodeError):
+        return False
+
+    certification = record.get("certification") or {}
+    snapshot_id = str(snapshot.get("snapshot_id") or "")
+    if (
+        not snapshot_id
+        or str(certification.get("language_quality_snapshot_id") or "")
+        != snapshot_id
+    ):
+        return False
+
+    assigned = [str(value) for value in (record.get("assigned_languages") or [])]
+    if len(assigned) != 1:
+        return False
+    language = assigned[0]
+    language_row = (snapshot.get("languages") or {}).get(language)
+    metrics = language_row.get("metrics") if isinstance(language_row, dict) else None
+    if not isinstance(metrics, dict):
+        return False
+
+    result = record.get("result")
+    if not isinstance(result, dict):
+        return False
+    evidence = result.get("evidence")
+    requirements = result.get("requirements")
+    if not isinstance(evidence, dict) or not isinstance(requirements, dict):
+        return False
+    snapshot_evidence = evidence.get("language_quality_snapshot_recertification")
+    if (
+        not isinstance(snapshot_evidence, dict)
+        or str(snapshot_evidence.get("snapshot_id") or "") != snapshot_id
+        or snapshot_evidence.get("new_paid_benchmark_provider_call") is not False
+    ):
+        return False
+
+    for rid, score_by_language in requirements.items():
+        rid = str(rid)
+        row = metrics.get(rid)
+        metric_evidence = evidence.get(rid)
+        if (
+            not isinstance(row, dict)
+            or not isinstance(score_by_language, dict)
+            or not isinstance(metric_evidence, dict)
+        ):
+            return False
+        if score_by_language.get(language) != row.get("score_0_100"):
+            return False
+        if metric_evidence.get("component_levels") != row.get("component_levels"):
+            return False
+        provenance = metric_evidence.get("recertification_provenance")
+        if not isinstance(provenance, dict):
+            return False
+        for key in (
+            "source_record",
+            "source_record_sha256",
+            "source_result_sha256",
+            "source_evidence_sha256",
+            "source_run_id",
+        ):
+            if provenance.get(key) != row.get(key):
+                return False
+        if provenance.get("legacy_score_used_for_component_levels") is not False:
+            return False
+        if provenance.get("new_paid_provider_call") is not False:
+            return False
+    return True
+
+
 def recover_current_migration_metadata(
     root: Path, record: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """Ratchet older current-key recertified records to explicit provenance.
+    """Ratchet current-key recertified records to explicit current provenance.
 
-    Before migration provenance became first-class, the Ecosystem v2 records
-    stored their compatibility rule and snapshot id but not the snapshot byte
-    hash. The snapshot is frozen and itself verifies every legacy source record,
-    so the direct provenance link can be reconstructed deterministically.
+    Ecosystem records created before migration provenance became first-class
+    can reconstruct their frozen snapshot link.  Language Quality design
+    records additionally ratchet a stale snapshot byte hash when the current
+    bound snapshot still proves the exact component judgments and exact legacy
+    evidence hashes carried by the record.  This updates bookkeeping only; it
+    does not weaken the scientific evidence chain.
     """
-    if isinstance(record.get("migration"), dict):
-        return dict(record["migration"])
+    migration = record.get("migration")
     certification = record.get("certification") or {}
-    mode = str(certification.get("compatibility_migration") or "")
+    mode = str(
+        (migration or {}).get("migration_rule")
+        if isinstance(migration, dict)
+        else certification.get("compatibility_migration")
+        or ""
+    )
+
+    if mode == "language-quality-design-rubric-v1-snapshot":
+        if not _language_quality_snapshot_supports_cached_record(root, record):
+            return dict(migration) if isinstance(migration, dict) else None
+        rel, path, _ = _language_quality_snapshot_migration_source(root)
+        return cache_migration_metadata(
+            root,
+            mode,
+            rel,
+            sha256_file(path),
+            str(record.get("evaluation") or "language_quality"),
+        )
+
+    if isinstance(migration, dict):
+        return dict(migration)
     if mode != "ecosystem-runner-rubric-v2-snapshot":
         return None
     cfg = (
@@ -10874,6 +11014,16 @@ def cache_record_migration_problem(
     if not source_path.is_file():
         return "migration provenance source record missing"
     if sha256_file(source_path) != migration.get("source_record_sha256"):
+        if (
+            mode == "language-quality-design-rubric-v1-snapshot"
+            and _language_quality_snapshot_supports_cached_record(root, record)
+        ):
+            # The snapshot is frozen in scientific content, but its binding and
+            # checkpoint bookkeeping can legitimately change its bytes.  The
+            # record remains valid only because the current snapshot proves the
+            # same component levels and exact per-metric legacy evidence hashes;
+            # checkpointing will ratchet this migration hash to the current bytes.
+            return None
         return "migration provenance source record hash"
     return None
 

@@ -2891,6 +2891,7 @@ def assert_partial_paid_checkpoint_roundtrip() -> None:
                     "call": 1,
                     "prompt": prompt,
                     "prompt_sha256": benchmark.sha256_bytes(prompt.encode()),
+                    "completion": completion,
                     "completion_sha256": benchmark.sha256_bytes(completion.encode()),
                     "prompt_path": "trials/case-t1/prompt_01.txt",
                     "completion_path": "trials/case-t1/completion_01.txt",

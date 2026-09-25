@@ -1534,11 +1534,41 @@ def assert_proficiency_budget_nominal_is_one_next_call_per_trial() -> None:
 
         # A paid successful trial needs no nominal repurchase. An unresolved
         # paid trial reserves only its next repair, not all remaining repairs.
+        # Proficiency completion state is runner-owned: budget planning must use
+        # the trusted verification record, not the worker-visible summary (which
+        # intentionally omits hidden score verdicts such as test_passed).
         trials = (
             root / "work/agents" / unit["assigned_agent_id"] / "trials"
         )
+        trusted_root = (
+            root / "work/root/proficiency-verification"
+            / unit["assigned_agent_id"]
+        )
+        trial_manifest = benchmark.proficiency_trial_manifest(root)
+        contract_sha = benchmark.proficiency_workload_contract_sha256(root)
         ids = benchmark.proficiency_required_trial_ids(root)
         for trial_id, passed in ((ids[0], True), (ids[1], False)):
+            completion_sha = benchmark.sha256_bytes(
+                f"{trial_id}-completion".encode("utf-8")
+            )
+            verification = {
+                "schema_version": 2,
+                "trial_id": trial_id,
+                "language": "Python",
+                "workload": trial_manifest[trial_id]["workload"],
+                "source_sha256": completion_sha,
+                "workload_contract_sha256": contract_sha,
+                "compile_parse_ok": True,
+                "oracle_tests": [{
+                    "id": "public",
+                    "hidden": False,
+                    "passed": passed,
+                }],
+            }
+            verification_path = (
+                trusted_root / trial_id / "call_01" / "verification.json"
+            )
+            benchmark.json_dump(verification_path, verification)
             session_dir = trials / trial_id
             session_dir.mkdir(parents=True, exist_ok=True)
             benchmark.json_dump(
@@ -1547,7 +1577,11 @@ def assert_proficiency_budget_nominal_is_one_next_call_per_trial() -> None:
                     "schema_version": 1,
                     "trial_id": trial_id,
                     "calls": [{
-                        "verification": {"test_passed": passed}
+                        "completion_sha256": completion_sha,
+                        "verification": benchmark.proficiency_verification_summary(
+                            verification
+                        ),
+                        "verification_path": verification_path.relative_to(root).as_posix(),
                     }],
                 },
             )

@@ -1,0 +1,120 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-reuse-audit-v1-projection",
+    "current_validator_revalidated": true,
+    "language_quality_reuse_audit_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "8ad9cbef213187905722733688058d0e8be3f1f3a3aa2f6bb09aeef965980fa5",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "readable_input_content_hashes": {
+      "template/programs/python/micro": "8682ed00a101573d5adb1ad67b1b83071b8d570ba60118ab2517f9ec897a517e"
+    },
+    "requirement_ids": [],
+    "result_kind": "audit",
+    "reuse_audit_for": [
+      "micro-python"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-reuse-audit-v1",
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "artifact_git_object": "4546074b9130bda20e31324b99d7c39264e5f3fd"
+    },
+    "work_unit_id": "audit-micro-python"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "A preserved paid Language Quality reusable-artifact currency audit judged the exact same frozen artifact Git object under the exact same current toolchain and runtime pins. Judge/provider and Task Packet transport changes do not alter that experiment; the current validator is rerun before promotion and no new provider call is claimed.",
+    "migration_rule": "language-quality-reuse-audit-v1-projection",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "e059e2a6e0491ee58c04a05ce377c4e7eaa55415e17df9310531c5c4689a6520",
+    "source_record": "v1/language-quality/audit-micro-python/e059e2a6e0491ee58c04a05ce377c4e7eaa55415e17df9310531c5c4689a6520.json",
+    "source_record_sha256": "d5ecadf6849a1bdcb1a8b0733fad1250177f5023a8d044616479ed0131cb658a",
+    "source_result_sha256": "80554382f37f8cb331d6bf6625d62da276441f3c46f103fc27be1552f3a6cb7d",
+    "transformed_fields": [
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "20a13c6e14ce4f4d6b244cc936730555f8ffaa5eaf9538630bb149d23618db5a",
+    "run_id": "cache-recertify-9f13d62",
+    "work_unit_id": "audit-micro-python"
+  },
+  "result": {
+    "audit_pass": true,
+    "evaluation": "language_quality",
+    "evidence": {
+      "artifact": "reusable-artifact audit: template/programs/python/micro (MB-00..MB-11)",
+      "audit_type": "toolchain/capability-contract currency audit; no measurements taken or reused per task instructions",
+      "caveats": [
+        "This audit reviewed only the embedded MB-00..MB-11 source files supplied in the task packet; it did not have access to the full methodology/06_micro_workloads.md file, the section 4.12(a-d) binding table, or an actual Python interpreter/toolchain to execute the programs. Conclusions rest on static code review plus current external documentation of language/stdlib changes.",
+        "This is a reusable-artifact support/audit task with no assigned primary requirement IDs (assigned_requirements.json lists an empty 'assigned' array); no requirement-level scores are produced here."
+      ],
+      "measurements_note": "Per task instructions, no performance/size/memory measurements were taken or reused in this audit; this is a semantic-validity/currency review only, not a scored language_quality metric submission.",
+      "per_file_findings": {
+        "mb00.py": "Trivial `print(\"HELLO\")` baseline program (Runtime Overhead/Startup Latency probe MB-00). Syntactically valid on any Python 3 release; no capability drift possible.",
+        "mb01.py": "Naive double-recursion Fibonacci, n=30..37, plus a 'steady' timing-loop mode using time.perf_counter_ns(). Uses only sys and time. Valid on current CPython; perf_counter_ns is stable stdlib API, unaffected by any current deprecation.",
+        "mb02.py": "Factorial mod M recomputed per k, using function-local bindings for the pinned constants (an ordinary CPython idiom, not an algorithmic change). No affected APIs.",
+        "mb03.py": "Five-operation integer/LCG mix over N=120,000,000 iterations. Pure integer arithmetic and modulo; no deprecated numeric APIs.",
+        "mb04.py": "Floating-point mix using array('d') and math.sqrt via a Lehmer LCG generator. 'd' typecode is a permanent, non-deprecated array typecode (only 'u' is deprecated, and this file never uses it).",
+        "mb05.py": "Straight-line dot product over array('d') buffers, N=2,000,000, R=400. No banned reductions (sum()) used; conforms to pinned accumulation order. No API drift.",
+        "mb06.py": "Classical i-j-k matrix multiply on flat array('d') buffers, n=512. No blocking/tiling/library matmul used, consistent with frozen definition. No API drift.",
+        "mb07.py": "Bottom-up iterative merge sort on array('q') buffers with ping-pong buffers, N=2,000,000. 'q' (signed long long) remains a fully supported, non-deprecated array typecode. No use of sorted()/list.sort().",
+        "mb08.py": "String workload building NW=200,000 words then five explicit character passes; passes 1-4 on bytearray, pass 5 decodes to native str per round per the pinned representation binding. No use of banned convenience methods (upper(), split(), count(), regex). No deprecated encode/decode API usage (ascii codec is stable).",
+        "mb09.py": "Two-pass statistical moments, Pearson correlation, and histogram over array('d') buffers, N=2,000,000, R=30. Uses math.floor/sqrt only; no statistics/numpy/Welford substitution. No API drift.",
+        "mb10.py": "File I/O: writes/reads back 3 text files of 1,000,000 lines using buffered text-mode open() with the frozen 65536-byte buffer size, one write() per line, iteration-based read-back. Standard buffered text I/O API is unchanged across current CPython releases; no mmap/raw-write substitution.",
+        "mb11.py": "Collections workload over Python's own dict/set/list defaults plus an array('q') key source, N=1,000,000, R=3. No custom hash/capacity hints/third-party primitive collections. No API drift."
+      },
+      "reviewed_files": [
+        "mb00.py",
+        "mb01.py",
+        "mb02.py",
+        "mb03.py",
+        "mb04.py",
+        "mb05.py",
+        "mb06.py",
+        "mb07.py",
+        "mb08.py",
+        "mb09.py",
+        "mb10.py",
+        "mb11.py"
+      ],
+      "semantic_validity_conclusion": "All 12 programs remain syntactically valid, dependency-free (standard library only: sys, time, array, math), and free of any deprecated or removed API surface under the current Python toolchain. Each program's algorithm, iteration structure, data container choice (array('d')/array('q') per the frozen binding table references in the source comments), and workload constants match the frozen workload-definition comments embedded in the source (methodology/06_micro_workloads.md section 4, MB-00 through MB-11). No source or harness change is required; the artifact is fit for reuse as a comparison-language program set under primary.json's `allow_reusable_comparison_language_programs` / `comparison_languages_reusable_by_default` policy, which explicitly includes Python.",
+      "toolchain_currency_checks": [
+        "Confirmed current Python stable release lineage (3.14.7 stable, 3.15 in release-candidate as of this audit) via web search; no functional or syntax break applies to this artifact.",
+        "Confirmed the only array-module deprecation in the current toolchain window is the 'u' (wchar_t) typecode, deprecated at runtime since 3.13 and scheduled for removal in 3.16; this artifact uses only 'd' and 'q' typecodes, both permanent, so no repair is required.",
+        "Confirmed the PEP 594 'dead battery' stdlib removals finalized in Python 3.13 (aifc, audioop, cgi, cgitb, chunk, crypt, imghdr, mailcap, msilib, nis, nntplib, ossaudiodev, pipes, sndhdr, spwd, sunau, telnetlib, uu, xdrlib, lib2to3) do not intersect this artifact's import set (sys, time, array, math only).",
+        "Confirmed Python 3.14 changes (free-threading becoming officially supported, t-strings/PEP 750, deferred annotation evaluation/PEP 649, PEP 765 finally-block control-flow SyntaxWarning) have no bearing on this artifact: no threads, no t-strings, no type annotations relying on eager evaluation, and no return/break/continue inside a finally block appear anywhere in mb00-mb11."
+      ]
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "80554382f37f8cb331d6bf6625d62da276441f3c46f103fc27be1552f3a6cb7d",
+  "schema_version": 1
+}

@@ -1,0 +1,245 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "current_validator_revalidated": true,
+    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+    "language_quality_snapshot_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "6235be49e91b72294049b2ae7b17c1fa2006ee72",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "8b5548c2f205c85d2631963984e2ce140d28c6dc",
+        "project.toml": "740e2feec8b50a287a2b66f3634276adf31a1001",
+        "quidra.manifest.json": "41e4b800f1da0705b9099a5df891165aa05bcb4e",
+        "src": "9d4efb1251afd04455edae83f1e48736f87fc35a"
+      },
+      "schema_version": 1,
+      "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b"
+    }
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "d49c3902375b24134980ea0c815b8717d9ce48fce07a00d4f4d5f2a7508fd521",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "85b2c44534b9b562a7636f7b4ae8a0e701e0414a0814ee3c2463e8c7b4442e31",
+    "language_quality_rubric_set_id": "language-quality-design-runner-rubric-v1",
+    "network_allowed": false,
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs/development.md": "1adfc1ff5791270657619172fc58fcbbb2c07ca7d6c587e85b5b486127bd2003",
+      "repo/docs/packages.md": "cdda4b7efb23fa0898e9ee2a08fd6c46d7412e05d20d52016942f93e42310864",
+      "repo/docs/spec": "99aead213aa1a526aa891bfd6e5fa099bcbd2385fefef140bb2f7b4fe991255e",
+      "repo/tests/benchmark/quidra": "1d18949efdca414105d423f73f250cd6d7ef7043ad5199b2f185efdfbfd172b2",
+      "template/methodology-assets/language_quality/design_rubrics.json": "8919eccdc1d6643f1409f0ebeb2413bfbd28769bd778c814f17bd4591bc95f70",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.dependency_simplicity",
+      "metric.portability_design_platform_neutrality"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-design-rubric-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b51952dd4ddf0ccb28171f2a2805e5f1eb56ada80576ca6381ec57ae170694d6",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "work_unit_id": "lq-language-development--part-3--quidra",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+    "migration_rule": "language-quality-design-rubric-v1-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "8bab99aca95eef516b2b3826282aa873e4478ecd821db9dfc94863189761988c",
+    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+    "source_record_sha256": "8bab99aca95eef516b2b3826282aa873e4478ecd821db9dfc94863189761988c",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "85b2c44534b9b562a7636f7b4ae8a0e701e0414a0814ee3c2463e8c7b4442e31",
+    "run_id": "cache-recertify-9f13d62",
+    "work_unit_id": "lq-language-development--part-3--quidra"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "language_quality_design_runner_scoring": {
+        "language": "Quidra",
+        "metrics": {
+          "metric.dependency_simplicity": {
+            "component_levels": {
+              "dependency_declaration": 4,
+              "isolation_namespacing": 4,
+              "module_import_model": 4,
+              "resolution_determinism": 4,
+              "transitive_visibility": 4
+            },
+            "evidence_refs": [
+              "repo/docs/spec",
+              "repo/docs/packages.md",
+              "repo/docs/development.md",
+              "repo/tests/benchmark/quidra",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.dependency-simplicity.v1",
+            "score_0_100": 100
+          },
+          "metric.portability_design_platform_neutrality": {
+            "component_levels": {
+              "artifact_source_separation": 4,
+              "conditional_platform_mechanism": 3,
+              "data_numeric_portability": 4,
+              "platform_abstraction": 3,
+              "specified_core_semantics": 4
+            },
+            "evidence_refs": [
+              "repo/docs/spec",
+              "repo/docs/packages.md",
+              "repo/docs/development.md",
+              "repo/tests/benchmark/quidra",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.portability-design.v1",
+            "score_0_100": 90
+          }
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1"
+      },
+      "language_quality_snapshot_recertification": {
+        "new_paid_benchmark_provider_call": false,
+        "recertifier": {
+          "engine": "GPT-5.6 Sol",
+          "mode": "evidence-reprojection/current-rubric-adjudication",
+          "new_paid_benchmark_provider_call": false,
+          "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1",
+        "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+        "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+      },
+      "metric.dependency_simplicity": {
+        "component_findings": {
+          "dependency_declaration": "Recertified level 4 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Source packages only; single main.qui entrypoint | No install scripts executed on package install | Exact release tags only, never floating branches | Conjunctive SemVer range operators: eq, lt, lte, gt, gte | Closed manifest key set; unknown key is a compile-time error | Lockfile v3 records distribution name, import name, version, and SHA-256 content hash | ABI/IR/package-schema/lockfile-schema versions independently declared in project.toml compat block | Minimal external tool dependency: git for source installs; curl and tar only for optional platform assets | repo/docs/packages.md | repo/docs/development.md | Quidra dependency model is simple at the language level: packages are plain source packages with a single main.qui entrypoint and an optional flat-key quidra.package manifest. Dependency resolution uses conjunctive SemVer ranges against exact immutable release tags only; no floating or branch depen\u2026",
+          "isolation_namespacing": "Recertified level 4 under the current criterion: The language/project model provides clear namespace/version/isolation boundaries that reduce accidental coupling. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Source packages only; single main.qui entrypoint | No install scripts executed on package install | Exact release tags only, never floating branches | Conjunctive SemVer range operators: eq, lt, lte, gt, gte | Closed manifest key set; unknown key is a compile-time error | Lockfile v3 records distribution name, import name, version, and SHA-256 content hash | ABI/IR/package-schema/lockfile-schema versions independently declared in project.toml compat block | Minimal external tool dependency: git for source installs; curl and tar only for optional platform assets | repo/docs/packages.md | repo/docs/development.md | Quidra dependency model is simple at the language level: packages are plain source packages with a single main.qui entrypoint and an optional flat-key quidra.package manifest. Dependency resolution uses conjunctive SemVer ranges against exact immutable release tags only; no floating or branch depen\u2026",
+          "module_import_model": "Recertified level 4 under the current criterion: Module/import semantics are small, explicit and predictable from source. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Source packages only; single main.qui entrypoint | No install scripts executed on package install | Exact release tags only, never floating branches | Conjunctive SemVer range operators: eq, lt, lte, gt, gte | Closed manifest key set; unknown key is a compile-time error | Lockfile v3 records distribution name, import name, version, and SHA-256 content hash | ABI/IR/package-schema/lockfile-schema versions independently declared in project.toml compat block | Minimal external tool dependency: git for source installs; curl and tar only for optional platform assets | repo/docs/packages.md | repo/docs/development.md | Quidra dependency model is simple at the language level: packages are plain source packages with a single main.qui entrypoint and an optional flat-key quidra.package manifest. Dependency resolution uses conjunctive SemVer ranges against exact immutable release tags only; no floating or branch depen\u2026",
+          "resolution_determinism": "Recertified level 4 under the current criterion: Ordinary dependency/name resolution has deterministic, documented precedence with limited ambient search-path surprises. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Source packages only; single main.qui entrypoint | No install scripts executed on package install | Exact release tags only, never floating branches | Conjunctive SemVer range operators: eq, lt, lte, gt, gte | Closed manifest key set; unknown key is a compile-time error | Lockfile v3 records distribution name, import name, version, and SHA-256 content hash | ABI/IR/package-schema/lockfile-schema versions independently declared in project.toml compat block | Minimal external tool dependency: git for source installs; curl and tar only for optional platform assets | repo/docs/packages.md | repo/docs/development.md | Quidra dependency model is simple at the language level: packages are plain source packages with a single main.qui entrypoint and an optional flat-key quidra.package manifest. Dependency resolution uses conjunctive SemVer ranges against exact immutable release tags only; no floating or branch depen\u2026",
+          "transitive_visibility": "Recertified level 4 under the current criterion: Transitive dependency visibility and import exposure are controlled and understandable rather than silently leaking arbitrary dependencies. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Current import/package semantics distinguish quoted local imports from installed packages, reject cycles, control re-exports, resolve exact stable release tags and lock transitive content hashes, making visibility and resolution explicit. Preserved paid evidence additionally records: Source packages only; single main.qui entrypoint | No install scripts executed on package install | Exact release tags only, never floating branches | Conjunctive SemVer range operators: eq, lt, lte, gt, gte | Closed manifest key set; unknown key is a compile-time error | Lockfile v3 records distribution name, import name, version, and SHA-256 content hash | ABI/IR/package-schema/lockfile-schema versions independently declared in project.toml compat block | Minimal external tool dependency: git for source installs; curl and tar only for optional platform assets | repo/docs/packages.md | repo/docs/development.md | Quidra dependency model is simple at the language level: packages are plain source packages with a single main.qui entrypoint and an optional flat-key quidra.package manifest. Dependency resolution uses conjunctive SemVer ranges against exact immutable release tags only; no floating or branch depen\u2026"
+        },
+        "component_levels": {
+          "dependency_declaration": 4,
+          "isolation_namespacing": 4,
+          "module_import_model": 4,
+          "resolution_determinism": 4,
+          "transitive_visibility": 4
+        },
+        "evidence_refs": [
+          "repo/docs/spec",
+          "repo/docs/packages.md",
+          "repo/docs/development.md",
+          "repo/tests/benchmark/quidra",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 100.0,
+          "legacy_score_used_for_component_levels": false,
+          "method": "current-target-reinspection-with-historical-paid-seed",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "7027666ca87fb38b41efe16977ea26f28a0048663f410a759b0a42d1acd9df16",
+          "source_record": "benchmark/cache/v1/language-quality/quidra/2b64e6388a89afca72d4b859bd4a1607a3223e5b66e8793d1481a3a5aad390b6.json",
+          "source_record_sha256": "a66cfa7c970667229e5d3a7ad943b1ef5e5683a5ff5f072514415007a2e04093",
+          "source_result_sha256": "4a96bb0bb14021c980e66d5df65294ca2cd21a1932ae6e628ff74fa0cce697f0",
+          "source_run_id": "cache-recertify-13feb35"
+        },
+        "rubric_id": "language-quality.dependency-simplicity.v1",
+        "runner_score_0_100": 100,
+        "selection_rule": "Judge language/module dependency semantics and intrinsic project dependency model. Registry size, package-manager maturity and community conventions belong to Ecosystem."
+      },
+      "metric.portability_design_platform_neutrality": {
+        "component_findings": {
+          "artifact_source_separation": "Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Frontend and native-lowering phase separation: language semantics belong to the frontend, LLVM is an implementation target | Typed IR documented as seam supporting future backend work beyond the current LLVM and Clang pipeline | Backend transformations must not recover missing semantic facts from source spellings, LLVM pointer shapes, or control-flow layout | Tensor device placement modeled as explicit metadata separate from dtype and shape types | ABI/IR/package-schema/lockfile-schema versions declared independently in project.toml compat block, decoupled from compiler release version | project.toml declared single source of truth for supported operating systems, targets, and toolchain minimums | Release checks require GCC and Clang release builds plus Linux, macOS, and Windows CI | repo/docs/spec/architecture.md\u2026",
+          "conditional_platform_mechanism": "Recertified level 3 under the current criterion: When platform-specific behavior is necessary, the language/project model exposes explicit, localized conditional mechanisms rather than implicit divergence. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Frontend and native-lowering phase separation: language semantics belong to the frontend, LLVM is an implementation target | Typed IR documented as seam supporting future backend work beyond the current LLVM and Clang pipeline | Backend transformations must not recover missing semantic facts from source spellings, LLVM pointer shapes, or control-flow layout | Tensor device placement modeled as explicit metadata separate from dtype and shape types | ABI/IR/package-schema/lockfile-schema versions declared independently in project.toml compat block, decoupled from compiler release version | project.toml declared single source of truth for supported operating systems, targets, and toolchain minimums | Release checks require GCC and Clang release builds plus Linux, macOS, and Windows CI | repo/docs/spec/architecture.md\u2026",
+          "data_numeric_portability": "Recertified level 4 under the current criterion: Primitive data/numeric behavior needed for portable programs is sufficiently specified across targets, with implementation-defined behavior clearly bounded. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Frontend and native-lowering phase separation: language semantics belong to the frontend, LLVM is an implementation target | Typed IR documented as seam supporting future backend work beyond the current LLVM and Clang pipeline | Backend transformations must not recover missing semantic facts from source spellings, LLVM pointer shapes, or control-flow layout | Tensor device placement modeled as explicit metadata separate from dtype and shape types | ABI/IR/package-schema/lockfile-schema versions declared independently in project.toml compat block, decoupled from compiler release version | project.toml declared single source of truth for supported operating systems, targets, and toolchain minimums | Release checks require GCC and Clang release builds plus Linux, macOS, and Windows CI | repo/docs/spec/architecture.md\u2026",
+          "platform_abstraction": "Recertified level 3 under the current criterion: Core/standard runtime interfaces provide portable abstractions for common OS/runtime needs with explicit platform escape hatches. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Frontend and native-lowering phase separation: language semantics belong to the frontend, LLVM is an implementation target | Typed IR documented as seam supporting future backend work beyond the current LLVM and Clang pipeline | Backend transformations must not recover missing semantic facts from source spellings, LLVM pointer shapes, or control-flow layout | Tensor device placement modeled as explicit metadata separate from dtype and shape types | ABI/IR/package-schema/lockfile-schema versions declared independently in project.toml compat block, decoupled from compiler release version | project.toml declared single source of truth for supported operating systems, targets, and toolchain minimums | Release checks require GCC and Clang release builds plus Linux, macOS, and Windows CI | repo/docs/spec/architecture.md\u2026",
+          "specified_core_semantics": "Recertified level 4 under the current criterion: Core language semantics avoid unnecessary dependence on one OS/CPU/ABI and specify portable behavior for ordinary constructs. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Current architecture keeps semantics in the frontend and typed IR, treats LLVM as an implementation target, specifies numeric/storage semantics independently of host details and centralizes platform declarations; platform abstraction/conditional mechanisms remain less complete than the strongest mature multi-target designs. Preserved paid evidence additionally records: Frontend and native-lowering phase separation: language semantics belong to the frontend, LLVM is an implementation target | Typed IR documented as seam supporting future backend work beyond the current LLVM and Clang pipeline | Backend transformations must not recover missing semantic facts from source spellings, LLVM pointer shapes, or control-flow layout | Tensor device placement modeled as explicit metadata separate from dtype and shape types | ABI/IR/package-schema/lockfile-schema versions declared independently in project.toml compat block, decoupled from compiler release version | project.toml declared single source of truth for supported operating systems, targets, and toolchain minimums | Release checks require GCC and Clang release builds plus Linux, macOS, and Windows CI | repo/docs/spec/architecture.md\u2026"
+        },
+        "component_levels": {
+          "artifact_source_separation": 4,
+          "conditional_platform_mechanism": 3,
+          "data_numeric_portability": 4,
+          "platform_abstraction": 3,
+          "specified_core_semantics": 4
+        },
+        "evidence_refs": [
+          "repo/docs/spec",
+          "repo/docs/packages.md",
+          "repo/docs/development.md",
+          "repo/tests/benchmark/quidra",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 90.0,
+          "legacy_score_used_for_component_levels": false,
+          "method": "current-target-reinspection-with-historical-paid-seed",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "0f906ba224020ac7db0746b3af18bf1e76f0a75b566e8b88fa56126948b73b14",
+          "source_record": "benchmark/cache/v1/language-quality/quidra/2b64e6388a89afca72d4b859bd4a1607a3223e5b66e8793d1481a3a5aad390b6.json",
+          "source_record_sha256": "a66cfa7c970667229e5d3a7ad943b1ef5e5683a5ff5f072514415007a2e04093",
+          "source_result_sha256": "4a96bb0bb14021c980e66d5df65294ca2cd21a1932ae6e628ff74fa0cce697f0",
+          "source_run_id": "cache-recertify-13feb35"
+        },
+        "rubric_id": "language-quality.portability-design.v1",
+        "runner_score_0_100": 90,
+        "selection_rule": "Judge the language/runtime design for writing portable source. Actual number of currently implemented targets belongs to Ecosystem."
+      }
+    },
+    "requirements": {
+      "metric.dependency_simplicity": {
+        "Quidra": 100.0
+      },
+      "metric.portability_design_platform_neutrality": {
+        "Quidra": 90.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "16c0fe30cea61043edc9365f2543e8a1f4f01618a7aad31e322a17ca78b1c454",
+  "schema_version": 1
+}

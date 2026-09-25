@@ -1,0 +1,124 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "measured_at_utc": null,
+    "mechanical": true,
+    "primary_complete": false,
+    "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
+    "raw_evidence_sha256": {
+      "adversarial_raw.json": "9f052ff2fa242cbd078888ec5a8667d23b027f9b8b7eeacdda145eb7b84b32e0",
+      "cells/": "91179e0ed8381c79530942f5f4f73596bb8aff137b64eb7caed7a68edea1b3a2"
+    },
+    "runner_action": "adversarial-measure",
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "e8c500e4b2a8d95de7d3759c972924c5ed55e144ca2063bb9b19e70576edd2e4",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": null,
+    "frozen_sampling": null,
+    "measurement_script_hashes": {
+      "adversarial_measure.py": "bb861c0bbb8390820aae577560f2109b90b0faa76db9ac6bb53b06aa67b1314b",
+      "micro_measure.py": "905324d09a7f4612d5df9e17b11a64ade59eef8b8d17bd1dbaa1afde1b2b44be"
+    },
+    "model": null,
+    "network_allowed": false,
+    "provider": null,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality": "538847ef64cef3ab9a27f0fd76ba32fa0df952dcd11c9f2719a1067e3ee37723",
+      "template/methodology-assets/scoring": "a3be91ff162f3411462bb19e1858b517d5d21301795cd2a728344d9a1c35dd58",
+      "template/programs/cpp/adversarial": "73217bc7fa600c7fc828119058c0a5b7be3aa9609d7d949e82a0c030d3b24847",
+      "template/programs/cpp/micro": "76763990610389edc81c881c40ecd9c7731cdfa1dbf05153e9c79876407167e2"
+    },
+    "requirement_ids": [
+      "metric.type_safety",
+      "metric.memory_safety",
+      "metric.runtime_safety",
+      "metric.boundary_value_safety",
+      "metric.adversarial_input_robustness",
+      "metric.early_error_detection",
+      "metric.debuggability",
+      "metric.silent_bug_resistance",
+      "metric.implementation_robustness"
+    ],
+    "result_kind": "mechanical",
+    "runner_action": "adversarial-measure",
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "59f63312c6f2bf3a4bda671cdd23d3f4c4b1b0d27e7a9a3ac35ddd8b304eb21d",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py command-result-check --workspace /quidra-benchmark --id lq-adversarial-mechanical--c",
+    "work_unit_id": "lq-adversarial-mechanical--c",
+    "worker_mode": "runner-command"
+  },
+  "provenance": {
+    "prompt_sha256": null,
+    "run_id": "cache-recertify-9f13d62",
+    "work_unit_id": "lq-adversarial-mechanical--c"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "assigned_languages": [
+        "C++"
+      ],
+      "programs_per_language": 37,
+      "quidra_na_reason": null,
+      "raw": "/quidra-benchmark/work/root/commands/lq-adversarial-mechanical--c/adversarial_raw.json",
+      "scorer": "adversarial_measure.py (mechanical replay of D0..D7)"
+    },
+    "requirements": {
+      "metric.adversarial_input_robustness": {
+        "C++": 48.57
+      },
+      "metric.boundary_value_safety": {
+        "C++": 7.27
+      },
+      "metric.debuggability": {
+        "C++": 13.46
+      },
+      "metric.early_error_detection": {
+        "C++": 25.38
+      },
+      "metric.implementation_robustness": {
+        "C++": 100.0
+      },
+      "metric.memory_safety": {
+        "C++": 11.11
+      },
+      "metric.runtime_safety": {
+        "C++": 3.33
+      },
+      "metric.silent_bug_resistance": {
+        "C++": 29.41
+      },
+      "metric.type_safety": {
+        "C++": 19.58
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "da66dd5021e55d900abe7d4644b1519e4661a33a3459329cc45481f3bbd37977",
+  "schema_version": 1
+}

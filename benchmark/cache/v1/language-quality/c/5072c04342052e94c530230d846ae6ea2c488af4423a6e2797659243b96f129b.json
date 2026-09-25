@@ -1,0 +1,223 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "current_validator_revalidated": true,
+    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+    "language_quality_snapshot_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "5072c04342052e94c530230d846ae6ea2c488af4423a6e2797659243b96f129b",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "24493314ea2763de08e3ff216a919000fcb0898bc587806578da66c8809cc265",
+    "language_quality_rubric_set_id": "language-quality-design-runner-rubric-v1",
+    "network_allowed": false,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality/design_rubrics.json": "8919eccdc1d6643f1409f0ebeb2413bfbd28769bd778c814f17bd4591bc95f70",
+      "template/programs/cpp/adversarial": "73217bc7fa600c7fc828119058c0a5b7be3aa9609d7d949e82a0c030d3b24847",
+      "template/programs/cpp/micro": "76763990610389edc81c881c40ecd9c7731cdfa1dbf05153e9c79876407167e2",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.code_efficiency_conciseness",
+      "metric.readability"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-design-rubric-v1",
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b51952dd4ddf0ccb28171f2a2805e5f1eb56ada80576ca6381ec57ae170694d6",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "work_unit_id": "lq-language-development--part-1--c",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+    "migration_rule": "language-quality-design-rubric-v1-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "8bab99aca95eef516b2b3826282aa873e4478ecd821db9dfc94863189761988c",
+    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+    "source_record_sha256": "8bab99aca95eef516b2b3826282aa873e4478ecd821db9dfc94863189761988c",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "24493314ea2763de08e3ff216a919000fcb0898bc587806578da66c8809cc265",
+    "run_id": "cache-recertify-9f13d62",
+    "work_unit_id": "lq-language-development--part-1--c"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "language_quality_design_runner_scoring": {
+        "language": "C++",
+        "metrics": {
+          "metric.code_efficiency_conciseness": {
+            "component_levels": {
+              "abstraction_ceremony": 2,
+              "control_data_ceremony": 2,
+              "declaration_ceremony": 2,
+              "error_resource_ceremony": 2,
+              "semantic_work_ratio": 2
+            },
+            "evidence_refs": [
+              "template/programs/cpp/micro",
+              "template/programs/cpp/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.conciseness.v1",
+            "score_0_100": 50
+          },
+          "metric.readability": {
+            "component_levels": {
+              "consistency_regular_forms": 1,
+              "control_effect_traceability": 2,
+              "local_intent_visibility": 2,
+              "name_type_signal": 3,
+              "structural_clarity": 2
+            },
+            "evidence_refs": [
+              "template/programs/cpp/micro",
+              "template/programs/cpp/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.readability.v1",
+            "score_0_100": 50
+          }
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1"
+      },
+      "language_quality_snapshot_recertification": {
+        "new_paid_benchmark_provider_call": false,
+        "recertifier": {
+          "engine": "GPT-5.6 Sol",
+          "mode": "evidence-reprojection/current-rubric-adjudication",
+          "new_paid_benchmark_provider_call": false,
+          "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1",
+        "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+        "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+      },
+      "metric.code_efficiency_conciseness": {
+        "component_findings": {
+          "abstraction_ceremony": "Recertified level 2 under the current criterion: Reusable abstractions such as types, interfaces/traits/generics or equivalent mechanisms can be declared and consumed without excessive scaffolding. Evidence basis: Idiomatic modern C++ (RAII wrapper class Lcg, const-correct locals, range-for, std::vector/std::string) keeps per-operation code compact and free of manual memory-management boilerplate. | C++ requires ceremony largely absent in higher-level or newer languages: explicit multiple header includes, manual struct definitions for simple aggregate returns (struct Result), explicit static_cast for every narrowing/reinterpret conversion, manual argv/strcmp mode dispatch, and verbose printf/iostream formatting compared to built-in string interpolation available in Python/Rust/Kotlin/Swift/TypeScript. | Manual index arithmetic and explicit casts for byte/char handling add lines relative to languages with native slicing or built-in byte types; no algebraic/result types reduce expressiveness for error handling relative to Rust/Swift/Kotlin. | This shard only has read access to C++ sources, so score reflects documented intrinsic C++ verbosity characteristics (explicit includes, manual casts, no native string interpolation, no built-in option/result types) applied via the same rubric used across the language set.",
+          "control_data_ceremony": "Recertified level 2 under the current criterion: Common control flow and collection/data manipulation avoid repetitive structural ceremony unrelated to the algorithm. Evidence basis: Idiomatic modern C++ (RAII wrapper class Lcg, const-correct locals, range-for, std::vector/std::string) keeps per-operation code compact and free of manual memory-management boilerplate. | C++ requires ceremony largely absent in higher-level or newer languages: explicit multiple header includes, manual struct definitions for simple aggregate returns (struct Result), explicit static_cast for every narrowing/reinterpret conversion, manual argv/strcmp mode dispatch, and verbose printf/iostream formatting compared to built-in string interpolation available in Python/Rust/Kotlin/Swift/TypeScript. | Manual index arithmetic and explicit casts for byte/char handling add lines relative to languages with native slicing or built-in byte types; no algebraic/result types reduce expressiveness for error handling relative to Rust/Swift/Kotlin. | This shard only has read access to C++ sources, so score reflects documented intrinsic C++ verbosity characteristics (explicit includes, manual casts, no native string interpolation, no built-in option/result types) applied via the same rubric used across the language set.",
+          "declaration_ceremony": "Recertified level 2 under the current criterion: Routine variables, functions, parameters and returns can be expressed without disproportionate mandatory boilerplate. Evidence basis: Idiomatic modern C++ (RAII wrapper class Lcg, const-correct locals, range-for, std::vector/std::string) keeps per-operation code compact and free of manual memory-management boilerplate. | C++ requires ceremony largely absent in higher-level or newer languages: explicit multiple header includes, manual struct definitions for simple aggregate returns (struct Result), explicit static_cast for every narrowing/reinterpret conversion, manual argv/strcmp mode dispatch, and verbose printf/iostream formatting compared to built-in string interpolation available in Python/Rust/Kotlin/Swift/TypeScript. | Manual index arithmetic and explicit casts for byte/char handling add lines relative to languages with native slicing or built-in byte types; no algebraic/result types reduce expressiveness for error handling relative to Rust/Swift/Kotlin. | This shard only has read access to C++ sources, so score reflects documented intrinsic C++ verbosity characteristics (explicit includes, manual casts, no native string interpolation, no built-in option/result types) applied via the same rubric used across the language set.",
+          "error_resource_ceremony": "Recertified level 2 under the current criterion: Ordinary error/resource handling expresses intent without pervasive mandatory boilerplate while retaining clear semantics. Evidence basis: Idiomatic modern C++ (RAII wrapper class Lcg, const-correct locals, range-for, std::vector/std::string) keeps per-operation code compact and free of manual memory-management boilerplate. | C++ requires ceremony largely absent in higher-level or newer languages: explicit multiple header includes, manual struct definitions for simple aggregate returns (struct Result), explicit static_cast for every narrowing/reinterpret conversion, manual argv/strcmp mode dispatch, and verbose printf/iostream formatting compared to built-in string interpolation available in Python/Rust/Kotlin/Swift/TypeScript. | Manual index arithmetic and explicit casts for byte/char handling add lines relative to languages with native slicing or built-in byte types; no algebraic/result types reduce expressiveness for error handling relative to Rust/Swift/Kotlin. | This shard only has read access to C++ sources, so score reflects documented intrinsic C++ verbosity characteristics (explicit includes, manual casts, no native string interpolation, no built-in option/result types) applied via the same rubric used across the language set.",
+          "semantic_work_ratio": "Recertified level 2 under the current criterion: Idiomatic source spends most syntax on domain/algorithm meaning rather than language-mandated plumbing; this is a qualitative ceremony judgment, not a second source-size measurement. Evidence basis: Idiomatic modern C++ (RAII wrapper class Lcg, const-correct locals, range-for, std::vector/std::string) keeps per-operation code compact and free of manual memory-management boilerplate. | C++ requires ceremony largely absent in higher-level or newer languages: explicit multiple header includes, manual struct definitions for simple aggregate returns (struct Result), explicit static_cast for every narrowing/reinterpret conversion, manual argv/strcmp mode dispatch, and verbose printf/iostream formatting compared to built-in string interpolation available in Python/Rust/Kotlin/Swift/TypeScript. | Manual index arithmetic and explicit casts for byte/char handling add lines relative to languages with native slicing or built-in byte types; no algebraic/result types reduce expressiveness for error handling relative to Rust/Swift/Kotlin. | This shard only has read access to C++ sources, so score reflects documented intrinsic C++ verbosity characteristics (explicit includes, manual casts, no native string interpolation, no built-in option/result types) applied via the same rubric used across the language set."
+        },
+        "component_levels": {
+          "abstraction_ceremony": 2,
+          "control_data_ceremony": 2,
+          "declaration_ceremony": 2,
+          "error_resource_ceremony": 2,
+          "semantic_work_ratio": 2
+        },
+        "evidence_refs": [
+          "template/programs/cpp/micro",
+          "template/programs/cpp/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 62,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "f8ef3d92d3291d3b0a8374bea56deac993b51e0cd9cca55b4159e97ab3e350e4",
+          "source_record": "benchmark/cache/v1/language-quality/c/ee8ea39399d19a660673536a8b068b6cec859cda28de96bacba88a8e7d2facdf.json",
+          "source_record_sha256": "f70ef1d4257d7c53a98e93fc6a13845572507ac1069e20588587dc88526d1c27",
+          "source_result_sha256": "5e46678101159dadb749c60b73d347010ae7d4e9af9ef63a19b39ed87ef3de39",
+          "source_run_id": "2026-09-22-56f2c65-gh3"
+        },
+        "rubric_id": "language-quality.conciseness.v1",
+        "runner_score_0_100": 50,
+        "selection_rule": "Judge intrinsic mandatory ceremony for the same kinds of ordinary programs. Do not reuse raw LOC/bytes/tokens as the score and do not reward external libraries."
+      },
+      "metric.readability": {
+        "component_findings": {
+          "consistency_regular_forms": "Recertified level 1 under the current criterion: Similar concepts use regular forms with few special-case spellings or context-dependent surface rules. Evidence basis: Sample programs are well formatted, consistently named, and commented with clear rationale (e.g., the volatile anti-elimination sink in mb04.cpp documents compiler-observable behavior precisely). | Const-correctness and clear variable naming (s1..s4, cnt_ab, cnt_w) aid comprehension. | Readability is reduced relative to higher-level languages by mandatory explicit casts (including reinterpret_cast) for byte/char handling, C-style printf mixed with C++ streams, manual modular arithmetic for the LCG generator requiring the reader to track integer overflow semantics, and header/namespace boilerplate preceding the actual logic. | Absence of native pattern matching or algebraic data types keeps control flow explicit but sometimes verbose (e.g., manual string comparison for mode dispatch instead of a match/switch-on-string construct).",
+          "control_effect_traceability": "Recertified level 2 under the current criterion: Control flow, mutation and exceptional/effectful behavior can be followed from ordinary idiomatic source with bounded cognitive indirection. Evidence basis: Sample programs are well formatted, consistently named, and commented with clear rationale (e.g., the volatile anti-elimination sink in mb04.cpp documents compiler-observable behavior precisely). | Const-correctness and clear variable naming (s1..s4, cnt_ab, cnt_w) aid comprehension. | Readability is reduced relative to higher-level languages by mandatory explicit casts (including reinterpret_cast) for byte/char handling, C-style printf mixed with C++ streams, manual modular arithmetic for the LCG generator requiring the reader to track integer overflow semantics, and header/namespace boilerplate preceding the actual logic. | Absence of native pattern matching or algebraic data types keeps control flow explicit but sometimes verbose (e.g., manual string comparison for mode dispatch instead of a match/switch-on-string construct).",
+          "local_intent_visibility": "Recertified level 2 under the current criterion: A local expression/statement makes its operation and important effects reasonably apparent without unrelated context. Evidence basis: Sample programs are well formatted, consistently named, and commented with clear rationale (e.g., the volatile anti-elimination sink in mb04.cpp documents compiler-observable behavior precisely). | Const-correctness and clear variable naming (s1..s4, cnt_ab, cnt_w) aid comprehension. | Readability is reduced relative to higher-level languages by mandatory explicit casts (including reinterpret_cast) for byte/char handling, C-style printf mixed with C++ streams, manual modular arithmetic for the LCG generator requiring the reader to track integer overflow semantics, and header/namespace boilerplate preceding the actual logic. | Absence of native pattern matching or algebraic data types keeps control flow explicit but sometimes verbose (e.g., manual string comparison for mode dispatch instead of a match/switch-on-string construct).",
+          "name_type_signal": "Recertified level 3 under the current criterion: The language permits names/types/signatures to communicate intent without forcing distracting noise or hiding essential information. Evidence basis: Sample programs are well formatted, consistently named, and commented with clear rationale (e.g., the volatile anti-elimination sink in mb04.cpp documents compiler-observable behavior precisely). | Const-correctness and clear variable naming (s1..s4, cnt_ab, cnt_w) aid comprehension. | Readability is reduced relative to higher-level languages by mandatory explicit casts (including reinterpret_cast) for byte/char handling, C-style printf mixed with C++ streams, manual modular arithmetic for the LCG generator requiring the reader to track integer overflow semantics, and header/namespace boilerplate preceding the actual logic. | Absence of native pattern matching or algebraic data types keeps control flow explicit but sometimes verbose (e.g., manual string comparison for mode dispatch instead of a match/switch-on-string construct).",
+          "structural_clarity": "Recertified level 2 under the current criterion: Blocks, declarations, calls and data construction have visually and syntactically clear structure. Evidence basis: Sample programs are well formatted, consistently named, and commented with clear rationale (e.g., the volatile anti-elimination sink in mb04.cpp documents compiler-observable behavior precisely). | Const-correctness and clear variable naming (s1..s4, cnt_ab, cnt_w) aid comprehension. | Readability is reduced relative to higher-level languages by mandatory explicit casts (including reinterpret_cast) for byte/char handling, C-style printf mixed with C++ streams, manual modular arithmetic for the LCG generator requiring the reader to track integer overflow semantics, and header/namespace boilerplate preceding the actual logic. | Absence of native pattern matching or algebraic data types keeps control flow explicit but sometimes verbose (e.g., manual string comparison for mode dispatch instead of a match/switch-on-string construct)."
+        },
+        "component_levels": {
+          "consistency_regular_forms": 1,
+          "control_effect_traceability": 2,
+          "local_intent_visibility": 2,
+          "name_type_signal": 3,
+          "structural_clarity": 2
+        },
+        "evidence_refs": [
+          "template/programs/cpp/micro",
+          "template/programs/cpp/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 68,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "5dbb742b54ceb845b34eec4fd4ea9e87ed0e2449585d194b06d971f993f6a3d7",
+          "source_record": "benchmark/cache/v1/language-quality/c/ee8ea39399d19a660673536a8b068b6cec859cda28de96bacba88a8e7d2facdf.json",
+          "source_record_sha256": "f70ef1d4257d7c53a98e93fc6a13845572507ac1069e20588587dc88526d1c27",
+          "source_result_sha256": "5e46678101159dadb749c60b73d347010ae7d4e9af9ef63a19b39ed87ef3de39",
+          "source_run_id": "2026-09-22-56f2c65-gh3"
+        },
+        "rubric_id": "language-quality.readability.v1",
+        "runner_score_0_100": 50,
+        "selection_rule": "Judge readability of idiomatic code under the frozen corpus and documented syntax/semantics, without inventing human-study results."
+      }
+    },
+    "requirements": {
+      "metric.code_efficiency_conciseness": {
+        "C++": 50.0
+      },
+      "metric.readability": {
+        "C++": 50.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "90636f161237ffe59f8912b705229a79552ce5dba321bbeaecee7b1bea5d9d8b",
+  "schema_version": 1
+}

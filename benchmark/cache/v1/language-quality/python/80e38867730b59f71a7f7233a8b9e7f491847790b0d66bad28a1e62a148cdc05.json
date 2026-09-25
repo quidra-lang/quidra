@@ -1,0 +1,221 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "current_validator_revalidated": true,
+    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+    "language_quality_snapshot_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "80e38867730b59f71a7f7233a8b9e7f491847790b0d66bad28a1e62a148cdc05",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "340f7463cf940a1539f956d32dd5f79607bda9ebd4434f585665ea71ceccba26",
+    "language_quality_rubric_set_id": "language-quality-design-runner-rubric-v1",
+    "network_allowed": false,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality/design_rubrics.json": "8919eccdc1d6643f1409f0ebeb2413bfbd28769bd778c814f17bd4591bc95f70",
+      "template/programs/python/adversarial": "8f5ea833e17d69999f031a6a86404df4b391e58a54275b94b4de62a51b44459c",
+      "template/programs/python/micro": "8682ed00a101573d5adb1ad67b1b83071b8d570ba60118ab2517f9ec897a517e",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.dependency_simplicity",
+      "metric.portability_design_platform_neutrality"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-design-rubric-v1",
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b51952dd4ddf0ccb28171f2a2805e5f1eb56ada80576ca6381ec57ae170694d6",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "work_unit_id": "lq-language-development--part-3--python",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+    "migration_rule": "language-quality-design-rubric-v1-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "8bab99aca95eef516b2b3826282aa873e4478ecd821db9dfc94863189761988c",
+    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+    "source_record_sha256": "8bab99aca95eef516b2b3826282aa873e4478ecd821db9dfc94863189761988c",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "340f7463cf940a1539f956d32dd5f79607bda9ebd4434f585665ea71ceccba26",
+    "run_id": "cache-recertify-9f13d62",
+    "work_unit_id": "lq-language-development--part-3--python"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "language_quality_design_runner_scoring": {
+        "language": "Python",
+        "metrics": {
+          "metric.dependency_simplicity": {
+            "component_levels": {
+              "dependency_declaration": 2,
+              "isolation_namespacing": 3,
+              "module_import_model": 3,
+              "resolution_determinism": 2,
+              "transitive_visibility": 2
+            },
+            "evidence_refs": [
+              "template/programs/python/micro",
+              "template/programs/python/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.dependency-simplicity.v1",
+            "score_0_100": 60
+          },
+          "metric.portability_design_platform_neutrality": {
+            "component_levels": {
+              "artifact_source_separation": 4,
+              "conditional_platform_mechanism": 2,
+              "data_numeric_portability": 4,
+              "platform_abstraction": 4,
+              "specified_core_semantics": 4
+            },
+            "evidence_refs": [
+              "template/programs/python/micro",
+              "template/programs/python/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.portability-design.v1",
+            "score_0_100": 90
+          }
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1"
+      },
+      "language_quality_snapshot_recertification": {
+        "new_paid_benchmark_provider_call": false,
+        "recertifier": {
+          "engine": "GPT-5.6 Sol",
+          "mode": "evidence-reprojection/current-rubric-adjudication",
+          "new_paid_benchmark_provider_call": false,
+          "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1",
+        "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+        "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+      },
+      "metric.dependency_simplicity": {
+        "component_findings": {
+          "dependency_declaration": "Recertified level 2 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Static language-level analysis of Python's dependency and import semantics, informed by inspection of sample programs in template/programs/python/micro (mb00.py-mb11.py). | Micro benchmark programs (mb00-mb11) use only the Python standard library, with no third-party package requirements observed in the readable sample set. | Python's import system is simple and uniform: import statements resolve via sys.path with no build step, no header/library linking, and no compile-time dependency graph. | CPython ships a large, batteries-included standard library, reducing the need for external dependencies for common tasks (math, collections, itertools, json, threading, etc.). | Python's ecosystem commonly relies on native-extension packages (e.g. numpy) which introduce ABI/version-compatibility complexity, and virtual-environment management (venv, pip, poetry, conda) is required to avoid global environment pollution and version conflicts. | No native language-level module/package manifest exists (no built-in equivalent of Cargo.toml/go.mod); dependency declaration is left to third-party conventions (requirements.txt, pyproject.toml), a language-design gap distinct from ecosystem-level packaging maturity. | Dynamic, duck-typed imports and monkeypatching allow dependencies to alter behavior of unrelated modules at runtime, increasing latent complexity versus statically resolved module sys\u2026",
+          "isolation_namespacing": "Recertified level 3 under the current criterion: The language/project model provides clear namespace/version/isolation boundaries that reduce accidental coupling. Evidence basis: Static language-level analysis of Python's dependency and import semantics, informed by inspection of sample programs in template/programs/python/micro (mb00.py-mb11.py). | Micro benchmark programs (mb00-mb11) use only the Python standard library, with no third-party package requirements observed in the readable sample set. | Python's import system is simple and uniform: import statements resolve via sys.path with no build step, no header/library linking, and no compile-time dependency graph. | CPython ships a large, batteries-included standard library, reducing the need for external dependencies for common tasks (math, collections, itertools, json, threading, etc.). | Python's ecosystem commonly relies on native-extension packages (e.g. numpy) which introduce ABI/version-compatibility complexity, and virtual-environment management (venv, pip, poetry, conda) is required to avoid global environment pollution and version conflicts. | No native language-level module/package manifest exists (no built-in equivalent of Cargo.toml/go.mod); dependency declaration is left to third-party conventions (requirements.txt, pyproject.toml), a language-design gap distinct from ecosystem-level packaging maturity. | Dynamic, duck-typed imports and monkeypatching allow dependencies to alter behavior of unrelated modules at runtime, increasing latent complexity versus statically resolved module sys\u2026",
+          "module_import_model": "Recertified level 3 under the current criterion: Module/import semantics are small, explicit and predictable from source. Evidence basis: Static language-level analysis of Python's dependency and import semantics, informed by inspection of sample programs in template/programs/python/micro (mb00.py-mb11.py). | Micro benchmark programs (mb00-mb11) use only the Python standard library, with no third-party package requirements observed in the readable sample set. | Python's import system is simple and uniform: import statements resolve via sys.path with no build step, no header/library linking, and no compile-time dependency graph. | CPython ships a large, batteries-included standard library, reducing the need for external dependencies for common tasks (math, collections, itertools, json, threading, etc.). | Python's ecosystem commonly relies on native-extension packages (e.g. numpy) which introduce ABI/version-compatibility complexity, and virtual-environment management (venv, pip, poetry, conda) is required to avoid global environment pollution and version conflicts. | No native language-level module/package manifest exists (no built-in equivalent of Cargo.toml/go.mod); dependency declaration is left to third-party conventions (requirements.txt, pyproject.toml), a language-design gap distinct from ecosystem-level packaging maturity. | Dynamic, duck-typed imports and monkeypatching allow dependencies to alter behavior of unrelated modules at runtime, increasing latent complexity versus statically resolved module sys\u2026",
+          "resolution_determinism": "Recertified level 2 under the current criterion: Ordinary dependency/name resolution has deterministic, documented precedence with limited ambient search-path surprises. Evidence basis: Static language-level analysis of Python's dependency and import semantics, informed by inspection of sample programs in template/programs/python/micro (mb00.py-mb11.py). | Micro benchmark programs (mb00-mb11) use only the Python standard library, with no third-party package requirements observed in the readable sample set. | Python's import system is simple and uniform: import statements resolve via sys.path with no build step, no header/library linking, and no compile-time dependency graph. | CPython ships a large, batteries-included standard library, reducing the need for external dependencies for common tasks (math, collections, itertools, json, threading, etc.). | Python's ecosystem commonly relies on native-extension packages (e.g. numpy) which introduce ABI/version-compatibility complexity, and virtual-environment management (venv, pip, poetry, conda) is required to avoid global environment pollution and version conflicts. | No native language-level module/package manifest exists (no built-in equivalent of Cargo.toml/go.mod); dependency declaration is left to third-party conventions (requirements.txt, pyproject.toml), a language-design gap distinct from ecosystem-level packaging maturity. | Dynamic, duck-typed imports and monkeypatching allow dependencies to alter behavior of unrelated modules at runtime, increasing latent complexity versus statically resolved module sys\u2026",
+          "transitive_visibility": "Recertified level 2 under the current criterion: Transitive dependency visibility and import exposure are controlled and understandable rather than silently leaking arbitrary dependencies. Evidence basis: Static language-level analysis of Python's dependency and import semantics, informed by inspection of sample programs in template/programs/python/micro (mb00.py-mb11.py). | Micro benchmark programs (mb00-mb11) use only the Python standard library, with no third-party package requirements observed in the readable sample set. | Python's import system is simple and uniform: import statements resolve via sys.path with no build step, no header/library linking, and no compile-time dependency graph. | CPython ships a large, batteries-included standard library, reducing the need for external dependencies for common tasks (math, collections, itertools, json, threading, etc.). | Python's ecosystem commonly relies on native-extension packages (e.g. numpy) which introduce ABI/version-compatibility complexity, and virtual-environment management (venv, pip, poetry, conda) is required to avoid global environment pollution and version conflicts. | No native language-level module/package manifest exists (no built-in equivalent of Cargo.toml/go.mod); dependency declaration is left to third-party conventions (requirements.txt, pyproject.toml), a language-design gap distinct from ecosystem-level packaging maturity. | Dynamic, duck-typed imports and monkeypatching allow dependencies to alter behavior of unrelated modules at runtime, increasing latent complexity versus statically resolved module sys\u2026"
+        },
+        "component_levels": {
+          "dependency_declaration": 2,
+          "isolation_namespacing": 3,
+          "module_import_model": 3,
+          "resolution_determinism": 2,
+          "transitive_visibility": 2
+        },
+        "evidence_refs": [
+          "template/programs/python/micro",
+          "template/programs/python/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 78,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "507c347b112fd41e38423b63bb576195cffaf12d3a75f02db29b9cde1ccbd0b2",
+          "source_record": "benchmark/cache/v1/language-quality/python/9c2a1fc9909eeb79dd2698f9c0150a0f1d553c0f86f046231cbce5a1bf2de142.json",
+          "source_record_sha256": "f4e441d550d49075f0c624ab7c3d047b77814133c0a9b05cfe14d0e6ccc14aaf",
+          "source_result_sha256": "a06db05f812ef13e3a663a44907094cd24b66154545a8078f5f4fe1afdd17d23",
+          "source_run_id": "2026-09-22-56f2c65-gh3"
+        },
+        "rubric_id": "language-quality.dependency-simplicity.v1",
+        "runner_score_0_100": 60,
+        "selection_rule": "Judge language/module dependency semantics and intrinsic project dependency model. Registry size, package-manager maturity and community conventions belong to Ecosystem."
+      },
+      "metric.portability_design_platform_neutrality": {
+        "component_findings": {
+          "artifact_source_separation": "Recertified level 4 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Static language-level analysis of Python language/runtime design for platform neutrality, informed by inspection of sample programs in template/programs/python/micro. | CPython source code is designed to be platform-neutral: the same .py source runs unmodified on Linux, macOS, Windows and other POSIX/embedded targets given a matching interpreter, with no language-level requirement for platform-specific code. | The reference implementation (CPython) is itself a portable C program compiled per-platform; the language specification does not require any platform-specific ABI or ISA-dependent constructs in ordinary user code. | Standard library provides mostly cross-platform abstractions (os, pathlib, socket) that abstract over platform differences, with an explicit os.name / sys.platform escape hatch only needed for edge cases. | The observed micro benchmark programs (mb00.py-mb11.py) contain no platform-specific syscalls, file-path separators, or OS-conditional imports, consistent with idiomatic portable Python. | Python bytecode (.pyc) is not guaranteed stable/portable across CPython minor versions (unlike a defined bytecode ISA such as JVM class files), meaning binary artifact portability is weaker than source-level portability; this is a language/runtime design property, distinct from Ecosystem's realized supported-platform breadth. | No mandatory FFI/ABI dependency for ordinary\u2026",
+          "conditional_platform_mechanism": "Recertified level 2 under the current criterion: When platform-specific behavior is necessary, the language/project model exposes explicit, localized conditional mechanisms rather than implicit divergence. Evidence basis: Static language-level analysis of Python language/runtime design for platform neutrality, informed by inspection of sample programs in template/programs/python/micro. | CPython source code is designed to be platform-neutral: the same .py source runs unmodified on Linux, macOS, Windows and other POSIX/embedded targets given a matching interpreter, with no language-level requirement for platform-specific code. | The reference implementation (CPython) is itself a portable C program compiled per-platform; the language specification does not require any platform-specific ABI or ISA-dependent constructs in ordinary user code. | Standard library provides mostly cross-platform abstractions (os, pathlib, socket) that abstract over platform differences, with an explicit os.name / sys.platform escape hatch only needed for edge cases. | The observed micro benchmark programs (mb00.py-mb11.py) contain no platform-specific syscalls, file-path separators, or OS-conditional imports, consistent with idiomatic portable Python. | Python bytecode (.pyc) is not guaranteed stable/portable across CPython minor versions (unlike a defined bytecode ISA such as JVM class files), meaning binary artifact portability is weaker than source-level portability; this is a language/runtime design property, distinct from Ecosystem's realized supported-platform breadth. | No mandatory FFI/ABI dependency for ordinary\u2026",
+          "data_numeric_portability": "Recertified level 4 under the current criterion: Primitive data/numeric behavior needed for portable programs is sufficiently specified across targets, with implementation-defined behavior clearly bounded. Evidence basis: Static language-level analysis of Python language/runtime design for platform neutrality, informed by inspection of sample programs in template/programs/python/micro. | CPython source code is designed to be platform-neutral: the same .py source runs unmodified on Linux, macOS, Windows and other POSIX/embedded targets given a matching interpreter, with no language-level requirement for platform-specific code. | The reference implementation (CPython) is itself a portable C program compiled per-platform; the language specification does not require any platform-specific ABI or ISA-dependent constructs in ordinary user code. | Standard library provides mostly cross-platform abstractions (os, pathlib, socket) that abstract over platform differences, with an explicit os.name / sys.platform escape hatch only needed for edge cases. | The observed micro benchmark programs (mb00.py-mb11.py) contain no platform-specific syscalls, file-path separators, or OS-conditional imports, consistent with idiomatic portable Python. | Python bytecode (.pyc) is not guaranteed stable/portable across CPython minor versions (unlike a defined bytecode ISA such as JVM class files), meaning binary artifact portability is weaker than source-level portability; this is a language/runtime design property, distinct from Ecosystem's realized supported-platform breadth. | No mandatory FFI/ABI dependency for ordinary\u2026",
+          "platform_abstraction": "Recertified level 4 under the current criterion: Core/standard runtime interfaces provide portable abstractions for common OS/runtime needs with explicit platform escape hatches. Evidence basis: Static language-level analysis of Python language/runtime design for platform neutrality, informed by inspection of sample programs in template/programs/python/micro. | CPython source code is designed to be platform-neutral: the same .py source runs unmodified on Linux, macOS, Windows and other POSIX/embedded targets given a matching interpreter, with no language-level requirement for platform-specific code. | The reference implementation (CPython) is itself a portable C program compiled per-platform; the language specification does not require any platform-specific ABI or ISA-dependent constructs in ordinary user code. | Standard library provides mostly cross-platform abstractions (os, pathlib, socket) that abstract over platform differences, with an explicit os.name / sys.platform escape hatch only needed for edge cases. | The observed micro benchmark programs (mb00.py-mb11.py) contain no platform-specific syscalls, file-path separators, or OS-conditional imports, consistent with idiomatic portable Python. | Python bytecode (.pyc) is not guaranteed stable/portable across CPython minor versions (unlike a defined bytecode ISA such as JVM class files), meaning binary artifact portability is weaker than source-level portability; this is a language/runtime design property, distinct from Ecosystem's realized supported-platform breadth. | No mandatory FFI/ABI dependency for ordinary\u2026",
+          "specified_core_semantics": "Recertified level 4 under the current criterion: Core language semantics avoid unnecessary dependence on one OS/CPU/ABI and specify portable behavior for ordinary constructs. Evidence basis: Static language-level analysis of Python language/runtime design for platform neutrality, informed by inspection of sample programs in template/programs/python/micro. | CPython source code is designed to be platform-neutral: the same .py source runs unmodified on Linux, macOS, Windows and other POSIX/embedded targets given a matching interpreter, with no language-level requirement for platform-specific code. | The reference implementation (CPython) is itself a portable C program compiled per-platform; the language specification does not require any platform-specific ABI or ISA-dependent constructs in ordinary user code. | Standard library provides mostly cross-platform abstractions (os, pathlib, socket) that abstract over platform differences, with an explicit os.name / sys.platform escape hatch only needed for edge cases. | The observed micro benchmark programs (mb00.py-mb11.py) contain no platform-specific syscalls, file-path separators, or OS-conditional imports, consistent with idiomatic portable Python. | Python bytecode (.pyc) is not guaranteed stable/portable across CPython minor versions (unlike a defined bytecode ISA such as JVM class files), meaning binary artifact portability is weaker than source-level portability; this is a language/runtime design property, distinct from Ecosystem's realized supported-platform breadth. | No mandatory FFI/ABI dependency for ordinary\u2026"
+        },
+        "component_levels": {
+          "artifact_source_separation": 4,
+          "conditional_platform_mechanism": 2,
+          "data_numeric_portability": 4,
+          "platform_abstraction": 4,
+          "specified_core_semantics": 4
+        },
+        "evidence_refs": [
+          "template/programs/python/micro",
+          "template/programs/python/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 88,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "b4aea105fc74aafacbd18be20b70be862c9b8cb4aa8fa05d2c656e3cf8a5f7e4",
+          "source_record": "benchmark/cache/v1/language-quality/python/9c2a1fc9909eeb79dd2698f9c0150a0f1d553c0f86f046231cbce5a1bf2de142.json",
+          "source_record_sha256": "f4e441d550d49075f0c624ab7c3d047b77814133c0a9b05cfe14d0e6ccc14aaf",
+          "source_result_sha256": "a06db05f812ef13e3a663a44907094cd24b66154545a8078f5f4fe1afdd17d23",
+          "source_run_id": "2026-09-22-56f2c65-gh3"
+        },
+        "rubric_id": "language-quality.portability-design.v1",
+        "runner_score_0_100": 90,
+        "selection_rule": "Judge the language/runtime design for writing portable source. Actual number of currently implemented targets belongs to Ecosystem."
+      }
+    },
+    "requirements": {
+      "metric.dependency_simplicity": {
+        "Python": 60.0
+      },
+      "metric.portability_design_platform_neutrality": {
+        "Python": 90.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d9a85eec76daf2e3556ed8785665c4b1373a654c2412f6f6821bde204f38ff08",
+  "schema_version": 1
+}

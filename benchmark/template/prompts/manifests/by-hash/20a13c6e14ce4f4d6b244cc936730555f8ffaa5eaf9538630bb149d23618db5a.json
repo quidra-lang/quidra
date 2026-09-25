@@ -1,0 +1,102 @@
+{
+  "components": [
+    {
+      "bytes": 2837,
+      "kind": "task",
+      "sha256": "68d3cc211dbc50570f3e6d45427b648c1f0adf809de3f5e8158cca1d1d3a5a50"
+    },
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 25727,
+      "kind": "embedded:language_quality.md",
+      "sha256": "495340b54875ae0c4f6fe0a206a9ad6d38333b85ff7f13eeae92fda0a0c8e170"
+    },
+    {
+      "bytes": 5629,
+      "kind": "embedded:primary.json",
+      "sha256": "284da6969f5b5b07fe78932514432938e8064877be8c76809eb1446da15ad2da"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 217,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "6bbf0614f80241da379950d53b37258f03d819d435348eacfaf055946786b781"
+    },
+    {
+      "bytes": 187,
+      "kind": "task-input:template/programs/python/micro/mb00.py",
+      "sha256": "d4bac56ad618e8cff5f710b04188dc74cce82d1c4c6e8e48c21fb3963e0951f0"
+    },
+    {
+      "bytes": 1098,
+      "kind": "task-input:template/programs/python/micro/mb01.py",
+      "sha256": "52b1bfb021530288bcbc7bb0aa61cef0e8af696d44f3e8ec19145e344a911a69"
+    },
+    {
+      "bytes": 1454,
+      "kind": "task-input:template/programs/python/micro/mb02.py",
+      "sha256": "eae333c9aa8502407fc26b1bd0f6fba8727efd8d6c06971f55b5135e16c72c3f"
+    },
+    {
+      "bytes": 1414,
+      "kind": "task-input:template/programs/python/micro/mb03.py",
+      "sha256": "e6786b80f41c11415f7e2332c3843f506721919c95b3fbbb70b40de58abfb9a7"
+    },
+    {
+      "bytes": 2216,
+      "kind": "task-input:template/programs/python/micro/mb04.py",
+      "sha256": "ebd867fdddbd4973544c4cc89c0e29a9771bc6510aab5287b0e0f9361c01c966"
+    },
+    {
+      "bytes": 2005,
+      "kind": "task-input:template/programs/python/micro/mb05.py",
+      "sha256": "0c8da8adf26b71c69474ca2139a3b65ff138efa53c615a009586bd364422c143"
+    },
+    {
+      "bytes": 2244,
+      "kind": "task-input:template/programs/python/micro/mb06.py",
+      "sha256": "01dfe38faf4d4dfdf5fe95fc156dc3cc9279437f73c38b6799f65a5fb623776c"
+    },
+    {
+      "bytes": 3190,
+      "kind": "task-input:template/programs/python/micro/mb07.py",
+      "sha256": "31fe38435812ff03d79c9564cef45f1386a3fd4aebf15f57ef9509f043b4979c"
+    },
+    {
+      "bytes": 3640,
+      "kind": "task-input:template/programs/python/micro/mb08.py",
+      "sha256": "19bf5ba6f12d15aa08ad10c0b8cb39ef8959770e13b4542937d56bf7e50632f8"
+    },
+    {
+      "bytes": 3496,
+      "kind": "task-input:template/programs/python/micro/mb09.py",
+      "sha256": "124783757b076f0b77a68d80eb385d65be1186fcf69632030e42b1fc0a5faf2d"
+    },
+    {
+      "bytes": 2914,
+      "kind": "task-input:template/programs/python/micro/mb10.py",
+      "sha256": "b86bc9c8e40d0475512eaa908b8759fef0dcfa90dc4bda1fe61f948daa9e2f38"
+    },
+    {
+      "bytes": 2892,
+      "kind": "task-input:template/programs/python/micro/mb11.py",
+      "sha256": "5aceb11583d0f616e8f9923e5fc0fca304766a3a2433c8fe907194f75ce8ad28"
+    },
+    {
+      "bytes": 424,
+      "kind": "task-input:work/root/plans/reuse-audit-inputs/micro-python.json",
+      "sha256": "bd4156801c2dae9cd2580bf908bf2834a8fbf86639bec57112d4aa6279aa0720"
+    }
+  ],
+  "prompt_sha256": "20a13c6e14ce4f4d6b244cc936730555f8ffaa5eaf9538630bb149d23618db5a",
+  "rendered_bytes": 67586,
+  "schema_version": 1
+}

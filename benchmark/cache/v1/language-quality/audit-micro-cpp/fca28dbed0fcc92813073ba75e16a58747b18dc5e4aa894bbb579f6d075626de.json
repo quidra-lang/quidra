@@ -1,0 +1,113 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-reuse-audit-v1-projection",
+    "current_validator_revalidated": true,
+    "language_quality_reuse_audit_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "fca28dbed0fcc92813073ba75e16a58747b18dc5e4aa894bbb579f6d075626de",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "readable_input_content_hashes": {
+      "template/programs/cpp/micro": "76763990610389edc81c881c40ecd9c7731cdfa1dbf05153e9c79876407167e2"
+    },
+    "requirement_ids": [],
+    "result_kind": "audit",
+    "reuse_audit_for": [
+      "micro-cpp"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-reuse-audit-v1",
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "artifact_git_object": "58cbde2028b2f316257a6579bb4abb911534b3c6"
+    },
+    "work_unit_id": "audit-micro-cpp"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "A preserved paid Language Quality reusable-artifact currency audit judged the exact same frozen artifact Git object under the exact same current toolchain and runtime pins. Judge/provider and Task Packet transport changes do not alter that experiment; the current validator is rerun before promotion and no new provider call is claimed.",
+    "migration_rule": "language-quality-reuse-audit-v1-projection",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "4c83f1e5c365ecee1394c28af442ab7e7d9f19aeb276a4c8b8a07f6c87151b12",
+    "source_record": "v1/language-quality/audit-micro-cpp/4c83f1e5c365ecee1394c28af442ab7e7d9f19aeb276a4c8b8a07f6c87151b12.json",
+    "source_record_sha256": "8ed5437fd4ccfe1c5a59db818c4984993d44838569adcee13f66f03ed2f0fb1b",
+    "source_result_sha256": "83db4db7c2efb052979d5ced1d749197a13b942e4315601568f643b8f6d8341c",
+    "transformed_fields": [
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "190238575018f4810eb83948591c34b0ada7af164a3f6e73c636cc8aede36bcb",
+    "run_id": "cache-recertify-9f13d62",
+    "work_unit_id": "audit-micro-cpp"
+  },
+  "result": {
+    "audit_pass": true,
+    "evaluation": "language_quality",
+    "evidence": {
+      "artifact": "template/programs/cpp/micro (mb00.cpp .. mb11.cpp)",
+      "audit_scope": "Section 12 Micro Benchmarks reusable C++ comparison-language programs; checked for continued semantic validity under the current C++ toolchain/capability contract. No measurements were taken or reused; this is a source/harness currency review only.",
+      "conclusion": "The C++ micro-benchmark source/harness (mb00.cpp-mb11.cpp) remains semantically valid against the current C++ toolchain/capability contract (GCC and Clang releases current as of Sept 2026). No measurements were reused from prior runs; this audit is a static/documentary review only.",
+      "files_reviewed": [
+        "mb00.cpp",
+        "mb01.cpp",
+        "mb02.cpp",
+        "mb03.cpp",
+        "mb04.cpp",
+        "mb05.cpp",
+        "mb06.cpp",
+        "mb07.cpp",
+        "mb08.cpp",
+        "mb09.cpp",
+        "mb10.cpp",
+        "mb11.cpp"
+      ],
+      "language_level_findings": [
+        "All 12 files use only standard C++17 constructs (structured bindings in mb11.cpp, std::string_view and integer-overload std::from_chars in mb10.cpp, std::chrono::steady_clock, <charconv>). No C++20/23-only syntax is used.",
+        "Current mainstream toolchains still compile this code without modification: GCC 11 through GCC 15 default to -std=gnu++17, and GCC 16 defaults to C++20; Clang 16 and later default to the GNU++17 dialect. Both defaults, and any explicit -std=c++17/20/23 pin, compile every file unchanged.",
+        "No language feature used by these files was removed or altered in a source-breaking way between C++17 and C++20/23 (the C++20 removals/deprecations found in research -- volatile-qualified structured bindings, auto_ptr, register, comma-in-subscript -- do not appear in any mb0x.cpp file).",
+        "std::from_chars for integer types (the only from_chars usage present, in mb10.cpp) has been available in libstdc++ since GCC 8 and is standard in current libc++/libstdc++/MSVC STL; the floating-point from_chars gap that existed in older libstdc++/libc++ releases is not exercised by this code, so no fragility remains there.",
+        "The mb10.cpp buffered-I/O idiom (rdbuf()->pubsetbuf(buf, size) called before open()) matches the documented libstdc++ manual example pattern and is the portable, standard-conformant ordering; this technique remains valid across current standard library implementations.",
+        "All Lehmer/MINSTD LCG parameters (multiplier 48271, modulus 2147483647) and fixed seeds are byte-identical across mb01-mb11, preserving the frozen algorithm/input-data/workload-size contract required by Section 12 for cross-language comparability.",
+        "Every mb01-mb11 file implements the required 'once'/'steady' program-mode switch with a K-iteration steady loop, per-iteration ITER timing line with immediate flush, and a volatile anti-elimination sink/mutation, consistently applied across the whole family so no workload can be silently optimized away by the compiler.",
+        "mb00.cpp remains the minimal ordinary program (prints HELLO, exits 0) required as the MB-00 baseline for Runtime Overhead and Startup Latency measurement.",
+        "No GPU acceleration, hand-written SIMD, or externally optimized native library is used in any file, consistent with the Language Quality fairness rules for reusable comparison-language programs.",
+        "No unused-toolchain-only or platform-specific extensions were found; all files rely only on the ISO C++ standard library headers (<cstdio>, <chrono>, <vector>, <unordered_map>, <unordered_set>, <fstream>, <charconv>, <cmath>, <string>, <string_view>), which remain fully supported by current GCC/Clang/libstdc++/libc++."
+      ],
+      "residual_recommendations": [
+        "Pin an explicit -std=c++17 (or higher) flag in the build harness for reproducibility, even though current compiler defaults already satisfy the code's requirements, so a future compiler default change cannot silently alter behavior.",
+        "No source changes are required at this time; the artifact remains reusable as-is."
+      ]
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "83db4db7c2efb052979d5ced1d749197a13b942e4315601568f643b8f6d8341c",
+  "schema_version": 1
+}

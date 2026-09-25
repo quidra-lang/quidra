@@ -1,0 +1,223 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "current_validator_revalidated": true,
+    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+    "language_quality_snapshot_recertification_candidate": true,
+    "new_paid_provider_call": false,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "61ab3d0829f022dd863277a4d672ffaa3ab90cf0b4482425f6fbf6f355573a10",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "8bcc85219ea7fbfe549bfd7eb61cc5a3f8a75216e16e35d5f67ba506f8ff5545",
+    "language_quality_rubric_set_id": "language-quality-design-runner-rubric-v1",
+    "network_allowed": false,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality/design_rubrics.json": "8919eccdc1d6643f1409f0ebeb2413bfbd28769bd778c814f17bd4591bc95f70",
+      "template/programs/cpp/adversarial": "73217bc7fa600c7fc828119058c0a5b7be3aa9609d7d949e82a0c030d3b24847",
+      "template/programs/cpp/micro": "76763990610389edc81c881c40ecd9c7731cdfa1dbf05153e9c79876407167e2",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.dependency_simplicity",
+      "metric.portability_design_platform_neutrality"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "semantic_evidence_contract": "language-quality-design-rubric-v1",
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b51952dd4ddf0ccb28171f2a2805e5f1eb56ada80576ca6381ec57ae170694d6",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "work_unit_id": "lq-language-development--part-3--c",
+    "worker_mode": "sandbox-agent"
+  },
+  "migration": {
+    "current_mechanical_verification": "current-validator",
+    "current_validator": "PASS",
+    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
+    "migration_rule": "language-quality-design-rubric-v1-snapshot",
+    "migration_rule_version": 1,
+    "schema_version": 1,
+    "source_fingerprint": "8bab99aca95eef516b2b3826282aa873e4478ecd821db9dfc94863189761988c",
+    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
+    "source_record_sha256": "8bab99aca95eef516b2b3826282aa873e4478ecd821db9dfc94863189761988c",
+    "transformed_fields": [
+      "requirements",
+      "evidence",
+      "fingerprint",
+      "fingerprint_payload",
+      "provenance",
+      "certification"
+    ]
+  },
+  "provenance": {
+    "prompt_sha256": "8bcc85219ea7fbfe549bfd7eb61cc5a3f8a75216e16e35d5f67ba506f8ff5545",
+    "run_id": "cache-recertify-9f13d62",
+    "work_unit_id": "lq-language-development--part-3--c"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "language_quality_design_runner_scoring": {
+        "language": "C++",
+        "metrics": {
+          "metric.dependency_simplicity": {
+            "component_levels": {
+              "dependency_declaration": 1,
+              "isolation_namespacing": 2,
+              "module_import_model": 2,
+              "resolution_determinism": 1,
+              "transitive_visibility": 1
+            },
+            "evidence_refs": [
+              "template/programs/cpp/micro",
+              "template/programs/cpp/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.dependency-simplicity.v1",
+            "score_0_100": 35
+          },
+          "metric.portability_design_platform_neutrality": {
+            "component_levels": {
+              "artifact_source_separation": 2,
+              "conditional_platform_mechanism": 2,
+              "data_numeric_portability": 1,
+              "platform_abstraction": 3,
+              "specified_core_semantics": 2
+            },
+            "evidence_refs": [
+              "template/programs/cpp/micro",
+              "template/programs/cpp/adversarial",
+              "template/workloads",
+              "template/methodology-assets/language_quality/design_rubrics.json"
+            ],
+            "rubric_id": "language-quality.portability-design.v1",
+            "score_0_100": 50
+          }
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1"
+      },
+      "language_quality_snapshot_recertification": {
+        "new_paid_benchmark_provider_call": false,
+        "recertifier": {
+          "engine": "GPT-5.6 Sol",
+          "mode": "evidence-reprojection/current-rubric-adjudication",
+          "new_paid_benchmark_provider_call": false,
+          "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+        },
+        "rubric_set_id": "language-quality-design-runner-rubric-v1",
+        "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+        "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+      },
+      "metric.dependency_simplicity": {
+        "component_findings": {
+          "dependency_declaration": "Recertified level 1 under the current criterion: Direct dependencies can be declared explicitly at an appropriate project/module boundary rather than inferred from ambient state. Evidence basis: Static inspection of provided C++ micro (mb00-mb11) and adversarial (ADV-*) benchmark programs under template/programs/cpp/micro and template/programs/cpp/adversarial. | All inspected programs (e.g. mb01.cpp) depend only on the C++ standard library headers: <chrono>, <cstdint>, <cstdio>, <cstdlib>, <cstring>. | No third-party package manager (vcpkg, conan) or external native library dependency is referenced in any sampled source file. | C++'s dependency model is intrinsically simple for single-translation-unit workloads: no build-system manifest, lockfile, or package registry is mandatory to compile and run a program (a single 'c++ -O2 file.cpp -o out' suffices). | However, C++ has no standardized, built-in package/dependency manager as a language feature (unlike e.g. Cargo for Rust or Go modules); beyond header-only or single-file use, dependency management is delegated to external tooling (CMake + vcpkg/Conan/FetchContent), which is a language-design limitation rather than an ecosystem-maturity one because the language specification itself defines no module/dependency resolution mechanism (C++20 modules improve compilation units but not dependency acquisition). | Score reflects: very high simplicity for the actual workloads evaluated (zero external deps, trivial single-command build) offset by the intrinsic lack of a language-defined dependency/package mechanism, a durable la\u2026",
+          "isolation_namespacing": "Recertified level 2 under the current criterion: The language/project model provides clear namespace/version/isolation boundaries that reduce accidental coupling. Evidence basis: Static inspection of provided C++ micro (mb00-mb11) and adversarial (ADV-*) benchmark programs under template/programs/cpp/micro and template/programs/cpp/adversarial. | All inspected programs (e.g. mb01.cpp) depend only on the C++ standard library headers: <chrono>, <cstdint>, <cstdio>, <cstdlib>, <cstring>. | No third-party package manager (vcpkg, conan) or external native library dependency is referenced in any sampled source file. | C++'s dependency model is intrinsically simple for single-translation-unit workloads: no build-system manifest, lockfile, or package registry is mandatory to compile and run a program (a single 'c++ -O2 file.cpp -o out' suffices). | However, C++ has no standardized, built-in package/dependency manager as a language feature (unlike e.g. Cargo for Rust or Go modules); beyond header-only or single-file use, dependency management is delegated to external tooling (CMake + vcpkg/Conan/FetchContent), which is a language-design limitation rather than an ecosystem-maturity one because the language specification itself defines no module/dependency resolution mechanism (C++20 modules improve compilation units but not dependency acquisition). | Score reflects: very high simplicity for the actual workloads evaluated (zero external deps, trivial single-command build) offset by the intrinsic lack of a language-defined dependency/package mechanism, a durable la\u2026",
+          "module_import_model": "Recertified level 2 under the current criterion: Module/import semantics are small, explicit and predictable from source. Evidence basis: Static inspection of provided C++ micro (mb00-mb11) and adversarial (ADV-*) benchmark programs under template/programs/cpp/micro and template/programs/cpp/adversarial. | All inspected programs (e.g. mb01.cpp) depend only on the C++ standard library headers: <chrono>, <cstdint>, <cstdio>, <cstdlib>, <cstring>. | No third-party package manager (vcpkg, conan) or external native library dependency is referenced in any sampled source file. | C++'s dependency model is intrinsically simple for single-translation-unit workloads: no build-system manifest, lockfile, or package registry is mandatory to compile and run a program (a single 'c++ -O2 file.cpp -o out' suffices). | However, C++ has no standardized, built-in package/dependency manager as a language feature (unlike e.g. Cargo for Rust or Go modules); beyond header-only or single-file use, dependency management is delegated to external tooling (CMake + vcpkg/Conan/FetchContent), which is a language-design limitation rather than an ecosystem-maturity one because the language specification itself defines no module/dependency resolution mechanism (C++20 modules improve compilation units but not dependency acquisition). | Score reflects: very high simplicity for the actual workloads evaluated (zero external deps, trivial single-command build) offset by the intrinsic lack of a language-defined dependency/package mechanism, a durable la\u2026",
+          "resolution_determinism": "Recertified level 1 under the current criterion: Ordinary dependency/name resolution has deterministic, documented precedence with limited ambient search-path surprises. Evidence basis: Static inspection of provided C++ micro (mb00-mb11) and adversarial (ADV-*) benchmark programs under template/programs/cpp/micro and template/programs/cpp/adversarial. | All inspected programs (e.g. mb01.cpp) depend only on the C++ standard library headers: <chrono>, <cstdint>, <cstdio>, <cstdlib>, <cstring>. | No third-party package manager (vcpkg, conan) or external native library dependency is referenced in any sampled source file. | C++'s dependency model is intrinsically simple for single-translation-unit workloads: no build-system manifest, lockfile, or package registry is mandatory to compile and run a program (a single 'c++ -O2 file.cpp -o out' suffices). | However, C++ has no standardized, built-in package/dependency manager as a language feature (unlike e.g. Cargo for Rust or Go modules); beyond header-only or single-file use, dependency management is delegated to external tooling (CMake + vcpkg/Conan/FetchContent), which is a language-design limitation rather than an ecosystem-maturity one because the language specification itself defines no module/dependency resolution mechanism (C++20 modules improve compilation units but not dependency acquisition). | Score reflects: very high simplicity for the actual workloads evaluated (zero external deps, trivial single-command build) offset by the intrinsic lack of a language-defined dependency/package mechanism, a durable la\u2026",
+          "transitive_visibility": "Recertified level 1 under the current criterion: Transitive dependency visibility and import exposure are controlled and understandable rather than silently leaking arbitrary dependencies. Evidence basis: Static inspection of provided C++ micro (mb00-mb11) and adversarial (ADV-*) benchmark programs under template/programs/cpp/micro and template/programs/cpp/adversarial. | All inspected programs (e.g. mb01.cpp) depend only on the C++ standard library headers: <chrono>, <cstdint>, <cstdio>, <cstdlib>, <cstring>. | No third-party package manager (vcpkg, conan) or external native library dependency is referenced in any sampled source file. | C++'s dependency model is intrinsically simple for single-translation-unit workloads: no build-system manifest, lockfile, or package registry is mandatory to compile and run a program (a single 'c++ -O2 file.cpp -o out' suffices). | However, C++ has no standardized, built-in package/dependency manager as a language feature (unlike e.g. Cargo for Rust or Go modules); beyond header-only or single-file use, dependency management is delegated to external tooling (CMake + vcpkg/Conan/FetchContent), which is a language-design limitation rather than an ecosystem-maturity one because the language specification itself defines no module/dependency resolution mechanism (C++20 modules improve compilation units but not dependency acquisition). | Score reflects: very high simplicity for the actual workloads evaluated (zero external deps, trivial single-command build) offset by the intrinsic lack of a language-defined dependency/package mechanism, a durable la\u2026"
+        },
+        "component_levels": {
+          "dependency_declaration": 1,
+          "isolation_namespacing": 2,
+          "module_import_model": 2,
+          "resolution_determinism": 1,
+          "transitive_visibility": 1
+        },
+        "evidence_refs": [
+          "template/programs/cpp/micro",
+          "template/programs/cpp/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 78,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "4c72dee1ea8c9cea4d49dd0d35145c4afb68b5d9cd45c4088d90f0e6422870dd",
+          "source_record": "benchmark/cache/v1/language-quality/c/d563514cbaac56c663f1b691278902a797e779028dc289e98a21460243220d22.json",
+          "source_record_sha256": "5a7e404f3f91bab4bcc9124159925e0ea32ad51c24528340609f1076c254c18d",
+          "source_result_sha256": "3589fe250ae02f6ad79b00941cdd5636302c8abc7c12b86580ad04a0da887ffd",
+          "source_run_id": "2026-09-22-56f2c65-gh3"
+        },
+        "rubric_id": "language-quality.dependency-simplicity.v1",
+        "runner_score_0_100": 35,
+        "selection_rule": "Judge language/module dependency semantics and intrinsic project dependency model. Registry size, package-manager maturity and community conventions belong to Ecosystem."
+      },
+      "metric.portability_design_platform_neutrality": {
+        "component_findings": {
+          "artifact_source_separation": "Recertified level 2 under the current criterion: Source-level program meaning is not unnecessarily tied to a single compiler ABI, filesystem convention or host-specific build assumption. Evidence basis: Static inspection of standard headers and constructs used across sampled micro/adversarial C++ programs; review of ISO C++ language design properties relevant to platform neutrality. | Sampled programs use only ISO-standard headers (<chrono>, <cstdio>, <cstdlib>, <cstring>, <cstdint>) with no platform-specific APIs (no POSIX headers, no Windows.h, no inline assembly, no compiler builtins) in the inspected files. | C++ as a language is defined by an ISO standard implemented by multiple independent compilers (GCC, Clang, MSVC) across all major OS/architecture combinations, a strong intrinsic platform-neutrality property. | However, C++ has portability weaknesses baked into the language semantics itself: implementation-defined and undefined behavior for integer overflow, pointer arithmetic, type punning, struct layout/padding, and sizeof/endianness are not fully specified by the standard, so strictly-portable code requires more care than higher-level languages (Java, Go, Rust) require. | No OS-specific syscalls, filesystem path separators, or ABI-specific behavior were observed in the inspected workload sources, indicating the benchmark authors wrote genuinely platform-neutral C++ using only standard-library facilities. | The absence of a mandated stable ABI across compiler versions (a language design property, not a tooling one) further constrains binary-level portability, though\u2026",
+          "conditional_platform_mechanism": "Recertified level 2 under the current criterion: When platform-specific behavior is necessary, the language/project model exposes explicit, localized conditional mechanisms rather than implicit divergence. Evidence basis: Static inspection of standard headers and constructs used across sampled micro/adversarial C++ programs; review of ISO C++ language design properties relevant to platform neutrality. | Sampled programs use only ISO-standard headers (<chrono>, <cstdio>, <cstdlib>, <cstring>, <cstdint>) with no platform-specific APIs (no POSIX headers, no Windows.h, no inline assembly, no compiler builtins) in the inspected files. | C++ as a language is defined by an ISO standard implemented by multiple independent compilers (GCC, Clang, MSVC) across all major OS/architecture combinations, a strong intrinsic platform-neutrality property. | However, C++ has portability weaknesses baked into the language semantics itself: implementation-defined and undefined behavior for integer overflow, pointer arithmetic, type punning, struct layout/padding, and sizeof/endianness are not fully specified by the standard, so strictly-portable code requires more care than higher-level languages (Java, Go, Rust) require. | No OS-specific syscalls, filesystem path separators, or ABI-specific behavior were observed in the inspected workload sources, indicating the benchmark authors wrote genuinely platform-neutral C++ using only standard-library facilities. | The absence of a mandated stable ABI across compiler versions (a language design property, not a tooling one) further constrains binary-level portability, though\u2026",
+          "data_numeric_portability": "Recertified level 1 under the current criterion: Primitive data/numeric behavior needed for portable programs is sufficiently specified across targets, with implementation-defined behavior clearly bounded. Evidence basis: Static inspection of standard headers and constructs used across sampled micro/adversarial C++ programs; review of ISO C++ language design properties relevant to platform neutrality. | Sampled programs use only ISO-standard headers (<chrono>, <cstdio>, <cstdlib>, <cstring>, <cstdint>) with no platform-specific APIs (no POSIX headers, no Windows.h, no inline assembly, no compiler builtins) in the inspected files. | C++ as a language is defined by an ISO standard implemented by multiple independent compilers (GCC, Clang, MSVC) across all major OS/architecture combinations, a strong intrinsic platform-neutrality property. | However, C++ has portability weaknesses baked into the language semantics itself: implementation-defined and undefined behavior for integer overflow, pointer arithmetic, type punning, struct layout/padding, and sizeof/endianness are not fully specified by the standard, so strictly-portable code requires more care than higher-level languages (Java, Go, Rust) require. | No OS-specific syscalls, filesystem path separators, or ABI-specific behavior were observed in the inspected workload sources, indicating the benchmark authors wrote genuinely platform-neutral C++ using only standard-library facilities. | The absence of a mandated stable ABI across compiler versions (a language design property, not a tooling one) further constrains binary-level portability, though\u2026",
+          "platform_abstraction": "Recertified level 3 under the current criterion: Core/standard runtime interfaces provide portable abstractions for common OS/runtime needs with explicit platform escape hatches. Evidence basis: Static inspection of standard headers and constructs used across sampled micro/adversarial C++ programs; review of ISO C++ language design properties relevant to platform neutrality. | Sampled programs use only ISO-standard headers (<chrono>, <cstdio>, <cstdlib>, <cstring>, <cstdint>) with no platform-specific APIs (no POSIX headers, no Windows.h, no inline assembly, no compiler builtins) in the inspected files. | C++ as a language is defined by an ISO standard implemented by multiple independent compilers (GCC, Clang, MSVC) across all major OS/architecture combinations, a strong intrinsic platform-neutrality property. | However, C++ has portability weaknesses baked into the language semantics itself: implementation-defined and undefined behavior for integer overflow, pointer arithmetic, type punning, struct layout/padding, and sizeof/endianness are not fully specified by the standard, so strictly-portable code requires more care than higher-level languages (Java, Go, Rust) require. | No OS-specific syscalls, filesystem path separators, or ABI-specific behavior were observed in the inspected workload sources, indicating the benchmark authors wrote genuinely platform-neutral C++ using only standard-library facilities. | The absence of a mandated stable ABI across compiler versions (a language design property, not a tooling one) further constrains binary-level portability, though\u2026",
+          "specified_core_semantics": "Recertified level 2 under the current criterion: Core language semantics avoid unnecessary dependence on one OS/CPU/ABI and specify portable behavior for ordinary constructs. Evidence basis: Static inspection of standard headers and constructs used across sampled micro/adversarial C++ programs; review of ISO C++ language design properties relevant to platform neutrality. | Sampled programs use only ISO-standard headers (<chrono>, <cstdio>, <cstdlib>, <cstring>, <cstdint>) with no platform-specific APIs (no POSIX headers, no Windows.h, no inline assembly, no compiler builtins) in the inspected files. | C++ as a language is defined by an ISO standard implemented by multiple independent compilers (GCC, Clang, MSVC) across all major OS/architecture combinations, a strong intrinsic platform-neutrality property. | However, C++ has portability weaknesses baked into the language semantics itself: implementation-defined and undefined behavior for integer overflow, pointer arithmetic, type punning, struct layout/padding, and sizeof/endianness are not fully specified by the standard, so strictly-portable code requires more care than higher-level languages (Java, Go, Rust) require. | No OS-specific syscalls, filesystem path separators, or ABI-specific behavior were observed in the inspected workload sources, indicating the benchmark authors wrote genuinely platform-neutral C++ using only standard-library facilities. | The absence of a mandated stable ABI across compiler versions (a language design property, not a tooling one) further constrains binary-level portability, though\u2026"
+        },
+        "component_levels": {
+          "artifact_source_separation": 2,
+          "conditional_platform_mechanism": 2,
+          "data_numeric_portability": 1,
+          "platform_abstraction": 3,
+          "specified_core_semantics": 2
+        },
+        "evidence_refs": [
+          "template/programs/cpp/micro",
+          "template/programs/cpp/adversarial",
+          "template/workloads",
+          "template/methodology-assets/language_quality/design_rubrics.json"
+        ],
+        "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+        "recertification_provenance": {
+          "legacy_score_0_100": 72,
+          "legacy_score_used_for_component_levels": false,
+          "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+          "new_paid_provider_call": false,
+          "source_evidence_sha256": "c4a04d9b392fe153b54aaa9050647c3adc6ba7717c7eb044158490f2acee7cbd",
+          "source_record": "benchmark/cache/v1/language-quality/c/d563514cbaac56c663f1b691278902a797e779028dc289e98a21460243220d22.json",
+          "source_record_sha256": "5a7e404f3f91bab4bcc9124159925e0ea32ad51c24528340609f1076c254c18d",
+          "source_result_sha256": "3589fe250ae02f6ad79b00941cdd5636302c8abc7c12b86580ad04a0da887ffd",
+          "source_run_id": "2026-09-22-56f2c65-gh3"
+        },
+        "rubric_id": "language-quality.portability-design.v1",
+        "runner_score_0_100": 50,
+        "selection_rule": "Judge the language/runtime design for writing portable source. Actual number of currently implemented targets belongs to Ecosystem."
+      }
+    },
+    "requirements": {
+      "metric.dependency_simplicity": {
+        "C++": 35.0
+      },
+      "metric.portability_design_platform_neutrality": {
+        "C++": 50.0
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "6f6238287f1a7d5b7a9e93d670faced9d38719b5fd2a1c74fd14bf1622c80e85",
+  "schema_version": 1
+}

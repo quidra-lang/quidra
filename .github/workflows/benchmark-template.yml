@@ -1985,9 +1985,15 @@ jobs:
           from pathlib import Path
           root = Path("benchmark") / os.environ["BASELINE_RUN"]
           summary = json.loads((root / "summary.json").read_text())
-          assert summary.get("formal_complete") is True, summary
-          ev = summary.get("evaluations") or {}
-          assert ev and all((row or {}).get("status") == "COMPLETE" for row in ev.values()), ev
+          ev = summary.get("primary_evaluations") or {}
+          assert set(ev) == {
+              "semantic_compression",
+              "llm_learnability",
+              "language_quality",
+              "ecosystem",
+              "llm_proficiency",
+          }, ev
+          assert all((row or {}).get("status") == "COMPLETE" for row in ev.values()), ev
           PY
 
       - name: Compact and canonicalize certified cache

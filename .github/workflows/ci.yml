@@ -687,7 +687,7 @@ jobs:
           }, indent=2))
           PY
 
-      - name: Remove all one-shot machinery and amend candidate
+      - name: Remove non-workflow one-shot machinery and amend candidate
         run: |
           set -euo pipefail
           python benchmark/template/scripts/benchmark.py discard-workspace \
@@ -696,16 +696,10 @@ jobs:
           rm -f .github/scripts/rebind_semantic_metrics_once.py
           rm -f .github/scripts/canonicalize_benchmark_cache_once.py
           rm -f scripts/canonicalize_benchmark_cache_once.py
-          rm -f .github/workflows/benchmark-cleanup-once.yml
-          rm -f .github/workflows/benchmark-cache-canonicalize-once.yml
-          python - <<'PY'
-          from pathlib import Path
-          path = Path(".github/workflows/ci.yml")
-          text = path.read_text()
-          marker = "\n  # BEGIN BENCHMARK CLEANUP ONCE\n"
-          assert marker in text
-          path.write_text(text.split(marker, 1)[0].rstrip() + "\n")
-          PY
+          # Workflow files are intentionally left untouched here. The Actions
+          # token has contents:write but not workflows permission, so changing
+          # .github/workflows/* would make the otherwise verified push fail.
+          # They are removed separately only after this clean-room proof passes.
           git add -A
           git diff --cached --check
           git commit --amend --no-edit

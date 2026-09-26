@@ -112,8 +112,13 @@ def host_evidence_paths(workspace: Path, unit: dict) -> list[str]:
         raise SystemExit(f"{unit.get('id')}: no evidence paths to certify")
     return out
 
-def record_index(source: Path) -> dict[str, list[tuple[Path, dict]]]:
-    root = source / "benchmark/cache/v1"
+def record_index(cache_root: Path) -> dict[str, list[tuple[Path, dict]]]:
+    """Index the cache staged for the current scored run.
+
+    The sandbox keeps /quidra-benchmark/repo as evaluation source only; the
+    certified cache is a separate read-only /quidra-benchmark/cache mount.
+    """
+    root = cache_root / "v1"
     out: dict[str, list[tuple[Path, dict]]] = {}
     for path in sorted(root.rglob("*.json")):
         obj = load(path)
@@ -144,7 +149,7 @@ def stage(source: Path, workspace: Path, output: Path) -> None:
         str(unit.get("id")): unit
         for unit in (manifest.get("work_units") or [])
     }
-    index = record_index(source)
+    index = record_index(workspace / "cache")
     plan = []
 
     for uid in miss_ids:
@@ -241,7 +246,7 @@ def stage(source: Path, workspace: Path, output: Path) -> None:
         plan.append({
             "work_unit_id": uid,
             "old_path": old_path.relative_to(
-                source / "benchmark/cache"
+                workspace / "cache"
             ).as_posix(),
             "old_result_sha256": record["result_sha256"],
             "rebound_result_sha256": result_sha(rebound),

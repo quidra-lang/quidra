@@ -532,11 +532,123 @@ def project_version(source: Path) -> str | None:
     p = source / "project.toml"
     if not p.is_file():
         return None
-    text = p.read_text(encoding="utf-8")
-    project = re.search(r"(?ms)^\\[project\\]\\s*$\\n(.*?)(?=^\\[|\\Z)", text)
-    if project is None:
-        raise BenchmarkError("project.toml is missing [project]")
-    matches = re.findall(r'^version\\s*=\\s*"([^"]+)"\\s*
+    in_project = False
+    versions: list[str] = []
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith("[") and line.endswith("]"):
+            in_project = line == "[project]"
+            continue
+        if not in_project or not line.startswith("version"):
+            continue
+        key, sep, value = line.partition("=")
+        if sep and key.strip() == "version":
+            value = value.strip()
+            if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+                versions.append(value[1:-1])
+    if len(versions) != 1:
+        raise BenchmarkError("project.toml [project] must declare version exactly once")
+    return versions[0]
+
+
+def quidra_version_id(version: str) -> str:
+    allowed = set("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-+")
+    if not version or any(ch not in allowed for ch in version):
+        raise BenchmarkError(f"unsupported Quidra project version: {version!r}")
+    core = version.split("-", 1)[0].split("+", 1)[0]
+    parts = core.split(".")
+    if len(parts) != 3 or any(not part.isdigit() for part in parts):
+        raise BenchmarkError(f"Quidra project version must be SemVer-like: {version!r}")
+    return f"quidra_v{version}"
+
+
+def load_quidra_version_history_file(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {
+            "schema_version": 1,
+            "version_ssot": "project.toml:[project].version",
+            "versions": [],
+        }
+    data = json_load(path)
+    if data.get("schema_version") != 1:
+        raise BenchmarkError("unsupported Quidra version-history schema")
+    if data.get("version_ssot") != "project.toml:[project].version":
+        raise BenchmarkError("Quidra version history must name project.toml as its SSOT")
+    versions = data.get("versions")
+    if not isinstance(versions, list):
+        raise BenchmarkError("Quidra version history versions must be an array")
+    seen: set[str] = set()
+    for row in versions:
+        if not isinstance(row, dict):
+            raise BenchmarkError("Quidra version history entries must be objects")
+        version = str(row.get("version") or "")
+        language_id = str(row.get("language_id") or "")
+        if language_id != quidra_version_id(version):
+            raise BenchmarkError(f"Quidra version history id mismatch for {version!r}")
+        if version in seen:
+            raise BenchmarkError(f"duplicate Quidra version history entry: {version}")
+        seen.add(version)
+    return data
+
+
+def quidra_version_history(root: Path) -> dict[str, Any]:
+    return load_quidra_version_history_file(root / "version_history" / "index.json")
+
+
+def same_version_cache_payload_compatible(
+    current: dict[str, Any], cached: dict[str, Any], target: str = "Quidra"
+) -> bool:
+    """Reuse one immutable Quidra generation while benchmark conditions stay equal."""
+    current_assigned = list(current.get("assigned_languages") or [])
+    cached_assigned = list(cached.get("assigned_languages") or [])
+    if current_assigned != cached_assigned or target not in current_assigned:
+        return False
+    current_target = current.get("quidra_target") or {}
+    cached_target = cached.get("quidra_target") or {}
+    current_version = str(current_target.get("version") or "")
+    cached_version = str(cached_target.get("version") or "")
+    if not current_version or current_version != cached_version:
+        return False
+    ignored = {
+        "exact_task_packet_sha256",
+        "readable_input_content_hashes",
+        "quidra_target",
+    }
+    current_projection = {k: v for k, v in current.items() if k not in ignored}
+    cached_projection = {k: v for k, v in cached.items() if k not in ignored}
+    return current_projection == cached_projection
+
+
+def versioned_scores_from_history(
+    fixed_scores: dict[str, float],
+    evaluation: str,
+    current_version: str,
+    history: dict[str, Any],
+) -> tuple[dict[str, float], list[str]]:
+    """Replace the transient Quidra row with immutable quidra_vX.Y.Z generations."""
+    if "Quidra" not in fixed_scores:
+        raise BenchmarkError("fixed Primary scores are missing Quidra")
+    versions = list(history.get("versions") or [])
+    scores: dict[str, float] = {}
+    order: list[str] = []
+    current_id = quidra_version_id(current_version)
+    for row in versions:
+        score = (row.get("primary_scores") or {}).get(evaluation)
+        if not isinstance(score, (int, float)) or isinstance(score, bool):
+            continue
+        language_id = str(row["language_id"])
+        scores[language_id] = float(score)
+        order.append(language_id)
+    if current_id not in scores:
+        scores[current_id] = float(fixed_scores["Quidra"])
+        order.append(current_id)
+    for language, score in fixed_scores.items():
+        if language == "Quidra":
+            continue
+        scores[language] = float(score)
+        order.append(language)
+    return scores, order
+
 
 def validate_source_symlinks(source: Path) -> None:
     source_real = source.resolve()

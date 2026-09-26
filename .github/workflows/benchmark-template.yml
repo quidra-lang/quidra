@@ -1694,6 +1694,7 @@ jobs:
           {
             "schema_version": 1,
             "run_id": "synthetic-post-run",
+            "synthetic_ci": true,
             "workspace_root": "/quidra-benchmark",
             "evaluated": {"commit_sha": "deadbeef"}
           }

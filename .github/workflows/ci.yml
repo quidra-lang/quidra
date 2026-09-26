@@ -577,10 +577,18 @@ jobs:
             --provider fake \
             -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
 
-          python .github/scripts/rebind_semantic_metrics_once.py stage \
+          # Run the rebind inside the scored container so every manifest/task
+          # path remains under the canonical /quidra-benchmark root. Running
+          # ledger-update on the host would interpret canonical container paths
+          # as escapes from ./.quidra-benchmark.
+          python benchmark/template/scripts/sandbox_launcher.py run \
             --source-repo "$GITHUB_WORKSPACE" \
-            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
-            --output "$RUNNER_TEMP/post-cleanup-rebind-plan.json"
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/repo/.github/scripts/rebind_semantic_metrics_once.py stage \
+              --source-repo /quidra-benchmark/repo \
+              --workspace /quidra-benchmark \
+              --output /quidra-benchmark/results/post-cleanup-rebind-plan.json
 
           # Promote only validator-PASS COMPLETE results. No provider call is
           # made: metric requirements and annotations remain unchanged. Only
@@ -592,7 +600,7 @@ jobs:
 
           python .github/scripts/rebind_semantic_metrics_once.py prune \
             --source-repo "$GITHUB_WORKSPACE" \
-            --plan "$RUNNER_TEMP/post-cleanup-rebind-plan.json" \
+            --plan "$GITHUB_WORKSPACE/.quidra-benchmark/results/post-cleanup-rebind-plan.json" \
             --promotion "$RUNNER_TEMP/post-cleanup-promotion.json"
 
           python benchmark/template/scripts/benchmark.py discard-workspace \

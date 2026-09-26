@@ -402,7 +402,6 @@ jobs:
       - name: Package smoke
         run: cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist
 
-
   # BEGIN BENCHMARK CLEANUP ONCE
   benchmark-cleanup-once:
     name: benchmark-cleanup-once
@@ -425,15 +424,103 @@ jobs:
           echo "START_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           test ! -e benchmark/.run-production
 
-      - name: Build canonical cleanup candidate locally
+      - name: Reclaim runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Build exact pinned benchmark image
         run: |
           set -euo pipefail
-          python .github/scripts/benchmark_cleanup_once.py
+          python benchmark/template/runtime/check_pins.py
+          python benchmark/template/scripts/sandbox_launcher.py build-image \
+            --target toolchains --image "$BENCHMARK_IMAGE"
+          python benchmark/template/scripts/sandbox_launcher.py doctor \
+            --image "$BENCHMARK_IMAGE"
+
+      - name: Checkpoint every accepted compatibility hit at its current fingerprint
+        run: |
+          set -euo pipefail
+          rm -rf .quidra-benchmark
+
+          # This is the final use of the legacy compatibility layer. It does no
+          # provider inference: old certified evidence is transformed, passed
+          # through today's validators and completed at today's fingerprint.
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --sandbox-mode container \
+            --run-id canonical-current-key-checkpoint \
+            --provider anthropic-messages \
+            --model "$BENCHMARK_MODEL"
+
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          python - "$GITHUB_WORKSPACE/.quidra-benchmark/results/dispatch_queue.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          queue = json.loads(Path(sys.argv[1]).read_text())
+          tasks = queue.get("tasks") or []
+          assert not tasks, (
+              "compatibility checkpoint still requires agent/provider work: "
+              + ", ".join(str(row.get("work_unit_id")) for row in tasks[:20])
+          )
+          PY
+
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py finalize
+
+          python - "$GITHUB_WORKSPACE/.quidra-benchmark/results/finalization.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          result = json.loads(Path(sys.argv[1]).read_text())
+          assert result.get("formal_complete") is True, result
+          PY
+
+          # Promote the validator-accepted transformed results to ordinary exact
+          # current-key records before deleting any migration source or helper.
+          python benchmark/template/scripts/benchmark.py checkpoint-cache \
+            --source-repo "$GITHUB_WORKSPACE" \
+            > "$RUNNER_TEMP/canonical-promotion.json"
+          cat "$RUNNER_TEMP/canonical-promotion.json"
+
+          python - "$RUNNER_TEMP/canonical-promotion.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          promotion = json.loads(Path(sys.argv[1]).read_text())
+          records = promotion.get("records") or []
+          paths = {str(row.get("path") or "") for row in records}
+          assert len(records) == 687, len(records)
+          assert len(paths) == 687, len(paths)
+          assert promotion.get("skipped") in ([], None), promotion.get("skipped")
+          print(json.dumps({
+              "current_key_records": len(records),
+              "promoted": promotion.get("promoted"),
+              "upgraded": promotion.get("upgraded"),
+              "reused": promotion.get("reused"),
+          }, indent=2))
+          PY
+
+          rm -rf .quidra-benchmark
+
+      - name: Build canonical exact-key cleanup candidate locally
+        run: |
+          set -euo pipefail
+          CANONICAL_PROMOTION_JSON="$RUNNER_TEMP/canonical-promotion.json" \
+            python .github/scripts/benchmark_cleanup_once.py
           python -m py_compile \
             benchmark/template/scripts/benchmark.py \
             benchmark/template/scripts/production_run.py \
             benchmark/template/scripts/sandbox_launcher.py
           test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 687
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
@@ -462,29 +549,12 @@ jobs:
           import json, sys
           from pathlib import Path
           report = json.loads(Path(sys.argv[1]).read_text())
+          assert int(report.get("valid", 0) or 0) == 687, report
           assert not report.get("invalid"), report.get("invalid")
-          print(json.dumps({
-              "valid": report.get("valid"),
-              "invalid": len(report.get("invalid") or []),
-          }, indent=2))
+          assert not report.get("superseded"), report.get("superseded")
           PY
 
-      - name: Reclaim runner disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
-          df -h /
-
-      - name: Build exact pinned benchmark image
-        run: |
-          set -euo pipefail
-          python benchmark/template/runtime/check_pins.py
-          python benchmark/template/scripts/sandbox_launcher.py build-image \
-            --target toolchains --image "$BENCHMARK_IMAGE"
-          python benchmark/template/scripts/sandbox_launcher.py doctor \
-            --image "$BENCHMARK_IMAGE"
-
-      - name: Prove clean replay is zero paid and formally complete
+      - name: Prove exact-only clean replay is zero paid and formally complete
         run: |
           set -euo pipefail
           rm -rf .quidra-benchmark
@@ -511,7 +581,7 @@ jobs:
 
           python - "$RUNNER_TEMP/budget-plan.json" \
             "$GITHUB_WORKSPACE/.quidra-benchmark/results/cache_status.json" <<'PY'
-          import json, sys
+          import collections, json, sys
           from pathlib import Path
           plan = json.loads(Path(sys.argv[1]).read_text())
           cache = json.loads(Path(sys.argv[2]).read_text())
@@ -523,6 +593,13 @@ jobs:
               "recommended_budget_usd": float(plan.get("recommended_budget_usd", 0) or 0),
           }
           print(json.dumps(report, indent=2, sort_keys=True))
+          if cache.get("invalidated"):
+              reasons = collections.Counter(
+                  str(row.get("reason") or "")
+                  for row in cache["invalidated"].values()
+              )
+              print("invalidated reasons:")
+              print(json.dumps(reasons, indent=2, sort_keys=True))
           assert not plan.get("hard_blockers"), plan.get("hard_blockers")
           assert report["paid_calls_upper_bound"] == 0, report
           assert report["recommended_budget_usd"] == 0.0, report
@@ -586,3 +663,4 @@ jobs:
           test -z "$(git status --porcelain=v1)"
           git push origin HEAD:develop
   # END BENCHMARK CLEANUP ONCE
+

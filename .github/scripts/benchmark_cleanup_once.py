@@ -328,8 +328,6 @@ def delete_legacy_assets() -> None:
         CACHE / "recertification-report.json",
         CACHE / "proficiency-recertification-audit.json",
         ROOT / "benchmark/template/scripts/audit_proficiency_legacy.py",
-        ROOT / ".github/workflows/cache-recertify-once.yml",
-        ROOT / ".github/workflows/benchmark-paid-state-keepalive.yml",
     ]:
         if path.exists():
             path.unlink()

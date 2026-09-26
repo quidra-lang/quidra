@@ -2258,6 +2258,41 @@ def assert_same_version_quidra_is_removed_from_mechanical_execution() -> None:
         assert micro_source.count("execution_languages_with_archived_quidra(") >= 2
         assert "mm.execution_languages_with_archived_quidra(" in adversarial_source
 
+        # The Quidra pre-measurement audit is part of the same skip guarantee:
+        # an archived generation must not build or execute Quidra merely to
+        # unlock a mixed mechanical unit.
+        (root / "repo" / "project.toml").write_text(
+            f'[project]\nname = "Quidra"\nversion = "{current_version}"\nlanguage_version = "0.2"\n',
+            encoding="utf-8",
+        )
+        audit_unit = {
+            "id": "lq-quidra-audit",
+            "runner_action": "quidra-audit",
+        }
+        original_manifest_unit = micro_measure.manifest_unit
+        original_compiler = micro_measure.ensure_target_compiler
+        try:
+            micro_measure.manifest_unit = lambda _root, _id: audit_unit
+            micro_measure.ensure_target_compiler = lambda _root: (_ for _ in ()).throw(
+                AssertionError("same-version audit attempted to build Quidra")
+            )
+            assert micro_measure.audit(root, "lq-quidra-audit") == 0
+        finally:
+            micro_measure.manifest_unit = original_manifest_unit
+            micro_measure.ensure_target_compiler = original_compiler
+        audit_result = micro_measure.load_json(
+            root / "work/root/commands/lq-quidra-audit/result.json"
+        )
+        assert audit_result["requirements"]["gate.quidra_programs_current"] is True
+        assert audit_result["evidence"]["execution_skipped"] is True
+
+        # A new version has no archived generation, so audit must not short-circuit.
+        (root / "repo" / "project.toml").write_text(
+            '[project]\nname = "Quidra"\nversion = "999.0.0"\nlanguage_version = "0.2"\n',
+            encoding="utf-8",
+        )
+        assert micro_measure.archived_quidra_generation(root) is None
+
 
 def main() -> None:
     assert_same_version_quidra_is_removed_from_mechanical_execution()

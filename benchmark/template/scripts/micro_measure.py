@@ -666,10 +666,8 @@ def _project_version_ssot(root: Path) -> str:
     return versions[0]
 
 
-def archived_quidra_requirement_scores(
-    root: Path, requirement_ids: list[str],
-) -> dict[str, Any] | None:
-    """Return immutable same-version LQ scores, or None when fresh Quidra work is required."""
+def archived_quidra_generation(root: Path) -> dict[str, Any] | None:
+    """The immutable Quidra generation matching project.toml, if one was published."""
     history_path = root / "version_history" / "index.json"
     if not history_path.is_file():
         return None
@@ -689,6 +687,17 @@ def archived_quidra_requirement_scores(
     )
     if row is None:
         return None
+    return row
+
+
+def archived_quidra_requirement_scores(
+    root: Path, requirement_ids: list[str],
+) -> dict[str, Any] | None:
+    """Return immutable same-version LQ scores, or None when fresh Quidra work is required."""
+    row = archived_quidra_generation(root)
+    if row is None:
+        return None
+    version = _project_version_ssot(root)
     source = ((row.get("normalized_metric_scores") or {}).get("language_quality") or {})
     scores: dict[str, Any] = {}
     for requirement_id in requirement_ids:
@@ -828,6 +837,35 @@ def audit(root: Path, unit_id: str) -> int:
             "evidence": {"synthetic_ci": True},
         })
         print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
+        return 0
+
+    archived = archived_quidra_generation(root)
+    if archived is not None:
+        # project.toml [project].version is the target-generation SSOT. Once a
+        # generation has a formal archived result, repeating this audit would
+        # compile and execute Quidra again even though the user explicitly chose
+        # same-version immutability. Do not touch the compiler or target programs.
+        evidence = {
+            "quidra_version_reuse": {
+                "version": str(archived.get("version") or ""),
+                "language_id": str(archived.get("language_id") or ""),
+                "source_run_id": archived.get("source_run_id"),
+            },
+            "execution_skipped": True,
+            "reason": "same project.toml version already has an immutable benchmark generation",
+        }
+        dump_json(out_dir / "result.json", {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": {gate: True},
+            "evidence": evidence,
+        })
+        print(json.dumps({
+            "ok": True,
+            "unit_id": unit_id,
+            "quidra_version_reuse": evidence["quidra_version_reuse"],
+            "execution_skipped": True,
+        }, indent=2))
         return 0
 
     programs = quidra_program_root(root)

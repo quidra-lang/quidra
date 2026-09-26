@@ -202,11 +202,11 @@
         "Quidra": 96
       },
       "condition.i2_vocabulary_anonymization": {
-        "Quidra": 71
+        "Quidra": 57.33
       }
     },
     "schema_version": 1
   },
-  "result_sha256": "5554c5beefa3ae19ff1f05481f92a4bd9595f868c2c7d0b573914dd1a91e3ed1",
+  "result_sha256": "cb087369fd551ee490de832c3fa0a0a3081904fc7265a2d38fd6bf08f90497f3",
   "schema_version": 1
 }

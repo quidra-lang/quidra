@@ -953,7 +953,7 @@ Run `quidra` with no arguments from a terminal to start the native REPL. REPL su
 ```text
 $ quidra
 Quidra 0.3.0
->>> 1 + 2
+>>> int(1) + 2
 3
 >>> int x = 5
 >>> x

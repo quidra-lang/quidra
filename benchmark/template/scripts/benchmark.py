@@ -10520,6 +10520,58 @@ def apply_language_quality_design_runner_scores(
     }
 
 
+def validate_learnability_evidence_mean_consistency(
+    task: dict[str, Any], result: dict[str, Any]
+) -> None:
+    """Reject material disagreement between a Learnability evidence mean and score.
+
+    Historical workers sometimes rounded a reported mean to the nearest whole
+    point, so differences up to 0.5 are presentation-level. Larger differences
+    are inconsistent evidence and must fail closed instead of entering an
+    aggregate or certified cache.
+    """
+    if task.get("evaluation") != "llm_learnability":
+        return
+    assigned = list(task.get("assigned_languages", []) or [])
+    if len(assigned) != 1:
+        return
+    language = assigned[0]
+    evidence = result.get("evidence")
+    requirements = result.get("requirements")
+    if not isinstance(evidence, dict) or not isinstance(requirements, dict):
+        return
+
+    for rid in task.get("requirement_ids", []):
+        match = re.fullmatch(r"condition\.(i[1-6])_.+", str(rid))
+        if match is None:
+            continue
+        score_map = requirements.get(rid)
+        if not isinstance(score_map, dict):
+            continue
+        score = score_map.get(language)
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            continue
+
+        token = match.group(1).lower()
+        explicit_means: list[tuple[str, float]] = []
+        for key, payload in evidence.items():
+            if token not in str(key).lower() or not isinstance(payload, dict):
+                continue
+            mean = payload.get("mean")
+            if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+                continue
+            explicit_means.append((str(key), float(mean)))
+
+        if len(explicit_means) != 1:
+            continue
+        key, mean = explicit_means[0]
+        if abs(float(score) - mean) > 0.5000001:
+            raise BenchmarkError(
+                f"{rid}: {language}: reported requirement score {score} disagrees "
+                f"with evidence mean {mean} from {key}"
+            )
+
+
 def cmd_result_check(args: argparse.Namespace) -> int:
     root = workspace(args)
     agent_dir = require_under(root / "work" / "agents" / args.id, root)
@@ -10627,6 +10679,8 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                 )
             else:
                 raise BenchmarkError(f"unsupported requirement result type: {rid}")
+
+    validate_learnability_evidence_mean_consistency(task, result)
 
     if task.get("canonical_fragment_owner"):
         validate_canonical_fragment_owner_result(root, task, result)

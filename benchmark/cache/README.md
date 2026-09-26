@@ -11,6 +11,20 @@ The certified leaf cache is self-contained for ordinary reuse. Records normally 
 Quidra's compiler/runtime execution identity is retained for provenance and diagnostics, but it does not create a second result inside the same `project.toml [project].version` generation. Same-version Quidra implementation drift therefore reuses the immutable generation; benchmark-owned scientific dependencies remain independently validated.
 
 
+## Certified evidence correction
+
+The canonical run archive is retained as the historical record of what that run
+published. Its Quidra v0.3.0 Learnability I2 worker evidence contains seed scores
+62, 62 and 48 and explicitly reports their condition mean as 57.33, while the
+worker's requirement field incorrectly reported 71. The certified Quidra
+generation therefore uses 57.33 for I2 and 71.966 for the aggregate. This is a
+deterministic correction from already-preserved evidence and requires no model
+or paid API re-execution.
+
+Current result validation rejects a material (>0.5 point) disagreement between a
+Learnability condition's explicit evidence mean and its reported requirement
+score, while tolerating legacy whole-point presentation rounding.
+
 ## Versioned language generations
 
 The fixed scientific run still evaluates the same ten language names. Every

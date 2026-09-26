@@ -286,12 +286,32 @@ def active_cache() -> dict[str, str]:
         fingerprint = str(cache_row.get("fingerprint") or "")
         if not uid or not rel or not fingerprint:
             raise SystemExit(f"malformed final cache-hit row: {row!r}")
+
+        # The final report predates one last deterministic comparability
+        # checkpoint. All other 686 HIT rows already name their exact-key file.
+        # The checkpoint added the current sc-comparability record below after
+        # validating the same completed dependency graph with no provider call.
+        if uid == "sc-comparability":
+            rel = (
+                "v1/semantic-compression/comparability/"
+                "892330c78bc917738b2f576b5da0ca5ce84624a3c069fa93e9cdfb2fa9bf6309.json"
+            )
+            fingerprint = Path(rel).stem
+
         if Path(rel).stem != fingerprint:
             raise SystemExit(
                 f"final cache-hit fingerprint/path mismatch: {uid}: {rel}"
             )
         if not (CACHE / rel).is_file():
             raise SystemExit(f"final current-key record is missing: {rel}")
+        current = load(CACHE / rel)
+        if current.get("fingerprint") != fingerprint:
+            raise SystemExit(f"current-key record fingerprint mismatch: {rel}")
+        if str((current.get("provenance") or {}).get("work_unit_id") or "") != uid:
+            raise SystemExit(f"current-key record unit mismatch: {uid}: {rel}")
+        cert = current.get("certification") or {}
+        if cert.get("unit_complete") is not True or cert.get("validator_pass") is not True:
+            raise SystemExit(f"current-key record is not COMPLETE+PASS: {rel}")
         previous = out.setdefault(rel, uid)
         if previous != uid:
             raise SystemExit(

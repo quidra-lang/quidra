@@ -16837,6 +16837,41 @@ def current_normalized_metric_scores(
     return result
 
 
+def versioned_normalized_metric_scores(
+    current_metrics: dict[str, dict[str, float]],
+    evaluation: str,
+    current_version: str,
+    history: dict[str, Any],
+) -> dict[str, dict[str, float]]:
+    """Expand every normalized metric to nine baselines plus all Quidra generations."""
+    publication: dict[str, dict[str, float]] = {}
+    requirement_ids = set(current_metrics)
+    for row in history.get("versions", []):
+        requirement_ids.update(
+            ((row.get("normalized_metric_scores") or {}).get(evaluation) or {}).keys()
+        )
+    current_id = quidra_version_id(current_version)
+    for requirement_id in sorted(requirement_ids):
+        values: dict[str, float] = {}
+        current_values = current_metrics.get(requirement_id, {})
+        for language, score in current_values.items():
+            if language != "Quidra":
+                values[language] = float(score)
+        for row in history.get("versions", []):
+            score = (
+                ((row.get("normalized_metric_scores") or {}).get(evaluation) or {})
+                .get(requirement_id)
+            )
+            if isinstance(score, (int, float)) and not isinstance(score, bool):
+                values[str(row["language_id"])] = float(score)
+        if current_id not in values:
+            score = current_values.get("Quidra")
+            if isinstance(score, (int, float)) and not isinstance(score, bool):
+                values[current_id] = float(score)
+        publication[requirement_id] = values
+    return publication
+
+
 def versioned_publication(
     root: Path, evaluation: str, evaluation_result: dict[str, Any]
 ) -> dict[str, Any]:
@@ -16854,28 +16889,9 @@ def versioned_publication(
         history,
     )
     current_metrics = current_normalized_metric_scores(root, evaluation)
-    metric_publication: dict[str, dict[str, float]] = {}
-    all_requirement_ids = set(current_metrics)
-    for row in history.get("versions", []):
-        all_requirement_ids.update(
-            ((row.get("normalized_metric_scores") or {}).get(evaluation) or {}).keys()
-        )
-    for requirement_id in sorted(all_requirement_ids):
-        values: dict[str, float] = {}
-        current_values = current_metrics.get(requirement_id, {})
-        for language, score in current_values.items():
-            if language != "Quidra":
-                values[language] = float(score)
-        for row in history.get("versions", []):
-            score = (((row.get("normalized_metric_scores") or {}).get(evaluation) or {}).get(requirement_id))
-            if isinstance(score, (int, float)) and not isinstance(score, bool):
-                values[str(row["language_id"])] = float(score)
-        current_id = quidra_version_id(current_version)
-        if current_id not in values:
-            score = current_values.get("Quidra")
-            if isinstance(score, (int, float)) and not isinstance(score, bool):
-                values[current_id] = float(score)
-        metric_publication[requirement_id] = values
+    metric_publication = versioned_normalized_metric_scores(
+        current_metrics, evaluation, current_version, history
+    )
     return {
         "current_quidra_version": current_version,
         "current_quidra_id": quidra_version_id(current_version),

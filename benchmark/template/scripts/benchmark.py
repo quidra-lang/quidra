@@ -598,7 +598,12 @@ def quidra_version_history(root: Path) -> dict[str, Any]:
 def same_version_cache_payload_compatible(
     current: dict[str, Any], cached: dict[str, Any], target: str = "Quidra"
 ) -> bool:
-    """Reuse one immutable Quidra generation while benchmark conditions stay equal."""
+    """Reuse one immutable Quidra generation while benchmark conditions stay equal.
+
+    project.toml [project].version owns Quidra target source/docs identity.
+    Benchmark-owned rubrics, workloads, validators and other scientific inputs
+    remain dependencies and therefore cannot drift under a same-version hit.
+    """
     current_assigned = list(current.get("assigned_languages") or [])
     cached_assigned = list(cached.get("assigned_languages") or [])
     if current_assigned != cached_assigned or target not in current_assigned:
@@ -609,14 +614,25 @@ def same_version_cache_payload_compatible(
     cached_version = str(cached_target.get("version") or "")
     if not current_version or current_version != cached_version:
         return False
-    ignored = {
-        "exact_task_packet_sha256",
-        "readable_input_content_hashes",
-        "quidra_target",
-    }
-    current_projection = {k: v for k, v in current.items() if k not in ignored}
-    cached_projection = {k: v for k, v in cached.items() if k not in ignored}
-    return current_projection == cached_projection
+
+    def projected(payload: dict[str, Any]) -> dict[str, Any]:
+        value = json.loads(json.dumps(payload))
+        value.pop("exact_task_packet_sha256", None)
+        value["quidra_target"] = {"version": current_version}
+        readable = value.get("readable_input_content_hashes")
+        if isinstance(readable, dict):
+            value["readable_input_content_hashes"] = {
+                str(key): item
+                for key, item in readable.items()
+                if not str(key).startswith("repo/")
+            }
+        # The per-language Proficiency prompt set is generated from the target
+        # release corpus. The frozen trial/workload contracts remain in the key.
+        if current_assigned == [target]:
+            value.pop("proficiency_primary_prompt_set_sha256", None)
+        return value
+
+    return projected(current) == projected(cached)
 
 
 def versioned_scores_from_history(
@@ -625,28 +641,44 @@ def versioned_scores_from_history(
     current_version: str,
     history: dict[str, Any],
 ) -> tuple[dict[str, float], list[str]]:
-    """Replace the transient Quidra row with immutable quidra_vX.Y.Z generations."""
+    """Publish fixed nine peers plus an unbounded sequence of immutable Quidra versions.
+
+    The first archived Quidra generation occupies the original Quidra slot.
+    Every later generation is appended after the nine fixed peers, so the
+    publication grows 10, 11, 12, 13, ... without overwriting an older Quidra.
+    """
     if "Quidra" not in fixed_scores:
         raise BenchmarkError("fixed Primary scores are missing Quidra")
     versions = list(history.get("versions") or [])
-    scores: dict[str, float] = {}
-    order: list[str] = []
-    current_id = quidra_version_id(current_version)
+    archived: list[tuple[str, float]] = []
     for row in versions:
         score = (row.get("primary_scores") or {}).get(evaluation)
         if not isinstance(score, (int, float)) or isinstance(score, bool):
             continue
-        language_id = str(row["language_id"])
-        scores[language_id] = float(score)
-        order.append(language_id)
-    if current_id not in scores:
-        scores[current_id] = float(fixed_scores["Quidra"])
-        order.append(current_id)
+        archived.append((str(row["language_id"]), float(score)))
+
+    current_id = quidra_version_id(current_version)
+    if not any(language_id == current_id for language_id, _ in archived):
+        archived.append((current_id, float(fixed_scores["Quidra"])))
+
+    scores: dict[str, float] = {}
+    order: list[str] = []
+    if archived:
+        first_id, first_score = archived[0]
+        scores[first_id] = first_score
+        order.append(first_id)
+
     for language, score in fixed_scores.items():
         if language == "Quidra":
             continue
         scores[language] = float(score)
         order.append(language)
+
+    for language_id, score in archived[1:]:
+        if language_id in scores:
+            continue
+        scores[language_id] = score
+        order.append(language_id)
     return scores, order
 
 
@@ -7905,6 +7937,14 @@ def hydrate_certified_cache(
         if check_rc != 0:
             result_path.unlink(missing_ok=True)
             receipt_path.unlink(missing_ok=True)
+            if reuse_mode == "quidra_same_version":
+                version = str((payload.get("quidra_target") or {}).get("version") or "")
+                raise BenchmarkError(
+                    f"{uid}: cached Quidra {version} failed the current free validator"
+                    + (f": {validation_problem}" if validation_problem else "")
+                    + "; refusing a paid rerun for the same project.toml version. "
+                    "Bump [project].version for a benchmark-visible Quidra change."
+                )
             record_miss(
                 uid, fingerprint, unit,
                 "certified record rejected by current validator"

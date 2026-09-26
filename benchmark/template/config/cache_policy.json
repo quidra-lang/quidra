@@ -33,7 +33,7 @@
     "network_policy",
     "runtime_toolchain_pins_for_assigned_languages",
     "cache_epoch",
-    "quidra_target_versions_when_assigned",
+    "quidra_project_version_when_assigned (project.toml [project].version SSOT)",
     "runner_action_and_measurement_script_hashes_for_mechanical_units",
     "proficiency_workload_contract_sha256_for_llm_proficiency"
   ],
@@ -44,7 +44,7 @@
     "host workspace path"
   ],
   "non_dependency_note": "run_id, workflow identity, branch name, and host paths must never invalidate paid scientific evidence by themselves. Work-unit identity is currently part of the exact cache contract because the rendered Task Packet and validator ownership are unit-scoped; renaming/repartitioning a leaf therefore requires an explicit compatibility migration rather than silent reuse. Exact prompt/task content, assigned requirements, readable input hashes, model identity, toolchain identity, validators and declared epochs remain dependencies. For Language Quality intrinsic design shards, judge provider/model/sampling are intentionally non-dependencies because the experiment is the fixed rubric applied to language evidence, not a model-behavior trial. Language Quality reuse audits additionally treat judge/provider, prompt serialization, worker transport and network permission as non-dependencies; exact artifact content, exact current toolchain/pins and the audit semantic contract remain dependencies.",
-  "policy": "Reuse only exact current-fingerprint COMPLETE+PASS records. The canonical baseline is 2026-09-25-5dc8989-gh25; every retained record was accepted by the current validator during that formal all-five-Primary COMPLETE run. Hydration never searches historical records, snapshots, compatibility migrations or recertification sources.",
+  "policy": "Reuse exact current-fingerprint COMPLETE+PASS records, plus the narrow same-project-version Quidra compatibility rule. Quidra target source/docs drift does not create another result while project.toml [project].version is unchanged; benchmark-owned rubrics/workloads/config, model/sampling, toolchains, epochs and workload contracts remain dependencies. The current validator is always rerun for free before a same-version hit is accepted.",
   "promotion": {
     "checkpoint_completed_units": true,
     "paid_partial_store": "Private content-addressed Actions artifact (quidra-benchmark-paid-state) with Actions cache as a speed mirror; exact-fingerprint import only; hidden prompts/trials are never committed to public Git.",
@@ -70,7 +70,7 @@
       "include",
       "docs/spec/grammar.ebnf"
     ],
-    "purpose": "Prevent stale same-version Quidra cache reuse. Every current Quidra record carries this exact execution identity."
+    "purpose": "Provenance/audit identity. It does not invalidate a Quidra result inside the same project.toml [project].version generation."
   },
   "reuse_conditions": {
     "evaluation_scoped_primary_config": "Primary Task Packets and cache keys include shared Primary policy plus only the current evaluation local section. There is no historical projection fallback.",
@@ -79,9 +79,10 @@
       "mode": "runtime-owned-scored-prompt-identity",
       "reason": "For LLM Proficiency, the outer sandbox Task Packet is orchestration/transport rather than the scored model input. Certified-cache identity therefore ignores exact outer packet serialization and is anchored instead to the exact frozen Primary trial IDs, per-language runtime-owned scored prompt set, hidden-oracle workload contract, evaluation-scoped Primary/methodology/requirements, model/provider/sampling, language/toolchain identity, readable scientific inputs and current validation. JSON/TXT or equivalent wrapper-only changes do not repurchase the same scored experiment; any change to a scored prompt or contract does."
     },
-    "quidra_execution_identity": "Every retained Quidra record carries an explicit trusted compiler/runtime execution identity. Reuse requires exact equality with the evaluated snapshot.",
+    "quidra_execution_identity": "Recorded for provenance and diagnostics. Same-version Quidra reuse is governed by project.toml [project].version and does not require execution-identity equality.",
     "same_result_metadata_refresh": "When reuse is rejected and a unit is freshly remeasured, identical result bytes do not preserve stale compatibility/certification metadata. The current trust metadata replaces the old record so changed Quidra execution identity or stronger certification cannot create a permanent MISS loop.",
-    "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated."
+    "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated.",
+    "quidra_project_version": "project.toml [project].version is the sole Quidra benchmark generation identity. The first certified result for quidra_v<version> is immutable. Same-version target source/docs drift reuses that generation and reruns the current validator for free; validator failure stops the run and requires a version bump rather than a paid rerun."
   },
   "schema_version": 1,
   "target_language": "Quidra"

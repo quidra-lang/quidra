@@ -314,6 +314,8 @@ jobs:
           )
           assert len(new_scores) == 11
           assert {"quidra_v0.3.0", "quidra_v0.4.0"} <= set(new_scores)
+          assert new_order[0] == "quidra_v0.3.0", new_order
+          assert new_order[-1] == "quidra_v0.4.0", new_order
 
           history_two = json.loads(json.dumps(history))
           history_two["versions"].append({
@@ -329,7 +331,31 @@ jobs:
           )
           assert len(third_scores) == 12
           assert {"quidra_v0.3.0", "quidra_v0.4.0", "quidra_v0.5.0"} <= set(third_scores)
+          assert third_order[0] == "quidra_v0.3.0", third_order
+          assert third_order[-1] == "quidra_v0.5.0", third_order
           assert len(module.deterministic_ranking(third_scores, third_order)) == 12
+
+          # No 11/12 special case: generations can grow without a fixed upper bound.
+          many = json.loads(json.dumps(history))
+          for minor in range(4, 24):
+              version = f"0.{minor}.0"
+              many["versions"].append({
+                  "version": version,
+                  "language_id": f"quidra_v{version}",
+                  "source_run_id": f"synthetic-{version}",
+                  "source_commit_sha": "0" * 40,
+                  "primary_scores": {"semantic_compression": 70.0 + minor / 100.0},
+                  "normalized_metric_scores": {},
+              })
+          many_scores, many_order = module.versioned_scores_from_history(
+              fixed, "semantic_compression", "0.24.0", many
+          )
+          # 9 fixed peers + v0.3.0 + v0.4.0..v0.24.0 = 31 rows.
+          assert len(many_scores) == 31, len(many_scores)
+          assert len(many_order) == 31, len(many_order)
+          assert many_order[0] == "quidra_v0.3.0", many_order
+          assert many_order[-1] == "quidra_v0.24.0", many_order
+          assert len(module.deterministic_ranking(many_scores, many_order)) == 31
 
           # The publication layer must not cap Quidra generations at 11/12 rows.
           # Exercise many historical versions so future releases keep appending
@@ -391,6 +417,24 @@ jobs:
           changed_model = json.loads(json.dumps(changed_impl))
           changed_model["model"] = "different-model"
           assert not module.same_version_cache_payload_compatible(changed_model, payload)
+
+          template_bound = json.loads(json.dumps(payload))
+          template_bound["readable_input_content_hashes"] = {
+              "repo/docs": "old",
+              "template/methodology-assets/rubric.json": "rubric-a",
+          }
+          target_only_drift = json.loads(json.dumps(template_bound))
+          target_only_drift["readable_input_content_hashes"]["repo/docs"] = "new"
+          assert module.same_version_cache_payload_compatible(
+              target_only_drift, template_bound
+          )
+          benchmark_drift = json.loads(json.dumps(target_only_drift))
+          benchmark_drift["readable_input_content_hashes"][
+              "template/methodology-assets/rubric.json"
+          ] = "rubric-b"
+          assert not module.same_version_cache_payload_compatible(
+              benchmark_drift, template_bound
+          )
 
           root = Path("benchmark/template")
           required = [

@@ -711,7 +711,7 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     fingerprint, payload = pair
     assert set(payload["toolchains"]) == set(languages) - {"Quidra"}, payload["toolchains"]
     assert payload["quidra_target"] == {"version": "0.3.0", "language_version": "0.2"}
-    assert set(payload["measurement_script_hashes"]) == {"micro_measure.py", "adversarial_measure.py"}
+    assert set(payload["measurement_script_hashes"]) == {"micro_measure.py"}
     assert payload["provider"] is None and payload["model"] is None
     assert payload["result_kind"] == "mechanical" and payload["cache_epoch"] == "2026-09"
     assert "repo/tests/benchmark/quidra" in payload["readable_input_content_hashes"]

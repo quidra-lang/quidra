@@ -679,7 +679,7 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     programs.mkdir(parents=True, exist_ok=True)
     (programs / "mb00.qui").write_text("print(1)\n", encoding="utf-8")
     (root / "repo" / "project.toml").write_text(
-        'name = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n', encoding="utf-8"
+        '[project]\nname = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n', encoding="utf-8"
     )
     result_path = root / "work" / "root" / "commands" / "lq-micro-mechanical" / "result.json"
     unit = {
@@ -779,6 +779,55 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     assert (result_path.parent / "cache_receipt.json").is_file()
     status = benchmark.json_load(root / "results/cache_status.json")
     assert unit["id"] in status["hits"] and unit["id"] not in status["misses"]
+
+    # Same declared Quidra version is an immutable generation. Even when its
+    # implementation/readable source changes and therefore the exact cache key
+    # changes, the archived generation must hydrate instead of being measured
+    # again. This is the concrete "same version => skip Quidra" contract.
+    (root / "version_history").mkdir(parents=True, exist_ok=True)
+    benchmark.json_dump(
+        root / "version_history" / "index.json",
+        {
+            "schema_version": 1,
+            "version_ssot": "project.toml:[project].version",
+            "versions": [{
+                "version": "0.3.0",
+                "language_id": "quidra_v0.3.0",
+                "source_run_id": "synthetic-seed",
+                "source_commit_sha": "0" * 40,
+                "primary_scores": {},
+                "normalized_metric_scores": {},
+            }],
+        },
+    )
+    (programs / "mb00.qui").write_text("print(2)\n", encoding="utf-8")
+    changed_same_version = benchmark.cache_fingerprint(root, unit, task)
+    assert changed_same_version is not None
+    assert changed_same_version[0] != fingerprint
+    shutil.rmtree(result_path.parent)
+    freeze_manifest(root, unit)
+    assert benchmark.hydrate_certified_cache(root, "language_quality") == 1
+    same_receipt = benchmark.json_load(result_path.parent / "cache_receipt.json")
+    assert same_receipt["reuse_mode"] == "quidra_same_version", same_receipt
+    same_status = benchmark.json_load(root / "results/cache_status.json")
+    assert same_status["hits"][unit["id"]]["reuse_mode"] == "quidra_same_version"
+
+    # A bumped project.toml version is a new generation and must not use the
+    # same-version fallback. It remains PENDING for a fresh measurement.
+    (root / "repo" / "project.toml").write_text(
+        '[project]\nname = "Quidra"\nversion = "0.4.0"\nlanguage_version = "0.2"\n',
+        encoding="utf-8",
+    )
+    shutil.rmtree(result_path.parent)
+    freeze_manifest(root, unit)
+    assert benchmark.hydrate_certified_cache(root, "language_quality") == 0
+    bumped_ledger = benchmark.json_load(root / "work/root/ledger.json")
+    assert bumped_ledger["units"][unit["id"]]["status"] == "PENDING"
+    (root / "repo" / "project.toml").write_text(
+        '[project]\nname = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n',
+        encoding="utf-8",
+    )
+    (programs / "mb00.qui").write_text("print(1)\n", encoding="utf-8")
 
     # A changed Quidra program or measurement script re-keys the measurement.
     (programs / "mb00.qui").write_text("print(2)\n", encoding="utf-8")

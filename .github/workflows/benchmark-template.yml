@@ -144,7 +144,7 @@ jobs:
           readme = File.read("benchmark/README.md").gsub(/\s+/, " ")
           order = "Semantic Compression → LLM Learnability → Language Quality → Ecosystem → LLM Proficiency"
           raise "README five-Primary order drifted from workflow" unless readme.include?(order)
-          raise "README reconciliation drops versioned Quidra cache" unless readme.include?("quidra_vX.Y.Z")
+          raise "README reconciliation drops versioned language cache" unless readme.include?("<language>_v<version>")
           RUBY
 
       - name: Versioned language generation contract

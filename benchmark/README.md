@@ -241,7 +241,7 @@ rm -f "$tmp"
 ~~~
 
 This preserves current **develop** source/template changes, imports only reusable
-cache/prompts, immutable Quidra generations stored as `cache/v1/<evaluation>/quidra_vX.Y.Z/`, and a publishable
+cache/prompts, immutable language generations stored as `cache/v1/<evaluation>/<language>_v<version>/`, and a publishable
 dated result, and deliberately excludes the request marker. If the selective import conflicts semantically with newer cache
 or prompt material on **develop**, resolve that deliberately before pushing.
 

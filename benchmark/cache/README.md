@@ -6,12 +6,12 @@ This directory contains the current certified measurement cache.
 
 2026-09-25-5dc8989-gh25 is the canonical baseline. It completed all five Primary evaluations. Every record retained under v1 was either hydrated and accepted by the current validator in that run or newly certified by that run.
 
-The cache is self-contained. Reuse does not require an older run directory, historical cache record, migration snapshot, recertification report, or preserved source record. A record is reused only at its exact current fingerprint, and the stored result is still passed through the current validator before the unit becomes COMPLETE.
+The certified leaf cache is self-contained for ordinary reuse. Records normally hydrate at their exact current fingerprint and are passed through the current validator before the unit becomes COMPLETE. Narrow generation-preserving migrations exist only where the repository carries an explicit certified bridge, such as the one-time Language Quality raw-shard migration.
 
-Records measuring Quidra additionally require an explicit trusted compiler/runtime execution identity. If benchmark inputs change, only records whose exact current fingerprint or Quidra execution identity changes are remeasured. There is no compatibility-migration fallback.
+Quidra's compiler/runtime execution identity is retained for provenance and diagnostics, but it does not create a second result inside the same `project.toml [project].version` generation. Same-version Quidra implementation drift therefore reuses the immutable generation; benchmark-owned scientific dependencies remain independently validated.
 
 
-## Versioned Quidra generations
+## Versioned language generations
 
 The fixed scientific run still evaluates the same ten language names. Every
 single-language cache leaf is stored under an immutable versioned generation,
@@ -24,3 +24,14 @@ A version bump creates a new generation and leaves every older generation
 intact. Only shards assigned to the changed language become cold. Rubrics,
 prompts, validators, workloads, model/sampling identity and toolchain
 fingerprints remain independent scientific cache dependencies.
+
+## Historical normalization raw
+
+Publication keeps the scientific measurement cohort fixed at the ten current
+languages, but retains older language generations for comparison. Language
+Quality Family-C metrics and Semantic Compression min-max metrics are therefore
+re-normalized from immutable raw values across all published generations before
+Primary scores and rankings are recomputed. The baseline raw-seed files under
+`v1/language-quality` and `v1/semantic-compression` are migration-only bridges
+for the canonical run that predates direct raw preservation; newly created
+generations store their normalization raw with the generation itself.

@@ -884,7 +884,8 @@
           "max_output_tokens_per_call": 16384,
           "split_by_language": true,
           "llm_budget_formula": "learnability_conditions",
-          "worker_mode": "sandbox-agent"
+          "worker_mode": "sandbox-agent",
+          "goal": "undefined Preserve one runner-scoring record per Primary trial under evidence.learnability_runner_input[condition_id].trials[], with trial_id and metric_scores containing exactly the 12 frozen Learnability condition metrics. Do not calculate or choose the condition mean; the trusted runner owns all condition and Primary aggregation arithmetic."
         },
         {
           "id": "learnability-i3-i4",
@@ -909,7 +910,8 @@
           "max_output_tokens_per_call": 16384,
           "split_by_language": true,
           "llm_budget_formula": "learnability_conditions",
-          "worker_mode": "sandbox-agent"
+          "worker_mode": "sandbox-agent",
+          "goal": "undefined Preserve one runner-scoring record per Primary trial under evidence.learnability_runner_input[condition_id].trials[], with trial_id and metric_scores containing exactly the 12 frozen Learnability condition metrics. Do not calculate or choose the condition mean; the trusted runner owns all condition and Primary aggregation arithmetic."
         },
         {
           "id": "learnability-i5-i6",
@@ -934,7 +936,8 @@
           "max_output_tokens_per_call": 16384,
           "split_by_language": true,
           "llm_budget_formula": "learnability_conditions",
-          "worker_mode": "sandbox-agent"
+          "worker_mode": "sandbox-agent",
+          "goal": "undefined Preserve one runner-scoring record per Primary trial under evidence.learnability_runner_input[condition_id].trials[], with trial_id and metric_scores containing exactly the 12 frozen Learnability condition metrics. Do not calculate or choose the condition mean; the trusted runner owns all condition and Primary aggregation arithmetic."
         },
         {
           "id": "learnability-integrity",

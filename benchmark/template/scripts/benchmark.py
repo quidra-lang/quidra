@@ -10520,56 +10520,134 @@ def apply_language_quality_design_runner_scores(
     }
 
 
-def validate_learnability_evidence_mean_consistency(
-    task: dict[str, Any], result: dict[str, Any]
-) -> None:
-    """Reject material disagreement between a Learnability evidence mean and score.
+LEARNABILITY_CONDITION_METRIC_WEIGHTS: dict[str, float] = {
+    "compile_parse_success": 0.07,
+    "correct_at_1": 0.18,
+    "correct_at_n": 0.08,
+    "test_pass_rate": 0.15,
+    "repair_success": 0.08,
+    "repair_efficiency": 0.06,
+    "specification_compliance": 0.10,
+    "hallucination_resistance": 0.08,
+    "silent_bug_resistance": 0.10,
+    "unseen_case_generalization": 0.07,
+    "source_token_efficiency": 0.01,
+    "total_token_efficiency": 0.02,
+}
 
-    Historical workers sometimes rounded a reported mean to the nearest whole
-    point, so differences up to 0.5 are presentation-level. Larger differences
-    are inconsistent evidence and must fail closed instead of entering an
-    aggregate or certified cache.
-    """
+LEARNABILITY_PRIMARY_COUNT_KEYS: dict[str, str] = {
+    "condition.i1_keyword_anonymization": "keyword_anonymization_seeds",
+    "condition.i2_vocabulary_anonymization": "vocabulary_anonymization_seeds",
+    "condition.i3_structural_surface_perturbation": "structural_surface_transformation_sets",
+    "condition.i4_novel_rule_generalization": "novel_rule_generalization_trials_per_language",
+    "condition.i5_held_out_rule_composition": "held_out_rule_composition_trials_per_language",
+    "condition.i6_prior_conflict_resistance": "prior_conflict_resistance_trials_per_language",
+}
+
+
+def apply_learnability_runner_scores(
+    root: Path, task: dict[str, Any], result: dict[str, Any]
+) -> None:
+    """Own all Learnability condition arithmetic in the trusted runner."""
     if task.get("evaluation") != "llm_learnability":
         return
-    assigned = list(task.get("assigned_languages", []) or [])
+    assigned = list(task.get("assigned_languages") or [])
     if len(assigned) != 1:
         return
-    language = assigned[0]
+    language = str(assigned[0])
     evidence = result.get("evidence")
+    if not isinstance(evidence, dict):
+        raise BenchmarkError("Learnability result requires evidence object")
+    runner_input = evidence.get("learnability_runner_input")
+    if not isinstance(runner_input, dict):
+        raise BenchmarkError(
+            "Learnability result requires evidence.learnability_runner_input"
+        )
+    primary = json_load(root / "template" / "config" / "primary.json")[
+        "llm_learnability"
+    ]
     requirements = result.get("requirements")
-    if not isinstance(evidence, dict) or not isinstance(requirements, dict):
-        return
+    if requirements is None:
+        requirements = {}
+    if not isinstance(requirements, dict):
+        raise BenchmarkError("Learnability result requirements must be an object")
 
-    for rid in task.get("requirement_ids", []):
-        match = re.fullmatch(r"condition\.(i[1-6])_.+", str(rid))
-        if match is None:
+    audit: dict[str, Any] = {}
+    expected_metric_ids = set(LEARNABILITY_CONDITION_METRIC_WEIGHTS)
+    for rid in [str(x) for x in (task.get("requirement_ids") or [])]:
+        if not rid.startswith("condition."):
             continue
-        score_map = requirements.get(rid)
-        if not isinstance(score_map, dict):
-            continue
-        score = score_map.get(language)
-        if isinstance(score, bool) or not isinstance(score, (int, float)):
-            continue
-
-        token = match.group(1).lower()
-        explicit_means: list[tuple[str, float]] = []
-        for key, payload in evidence.items():
-            if token not in str(key).lower() or not isinstance(payload, dict):
-                continue
-            mean = payload.get("mean")
-            if isinstance(mean, bool) or not isinstance(mean, (int, float)):
-                continue
-            explicit_means.append((str(key), float(mean)))
-
-        if len(explicit_means) != 1:
-            continue
-        key, mean = explicit_means[0]
-        if abs(float(score) - mean) > 0.5000001:
+        block = runner_input.get(rid)
+        if not isinstance(block, dict):
+            raise BenchmarkError(f"{rid}: runner input is missing")
+        trials = block.get("trials")
+        if not isinstance(trials, list):
+            raise BenchmarkError(f"{rid}: trials must be an array")
+        count_key = LEARNABILITY_PRIMARY_COUNT_KEYS.get(rid)
+        if count_key is None:
+            raise BenchmarkError(f"{rid}: no frozen Learnability replication count")
+        expected_count = int(primary[count_key])
+        if len(trials) != expected_count:
             raise BenchmarkError(
-                f"{rid}: {language}: reported requirement score {score} disagrees "
-                f"with evidence mean {mean} from {key}"
+                f"{rid}: expected exactly {expected_count} primary trials, got {len(trials)}"
             )
+
+        seen_ids: set[str] = set()
+        trial_scores: list[float] = []
+        detail: list[dict[str, Any]] = []
+        for index, trial in enumerate(trials, start=1):
+            if not isinstance(trial, dict):
+                raise BenchmarkError(f"{rid}: trial {index} must be an object")
+            trial_id = str(trial.get("trial_id") or "")
+            if not trial_id or trial_id in seen_ids:
+                raise BenchmarkError(f"{rid}: trial IDs must be non-empty and unique")
+            seen_ids.add(trial_id)
+            metrics = trial.get("metric_scores")
+            if not isinstance(metrics, dict) or set(metrics) != expected_metric_ids:
+                raise BenchmarkError(
+                    f"{rid}/{trial_id}: metric_scores must exactly match the frozen "
+                    "12 Learnability condition metrics"
+                )
+            normalized: dict[str, float] = {}
+            for metric, weight in LEARNABILITY_CONDITION_METRIC_WEIGHTS.items():
+                value = metrics[metric]
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise BenchmarkError(f"{rid}/{trial_id}/{metric}: score must be numeric")
+                value = float(value)
+                if not (0.0 <= value <= 100.0):
+                    raise BenchmarkError(
+                        f"{rid}/{trial_id}/{metric}: score must be within 0..100"
+                    )
+                normalized[metric] = value
+            score = sum(
+                LEARNABILITY_CONDITION_METRIC_WEIGHTS[m] * normalized[m]
+                for m in LEARNABILITY_CONDITION_METRIC_WEIGHTS
+            )
+            trial_scores.append(score)
+            detail.append(
+                {
+                    "trial_id": trial_id,
+                    "metric_scores": normalized,
+                    "condition_task_effectiveness_score": round(score, 6),
+                }
+            )
+
+        mean = sum(trial_scores) / len(trial_scores)
+        variance = sum((score - mean) ** 2 for score in trial_scores) / len(trial_scores)
+        requirements[rid] = {language: round(mean, 2)}
+        audit[rid] = {
+            "language": language,
+            "trial_count": len(trial_scores),
+            "trials": detail,
+            "mean": round(mean, 6),
+            "stddev_population": round(math.sqrt(variance), 6),
+            "minimum": round(min(trial_scores), 6),
+            "maximum": round(max(trial_scores), 6),
+            "published_condition_score": round(mean, 2),
+        }
+
+    result["requirements"] = requirements
+    evidence["learnability_runner_scoring"] = audit
 
 
 def cmd_result_check(args: argparse.Namespace) -> int:
@@ -10593,7 +10671,8 @@ def cmd_result_check(args: argparse.Namespace) -> int:
 
     apply_ecosystem_runner_scores(root, task, result)
     apply_language_quality_design_runner_scores(root, task, result)
-    if task.get("evaluation") in {"ecosystem", "language_quality"}:
+    apply_learnability_runner_scores(root, task, result)
+    if task.get("evaluation") in {"ecosystem", "language_quality", "llm_learnability"}:
         # Persist only trusted runner-computed score projections.
         json_dump(result_path, result)
 
@@ -10680,7 +10759,6 @@ def cmd_result_check(args: argparse.Namespace) -> int:
             else:
                 raise BenchmarkError(f"unsupported requirement result type: {rid}")
 
-    validate_learnability_evidence_mean_consistency(task, result)
 
     if task.get("canonical_fragment_owner"):
         validate_canonical_fragment_owner_result(root, task, result)

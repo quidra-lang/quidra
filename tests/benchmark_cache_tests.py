@@ -2671,59 +2671,63 @@ def assert_generation_immutability_uses_raw_and_direct_metrics() -> None:
     )
 
 
-def assert_learnability_evidence_mean_consistency_guard() -> None:
-    """Learnability requirement scores must agree with preserved condition means."""
-    task = {
-        "evaluation": "llm_learnability",
-        "assigned_languages": ["Quidra"],
-        "requirement_ids": ["condition.i2_vocabulary_anonymization"],
-    }
-    consistent = {
-        "evaluation": "llm_learnability",
-        "requirements": {
-            "condition.i2_vocabulary_anonymization": {"Quidra": 57.33}
-        },
-        "evidence": {
-            "i2_vocabulary_anonymization": {"mean": 57.33}
-        },
-    }
-    benchmark.validate_learnability_evidence_mean_consistency(task, consistent)
+def assert_learnability_runner_owned_scoring() -> None:
+    """Learnability workers supply trial metrics; the runner owns every total."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        task = {
+            "evaluation": "llm_learnability",
+            "assigned_languages": ["Quidra"],
+            "requirement_ids": ["condition.i2_vocabulary_anonymization"],
+        }
+        metric_scores = {
+            metric: 100.0
+            for metric in benchmark.LEARNABILITY_CONDITION_METRIC_WEIGHTS
+        }
+        trials = []
+        for index, compile_score in enumerate((62.0, 62.0, 48.0), start=1):
+            row = dict(metric_scores)
+            for metric in row:
+                row[metric] = compile_score
+            trials.append({"trial_id": f"i2-t{index}", "metric_scores": row})
+        result = {
+            "schema_version": 1,
+            "evaluation": "llm_learnability",
+            "requirements": {
+                "condition.i2_vocabulary_anonymization": {"Quidra": 71.0}
+            },
+            "evidence": {
+                "learnability_runner_input": {
+                    "condition.i2_vocabulary_anonymization": {"trials": trials}
+                }
+            },
+        }
+        benchmark.apply_learnability_runner_scores(root, task, result)
+        assert result["requirements"]["condition.i2_vocabulary_anonymization"] == {
+            "Quidra": 57.33
+        }
+        audit = result["evidence"]["learnability_runner_scoring"][
+            "condition.i2_vocabulary_anonymization"
+        ]
+        assert audit["published_condition_score"] == 57.33
+        assert audit["trial_count"] == 3
 
-    rounded_task = {
-        **task,
-        "assigned_languages": ["C++"],
-    }
-    rounded = {
-        "evaluation": "llm_learnability",
-        "requirements": {
-            "condition.i2_vocabulary_anonymization": {"C++": 92}
-        },
-        "evidence": {
-            "condition.i2_vocabulary_anonymization": {"mean": 91.67}
-        },
-    }
-    benchmark.validate_learnability_evidence_mean_consistency(
-        rounded_task, rounded
-    )
-
-    inconsistent = json.loads(json.dumps(consistent))
-    inconsistent["requirements"]["condition.i2_vocabulary_anonymization"][
-        "Quidra"
-    ] = 71
-    try:
-        benchmark.validate_learnability_evidence_mean_consistency(
-            task, inconsistent
-        )
-    except benchmark.BenchmarkError as exc:
-        assert "disagrees with evidence mean" in str(exc), exc
-    else:
-        raise AssertionError(
-            "material Learnability requirement/evidence disagreement was accepted"
-        )
+        bad = json.loads(json.dumps(result))
+        bad["evidence"]["learnability_runner_input"][
+            "condition.i2_vocabulary_anonymization"
+        ]["trials"] = bad["evidence"]["learnability_runner_input"][
+            "condition.i2_vocabulary_anonymization"
+        ]["trials"][:2]
+        try:
+            benchmark.apply_learnability_runner_scores(root, task, bad)
+        except benchmark.BenchmarkError as exc:
+            assert "expected exactly 3 primary trials" in str(exc), exc
+        else:
+            raise AssertionError("Learnability runner accepted the wrong replication count")
 
 
 def main() -> None:
-    assert_learnability_evidence_mean_consistency_guard()
+    assert_learnability_runner_owned_scoring()
     assert_generation_immutability_uses_raw_and_direct_metrics()
     assert_historical_generations_change_relative_normalization()
     assert_baseline_generation_raw_seeds_are_complete()

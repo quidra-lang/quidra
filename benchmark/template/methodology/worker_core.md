@@ -41,7 +41,7 @@ For ordinary requirement workers:
 }
 ```
 
-Metric/condition values are normalized 0-100 summaries. A language-sharded Task Packet returns only its assigned language keys; the runner merges disjoint shards and rejects overlap or missing languages before aggregation. Put raw measurements, formulas, source citations, diagnostics, and audit details under `evidence` or additional output files.
+Metric/condition values are normalized 0-100 summaries. Where an evaluation declares runner-owned scoring, workers preserve the required raw/structured scoring inputs under `evidence`; any worker-authored aggregate is only a placeholder and the trusted runner overwrites it before validation/caching. A language-sharded Task Packet returns only its assigned language keys; the runner merges disjoint shards and rejects overlap or missing languages before aggregation. Put raw measurements, formulas, source citations, diagnostics, and audit details under `evidence` or additional output files.
 
 In `sandbox-agent` mode, write files directly inside the assigned directory using the runtime's actions, and finish with the `final` action once every expected output exists.
 

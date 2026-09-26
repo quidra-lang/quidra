@@ -299,11 +299,24 @@ def active_cache() -> dict[str, str]:
             fingerprint = Path(rel).stem
 
         if Path(rel).stem != fingerprint:
-            raise SystemExit(
-                f"final cache-hit fingerprint/path mismatch: {uid}: {rel}"
-            )
+            # The final dry-run report can retain a compatibility source path
+            # while already carrying the exact current fingerprint. Resolve
+            # that one last reporting artifact to the unique current-key file;
+            # after cleanup there is no compatibility lookup at runtime.
+            matches = sorted((CACHE / "v1").rglob(f"{fingerprint}.json"))
+            if len(matches) != 1:
+                raise SystemExit(
+                    f"{uid}: expected one current-key record for {fingerprint}, "
+                    f"found {len(matches)}"
+                )
+            rel = matches[0].relative_to(CACHE).as_posix()
         if not (CACHE / rel).is_file():
             raise SystemExit(f"final current-key record is missing: {rel}")
+        exact = load(CACHE / rel)
+        if exact.get("fingerprint") != fingerprint:
+            raise SystemExit(
+                f"{uid}: resolved current-key record has wrong fingerprint: {rel}"
+            )
         current = load(CACHE / rel)
         if current.get("fingerprint") != fingerprint:
             raise SystemExit(f"current-key record fingerprint mismatch: {rel}")

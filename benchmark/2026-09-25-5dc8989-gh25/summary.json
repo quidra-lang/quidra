@@ -6,11 +6,15 @@
   },
   "evaluated": {
     "commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
-    "compiler_version": "0.3.0"
+    "compiler_version": "0.3.0",
+    "project_version": "0.3.0",
+    "quidra_result_id": "quidra_v0.3.0"
   },
   "primary_evaluations": {
     "ecosystem": {
       "blockers": [],
+      "current_quidra_id": "quidra_v0.3.0",
+      "language_count": 10,
       "ranking": [
         {
           "language": "Java",
@@ -50,7 +54,7 @@
         {
           "language": "Swift",
           "rank": 8,
-          "score": 91.0
+          "score": 91
         },
         {
           "language": "Zig",
@@ -58,7 +62,7 @@
           "score": 66.5
         },
         {
-          "language": "Quidra",
+          "language": "quidra_v0.3.0",
           "rank": 10,
           "score": 32.5
         }
@@ -73,6 +77,8 @@
     },
     "language_quality": {
       "blockers": [],
+      "current_quidra_id": "quidra_v0.3.0",
+      "language_count": 10,
       "ranking": [
         {
           "language": "Rust",
@@ -90,7 +96,7 @@
           "score": 66.76
         },
         {
-          "language": "Quidra",
+          "language": "quidra_v0.3.0",
           "rank": 4,
           "score": 66.13
         },
@@ -135,11 +141,13 @@
     },
     "llm_learnability": {
       "blockers": [],
+      "current_quidra_id": "quidra_v0.3.0",
+      "language_count": 10,
       "ranking": [
         {
           "language": "Swift",
           "rank": 1,
-          "score": 100.0
+          "score": 100
         },
         {
           "language": "TypeScript",
@@ -182,7 +190,7 @@
           "score": 81.67
         },
         {
-          "language": "Quidra",
+          "language": "quidra_v0.3.0",
           "rank": 10,
           "score": 74.7
         }
@@ -197,6 +205,8 @@
     },
     "llm_proficiency": {
       "blockers": [],
+      "current_quidra_id": "quidra_v0.3.0",
+      "language_count": 10,
       "ranking": [
         {
           "language": "Python",
@@ -239,14 +249,14 @@
           "score": 34.11
         },
         {
-          "language": "Quidra",
+          "language": "quidra_v0.3.0",
           "rank": 9,
           "score": 5.32
         },
         {
           "language": "Zig",
           "rank": 10,
-          "score": 4.0
+          "score": 4
         }
       ],
       "ranking_basis": {
@@ -259,6 +269,8 @@
     },
     "semantic_compression": {
       "blockers": [],
+      "current_quidra_id": "quidra_v0.3.0",
+      "language_count": 10,
       "ranking": [
         {
           "language": "Zig",
@@ -266,7 +278,7 @@
           "score": 78.48
         },
         {
-          "language": "Quidra",
+          "language": "quidra_v0.3.0",
           "rank": 2,
           "score": 77.52
         },
@@ -329,5 +341,6 @@
     "workflow_artifact_retention_days": 30
   },
   "run_id": "2026-09-25-5dc8989-gh25",
-  "schema_version": 1
+  "schema_version": 1,
+  "version_ssot": "project.toml:[project].version"
 }

@@ -640,6 +640,26 @@ jobs:
               --workspace /quidra-benchmark \
               --output /quidra-benchmark/results/post-cleanup-comparability-rebind-plan.json
 
+          # sc-comparability is deliberately promotion-gated on the whole
+          # Semantic Compression primary evaluation being COMPLETE. After the
+          # byte-identical comparability result passes its current validator,
+          # run the free command-only aggregate so that gate is satisfied
+          # without any provider inference.
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py advance
+
+          python - "$GITHUB_WORKSPACE/.quidra-benchmark/results/primary_status.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          status = json.loads(Path(sys.argv[1]).read_text())
+          semantic = (status.get("evaluations") or {}).get("semantic_compression") or {}
+          assert semantic.get("status") == "COMPLETE", semantic
+          assert semantic.get("all_work_units_complete") is True, semantic
+          PY
+
           python benchmark/template/scripts/benchmark.py checkpoint-cache \
             --source-repo "$GITHUB_WORKSPACE" \
             > "$RUNNER_TEMP/post-cleanup-comparability-promotion.json"

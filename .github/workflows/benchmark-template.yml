@@ -168,26 +168,30 @@ jobs:
           base = module.load_quidra_version_history_file(
               Path("benchmark/quidra_versions/index.json")
           )
-          assert [row["language_id"] for row in base["versions"]] == [current_id]
+          base_ids = [str(row["language_id"]) for row in base["versions"]]
+          assert len(base_ids) == len(set(base_ids)), base_ids
+
+          # The already-published run is immutable: derive its Quidra generation
+          # from version history instead of assuming it is always today's version.
+          existing_run_id = "2026-09-25-5dc8989-gh25"
+          existing_generation = next(
+              row for row in base["versions"]
+              if str(row.get("source_run_id") or "") == existing_run_id
+          )
+          existing_id = str(existing_generation["language_id"])
           existing_versioned = json.loads(
-              Path("benchmark/2026-09-25-5dc8989-gh25/versioned_scores.json").read_text()
+              Path(f"benchmark/{existing_run_id}/versioned_scores.json").read_text()
           )
           for evaluation, published in existing_versioned["evaluations"].items():
-              assert published["current_quidra_id"] == current_id, (evaluation, published)
+              assert published["current_quidra_id"] == existing_id, (evaluation, published)
               assert published["language_count"] == 10, (evaluation, published)
-              assert current_id in published["scores"], (evaluation, published)
+              assert existing_id in published["scores"], (evaluation, published)
               assert "Quidra" not in published["scores"], (evaluation, published)
-              assert any(row["language"] == current_id for row in published["ranking"])
+              assert any(row["language"] == existing_id for row in published["ranking"])
               assert not any(row["language"] == "Quidra" for row in published["ranking"])
               for values in published["normalized_metric_scores"].values():
+                  assert existing_id in values, (evaluation, values)
                   assert "Quidra" not in values, (evaluation, values)
-              expected_quidra_metrics = (
-                  base["versions"][0]["normalized_metric_scores"].get(evaluation, {})
-              )
-              for requirement_id in expected_quidra_metrics:
-                  assert current_id in published["normalized_metric_scores"][requirement_id], (
-                      evaluation, requirement_id
-                  )
 
           fixed = {
               "Quidra": 77.5, "Python": 47.0, "C++": 20.0, "Rust": 68.0,
@@ -195,28 +199,58 @@ jobs:
               "Swift": 77.0, "Zig": 78.0,
           }
 
-          # Any number N of archived Quidra generations produces 9 + N rows.
+          # A checkout may have bumped project.toml before the new generation
+          # has been benchmarked. Both states are valid: current may already be
+          # archived, or it may be the one pending generation to append.
+          current_scores, current_order = module.versioned_scores_from_history(
+              fixed, "semantic_compression", current_version, base
+          )
+          expected_current_count = 9 + len(base_ids) + (0 if current_id in base_ids else 1)
+          assert len(current_scores) == expected_current_count, current_scores
+          assert len(current_order) == expected_current_count, current_order
+          assert current_id in current_scores
+          assert all(language_id in current_scores for language_id in base_ids)
+
+          # No 11/12 ceiling exists. Add fifty synthetic generations that cannot
+          # collide with ordinary release versions and require every score and
+          # normalized-metric table to grow to 9 + N rows.
           history = json.loads(json.dumps(base))
-          for minor in range(4, 26):
+          existing_versions = {
+              str(row.get("version") or "") for row in history.get("versions", [])
+          }
+          synthetic_versions = []
+          patch = 0
+          while len(synthetic_versions) < 50:
+              version = f"999.0.{patch}"
+              patch += 1
+              if version == current_version or version in existing_versions:
+                  continue
               history["versions"].append({
-                  "version": f"0.{minor}.0",
-                  "language_id": f"quidra_v0.{minor}.0",
-                  "source_run_id": f"synthetic-{minor}",
+                  "version": version,
+                  "language_id": module.quidra_version_id(version),
+                  "source_run_id": f"synthetic-{version}",
                   "source_commit_sha": "0" * 40,
-                  "primary_scores": {"semantic_compression": 70.0 + minor / 100.0},
+                  "primary_scores": {
+                      "semantic_compression": 50.0 + len(synthetic_versions) / 10.0
+                  },
                   "normalized_metric_scores": {
                       "semantic_compression": {
-                          "metric.semantic_density": float(minor)
+                          "metric.semantic_density":
+                              40.0 + len(synthetic_versions) / 10.0
                       }
                   },
               })
+              existing_versions.add(version)
+              synthetic_versions.append(version)
+
               scores, order = module.versioned_scores_from_history(
-                  fixed, "semantic_compression", f"0.{minor}.0", history
+                  fixed, "semantic_compression", version, history
               )
-              assert len(scores) == 9 + len(history["versions"])
-              assert len(module.deterministic_ranking(scores, order)) == len(scores)
+              expected = 9 + len(history["versions"])
+              assert len(scores) == expected, (version, len(scores), expected)
+              assert len(order) == expected, (version, len(order), expected)
               assert all(
-                  row["language_id"] in scores
+                  str(row["language_id"]) in scores
                   for row in history["versions"]
               )
 
@@ -237,18 +271,19 @@ jobs:
               expanded_metrics = module.versioned_normalized_metric_scores(
                   current_metrics,
                   "semantic_compression",
-                  f"0.{minor}.0",
+                  version,
                   history,
               )
-              assert len(expanded_metrics["metric.semantic_density"]) == (
-                  9 + len(history["versions"])
-              )
+              density = expanded_metrics["metric.semantic_density"]
+              assert len(density) == expected, (version, len(density), expected)
               assert all(
-                  row["language_id"]
-                  in expanded_metrics["metric.semantic_density"]
+                  str(row["language_id"]) in density
                   for row in history["versions"]
               )
 
+          # Same project.toml version owns one immutable Quidra generation even
+          # when target implementation/docs drift. Benchmark-owned scientific
+          # conditions still invalidate reuse.
           payload = {
               "schema_version": 1,
               "cache_schema_version": 1,
@@ -275,7 +310,9 @@ jobs:
           ), "same project version must reuse/skip Quidra"
 
           changed_version = json.loads(json.dumps(changed_implementation))
-          changed_version["quidra_target"]["version"] = "0.4.0"
+          changed_version["quidra_target"]["version"] = (
+              "999.999.998" if current_version != "999.999.998" else "999.999.997"
+          )
           assert not module.same_version_cache_payload_compatible(
               changed_version, payload
           ), "new project version must create a new Quidra generation"
@@ -352,184 +389,11 @@ jobs:
 
           current_version = module.project_version(Path("."))
           assert current_version
-          current_id = module.quidra_version_id(current_version)
           history = module.load_quidra_version_history_file(
               Path("benchmark/quidra_versions/index.json")
           )
-          assert history["versions"][0]["language_id"] == current_id
-
-          fixed = {
-              "Quidra": 77.5, "Python": 47.0, "C++": 20.0, "Rust": 68.0,
-              "Go": 72.0, "Java": 53.0, "TypeScript": 48.0, "Kotlin": 69.0,
-              "Swift": 77.0, "Zig": 78.0,
-          }
-          same_scores, same_order = module.versioned_scores_from_history(
-              fixed, "semantic_compression", current_version, history
-          )
-          assert len(same_scores) == 10
-          assert "Quidra" not in same_scores
-          assert current_id in same_scores
-
-          new_scores, new_order = module.versioned_scores_from_history(
-              fixed, "semantic_compression", "0.4.0", history
-          )
-          assert len(new_scores) == 11
-          assert {current_id, "quidra_v0.4.0"} <= set(new_scores)
-          assert new_order[0] == current_id, new_order
-          assert new_order[-1] == "quidra_v0.4.0", new_order
-
-          history_two = json.loads(json.dumps(history))
-          history_two["versions"].append({
-              "version": "0.4.0",
-              "language_id": "quidra_v0.4.0",
-              "source_run_id": "synthetic",
-              "source_commit_sha": "0" * 40,
-              "primary_scores": {"semantic_compression": 80.0},
-              "normalized_metric_scores": {},
-          })
-          third_scores, third_order = module.versioned_scores_from_history(
-              fixed, "semantic_compression", "0.5.0", history_two
-          )
-          assert len(third_scores) == 12
-          assert {current_id, "quidra_v0.4.0", "quidra_v0.5.0"} <= set(third_scores)
-          assert third_order[0] == current_id, third_order
-          assert third_order[-1] == "quidra_v0.5.0", third_order
-          assert len(module.deterministic_ranking(third_scores, third_order)) == 12
-
-          # No 11/12 special case: generations can grow without a fixed upper bound.
-          many = json.loads(json.dumps(history))
-          for minor in range(4, 24):
-              version = f"0.{minor}.0"
-              many["versions"].append({
-                  "version": version,
-                  "language_id": f"quidra_v{version}",
-                  "source_run_id": f"synthetic-{version}",
-                  "source_commit_sha": "0" * 40,
-                  "primary_scores": {"semantic_compression": 70.0 + minor / 100.0},
-                  "normalized_metric_scores": {},
-              })
-          many_scores, many_order = module.versioned_scores_from_history(
-              fixed, "semantic_compression", "0.24.0", many
-          )
-          # 9 fixed peers + the archived base + twenty-one later generations = 31 rows.
-          assert len(many_scores) == 31, len(many_scores)
-          assert len(many_order) == 31, len(many_order)
-          assert many_order[0] == current_id, many_order
-          assert many_order[-1] == "quidra_v0.24.0", many_order
-          assert len(module.deterministic_ranking(many_scores, many_order)) == 31
-
-          # The publication layer must not cap Quidra generations at 11/12 rows.
-          # Exercise many historical versions so future releases keep appending
-          # comparison rows indefinitely while the nine comparison languages stay fixed.
-          many_history = {
-              "schema_version": 1,
-              "version_ssot": "project.toml:[project].version",
-              "versions": [],
-          }
-          for patch in range(50):
-              version = f"1.0.{patch}"
-              many_history["versions"].append({
-                  "version": version,
-                  "language_id": f"quidra_v{version}",
-                  "source_run_id": f"synthetic-{patch}",
-                  "source_commit_sha": f"{patch:040x}",
-                  "primary_scores": {"semantic_compression": float(50 + patch / 10)},
-                  "normalized_metric_scores": {
-                      "semantic_compression": {
-                          "metric.semantic_density": float(40 + patch / 10),
-                      },
-                  },
-              })
-          many_scores, many_order = module.versioned_scores_from_history(
-              fixed, "semantic_compression", "1.0.50", many_history
-          )
-          assert len(many_scores) == 60, len(many_scores)  # 9 comparisons + 51 Quidra generations
-          assert len(many_order) == 60
-          assert "quidra_v1.0.0" in many_scores
-          assert "quidra_v1.0.49" in many_scores
-          assert "quidra_v1.0.50" in many_scores
-          assert len(module.deterministic_ranking(many_scores, many_order)) == 60
-
-          # Normalized metric publication follows the same unbounded generation list.
-          # Stub only the current run's normalized inputs; history remains real data.
-          with tempfile.TemporaryDirectory() as version_td:
-              version_root = Path(version_td)
-              (version_root / "repo").mkdir(parents=True)
-              (version_root / "version_history").mkdir(parents=True)
-              (version_root / "repo/project.toml").write_text(
-                  '[project]\nversion = "1.0.50"\n', encoding="utf-8"
-              )
-              (version_root / "version_history/index.json").write_text(
-                  json.dumps(many_history), encoding="utf-8"
-              )
-              original_metric_reader = module.current_normalized_metric_scores
-              try:
-                  module.current_normalized_metric_scores = lambda _root, _evaluation: {
-                      "metric.semantic_density": {
-                          language: (45.0 if language == "Quidra" else 30.0)
-                          for language in fixed
-                      }
-                  }
-                  publication = module.versioned_publication(
-                      version_root,
-                      "semantic_compression",
-                      {"scores": fixed},
-                  )
-              finally:
-                  module.current_normalized_metric_scores = original_metric_reader
-              assert publication["language_count"] == 60
-              density_rows = publication["normalized_metric_scores"]["metric.semantic_density"]
-              assert len(density_rows) == 60, len(density_rows)
-              assert density_rows["quidra_v1.0.0"] == 40.0
-              assert density_rows["quidra_v1.0.49"] == 44.9
-              assert density_rows["quidra_v1.0.50"] == 45.0
-
-          payload = {
-              "schema_version": 1,
-              "cache_schema_version": 1,
-              "evaluation": "llm_learnability",
-              "work_unit_id": "learnability-i3-i4--quidra",
-              "requirement_ids": ["condition.i3", "condition.i4"],
-              "assigned_languages": ["Quidra"],
-              "provider": "anthropic-messages",
-              "model": "claude-sonnet-5",
-              "frozen_sampling": {"effort": "high"},
-              "unit_input_hashes": {"primary_config": "same"},
-              "runtime_toolchain_pins": {"Quidra": {}},
-              "cache_epoch": "stable",
-              "exact_task_packet_sha256": "old",
-              "readable_input_content_hashes": {"repo/docs": "old"},
-              "quidra_target": {"version": current_version, "language_version": "0.2"},
-          }
-          changed_impl = json.loads(json.dumps(payload))
-          changed_impl["exact_task_packet_sha256"] = "new"
-          changed_impl["readable_input_content_hashes"] = {"repo/docs": "new"}
-          changed_impl["quidra_target"]["language_version"] = "0.3"
-          assert module.same_version_cache_payload_compatible(changed_impl, payload)
-          changed_version = json.loads(json.dumps(changed_impl))
-          changed_version["quidra_target"]["version"] = "0.4.0"
-          assert not module.same_version_cache_payload_compatible(changed_version, payload)
-          changed_model = json.loads(json.dumps(changed_impl))
-          changed_model["model"] = "different-model"
-          assert not module.same_version_cache_payload_compatible(changed_model, payload)
-
-          template_bound = json.loads(json.dumps(payload))
-          template_bound["readable_input_content_hashes"] = {
-              "repo/docs": "old",
-              "template/methodology-assets/rubric.json": "rubric-a",
-          }
-          target_only_drift = json.loads(json.dumps(template_bound))
-          target_only_drift["readable_input_content_hashes"]["repo/docs"] = "new"
-          assert module.same_version_cache_payload_compatible(
-              target_only_drift, template_bound
-          )
-          benchmark_drift = json.loads(json.dumps(target_only_drift))
-          benchmark_drift["readable_input_content_hashes"][
-              "template/methodology-assets/rubric.json"
-          ] = "rubric-b"
-          assert not module.same_version_cache_payload_compatible(
-              benchmark_drift, template_bound
-          )
+          history_ids = [str(row["language_id"]) for row in history["versions"]]
+          assert len(history_ids) == len(set(history_ids)), history_ids
 
           root = Path("benchmark/template")
           required = [

@@ -508,7 +508,8 @@ jobs:
           }, indent=2))
           PY
 
-          rm -rf .quidra-benchmark
+          python benchmark/template/scripts/benchmark.py discard-workspace \
+            --source-repo "$GITHUB_WORKSPACE"
 
       - name: Build canonical exact-key cleanup candidate locally
         run: |

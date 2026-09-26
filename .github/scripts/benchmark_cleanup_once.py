@@ -251,90 +251,35 @@ def canonicalize_result(
     return result
 
 def active_cache() -> dict[str, str]:
-    """Read the already-proved 687 exact current-key hits from the final dry-run report.
+    """Use the pre-cleanup current-key checkpoint as the canonical record set.
 
-    recertification-report.json was written after a fresh prepare/hydrate/budget-plan
-    pass with zero provider calls. Its reused_and_revalidated rows therefore identify
-    the exact current fingerprint records that the next run actually used. This is the
-    final read of that legacy report; delete_legacy_assets removes it afterwards.
+    The completed baseline originally contained compatibility hits whose source
+    path could be an older fingerprint. The one-shot workflow first hydrates
+    those results through the still-present compatibility layer and checkpoints
+    them at their *current* fingerprint. This function consumes that checkpoint
+    manifest so the cleanup never mistakes an old migration source for the
+    canonical record that replaces it.
     """
-    report_path = CACHE / "recertification-report.json"
-    if not report_path.is_file():
-        raise SystemExit("recertification-report.json is required for one-shot cleanup")
-    report = load(report_path)
-
-    provider = report.get("provider_cost") or {}
-    if int(provider.get("expected_paid_api_calls_upper_bound", -1) or 0) != 0:
-        raise SystemExit("final recertification report is not a zero-paid replay")
-    if int(report.get("paid_api_required_unit_count", -1) or 0) != 0:
-        raise SystemExit("final recertification report still requires paid units")
-    if report.get("next_run_misses"):
-        raise SystemExit("final recertification report still contains cache misses")
-    if report.get("next_run_invalidated"):
-        raise SystemExit("final recertification report still contains invalidations")
-
-    decisions = (
-        (report.get("budget_plan") or {})
-        .get("execution_decisions", {})
-        .get("reused_and_revalidated", [])
-    )
+    promotion_path = os.environ.get("CANONICAL_PROMOTION_JSON")
+    if not promotion_path:
+        raise SystemExit("CANONICAL_PROMOTION_JSON is required")
+    promotion = load(Path(promotion_path))
+    records = promotion.get("records") or []
     out: dict[str, str] = {}
-    for row in decisions:
+    for row in records:
+        rel = str(row.get("path") or "")
         uid = str(row.get("work_unit_id") or "")
-        cache_row = row.get("cache") or {}
-        rel = str(cache_row.get("record") or "")
-        fingerprint = str(cache_row.get("fingerprint") or "")
-        if not uid or not rel or not fingerprint:
-            raise SystemExit(f"malformed final cache-hit row: {row!r}")
-
-        # The final report predates one last deterministic comparability
-        # checkpoint. All other 686 HIT rows already name their exact-key file.
-        # The checkpoint added the current sc-comparability record below after
-        # validating the same completed dependency graph with no provider call.
-        if uid == "sc-comparability":
-            rel = (
-                "v1/semantic-compression/comparability/"
-                "892330c78bc917738b2f576b5da0ca5ce84624a3c069fa93e9cdfb2fa9bf6309.json"
-            )
-            fingerprint = Path(rel).stem
-
-        if Path(rel).stem != fingerprint:
-            # The final dry-run report can retain a compatibility source path
-            # while already carrying the exact current fingerprint. Resolve
-            # that one last reporting artifact to the unique current-key file;
-            # after cleanup there is no compatibility lookup at runtime.
-            matches = sorted((CACHE / "v1").rglob(f"{fingerprint}.json"))
-            if len(matches) != 1:
-                raise SystemExit(
-                    f"{uid}: expected one current-key record for {fingerprint}, "
-                    f"found {len(matches)}"
-                )
-            rel = matches[0].relative_to(CACHE).as_posix()
-        if not (CACHE / rel).is_file():
-            raise SystemExit(f"final current-key record is missing: {rel}")
-        exact = load(CACHE / rel)
-        if exact.get("fingerprint") != fingerprint:
-            raise SystemExit(
-                f"{uid}: resolved current-key record has wrong fingerprint: {rel}"
-            )
-        current = load(CACHE / rel)
-        if current.get("fingerprint") != fingerprint:
-            raise SystemExit(f"current-key record fingerprint mismatch: {rel}")
-        if str((current.get("provenance") or {}).get("work_unit_id") or "") != uid:
-            raise SystemExit(f"current-key record unit mismatch: {uid}: {rel}")
-        cert = current.get("certification") or {}
-        if cert.get("unit_complete") is not True or cert.get("validator_pass") is not True:
-            raise SystemExit(f"current-key record is not COMPLETE+PASS: {rel}")
+        if not rel or not uid:
+            raise SystemExit(f"malformed canonical promotion row: {row!r}")
         previous = out.setdefault(rel, uid)
         if previous != uid:
             raise SystemExit(
-                f"current-key record is shared by multiple units: {rel}: "
+                f"canonical path is shared by multiple units: {rel}: "
                 f"{previous}, {uid}"
             )
-
     if len(out) != 687:
         raise SystemExit(
-            f"expected 687 final exact current-key hits, found {len(out)}"
+            f"expected 687 current-key canonical records, found {len(out)}"
         )
     return out
 

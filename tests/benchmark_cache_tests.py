@@ -786,22 +786,30 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     # implementation/readable source changes and therefore the exact cache key
     # changes, the archived generation must hydrate instead of being measured
     # again. This is the concrete "same version => skip Quidra" contract.
-    (root / "version_history").mkdir(parents=True, exist_ok=True)
-    benchmark.json_dump(
-        root / "version_history" / "index.json",
-        {
-            "schema_version": 1,
-            "version_ssot": "project.toml:[project].version",
-            "versions": [{
+    # Version history is now derived from the ordinary generation cache, not
+    # from a parallel version_history store. Seed one complete synthetic Quidra
+    # generation across all five Primary evaluations so the same-version
+    # compatibility lookup sees the production shape.
+    for evaluation in benchmark.PRIMARY_NAMES:
+        benchmark.json_dump(
+            benchmark.generation_file(
+                root / "cache", evaluation, "quidra_v0.3.0"
+            ),
+            {
+                "schema_version": 1,
+                "language": "Quidra",
                 "version": "0.3.0",
+                "generation_id": "quidra_v0.3.0",
                 "language_id": "quidra_v0.3.0",
+                "version_source": "project.toml:[project].version",
+                "evaluation": evaluation,
                 "source_run_id": "synthetic-seed",
                 "source_commit_sha": "0" * 40,
-                "primary_scores": {},
+                "primary_score": 50.0,
                 "normalized_metric_scores": {},
-            }],
-        },
-    )
+                "normalization_raw": {},
+            },
+        )
     (programs / "mb00.qui").write_text("print(2)\n", encoding="utf-8")
     changed_same_version = benchmark.cache_fingerprint(root, unit, task)
     assert changed_same_version is not None

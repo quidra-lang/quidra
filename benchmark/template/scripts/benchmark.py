@@ -6926,9 +6926,18 @@ def mechanical_result_path(root: Path, unit: dict[str, Any]) -> Path:
     return root / "work" / "root" / "commands" / str(unit["id"]) / "result.json"
 
 
-def measurement_script_hashes(root: Path) -> dict[str, str]:
+def measurement_script_hashes(
+    root: Path, runner_action: str | None = None
+) -> dict[str, str]:
+    """Hash only scripts the mechanical unit actually executes."""
     scripts = root / "template" / "scripts"
-    return {name: sha256_file(scripts / name) for name in MEASUREMENT_SCRIPTS}
+    relevant = {
+        "micro-measure": ("micro_measure.py",),
+        "micro-measure-raw": ("micro_measure.py",),
+        "quidra-audit": ("micro_measure.py",),
+        "adversarial-measure": ("adversarial_measure.py",),
+    }.get(str(runner_action or ""), MEASUREMENT_SCRIPTS)
+    return {name: sha256_file(scripts / name) for name in relevant}
 
 
 def cache_eligible_unit(root: Path, unit: dict[str, Any]) -> bool:
@@ -7512,7 +7521,9 @@ def cache_fingerprint_payload(
     if mechanical:
         payload["result_kind"] = "mechanical"
         payload["runner_action"] = str(unit.get("runner_action"))
-        payload["measurement_script_hashes"] = measurement_script_hashes(root)
+        payload["measurement_script_hashes"] = measurement_script_hashes(
+            root, str(unit.get("runner_action") or "")
+        )
     if target in assigned:
         # A workspace whose snapshot declares no versions (the synthetic CI
         # harness stages no project.toml) has no key for Quidra work; the
@@ -7995,6 +8006,60 @@ def same_version_certified_record(
     return None
 
 
+def same_generation_cache_payload_compatible(
+    unit: dict[str, Any],
+    current: dict[str, Any],
+    cached: dict[str, Any],
+) -> bool:
+    """Narrow one-time migrations that preserve the same language generation."""
+    assigned = list(current.get("assigned_languages") or [])
+    if assigned != list(cached.get("assigned_languages") or []) or len(assigned) != 1:
+        return False
+
+    def projected(payload: dict[str, Any]) -> dict[str, Any]:
+        value = json.loads(json.dumps(payload))
+        evaluation = str(unit.get("evaluation") or "")
+        action = str(unit.get("runner_action") or "")
+        if evaluation == "ecosystem":
+            # Calendar/declared epochs are not language-generation identity.
+            value.pop("cache_epoch", None)
+        if action == "adversarial-measure":
+            scripts = value.get("measurement_script_hashes") or {}
+            value["measurement_script_hashes"] = {
+                "adversarial_measure.py": scripts.get("adversarial_measure.py")
+            }
+        return value
+
+    return projected(current) == projected(cached)
+
+
+def same_generation_certified_record(
+    root: Path, unit: dict[str, Any], payload: dict[str, Any]
+) -> tuple[Path, dict[str, Any]] | None:
+    assigned = list(payload.get("assigned_languages") or [])
+    if len(assigned) != 1:
+        return None
+    if unit_generation_id(unit, assigned[0], payload) is None:
+        return None
+    directory = (
+        root / "cache" / "v1"
+        / slug_id(str(unit.get("evaluation") or "unknown"))
+        / cache_scope(unit, payload)
+    )
+    if not directory.is_dir():
+        return None
+    for path in sorted(directory.glob("*.json")):
+        try:
+            record = json_load(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+        if same_generation_cache_payload_compatible(
+            unit, payload, record.get("fingerprint_payload") or {}
+        ):
+            return path, record
+    return None
+
+
 def _cache_status(root: Path) -> dict[str, Any]:
     path = root / "results" / "cache_status.json"
     if path.is_file():
@@ -8080,13 +8145,19 @@ def hydrate_certified_cache(
         reuse_mode = "exact"
         fallback_record: dict[str, Any] | None = None
         if not cache_path.is_file():
-            fallback = same_version_certified_record(root, unit, payload)
-            if fallback is None:
-                record_miss(uid, fingerprint, unit, "no exact certified record", invalidated=False)
-                continue
-            cache_path, fallback_record = fallback
-            rel = cache_path.relative_to(root / "cache")
-            reuse_mode = "quidra_same_version"
+            generation_fallback = same_generation_certified_record(root, unit, payload)
+            if generation_fallback is not None:
+                cache_path, fallback_record = generation_fallback
+                rel = cache_path.relative_to(root / "cache")
+                reuse_mode = "language_generation_compatibility"
+            else:
+                fallback = same_version_certified_record(root, unit, payload)
+                if fallback is None:
+                    record_miss(uid, fingerprint, unit, "no exact certified record", invalidated=False)
+                    continue
+                cache_path, fallback_record = fallback
+                rel = cache_path.relative_to(root / "cache")
+                reuse_mode = "quidra_same_version"
         try:
             record = fallback_record if fallback_record is not None else json_load(cache_path)
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
@@ -8109,6 +8180,16 @@ def hydrate_certified_cache(
                 record_miss(
                     uid, fingerprint, unit,
                     "certified record dependency fingerprint no longer matches",
+                    invalidated=True, record_path=rel.as_posix(),
+                )
+                continue
+        elif reuse_mode == "language_generation_compatibility":
+            if not same_generation_cache_payload_compatible(
+                unit, payload, record.get("fingerprint_payload") or {}
+            ):
+                record_miss(
+                    uid, fingerprint, unit,
+                    "same-generation record no longer matches benchmark conditions",
                     invalidated=True, record_path=rel.as_posix(),
                 )
                 continue

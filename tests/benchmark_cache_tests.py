@@ -1255,18 +1255,22 @@ def assert_ecosystem_runner_owned_scoring() -> None:
         else:
             raise AssertionError("non-frozen Ecosystem snapshot was accepted")
 
-        policy_path = root / "template/config/cache_policy.json"
-        policy_bytes = policy_path.read_bytes()
-        policy = benchmark.json_load(policy_path)
-        policy["declared_epochs"]["ecosystem"] = "2026-10"
-        benchmark.json_dump(policy_path, policy)
-        try:
-            benchmark.apply_ecosystem_runner_scores(root, task, result)
-        except benchmark.BenchmarkError as exc:
-            assert "advance both together" in str(exc), exc
-        else:
-            raise AssertionError("Ecosystem epoch/snapshot drift was accepted")
-        policy_path.write_bytes(policy_bytes)
+        # Ecosystem uses the same version-generation rule as every other
+        # evaluation. Calendar/date drift is not a cache-generation trigger.
+        config_path = root / "benchmark_config.json"
+        config_bytes = config_path.read_bytes()
+        before = benchmark.language_generation(root, "Python")
+        config = benchmark.json_load(config_path)
+        config["languages"]["Python"]["version"] = "3.13.0"
+        benchmark.json_dump(config_path, config)
+        after = benchmark.language_generation(root, "Python")
+        assert before["generation_id"] == "python_v3.12.3", before
+        assert after["generation_id"] == "python_v3.13.0", after
+        assert after["generation_id"] != before["generation_id"]
+        # The evidence snapshot remains frozen by the rubric itself; changing
+        # language generation does not invent a date epoch.
+        benchmark.apply_ecosystem_runner_scores(root, task, result)
+        config_path.write_bytes(config_bytes)
 
         gateway_path = root / "template/config/inference_gateway.json"
         gateway_bytes = gateway_path.read_bytes()

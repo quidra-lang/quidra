@@ -1463,8 +1463,16 @@ def measure(root: Path, unit_id: str) -> int:
             "workloads": {
                 workload: {
                     "source_bytes": source_raw[workload][language],
-                    "artifact_bytes": artifact_raw[workload][language],
-                    "compile_seconds": compile_raw[workload][language],
+                    "artifact_effective_bytes": (
+                        None
+                        if artifact_raw[workload][language] is None
+                        else float(artifact_raw[workload][language]) + 4096.0
+                    ),
+                    "compile_effective_seconds": (
+                        None
+                        if compile_raw[workload][language] is None
+                        else float(compile_raw[workload][language]) + float(compile_epsilon)
+                    ),
                     "cold_seconds": cold_raw[workload][language],
                     "rss_bytes": rss_raw[workload][language],
                     "steady_seconds": steady_raw[workload][language],
@@ -1618,28 +1626,23 @@ def normalize(root: Path, unit_id: str) -> int:
             if not isinstance(values, dict):
                 raise MeasureError(f"{language}/{workload}: invalid normalization raw row")
             source_raw[workload][language] = values.get("source_bytes")
-            artifact_raw[workload][language] = values.get("artifact_bytes")
-            compile_raw[workload][language] = values.get("compile_seconds")
+            artifact_raw[workload][language] = values.get("artifact_effective_bytes")
+            compile_raw[workload][language] = values.get("compile_effective_seconds")
             cold_raw[workload][language] = values.get("cold_seconds")
             rss_raw[workload][language] = values.get("rss_bytes")
             steady_raw[workload][language] = values.get("steady_seconds")
         startup_raw[language] = row.get("startup_seconds")
         runtime_overhead_raw[language] = row.get("startup_rss_bytes")
 
-    compile_epsilon, spawn_samples = true_spawn_epsilon(root)
     all_requirements = {
         "metric.native_execution_performance": family_c_workload_scores(cold_raw),
         "metric.long_running_performance": family_c_workload_scores(steady_raw),
-        "metric.compile_build_performance": family_c_workload_scores(
-            compile_raw, compile_epsilon
-        ),
+        "metric.compile_build_performance": family_c_workload_scores(compile_raw),
         "metric.startup_latency": family_c_language_scores(startup_raw),
         "metric.memory_efficiency": family_c_workload_scores(rss_raw),
         "metric.runtime_overhead": family_c_language_scores(runtime_overhead_raw),
         "metric.source_code_size": family_c_workload_scores(source_raw),
-        "metric.binary_artifact_size": family_c_workload_scores(
-            artifact_raw, 4096.0
-        ),
+        "metric.binary_artifact_size": family_c_workload_scores(artifact_raw),
     }
     assigned = list(unit.get("requirement_ids", []))
     unsupported = sorted(set(assigned) - set(all_requirements))
@@ -1656,9 +1659,7 @@ def normalize(root: Path, unit_id: str) -> int:
         "evidence": {
             "normalization_only": True,
             "raw_sources": sources,
-            "compile_epsilon_seconds": compile_epsilon,
-            "spawn_calibration_seconds": spawn_samples,
-            "artifact_epsilon_bytes": 4096,
+            "normalization_uses_effective_raw_values": True,
         },
     })
     print(json.dumps({"ok": True, "unit_id": unit_id, "result": str(out_dir / "result.json")}, indent=2))

@@ -16058,7 +16058,15 @@ def cache_impact(source: Path) -> dict[str, Any]:
     component alone is reported by the synthetic run, not by this command.
     """
     cache_root = source / "benchmark" / "cache" / "v1"
-    record_paths = sorted(cache_root.rglob("*.json")) if cache_root.is_dir() else []
+    record_paths = (
+        sorted(
+            path
+            for path in cache_root.rglob("*.json")
+            if path.name not in {"generation.json", "generation_raw_seed.json"}
+        )
+        if cache_root.is_dir()
+        else []
+    )
     if not record_paths:
         return {
             "schema_version": 1,

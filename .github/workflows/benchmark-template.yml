@@ -418,6 +418,40 @@ jobs:
           assert "quidra_v1.0.50" in many_scores
           assert len(module.deterministic_ranking(many_scores, many_order)) == 60
 
+          # Normalized metric publication follows the same unbounded generation list.
+          # Stub only the current run's normalized inputs; history remains real data.
+          with tempfile.TemporaryDirectory() as version_td:
+              version_root = Path(version_td)
+              (version_root / "repo").mkdir(parents=True)
+              (version_root / "version_history").mkdir(parents=True)
+              (version_root / "repo/project.toml").write_text(
+                  '[project]\nversion = "1.0.50"\n', encoding="utf-8"
+              )
+              (version_root / "version_history/index.json").write_text(
+                  json.dumps(many_history), encoding="utf-8"
+              )
+              original_metric_reader = module.current_normalized_metric_scores
+              try:
+                  module.current_normalized_metric_scores = lambda _root, _evaluation: {
+                      "metric.semantic_density": {
+                          language: (45.0 if language == "Quidra" else 30.0)
+                          for language in fixed
+                      }
+                  }
+                  publication = module.versioned_publication(
+                      version_root,
+                      "semantic_compression",
+                      {"scores": fixed},
+                  )
+              finally:
+                  module.current_normalized_metric_scores = original_metric_reader
+              assert publication["language_count"] == 60
+              density_rows = publication["normalized_metric_scores"]["metric.semantic_density"]
+              assert len(density_rows) == 60, len(density_rows)
+              assert density_rows["quidra_v1.0.0"] == 40.0
+              assert density_rows["quidra_v1.0.49"] == 44.9
+              assert density_rows["quidra_v1.0.50"] == 45.0
+
           payload = {
               "schema_version": 1,
               "cache_schema_version": 1,

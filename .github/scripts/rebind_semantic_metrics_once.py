@@ -76,12 +76,18 @@ def result_without_catalog_binding(value):
         equivalence.pop("canonical_fragment_catalog_content_sha256", None)
     return cloned
 
-def runner(source: Path) -> Path:
-    return source / "benchmark/template/scripts/benchmark.py"
+def runner(source: Path, workspace: Path) -> Path:
+    staged = workspace / "template/scripts/benchmark.py"
+    if staged.is_file():
+        return staged
+    tracked = source / "benchmark/template/scripts/benchmark.py"
+    if tracked.is_file():
+        return tracked
+    raise SystemExit("benchmark runner is missing from workspace and source repo")
 
-def run_cli(source: Path, *args: str) -> None:
+def run_cli(source: Path, workspace: Path, *args: str) -> None:
     subprocess.run(
-        [sys.executable, str(runner(source)), *args],
+        [sys.executable, str(runner(source, workspace)), *args],
         cwd=source,
         check=True,
     )
@@ -218,6 +224,7 @@ def stage(source: Path, workspace: Path, output: Path) -> None:
 
         run_cli(
             source,
+            workspace,
             "result-check",
             "--workspace", str(workspace),
             "--id", agent_id,
@@ -227,6 +234,7 @@ def stage(source: Path, workspace: Path, output: Path) -> None:
             ledger_evidence.extend(["--evidence", evidence_path])
         run_cli(
             source,
+            workspace,
             "ledger-update",
             "--workspace", str(workspace),
             "--id", uid,
@@ -241,7 +249,7 @@ def stage(source: Path, workspace: Path, output: Path) -> None:
             "--validation-result", "PASS",
             *ledger_evidence,
         ]
-        run_cli(source, *cmd)
+        run_cli(source, workspace, *cmd)
 
         plan.append({
             "work_unit_id": uid,

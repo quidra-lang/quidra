@@ -1138,7 +1138,7 @@ jobs:
             exit 1
           }
           git rm -r --ignore-unmatch "benchmark/checkpoints/$RUN_ID"
-          git add -f "benchmark/$RUN_ID" benchmark/cache benchmark/template/prompts
+          git add -f "benchmark/$RUN_ID" benchmark/cache benchmark/template/prompts benchmark/quidra_versions
           python - <<'PY'
           import json, os, subprocess
           run_id = os.environ["RUN_ID"]
@@ -1171,6 +1171,7 @@ jobs:
             benchmark/${{ needs.prepare.outputs.run_id }}
             benchmark/cache
             benchmark/template/prompts
+            benchmark/quidra_versions
             ${{ runner.temp }}/benchmark-budget-state.json
             ${{ runner.temp }}/cache-checkpoint.json
 

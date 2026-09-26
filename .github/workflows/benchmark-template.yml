@@ -930,6 +930,9 @@ jobs:
           module.copy_tracked_blob(
               Path.cwd(), "benchmark/config.json", root / "benchmark_config.json"
           )
+          module.copy_tracked_blob(
+              Path.cwd(), "project.toml", root / "repo" / "project.toml"
+          )
           module.materialize_reuse_catalog(Path.cwd(), root / "template")
           master = Path("benchmark/master_prompt.md").read_bytes()
           master_hash = module.sha256_bytes(master)

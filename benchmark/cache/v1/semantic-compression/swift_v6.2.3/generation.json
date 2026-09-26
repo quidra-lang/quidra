@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Swift",
+  "version": "6.2.3",
+  "generation_id": "swift_v6.2.3",
+  "language_id": "swift_v6.2.3",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 77.34366141184545,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 97.73,
+    "metric.capability_efficiency": 100,
+    "metric.hidden_semantic_cost": 74.07,
+    "metric.semantic_density": 70.49,
+    "metric.semantic_determinacy": 80.33,
+    "metric.semantic_locality": 0
+  },
+  "normalization_raw": {}
+}

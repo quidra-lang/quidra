@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Go",
+  "version": "1.26.3",
+  "generation_id": "go_v1.26.3",
+  "language_id": "go_v1.26.3",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 72.08001380940367,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 90.91,
+    "metric.capability_efficiency": 82.2,
+    "metric.hidden_semantic_cost": 48.15,
+    "metric.semantic_density": 45.65,
+    "metric.semantic_determinacy": 41,
+    "metric.semantic_locality": 91.86
+  },
+  "normalization_raw": {}
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "TypeScript",
+  "version": "7.0.2",
+  "generation_id": "typescript_v7.0.2",
+  "language_id": "typescript_v7.0.2",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 48.191614989179804,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 82.95,
+    "metric.capability_efficiency": 24.43,
+    "metric.hidden_semantic_cost": 0,
+    "metric.semantic_density": 10.88,
+    "metric.semantic_determinacy": 80.33,
+    "metric.semantic_locality": 40.19
+  },
+  "normalization_raw": {}
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "language": "Java",
+  "version": "26.0.1",
+  "generation_id": "java_v26.0.1",
+  "language_id": "java_v26.0.1",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 75.96844164332398,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 94.44444444444444,
+    "metric.correct_at_1": 83.33333333333333,
+    "metric.correct_at_n": 88.88888888888889,
+    "metric.diagnosis_efficiency": 0,
+    "metric.generated_code_compile_performance": 90,
+    "metric.generated_code_memory_efficiency": 75,
+    "metric.generated_code_performance": 75,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 83.33333333333333,
+    "metric.repair_efficiency": 86.11111111111111,
+    "metric.repair_success_rate": 33.333333333333336,
+    "metric.silent_bug_resistance": 88.23529411764706,
+    "metric.source_token_efficiency": 70,
+    "metric.specification_compliance": 88.9,
+    "metric.syntax_hallucination_resistance": 94.4,
+    "metric.test_pass_rate": 64.28571428571429,
+    "metric.total_token_efficiency": 65,
+    "metric.unseen_case_generalization": 85.71428571428571
+  },
+  "normalization_raw": {}
+}

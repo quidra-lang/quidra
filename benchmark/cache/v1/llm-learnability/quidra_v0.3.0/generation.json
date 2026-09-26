@@ -1,8 +1,10 @@
 {
   "schema_version": 1,
-  "version_ssot": "project.toml:[project].version",
+  "language": "Quidra",
   "version": "0.3.0",
+  "generation_id": "quidra_v0.3.0",
   "language_id": "quidra_v0.3.0",
+  "version_source": "project.toml:[project].version",
   "evaluation": "llm_learnability",
   "source_run_id": "2026-09-25-5dc8989-gh25",
   "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",

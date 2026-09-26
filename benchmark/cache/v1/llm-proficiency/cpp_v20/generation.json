@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "language": "C++",
+  "version": "20",
+  "generation_id": "cpp_v20",
+  "language_id": "cpp_v20",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 76.53333333333332,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 66.66666666666667,
+    "metric.correct_at_1": 66.66666666666667,
+    "metric.correct_at_n": 100,
+    "metric.diagnosis_efficiency": 0,
+    "metric.generated_code_compile_performance": 90,
+    "metric.generated_code_memory_efficiency": 70,
+    "metric.generated_code_performance": 70,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 50,
+    "metric.repair_efficiency": 83.33333333333333,
+    "metric.repair_success_rate": 100,
+    "metric.silent_bug_resistance": 100,
+    "metric.source_token_efficiency": 70,
+    "metric.specification_compliance": 100,
+    "metric.syntax_hallucination_resistance": 90,
+    "metric.test_pass_rate": 60,
+    "metric.total_token_efficiency": 70,
+    "metric.unseen_case_generalization": 66.66666666666667
+  },
+  "normalization_raw": {}
+}

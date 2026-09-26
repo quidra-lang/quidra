@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Kotlin",
+  "version": "2.3.21",
+  "generation_id": "kotlin_v2.3.21",
+  "language_id": "kotlin_v2.3.21",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 69.23975861928048,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 90.91,
+    "metric.capability_efficiency": 59.63,
+    "metric.hidden_semantic_cost": 66.67,
+    "metric.semantic_density": 58.52,
+    "metric.semantic_determinacy": 64.75,
+    "metric.semantic_locality": 28.71
+  },
+  "normalization_raw": {}
+}

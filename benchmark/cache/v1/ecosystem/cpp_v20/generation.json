@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "language": "C++",
+  "version": "20",
+  "generation_id": "cpp_v20",
+  "language_id": "cpp_v20",
+  "version_source": "benchmark/config.json",
+  "evaluation": "ecosystem",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 96.25,
+  "normalized_metric_scores": {
+    "metric.build_test_integration": 95,
+    "metric.community_public_knowledge_availability": 100,
+    "metric.core_tooling_availability_quality": 95,
+    "metric.debugger_profiler_support": 100,
+    "metric.documentation_quality": 85,
+    "metric.external_integration_coverage": 100,
+    "metric.ide_editor_support_quality": 100,
+    "metric.implemented_platform_coverage": 100,
+    "metric.installation_distribution_experience": 90,
+    "metric.package_dependency_management_quality": 80,
+    "metric.package_ecosystem_activity_maintenance": 90,
+    "metric.production_adoption_deployment_evidence": 100,
+    "metric.third_party_library_availability_domain_coverage": 100,
+    "metric.third_party_tool_availability": 100,
+    "metric.toolchain_stability_release_maturity": 100
+  },
+  "normalization_raw": {}
+}

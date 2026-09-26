@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "language": "Rust",
+  "version": "1.95.0",
+  "generation_id": "rust_v1.95.0",
+  "language_id": "rust_v1.95.0",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 86.87946379647747,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 77.77777777777777,
+    "metric.correct_at_1": 77.77777777777777,
+    "metric.correct_at_n": 100,
+    "metric.diagnosis_efficiency": 100,
+    "metric.generated_code_compile_performance": 85,
+    "metric.generated_code_memory_efficiency": 80,
+    "metric.generated_code_performance": 80,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 66.66666666666667,
+    "metric.repair_efficiency": 94.44444444444444,
+    "metric.repair_success_rate": 100,
+    "metric.silent_bug_resistance": 100,
+    "metric.source_token_efficiency": 80,
+    "metric.specification_compliance": 90,
+    "metric.syntax_hallucination_resistance": 77.8,
+    "metric.test_pass_rate": 82.1917808219178,
+    "metric.total_token_efficiency": 75,
+    "metric.unseen_case_generalization": 78.57142857142857
+  },
+  "normalization_raw": {}
+}

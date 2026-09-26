@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "language": "Swift",
+  "version": "6.2.3",
+  "generation_id": "swift_v6.2.3",
+  "language_id": "swift_v6.2.3",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 67.32182293129907,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 72.22222222222223,
+    "metric.correct_at_1": 50,
+    "metric.correct_at_n": 100,
+    "metric.diagnosis_efficiency": 33.333333333333336,
+    "metric.generated_code_compile_performance": 70,
+    "metric.generated_code_memory_efficiency": 70,
+    "metric.generated_code_performance": 70,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 33.333333333333336,
+    "metric.repair_efficiency": 79.16666666666667,
+    "metric.repair_success_rate": 100,
+    "metric.silent_bug_resistance": 92.3076923076923,
+    "metric.source_token_efficiency": 70,
+    "metric.specification_compliance": 66.67,
+    "metric.syntax_hallucination_resistance": 50,
+    "metric.test_pass_rate": 55.04587155963303,
+    "metric.total_token_efficiency": 55,
+    "metric.unseen_case_generalization": 52.38095238095238
+  },
+  "normalization_raw": {}
+}

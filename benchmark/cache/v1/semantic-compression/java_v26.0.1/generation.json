@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Java",
+  "version": "26.0.1",
+  "generation_id": "java_v26.0.1",
+  "language_id": "java_v26.0.1",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 53.48128701647593,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 90.91,
+    "metric.capability_efficiency": 47.9,
+    "metric.hidden_semantic_cost": 48.15,
+    "metric.semantic_density": 0,
+    "metric.semantic_determinacy": 70.5,
+    "metric.semantic_locality": 17.22
+  },
+  "normalization_raw": {}
+}

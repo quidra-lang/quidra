@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "language": "Rust",
+  "version": "1.95.0",
+  "generation_id": "rust_v1.95.0",
+  "language_id": "rust_v1.95.0",
+  "version_source": "benchmark/config.json",
+  "evaluation": "ecosystem",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 97.5,
+  "normalized_metric_scores": {
+    "metric.build_test_integration": 95,
+    "metric.community_public_knowledge_availability": 100,
+    "metric.core_tooling_availability_quality": 100,
+    "metric.debugger_profiler_support": 90,
+    "metric.documentation_quality": 100,
+    "metric.external_integration_coverage": 90,
+    "metric.ide_editor_support_quality": 95,
+    "metric.implemented_platform_coverage": 95,
+    "metric.installation_distribution_experience": 100,
+    "metric.package_dependency_management_quality": 100,
+    "metric.package_ecosystem_activity_maintenance": 100,
+    "metric.production_adoption_deployment_evidence": 100,
+    "metric.third_party_library_availability_domain_coverage": 95,
+    "metric.third_party_tool_availability": 100,
+    "metric.toolchain_stability_release_maturity": 95
+  },
+  "normalization_raw": {}
+}

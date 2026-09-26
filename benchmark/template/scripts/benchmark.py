@@ -678,32 +678,74 @@ def _quidra_version_sort_key(version: str) -> tuple[int, int, int, str]:
 
 
 def load_quidra_version_history_from_cache(cache_root: Path) -> dict[str, Any]:
-    """Build the immutable Quidra generation view from the ordinary cache tree.
+    """Compatibility view for same-version Quidra execution skipping/tests."""
+    general = load_language_generation_history_from_cache(cache_root)
+    versions = []
+    for row in general.get("generations", []):
+        if row.get("language") != "Quidra":
+            continue
+        versions.append({
+            "version": row["version"],
+            "language_id": row["generation_id"],
+            "source_run_id": row.get("source_run_id"),
+            "source_commit_sha": row.get("source_commit_sha"),
+            "primary_scores": row.get("primary_scores") or {},
+            "normalized_metric_scores": row.get("normalized_metric_scores") or {},
+            "normalization_raw": row.get("normalization_raw") or {},
+        })
+    return {
+        "schema_version": 1,
+        "version_ssot": "project.toml:[project].version",
+        "versions": versions,
+    }
 
-    There is deliberately no parallel benchmark/quidra_versions store.  Each
-    Primary evaluation keeps its generation record beside the normal language
-    cache at cache/v1/<evaluation>/quidra_vX.Y.Z/generation.json.
-    """
-    by_version: dict[str, dict[str, Any]] = {}
+def generation_file(
+    cache_root: Path, evaluation: str, generation_id: str
+) -> Path:
+    return cache_root / "v1" / slug_id(evaluation) / generation_id / "generation.json"
+
+
+def load_language_generation_history_from_cache(
+    cache_root: Path,
+) -> dict[str, Any]:
+    """Load all immutable language generations from the ordinary cache tree."""
+    by_id: dict[str, dict[str, Any]] = {}
     for evaluation in PRIMARY_NAMES:
         evaluation_root = cache_root / "v1" / slug_id(evaluation)
         if not evaluation_root.is_dir():
             continue
-        for path in sorted(evaluation_root.glob("quidra_v*/generation.json")):
+        for path in sorted(evaluation_root.glob("*_v*/generation.json")):
             row = json_load(path)
             if row.get("schema_version") != 1:
-                raise BenchmarkError(f"unsupported Quidra generation schema: {path}")
-            if row.get("version_ssot") != "project.toml:[project].version":
-                raise BenchmarkError(f"Quidra generation must name project.toml as SSOT: {path}")
+                raise BenchmarkError(f"unsupported language generation schema: {path}")
+            generation_id = str(
+                row.get("generation_id")
+                or row.get("language_id")
+                or path.parent.name
+            )
+            if generation_id != path.parent.name:
+                raise BenchmarkError(f"language generation id/path mismatch: {path}")
+            language = str(row.get("language") or "")
+            if not language and generation_id.startswith("quidra_v"):
+                language = "Quidra"
+            if not language:
+                raise BenchmarkError(f"language generation has no base language: {path}")
             if row.get("evaluation") != evaluation:
-                raise BenchmarkError(f"Quidra generation evaluation mismatch: {path}")
+                raise BenchmarkError(f"language generation evaluation mismatch: {path}")
             version = str(row.get("version") or "")
-            language_id = str(row.get("language_id") or "")
-            if language_id != quidra_version_id(version):
-                raise BenchmarkError(f"Quidra generation id mismatch: {path}")
-            merged = by_version.setdefault(version, {
+            if not version:
+                raise BenchmarkError(f"language generation has no version: {path}")
+            version_source = str(
+                row.get("version_source")
+                or row.get("version_ssot")
+                or ""
+            )
+            merged = by_id.setdefault(generation_id, {
+                "language": language,
                 "version": version,
-                "language_id": language_id,
+                "generation_id": generation_id,
+                "language_id": generation_id,
+                "version_source": version_source,
                 "source_run_id": row.get("source_run_id"),
                 "source_commit_sha": row.get("source_commit_sha"),
                 "primary_scores": {},
@@ -712,44 +754,134 @@ def load_quidra_version_history_from_cache(cache_root: Path) -> dict[str, Any]:
                 "_evaluations": set(),
             })
             if (
-                merged["language_id"] != language_id
+                merged["language"] != language
+                or merged["version"] != version
+                or merged.get("version_source") != version_source
                 or merged.get("source_run_id") != row.get("source_run_id")
                 or merged.get("source_commit_sha") != row.get("source_commit_sha")
             ):
-                raise BenchmarkError(f"Quidra generation provenance mismatch for {version}")
+                raise BenchmarkError(
+                    f"language generation provenance mismatch for {generation_id}"
+                )
             if evaluation in merged["_evaluations"]:
-                raise BenchmarkError(f"duplicate Quidra generation for {version}/{evaluation}")
+                raise BenchmarkError(
+                    f"duplicate language generation for {generation_id}/{evaluation}"
+                )
             merged["_evaluations"].add(evaluation)
             score = row.get("primary_score")
             if not isinstance(score, (int, float)) or isinstance(score, bool):
-                raise BenchmarkError(f"Quidra generation primary_score is not numeric: {path}")
+                raise BenchmarkError(
+                    f"language generation primary_score is not numeric: {path}"
+                )
             merged["primary_scores"][evaluation] = float(score)
             metrics = row.get("normalized_metric_scores") or {}
             if not isinstance(metrics, dict):
-                raise BenchmarkError(f"Quidra generation normalized metrics must be an object: {path}")
+                raise BenchmarkError(
+                    f"language generation normalized metrics must be an object: {path}"
+                )
             merged["normalized_metric_scores"][evaluation] = metrics
             raw = row.get("normalization_raw") or {}
             if not isinstance(raw, dict):
-                raise BenchmarkError(f"Quidra generation normalization_raw must be an object: {path}")
+                raise BenchmarkError(
+                    f"language generation normalization_raw must be an object: {path}"
+                )
             merged["normalization_raw"][evaluation] = raw
 
-    versions: list[dict[str, Any]] = []
     required = set(PRIMARY_NAMES)
-    for version in sorted(by_version, key=_quidra_version_sort_key):
-        row = by_version[version]
+    generations: list[dict[str, Any]] = []
+    for generation_id in sorted(
+        by_id,
+        key=lambda value: (
+            str(by_id[value].get("language") or ""),
+            str(by_id[value].get("version") or ""),
+            value,
+        ),
+    ):
+        row = by_id[generation_id]
         observed = set(row.pop("_evaluations"))
         if observed != required:
             missing = sorted(required - observed)
             raise BenchmarkError(
-                f"Quidra generation {version} is incomplete; missing: {', '.join(missing)}"
+                f"language generation {generation_id} is incomplete; "
+                f"missing: {', '.join(missing)}"
             )
-        versions.append(row)
-    return {
-        "schema_version": 1,
-        "version_ssot": "project.toml:[project].version",
-        "versions": versions,
-    }
+        generations.append(row)
+    return {"schema_version": 1, "generations": generations}
 
+
+def generation_scores_from_history(
+    fixed_scores: dict[str, float],
+    evaluation: str,
+    current_generations: dict[str, dict[str, str]],
+    history: dict[str, Any],
+) -> tuple[dict[str, float], list[str]]:
+    """Publish ten current generations plus every retained older generation."""
+    scores: dict[str, float] = {}
+    order: list[str] = []
+    current_ids: set[str] = set()
+    for language, score in fixed_scores.items():
+        generation = current_generations.get(language)
+        if not isinstance(generation, dict):
+            raise BenchmarkError(f"missing current generation for {language}")
+        generation_id = str(generation.get("generation_id") or "")
+        if not generation_id:
+            raise BenchmarkError(f"current generation has no id for {language}")
+        if generation_id in scores:
+            raise BenchmarkError(f"duplicate current generation id: {generation_id}")
+        scores[generation_id] = float(score)
+        order.append(generation_id)
+        current_ids.add(generation_id)
+
+    for row in history.get("generations", []):
+        generation_id = str(row.get("generation_id") or "")
+        if not generation_id or generation_id in current_ids:
+            continue
+        score = (row.get("primary_scores") or {}).get(evaluation)
+        if not isinstance(score, (int, float)) or isinstance(score, bool):
+            continue
+        if generation_id in scores:
+            raise BenchmarkError(f"duplicate archived generation id: {generation_id}")
+        scores[generation_id] = float(score)
+        order.append(generation_id)
+    return scores, order
+
+
+def generation_normalized_metric_scores(
+    current_metrics: dict[str, dict[str, float]],
+    evaluation: str,
+    current_generations: dict[str, dict[str, str]],
+    history: dict[str, Any],
+) -> dict[str, dict[str, float]]:
+    """Expand normalized metric tables to current and historical generations."""
+    requirement_ids = set(current_metrics)
+    for row in history.get("generations", []):
+        requirement_ids.update(
+            ((row.get("normalized_metric_scores") or {}).get(evaluation) or {}).keys()
+        )
+    current_ids = {
+        language: str(row["generation_id"])
+        for language, row in current_generations.items()
+    }
+    publication: dict[str, dict[str, float]] = {}
+    for requirement_id in sorted(requirement_ids):
+        values: dict[str, float] = {}
+        current_values = current_metrics.get(requirement_id, {})
+        for language, generation_id in current_ids.items():
+            score = current_values.get(language)
+            if isinstance(score, (int, float)) and not isinstance(score, bool):
+                values[generation_id] = float(score)
+        for row in history.get("generations", []):
+            generation_id = str(row.get("generation_id") or "")
+            if generation_id in values:
+                continue
+            score = (
+                ((row.get("normalized_metric_scores") or {}).get(evaluation) or {})
+                .get(requirement_id)
+            )
+            if isinstance(score, (int, float)) and not isinstance(score, bool):
+                values[generation_id] = float(score)
+        publication[requirement_id] = values
+    return publication
 
 def quidra_version_history(root: Path) -> dict[str, Any]:
     return load_quidra_version_history_from_cache(root / "cache")
@@ -17338,113 +17470,150 @@ def versioned_publication(
 ) -> dict[str, Any]:
     fixed_scores = evaluation_result.get("scores")
     if not isinstance(fixed_scores, dict):
-        return {"scores": None, "ranking": None, "normalized_metric_scores": {}, "language_count": 0}
-    current_version = project_version(root / "repo")
-    if not current_version:
-        raise BenchmarkError("project.toml [project].version is required for publication")
-    history = quidra_version_history(root)
-    scores, order = versioned_scores_from_history(
-        {str(k): float(v) for k, v in fixed_scores.items()},
-        evaluation,
-        current_version,
-        history,
+        return {
+            "scores": None,
+            "ranking": None,
+            "normalized_metric_scores": {},
+            "language_count": 0,
+        }
+    fixed = {str(k): float(v) for k, v in fixed_scores.items()}
+    current_generations = language_generations(root, fixed.keys())
+    history = load_language_generation_history_from_cache(root / "cache")
+    scores, order = generation_scores_from_history(
+        fixed, evaluation, current_generations, history
     )
     current_metrics = current_normalized_metric_scores(root, evaluation)
-    metric_publication = versioned_normalized_metric_scores(
-        current_metrics, evaluation, current_version, history
+    metric_publication = generation_normalized_metric_scores(
+        current_metrics, evaluation, current_generations, history
     )
+    quidra = current_generations.get("Quidra") or {}
     return {
-        "current_quidra_version": current_version,
-        "current_quidra_id": quidra_version_id(current_version),
-        "version_ssot": "project.toml:[project].version",
+        "current_generations": {
+            language: row["generation_id"]
+            for language, row in current_generations.items()
+        },
+        "current_quidra_version": quidra.get("version"),
+        "current_quidra_id": quidra.get("generation_id"),
+        "version_ssot": {
+            "Quidra": "project.toml:[project].version",
+            "other_languages": "benchmark/config.json",
+        },
         "scores": scores,
         "ranking": deterministic_ranking(scores, order),
         "normalized_metric_scores": metric_publication,
         "language_count": len(scores),
         "note": (
-            "Each quidra_vX.Y.Z row is immutable once recorded. Normalized metric "
-            "scores are the certified normalized values from that version's source run."
+            "The fixed measurement cohort is ten current languages. Publication "
+            "uses immutable language generations and appends every retained older "
+            "generation without a hard-coded ceiling."
         ),
     }
 
-
-def build_quidra_version_entry(root: Path, run_id: str) -> dict[str, Any]:
-    version = project_version(root / "repo")
-    if not version:
-        raise BenchmarkError("project.toml [project].version is required")
-    primary_scores: dict[str, float] = {}
-    normalized_metric_scores: dict[str, dict[str, float]] = {}
+def build_language_generation_entries(
+    root: Path, run_id: str
+) -> dict[str, dict[str, Any]]:
+    languages = metadata_languages(root)
+    generations = language_generations(root, languages)
+    primary_scores: dict[str, dict[str, float]] = {language: {} for language in languages}
+    metric_scores: dict[str, dict[str, dict[str, float]]] = {
+        language: {} for language in languages
+    }
     for evaluation in PRIMARY_NAMES:
         result_path = root / "results" / "evaluations" / f"{evaluation}.json"
         result = json_load(result_path)
         scores = result.get("scores") or {}
-        score = scores.get("Quidra")
-        if not isinstance(score, (int, float)) or isinstance(score, bool):
-            raise BenchmarkError(f"{evaluation}: missing numeric Quidra score")
-        primary_scores[evaluation] = float(score)
-        metric_scores = current_normalized_metric_scores(root, evaluation)
-        normalized_metric_scores[evaluation] = {
-            requirement_id: float(values["Quidra"])
-            for requirement_id, values in metric_scores.items()
-            if isinstance(values.get("Quidra"), (int, float))
-            and not isinstance(values.get("Quidra"), bool)
-        }
+        current_metrics = current_normalized_metric_scores(root, evaluation)
+        for language in languages:
+            score = scores.get(language)
+            if not isinstance(score, (int, float)) or isinstance(score, bool):
+                raise BenchmarkError(
+                    f"{evaluation}: missing numeric score for {language}"
+                )
+            primary_scores[language][evaluation] = float(score)
+            metric_scores[language][evaluation] = {
+                requirement_id: float(values[language])
+                for requirement_id, values in current_metrics.items()
+                if isinstance(values.get(language), (int, float))
+                and not isinstance(values.get(language), bool)
+            }
     run = json_load(root / "run.json")
+    entries: dict[str, dict[str, Any]] = {}
+    for language in languages:
+        generation = generations[language]
+        generation_id = generation["generation_id"]
+        entries[generation_id] = {
+            "language": language,
+            "version": generation["version"],
+            "generation_id": generation_id,
+            "version_source": generation["version_source"],
+            "source_run_id": run_id,
+            "source_commit_sha": (run.get("evaluated") or {}).get("commit_sha"),
+            "primary_scores": primary_scores[language],
+            "normalized_metric_scores": metric_scores[language],
+            "normalization_raw": {},
+        }
+    return entries
+
+
+def persist_language_generation_entries(
+    source: Path, root: Path, run_id: str
+) -> dict[str, Any]:
+    cache_root = source / "benchmark" / "cache"
+    entries = build_language_generation_entries(root, run_id)
+    added: list[str] = []
+    reused: list[str] = []
+    for generation_id, entry in entries.items():
+        for evaluation in PRIMARY_NAMES:
+            generation = {
+                "schema_version": 1,
+                "language": entry["language"],
+                "version": entry["version"],
+                "generation_id": generation_id,
+                "language_id": generation_id,
+                "version_source": entry["version_source"],
+                "evaluation": evaluation,
+                "source_run_id": entry.get("source_run_id"),
+                "source_commit_sha": entry.get("source_commit_sha"),
+                "primary_score": entry["primary_scores"][evaluation],
+                "normalized_metric_scores": (
+                    entry["normalized_metric_scores"][evaluation]
+                ),
+                "normalization_raw": (
+                    (entry.get("normalization_raw") or {}).get(evaluation) or {}
+                ),
+            }
+            path = generation_file(cache_root, evaluation, generation_id)
+            if path.exists():
+                existing = json_load(path)
+                for key in ("primary_score", "normalized_metric_scores"):
+                    if existing.get(key) != generation.get(key):
+                        raise BenchmarkError(
+                            f"{generation_id}/{evaluation} is immutable and "
+                            f"already has different {key}"
+                        )
+                reused.append(f"{generation_id}/{evaluation}")
+                continue
+            json_dump(path, generation)
+            added.append(f"{generation_id}/{evaluation}")
     return {
-        "version": version,
-        "language_id": quidra_version_id(version),
-        "source_run_id": run_id,
-        "source_commit_sha": (run.get("evaluated") or {}).get("commit_sha"),
-        "primary_scores": primary_scores,
-        "normalized_metric_scores": normalized_metric_scores,
-        "normalization_raw": {},
+        "added": added,
+        "reused": reused,
+        "generation_count": len(entries),
     }
 
 
-def persist_quidra_version_entry(source: Path, root: Path, run_id: str) -> dict[str, Any]:
-    cache_root = source / "benchmark" / "cache"
-    history = load_quidra_version_history_from_cache(cache_root)
-    entry = build_quidra_version_entry(root, run_id)
-    version = str(entry["version"])
-    existing = next(
-        (row for row in history.get("versions", []) if str(row.get("version")) == version),
-        None,
-    )
-    if existing is not None:
-        if (
-            existing.get("primary_scores") != entry.get("primary_scores")
-            or existing.get("normalized_metric_scores") != entry.get("normalized_metric_scores")
-        ):
-            raise BenchmarkError(
-                f"Quidra {version} is already archived with different scores; same-version results are immutable"
-            )
-        return {"added": False, "version": version, "language_id": existing["language_id"]}
-
-    for evaluation in PRIMARY_NAMES:
-        generation = {
-            "schema_version": 1,
-            "version_ssot": "project.toml:[project].version",
-            "version": version,
-            "language_id": entry["language_id"],
-            "evaluation": evaluation,
-            "source_run_id": entry.get("source_run_id"),
-            "source_commit_sha": entry.get("source_commit_sha"),
-            "primary_score": entry["primary_scores"][evaluation],
-            "normalized_metric_scores": entry["normalized_metric_scores"][evaluation],
-            "normalization_raw": (
-                (entry.get("normalization_raw") or {}).get(evaluation) or {}
-            ),
-        }
-        path = quidra_generation_file(cache_root, evaluation, version)
-        if path.exists():
-            if json_load(path) != generation:
-                raise BenchmarkError(
-                    f"Quidra {version}/{evaluation} generation already exists with different data"
-                )
-        else:
-            json_dump(path, generation)
-    return {"added": True, "version": version, "language_id": entry["language_id"]}
-
+def persist_quidra_version_entry(
+    source: Path, root: Path, run_id: str
+) -> dict[str, Any]:
+    """Compatibility wrapper; post-run now persists all language generations."""
+    result = persist_language_generation_entries(source, root, run_id)
+    quidra = language_generation(root, "Quidra")
+    generation_id = quidra["generation_id"]
+    return {
+        "added": any(item.startswith(generation_id + "/") for item in result["added"]),
+        "version": quidra["version"],
+        "language_id": generation_id,
+    }
 
 def compact_run_files(
     staging: Path,
@@ -17560,7 +17729,10 @@ def compact_run_files(
         "rankings.json": rankings,
         "versioned_scores.json": {
             "schema_version": 1,
-            "version_ssot": "project.toml:[project].version",
+            "version_ssot": {
+                "Quidra": "project.toml:[project].version",
+                "other_languages": "benchmark/config.json",
+            },
             "evaluations": versioned,
         },
         "cache_usage.json": cache_status,
@@ -17700,7 +17872,7 @@ def cmd_post_run(args: argparse.Namespace) -> int:
             "skipped": "synthetic_ci",
         }
     else:
-        version_history_update = persist_quidra_version_entry(source, root, run_id)
+        version_history_update = persist_language_generation_entries(source, root, run_id)
 
     try:
         validate_host_workspace_sentinel(root, source, run)
@@ -17717,6 +17889,7 @@ def cmd_post_run(args: argparse.Namespace) -> int:
         "retained_file_count": len(expected_hashes),
         "cache_promoted": cache_promotion.get("promoted", 0),
         "prompt_components_promoted": prompt_promotion.get("components", 0),
+        "language_generation_history": version_history_update,
         "quidra_version_history": version_history_update,
         "workspace_deleted": True,
     }

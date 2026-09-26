@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Python",
+  "version": "3.12.3",
+  "generation_id": "python_v3.12.3",
+  "language_id": "python_v3.12.3",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 46.991189076973654,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 77.27,
+    "metric.capability_efficiency": 0,
+    "metric.hidden_semantic_cost": 18.52,
+    "metric.semantic_density": 23.42,
+    "metric.semantic_determinacy": 64.75,
+    "metric.semantic_locality": 45.93
+  },
+  "normalization_raw": {}
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "C++",
+  "version": "20",
+  "generation_id": "cpp_v20",
+  "language_id": "cpp_v20",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 20.379131468284033,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 98.86,
+    "metric.capability_efficiency": 54.31,
+    "metric.hidden_semantic_cost": 11.11,
+    "metric.semantic_density": 4.96,
+    "metric.semantic_determinacy": 0,
+    "metric.semantic_locality": 0
+  },
+  "normalization_raw": {}
+}

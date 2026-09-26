@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "language": "TypeScript",
+  "version": "7.0.2",
+  "generation_id": "typescript_v7.0.2",
+  "language_id": "typescript_v7.0.2",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 34.11418355058969,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 0,
+    "metric.correct_at_1": 0,
+    "metric.correct_at_n": 61.111111111111114,
+    "metric.diagnosis_efficiency": 44.44444444444444,
+    "metric.generated_code_compile_performance": 50,
+    "metric.generated_code_memory_efficiency": 50,
+    "metric.generated_code_performance": 50,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 0,
+    "metric.repair_efficiency": 40.27777777777778,
+    "metric.repair_success_rate": 61.111111111111114,
+    "metric.silent_bug_resistance": 0,
+    "metric.source_token_efficiency": 55,
+    "metric.specification_compliance": 61.11,
+    "metric.syntax_hallucination_resistance": 100,
+    "metric.test_pass_rate": 20.670391061452513,
+    "metric.total_token_efficiency": 35,
+    "metric.unseen_case_generalization": 0
+  },
+  "normalization_raw": {}
+}

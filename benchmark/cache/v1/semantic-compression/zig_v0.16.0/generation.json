@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Zig",
+  "version": "0.16.0",
+  "generation_id": "zig_v0.16.0",
+  "language_id": "zig_v0.16.0",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 78.47945837680206,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 94.32,
+    "metric.capability_efficiency": 27.91,
+    "metric.hidden_semantic_cost": 100,
+    "metric.semantic_density": 58.69,
+    "metric.semantic_determinacy": 45.08,
+    "metric.semantic_locality": 100
+  },
+  "normalization_raw": {}
+}

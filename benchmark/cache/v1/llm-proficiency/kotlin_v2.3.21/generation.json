@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "language": "Kotlin",
+  "version": "2.3.21",
+  "generation_id": "kotlin_v2.3.21",
+  "language_id": "kotlin_v2.3.21",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 77.64875500345063,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 72.22222222222223,
+    "metric.correct_at_1": 72.22222222222223,
+    "metric.correct_at_n": 100,
+    "metric.diagnosis_efficiency": 0,
+    "metric.generated_code_compile_performance": 60,
+    "metric.generated_code_memory_efficiency": 70,
+    "metric.generated_code_performance": 70,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 66.66666666666667,
+    "metric.repair_efficiency": 86.11111111111111,
+    "metric.repair_success_rate": 100,
+    "metric.silent_bug_resistance": 100,
+    "metric.source_token_efficiency": 70,
+    "metric.specification_compliance": 100,
+    "metric.syntax_hallucination_resistance": 72.2,
+    "metric.test_pass_rate": 65.21739130434783,
+    "metric.total_token_efficiency": 65,
+    "metric.unseen_case_generalization": 73.80952380952381
+  },
+  "normalization_raw": {}
+}

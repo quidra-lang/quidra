@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Rust",
+  "version": "1.95.0",
+  "generation_id": "rust_v1.95.0",
+  "language_id": "rust_v1.95.0",
+  "version_source": "benchmark/config.json",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 67.90867954601302,
+  "normalized_metric_scores": {
+    "metric.capability_coverage": 98.86,
+    "metric.capability_efficiency": 60.12,
+    "metric.hidden_semantic_cost": 66.67,
+    "metric.semantic_density": 29.99,
+    "metric.semantic_determinacy": 70.5,
+    "metric.semantic_locality": 28.71
+  },
+  "normalization_raw": {}
+}

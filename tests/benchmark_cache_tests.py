@@ -34,6 +34,7 @@ micro_measure = load("benchmark_cache_micro_measure", SCRIPTS / "micro_measure.p
 def make_workspace(tmp: Path) -> Path:
     root = tmp / "workspace"
     shutil.copytree(ROOT / "benchmark" / "template", root / "template")
+    shutil.copy2(ROOT / "benchmark" / "config.json", root / "benchmark_config.json")
     # init materializes the reuse catalog into the template before recording
     # its tree hash; readiness audits key on what it records.
     benchmark.materialize_reuse_catalog(ROOT, root / "template")
@@ -277,7 +278,7 @@ def install_cache_record(root: Path, unit: dict, task: dict) -> str:
             "prompt_sha256": task["prompt_sha256"],
         },
     }
-    rel = benchmark.cache_record_relative(unit, fingerprint)
+    rel = benchmark.cache_record_relative(unit, fingerprint, payload)
     benchmark.json_dump(root / "cache" / rel, record)
 
     run = benchmark.json_load(root / "run.json")
@@ -731,7 +732,7 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     (source / "benchmark" / "cache").mkdir(parents=True)
     summary = benchmark.promote_certified_cache(source, root)
     assert summary["promoted"] == 1, summary
-    rel = benchmark.cache_record_relative(unit, fingerprint)
+    rel = benchmark.cache_record_relative(unit, fingerprint, payload)
     record_path = source / "benchmark" / "cache" / rel
     assert record_path.is_file() and "mechanical-micro-measure" in rel.as_posix()
     record = benchmark.json_load(record_path)
@@ -1070,7 +1071,7 @@ def assert_cached_validator_rejection_becomes_miss() -> None:
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
         fingerprint = install_cache_record(root, unit, task)
-        rel = benchmark.cache_record_relative(unit, fingerprint)
+        rel = benchmark.cache_record_relative(unit, fingerprint, payload)
         path = root / "cache" / rel
         record = benchmark.json_load(path)
         # Worker-provided arithmetic is deliberately non-authoritative:

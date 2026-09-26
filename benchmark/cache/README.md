@@ -13,11 +13,14 @@ Records measuring Quidra additionally require an explicit trusted compiler/runti
 
 ## Versioned Quidra generations
 
-The fixed scientific run still evaluates the language named `Quidra`.  Its
-cache identity is versioned from `project.toml [project].version`: single-language
-Quidra leaves live under `quidra_vX.Y.Z` (and semantic-compression probe leaves
-under `quidra_vX.Y.Z--<probe>`).  Each Primary evaluation also stores one
-immutable `quidra_vX.Y.Z/generation.json` beside those ordinary cache records.
-There is no separate Quidra history tree; publication discovers generations from
-these cache records and can grow 10, 11, 12, ... comparison rows without changing
-the fixed ten-language measurement plan.
+The fixed scientific run still evaluates the same ten language names. Every
+single-language cache leaf is stored under an immutable versioned generation,
+for example `python_v3.12.3`, `cpp_v20`, or `quidra_v0.3.0`; Semantic
+Compression appends its probe suffix to that generation ID. Non-Quidra versions
+come from `benchmark/config.json`. Quidra is the deliberate exception: its
+version value is resolved only from `project.toml [project].version`.
+
+A version bump creates a new generation and leaves every older generation
+intact. Only shards assigned to the changed language become cold. Rubrics,
+prompts, validators, workloads, model/sampling identity and toolchain
+fingerprints remain independent scientific cache dependencies.

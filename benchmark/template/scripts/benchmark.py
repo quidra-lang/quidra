@@ -71,6 +71,76 @@ def metadata_languages(root: Path) -> list[str]:
     return list(load_benchmark_metadata(root / "template")["languages"])
 
 
+def load_language_generation_config(path: Path) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise BenchmarkError(f"benchmark language generation config is missing: {path}") from None
+    except json.JSONDecodeError as exc:
+        raise BenchmarkError(f"benchmark language generation config is invalid JSON: {path}: {exc}") from None
+    if data.get("schema_version") != 1:
+        raise BenchmarkError(f"unsupported benchmark generation config schema: {path}")
+    languages = data.get("languages")
+    if not isinstance(languages, dict) or not languages:
+        raise BenchmarkError(f"benchmark generation config has no languages: {path}")
+    seen_ids: set[str] = set()
+    for language, row in languages.items():
+        if not isinstance(language, str) or not isinstance(row, dict):
+            raise BenchmarkError(f"invalid benchmark generation config entry: {language!r}")
+        cache_id = str(row.get("id") or "")
+        if not re.fullmatch(r"[a-z][a-z0-9-]*", cache_id):
+            raise BenchmarkError(f"invalid benchmark language id for {language}: {cache_id!r}")
+        if cache_id in seen_ids:
+            raise BenchmarkError(f"duplicate benchmark language id: {cache_id}")
+        seen_ids.add(cache_id)
+        has_version = isinstance(row.get("version"), str) and bool(str(row.get("version")).strip())
+        has_source = isinstance(row.get("version_source"), str) and bool(str(row.get("version_source")).strip())
+        if has_version == has_source:
+            raise BenchmarkError(f"{language}: declare exactly one of version or version_source")
+        if has_source and row.get("version_source") != "project.toml:[project].version":
+            raise BenchmarkError(f"{language}: unsupported version_source {row.get('version_source')!r}")
+    return data
+
+
+def benchmark_generation_config(root: Path) -> dict[str, Any]:
+    for path in (root / "benchmark_config.json", root / "benchmark" / "config.json"):
+        if path.is_file():
+            return load_language_generation_config(path)
+    raise BenchmarkError("benchmark/config.json was not materialized into the workspace")
+
+
+def language_generation(root: Path, language: str) -> dict[str, str]:
+    config = benchmark_generation_config(root)
+    row = (config.get("languages") or {}).get(language)
+    if not isinstance(row, dict):
+        raise BenchmarkError(f"benchmark/config.json has no language generation for {language}")
+    if row.get("version_source"):
+        repo = root / "repo" if (root / "repo" / "project.toml").is_file() else root
+        version = project_version(repo)
+        if not version:
+            raise BenchmarkError(f"{language}: project.toml [project].version is required")
+    else:
+        version = str(row.get("version") or "").strip()
+    cache_id = str(row["id"])
+    generation_id = f"{cache_id}_v{version}"
+    if not re.fullmatch(r"[a-z][a-z0-9-]*_v[0-9A-Za-z.+-]+", generation_id):
+        raise BenchmarkError(f"invalid language generation id: {generation_id!r}")
+    return {
+        "language": language,
+        "id": cache_id,
+        "version": version,
+        "generation_id": generation_id,
+        "version_source": str(row.get("version_source") or "benchmark/config.json"),
+    }
+
+
+def language_generations(
+    root: Path, languages: Iterable[str] | None = None
+) -> dict[str, dict[str, str]]:
+    selected = list(languages) if languages is not None else metadata_languages(root)
+    return {language: language_generation(root, language) for language in selected}
+
+
 BENCHMARK_METADATA = load_benchmark_metadata(TEMPLATE_DIR)
 PRIMARY_NAMES = tuple(entry["id"] for entry in BENCHMARK_METADATA["evaluations"])
 PRIMARY_DISPLAY_NAMES = {
@@ -1220,6 +1290,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         "benchmark/cache",
         root / "cache",
     )
+    copy_tracked_blob(source, "benchmark/config.json", root / "benchmark_config.json")
     version_history = load_quidra_version_history_from_cache(root / "cache")
     json_dump(root / "version_history" / "index.json", version_history)
     version_history_snapshot = {
@@ -1276,6 +1347,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         "reuse_materialization_sha256": materialized_hash,
         "template_tree_sha256": template_hash,
         "cache_tree_sha256": sha256_tree(root / "cache"),
+        "benchmark_config_sha256": sha256_file(root / "benchmark_config.json"),
         "inference_identity": {
             "provider": getattr(args, "provider", None),
             "model": getattr(args, "model", None),
@@ -3339,6 +3411,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     "goal": goal,
                     "assigned_agent_id": agent_id,
                     "assigned_languages": assigned_languages,
+                    "language_generations": language_generations(root, assigned_languages),
                     "dependencies": deps,
                     "input_hashes": {
                         "primary_config": primary_config_projection_sha256(
@@ -3395,6 +3468,8 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
             "runner_action": "aggregate-primary",
             "goal": f"Mechanically aggregate {evaluation} and generate its language ranking.",
             "assigned_agent_id": f"system-{aggregate_id}",
+            "assigned_languages": [],
+            "language_generations": {},
             "dependencies": sorted(set(regular_ids + audit_ids)),
             "input_hashes": {
                 "aggregation_config": sha256_file(
@@ -6324,6 +6399,7 @@ def cmd_manifest_merge(args: argparse.Namespace) -> int:
                 "result_kind": result_kind,
                 "packet_layout": str(raw.get("packet_layout") or "task-first"),
                 "assigned_languages": list(raw.get("assigned_languages", [])),
+                "language_generations": dict(raw.get("language_generations") or {}),
                 "runner_action": raw.get("runner_action"),
                 # These are part of the frozen Semantic Compression contract.
                 # Dropping them at manifest-merge time lets downstream A/B/C/D/E
@@ -7167,11 +7243,24 @@ def cache_epoch(root: Path, evaluation: str) -> str:
     raise BenchmarkError(f"unsupported cache epoch mode: {mode}")
 
 
+def unit_generation_id(
+    unit: dict[str, Any], language: str, payload: dict[str, Any] | None = None
+) -> str | None:
+    rows = unit.get("language_generations") or {}
+    if isinstance(rows, dict):
+        row = rows.get(language)
+        if isinstance(row, dict) and isinstance(row.get("generation_id"), str):
+            return str(row["generation_id"])
+    if language == "Quidra":
+        version = str(((payload or {}).get("quidra_target") or {}).get("version") or "")
+        if version:
+            return quidra_version_id(version)
+    return None
+
+
 def cache_scope(
     unit: dict[str, Any], payload: dict[str, Any] | None = None
 ) -> str:
-    if mechanical_unit(unit):
-        return "mechanical-" + slug_id(str(unit.get("runner_action")))
     requirement_ids = [str(rid) for rid in (unit.get("requirement_ids") or [])]
     adjudication = support_adjudication_probe(requirement_ids)
     if adjudication is not None:
@@ -7179,16 +7268,19 @@ def cache_scope(
     if COMPARABILITY_GATE in requirement_ids:
         return "comparability"
     assigned = list(unit.get("assigned_languages", []) or [])
-    language_scope = slug_id(assigned[0]) if len(assigned) == 1 else ""
-    if assigned == ["Quidra"]:
-        version = str(((payload or {}).get("quidra_target") or {}).get("version") or "")
-        if version:
-            language_scope = quidra_version_id(version)
+    generation_scope = (
+        unit_generation_id(unit, assigned[0], payload)
+        if len(assigned) == 1 else None
+    )
+    language_scope = generation_scope or (slug_id(assigned[0]) if len(assigned) == 1 else "")
     canonical_probe = canonical_fragment_probe(requirement_ids)
     if canonical_probe is not None and len(assigned) == 1:
         return language_scope + "--" + slug_id(canonical_probe)
     if unit.get("result_kind") == "audit" and unit.get("reuse_audit_for"):
         return "audit-" + "-".join(slug_id(str(a)) for a in sorted(unit["reuse_audit_for"]))
+    if mechanical_unit(unit):
+        action = "mechanical-" + slug_id(str(unit.get("runner_action")))
+        return language_scope + "--" + action if language_scope else action
     if len(assigned) == 1:
         return language_scope
     return "comparison-" + sha256_bytes(
@@ -7918,7 +8010,7 @@ def hydrate_certified_cache(
     def record_miss(uid: str, fingerprint: str, unit: dict[str, Any], reason: str,
                     *, invalidated: bool, record_path: str | None = None) -> None:
         status["hits"].pop(uid, None)
-        row = {"fingerprint": fingerprint, "scope": cache_scope(unit), "reason": reason}
+        row = {"fingerprint": fingerprint, "scope": cache_scope(unit, payload), "reason": reason}
         if record_path:
             row["record"] = record_path
         status["misses"][uid] = row
@@ -8000,6 +8092,15 @@ def hydrate_certified_cache(
             record_miss(
                 uid, fingerprint, unit,
                 "same-version Quidra record no longer matches benchmark conditions",
+                invalidated=True, record_path=rel.as_posix(),
+            )
+            continue
+        record_generations = record.get("language_generations")
+        current_generations = unit.get("language_generations") or {}
+        if record_generations not in (None, {}) and record_generations != current_generations:
+            record_miss(
+                uid, fingerprint, unit,
+                "certified record language generation no longer matches",
                 invalidated=True, record_path=rel.as_posix(),
             )
             continue
@@ -15739,6 +15840,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             "fingerprint_payload": payload,
             "evaluation": unit.get("evaluation"),
             "assigned_languages": list(unit.get("assigned_languages", [])),
+            "language_generations": dict(unit.get("language_generations") or {}),
             "result": result,
             "result_sha256": sha256_bytes(result_raw),
             "certification": certification,

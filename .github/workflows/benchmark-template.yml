@@ -13,6 +13,7 @@ on:
       - "tests/benchmark_adversarial_tests.py"
       - "tests/benchmark_semantic_compression_tests.py"
       - "benchmark/cache/**"
+      - "benchmark/config.json"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
       - ".github/actions/benchmark-primary/**"
@@ -355,6 +356,7 @@ jobs:
           python -m json.tool benchmark/template/config/inference_gateway.json >/dev/null
           python -m json.tool benchmark/template/config/sandbox_agent.json >/dev/null
           python -m json.tool benchmark/template/config/cache_policy.json >/dev/null
+          python -m json.tool benchmark/config.json >/dev/null
           python -m json.tool benchmark/2026-09-25-5dc8989-gh25/versioned_scores.json >/dev/null
           for generation in benchmark/cache/v1/*/quidra_v*/generation.json; do
             python -m json.tool "$generation" >/dev/null

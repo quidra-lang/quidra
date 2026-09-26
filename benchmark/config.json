@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "purpose": "Language-generation identity for all five benchmark evaluations. A version change creates a new immutable generation and reruns only that language's shards. Scientific inputs such as rubrics, prompts, validators, workloads and toolchain fingerprints remain separate cache dependencies.",
+  "languages": {
+    "Quidra": {
+      "id": "quidra",
+      "version_source": "project.toml:[project].version"
+    },
+    "Python": {
+      "id": "python",
+      "version": "3.12.3"
+    },
+    "C++": {
+      "id": "cpp",
+      "version": "20"
+    },
+    "Rust": {
+      "id": "rust",
+      "version": "1.95.0"
+    },
+    "Go": {
+      "id": "go",
+      "version": "1.26.3"
+    },
+    "Java": {
+      "id": "java",
+      "version": "26.0.1"
+    },
+    "TypeScript": {
+      "id": "typescript",
+      "version": "7.0.2"
+    },
+    "Kotlin": {
+      "id": "kotlin",
+      "version": "2.3.21"
+    },
+    "Swift": {
+      "id": "swift",
+      "version": "6.2.3"
+    },
+    "Zig": {
+      "id": "zig",
+      "version": "0.16.0"
+    }
+  }
+}

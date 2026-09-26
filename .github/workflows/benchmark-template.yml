@@ -163,6 +163,25 @@ jobs:
           current_version = module.project_version(Path("."))
           assert current_version
           current_id = module.quidra_version_id(current_version)
+
+          metadata = json.loads(
+              Path("benchmark/template/config/benchmark_metadata.json").read_text()
+          )
+          current_generations = module.language_generations(
+              Path("."), metadata["languages"]
+          )
+          general_history = module.load_language_generation_history_from_cache(
+              Path("benchmark/cache")
+          )
+          archived_ids = {
+              str(row["generation_id"])
+              for row in general_history["generations"]
+          }
+          assert {
+              row["generation_id"] for row in current_generations.values()
+          } <= archived_ids, (current_generations, archived_ids)
+          assert len(current_generations) == 10
+
           base = module.load_quidra_version_history_from_cache(Path("benchmark/cache"))
           base_ids = [str(row["language_id"]) for row in base["versions"]]
           assert len(base_ids) == len(set(base_ids)), base_ids
@@ -358,6 +377,7 @@ jobs:
           python -m json.tool benchmark/template/config/cache_policy.json >/dev/null
           python -m json.tool benchmark/config.json >/dev/null
           python -m json.tool benchmark/2026-09-25-5dc8989-gh25/versioned_scores.json >/dev/null
+          python -m json.tool benchmark/cache/v1/semantic-compression/generation_raw_seed.json >/dev/null
           for generation in benchmark/cache/v1/*/quidra_v*/generation.json; do
             python -m json.tool "$generation" >/dev/null
           done

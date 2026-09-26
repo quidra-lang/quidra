@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "migration_contract": "semantic-compression-all-generation-renormalization-v1",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "derivation": "Reconstructed from the retained Semantic Compression worker evidence with benchmark.py sc_raw_values semantics; values reproduce the published fixed-10 normalization exactly.",
+  "normalization": "min_max_across_all_retained_generations",
+  "generations": {
+    "cpp_v20": {
+      "language": "C++",
+      "metrics": {
+        "metric.semantic_density": 0.09763617677286741,
+        "metric.semantic_determinacy": 0.32806209682071974,
+        "metric.semantic_locality": 0.7419354838709677,
+        "metric.hidden_semantic_cost": 0.967741935483871,
+        "metric.capability_efficiency": 1.5862068965517242
+      }
+    },
+    "go_v1.26.3": {
+      "language": "Go",
+      "metrics": {
+        "metric.semantic_density": 0.12630359212050984,
+        "metric.semantic_determinacy": 0.1935483870967742,
+        "metric.semantic_locality": 0.22580645161290322,
+        "metric.hidden_semantic_cost": 0.6451612903225806,
+        "metric.capability_efficiency": 1.2
+      }
+    },
+    "java_v26.0.1": {
+      "language": "Java",
+      "metrics": {
+        "metric.semantic_density": 0.0941402497598463,
+        "metric.semantic_determinacy": 0.0967741935483871,
+        "metric.semantic_locality": 0.6451612903225806,
+        "metric.hidden_semantic_cost": 0.6451612903225806,
+        "metric.capability_efficiency": 1.675
+      }
+    },
+    "kotlin_v2.3.21": {
+      "language": "Kotlin",
+      "metrics": {
+        "metric.semantic_density": 0.13537675606641125,
+        "metric.semantic_determinacy": 0.11564395163616632,
+        "metric.semantic_locality": 0.5806451612903226,
+        "metric.hidden_semantic_cost": 0.4838709677419355,
+        "metric.capability_efficiency": 1.5125
+      }
+    },
+    "python_v3.12.3": {
+      "language": "Python",
+      "metrics": {
+        "metric.semantic_density": 0.11064425770308123,
+        "metric.semantic_determinacy": 0.11564395163616632,
+        "metric.semantic_locality": 0.4838709677419355,
+        "metric.hidden_semantic_cost": 0.9032258064516129,
+        "metric.capability_efficiency": 2.338235294117647
+      }
+    },
+    "quidra_v0.3.0": {
+      "language": "Quidra",
+      "metrics": {
+        "metric.semantic_density": 0.1646039603960396,
+        "metric.semantic_determinacy": 0,
+        "metric.semantic_locality": 0.5483870967741935,
+        "metric.hidden_semantic_cost": 0.3548387096774194,
+        "metric.capability_efficiency": 1.8333333333333333
+      }
+    },
+    "rust_v1.95.0": {
+      "language": "Rust",
+      "metrics": {
+        "metric.semantic_density": 0.11527093596059114,
+        "metric.semantic_determinacy": 0.0967741935483871,
+        "metric.semantic_locality": 0.5806451612903226,
+        "metric.hidden_semantic_cost": 0.4838709677419355,
+        "metric.capability_efficiency": 1.5057471264367817
+      }
+    },
+    "swift_v6.2.3": {
+      "language": "Swift",
+      "metrics": {
+        "metric.semantic_density": 0.14380825565912117,
+        "metric.semantic_determinacy": 0.06451612903225806,
+        "metric.semantic_locality": 0.7419354838709677,
+        "metric.hidden_semantic_cost": 0.41935483870967744,
+        "metric.capability_efficiency": 0.9534883720930233
+      }
+    },
+    "typescript_v7.0.2": {
+      "language": "TypeScript",
+      "metrics": {
+        "metric.semantic_density": 0.10180995475113122,
+        "metric.semantic_determinacy": 0.06451612903225806,
+        "metric.semantic_locality": 0.5161290322580645,
+        "metric.hidden_semantic_cost": 1.064516129032258,
+        "metric.capability_efficiency": 2
+      }
+    },
+    "zig_v0.16.0": {
+      "language": "Zig",
+      "metrics": {
+        "metric.semantic_density": 0.135498320268757,
+        "metric.semantic_determinacy": 0.1801600806684244,
+        "metric.semantic_locality": 0.18009677419354841,
+        "metric.hidden_semantic_cost": 0.1935483870967742,
+        "metric.capability_efficiency": 1.9518072289156627
+      }
+    }
+  }
+}

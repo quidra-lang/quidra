@@ -883,6 +883,417 @@ def generation_normalized_metric_scores(
         publication[requirement_id] = values
     return publication
 
+
+LQ_RELATIVE_RAW_FIELDS = {
+    "metric.native_execution_performance": ("workload", "cold_seconds"),
+    "metric.long_running_performance": ("workload", "steady_seconds"),
+    "metric.compile_build_performance": ("workload", "compile_effective_seconds"),
+    "metric.startup_latency": ("single", "startup_seconds"),
+    "metric.memory_efficiency": ("workload", "rss_bytes"),
+    "metric.runtime_overhead": ("single", "startup_rss_bytes"),
+    "metric.source_code_size": ("workload", "source_bytes"),
+    "metric.binary_artifact_size": ("workload", "artifact_effective_bytes"),
+}
+SC_RELATIVE_METRICS = (
+    "metric.semantic_density",
+    "metric.semantic_determinacy",
+    "metric.semantic_locality",
+    "metric.hidden_semantic_cost",
+    "metric.capability_efficiency",
+)
+
+
+def _unwrap_language_quality_raw(raw: Any, language: str | None = None) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {}
+    if isinstance(raw.get("workloads"), dict):
+        return raw
+    if language and isinstance(raw.get(language), dict):
+        candidate = raw[language]
+        if isinstance(candidate.get("workloads"), dict):
+            return candidate
+    if len(raw) == 1:
+        candidate = next(iter(raw.values()))
+        if isinstance(candidate, dict) and isinstance(candidate.get("workloads"), dict):
+            return candidate
+    return {}
+
+
+def _language_quality_seed_raw(cache_root: Path) -> dict[str, dict[str, Any]]:
+    path = cache_root / "v1" / "language-quality" / "micro_generation_seed.json.gz"
+    if not path.is_file():
+        return {}
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BenchmarkError(f"invalid Language Quality generation raw seed: {path}: {exc}") from exc
+    if data.get("schema_version") != 1:
+        raise BenchmarkError(f"unsupported Language Quality generation raw seed: {path}")
+    result: dict[str, dict[str, Any]] = {}
+    for generation_id, row in (data.get("generations") or {}).items():
+        if not isinstance(row, dict):
+            continue
+        language = str(row.get("language") or "")
+        raw = _unwrap_language_quality_raw(row.get("normalization_raw") or {}, language)
+        if raw:
+            result[str(generation_id)] = raw
+    return result
+
+
+def _semantic_compression_seed_raw(cache_root: Path) -> dict[str, dict[str, float]]:
+    path = cache_root / "v1" / "semantic-compression" / "generation_raw_seed.json"
+    if not path.is_file():
+        return {}
+    data = json_load(path)
+    if data.get("schema_version") != 1:
+        raise BenchmarkError(f"unsupported Semantic Compression generation raw seed: {path}")
+    result: dict[str, dict[str, float]] = {}
+    for generation_id, row in (data.get("generations") or {}).items():
+        metrics = (row or {}).get("metrics") if isinstance(row, dict) else None
+        if not isinstance(metrics, dict):
+            continue
+        numeric = {
+            str(metric): float(value)
+            for metric, value in metrics.items()
+            if isinstance(value, (int, float)) and not isinstance(value, bool)
+        }
+        if numeric:
+            result[str(generation_id)] = numeric
+    return result
+
+
+def current_generation_normalization_raw(
+    root: Path,
+    evaluation: str,
+    current_generations: dict[str, dict[str, str]],
+) -> dict[str, dict[str, Any]]:
+    """Normalization inputs for current generations, before comparison-set scaling."""
+    if evaluation == "language_quality":
+        manifest_path = root / "work" / "root" / "manifest.json"
+        if not manifest_path.is_file():
+            return {}
+        manifest = json_load(manifest_path)
+        result: dict[str, dict[str, Any]] = {}
+        for unit in manifest.get("work_units", []):
+            if (
+                unit.get("evaluation") != "language_quality"
+                or unit.get("runner_action") != "micro-measure-raw"
+            ):
+                continue
+            assigned = list(unit.get("assigned_languages") or [])
+            if len(assigned) != 1:
+                continue
+            language = assigned[0]
+            generation = current_generations.get(language) or {}
+            generation_id = str(generation.get("generation_id") or "")
+            if not generation_id:
+                continue
+            path = mechanical_result_path(root, unit)
+            if not path.is_file():
+                continue
+            payload = json_load(path)
+            raw = _unwrap_language_quality_raw(
+                payload.get("normalization_raw") or {}, language
+            )
+            if raw:
+                result[generation_id] = raw
+        return result
+
+    if evaluation == "semantic_compression":
+        aggregation = json_load(root / "template" / "config" / "aggregation.json")
+        config = aggregation["evaluations"]["semantic_compression"]
+        languages = metadata_languages(root)
+        try:
+            raw_by_metric = sc_raw_values(root, config, languages)
+        except (BenchmarkError, OSError, KeyError, TypeError, ValueError):
+            return {}
+        result: dict[str, dict[str, Any]] = {}
+        for language in languages:
+            generation = current_generations.get(language) or {}
+            generation_id = str(generation.get("generation_id") or "")
+            if not generation_id:
+                continue
+            result[generation_id] = {
+                metric: float(values[language])
+                for metric, values in raw_by_metric.items()
+                if isinstance(values.get(language), (int, float))
+                and not isinstance(values.get(language), bool)
+            }
+        return result
+
+    return {}
+
+
+def generation_normalization_raw(
+    root: Path,
+    evaluation: str,
+    current_generations: dict[str, dict[str, str]],
+    history: dict[str, Any],
+    generation_ids: Iterable[str],
+) -> dict[str, dict[str, Any]]:
+    """Resolve immutable raw inputs for every generation in a publication."""
+    wanted = [str(value) for value in generation_ids]
+    resolved: dict[str, dict[str, Any]] = {}
+    for row in history.get("generations", []):
+        generation_id = str(row.get("generation_id") or "")
+        if generation_id not in wanted:
+            continue
+        raw = ((row.get("normalization_raw") or {}).get(evaluation) or {})
+        if not isinstance(raw, dict) or not raw:
+            continue
+        if evaluation == "language_quality":
+            raw = _unwrap_language_quality_raw(raw, str(row.get("language") or ""))
+        if raw:
+            resolved[generation_id] = raw
+
+    # Migration-only seeds supply the current baseline generations whose original
+    # generation.json files predate raw preservation.
+    if evaluation == "language_quality":
+        for generation_id, raw in _language_quality_seed_raw(root / "cache").items():
+            if generation_id in wanted and generation_id not in resolved:
+                resolved[generation_id] = raw
+    elif evaluation == "semantic_compression":
+        for generation_id, raw in _semantic_compression_seed_raw(root / "cache").items():
+            if generation_id in wanted and generation_id not in resolved:
+                resolved[generation_id] = raw
+
+    # A newly bumped current generation is not archived until post-run. Its raw
+    # values therefore come from this run's completed language shard/evidence.
+    resolved.update(
+        current_generation_normalization_raw(root, evaluation, current_generations)
+    )
+    missing = [generation_id for generation_id in wanted if generation_id not in resolved]
+    if missing:
+        raise BenchmarkError(
+            f"{evaluation}: comparison-dependent publication is missing normalization raw "
+            f"for generations: {', '.join(missing)}"
+        )
+    return {generation_id: resolved[generation_id] for generation_id in wanted}
+
+
+def language_quality_generation_scores_from_raw(
+    raw_by_generation: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, float]]:
+    """Re-run Family-C normalization across every retained language generation."""
+    if not raw_by_generation:
+        return {}
+    ids = list(raw_by_generation)
+    workload_sets = {
+        generation_id: set((row.get("workloads") or {}).keys())
+        for generation_id, row in raw_by_generation.items()
+    }
+    if any(not values for values in workload_sets.values()):
+        raise BenchmarkError("Language Quality generation raw has no workloads")
+    first = workload_sets[ids[0]]
+    if any(values != first for values in workload_sets.values()):
+        raise BenchmarkError("Language Quality generations do not share one workload set")
+    workloads = sorted(first)
+
+    def workload_scores(field: str) -> dict[str, float]:
+        samples: dict[str, list[float]] = {generation_id: [] for generation_id in ids}
+        for workload in workloads:
+            available: dict[str, float] = {}
+            for generation_id, row in raw_by_generation.items():
+                values = (row.get("workloads") or {}).get(workload) or {}
+                value = values.get(field)
+                if value is not None:
+                    available[generation_id] = float(value)
+            if not available:
+                continue
+            if any(value <= 0.0 for value in available.values()):
+                raise BenchmarkError(
+                    f"Language Quality non-positive raw value for {field}/{workload}"
+                )
+            best = min(available.values())
+            for generation_id, value in available.items():
+                samples[generation_id].append(
+                    max(0.0, min(100.0, 100.0 * best / value))
+                )
+        return {
+            generation_id: sum(values) / len(values)
+            for generation_id, values in samples.items()
+            if values
+        }
+
+    def single_scores(field: str) -> dict[str, float]:
+        available = {
+            generation_id: float(row[field])
+            for generation_id, row in raw_by_generation.items()
+            if row.get(field) is not None
+        }
+        if not available:
+            return {}
+        if any(value <= 0.0 for value in available.values()):
+            raise BenchmarkError(f"Language Quality non-positive raw value for {field}")
+        best = min(available.values())
+        return {
+            generation_id: max(0.0, min(100.0, 100.0 * best / value))
+            for generation_id, value in available.items()
+        }
+
+    result: dict[str, dict[str, float]] = {}
+    for metric, (kind, field) in LQ_RELATIVE_RAW_FIELDS.items():
+        result[metric] = (
+            workload_scores(field) if kind == "workload" else single_scores(field)
+        )
+    return result
+
+
+def semantic_compression_generation_scores_from_raw(
+    raw_by_generation: dict[str, dict[str, Any]],
+    directions: dict[str, str],
+) -> dict[str, dict[str, float]]:
+    """Min-max normalize SC raw values across every retained generation."""
+    result: dict[str, dict[str, float]] = {}
+    for metric in SC_RELATIVE_METRICS:
+        values = {
+            generation_id: float(row[metric])
+            for generation_id, row in raw_by_generation.items()
+            if isinstance(row.get(metric), (int, float))
+            and not isinstance(row.get(metric), bool)
+        }
+        if set(values) != set(raw_by_generation):
+            missing = sorted(set(raw_by_generation) - set(values))
+            raise BenchmarkError(
+                f"Semantic Compression raw is incomplete for {metric}: {missing}"
+            )
+        low = min(values.values())
+        high = max(values.values())
+        if high == low:
+            result[metric] = {generation_id: 100.0 for generation_id in values}
+            continue
+        direction = directions.get(metric)
+        if direction not in {"higher_is_better", "lower_is_better"}:
+            raise BenchmarkError(f"Semantic Compression has invalid direction for {metric}")
+        span = high - low
+        result[metric] = {
+            generation_id: round(
+                100.0
+                * (
+                    (value - low)
+                    if direction == "higher_is_better"
+                    else (high - value)
+                )
+                / span,
+                2,
+            )
+            for generation_id, value in values.items()
+        }
+    return result
+
+
+def generation_metric_publication(
+    root: Path,
+    evaluation: str,
+    current_metrics: dict[str, dict[str, float]],
+    current_generations: dict[str, dict[str, str]],
+    history: dict[str, Any],
+    order: list[str],
+) -> dict[str, dict[str, float]]:
+    publication = generation_normalized_metric_scores(
+        current_metrics, evaluation, current_generations, history
+    )
+    if evaluation == "language_quality":
+        raw = generation_normalization_raw(
+            root, evaluation, current_generations, history, order
+        )
+        publication.update(language_quality_generation_scores_from_raw(raw))
+    elif evaluation == "semantic_compression":
+        raw = generation_normalization_raw(
+            root, evaluation, current_generations, history, order
+        )
+        config = json_load(root / "template" / "config" / "aggregation.json")[
+            "evaluations"
+        ]["semantic_compression"]
+        directions = {
+            metric: str(rule.get("direction") or "")
+            for metric, rule in (
+                (config.get("recompute_from_evidence") or {}).get("metrics") or {}
+            ).items()
+        }
+        publication.update(
+            semantic_compression_generation_scores_from_raw(raw, directions)
+        )
+    return publication
+
+
+def generation_primary_scores_from_metrics(
+    root: Path,
+    evaluation: str,
+    metrics: dict[str, dict[str, float]],
+    order: list[str],
+) -> dict[str, float]:
+    """Aggregate Primary scores from the expanded generation metric table."""
+    config = json_load(root / "template" / "config" / "aggregation.json")[
+        "evaluations"
+    ][evaluation]
+
+    def value(requirement_id: str, generation_id: str) -> float | None:
+        candidate = (metrics.get(requirement_id) or {}).get(generation_id)
+        if isinstance(candidate, (int, float)) and not isinstance(candidate, bool):
+            return float(candidate)
+        return None
+
+    scores: dict[str, float] = {}
+    for generation_id in order:
+        typ = config["type"]
+        score: float | None = None
+        if typ == "weighted_mean":
+            numerator = 0.0
+            denominator = 0.0
+            for requirement_id, weight in config["weights"].items():
+                item = value(requirement_id, generation_id)
+                if item is None:
+                    continue
+                numerator += float(weight) * item
+                denominator += float(weight)
+            if denominator:
+                score = numerator / denominator
+        elif typ == "category_mean":
+            total = 0.0
+            total_weight = 0.0
+            for category in config["categories"].values():
+                items = [
+                    item
+                    for requirement_id in category["metrics"]
+                    for item in [value(requirement_id, generation_id)]
+                    if item is not None
+                ]
+                if not items:
+                    continue
+                weight = float(category["weight"])
+                total += weight * (sum(items) / len(items))
+                total_weight += weight
+            if total_weight:
+                score = total / total_weight
+        elif typ == "semantic_harmonic":
+            numerator = 0.0
+            denominator = 0.0
+            for requirement_id, weight in config["quality_weights"].items():
+                item = value(requirement_id, generation_id)
+                if item is None:
+                    continue
+                numerator += float(weight) * item
+                denominator += float(weight)
+            coverage = value(str(config["coverage_metric"]), generation_id)
+            if denominator and coverage is not None:
+                quality = numerator / denominator
+                score = (
+                    0.0
+                    if quality + coverage == 0.0
+                    else 2.0 * quality * coverage / (quality + coverage)
+                )
+        else:
+            raise BenchmarkError(f"unknown aggregation type: {typ}")
+        if score is None:
+            raise BenchmarkError(
+                f"{evaluation}: cannot aggregate historical generation {generation_id}"
+            )
+        scores[generation_id] = float(score)
+    return scores
+
+
 def quidra_version_history(root: Path) -> dict[str, Any]:
     return load_quidra_version_history_from_cache(root / "cache")
 
@@ -17402,15 +17813,25 @@ def current_normalized_metric_scores(
     if evaluation == "semantic_compression":
         path = root / "results" / "semantic_compression_recomputation.json"
         if path.is_file():
-            recomputed = json_load(path).get("recomputed") or {}
-            for requirement_id, values in recomputed.items():
-                if isinstance(values, dict):
-                    result[str(requirement_id)] = {
-                        str(language): float(score)
-                        for language, score in values.items()
-                        if isinstance(score, (int, float)) and not isinstance(score, bool)
-                    }
-            return result
+            recomputation = json_load(path)
+            if recomputation.get("recomputed") is True:
+                for requirement_id, row in (recomputation.get("metrics") or {}).items():
+                    if not isinstance(row, dict):
+                        continue
+                    values = row.get("normalized")
+                    if not isinstance(values, dict):
+                        values = row.get("derived")
+                    if isinstance(values, dict):
+                        numeric = {
+                            str(language): float(score)
+                            for language, score in values.items()
+                            if isinstance(score, (int, float))
+                            and not isinstance(score, bool)
+                        }
+                        if numeric:
+                            result[str(requirement_id)] = numeric
+                if result:
+                    return result
     req = requirement_results_for_evaluation(root, evaluation)
     for requirement_id, values in req.items():
         if not (
@@ -17479,12 +17900,15 @@ def versioned_publication(
     fixed = {str(k): float(v) for k, v in fixed_scores.items()}
     current_generations = language_generations(root, fixed.keys())
     history = load_language_generation_history_from_cache(root / "cache")
-    scores, order = generation_scores_from_history(
+    _stored_scores, order = generation_scores_from_history(
         fixed, evaluation, current_generations, history
     )
     current_metrics = current_normalized_metric_scores(root, evaluation)
-    metric_publication = generation_normalized_metric_scores(
-        current_metrics, evaluation, current_generations, history
+    metric_publication = generation_metric_publication(
+        root, evaluation, current_metrics, current_generations, history, order
+    )
+    scores = generation_primary_scores_from_metrics(
+        root, evaluation, metric_publication, order
     )
     quidra = current_generations.get("Quidra") or {}
     return {
@@ -17505,7 +17929,9 @@ def versioned_publication(
         "note": (
             "The fixed measurement cohort is ten current languages. Publication "
             "uses immutable language generations and appends every retained older "
-            "generation without a hard-coded ceiling."
+            "generation without a hard-coded ceiling. Comparison-dependent "
+            "Language Quality and Semantic Compression metrics are re-normalized "
+            "from immutable raw values across the full published generation set."
         ),
     }
 
@@ -17518,6 +17944,7 @@ def build_language_generation_entries(
     metric_scores: dict[str, dict[str, dict[str, float]]] = {
         language: {} for language in languages
     }
+    raw_by_evaluation: dict[str, dict[str, dict[str, Any]]] = {}
     for evaluation in PRIMARY_NAMES:
         result_path = root / "results" / "evaluations" / f"{evaluation}.json"
         result = json_load(result_path)
@@ -17536,6 +17963,10 @@ def build_language_generation_entries(
                 if isinstance(values.get(language), (int, float))
                 and not isinstance(values.get(language), bool)
             }
+    for evaluation in ("language_quality", "semantic_compression"):
+        raw_by_evaluation[evaluation] = current_generation_normalization_raw(
+            root, evaluation, generations
+        )
     run = json_load(root / "run.json")
     entries: dict[str, dict[str, Any]] = {}
     for language in languages:
@@ -17550,7 +17981,12 @@ def build_language_generation_entries(
             "source_commit_sha": (run.get("evaluated") or {}).get("commit_sha"),
             "primary_scores": primary_scores[language],
             "normalized_metric_scores": metric_scores[language],
-            "normalization_raw": {},
+            "normalization_raw": {
+                evaluation: (
+                    (raw_by_evaluation.get(evaluation) or {}).get(generation_id) or {}
+                )
+                for evaluation in ("language_quality", "semantic_compression")
+            },
         }
     return entries
 
@@ -17591,6 +18027,13 @@ def persist_language_generation_entries(
                             f"{generation_id}/{evaluation} is immutable and "
                             f"already has different {key}"
                         )
+                existing_raw = existing.get("normalization_raw") or {}
+                candidate_raw = generation.get("normalization_raw") or {}
+                if existing_raw and candidate_raw and existing_raw != candidate_raw:
+                    raise BenchmarkError(
+                        f"{generation_id}/{evaluation} is immutable and "
+                        "already has different normalization_raw"
+                    )
                 reused.append(f"{generation_id}/{evaluation}")
                 continue
             json_dump(path, generation)

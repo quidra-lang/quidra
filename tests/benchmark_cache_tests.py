@@ -2299,7 +2299,102 @@ def assert_same_version_quidra_is_removed_from_mechanical_execution() -> None:
         assert micro_measure.archived_quidra_generation(root) is None
 
 
+
+def assert_historical_generations_change_relative_normalization() -> None:
+    # Language Quality: adding an older, faster generation must rescale the
+    # current generations rather than replaying their old normalized scores.
+    def lq_row(value: float) -> dict[str, object]:
+        return {
+            "workloads": {
+                "mb01": {
+                    "source_bytes": value,
+                    "artifact_effective_bytes": value,
+                    "compile_effective_seconds": value,
+                    "cold_seconds": value,
+                    "rss_bytes": value,
+                    "steady_seconds": value,
+                }
+            },
+            "startup_seconds": value,
+            "startup_rss_bytes": value,
+        }
+
+    initial = benchmark.language_quality_generation_scores_from_raw({
+        "python_v1": lq_row(2.0),
+        "rust_v1": lq_row(1.0),
+    })
+    expanded = benchmark.language_quality_generation_scores_from_raw({
+        "python_v1": lq_row(2.0),
+        "rust_v1": lq_row(1.0),
+        "rust_v0": lq_row(0.5),
+    })
+    assert initial["metric.native_execution_performance"]["rust_v1"] == 100.0
+    assert expanded["metric.native_execution_performance"]["rust_v1"] == 50.0
+    assert expanded["metric.native_execution_performance"]["python_v1"] == 25.0
+
+    # Semantic Compression: the same rule applies to min-max metrics.
+    directions = {
+        metric: ("higher_is_better" if metric == "metric.semantic_density" else "lower_is_better")
+        for metric in benchmark.SC_RELATIVE_METRICS
+    }
+    base_raw = {
+        "python_v1": {metric: 2.0 for metric in benchmark.SC_RELATIVE_METRICS},
+        "rust_v1": {metric: 1.0 for metric in benchmark.SC_RELATIVE_METRICS},
+    }
+    initial_sc = benchmark.semantic_compression_generation_scores_from_raw(
+        base_raw, directions
+    )
+    expanded_raw = json.loads(json.dumps(base_raw))
+    expanded_raw["rust_v0"] = {
+        metric: (3.0 if metric == "metric.semantic_density" else 0.5)
+        for metric in benchmark.SC_RELATIVE_METRICS
+    }
+    expanded_sc = benchmark.semantic_compression_generation_scores_from_raw(
+        expanded_raw, directions
+    )
+    assert initial_sc["metric.semantic_density"]["python_v1"] == 100.0
+    assert expanded_sc["metric.semantic_density"]["python_v1"] == 50.0
+    assert expanded_sc["metric.semantic_determinacy"]["rust_v1"] != (
+        initial_sc["metric.semantic_determinacy"]["rust_v1"]
+    )
+
+
+def assert_all_languages_use_version_generations() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        (root / "repo" / "project.toml").write_text(
+            '[project]\\nname = "Quidra"\\nversion = "0.3.0"\\nlanguage_version = "0.2"\\n',
+            encoding="utf-8",
+        )
+        languages = benchmark.metadata_languages(root)
+        generations = benchmark.language_generations(root, languages)
+        assert set(generations) == set(languages)
+        assert generations["Quidra"]["generation_id"] == "quidra_v0.3.0"
+        assert generations["Python"]["generation_id"] == "python_v3.12.3"
+
+        config_path = root / "benchmark_config.json"
+        config = benchmark.json_load(config_path)
+        before = {
+            language: row["generation_id"]
+            for language, row in generations.items()
+        }
+        config["languages"]["Python"]["version"] = "9.9.9"
+        benchmark.json_dump(config_path, config)
+        after = {
+            language: row["generation_id"]
+            for language, row in benchmark.language_generations(root, languages).items()
+        }
+        assert after["Python"] == "python_v9.9.9"
+        assert all(
+            after[language] == before[language]
+            for language in languages
+            if language != "Python"
+        ), (before, after)
+
+
 def main() -> None:
+    assert_historical_generations_change_relative_normalization()
+    assert_all_languages_use_version_generations()
     assert_same_version_quidra_is_removed_from_mechanical_execution()
     assert_learnability_worker_core_projection_is_nonsemantic_only()
     assert_certified_checkpoint_promotes_prompt_dependencies()

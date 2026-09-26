@@ -2611,7 +2611,8 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
                 if runner_action not in (None, "aggregate-primary"):
                     raise BenchmarkError(f"{uid}: aggregation command has invalid runner_action")
             elif runner_action not in {
-                "micro-measure", "adversarial-measure", "quidra-audit", "static-coverage",
+                "micro-measure", "micro-measure-raw", "micro-normalize",
+                "adversarial-measure", "quidra-audit", "static-coverage",
                 "semantic-capability-coverage", "semantic-premeasurement-validation",
                 "learnability-integrity", "proficiency-integrity",
             }:
@@ -2711,32 +2712,53 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
                 "language_quality: missing the quidra-audit command unit that gates "
                 "measurement on the snapshot's own benchmark programs"
             )
-        mechanical = by_id.get("lq-micro-mechanical")
-        required_dependencies = {"lq-quidra-audit"}
-        # Currency audits are a legitimate additional dependency here, not a
-        # defect. The mechanical unit reads the reusable comparison-language
-        # programs, so when one of those needs a toolchain-currency audit the
-        # planner correctly makes the measurement wait for it. Requiring exact
-        # equality rejected that, which made the plan unbuildable on any host
-        # whose toolchains differ from the ones the catalog was validated on -
-        # the ordinary case, since the catalog is validated on macOS and runs
-        # execute on Linux.
-        audit_unit_ids = {
-            unit["id"] for unit in normalized if unit.get("reuse_audit_for")
+        fixed_languages = metadata_languages(root)
+        raw_ids = {
+            f"lq-micro-raw--{slug_id(language)}" for language in fixed_languages
         }
-        mechanical_dependencies = set(mechanical.get("dependencies", [])) if mechanical else set()
-        unexpected = mechanical_dependencies - required_dependencies - audit_unit_ids
+        raw_shards = [by_id.get(uid) for uid in sorted(raw_ids)]
+        if any(shard is None for shard in raw_shards):
+            missing = sorted(uid for uid in raw_ids if by_id.get(uid) is None)
+            raise BenchmarkError(
+                "language_quality: missing language-sharded raw micro units: "
+                + ", ".join(missing)
+            )
+        target = str(
+            load_benchmark_metadata(root / "template").get(
+                "evaluated_target_language", "Quidra"
+            )
+        )
+        for shard in raw_shards:
+            assigned = list(shard.get("assigned_languages") or [])
+            if (
+                shard.get("execution_kind") != "command"
+                or shard.get("runner_action") != "micro-measure-raw"
+                or len(assigned) != 1
+                or shard.get("requirement_ids")
+            ):
+                raise BenchmarkError(
+                    f"language_quality: invalid raw micro shard: {shard.get('id')}"
+                )
+            dependencies = set(shard.get("dependencies") or [])
+            if "lq-coverage" not in dependencies:
+                raise BenchmarkError(
+                    f"language_quality: raw micro shard lacks lq-coverage dependency: {shard.get('id')}"
+                )
+            if assigned == [target] and "lq-quidra-audit" not in dependencies:
+                raise BenchmarkError(
+                    "language_quality: Quidra raw micro shard must depend on lq-quidra-audit"
+                )
+
+        mechanical = by_id.get("lq-micro-mechanical")
         if (
             mechanical is None
             or mechanical.get("execution_kind") != "command"
-            or not required_dependencies <= mechanical_dependencies
-            or unexpected
+            or mechanical.get("runner_action") != "micro-normalize"
+            or set(mechanical.get("dependencies") or []) != raw_ids
         ):
             raise BenchmarkError(
-                "language_quality: mechanical micro unit must depend on the "
-                "quidra-audit unit and nothing beyond the currency audits of the "
-                "artifacts it measures"
-                + (f"; unexpected: {sorted(unexpected)}" if unexpected else "")
+                "language_quality: micro normalizer must depend on all and only "
+                "the ten language-sharded raw micro units"
             )
 
     return {
@@ -6877,7 +6899,12 @@ def cache_policy(root: Path) -> dict[str, Any]:
 #: measurement, because the third rehearsal spent five hours and fifty minutes
 #: of its six-hour job measuring them again for nothing that had changed, and
 #: was cancelled before its one paid unit could finish.
-MECHANICAL_ACTIONS = ("micro-measure", "adversarial-measure", "quidra-audit")
+MECHANICAL_ACTIONS = (
+    "micro-measure",
+    "micro-measure-raw",
+    "adversarial-measure",
+    "quidra-audit",
+)
 
 MEASUREMENT_SCRIPTS = ("micro_measure.py", "adversarial_measure.py")
 
@@ -13842,13 +13869,17 @@ def cmd_advance(args: argparse.Namespace) -> int:
                     )
                     if check_rc != 0:
                         raise BenchmarkError("proficiency integrity result validation failed")
-                elif action in {"micro-measure", "adversarial-measure", "quidra-audit"}:
-                    # All three are mechanical scripts in the frozen template:
-                    # the micro suite, the adversarial / safety case set replayed
-                    # through its frozen decision list, and the audit of the
-                    # snapshot's own Quidra benchmark programs.
+                elif action in {
+                    "micro-measure", "micro-measure-raw", "micro-normalize",
+                    "adversarial-measure", "quidra-audit",
+                }:
+                    # Mechanical Language Quality commands stay runner-owned.
+                    # Raw micro shards execute one language each; micro-normalize
+                    # only combines their retained raw summaries.
                     script_name, subcommand = {
                         "micro-measure": ("micro_measure.py", "measure"),
+                        "micro-measure-raw": ("micro_measure.py", "measure"),
+                        "micro-normalize": ("micro_measure.py", "normalize"),
                         "adversarial-measure": ("adversarial_measure.py", "measure"),
                         "quidra-audit": ("micro_measure.py", "audit"),
                     }[action]

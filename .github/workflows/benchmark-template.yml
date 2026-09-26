@@ -1015,10 +1015,23 @@ jobs:
           assert "tests/benchmark/quidra" in audit["goal"]
           assert not any(u["id"].startswith("lq-qudra-") for u in lq["work_units"])
 
+          raw_micro = [
+              unit for unit in lq["work_units"]
+              if unit["id"].startswith("lq-micro-raw--")
+          ]
+          assert len(raw_micro) == 10, [unit["id"] for unit in raw_micro]
+          assert all(unit["runner_action"] == "micro-measure-raw" for unit in raw_micro)
+          assert all(len(unit["assigned_languages"]) == 1 for unit in raw_micro)
+          assert all(unit["requirement_ids"] == [] for unit in raw_micro)
+          quidra_raw = by_id["lq-micro-raw--quidra"]
+          assert "lq-quidra-audit" in quidra_raw["dependencies"], quidra_raw
+
           mechanical = by_id["lq-micro-mechanical"]
           assert mechanical["execution_kind"] == "command"
-          assert mechanical["runner_action"] == "micro-measure"
-          assert set(mechanical["dependencies"]) == {"lq-quidra-audit"}
+          assert mechanical["runner_action"] == "micro-normalize"
+          assert set(mechanical["dependencies"]) == {
+              unit["id"] for unit in raw_micro
+          }
           assert set(mechanical["requirement_ids"]) == {
               "metric.native_execution_performance",
               "metric.long_running_performance",
@@ -1864,11 +1877,19 @@ jobs:
           default_effort = primary_cfg["sampling"]["effort"]
           audit_units = [u for u in manifest["work_units"] if u.get("reuse_audit_for")]
           assert audit_units, "the currency audits never reached the manifest"
+          raw_micro = [
+              u for u in manifest["work_units"]
+              if u["id"].startswith("lq-micro-raw--")
+          ]
+          assert len(raw_micro) == 10, [u["id"] for u in raw_micro]
+          assert any(
+              {u["id"] for u in audit_units} & set(shard["dependencies"])
+              for shard in raw_micro
+          ), raw_micro
           mechanical = next(
               u for u in manifest["work_units"] if u["id"] == "lq-micro-mechanical"
           )
-          # The measurement has to wait for the audits of the artifacts it measures.
-          assert {u["id"] for u in audit_units} & set(mechanical["dependencies"]), mechanical
+          assert set(mechanical["dependencies"]) == {u["id"] for u in raw_micro}, mechanical
           traces = 0
           receipts = 0
           for unit in manifest["work_units"]:

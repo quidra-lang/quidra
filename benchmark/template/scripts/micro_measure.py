@@ -989,8 +989,17 @@ def audit(root: Path, unit_id: str) -> int:
 
 def measure(root: Path, unit_id: str) -> int:
     unit = manifest_unit(root, unit_id)
-    if unit.get("runner_action") != "micro-measure":
-        raise MeasureError(f"{unit_id} is not a micro-measure command unit")
+    action = str(unit.get("runner_action") or "")
+    if action not in {"micro-measure", "micro-measure-raw"}:
+        raise MeasureError(f"{unit_id} is not a micro measurement command unit")
+    selected_languages = [
+        str(language) for language in (unit.get("assigned_languages") or [])
+    ] or list(LANGUAGES)
+    unknown = sorted(set(selected_languages) - set(LANGUAGES))
+    if unknown:
+        raise MeasureError("unknown assigned micro language(s): " + ", ".join(unknown))
+    if action == "micro-measure-raw" and len(selected_languages) != 1:
+        raise MeasureError("micro-measure-raw requires exactly one assigned language")
     if synthetic_mode(root):
         out_dir = root / "work" / "root" / "commands" / unit_id
         scores = {lang: float(90 - index) for index, lang in enumerate(LANGUAGES)}
@@ -1008,23 +1017,27 @@ def measure(root: Path, unit_id: str) -> int:
             "schema_version": 1,
             "evaluation": "language_quality",
             "requirements": requirements,
+            "normalization_raw": {},
             "evidence": {"synthetic_ci": True},
         })
         print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
         return 0
-    measured_languages, quidra_reuse = execution_languages_with_archived_quidra(
-        root,
-        [str(value) for value in unit.get("requirement_ids", [])],
-        LANGUAGES,
-    )
-    if quidra_reuse is None:
+
+    if action == "micro-measure-raw":
+        measured_languages = list(selected_languages)
+        quidra_reuse = None
+    else:
+        measured_languages, quidra_reuse = execution_languages_with_archived_quidra(
+            root,
+            [str(value) for value in unit.get("requirement_ids", [])],
+            selected_languages,
+        )
+
+    if "Quidra" in measured_languages:
         validate_quidra_representation(root, quidra_representation_path(root))
         compiler = ensure_target_compiler(root)
     else:
-        # No Quidra compiler/source program is invoked for an archived generation.
-        # The placeholder can never reach prepare_cell because Quidra is absent
-        # from measured_languages.
-        compiler = Path("/quidra-benchmark/version-history/archived-quidra")
+        compiler = Path("/quidra-benchmark/no-quidra-compiler")
     expected = expected_outputs(root)
     checker = checker_module(root)
     primary = load_json(root / "template" / "config" / "primary.json")
@@ -1035,9 +1048,23 @@ def measure(root: Path, unit_id: str) -> int:
     raw_path = out_dir / "micro_raw.json"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    required_bins = ["python3", "clang++", "rustc", "go", "javac", "java", "tsc", "node", "kotlinc", "swiftc", "zig"]
-    if quidra_reuse is None:
-        required_bins.insert(0, "cmake")
+    bins_by_language = {
+        "Quidra": ["cmake"],
+        "Python": ["python3"],
+        "C++": ["clang++"],
+        "Rust": ["rustc"],
+        "Go": ["go"],
+        "Java": ["javac", "java"],
+        "TypeScript": ["tsc", "node"],
+        "Kotlin": ["kotlinc", "java"],
+        "Swift": ["swiftc"],
+        "Zig": ["zig"],
+    }
+    required_bins = sorted({
+        binary
+        for language in measured_languages
+        for binary in bins_by_language[language]
+    })
     missing = [name for name in required_bins if shutil.which(name) is None]
     if missing:
         raise MeasureError("missing required micro toolchains: " + ", ".join(missing))
@@ -1431,6 +1458,25 @@ def measure(root: Path, unit_id: str) -> int:
         )
         for lang in LANGUAGES
     }
+    normalization_raw = {
+        language: {
+            "workloads": {
+                workload: {
+                    "source_bytes": source_raw[workload][language],
+                    "artifact_bytes": artifact_raw[workload][language],
+                    "compile_seconds": compile_raw[workload][language],
+                    "cold_seconds": cold_raw[workload][language],
+                    "rss_bytes": rss_raw[workload][language],
+                    "steady_seconds": steady_raw[workload][language],
+                }
+                for workload in WORKLOADS
+            },
+            "startup_seconds": startup_raw[language],
+            "startup_rss_bytes": runtime_overhead_raw[language],
+        }
+        for language in measured_languages
+    }
+
     all_requirements = {
         "metric.native_execution_performance": family_c_workload_scores(cold_raw),
         "metric.long_running_performance": family_c_workload_scores(steady_raw),
@@ -1460,6 +1506,7 @@ def measure(root: Path, unit_id: str) -> int:
         "schema_version": 1,
         "evaluation": "language_quality",
         "requirements": requirements,
+        "normalization_raw": normalization_raw,
         "evidence": {
             "raw": str(raw_path),
             "compile_epsilon_seconds": compile_epsilon,
@@ -1493,10 +1540,128 @@ def measure(root: Path, unit_id: str) -> int:
             for lang in LANGUAGES
         },
         "summaries": summaries,
+        "normalization_raw": normalization_raw,
         "quidra_version_reuse": quidra_reuse,
     })
     dump_json(out_dir / "result.json", result)
     print(json.dumps({"ok": True, "unit_id": unit_id, "result": str(out_dir / 'result.json')}, indent=2))
+    return 0
+
+
+def normalize(root: Path, unit_id: str) -> int:
+    """Normalize cached/fresh per-language raw micro measurements together."""
+    unit = manifest_unit(root, unit_id)
+    if unit.get("runner_action") != "micro-normalize":
+        raise MeasureError(f"{unit_id} is not a micro-normalize command unit")
+    out_dir = root / "work" / "root" / "commands" / unit_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if synthetic_mode(root):
+        scores = {lang: float(90 - index) for index, lang in enumerate(LANGUAGES)}
+        requirements = {
+            rid: dict(scores)
+            for rid in unit.get("requirement_ids", [])
+            if str(rid).startswith(("metric.", "condition."))
+        }
+        dump_json(out_dir / "result.json", {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": requirements,
+            "evidence": {"synthetic_ci": True, "normalization_only": True},
+        })
+        print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
+        return 0
+
+    rows: dict[str, dict[str, Any]] = {}
+    sources: dict[str, str] = {}
+    for dependency in unit.get("dependencies", []):
+        if not str(dependency).startswith("lq-micro-raw--"):
+            continue
+        path = root / "work" / "root" / "commands" / str(dependency) / "result.json"
+        if not path.is_file():
+            raise MeasureError(f"missing raw micro dependency result: {dependency}")
+        result = load_json(path)
+        raw = result.get("normalization_raw")
+        if not isinstance(raw, dict) or len(raw) != 1:
+            raise MeasureError(f"{dependency}: invalid normalization_raw payload")
+        language, row = next(iter(raw.items()))
+        if language in rows:
+            raise MeasureError(f"duplicate raw micro language: {language}")
+        if language not in LANGUAGES or not isinstance(row, dict):
+            raise MeasureError(f"{dependency}: invalid raw micro language payload")
+        rows[language] = row
+        sources[language] = str(path)
+
+    if set(rows) != set(LANGUAGES):
+        missing = sorted(set(LANGUAGES) - set(rows))
+        extra = sorted(set(rows) - set(LANGUAGES))
+        raise MeasureError(
+            f"micro normalization requires every fixed language; missing={missing}, extra={extra}"
+        )
+
+    source_raw = {workload: {} for workload in WORKLOADS}
+    artifact_raw = {workload: {} for workload in WORKLOADS}
+    compile_raw = {workload: {} for workload in WORKLOADS}
+    cold_raw = {workload: {} for workload in WORKLOADS}
+    rss_raw = {workload: {} for workload in WORKLOADS}
+    steady_raw = {workload: {} for workload in WORKLOADS}
+    startup_raw: dict[str, float | None] = {}
+    runtime_overhead_raw: dict[str, float | None] = {}
+
+    for language in LANGUAGES:
+        row = rows[language]
+        workloads = row.get("workloads")
+        if not isinstance(workloads, dict) or set(workloads) != set(WORKLOADS):
+            raise MeasureError(f"{language}: normalization raw workloads are incomplete")
+        for workload in WORKLOADS:
+            values = workloads[workload]
+            if not isinstance(values, dict):
+                raise MeasureError(f"{language}/{workload}: invalid normalization raw row")
+            source_raw[workload][language] = values.get("source_bytes")
+            artifact_raw[workload][language] = values.get("artifact_bytes")
+            compile_raw[workload][language] = values.get("compile_seconds")
+            cold_raw[workload][language] = values.get("cold_seconds")
+            rss_raw[workload][language] = values.get("rss_bytes")
+            steady_raw[workload][language] = values.get("steady_seconds")
+        startup_raw[language] = row.get("startup_seconds")
+        runtime_overhead_raw[language] = row.get("startup_rss_bytes")
+
+    compile_epsilon, spawn_samples = true_spawn_epsilon(root)
+    all_requirements = {
+        "metric.native_execution_performance": family_c_workload_scores(cold_raw),
+        "metric.long_running_performance": family_c_workload_scores(steady_raw),
+        "metric.compile_build_performance": family_c_workload_scores(
+            compile_raw, compile_epsilon
+        ),
+        "metric.startup_latency": family_c_language_scores(startup_raw),
+        "metric.memory_efficiency": family_c_workload_scores(rss_raw),
+        "metric.runtime_overhead": family_c_language_scores(runtime_overhead_raw),
+        "metric.source_code_size": family_c_workload_scores(source_raw),
+        "metric.binary_artifact_size": family_c_workload_scores(
+            artifact_raw, 4096.0
+        ),
+    }
+    assigned = list(unit.get("requirement_ids", []))
+    unsupported = sorted(set(assigned) - set(all_requirements))
+    if unsupported:
+        raise MeasureError(
+            "micro-normalize received unsupported requirement IDs: "
+            + ", ".join(unsupported)
+        )
+    requirements = {rid: all_requirements[rid] for rid in assigned}
+    dump_json(out_dir / "result.json", {
+        "schema_version": 1,
+        "evaluation": "language_quality",
+        "requirements": requirements,
+        "evidence": {
+            "normalization_only": True,
+            "raw_sources": sources,
+            "compile_epsilon_seconds": compile_epsilon,
+            "spawn_calibration_seconds": spawn_samples,
+            "artifact_epsilon_bytes": 4096,
+        },
+    })
+    print(json.dumps({"ok": True, "unit_id": unit_id, "result": str(out_dir / "result.json")}, indent=2))
     return 0
 
 
@@ -1509,6 +1674,12 @@ def build_parser() -> argparse.ArgumentParser:
     measure_p = sub.add_parser("measure")
     measure_p.add_argument("--workspace", required=True)
     measure_p.add_argument("--unit-id", required=True)
+    normalize_p = sub.add_parser(
+        "normalize",
+        help="normalize the ten cached/fresh per-language raw micro measurements",
+    )
+    normalize_p.add_argument("--workspace", required=True)
+    normalize_p.add_argument("--unit-id", required=True)
     build_p = sub.add_parser(
         "build-target",
         help="build the evaluated Quidra compiler into the workspace before scored work needs it",
@@ -1588,6 +1759,8 @@ def main() -> int:
             return audit(root, args.unit_id)
         if args.command == "measure":
             return measure(root, args.unit_id)
+        if args.command == "normalize":
+            return normalize(root, args.unit_id)
         if args.command == "build-target":
             return build_target(root)
         if args.command == "build-check":

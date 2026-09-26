@@ -1009,23 +1009,14 @@
           "worker_mode": "runner-command"
         },
         {
-          "id": "lq-micro-mechanical",
+          "id": "lq-micro-raw",
           "phase": "measurement",
           "execution_kind": "command",
           "result_kind": "requirements",
-          "runner_action": "micro-measure",
-          "requirement_ids": [
-            "metric.native_execution_performance",
-            "metric.long_running_performance",
-            "metric.compile_build_performance",
-            "metric.memory_efficiency",
-            "metric.binary_artifact_size",
-            "metric.startup_latency",
-            "metric.source_code_size",
-            "metric.runtime_overhead"
-          ],
+          "runner_action": "micro-measure-raw",
+          "requirement_ids": [],
           "dependencies": [
-            "lq-quidra-audit"
+            "lq-coverage"
           ],
           "prompt_sections": [],
           "read_paths": [
@@ -1038,7 +1029,40 @@
           ],
           "network_allowed": false,
           "max_attempts": 3,
-          "goal": "Mechanically build, validate, execute, measure and normalize the frozen micro-suite performance/resource metrics plus ordinary-program Startup Latency for all 10 languages. Source Code Size is the mean of per-workload normalized source-byte measurements over MB-01..MB-11. Quidra sources come from the evaluated snapshot (tests/benchmark/quidra/micro) after the quidra-audit gate; comparison-language sources come from the current reusable template.",
+          "goal": "Mechanically measure the frozen Language Quality micro-suite for exactly one assigned language and retain normalization-ready raw timing/resource/size values. Do not normalize inside the language shard. Comparison-language shards read only their reusable programs; the Quidra shard reads the evaluated snapshot and is gated by lq-quidra-audit. Each language generation is independently cacheable.",
+          "worker_mode": "runner-command",
+          "split_by_language": true,
+          "language_scoped_program_reads": true,
+          "target_only_dependencies": [
+            "lq-quidra-audit"
+          ]
+        },
+        {
+          "id": "lq-micro-mechanical",
+          "phase": "measurement",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "micro-normalize",
+          "requirement_ids": [
+            "metric.native_execution_performance",
+            "metric.long_running_performance",
+            "metric.compile_build_performance",
+            "metric.memory_efficiency",
+            "metric.binary_artifact_size",
+            "metric.startup_latency",
+            "metric.source_code_size",
+            "metric.runtime_overhead"
+          ],
+          "dependencies": [
+            "lq-micro-raw"
+          ],
+          "prompt_sections": [],
+          "read_paths": [
+            "template/methodology-assets/scoring"
+          ],
+          "network_allowed": false,
+          "max_attempts": 1,
+          "goal": "Mechanically merge the ten completed per-language raw micro measurements and normalize the eight Family-C Language Quality metrics across the fixed current comparison set. This unit performs no language execution and makes no paid model calls.",
           "worker_mode": "runner-command"
         },
         {

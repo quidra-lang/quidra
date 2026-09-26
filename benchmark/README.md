@@ -209,7 +209,7 @@ git reset --hard origin/develop
 
 tmp="$(mktemp)"
 git diff --name-only "$base"..origin/benchmark -- benchmark \
-  | grep -E '^benchmark/(cache/|template/prompts/|20[0-9]{2}-[0-9]{2}-[0-9]{2}-[^/]+/)' \
+  | grep -E '^benchmark/(cache/|template/prompts/|quidra_versions/|20[0-9]{2}-[0-9]{2}-[0-9]{2}-[^/]+/)' \
   > "$tmp"
 
 test -s "$tmp" || {
@@ -225,7 +225,7 @@ while IFS= read -r path; do
   fi
 done < "$tmp"
 
-git add -f benchmark/cache benchmark/template/prompts benchmark/20??-??-??-* 2>/dev/null || true
+git add -f benchmark/cache benchmark/template/prompts benchmark/quidra_versions benchmark/20??-??-??-* 2>/dev/null || true
 test ! -e benchmark/.run-production || {
   echo "refusing to import the paid-run request marker into develop"
   exit 1
@@ -241,8 +241,8 @@ rm -f "$tmp"
 ~~~
 
 This preserves current **develop** source/template changes, imports only reusable
-cache/prompts and a publishable dated result, and deliberately excludes the
-request marker. If the selective import conflicts semantically with newer cache
+cache/prompts, immutable `benchmark/quidra_versions/` history, and a publishable
+dated result, and deliberately excludes the request marker. If the selective import conflicts semantically with newer cache
 or prompt material on **develop**, resolve that deliberately before pushing.
 
 ## Deleting the temporary branch

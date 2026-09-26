@@ -3431,11 +3431,42 @@ def probe_annotation_fields(
     return rows
 
 
-def comparability_blinding(run_id: str, languages: list[str]) -> dict[str, str]:
-    """Label the languages so the reviewer cannot tell which one wrote an entry."""
+def comparability_blinding_seed(
+    probes: list[dict[str, Any]],
+    by_language: dict[str, dict[str, dict[str, Any]]],
+) -> str:
+    """Bind opaque labels to scientific sample content, not orchestration identity.
+
+    The comparability sample participates in the exact cache fingerprint. Using
+    run_id here made an otherwise identical replay generate a different sample
+    on every run, so sc-comparability could never be an exact-key cache hit.
+    Hash only the unblinded scientific inputs that the sample is about: identical
+    evidence gets identical opaque labels, while any scientific input change
+    still changes the sample and therefore its cache key.
+    """
+    basis = {
+        "schema_version": 1,
+        "probe_ids": [str(probe.get("probe_id") or "") for probe in probes],
+        "annotations": {
+            language: by_language[language]
+            for language in sorted(by_language)
+        },
+    }
+    return sha256_bytes(
+        json.dumps(
+            basis,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+
+
+def comparability_blinding(seed: str, languages: list[str]) -> dict[str, str]:
+    """Label languages deterministically for one scientific comparability sample."""
     order = sorted(
         languages,
-        key=lambda language: sha256_bytes(f"{run_id}\0{language}".encode("utf-8")),
+        key=lambda language: sha256_bytes(f"{seed}\0{language}".encode("utf-8")),
     )
     return {language: chr(ord("A") + index) for index, language in enumerate(order)}
 
@@ -4221,15 +4252,15 @@ def build_comparability_sample(
         if support_owner_id
         else []
     )
-    labels = comparability_blinding(
-        str(json_load(root / "run.json").get("run_id")), sorted(by_language)
-    )
+    blinding_seed = comparability_blinding_seed(probes, by_language)
+    labels = comparability_blinding(blinding_seed, sorted(by_language))
     sample = {
         "schema_version": 1,
         "audit": "blinded cross-language comparability audit (methodology 6.1.1A)",
         "blinded": True,
+        "blinding_basis_sha256": blinding_seed,
         "blinding_note": (
-            "Entries are labelled by a per-run permutation and every language "
+            "Entries are labelled by a scientific-sample-bound permutation and every language "
             "name has been redacted from their prose. Code fragments are "
             "verbatim, so a fragment's syntax may still reveal its language: "
             "judge every entry against the frozen matrix, never against what "
@@ -4331,7 +4362,13 @@ def build_comparability_sample(
     blinding.parent.mkdir(parents=True, exist_ok=True)
     blinding.write_text(
         json.dumps(
-            {"schema_version": 1, "labels": labels}, indent=2, sort_keys=True
+            {
+                "schema_version": 1,
+                "basis_sha256": blinding_seed,
+                "labels": labels,
+            },
+            indent=2,
+            sort_keys=True,
         ) + "\n",
         encoding="utf-8",
     )

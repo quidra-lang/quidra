@@ -438,6 +438,36 @@ def assert_every_sampled_probe_has_a_cohort_adjudicator() -> None:
     assert expected_dependencies <= set(comparability["dependencies"])
 
 
+def assert_comparability_blinding_is_replay_stable() -> None:
+    probes = [
+        {"probe_id": "F01.P1"},
+        {"probe_id": "F02.P1"},
+    ]
+    annotations = {
+        "Python": {
+            "F01.P1": {"metric_annotations": {"source-a": {"note": "python"}}},
+        },
+        "Go": {
+            "F01.P1": {"metric_annotations": {"source-a": {"note": "go"}}},
+        },
+    }
+    seed = benchmark.comparability_blinding_seed(probes, annotations)
+    replay_seed = benchmark.comparability_blinding_seed(
+        json.loads(json.dumps(probes)),
+        json.loads(json.dumps(annotations)),
+    )
+    assert seed == replay_seed
+    assert benchmark.comparability_blinding(seed, ["Python", "Go"]) == (
+        benchmark.comparability_blinding(replay_seed, ["Go", "Python"])
+    )
+
+    changed = json.loads(json.dumps(annotations))
+    changed["Python"]["F01.P1"]["metric_annotations"]["source-a"]["note"] = (
+        "scientifically changed"
+    )
+    assert benchmark.comparability_blinding_seed(probes, changed) != seed
+
+
 def assert_cohort_work_is_cacheable() -> None:
     support = {
         "id": "sc-support-adjudication--f20-p1",
@@ -1270,6 +1300,7 @@ def main() -> None:
     assert_adjudication_is_authoritative()
     assert_repair_loop_is_scoped_and_idempotent()
     assert_every_sampled_probe_has_a_cohort_adjudicator()
+    assert_comparability_blinding_is_replay_stable()
     assert_cohort_work_is_cacheable()
     assert_canonical_fragment_verification_runs_real_recipe()
     assert_verification_fragment_files_participate_in_frozen_recipe()

@@ -12,6 +12,7 @@ import collections
 import contextlib
 import datetime as dt
 import fcntl
+import gzip
 import hashlib
 import json
 import math
@@ -8060,6 +8061,60 @@ def same_generation_certified_record(
     return None
 
 
+LQ_MICRO_MIGRATION_CONTRACT = "lq-micro-language-shards-v2-effective-raw"
+
+
+def lq_micro_generation_seed(
+    root: Path, unit: dict[str, Any], payload: dict[str, Any]
+) -> dict[str, Any] | None:
+    """One-time bridge from the certified mixed micro run to language shards."""
+    if (
+        unit.get("evaluation") != "language_quality"
+        or unit.get("runner_action") != "micro-measure-raw"
+    ):
+        return None
+    assigned = list(unit.get("assigned_languages") or [])
+    if len(assigned) != 1:
+        return None
+    generation_id = unit_generation_id(unit, assigned[0], payload)
+    if not generation_id:
+        return None
+    path = (
+        root / "cache" / "v1" / "language-quality"
+        / "micro_generation_seed.json.gz"
+    )
+    if not path.is_file():
+        return None
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            seed = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BenchmarkError(
+            f"Language Quality micro migration seed is corrupt: {exc}"
+        ) from exc
+    if (
+        seed.get("schema_version") != 1
+        or seed.get("migration_contract") != LQ_MICRO_MIGRATION_CONTRACT
+    ):
+        raise BenchmarkError("unsupported Language Quality micro migration seed")
+    row = (seed.get("generations") or {}).get(generation_id)
+    if not isinstance(row, dict):
+        return None
+    if (
+        row.get("language") != assigned[0]
+        or row.get("generation_id") != generation_id
+    ):
+        raise BenchmarkError(
+            f"Language Quality micro migration seed identity mismatch: {generation_id}"
+        )
+    raw = row.get("normalization_raw")
+    if not isinstance(raw, dict) or set(raw) != {assigned[0]}:
+        raise BenchmarkError(
+            f"Language Quality micro migration seed raw payload is incomplete: {generation_id}"
+        )
+    return {"seed": seed, "row": row, "generation_id": generation_id}
+
+
 def _cache_status(root: Path) -> dict[str, Any]:
     path = root / "results" / "cache_status.json"
     if path.is_file():
@@ -8145,6 +8200,97 @@ def hydrate_certified_cache(
         reuse_mode = "exact"
         fallback_record: dict[str, Any] | None = None
         if not cache_path.is_file():
+            migration = lq_micro_generation_seed(root, unit, payload)
+            if migration is not None:
+                language = str(unit["assigned_languages"][0])
+                seed = migration["seed"]
+                row = migration["row"]
+                result = {
+                    "schema_version": 1,
+                    "evaluation": "language_quality",
+                    "requirements": {},
+                    "normalization_raw": row["normalization_raw"],
+                    "evidence": {
+                        "migration_contract": LQ_MICRO_MIGRATION_CONTRACT,
+                        "source_run_id": seed.get("source_run_id"),
+                        "source_artifact_id": seed.get("source_artifact_id"),
+                        "source_raw_sha256": seed.get("source_raw_sha256"),
+                    },
+                }
+                result_path = agent_dir / "result.json"
+                agent_dir.mkdir(parents=True, exist_ok=True)
+                json_dump(result_path, result)
+                certification = {
+                    "validator_pass": True,
+                    "unit_complete": True,
+                    "primary_complete": False,
+                    "mechanical": True,
+                    "runner_action": "micro-measure-raw",
+                    "raw_evidence_sha256": {
+                        "migration_source_micro_raw.json": seed.get("source_raw_sha256")
+                    },
+                    "raw_evidence_retained_in": (
+                        "GitHub Actions artifact "
+                        + str(seed.get("source_artifact_id") or "")
+                    ),
+                    "migration_contract": LQ_MICRO_MIGRATION_CONTRACT,
+                    "source_run_id": seed.get("source_run_id"),
+                }
+                receipt_path = agent_dir / "cache_receipt.json"
+                json_dump(receipt_path, {
+                    "schema_version": 1,
+                    "status": "HIT",
+                    "reuse_mode": "language_generation_raw_migration",
+                    "fingerprint": fingerprint,
+                    "record": (
+                        "v1/language-quality/micro_generation_seed.json.gz#"
+                        + str(migration["generation_id"])
+                    ),
+                    "certification": certification,
+                    "fingerprint_payload": payload,
+                })
+                try:
+                    check_rc = cmd_command_result_check(
+                        argparse.Namespace(workspace=str(root), id=uid)
+                    )
+                except (BenchmarkError, OSError, ValueError, KeyError) as exc:
+                    result_path.unlink(missing_ok=True)
+                    receipt_path.unlink(missing_ok=True)
+                    raise BenchmarkError(
+                        f"{uid}: Language Quality micro migration seed failed "
+                        f"the current validator: {exc}"
+                    ) from exc
+                if check_rc != 0:
+                    result_path.unlink(missing_ok=True)
+                    receipt_path.unlink(missing_ok=True)
+                    raise BenchmarkError(
+                        f"{uid}: Language Quality micro migration seed failed "
+                        "the current validator"
+                    )
+                cmd_ledger_update(argparse.Namespace(
+                    workspace=str(root), id=uid, status="RUNNING", evidence=[],
+                    validation_result=None, blocker=None, blocker_class=None,
+                ))
+                cmd_ledger_update(argparse.Namespace(
+                    workspace=str(root), id=uid, status="COMPLETE",
+                    evidence=unit.get("evidence_paths", []),
+                    validation_result="PASS",
+                    blocker=None, blocker_class=None,
+                ))
+                status["hits"][uid] = {
+                    "fingerprint": fingerprint,
+                    "scope": cache_scope(unit, payload),
+                    "reuse_mode": "language_generation_raw_migration",
+                    "record": (
+                        "v1/language-quality/micro_generation_seed.json.gz#"
+                        + str(migration["generation_id"])
+                    ),
+                    "assigned_languages": [language],
+                }
+                status["misses"].pop(uid, None)
+                status["invalidated"].pop(uid, None)
+                hits += 1
+                continue
             generation_fallback = same_generation_certified_record(root, unit, payload)
             if generation_fallback is not None:
                 cache_path, fallback_record = generation_fallback

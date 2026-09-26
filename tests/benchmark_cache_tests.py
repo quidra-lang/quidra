@@ -2458,6 +2458,43 @@ def assert_historical_generations_change_relative_normalization() -> None:
         assert sc_initial_primary["rust_v1"] != sc_expanded_primary["rust_v1"]
 
 
+def assert_baseline_generation_raw_seeds_are_complete() -> None:
+    history = benchmark.load_language_generation_history_from_cache(
+        ROOT / "benchmark" / "cache"
+    )
+    baseline_ids = {
+        str(row["generation_id"])
+        for row in history.get("generations", [])
+        if str(row.get("source_run_id") or "") == "2026-09-25-5dc8989-gh25"
+    }
+    assert len(baseline_ids) == 10, baseline_ids
+
+    lq_raw = benchmark._language_quality_seed_raw(ROOT / "benchmark" / "cache")
+    sc_raw = benchmark._semantic_compression_seed_raw(ROOT / "benchmark" / "cache")
+    assert baseline_ids <= set(lq_raw), sorted(baseline_ids - set(lq_raw))
+    assert baseline_ids <= set(sc_raw), sorted(baseline_ids - set(sc_raw))
+
+    for generation_id in baseline_ids:
+        lq = lq_raw[generation_id]
+        assert isinstance(lq.get("workloads"), dict) and lq["workloads"], generation_id
+        assert isinstance(lq.get("startup_seconds"), (int, float)), generation_id
+        assert isinstance(lq.get("startup_rss_bytes"), (int, float)), generation_id
+        for workload, values in lq["workloads"].items():
+            assert workload.startswith("mb"), (generation_id, workload)
+            assert {
+                "source_bytes",
+                "artifact_effective_bytes",
+                "compile_effective_seconds",
+                "cold_seconds",
+                "rss_bytes",
+                "steady_seconds",
+            } <= set(values), (generation_id, workload, values)
+
+        sc = sc_raw[generation_id]
+        assert set(sc) == set(benchmark.SC_RELATIVE_METRICS), generation_id
+        assert all(isinstance(value, float) for value in sc.values()), generation_id
+
+
 def assert_generation_history_has_no_ceiling() -> None:
     fixed = {f"L{index}": float(50 + index) for index in range(10)}
     current = {
@@ -2637,6 +2674,7 @@ def assert_generation_immutability_uses_raw_and_direct_metrics() -> None:
 def main() -> None:
     assert_generation_immutability_uses_raw_and_direct_metrics()
     assert_historical_generations_change_relative_normalization()
+    assert_baseline_generation_raw_seeds_are_complete()
     assert_generation_history_has_no_ceiling()
     assert_all_languages_use_version_generations()
     assert_same_version_quidra_is_removed_from_mechanical_execution()

@@ -263,6 +263,9 @@ jobs:
           ), "scientific benchmark-condition changes must still invalidate reuse"
           PY
 
+      - name: Certified cache reuse contract
+        run: python tests/benchmark_cache_tests.py
+
       - name: Validate template and CLI
         run: |
           python -m py_compile benchmark/template/scripts/benchmark.py
@@ -984,9 +987,6 @@ jobs:
       # Fast, independent contracts for paid-call durability run before the
       # expensive deterministic integration pass. This keeps trial-checkpoint
       # regressions visible even when a newer develop push cancels the long job.
-      - name: Certified cache reuse contract
-        run: python tests/benchmark_cache_tests.py
-
       - name: Credential-less gateway and sandbox-agent isolation
         run: python tests/benchmark_isolation_tests.py
 

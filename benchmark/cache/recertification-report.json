@@ -18935,8 +18935,7 @@
           "assigned_languages": [],
           "cache": {
             "assigned_languages": [],
-            "compatibility_mode": "semantic-comparability-from-current-catalog",
-            "fingerprint": "36a064d00059e138d3bc55251845777d7217e64158c1a8283caf46a65cb60424",
+            "fingerprint": "6ad01e18cd8d06108e71a7a3d52273900c4ff6d04e44705ff20ad9f7848d288c",
             "migration": {
               "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
               "current_validator": "PASS",
@@ -18957,9 +18956,8 @@
                 "certification"
               ]
             },
-            "record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-            "scope": "comparability",
-            "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843"
+            "record": "v1/semantic-compression/comparability/6ad01e18cd8d06108e71a7a3d52273900c4ff6d04e44705ff20ad9f7848d288c.json",
+            "scope": "comparability"
           },
           "evaluation": "semantic_compression",
           "status": "COMPLETE",
@@ -24953,12 +24951,12 @@
     "invalid": 210,
     "note": "Legacy invalid records are retained as provenance. A successful migration adds an ordinary current-key record rather than rewriting or deleting its source.",
     "superseded": 248,
-    "valid": 762
+    "valid": 763
   },
   "historical_cache_before": {
     "invalid": 210,
     "superseded": 248,
-    "valid": 761
+    "valid": 762
   },
   "legacy_invalid_record_classifications": [
     {

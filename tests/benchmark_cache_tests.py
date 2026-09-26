@@ -2671,7 +2671,59 @@ def assert_generation_immutability_uses_raw_and_direct_metrics() -> None:
     )
 
 
+def assert_learnability_evidence_mean_consistency_guard() -> None:
+    """Learnability requirement scores must agree with preserved condition means."""
+    task = {
+        "evaluation": "llm_learnability",
+        "assigned_languages": ["Quidra"],
+        "requirement_ids": ["condition.i2_vocabulary_anonymization"],
+    }
+    consistent = {
+        "evaluation": "llm_learnability",
+        "requirements": {
+            "condition.i2_vocabulary_anonymization": {"Quidra": 57.33}
+        },
+        "evidence": {
+            "i2_vocabulary_anonymization": {"mean": 57.33}
+        },
+    }
+    benchmark.validate_learnability_evidence_mean_consistency(task, consistent)
+
+    rounded_task = {
+        **task,
+        "assigned_languages": ["C++"],
+    }
+    rounded = {
+        "evaluation": "llm_learnability",
+        "requirements": {
+            "condition.i2_vocabulary_anonymization": {"C++": 92}
+        },
+        "evidence": {
+            "condition.i2_vocabulary_anonymization": {"mean": 91.67}
+        },
+    }
+    benchmark.validate_learnability_evidence_mean_consistency(
+        rounded_task, rounded
+    )
+
+    inconsistent = json.loads(json.dumps(consistent))
+    inconsistent["requirements"]["condition.i2_vocabulary_anonymization"][
+        "Quidra"
+    ] = 71
+    try:
+        benchmark.validate_learnability_evidence_mean_consistency(
+            task, inconsistent
+        )
+    except benchmark.BenchmarkError as exc:
+        assert "disagrees with evidence mean" in str(exc), exc
+    else:
+        raise AssertionError(
+            "material Learnability requirement/evidence disagreement was accepted"
+        )
+
+
 def main() -> None:
+    assert_learnability_evidence_mean_consistency_guard()
     assert_generation_immutability_uses_raw_and_direct_metrics()
     assert_historical_generations_change_relative_normalization()
     assert_baseline_generation_raw_seeds_are_complete()

@@ -146,6 +146,94 @@ jobs:
           raise "README five-Primary order drifted from workflow" unless readme.include?(order)
           RUBY
 
+      - name: Versioned Quidra generation contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          import json
+
+          spec = importlib.util.spec_from_file_location(
+              "benchmark_cli", "benchmark/template/scripts/benchmark.py"
+          )
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          assert module.project_version(Path(".")) == "0.3.0"
+          base = module.load_quidra_version_history_file(
+              Path("benchmark/quidra_versions/index.json")
+          )
+          assert [row["language_id"] for row in base["versions"]] == ["quidra_v0.3.0"]
+
+          fixed = {
+              "Quidra": 77.5, "Python": 47.0, "C++": 20.0, "Rust": 68.0,
+              "Go": 72.0, "Java": 53.0, "TypeScript": 48.0, "Kotlin": 69.0,
+              "Swift": 77.0, "Zig": 78.0,
+          }
+
+          # Any number N of archived Quidra generations produces 9 + N rows.
+          history = json.loads(json.dumps(base))
+          for minor in range(4, 26):
+              history["versions"].append({
+                  "version": f"0.{minor}.0",
+                  "language_id": f"quidra_v0.{minor}.0",
+                  "source_run_id": f"synthetic-{minor}",
+                  "source_commit_sha": "0" * 40,
+                  "primary_scores": {"semantic_compression": 70.0 + minor / 100.0},
+                  "normalized_metric_scores": {
+                      "semantic_compression": {
+                          "metric.semantic_density": float(minor)
+                      }
+                  },
+              })
+              scores, order = module.versioned_scores_from_history(
+                  fixed, "semantic_compression", f"0.{minor}.0", history
+              )
+              assert len(scores) == 9 + len(history["versions"])
+              assert len(module.deterministic_ranking(scores, order)) == len(scores)
+              assert all(
+                  row["language_id"] in scores
+                  for row in history["versions"]
+              )
+
+          payload = {
+              "schema_version": 1,
+              "cache_schema_version": 1,
+              "evaluation": "llm_learnability",
+              "work_unit_id": "learnability-i3-i4--quidra",
+              "requirement_ids": ["condition.i3", "condition.i4"],
+              "assigned_languages": ["Quidra"],
+              "provider": "anthropic-messages",
+              "model": "claude-sonnet-5",
+              "frozen_sampling": {"effort": "high"},
+              "unit_input_hashes": {"primary_config": "same"},
+              "runtime_toolchain_pins": {"Quidra": {}},
+              "cache_epoch": "stable",
+              "exact_task_packet_sha256": "old",
+              "readable_input_content_hashes": {"repo/docs": "old"},
+              "quidra_target": {"version": "0.3.0", "language_version": "0.2"},
+          }
+          changed_implementation = json.loads(json.dumps(payload))
+          changed_implementation["exact_task_packet_sha256"] = "new"
+          changed_implementation["readable_input_content_hashes"] = {"repo/docs": "new"}
+          changed_implementation["quidra_target"]["language_version"] = "999"
+          assert module.same_version_cache_payload_compatible(
+              changed_implementation, payload
+          ), "same project version must reuse/skip Quidra"
+
+          changed_version = json.loads(json.dumps(changed_implementation))
+          changed_version["quidra_target"]["version"] = "0.4.0"
+          assert not module.same_version_cache_payload_compatible(
+              changed_version, payload
+          ), "new project version must create a new Quidra generation"
+
+          changed_model = json.loads(json.dumps(changed_implementation))
+          changed_model["model"] = "different-model"
+          assert not module.same_version_cache_payload_compatible(
+              changed_model, payload
+          ), "scientific benchmark-condition changes must still invalidate reuse"
+          PY
+
       - name: Validate template and CLI
         run: |
           python -m py_compile benchmark/template/scripts/benchmark.py

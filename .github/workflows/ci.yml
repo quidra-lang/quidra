@@ -614,75 +614,9 @@ jobs:
           test -z "$(git status --porcelain=v1)"
           test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 687
 
-          # Second transition run: after the 40 metric records are rebound,
-          # exactly one downstream task changes fingerprint: sc-comparability.
-          # Revalidate its byte-identical scientific result against that new
-          # task packet, checkpoint it, and replace only its old exact key.
-          python benchmark/template/scripts/benchmark.py init \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --sandbox-mode container \
-            --run-id canonical-post-cleanup-comparability-rebind \
-            --provider anthropic-messages \
-            --model "$BENCHMARK_MODEL"
-
-          python benchmark/template/scripts/sandbox_launcher.py run \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --image "$BENCHMARK_IMAGE" \
-            --provider fake \
-            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
-
-          python benchmark/template/scripts/sandbox_launcher.py run \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --image "$BENCHMARK_IMAGE" \
-            --provider fake \
-            -- python3 /quidra-benchmark/repo/.github/scripts/rebind_semantic_metrics_once.py stage-comparability \
-              --source-repo /quidra-benchmark/repo \
-              --workspace /quidra-benchmark \
-              --output /quidra-benchmark/results/post-cleanup-comparability-rebind-plan.json
-
-          # sc-comparability is deliberately promotion-gated on the whole
-          # Semantic Compression primary evaluation being COMPLETE. After the
-          # byte-identical comparability result passes its current validator,
-          # run the free command-only aggregate so that gate is satisfied
-          # without any provider inference.
-          python benchmark/template/scripts/sandbox_launcher.py run \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --image "$BENCHMARK_IMAGE" \
-            --provider fake \
-            -- python3 /quidra-benchmark/template/scripts/benchmark.py advance
-
-          python - "$GITHUB_WORKSPACE/.quidra-benchmark/results/primary_status.json" <<'PY'
-          import json, sys
-          from pathlib import Path
-          status = json.loads(Path(sys.argv[1]).read_text())
-          semantic = (status.get("evaluations") or {}).get("semantic_compression") or {}
-          assert semantic.get("status") == "COMPLETE", semantic
-          assert semantic.get("scoreable") is True, semantic
-          assert not semantic.get("blockers"), semantic
-          PY
-
-          python benchmark/template/scripts/benchmark.py checkpoint-cache \
-            --source-repo "$GITHUB_WORKSPACE" \
-            > "$RUNNER_TEMP/post-cleanup-comparability-promotion.json"
-
-          python .github/scripts/rebind_semantic_metrics_once.py prune-comparability \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --plan "$GITHUB_WORKSPACE/.quidra-benchmark/results/post-cleanup-comparability-rebind-plan.json" \
-            --promotion "$RUNNER_TEMP/post-cleanup-comparability-promotion.json"
-
-          python benchmark/template/scripts/benchmark.py discard-workspace \
-            --source-repo "$GITHUB_WORKSPACE"
-
-          # Freeze the downstream replacement as well. Only after this amend do
-          # we start the real clean-room replay with no transition helper in use.
-          git add -A
-          git diff --cached --check
-          git commit --amend --no-edit
-          test -z "$(git status --porcelain=v1)"
-          test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 687
-
-          # Third run: this is the actual future-run proof. It has no rebind
-          # operation, no compatibility fallback and no paid provider.
+          # Second run: this is the actual future-run proof. The 40 metric
+          # replacements are frozen in the candidate; replay-stable
+          # comparability input must now hydrate as an ordinary exact-key hit.
           python benchmark/template/scripts/benchmark.py init \
             --source-repo "$GITHUB_WORKSPACE" \
             --sandbox-mode container \

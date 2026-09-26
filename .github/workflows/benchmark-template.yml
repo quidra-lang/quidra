@@ -136,6 +136,8 @@ jobs:
             'updated-prompts.tgz',
             '^benchmark/template/prompts/',
             'git add -f benchmark/cache benchmark/template/prompts "$checkpoint_dir"',
+            'git add -f "benchmark/$RUN_ID" benchmark/cache benchmark/template/prompts benchmark/quidra_versions',
+            'benchmark/quidra_versions',
           ]
           final_checkpoint_markers.each do |marker|
             raise "final checkpoint no longer preserves certified prompt dependencies: #{marker}" unless production_text.include?(marker)
@@ -144,6 +146,7 @@ jobs:
           readme = File.read("benchmark/README.md").gsub(/\s+/, " ")
           order = "Semantic Compression → LLM Learnability → Language Quality → Ecosystem → LLM Proficiency"
           raise "README five-Primary order drifted from workflow" unless readme.include?(order)
+          raise "README reconciliation drops Quidra version history" unless readme.include?("quidra_versions/")
           RUBY
 
       - name: Versioned Quidra generation contract

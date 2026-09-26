@@ -243,6 +243,38 @@ jobs:
           assert {"quidra_v0.3.0", "quidra_v0.4.0", "quidra_v0.5.0"} <= set(third_scores)
           assert len(module.deterministic_ranking(third_scores, third_order)) == 12
 
+          # The publication layer must not cap Quidra generations at 11/12 rows.
+          # Exercise many historical versions so future releases keep appending
+          # comparison rows indefinitely while the nine comparison languages stay fixed.
+          many_history = {
+              "schema_version": 1,
+              "version_ssot": "project.toml:[project].version",
+              "versions": [],
+          }
+          for patch in range(50):
+              version = f"1.0.{patch}"
+              many_history["versions"].append({
+                  "version": version,
+                  "language_id": f"quidra_v{version}",
+                  "source_run_id": f"synthetic-{patch}",
+                  "source_commit_sha": f"{patch:040x}",
+                  "primary_scores": {"semantic_compression": float(50 + patch / 10)},
+                  "normalized_metric_scores": {
+                      "semantic_compression": {
+                          "metric.semantic_density": float(40 + patch / 10),
+                      },
+                  },
+              })
+          many_scores, many_order = module.versioned_scores_from_history(
+              fixed, "semantic_compression", "1.0.50", many_history
+          )
+          assert len(many_scores) == 60, len(many_scores)  # 9 comparisons + 51 Quidra generations
+          assert len(many_order) == 60
+          assert "quidra_v1.0.0" in many_scores
+          assert "quidra_v1.0.49" in many_scores
+          assert "quidra_v1.0.50" in many_scores
+          assert len(module.deterministic_ranking(many_scores, many_order)) == 60
+
           payload = {
               "schema_version": 1,
               "cache_schema_version": 1,

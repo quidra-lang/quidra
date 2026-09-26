@@ -2428,38 +2428,161 @@ def assert_historical_generations_change_relative_normalization() -> None:
         initial_sc["metric.semantic_determinacy"]["rust_v1"]
     )
 
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        lq_initial_primary = benchmark.generation_primary_scores_from_metrics(
+            root, "language_quality", initial, ["python_v1", "rust_v1"]
+        )
+        lq_expanded_primary = benchmark.generation_primary_scores_from_metrics(
+            root, "language_quality", expanded, ["python_v1", "rust_v1", "rust_v0"]
+        )
+        assert lq_initial_primary["rust_v1"] != lq_expanded_primary["rust_v1"]
+
+        initial_sc_metrics = dict(initial_sc)
+        initial_sc_metrics["metric.capability_coverage"] = {
+            "python_v1": 80.0, "rust_v1": 80.0,
+        }
+        expanded_sc_metrics = dict(expanded_sc)
+        expanded_sc_metrics["metric.capability_coverage"] = {
+            "python_v1": 80.0, "rust_v1": 80.0, "rust_v0": 80.0,
+        }
+        sc_initial_primary = benchmark.generation_primary_scores_from_metrics(
+            root, "semantic_compression", initial_sc_metrics, ["python_v1", "rust_v1"]
+        )
+        sc_expanded_primary = benchmark.generation_primary_scores_from_metrics(
+            root,
+            "semantic_compression",
+            expanded_sc_metrics,
+            ["python_v1", "rust_v1", "rust_v0"],
+        )
+        assert sc_initial_primary["rust_v1"] != sc_expanded_primary["rust_v1"]
+
+
+def assert_generation_history_has_no_ceiling() -> None:
+    fixed = {f"L{index}": float(50 + index) for index in range(10)}
+    current = {
+        language: {"generation_id": f"l{index}_v1"}
+        for index, language in enumerate(fixed)
+    }
+    history = {"schema_version": 1, "generations": []}
+
+    def count() -> int:
+        scores, order = benchmark.generation_scores_from_history(
+            fixed, "ecosystem", current, history
+        )
+        assert len(scores) == len(order)
+        return len(scores)
+
+    assert count() == 10
+    for index in range(50):
+        history["generations"].append({
+            "language": "L0",
+            "version": f"0.{index}",
+            "generation_id": f"l0_v0.{index}",
+            "primary_scores": {"ecosystem": float(index)},
+            "normalized_metric_scores": {"ecosystem": {}},
+            "normalization_raw": {},
+        })
+        assert count() == 11 + index
+
 
 def assert_all_languages_use_version_generations() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
-        (root / "repo" / "project.toml").write_text(
+        project_path = root / "repo" / "project.toml"
+        project_path.write_text(
             '[project]\nname = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n',
             encoding="utf-8",
         )
         languages = benchmark.metadata_languages(root)
+        assert languages == [
+            "Quidra", "Python", "C++", "Rust", "Go",
+            "Java", "TypeScript", "Kotlin", "Swift", "Zig",
+        ]
         generations = benchmark.language_generations(root, languages)
-        assert set(generations) == set(languages)
         assert generations["Quidra"]["generation_id"] == "quidra_v0.3.0"
         assert generations["Python"]["generation_id"] == "python_v3.12.3"
+        assert generations["C++"]["generation_id"] == "cpp_v18.1.3"
+        benchmark.validate_language_generation_config(root)
 
+        def cache_paths(rows: dict[str, dict[str, str]]) -> dict[tuple[str, str], str]:
+            result: dict[tuple[str, str], str] = {}
+            for evaluation in benchmark.PRIMARY_NAMES:
+                for language in languages:
+                    unit = {
+                        "evaluation": evaluation,
+                        "assigned_languages": [language],
+                        "language_generations": {language: rows[language]},
+                        "requirement_ids": [],
+                    }
+                    result[(evaluation, language)] = str(
+                        benchmark.cache_record_relative(unit, "0" * 64)
+                    )
+            return result
+
+        baseline = cache_paths(generations)
         config_path = root / "benchmark_config.json"
+        toolchain_path = root / "template/runtime/toolchains.json"
+        config_bytes = config_path.read_bytes()
+        toolchain_bytes = toolchain_path.read_bytes()
+
+        for language, new_version, pin_key in (
+            ("Python", "9.9.9", "PYTHON_PIN"),
+            ("Rust", "9.9.8", "RUST_PIN"),
+        ):
+            config_path.write_bytes(config_bytes)
+            toolchain_path.write_bytes(toolchain_bytes)
+            config = benchmark.json_load(config_path)
+            config["languages"][language]["version"] = new_version
+            benchmark.json_dump(config_path, config)
+            changed = benchmark.language_generations(root, languages)
+            changed_paths = cache_paths(changed)
+            for evaluation in benchmark.PRIMARY_NAMES:
+                for other in languages:
+                    assert (
+                        changed_paths[(evaluation, other)] != baseline[(evaluation, other)]
+                    ) == (other == language), (evaluation, language, other)
+
+            try:
+                benchmark.validate_language_generation_config(root)
+            except benchmark.BenchmarkError as exc:
+                assert pin_key in str(exc), exc
+            else:
+                raise AssertionError("config/toolchain version drift was accepted")
+
+            toolchains = benchmark.json_load(toolchain_path)
+            toolchains["toolchains"][pin_key] = new_version
+            benchmark.json_dump(toolchain_path, toolchains)
+            benchmark.validate_language_generation_config(root)
+
+        config_path.write_bytes(config_bytes)
+        toolchain_path.write_bytes(toolchain_bytes)
+        project_path.write_text(
+            '[project]\nname = "Quidra"\nversion = "0.4.0"\nlanguage_version = "0.2"\n',
+            encoding="utf-8",
+        )
+        quidra_changed = benchmark.language_generations(root, languages)
+        quidra_paths = cache_paths(quidra_changed)
+        assert quidra_changed["Quidra"]["generation_id"] == "quidra_v0.4.0"
+        for evaluation in benchmark.PRIMARY_NAMES:
+            for language in languages:
+                assert (
+                    quidra_paths[(evaluation, language)] != baseline[(evaluation, language)]
+                ) == (language == "Quidra"), (evaluation, language)
+
+        manifest_path = root / "repo" / "quidra.manifest.json"
+        manifest_path.write_text('{"version":"999.999.999"}\n', encoding="utf-8")
+        assert benchmark.language_generation(root, "Quidra")["generation_id"] == "quidra_v0.4.0"
+
         config = benchmark.json_load(config_path)
-        before = {
-            language: row["generation_id"]
-            for language, row in generations.items()
-        }
-        config["languages"]["Python"]["version"] = "9.9.9"
+        config["languages"]["Julia"] = {"id": "julia", "version": "1.99.0"}
         benchmark.json_dump(config_path, config)
-        after = {
-            language: row["generation_id"]
-            for language, row in benchmark.language_generations(root, languages).items()
-        }
-        assert after["Python"] == "python_v9.9.9"
-        assert all(
-            after[language] == before[language]
-            for language in languages
-            if language != "Python"
-        ), (before, after)
+        try:
+            benchmark.validate_language_generation_config(root)
+        except benchmark.BenchmarkError as exc:
+            assert "fixed measurement cohort" in str(exc), exc
+        else:
+            raise AssertionError("an extra config-only language changed the fixed cohort")
 
 
 def assert_generation_immutability_uses_raw_and_direct_metrics() -> None:
@@ -2500,6 +2623,7 @@ def assert_generation_immutability_uses_raw_and_direct_metrics() -> None:
 def main() -> None:
     assert_generation_immutability_uses_raw_and_direct_metrics()
     assert_historical_generations_change_relative_normalization()
+    assert_generation_history_has_no_ceiling()
     assert_all_languages_use_version_generations()
     assert_same_version_quidra_is_removed_from_mechanical_execution()
     assert_learnability_worker_core_projection_is_nonsemantic_only()

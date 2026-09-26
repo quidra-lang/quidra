@@ -6,16 +6,6 @@
   "derivation": "Reconstructed from the retained Semantic Compression worker evidence with benchmark.py sc_raw_values semantics; values reproduce the published fixed-10 normalization exactly.",
   "normalization": "min_max_across_all_retained_generations",
   "generations": {
-    "cpp_v20": {
-      "language": "C++",
-      "metrics": {
-        "metric.semantic_density": 0.09763617677286741,
-        "metric.semantic_determinacy": 0.32806209682071974,
-        "metric.semantic_locality": 0.7419354838709677,
-        "metric.hidden_semantic_cost": 0.967741935483871,
-        "metric.capability_efficiency": 1.5862068965517242
-      }
-    },
     "go_v1.26.3": {
       "language": "Go",
       "metrics": {
@@ -104,6 +94,16 @@
         "metric.semantic_locality": 0.18009677419354841,
         "metric.hidden_semantic_cost": 0.1935483870967742,
         "metric.capability_efficiency": 1.9518072289156627
+      }
+    },
+    "cpp_v18.1.3": {
+      "language": "C++",
+      "metrics": {
+        "metric.semantic_density": 0.09763617677286741,
+        "metric.semantic_determinacy": 0.32806209682071974,
+        "metric.semantic_locality": 0.7419354838709677,
+        "metric.hidden_semantic_cost": 0.967741935483871,
+        "metric.capability_efficiency": 1.5862068965517242
       }
     }
   }

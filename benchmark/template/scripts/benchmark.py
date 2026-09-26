@@ -110,6 +110,59 @@ def benchmark_generation_config(root: Path) -> dict[str, Any]:
     raise BenchmarkError("benchmark/config.json was not materialized into the workspace")
 
 
+LANGUAGE_GENERATION_PIN_KEYS = {
+    "Python": "PYTHON_PIN",
+    "C++": "CLANG_PIN",
+    "Rust": "RUST_PIN",
+    "Go": "GO_PIN",
+    "Java": "JAVA_PIN",
+    "TypeScript": "TYPESCRIPT_PIN",
+    "Kotlin": "KOTLIN_PIN",
+    "Swift": "SWIFT_PIN",
+    "Zig": "ZIG_PIN",
+}
+
+
+def _benchmark_template_root(root: Path) -> Path:
+    for path in (root / "template", root / "benchmark" / "template"):
+        if (path / BENCHMARK_METADATA_RELATIVE).is_file():
+            return path
+    raise BenchmarkError(f"benchmark template is missing under {root}")
+
+
+def validate_language_generation_config(root: Path) -> dict[str, Any]:
+    """Validate the fixed measurement cohort and non-Quidra generation pins."""
+    config = benchmark_generation_config(root)
+    template = _benchmark_template_root(root)
+    fixed = list(load_benchmark_metadata(template)["languages"])
+    configured = list((config.get("languages") or {}).keys())
+    missing = [language for language in fixed if language not in configured]
+    extra = [language for language in configured if language not in fixed]
+    if missing or extra or len(configured) != len(fixed):
+        raise BenchmarkError(
+            "benchmark/config.json must match the fixed measurement cohort exactly; "
+            f"missing={missing}, extra={extra}"
+        )
+
+    pins = json_load(template / "runtime" / "toolchains.json").get("toolchains") or {}
+    mismatches: list[str] = []
+    rows = config["languages"]
+    for language, pin_key in LANGUAGE_GENERATION_PIN_KEYS.items():
+        configured_version = str((rows.get(language) or {}).get("version") or "")
+        pinned_version = str(pins.get(pin_key) or "")
+        if configured_version != pinned_version:
+            mismatches.append(
+                f"{language}: benchmark/config.json={configured_version!r}, "
+                f"{pin_key}={pinned_version!r}"
+            )
+    if mismatches:
+        raise BenchmarkError(
+            "benchmark language generation versions must match runtime toolchain pins: "
+            + "; ".join(mismatches)
+        )
+    return config
+
+
 def language_generation(root: Path, language: str) -> dict[str, str]:
     config = benchmark_generation_config(root)
     row = (config.get("languages") or {}).get(language)
@@ -937,7 +990,15 @@ def _language_quality_seed_raw(cache_root: Path) -> dict[str, dict[str, Any]]:
         language = str(row.get("language") or "")
         raw = _unwrap_language_quality_raw(row.get("normalization_raw") or {}, language)
         if raw:
-            result[str(generation_id)] = raw
+            canonical_id = next(
+                (
+                    current
+                    for current, legacy in LQ_MICRO_LEGACY_GENERATION_ALIASES.items()
+                    if legacy == str(generation_id)
+                ),
+                str(generation_id),
+            )
+            result[canonical_id] = raw
     return result
 
 
@@ -1806,6 +1867,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     master_src = source / "benchmark" / "master_prompt.md"
     if not template_src.is_dir() or not master_src.is_file():
         raise BenchmarkError("benchmark/template or benchmark/master_prompt.md is missing")
+
+    validate_language_generation_config(source)
 
     for d in (
         "work/root", "work/agents", "work/attempts", "raw", "results", "prompts/by-hash",
@@ -8605,6 +8668,10 @@ def same_generation_certified_record(
 
 
 LQ_MICRO_MIGRATION_CONTRACT = "lq-micro-language-shards-v2-effective-raw"
+LQ_MICRO_LEGACY_GENERATION_ALIASES = {
+    "cpp_v18.1.3": "cpp_v20",
+}
+
 
 
 def lq_micro_generation_seed(
@@ -8640,16 +8707,24 @@ def lq_micro_generation_seed(
         or seed.get("migration_contract") != LQ_MICRO_MIGRATION_CONTRACT
     ):
         raise BenchmarkError("unsupported Language Quality micro migration seed")
-    row = (seed.get("generations") or {}).get(generation_id)
+    generations = seed.get("generations") or {}
+    seed_generation_id = generation_id
+    row = generations.get(generation_id)
+    if not isinstance(row, dict):
+        seed_generation_id = LQ_MICRO_LEGACY_GENERATION_ALIASES.get(generation_id, "")
+        row = generations.get(seed_generation_id)
     if not isinstance(row, dict):
         return None
     if (
         row.get("language") != assigned[0]
-        or row.get("generation_id") != generation_id
+        or row.get("generation_id") != seed_generation_id
     ):
         raise BenchmarkError(
             f"Language Quality micro migration seed identity mismatch: {generation_id}"
         )
+    if seed_generation_id != generation_id:
+        row = json.loads(json.dumps(row))
+        row["generation_id"] = generation_id
     raw = row.get("normalization_raw")
     if not isinstance(raw, dict) or set(raw) != {assigned[0]}:
         raise BenchmarkError(

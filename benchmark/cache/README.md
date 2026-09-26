@@ -15,7 +15,7 @@ Quidra's compiler/runtime execution identity is retained for provenance and diag
 
 The fixed scientific run still evaluates the same ten language names. Every
 single-language cache leaf is stored under an immutable versioned generation,
-for example `python_v3.12.3`, `cpp_v20`, or `quidra_v0.3.0`; Semantic
+for example `python_v3.12.3`, `cpp_v18.1.3`, or `quidra_v0.3.0`; Semantic
 Compression appends its probe suffix to that generation ID. Non-Quidra versions
 come from `benchmark/config.json`. Quidra is the deliberate exception: its
 version value is resolved only from `project.toml [project].version`.

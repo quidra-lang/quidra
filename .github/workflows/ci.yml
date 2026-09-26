@@ -657,7 +657,8 @@ jobs:
           status = json.loads(Path(sys.argv[1]).read_text())
           semantic = (status.get("evaluations") or {}).get("semantic_compression") or {}
           assert semantic.get("status") == "COMPLETE", semantic
-          assert semantic.get("all_work_units_complete") is True, semantic
+          assert semantic.get("scoreable") is True, semantic
+          assert not semantic.get("blockers"), semantic
           PY
 
           python benchmark/template/scripts/benchmark.py checkpoint-cache \

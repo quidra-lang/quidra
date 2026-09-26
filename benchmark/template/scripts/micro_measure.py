@@ -640,6 +640,91 @@ def summarize_or_na(values: list[float], reason: str | None = None) -> dict[str,
     }
 
 
+def _project_version_ssot(root: Path) -> str:
+    """Read [project].version from the evaluated project.toml SSOT."""
+    path = root / "repo" / "project.toml"
+    if not path.is_file():
+        raise MeasureError(f"evaluated snapshot has no project.toml: {path}")
+    in_project = False
+    versions: list[str] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line == "[project]":
+            in_project = True
+            continue
+        if in_project and line.startswith("["):
+            break
+        if not in_project or not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        if sep and key.strip() == "version":
+            value = value.strip()
+            if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+                versions.append(value[1:-1])
+    if len(versions) != 1:
+        raise MeasureError("project.toml [project] must declare version exactly once")
+    return versions[0]
+
+
+def archived_quidra_requirement_scores(
+    root: Path, requirement_ids: list[str],
+) -> dict[str, Any] | None:
+    """Return immutable same-version LQ scores, or None when fresh Quidra work is required."""
+    history_path = root / "version_history" / "index.json"
+    if not history_path.is_file():
+        return None
+    history = load_json(history_path)
+    if (
+        history.get("schema_version") != 1
+        or history.get("version_ssot") != "project.toml:[project].version"
+    ):
+        raise MeasureError("invalid Quidra version history contract")
+    version = _project_version_ssot(root)
+    row = next(
+        (
+            item for item in (history.get("versions") or [])
+            if isinstance(item, dict) and str(item.get("version") or "") == version
+        ),
+        None,
+    )
+    if row is None:
+        return None
+    source = ((row.get("normalized_metric_scores") or {}).get("language_quality") or {})
+    scores: dict[str, Any] = {}
+    for requirement_id in requirement_ids:
+        value = source.get(str(requirement_id))
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            scores[str(requirement_id)] = float(value)
+        elif (
+            isinstance(value, dict)
+            and value.get("status") == "N/A"
+            and isinstance(value.get("reason"), str)
+        ):
+            scores[str(requirement_id)] = dict(value)
+        else:
+            # A generation is skipped only when every requested score is already
+            # immutable. Missing history falls back to the ordinary measurement.
+            return None
+    return {
+        "version": version,
+        "language_id": str(row.get("language_id") or f"quidra_v{version}"),
+        "scores": scores,
+    }
+
+
+def execution_languages_with_archived_quidra(
+    root: Path, requirement_ids: list[str], languages: list[str],
+) -> tuple[list[str], dict[str, Any] | None]:
+    """Remove Quidra from scored execution only for an already archived project version."""
+    chosen = list(languages)
+    if "Quidra" not in chosen:
+        return chosen, None
+    archived = archived_quidra_requirement_scores(root, requirement_ids)
+    if archived is None:
+        return chosen, None
+    return [language for language in chosen if language != "Quidra"], archived
+
+
 def parse_steady_samples(stdout: str) -> list[float]:
     values = []
     for line in stdout.splitlines():
@@ -889,8 +974,19 @@ def measure(root: Path, unit_id: str) -> int:
         })
         print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
         return 0
-    validate_quidra_representation(root, quidra_representation_path(root))
-    compiler = ensure_target_compiler(root)
+    measured_languages, quidra_reuse = execution_languages_with_archived_quidra(
+        root,
+        [str(value) for value in unit.get("requirement_ids", [])],
+        LANGUAGES,
+    )
+    if quidra_reuse is None:
+        validate_quidra_representation(root, quidra_representation_path(root))
+        compiler = ensure_target_compiler(root)
+    else:
+        # No Quidra compiler/source program is invoked for an archived generation.
+        # The placeholder can never reach prepare_cell because Quidra is absent
+        # from measured_languages.
+        compiler = Path("/quidra-benchmark/version-history/archived-quidra")
     expected = expected_outputs(root)
     checker = checker_module(root)
     primary = load_json(root / "template" / "config" / "primary.json")
@@ -901,19 +997,21 @@ def measure(root: Path, unit_id: str) -> int:
     raw_path = out_dir / "micro_raw.json"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    required_bins = ["cmake", "python3", "clang++", "rustc", "go", "javac", "java", "tsc", "node", "kotlinc", "swiftc", "zig"]
+    required_bins = ["python3", "clang++", "rustc", "go", "javac", "java", "tsc", "node", "kotlinc", "swiftc", "zig"]
+    if quidra_reuse is None:
+        required_bins.insert(0, "cmake")
     missing = [name for name in required_bins if shutil.which(name) is None]
     if missing:
         raise MeasureError("missing required micro toolchains: " + ", ".join(missing))
 
     cells: dict[str, dict[str, dict[str, Any]]] = {w: {} for w in WORKLOADS}
     for workload in WORKLOADS:
-        for language in LANGUAGES:
+        for language in measured_languages:
             cells[workload][language] = prepare_cell(root, language, workload, compiler)
 
     correctness = []
     for workload in WORKLOADS:
-        for language in LANGUAGES:
+        for language in measured_languages:
             cell = cells[workload][language]
             if cell["build_cmd"] is not None:
                 build_once(root, cell)
@@ -945,9 +1043,9 @@ def measure(root: Path, unit_id: str) -> int:
 
     startup_cells = {
         language: prepare_cell(root, language, STARTUP_WORKLOAD, compiler)
-        for language in LANGUAGES
+        for language in measured_languages
     }
-    for language in LANGUAGES:
+    for language in measured_languages:
         cell = startup_cells[language]
         if cell["build_cmd"] is not None:
             build_once(root, cell)
@@ -962,7 +1060,7 @@ def measure(root: Path, unit_id: str) -> int:
 
     startup_samples: dict[str, list[float]] = {lang: [] for lang in LANGUAGES}
     startup_rss_samples: dict[str, list[float]] = {lang: [] for lang in LANGUAGES}
-    startup_group = [startup_cells[lang] for lang in LANGUAGES]
+    startup_group = [startup_cells[lang] for lang in measured_languages]
 
     def measure_startup(_batch: str) -> None:
         for round_index in range(warmups):
@@ -1050,7 +1148,7 @@ def measure(root: Path, unit_id: str) -> int:
     def measure_compile(workload: str) -> None:
         build_cells = [
             cells[workload][lang]
-            for lang in LANGUAGES
+            for lang in measured_languages
             if cells[workload][lang]["build_cmd"] is not None
         ]
         for round_index in range(measured):
@@ -1070,7 +1168,7 @@ def measure(root: Path, unit_id: str) -> int:
                     float(result["wall_seconds"])
                 )
                 pause()
-        for lang in LANGUAGES:
+        for lang in measured_languages:
             if cells[workload][lang]["build_cmd"] is None:
                 compile_samples[workload][lang] = [0.0] * measured
 
@@ -1080,12 +1178,12 @@ def measure(root: Path, unit_id: str) -> int:
     # Downstream execution still needs a current artifact even when compile timing
     # for a workload became infrastructure N/A.
     for workload in WORKLOADS:
-        for lang in LANGUAGES:
+        for lang in measured_languages:
             if cells[workload][lang]["build_cmd"] is not None:
                 build_once(root, cells[workload][lang])
 
     def measure_cold(workload: str) -> None:
-        group = [cells[workload][lang] for lang in LANGUAGES]
+        group = [cells[workload][lang] for lang in measured_languages]
         for round_index in range(warmups):
             order = deterministic_order(
                 run_id, workload, "cold-warmup", round_index, group
@@ -1128,7 +1226,7 @@ def measure(root: Path, unit_id: str) -> int:
     )
 
     def measure_rss(workload: str) -> None:
-        group = [cells[workload][lang] for lang in LANGUAGES]
+        group = [cells[workload][lang] for lang in measured_languages]
         for round_index in range(warmups):
             order = deterministic_order(
                 run_id, workload, "rss-warmup", round_index, group
@@ -1170,7 +1268,7 @@ def measure(root: Path, unit_id: str) -> int:
     )
 
     def measure_steady(workload: str) -> None:
-        group = [cells[workload][lang] for lang in LANGUAGES]
+        group = [cells[workload][lang] for lang in measured_languages]
         for process_index in range(2):
             order = deterministic_order(
                 run_id, workload, "steady", process_index, group
@@ -1213,16 +1311,28 @@ def measure(root: Path, unit_id: str) -> int:
         WORKLOADS, "steady", measure_steady, host_checks
     )
 
-    source_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    artifact_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    compile_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    cold_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    rss_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    steady_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
+    source_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    artifact_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    compile_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    cold_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    rss_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    steady_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
     summaries: dict[str, Any] = {}
     for workload in WORKLOADS:
         summaries[workload] = {}
-        for language in LANGUAGES:
+        for language in measured_languages:
             cell = cells[workload][language]
             source_raw[workload][language] = float(Path(cell["source"]).stat().st_size)
             artifact_raw[workload][language] = float(artifact_size(cell))
@@ -1293,6 +1403,11 @@ def measure(root: Path, unit_id: str) -> int:
         "metric.source_code_size": family_c_workload_scores(source_raw),
         "metric.binary_artifact_size": family_c_workload_scores(artifact_raw, 4096.0),
     }
+    if quidra_reuse is not None:
+        for requirement_id, archived_score in quidra_reuse["scores"].items():
+            if requirement_id in all_requirements:
+                all_requirements[requirement_id]["Quidra"] = archived_score
+
     assigned_requirement_ids = list(unit.get("requirement_ids", []))
     unsupported = sorted(set(assigned_requirement_ids) - set(all_requirements))
     if unsupported:
@@ -1311,7 +1426,8 @@ def measure(root: Path, unit_id: str) -> int:
             "raw": str(raw_path),
             "compile_epsilon_seconds": compile_epsilon,
             "artifact_epsilon_bytes": 4096,
-            "target_compiler": str(compiler),
+            "target_compiler": (str(compiler) if quidra_reuse is None else None),
+            "quidra_version_reuse": quidra_reuse,
         },
     }
     dump_json(raw_path, {
@@ -1339,6 +1455,7 @@ def measure(root: Path, unit_id: str) -> int:
             for lang in LANGUAGES
         },
         "summaries": summaries,
+        "quidra_version_reuse": quidra_reuse,
     })
     dump_json(out_dir / "result.json", result)
     print(json.dumps({"ok": True, "unit_id": unit_id, "result": str(out_dir / 'result.json')}, indent=2))

@@ -28,6 +28,7 @@ def load(name: str, path: Path):
 benchmark = load("benchmark_cache_cli", SCRIPTS / "benchmark.py")
 sys.modules["benchmark"] = benchmark
 production = load("benchmark_cache_production", SCRIPTS / "production_run.py")
+micro_measure = load("benchmark_cache_micro_measure", SCRIPTS / "micro_measure.py")
 
 
 def make_workspace(tmp: Path) -> Path:
@@ -2173,7 +2174,93 @@ For support adjudication only, return UTF-8 text leaves instead of result.json.
     )
 
 
+def assert_same_version_quidra_is_removed_from_mechanical_execution() -> None:
+    """A peer-only cache miss must not execute an already archived Quidra generation."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        current_version = benchmark.project_version(ROOT)
+        assert current_version
+        (root / "repo" / "project.toml").write_text(
+            f'[project]\nname = "Quidra"\nversion = "{current_version}"\nlanguage_version = "0.2"\n',
+            encoding="utf-8",
+        )
+        requirements = [
+            "metric.native_execution_performance",
+            "metric.long_running_performance",
+            "metric.compile_build_performance",
+            "metric.startup_latency",
+            "metric.memory_efficiency",
+            "metric.runtime_overhead",
+            "metric.source_code_size",
+            "metric.binary_artifact_size",
+        ]
+        archived_scores = {
+            requirement_id: float(50 + index)
+            for index, requirement_id in enumerate(requirements)
+        }
+        (root / "version_history").mkdir(parents=True, exist_ok=True)
+        benchmark.json_dump(
+            root / "version_history" / "index.json",
+            {
+                "schema_version": 1,
+                "version_ssot": "project.toml:[project].version",
+                "versions": [{
+                    "version": current_version,
+                    "language_id": f"quidra_v{current_version}",
+                    "source_run_id": "synthetic-version-history",
+                    "source_commit_sha": "0" * 40,
+                    "primary_scores": {"language_quality": 60.0},
+                    "normalized_metric_scores": {
+                        "language_quality": archived_scores,
+                    },
+                }],
+            },
+        )
+        executed, archived = micro_measure.execution_languages_with_archived_quidra(
+            root, requirements, list(micro_measure.LANGUAGES)
+        )
+        assert archived is not None, archived
+        assert archived["version"] == current_version
+        assert archived["scores"] == archived_scores
+        assert "Quidra" not in executed
+        assert executed == [lang for lang in micro_measure.LANGUAGES if lang != "Quidra"]
+
+        # Missing even one required score is fail-safe: Quidra must execute.
+        history = benchmark.json_load(root / "version_history" / "index.json")
+        del history["versions"][0]["normalized_metric_scores"]["language_quality"][requirements[0]]
+        benchmark.json_dump(root / "version_history" / "index.json", history)
+        executed_missing, archived_missing = (
+            micro_measure.execution_languages_with_archived_quidra(
+                root, requirements, list(micro_measure.LANGUAGES)
+            )
+        )
+        assert archived_missing is None
+        assert executed_missing == list(micro_measure.LANGUAGES)
+
+        # A version bump is a new generation: it must execute and later append.
+        history["versions"][0]["normalized_metric_scores"]["language_quality"] = archived_scores
+        benchmark.json_dump(root / "version_history" / "index.json", history)
+        (root / "repo" / "project.toml").write_text(
+            '[project]\nname = "Quidra"\nversion = "999.0.0"\nlanguage_version = "0.2"\n',
+            encoding="utf-8",
+        )
+        executed_bumped, archived_bumped = (
+            micro_measure.execution_languages_with_archived_quidra(
+                root, requirements, list(micro_measure.LANGUAGES)
+            )
+        )
+        assert archived_bumped is None
+        assert executed_bumped == list(micro_measure.LANGUAGES)
+
+        # Both scored mechanical paths must use the shared skip planner.
+        micro_source = (SCRIPTS / "micro_measure.py").read_text(encoding="utf-8")
+        adversarial_source = (SCRIPTS / "adversarial_measure.py").read_text(encoding="utf-8")
+        assert micro_source.count("execution_languages_with_archived_quidra(") >= 2
+        assert "mm.execution_languages_with_archived_quidra(" in adversarial_source
+
+
 def main() -> None:
+    assert_same_version_quidra_is_removed_from_mechanical_execution()
     assert_learnability_worker_core_projection_is_nonsemantic_only()
     assert_certified_checkpoint_promotes_prompt_dependencies()
     assert_partial_paid_checkpoint_roundtrip()

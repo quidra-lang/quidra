@@ -1219,6 +1219,12 @@ def measure(root: Path, unit_id: str) -> int:
         )
     if len(selected_languages) != len(set(selected_languages)):
         raise MeasureError("assigned adversarial languages contain duplicates")
+    publication_languages = list(selected_languages)
+    selected_languages, quidra_reuse = mm.execution_languages_with_archived_quidra(
+        root,
+        [str(value) for value in unit.get("requirement_ids", [])],
+        selected_languages,
+    )
     missing = missing_comparison_toolchains(root, selected_languages)
     if missing:
         raise MeasureError(
@@ -1339,7 +1345,10 @@ def measure(root: Path, unit_id: str) -> int:
         if metric is None:
             raise MeasureError(f"adversarial-measure received an unsupported requirement ID: {rid}")
         per_language: dict[str, Any] = {}
-        for language in selected_languages:
+        for language in publication_languages:
+            if language == "Quidra" and quidra_reuse is not None:
+                per_language[language] = quidra_reuse["scores"][str(rid)]
+                continue
             score = metrics[language][metric]["score"]
             if score is None:
                 na_reasons = sorted({
@@ -1394,7 +1403,9 @@ def measure(root: Path, unit_id: str) -> int:
             "raw": str(raw_path),
             "scorer": "adversarial_measure.py (mechanical replay of D0..D7)",
             "programs_per_language": len(scored_programs),
-            "assigned_languages": selected_languages,
+            "assigned_languages": publication_languages,
+            "executed_languages": selected_languages,
+            "quidra_version_reuse": quidra_reuse,
             "quidra_na_reason": quidra_na_reason,
         },
     })

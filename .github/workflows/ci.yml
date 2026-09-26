@@ -442,9 +442,6 @@ jobs:
       - name: Checkpoint every accepted compatibility hit at its current fingerprint
         run: |
           set -euo pipefail
-          python benchmark/template/scripts/benchmark.py discard-workspace \
-            --source-repo "$GITHUB_WORKSPACE"
-
           # This is the final use of the legacy compatibility layer. It does no
           # provider inference: old certified evidence is transformed, passed
           # through today's validators and completed at today's fingerprint.

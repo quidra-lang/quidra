@@ -809,7 +809,9 @@ jobs:
           )
           methodology_files = [
               p for p in root.rglob("*")
-              if p.is_file() and p.suffix in {".md", ".json"}
+              if p.is_file()
+              and p.suffix in {".md", ".json"}
+              and "prompts" not in p.relative_to(root).parts
           ]
           for path in methodology_files:
               text = path.read_text(errors="ignore")

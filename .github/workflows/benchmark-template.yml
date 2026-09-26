@@ -147,7 +147,7 @@ jobs:
           raise "README reconciliation drops versioned Quidra cache" unless readme.include?("quidra_vX.Y.Z")
           RUBY
 
-      - name: Versioned Quidra generation contract
+      - name: Versioned language generation contract
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -378,7 +378,7 @@ jobs:
           python -m json.tool benchmark/config.json >/dev/null
           python -m json.tool benchmark/2026-09-25-5dc8989-gh25/versioned_scores.json >/dev/null
           python -m json.tool benchmark/cache/v1/semantic-compression/generation_raw_seed.json >/dev/null
-          for generation in benchmark/cache/v1/*/quidra_v*/generation.json; do
+          for generation in benchmark/cache/v1/*/*_v*/generation.json; do
             python -m json.tool "$generation" >/dev/null
           done
           python -m json.tool benchmark/template/runtime/toolchains.json >/dev/null

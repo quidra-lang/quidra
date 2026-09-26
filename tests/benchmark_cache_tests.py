@@ -729,7 +729,7 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     assert payload["provider"] is None and payload["model"] is None
     assert payload["result_kind"] == "mechanical"
     assert payload["runner_action"] == "micro-measure-raw"
-    assert payload["cache_epoch"] == "2026-09"
+    assert payload["cache_epoch"] == "github-hosted-ubuntu-latest-v1"
     assert "repo/tests/benchmark/quidra" in payload["readable_input_content_hashes"]
 
     # A raw shard records no normalized metric. Its immutable output is the

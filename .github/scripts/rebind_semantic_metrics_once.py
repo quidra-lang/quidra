@@ -86,6 +86,32 @@ def run_cli(source: Path, *args: str) -> None:
         check=True,
     )
 
+def host_evidence_paths(workspace: Path, unit: dict) -> list[str]:
+    """Map canonical /quidra-benchmark evidence paths onto host staging safely."""
+    root = workspace.resolve()
+    canonical = Path("/quidra-benchmark")
+    out: list[str] = []
+    for raw in (unit.get("evidence_paths") or []):
+        recorded = Path(str(raw))
+        if recorded.is_absolute():
+            try:
+                relative = recorded.relative_to(canonical)
+                host = (root / relative).resolve()
+            except ValueError:
+                host = recorded.resolve()
+        else:
+            host = (root / recorded).resolve()
+        try:
+            host.relative_to(root)
+        except ValueError as exc:
+            raise SystemExit(
+                f"{unit.get('id')}: evidence path escapes host staging: {recorded}"
+            ) from exc
+        out.append(str(host))
+    if not out:
+        raise SystemExit(f"{unit.get('id')}: no evidence paths to certify")
+    return out
+
 def record_index(source: Path) -> dict[str, list[tuple[Path, dict]]]:
     root = source / "benchmark/cache/v1"
     out: dict[str, list[tuple[Path, dict]]] = {}
@@ -191,12 +217,16 @@ def stage(source: Path, workspace: Path, output: Path) -> None:
             "--workspace", str(workspace),
             "--id", agent_id,
         )
+        ledger_evidence: list[str] = []
+        for evidence_path in host_evidence_paths(workspace, unit):
+            ledger_evidence.extend(["--evidence", evidence_path])
         run_cli(
             source,
             "ledger-update",
             "--workspace", str(workspace),
             "--id", uid,
             "--status", "RUNNING",
+            *ledger_evidence,
         )
         cmd = [
             "ledger-update",
@@ -204,9 +234,8 @@ def stage(source: Path, workspace: Path, output: Path) -> None:
             "--id", uid,
             "--status", "COMPLETE",
             "--validation-result", "PASS",
+            *ledger_evidence,
         ]
-        for evidence in (unit.get("evidence_paths") or []):
-            cmd.extend(["--evidence", str(evidence)])
         run_cli(source, *cmd)
 
         plan.append({

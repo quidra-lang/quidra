@@ -591,8 +591,97 @@ def load_quidra_version_history_file(path: Path) -> dict[str, Any]:
     return data
 
 
+def quidra_generation_file(cache_root: Path, evaluation: str, version: str) -> Path:
+    return (
+        cache_root / "v1" / slug_id(evaluation)
+        / quidra_version_id(version) / "generation.json"
+    )
+
+
+def _quidra_version_sort_key(version: str) -> tuple[int, int, int, str]:
+    core = version.split("-", 1)[0].split("+", 1)[0]
+    parts = core.split(".")
+    if len(parts) != 3 or any(not part.isdigit() for part in parts):
+        raise BenchmarkError(f"Quidra project version must be SemVer-like: {version!r}")
+    return int(parts[0]), int(parts[1]), int(parts[2]), version
+
+
+def load_quidra_version_history_from_cache(cache_root: Path) -> dict[str, Any]:
+    """Build the immutable Quidra generation view from the ordinary cache tree.
+
+    There is deliberately no parallel benchmark/quidra_versions store.  Each
+    Primary evaluation keeps its generation record beside the normal language
+    cache at cache/v1/<evaluation>/quidra_vX.Y.Z/generation.json.
+    """
+    by_version: dict[str, dict[str, Any]] = {}
+    for evaluation in PRIMARY_NAMES:
+        evaluation_root = cache_root / "v1" / slug_id(evaluation)
+        if not evaluation_root.is_dir():
+            continue
+        for path in sorted(evaluation_root.glob("quidra_v*/generation.json")):
+            row = json_load(path)
+            if row.get("schema_version") != 1:
+                raise BenchmarkError(f"unsupported Quidra generation schema: {path}")
+            if row.get("version_ssot") != "project.toml:[project].version":
+                raise BenchmarkError(f"Quidra generation must name project.toml as SSOT: {path}")
+            if row.get("evaluation") != evaluation:
+                raise BenchmarkError(f"Quidra generation evaluation mismatch: {path}")
+            version = str(row.get("version") or "")
+            language_id = str(row.get("language_id") or "")
+            if language_id != quidra_version_id(version):
+                raise BenchmarkError(f"Quidra generation id mismatch: {path}")
+            merged = by_version.setdefault(version, {
+                "version": version,
+                "language_id": language_id,
+                "source_run_id": row.get("source_run_id"),
+                "source_commit_sha": row.get("source_commit_sha"),
+                "primary_scores": {},
+                "normalized_metric_scores": {},
+                "normalization_raw": {},
+                "_evaluations": set(),
+            })
+            if (
+                merged["language_id"] != language_id
+                or merged.get("source_run_id") != row.get("source_run_id")
+                or merged.get("source_commit_sha") != row.get("source_commit_sha")
+            ):
+                raise BenchmarkError(f"Quidra generation provenance mismatch for {version}")
+            if evaluation in merged["_evaluations"]:
+                raise BenchmarkError(f"duplicate Quidra generation for {version}/{evaluation}")
+            merged["_evaluations"].add(evaluation)
+            score = row.get("primary_score")
+            if not isinstance(score, (int, float)) or isinstance(score, bool):
+                raise BenchmarkError(f"Quidra generation primary_score is not numeric: {path}")
+            merged["primary_scores"][evaluation] = float(score)
+            metrics = row.get("normalized_metric_scores") or {}
+            if not isinstance(metrics, dict):
+                raise BenchmarkError(f"Quidra generation normalized metrics must be an object: {path}")
+            merged["normalized_metric_scores"][evaluation] = metrics
+            raw = row.get("normalization_raw") or {}
+            if not isinstance(raw, dict):
+                raise BenchmarkError(f"Quidra generation normalization_raw must be an object: {path}")
+            merged["normalization_raw"][evaluation] = raw
+
+    versions: list[dict[str, Any]] = []
+    required = set(PRIMARY_NAMES)
+    for version in sorted(by_version, key=_quidra_version_sort_key):
+        row = by_version[version]
+        observed = set(row.pop("_evaluations"))
+        if observed != required:
+            missing = sorted(required - observed)
+            raise BenchmarkError(
+                f"Quidra generation {version} is incomplete; missing: {', '.join(missing)}"
+            )
+        versions.append(row)
+    return {
+        "schema_version": 1,
+        "version_ssot": "project.toml:[project].version",
+        "versions": versions,
+    }
+
+
 def quidra_version_history(root: Path) -> dict[str, Any]:
-    return load_quidra_version_history_file(root / "version_history" / "index.json")
+    return load_quidra_version_history_from_cache(root / "cache")
 
 
 def same_version_cache_payload_compatible(
@@ -1131,11 +1220,14 @@ def cmd_init(args: argparse.Namespace) -> int:
         "benchmark/cache",
         root / "cache",
     )
-    version_history_snapshot = copy_tracked_tree(
-        source,
-        "benchmark/quidra_versions",
-        root / "version_history",
-    )
+    version_history = load_quidra_version_history_from_cache(root / "cache")
+    json_dump(root / "version_history" / "index.json", version_history)
+    version_history_snapshot = {
+        "source": "benchmark/cache/v1/*/quidra_v*/generation.json",
+        "versions": [
+            str(row["language_id"]) for row in version_history.get("versions", [])
+        ],
+    }
     reused = materialize_reuse_catalog(source, root / "template")
 
     master_dest = root / "prompts" / "by-hash" / "master-prompt.tmp.md"
@@ -7075,7 +7167,9 @@ def cache_epoch(root: Path, evaluation: str) -> str:
     raise BenchmarkError(f"unsupported cache epoch mode: {mode}")
 
 
-def cache_scope(unit: dict[str, Any]) -> str:
+def cache_scope(
+    unit: dict[str, Any], payload: dict[str, Any] | None = None
+) -> str:
     if mechanical_unit(unit):
         return "mechanical-" + slug_id(str(unit.get("runner_action")))
     requirement_ids = [str(rid) for rid in (unit.get("requirement_ids") or [])]
@@ -7085,13 +7179,18 @@ def cache_scope(unit: dict[str, Any]) -> str:
     if COMPARABILITY_GATE in requirement_ids:
         return "comparability"
     assigned = list(unit.get("assigned_languages", []) or [])
+    language_scope = slug_id(assigned[0]) if len(assigned) == 1 else ""
+    if assigned == ["Quidra"]:
+        version = str(((payload or {}).get("quidra_target") or {}).get("version") or "")
+        if version:
+            language_scope = quidra_version_id(version)
     canonical_probe = canonical_fragment_probe(requirement_ids)
     if canonical_probe is not None and len(assigned) == 1:
-        return slug_id(assigned[0]) + "--" + slug_id(canonical_probe)
+        return language_scope + "--" + slug_id(canonical_probe)
     if unit.get("result_kind") == "audit" and unit.get("reuse_audit_for"):
         return "audit-" + "-".join(slug_id(str(a)) for a in sorted(unit["reuse_audit_for"]))
     if len(assigned) == 1:
-        return slug_id(assigned[0])
+        return language_scope
     return "comparison-" + sha256_bytes(
         json.dumps(assigned, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     )[:12]
@@ -7734,11 +7833,13 @@ def cache_fingerprint(root: Path, unit: dict[str, Any], task: dict[str, Any]) ->
     return sha256_bytes(raw), payload
 
 
-def cache_record_relative(unit: dict[str, Any], fingerprint: str) -> Path:
+def cache_record_relative(
+    unit: dict[str, Any], fingerprint: str, payload: dict[str, Any] | None = None
+) -> Path:
     return (
         Path("v1")
         / slug_id(str(unit.get("evaluation") or "unknown"))
-        / cache_scope(unit)
+        / cache_scope(unit, payload)
         / f"{fingerprint}.json"
     )
 
@@ -7760,7 +7861,7 @@ def same_version_certified_record(
     directory = (
         root / "cache" / "v1"
         / slug_id(str(unit.get("evaluation") or "unknown"))
-        / cache_scope(unit)
+        / cache_scope(unit, payload)
     )
     if not directory.is_dir():
         return None
@@ -7855,7 +7956,7 @@ def hydrate_certified_cache(
         if pair is None:
             continue
         fingerprint, payload = pair
-        rel = cache_record_relative(unit, fingerprint)
+        rel = cache_record_relative(unit, fingerprint, payload)
         cache_path = root / "cache" / rel
         reuse_mode = "exact"
         fallback_record: dict[str, Any] | None = None
@@ -7964,7 +8065,7 @@ def hydrate_certified_cache(
         ))
         status["hits"][uid] = {
             "fingerprint": fingerprint,
-            "scope": cache_scope(unit),
+            "scope": cache_scope(unit, payload),
             "reuse_mode": reuse_mode,
             "record": rel.as_posix(),
             "assigned_languages": list(unit.get("assigned_languages", [])),
@@ -15649,7 +15750,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         }
         if compatibility:
             record["compatibility"] = compatibility
-        relative = cache_record_relative(unit, fingerprint)
+        relative = cache_record_relative(unit, fingerprint, payload)
         destination = source / "benchmark" / "cache" / relative
         encoded = (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8")
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -16936,13 +17037,13 @@ def build_quidra_version_entry(root: Path, run_id: str) -> dict[str, Any]:
         "source_commit_sha": (run.get("evaluated") or {}).get("commit_sha"),
         "primary_scores": primary_scores,
         "normalized_metric_scores": normalized_metric_scores,
+        "normalization_raw": {},
     }
 
 
 def persist_quidra_version_entry(source: Path, root: Path, run_id: str) -> dict[str, Any]:
-    history_root = source / "benchmark" / "quidra_versions"
-    index_path = history_root / "index.json"
-    history = load_quidra_version_history_file(index_path)
+    cache_root = source / "benchmark" / "cache"
+    history = load_quidra_version_history_from_cache(cache_root)
     entry = build_quidra_version_entry(root, run_id)
     version = str(entry["version"])
     existing = next(
@@ -16958,10 +17059,30 @@ def persist_quidra_version_entry(source: Path, root: Path, run_id: str) -> dict[
                 f"Quidra {version} is already archived with different scores; same-version results are immutable"
             )
         return {"added": False, "version": version, "language_id": existing["language_id"]}
-    history.setdefault("versions", []).append(entry)
-    json_dump(index_path, history)
-    version_file = history_root / str(entry["language_id"]) / "result.json"
-    json_dump(version_file, entry)
+
+    for evaluation in PRIMARY_NAMES:
+        generation = {
+            "schema_version": 1,
+            "version_ssot": "project.toml:[project].version",
+            "version": version,
+            "language_id": entry["language_id"],
+            "evaluation": evaluation,
+            "source_run_id": entry.get("source_run_id"),
+            "source_commit_sha": entry.get("source_commit_sha"),
+            "primary_score": entry["primary_scores"][evaluation],
+            "normalized_metric_scores": entry["normalized_metric_scores"][evaluation],
+            "normalization_raw": (
+                (entry.get("normalization_raw") or {}).get(evaluation) or {}
+            ),
+        }
+        path = quidra_generation_file(cache_root, evaluation, version)
+        if path.exists():
+            if json_load(path) != generation:
+                raise BenchmarkError(
+                    f"Quidra {version}/{evaluation} generation already exists with different data"
+                )
+        else:
+            json_dump(path, generation)
     return {"added": True, "version": version, "language_id": entry["language_id"]}
 
 

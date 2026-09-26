@@ -13,7 +13,6 @@ on:
       - "tests/benchmark_adversarial_tests.py"
       - "tests/benchmark_semantic_compression_tests.py"
       - "benchmark/cache/**"
-      - "benchmark/quidra_versions/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
       - ".github/actions/benchmark-primary/**"
@@ -28,7 +27,6 @@ on:
       - "tests/benchmark_adversarial_tests.py"
       - "tests/benchmark_semantic_compression_tests.py"
       - "benchmark/cache/**"
-      - "benchmark/quidra_versions/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
       - ".github/actions/benchmark-primary/**"
@@ -136,8 +134,7 @@ jobs:
             'updated-prompts.tgz',
             '^benchmark/template/prompts/',
             'git add -f benchmark/cache benchmark/template/prompts "$checkpoint_dir"',
-            'git add -f "benchmark/$RUN_ID" benchmark/cache benchmark/template/prompts benchmark/quidra_versions',
-            'benchmark/quidra_versions',
+            'git add -f "benchmark/$RUN_ID" benchmark/cache benchmark/template/prompts',
           ]
           final_checkpoint_markers.each do |marker|
             raise "final checkpoint no longer preserves certified prompt dependencies: #{marker}" unless production_text.include?(marker)
@@ -146,7 +143,7 @@ jobs:
           readme = File.read("benchmark/README.md").gsub(/\s+/, " ")
           order = "Semantic Compression → LLM Learnability → Language Quality → Ecosystem → LLM Proficiency"
           raise "README five-Primary order drifted from workflow" unless readme.include?(order)
-          raise "README reconciliation drops Quidra version history" unless readme.include?("quidra_versions/")
+          raise "README reconciliation drops versioned Quidra cache" unless readme.include?("quidra_vX.Y.Z")
           RUBY
 
       - name: Versioned Quidra generation contract
@@ -165,9 +162,7 @@ jobs:
           current_version = module.project_version(Path("."))
           assert current_version
           current_id = module.quidra_version_id(current_version)
-          base = module.load_quidra_version_history_file(
-              Path("benchmark/quidra_versions/index.json")
-          )
+          base = module.load_quidra_version_history_from_cache(Path("benchmark/cache"))
           base_ids = [str(row["language_id"]) for row in base["versions"]]
           assert len(base_ids) == len(set(base_ids)), base_ids
 
@@ -360,10 +355,9 @@ jobs:
           python -m json.tool benchmark/template/config/inference_gateway.json >/dev/null
           python -m json.tool benchmark/template/config/sandbox_agent.json >/dev/null
           python -m json.tool benchmark/template/config/cache_policy.json >/dev/null
-          python -m json.tool benchmark/quidra_versions/index.json >/dev/null
           python -m json.tool benchmark/2026-09-25-5dc8989-gh25/versioned_scores.json >/dev/null
-          for version_result in benchmark/quidra_versions/quidra_v*/result.json; do
-            python -m json.tool "$version_result" >/dev/null
+          for generation in benchmark/cache/v1/*/quidra_v*/generation.json; do
+            python -m json.tool "$generation" >/dev/null
           done
           python -m json.tool benchmark/template/runtime/toolchains.json >/dev/null
           python -m json.tool benchmark/template/reuse/catalog.json >/dev/null
@@ -395,9 +389,7 @@ jobs:
 
           current_version = module.project_version(Path("."))
           assert current_version
-          history = module.load_quidra_version_history_file(
-              Path("benchmark/quidra_versions/index.json")
-          )
+          history = module.load_quidra_version_history_from_cache(Path("benchmark/cache"))
           history_ids = [str(row["language_id"]) for row in history["versions"]]
           assert len(history_ids) == len(set(history_ids)), history_ids
 

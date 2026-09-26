@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "version_ssot": "project.toml:[project].version",
+  "version": "0.3.0",
+  "language_id": "quidra_v0.3.0",
+  "evaluation": "semantic_compression",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 77.52310146325776,
+  "normalized_metric_scores": {
+    "metric.semantic_density": 100,
+    "metric.semantic_determinacy": 100,
+    "metric.semantic_locality": 34.45,
+    "metric.hidden_semantic_cost": 81.48,
+    "metric.capability_efficiency": 36.46,
+    "metric.capability_coverage": 81.82
+  },
+  "normalization_raw": {}
+}

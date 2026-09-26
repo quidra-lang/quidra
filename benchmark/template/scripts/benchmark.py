@@ -17213,7 +17213,13 @@ def cmd_post_run(args: argparse.Namespace) -> int:
             f"compact repository import verification failed: {destination}"
         )
 
-    version_history_update = persist_quidra_version_entry(source, root, run_id)
+    if run.get("synthetic_ci") is True:
+        version_history_update = {
+            "added": False,
+            "skipped": "synthetic_ci",
+        }
+    else:
+        version_history_update = persist_quidra_version_entry(source, root, run_id)
 
     try:
         validate_host_workspace_sentinel(root, source, run)

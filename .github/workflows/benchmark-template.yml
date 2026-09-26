@@ -196,6 +196,35 @@ jobs:
                   for row in history["versions"]
               )
 
+              current_metrics = {
+                  "metric.semantic_density": {
+                      "Quidra": 99.0,
+                      "Python": 1.0,
+                      "C++": 2.0,
+                      "Rust": 3.0,
+                      "Go": 4.0,
+                      "Java": 5.0,
+                      "TypeScript": 6.0,
+                      "Kotlin": 7.0,
+                      "Swift": 8.0,
+                      "Zig": 9.0,
+                  }
+              }
+              expanded_metrics = module.versioned_normalized_metric_scores(
+                  current_metrics,
+                  "semantic_compression",
+                  f"0.{minor}.0",
+                  history,
+              )
+              assert len(expanded_metrics["metric.semantic_density"]) == (
+                  9 + len(history["versions"])
+              )
+              assert all(
+                  row["language_id"]
+                  in expanded_metrics["metric.semantic_density"]
+                  for row in history["versions"]
+              )
+
           payload = {
               "schema_version": 1,
               "cache_schema_version": 1,

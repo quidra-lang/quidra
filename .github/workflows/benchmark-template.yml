@@ -15,7 +15,6 @@ on:
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
-      - ".github/workflows/benchmark-paid-state-keepalive.yml"
       - ".github/actions/benchmark-primary/**"
   pull_request:
     paths:
@@ -30,7 +29,6 @@ on:
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
-      - ".github/workflows/benchmark-paid-state-keepalive.yml"
       - ".github/actions/benchmark-primary/**"
 
 concurrency:
@@ -58,7 +56,6 @@ jobs:
           ruby - <<'RUBY'
           require "yaml"
           workflow = YAML.load_file(".github/workflows/benchmark-production.yml", aliases: true)
-          YAML.load_file(".github/workflows/benchmark-paid-state-keepalive.yml", aliases: true)
           YAML.load_file(".github/actions/benchmark-primary/action.yml", aliases: true)
           jobs = workflow.fetch("jobs")
           expected_needs = {
@@ -1953,122 +1950,3 @@ jobs:
         run: |
           python benchmark/template/scripts/benchmark.py discard-workspace \
             --source-repo "$GITHUB_WORKSPACE" || true
-
-
-  canonicalize-cache-once:
-    name: canonicalize-cache-once
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: develop
-          fetch-depth: 0
-
-      - name: Verify branch has not moved
-        run: |
-          set -euo pipefail
-          git fetch origin develop --prune
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse origin/develop)" = "$GITHUB_SHA"
-          test ! -e benchmark/.run-production
-
-      - name: Canonicalize current cache records
-        run: |
-          set -euo pipefail
-          python .github/scripts/canonicalize_benchmark_cache_once.py
-          test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 688
-
-      - name: Verify retained records have no structural invalidation
-        run: |
-          set -euo pipefail
-          set +e
-          python benchmark/template/scripts/benchmark.py cache-impact \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --output "$RUNNER_TEMP/cache-impact.json"
-          rc=$?
-          set -e
-          cat "$RUNNER_TEMP/cache-impact.json"
-          test "$rc" -eq 0
-
-      - name: Build production toolchains for clean-room replay
-        env:
-          BENCHMARK_IMAGE: quidra-benchmark/runtime:canonicalize-once
-        run: |
-          set -euo pipefail
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
-          python benchmark/template/runtime/check_pins.py
-          python benchmark/template/scripts/sandbox_launcher.py build-image \
-            --target toolchains --image "$BENCHMARK_IMAGE"
-          python benchmark/template/scripts/sandbox_launcher.py doctor \
-            --image "$BENCHMARK_IMAGE"
-
-      - name: Prove next full prepare needs zero paid calls
-        env:
-          BENCHMARK_IMAGE: quidra-benchmark/runtime:canonicalize-once
-          BENCHMARK_MODEL: claude-sonnet-5
-        run: |
-          set -euo pipefail
-          rm -rf .quidra-benchmark
-          python benchmark/template/scripts/benchmark.py init \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --sandbox-mode container \
-            --run-id canonical-baseline-replay \
-            --provider anthropic-messages \
-            --model "$BENCHMARK_MODEL"
-          python benchmark/template/scripts/sandbox_launcher.py run \
-            --source-repo "$GITHUB_WORKSPACE" \
-            --image "$BENCHMARK_IMAGE" \
-            --provider fake \
-            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
-          python benchmark/template/scripts/production_run.py budget-plan \
-            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
-            --model "$BENCHMARK_MODEL" \
-            --available-usd 1.0 \
-            --safety-multiplier 1.25 \
-            --smoke-reserve-usd 0.10 \
-            --output "$RUNNER_TEMP/budget-plan.json"
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          plan = json.loads(Path(os.environ["RUNNER_TEMP"], "budget-plan.json").read_text())
-          cache = json.loads(Path(".quidra-benchmark/results/cache_usage.json").read_text())
-          report = {
-              "paid_call_upper_bound": int(plan.get("expected_paid_api_calls_upper_bound", 0) or 0),
-              "recommended_budget_usd": float(plan.get("recommended_budget_usd", 0) or 0),
-              "cache_hits": int(cache.get("hit_count", 0) or 0),
-              "cache_misses": int(cache.get("miss_count", 0) or 0),
-              "cache_invalidated": int(cache.get("invalidated_count", 0) or 0),
-          }
-          print(json.dumps(report, indent=2, sort_keys=True))
-          assert report["paid_call_upper_bound"] == 0, report
-          assert report["cache_misses"] == 0, report
-          assert report["cache_invalidated"] == 0, report
-          PY
-
-      - name: Commit canonical cache only after proof
-        run: |
-          set -euo pipefail
-          rm -rf .quidra-benchmark
-          python - <<'PY'
-          from pathlib import Path
-          path = Path(".github/workflows/benchmark-template.yml")
-          text = path.read_text()
-          marker = "\n  canonicalize-cache-once:\n"
-          assert marker in text
-          path.write_text(text.split(marker, 1)[0].rstrip() + "\n")
-          PY
-          rm -f .github/workflows/benchmark-cache-canonicalize-once.yml
-          rm -f .github/scripts/canonicalize_benchmark_cache_once.py
-
-          git fetch origin develop --prune
-          test "$(git rev-parse origin/develop)" = "$GITHUB_SHA"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "Canonicalize completed benchmark cache"
-          git push origin HEAD:develop

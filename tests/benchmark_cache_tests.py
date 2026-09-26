@@ -2392,7 +2392,43 @@ def assert_all_languages_use_version_generations() -> None:
         ), (before, after)
 
 
+def assert_generation_immutability_uses_raw_and_direct_metrics() -> None:
+    lq_old = {
+        "metric.native_execution_performance": 80.0,
+        "metric.readability": 90.0,
+    }
+    lq_new = {
+        "metric.native_execution_performance": 55.0,
+        "metric.readability": 90.0,
+    }
+    assert benchmark.generation_immutable_metric_scores(
+        "language_quality", lq_old
+    ) == benchmark.generation_immutable_metric_scores(
+        "language_quality", lq_new
+    )
+    assert benchmark.generation_immutable_metric_scores(
+        "ecosystem", {"metric.documentation_quality": 90.0}
+    ) != benchmark.generation_immutable_metric_scores(
+        "ecosystem", {"metric.documentation_quality": 85.0}
+    )
+
+    sc_old = {
+        "metric.semantic_density": 100.0,
+        "metric.capability_coverage": 80.0,
+    }
+    sc_new = {
+        "metric.semantic_density": 60.0,
+        "metric.capability_coverage": 80.0,
+    }
+    assert benchmark.generation_immutable_metric_scores(
+        "semantic_compression", sc_old
+    ) == benchmark.generation_immutable_metric_scores(
+        "semantic_compression", sc_new
+    )
+
+
 def main() -> None:
+    assert_generation_immutability_uses_raw_and_direct_metrics()
     assert_historical_generations_change_relative_normalization()
     assert_all_languages_use_version_generations()
     assert_same_version_quidra_is_removed_from_mechanical_execution()
@@ -2539,26 +2575,15 @@ def main() -> None:
         readable.write_bytes(original_bytes)
         assert benchmark.cache_fingerprint(root, unit, task)[0] == original_fingerprint
 
-        # The ecosystem epoch is declared by a person, not by the calendar: the
-        # key carries the declared value, so records survive a month boundary
-        # and miss only when the operator changes the value.
+        # Ecosystem is version-generation based, not calendar based. Merely
+        # crossing a date/month boundary must not invalidate a language result.
         epoch_policy = benchmark.cache_policy(root)
-        for evaluation in ("ecosystem", "semantic_compression", "llm_proficiency"):
+        assert benchmark.cache_epoch(root, "ecosystem") == "stable"
+        for evaluation in ("semantic_compression", "llm_proficiency"):
             assert benchmark.cache_epoch(root, evaluation) == (
                 epoch_policy["declared_epochs"][evaluation]
             )
         assert benchmark.cache_epoch(root, "llm_learnability") == "stable"
-        policy_path = root / "template/config/cache_policy.json"
-        policy_bytes = policy_path.read_bytes()
-        policy = benchmark.json_load(policy_path)
-        policy["declared_epochs"]["ecosystem"] = "2026-12"
-        benchmark.json_dump(policy_path, policy)
-        assert benchmark.cache_fingerprint(root, unit, task)[0] != original_fingerprint, (
-            "changing the declared ecosystem epoch must change the key"
-        )
-        # Restore the exact bytes: the template tree hash is part of run integrity.
-        policy_path.write_bytes(policy_bytes)
-        assert benchmark.cache_fingerprint(root, unit, task)[0] == original_fingerprint
 
         installed = install_cache_record(root, unit, task)
         assert installed == original_fingerprint

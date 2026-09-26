@@ -18009,6 +18009,29 @@ def build_language_generation_entries(
     return entries
 
 
+def generation_immutable_metric_scores(
+    evaluation: str, metrics: dict[str, Any]
+) -> dict[str, Any]:
+    """Measurement-intrinsic cells that must not change inside one generation.
+
+    Language Quality Family-C and Semantic Compression min-max cells depend on
+    the publication comparison set.  A peer version bump can therefore change
+    those normalized cells (and the resulting Primary score) without changing
+    this language generation's own measurement.  Raw values, plus all direct
+    metrics, remain immutable.
+    """
+    relative: set[str] = set()
+    if evaluation == "language_quality":
+        relative = set(LQ_RELATIVE_RAW_FIELDS)
+    elif evaluation == "semantic_compression":
+        relative = set(SC_RELATIVE_METRICS)
+    return {
+        str(requirement_id): value
+        for requirement_id, value in metrics.items()
+        if str(requirement_id) not in relative
+    }
+
+
 def persist_language_generation_entries(
     source: Path, root: Path, run_id: str
 ) -> dict[str, Any]:
@@ -18016,6 +18039,7 @@ def persist_language_generation_entries(
     entries = build_language_generation_entries(root, run_id)
     added: list[str] = []
     reused: list[str] = []
+    enriched: list[str] = []
     for generation_id, entry in entries.items():
         for evaluation in PRIMARY_NAMES:
             generation = {
@@ -18039,19 +18063,51 @@ def persist_language_generation_entries(
             path = generation_file(cache_root, evaluation, generation_id)
             if path.exists():
                 existing = json_load(path)
-                for key in ("primary_score", "normalized_metric_scores"):
+                for key in ("language", "version", "generation_id", "version_source"):
                     if existing.get(key) != generation.get(key):
                         raise BenchmarkError(
-                            f"{generation_id}/{evaluation} is immutable and "
-                            f"already has different {key}"
+                            f"{generation_id}/{evaluation} immutable identity changed: {key}"
                         )
+
+                existing_metrics = generation_immutable_metric_scores(
+                    evaluation, existing.get("normalized_metric_scores") or {}
+                )
+                candidate_metrics = generation_immutable_metric_scores(
+                    evaluation, generation.get("normalized_metric_scores") or {}
+                )
+                if existing_metrics != candidate_metrics:
+                    raise BenchmarkError(
+                        f"{generation_id}/{evaluation} is immutable and already "
+                        "has different direct metric measurements"
+                    )
+
+                # These two Primary scores are comparison-set derived. A version
+                # bump in another language can legitimately change them while this
+                # generation's raw/direct evidence remains byte-for-byte identical.
+                if (
+                    evaluation not in {"language_quality", "semantic_compression"}
+                    and existing.get("primary_score") != generation.get("primary_score")
+                ):
+                    raise BenchmarkError(
+                        f"{generation_id}/{evaluation} is immutable and already "
+                        "has a different Primary score"
+                    )
+
                 existing_raw = existing.get("normalization_raw") or {}
                 candidate_raw = generation.get("normalization_raw") or {}
                 if existing_raw and candidate_raw and existing_raw != candidate_raw:
                     raise BenchmarkError(
-                        f"{generation_id}/{evaluation} is immutable and "
-                        "already has different normalization_raw"
+                        f"{generation_id}/{evaluation} is immutable and already "
+                        "has different normalization_raw"
                     )
+                # Baseline generation files predate raw preservation. Enrich them
+                # once from the certified migration/current raw without rewriting
+                # source-run scores or provenance.
+                if not existing_raw and candidate_raw:
+                    enriched_row = dict(existing)
+                    enriched_row["normalization_raw"] = candidate_raw
+                    json_dump(path, enriched_row)
+                    enriched.append(f"{generation_id}/{evaluation}")
                 reused.append(f"{generation_id}/{evaluation}")
                 continue
             json_dump(path, generation)
@@ -18059,6 +18115,7 @@ def persist_language_generation_entries(
     return {
         "added": added,
         "reused": reused,
+        "enriched": enriched,
         "generation_count": len(entries),
     }
 

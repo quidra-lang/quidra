@@ -927,6 +927,9 @@ jobs:
           spec.loader.exec_module(module)
 
           module.copy_tracked_tree(Path.cwd(), "benchmark/template", root / "template")
+          module.copy_tracked_blob(
+              Path.cwd(), "benchmark/config.json", root / "benchmark_config.json"
+          )
           module.materialize_reuse_catalog(Path.cwd(), root / "template")
           master = Path("benchmark/master_prompt.md").read_bytes()
           master_hash = module.sha256_bytes(master)

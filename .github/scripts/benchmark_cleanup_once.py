@@ -33,8 +33,9 @@ def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def result_sha256(result) -> str:
+    # Must match benchmark.py::_cache_record_self_integrity_problem exactly.
     raw = json.dumps(
-        result, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        result, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
 

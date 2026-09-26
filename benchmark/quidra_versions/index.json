@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "version_ssot": "project.toml:[project].version",
+  "policy": "Quidra generations are immutable. Same project version reuses its certified result; a new project version is appended as a new comparison language.",
+  "versions": [
+    {
+      "version": "0.3.0",
+      "language_id": "quidra_v0.3.0",
+      "source_run_id": "2026-09-25-5dc8989-gh25",
+      "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+      "primary_scores": {
+        "ecosystem": 32.5,
+        "language_quality": 66.13439696794185,
+        "llm_learnability": 74.7,
+        "llm_proficiency": 5.31578947368421,
+        "semantic_compression": 77.52310146325776
+      },
+      "normalized_metric_scores": {
+        "semantic_compression": {
+          "metric.semantic_density": 100,
+          "metric.semantic_determinacy": 100,
+          "metric.semantic_locality": 34.45,
+          "metric.hidden_semantic_cost": 81.48,
+          "metric.capability_efficiency": 36.46,
+          "metric.capability_coverage": 81.82
+        },
+        "llm_learnability": {
+          "condition.i1_keyword_anonymization": 96,
+          "condition.i2_vocabulary_anonymization": 71,
+          "condition.i3_structural_surface_perturbation": 100,
+          "condition.i4_novel_rule_generalization": 100,
+          "condition.i5_held_out_rule_composition": 34,
+          "condition.i6_prior_conflict_resistance": 12
+        },
+        "language_quality": {
+          "metric.native_execution_performance": 63.02439997248359,
+          "metric.long_running_performance": 61.805898894612525,
+          "metric.compile_build_performance": 0.6040738336021833,
+          "metric.startup_latency": 64.09522199609202,
+          "metric.memory_efficiency": 75.17123573736917,
+          "metric.source_code_size": 92.3214558700235,
+          "metric.binary_artifact_size": 1.6979470759426256,
+          "metric.runtime_overhead": 100,
+          "metric.code_efficiency_conciseness": 90,
+          "metric.readability": 95,
+          "metric.functionality_expressiveness": 85,
+          "metric.diagnostics": 100,
+          "metric.dependency_simplicity": 100,
+          "metric.portability_design_platform_neutrality": 90,
+          "metric.ffi_interoperability_design": 70,
+          "metric.concurrency": 55,
+          "metric.type_safety": 74.58,
+          "metric.memory_safety": 44.44,
+          "metric.runtime_safety": 41.67,
+          "metric.boundary_value_safety": 54.55,
+          "metric.adversarial_input_robustness": 50.71,
+          "metric.early_error_detection": 59.81,
+          "metric.debuggability": 66.67,
+          "metric.silent_bug_resistance": 91.18,
+          "metric.implementation_robustness": 100
+        },
+        "ecosystem": {
+          "metric.third_party_library_availability_domain_coverage": 0,
+          "metric.package_ecosystem_activity_maintenance": 30,
+          "metric.third_party_tool_availability": 0,
+          "metric.production_adoption_deployment_evidence": 0,
+          "metric.community_public_knowledge_availability": 15,
+          "metric.core_tooling_availability_quality": 75,
+          "metric.package_dependency_management_quality": 60,
+          "metric.ide_editor_support_quality": 70,
+          "metric.debugger_profiler_support": 45,
+          "metric.build_test_integration": 60,
+          "metric.documentation_quality": 65,
+          "metric.installation_distribution_experience": 60,
+          "metric.toolchain_stability_release_maturity": 50,
+          "metric.implemented_platform_coverage": 40,
+          "metric.external_integration_coverage": 35
+        },
+        "llm_proficiency": {
+          "metric.generation_success_rate": 100,
+          "metric.compile_parse_success_rate": 0,
+          "metric.correct_at_1": 0,
+          "metric.correct_at_n": 0,
+          "metric.test_pass_rate": 0,
+          "metric.repair_success_rate": 0,
+          "metric.repair_efficiency": 0,
+          "metric.diagnosis_efficiency": 0,
+          "metric.silent_bug_resistance": 0,
+          "metric.syntax_hallucination_resistance": 0,
+          "metric.specification_compliance": 0,
+          "metric.prompt_robustness": 0,
+          "metric.unseen_case_generalization": 0,
+          "metric.source_token_efficiency": 25,
+          "metric.total_token_efficiency": 10
+        }
+      }
+    }
+  ]
+}

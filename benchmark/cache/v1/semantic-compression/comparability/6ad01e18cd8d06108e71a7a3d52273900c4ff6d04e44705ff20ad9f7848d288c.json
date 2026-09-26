@@ -1,9 +1,10 @@
 {
   "assigned_languages": [],
   "certification": {
-    "compatibility_migration": "semantic-comparability-from-current-catalog",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "semantic_derived_recertification_candidate": true,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -46,51 +47,23 @@
     "work_unit_id": "sc-comparability",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "For the legacy bridge, comparability is derived after every current canonical owner, metric consumer and support-adjudication dependency has passed the current validator, leaving one support authority.",
-    "migration_rule": "semantic-comparability-from-current-catalog",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
-    "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-    "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
-    "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "44331d80fad4d2263b676f4ac7cb765bdad824bcc271fc604c885f29fc5e392e",
-    "run_id": "cache-recertify-09b54ce",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-comparability"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
-      "legacy_recertification": {
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
         "language_count": 10,
-        "mode": "comparability-from-current-validated-probe-cache",
-        "reason": "Every probe\u00d7language canonical owner and downstream metric dependency passed the current validator; the derived audit introduces no second support authority.",
-        "schema_version": 1,
-        "source_owner_records": [
-          "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-          "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-          "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-          "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
-          "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-          "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
-          "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
-          "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
-          "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-          "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json"
-        ]
+        "mode": "comparability-from-canonical-baseline",
+        "reason": "Every probe×language canonical owner and downstream metric dependency passed the current validator; the derived audit introduces no second support authority.",
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
       }
     },
     "requirements": {
@@ -98,6 +71,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "096717a5bc8463a8ac3bcc6a94bf8e768272af797a0e2c9dd959b469b3df6ee6",
+  "result_sha256": "a221f06be16d8d348e2642229a35b7748e0cc0b4de7e8620e494c01bbce2a496",
   "schema_version": 1
 }

@@ -3,8 +3,10 @@
     "Rust"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--rust--f15-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e",
-    "source_record": "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
-    "source_record_sha256": "35ea3611d4ac415fc9d034cac1f96bb7f5f4c76fd7cd6b985119e830f0db8354",
-    "source_result_sha256": "4a051a695bb96dd74b4344139ff605cbb9826e8953cde8fbab5d4f21ee566651",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "44f2fae1488e8867c87c5acedf1776009093fd08eddd70fa71f16f4941c1b471",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--rust--f15-p2"
   },
   "result": {
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F15.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "9b80d126318232e694ce516b0e96c4deea0c8b33f5de2b15a21e5eb2581310a0",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
-          "source_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Rust",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F15.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
-        "source_record_sha256": "35ea3611d4ac415fc9d034cac1f96bb7f5f4c76fd7cd6b985119e830f0db8354",
-        "source_result_sha256": "4a051a695bb96dd74b4344139ff605cbb9826e8953cde8fbab5d4f21ee566651"
+        "source_record": "baseline/semantic-owners/rust.json",
+        "source_record_sha256": "220285a21d253d2993df7f1f8bb60b265d4ba79904cda34cf52dbfa54e0788cb",
+        "source_result_sha256": "477e484dc9de28436a89079eeec8000018293822b8b4863eb4492fd471688d71"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "259f37f307cdaa944996cf0b3eb1e915db798c2d9ffe71f4ee0b119bda840470",
+  "result_sha256": "e23fa8756e2a73776b9b0a73c44d7e505541e6f7516f7b24d08c5b0976452e37",
   "schema_version": 1
 }

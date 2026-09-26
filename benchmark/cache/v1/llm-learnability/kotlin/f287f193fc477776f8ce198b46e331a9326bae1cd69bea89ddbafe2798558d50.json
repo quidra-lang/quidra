@@ -3,13 +3,14 @@
     "Kotlin"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_evidence_source": "agent_trace.json retained by 2026-09-22-62bb50a-gh2",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 94,
-    "primary_complete": false,
+    "primary_complete": true,
     "scored_output_cap": 4000,
     "trial_calls": 3,
     "unit_complete": true,
@@ -58,27 +59,11 @@
     "work_unit_id": "learnability-i3-i4--kotlin",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "f362426b355e162e5500a517cf20544212b2aca8663c00f55a45b1e01d5967b1",
-    "source_record": "v1/llm-learnability/kotlin/f362426b355e162e5500a517cf20544212b2aca8663c00f55a45b1e01d5967b1.json",
-    "source_record_sha256": "1926df9c61d5f17e6013a6f8f2e2d2c8d084360ef8f950c0a1aafe401f5517ae",
-    "source_result_sha256": "406e2168870a9109ab50e1fdec7c373a10350621f78b4cc9590b6a99a35d912d",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "5ee53c9bbad93579db62614eb52abe7b1b85ba5df41090b1978c5f159cf4a0ef",
-    "run_id": "cache-recertify-c401796",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i3-i4--kotlin"
   },
   "result": {

@@ -3,8 +3,10 @@
     "TypeScript"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -53,29 +55,11 @@
     "work_unit_id": "sc-canonical-fragment--typescript--f14-p3",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186",
-    "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-    "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
-    "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "60eb5c6239fc2a5f0306b202c6673ad11495b305ba1652c3e0c7f950d9df48bf",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--typescript--f14-p3"
   },
   "result": {
@@ -83,7 +67,7 @@
     "evidence": {
       "canonical_fragments": {
         "F14.P3": {
-          "citation": "legacy-cache:v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json#F14.P3",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P3",
           "fragment": "// shapes.ts\nexport abstract class Shape { abstract area(): number; }\nexport class Circle extends Shape { constructor(public r: number){super();} area(){return Math.PI*this.r*this.r;} }\nexport class Rect extends Shape { constructor(public w: number, public h: number){super();} area(){return this.w*this.h;} }\n// other.ts\nimport { Shape } from \"./shapes\";\nclass Tri extends Shape { constructor(public base: number, public height: number){super();} area(){return 0.5*this.base*this.height;} }\nconst t: Shape = new Tri(3, 4);\nreturn t.area();",
           "justification": "interface Shape{area():number;} in shapes.ts with Circle/Rect implementations; a separate file adds class Tri implementing Shape without editing shapes.ts; dispatch through the Shape-typed value calls Tri's area().",
           "level": "FULL",
@@ -93,22 +77,20 @@
       },
       "canonical_verification": {
         "F14.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "9a9fcabec9dbad4db6e39a5a442275549cc7686364d554f553658e2f52ca34bd",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/typescript/adade02e7ddb150eeb42e9efd9ea777625c989b83c22819c4996fd318430886b.json",
-          "source_record_sha256": "cf0893eefa36d727e65cb40b78eb66d4945d5c861577b049497c13c1278fea95",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "TypeScript",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F14.P3",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-        "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
-        "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9"
+        "source_record": "baseline/semantic-owners/typescript.json",
+        "source_record_sha256": "e4c0a1c7301c90f5b8f658a6e1735dc4ca26bcaf89de69d06580e2298036d123",
+        "source_result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472"
       }
     },
     "requirements": {
@@ -116,6 +98,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "70ba4dd32a9a53a27e01d85e8d3cad94e9cd131008347d861b4db0eb9eb83a2e",
+  "result_sha256": "783c41195fa9cde864a751e6c51b1da82f31cc6e74b82cbf4412ed8e59d0e844",
   "schema_version": 1
 }

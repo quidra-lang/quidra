@@ -3,8 +3,10 @@
     "Java"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -53,29 +55,11 @@
     "work_unit_id": "sc-canonical-fragment--java--f07-p1",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0",
-    "source_record": "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-    "source_record_sha256": "e9f5cc1c703dbc5b93395e749cb3dc2346ad98e1c4dbe5c3225821aecd1a72a8",
-    "source_result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "4a9d7c11299d44a3548ddc95feb30db81e8596abb7a1f4bef5a210b3bc782fc7",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--java--f07-p1"
   },
   "result": {
@@ -83,7 +67,7 @@
     "evidence": {
       "canonical_fragments": {
         "F07.P1": {
-          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F07.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
           "fragment": "int r = a * b + c;",
           "justification": "int r = a * b + c; ordinary precedence and operators.",
           "level": "FULL",
@@ -93,21 +77,20 @@
       },
       "canonical_verification": {
         "F07.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "baab5a393c68a41243de6a8dda4be41f15f2d63e376831ceb7a90f5421123a9f",
-          "fragment_origin": "reviewed-current-recertification-override",
-          "mode": "legacy-evidence-recertification",
-          "recertifier": "GPT-5.6 Sol",
-          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Java",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F07.P1",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-        "source_record_sha256": "e9f5cc1c703dbc5b93395e749cb3dc2346ad98e1c4dbe5c3225821aecd1a72a8",
-        "source_result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90"
+        "source_record": "baseline/semantic-owners/java.json",
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
       }
     },
     "requirements": {
@@ -115,6 +98,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "e512d7276e48c8d5c62193d43d76fefe9e23a7a000dbb8f3105ffcc1ea110ab3",
+  "result_sha256": "6474f2daaedf647a6c3385836b4dd4c46ef460f72ff4389546ff9fd127a4bcfe",
   "schema_version": 1
 }

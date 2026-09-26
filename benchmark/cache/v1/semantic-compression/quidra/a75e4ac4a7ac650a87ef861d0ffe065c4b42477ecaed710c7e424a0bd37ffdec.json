@@ -3,17 +3,14 @@
     "Quidra"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
     "canonical_fragment_equivalence_proved": true,
-    "compatibility_migration": "semantic-legacy-consumer-recertification",
     "current_validator_revalidated": true,
-    "primary_complete": false,
-    "semantic_legacy_consumer_recertified": true,
+    "primary_complete": true,
     "unit_complete": true,
-    "validator_pass": true,
-    "validator_recertification_candidate": true,
-    "validator_recertification_source_epoch": "2026-09-medium",
-    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+    "validator_pass": true
   },
   "compatibility": {
     "quidra_execution_identity": {
@@ -74,34 +71,23 @@
     "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
-    "migration_rule": "semantic-legacy-consumer-recertification",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde",
-    "source_record": "v1/semantic-compression/quidra/7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde.json",
-    "source_record_sha256": "8442156707244fae9054fe104ab059b3b894e68e29f1ef56c475bb5cd0d2bb94",
-    "source_result_sha256": "9acb02de5f7d72ac1a53737c5c86807e1b761a1b0118b8110fde42de0a934add",
-    "transformed_fields": [
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "f7eb0f707e9a2810fec674e6a53d3b3e7b7213aafde10759d2d1a3562ce3366e",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
       "basis": "all-fragments (Quidra only; n_L = 38 of 44 probes supported, 6 NONE). Common-basis figure (probes supported by ALL ten languages) cannot be computed by this single-language shard and must be produced by the runner after merging every language's shard, per common_basis_rule.",
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "canonical_fragment_catalog_content_sha256": "00f3195f8f1c8ebb6fdd4781f80d03a3cf2a4e05a8e5ebfe960abe099e96a1c9",
+        "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
+        "schema_version": 1
+      },
       "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
       "capability_coverage_note": "Reported only as an audit cross-check; Capability Coverage C itself is a separate requirement (spec 6.1.5) and is not this worker's assigned metric.",
       "capability_coverage_quidra_cross_check": 82.95,
@@ -123,30 +109,6 @@
         "implicit_rules": "Count of automatic/implicit behaviors invoked by the fragment that are not spelled at the use site (e.g. implicit checked-overflow arithmetic, implicit deterministic resource cleanup at scope/lifetime end, implicit value-copy semantics, monomorphization).",
         "unknown_marker_note": "No sub-count in this run was set to 0 for lack of documentation; every FULL/PARTIAL probe's four sub-counts are grounded in a cited passage of the embedded Quidra spec files. No category lacked a written counting rule, so none was withheld from scoring under the 'do not score a complexity vector whose categories are not governed by a written counting rule' clause.",
         "unsupported_probes": "NONE-scored probes contribute 0 to both numerator (complexity units) and to this metric's denominator (supported capability points), per interaction_with_quality_metrics.metric_E_denominator; they are excluded from the complexity count entirely rather than being scored 0 complexity, so a missing capability cannot artificially lower the ratio."
-      },
-      "legacy_fragment_equivalence": {
-        "all_explicit_fragments_matched": false,
-        "canonical_fragment_catalog_content_sha256": "00f3195f8f1c8ebb6fdd4781f80d03a3cf2a4e05a8e5ebfe960abe099e96a1c9",
-        "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
-        "dropped_now_none_probes": [
-          "F05.P3",
-          "F09.P2",
-          "F11.P2",
-          "F14.P3",
-          "F15.P3",
-          "F17.P2",
-          "F20.P2"
-        ],
-        "proof_mode": "prior-certified-equivalence-with-none-drop",
-        "schema_version": 1,
-        "scientific_identity_sha256": "e6eec0c01331b0df35bd2e09e517dadc37ed6a77c7f0b27dcb05577ce55963dd",
-        "source_density_record": "v1/semantic-compression/quidra/e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json",
-        "source_density_record_sha256": "1a70edbbaaa3175122678f3dd363e93422d270deae7d92b1b42dce45b04f02f9",
-        "source_metric_record": "v1/semantic-compression/quidra/7567bf4da1403b2164e5e9b357f37e62ffc203b66644c50a1232ccb97fe04bde.json",
-        "source_metric_record_sha256": "8442156707244fae9054fe104ab059b3b894e68e29f1ef56c475bb5cd0d2bb94",
-        "source_owner_record": "v1/semantic-compression/quidra/d9bd8e2e4c1131910636313fd1be4fde6ef5cdb3ed2183680f21464b054e2a23.json",
-        "source_owner_record_sha256": "1278fd0036ddfaac720012e09bbe603925a96f8b6645bed680d1f747a6e78d1e",
-        "source_run_id": "2026-09-23-fce5cfa-gh16"
       },
       "metric": "capability_efficiency (spec 6.1.4.E)",
       "normalization_applied": {
@@ -274,7 +236,7 @@
         },
         {
           "capability_points": 2,
-          "citation": "language.md 'Ordinary value arguments have value semantics' \u2014 determinately independent from bare call site",
+          "citation": "language.md 'Ordinary value arguments have value semantics' — determinately independent from bare call site",
           "complexity": {
             "context_dependent_rules": 0,
             "distinct_syntax_forms": 1,
@@ -483,7 +445,7 @@
         },
         {
           "capability_points": 2,
-          "citation": "language.md 'Named enums and variants' \u2014 closed set, exhaustive matching enforced; Rect payload uses a wrapper class for the two-field shape",
+          "citation": "language.md 'Named enums and variants' — closed set, exhaustive matching enforced; Rect payload uses a wrapper class for the two-field shape",
           "complexity": {
             "context_dependent_rules": 0,
             "distinct_syntax_forms": 3,
@@ -587,7 +549,7 @@
         },
         {
           "capability_points": 1,
-          "citation": "language.md 'private is a class-member-only prefix' \u2014 no module/file-level visibility control; privacy emulated by wrapping in a class",
+          "citation": "language.md 'private is a class-member-only prefix' — no module/file-level visibility control; privacy emulated by wrapping in a class",
           "complexity": {
             "context_dependent_rules": 0,
             "distinct_syntax_forms": 3,
@@ -653,6 +615,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "67493f3a1441b97a17456e0ee1031d913cd87c81f8d746f8770bfc66cdd983c0",
+  "result_sha256": "96a31382deb7d398c20ed36bcc4676a9fdca8089af05be05f99cf5371f93428f",
   "schema_version": 1
 }

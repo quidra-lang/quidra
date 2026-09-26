@@ -1,9 +1,10 @@
 {
   "assigned_languages": [],
   "certification": {
-    "compatibility_migration": "semantic-support-from-current-catalog",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "semantic_derived_recertification_candidate": true,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -41,64 +42,36 @@
     },
     "work_unit_id": "sc-support-adjudication:F16.P1"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
-    "migration_rule": "semantic-support-from-current-catalog",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
-    "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-    "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
-    "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "98209527922971ab25d8efadd5eb6a8ae1d53db89d89a1c5b581deb551a8471a",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-support-adjudication--f16-p1"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
-      "legacy_recertification": {
-        "mode": "support-from-current-canonical-probe-cache",
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "mode": "support-from-canonical-baseline",
         "probe_id": "F16.P1",
-        "schema_version": 1,
-        "source_owner_records": [
-          "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-          "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-          "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-          "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
-          "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-          "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
-          "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
-          "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
-          "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-          "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json"
-        ]
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
       }
     },
     "requirements": {
       "annotation.support_adjudication--f16-p1": {
         "C++": {
-          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "std::vector<int> xs{1, 2, 3};\nint total = std::accumulate(xs.begin(), xs.end(), 0);\nreturn total;",
-          "justification": "`std::vector<int> xs{1,2,3}; int total = std::accumulate(xs.begin(),xs.end(),0); return total;` \u2014 std::accumulate is the standard fold/sum operation (documented in <numeric>).",
+          "justification": "`std::vector<int> xs{1,2,3}; int total = std::accumulate(xs.begin(),xs.end(),0); return total;` — std::accumulate is the standard fold/sum operation (documented in <numeric>).",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
         },
         "Go": {
-          "citation": "legacy-cache:v1/semantic-compression/go/c3ecb3195839703799bf2201d88434b4c856fe01d4a27e527a5c55209b041de1.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "xs := []int{1, 2, 3}\ntotal := 0\nfor _, v := range xs { total += v }\nreturn total",
           "justification": "xs := []int32{1,2,3}; explicit range loop summing into total (Go stdlib has no generic Sum/fold for slices), matching the canonical task's fallback to explicit iteration.",
           "level": "FULL",
@@ -106,23 +79,23 @@
           "partial_reasons": []
         },
         "Java": {
-          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "List<Integer> xs = List.of(1, 2, 3);\nint total = xs.stream().mapToInt(Integer::intValue).sum();\nreturn total;",
-          "justification": "List<Integer> xs = new ArrayList<>(List.of(1,2,3)); int total = xs.stream().mapToInt(Integer::intValue).sum(); \u2014 standard sum/stream operation.",
+          "justification": "List<Integer> xs = new ArrayList<>(List.of(1,2,3)); int total = xs.stream().mapToInt(Integer::intValue).sum(); — standard sum/stream operation.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
         },
         "Kotlin": {
-          "citation": "legacy-cache:v1/semantic-compression/kotlin/7d29a8f7152b864c5360a63ceb31541d74c54c5eb27d35a9043bd937693a6551.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "val xs = listOf(1, 2, 3)\nval total = xs.sum()\nreturn total",
-          "justification": "val xs = mutableListOf(1,2,3); val total = xs.sum() \u2014 standard stdlib reduction.",
+          "justification": "val xs = mutableListOf(1,2,3); val total = xs.sum() — standard stdlib reduction.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
         },
         "Python": {
-          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "xs = [1, 2, 3]\ntotal = sum(xs)\nreturn total",
           "justification": "xs = [1, 2, 3]; total = sum(xs) is Python's standard literal and sum() builtin.",
           "level": "FULL",
@@ -146,15 +119,15 @@
           "partial_reasons": []
         },
         "Swift": {
-          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "let xs = [1, 2, 3]\nlet total = xs.reduce(0, +)\nreturn total",
-          "justification": "let xs = [1, 2, 3]; let total = xs.reduce(0, +) \u2014 reduce is the standard-library summation form (fewer tokens than a manual for-loop).",
+          "justification": "let xs = [1, 2, 3]; let total = xs.reduce(0, +) — reduce is the standard-library summation form (fewer tokens than a manual for-loop).",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
         },
         "TypeScript": {
-          "citation": "legacy-cache:v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "const xs = [1, 2, 3];\nconst total = xs.reduce((acc, v) => acc + v, 0);\nreturn total;",
           "justification": "const xs=[1,2,3]; const total = xs.reduce((a,b)=>a+b,0); standard reduce operation.",
           "level": "FULL",
@@ -162,7 +135,7 @@
           "partial_reasons": []
         },
         "Zig": {
-          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "var xs = std.ArrayList(i32).init(allocator);\ntry xs.appendSlice(&[_]i32{1,2,3});\nvar total: i32 = 0;\nfor (xs.items) |v| total += v;\nreturn total;",
           "justification": "std.ArrayList(i32) literal-style init plus a for-loop summing elements (no single-call fold/sum combinator in std, so the explicit iteration form is the R10-selected minimal form).",
           "level": "FULL",
@@ -173,6 +146,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "aaa69d970ce93e5c08eeb66d4eee1d91f3443b489d13e68dda4f5964a30c2dc9",
+  "result_sha256": "179102466d6cba030174520ef6786736a1d62d749710078b0d7ca9e744ef75da",
   "schema_version": 1
 }

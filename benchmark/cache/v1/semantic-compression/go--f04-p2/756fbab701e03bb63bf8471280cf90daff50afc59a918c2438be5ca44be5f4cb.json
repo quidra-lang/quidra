@@ -3,8 +3,10 @@
     "Go"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--go--f04-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe",
-    "source_record": "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-    "source_record_sha256": "94e53e7feb767902cdd77341fa4c09e010bbc807156395aeba66b6b816ef29ad",
-    "source_result_sha256": "293f7d76d5f7d0a5297897c06a6d20344309e76e282b6327856da64189617263",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "582e192485d25cd5ac1126daf902fd68ea8191e9d1dbfa47ba1b319c024a4830",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--go--f04-p2"
   },
   "result": {
@@ -82,7 +66,7 @@
     "evidence": {
       "canonical_fragments": {
         "F04.P2": {
-          "citation": "legacy-cache:v1/semantic-compression/go/c3ecb3195839703799bf2201d88434b4c856fe01d4a27e527a5c55209b041de1.json#F04.P2",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F04.P2",
           "fragment": null,
           "justification": "A Go slice is non-copying but not read-only. F04.P2 explicitly directs languages without a non-copying read-only view to write no fragment, so the old PARTIAL classification is NONE under N-4.",
           "level": "NONE",
@@ -106,13 +90,14 @@
       },
       "canonical_verification": {},
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Go",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F04.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-        "source_record_sha256": "94e53e7feb767902cdd77341fa4c09e010bbc807156395aeba66b6b816ef29ad",
-        "source_result_sha256": "293f7d76d5f7d0a5297897c06a6d20344309e76e282b6327856da64189617263"
+        "source_record": "baseline/semantic-owners/go.json",
+        "source_record_sha256": "062a57f5d821c6a23b17a7b67aa5787b34824c7a9b9043b5008c0206cc4c6e3e",
+        "source_result_sha256": "0b7b86c567363edfa4ba4b3b6c2b5c3335e59047d6f7e005797d67987299519d"
       }
     },
     "requirements": {
@@ -120,6 +105,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "74d4fb7d80e3beb42ee093573e1ad01dbd9cbce3e4caf951a0cd0630550267f7",
+  "result_sha256": "fd06a28bf4b5d71eb5db6dc48d4ab7a80a3b388f84cc385d6f10f4e86a78dcb6",
   "schema_version": 1
 }

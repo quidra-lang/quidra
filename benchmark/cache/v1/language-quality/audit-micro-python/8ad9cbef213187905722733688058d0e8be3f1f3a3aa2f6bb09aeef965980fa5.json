@@ -3,11 +3,10 @@
     "Python"
   ],
   "certification": {
-    "compatibility_migration": "language-quality-reuse-audit-v1-projection",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "language_quality_reuse_audit_recertification_candidate": true,
-    "new_paid_provider_call": false,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -43,27 +42,11 @@
     },
     "work_unit_id": "audit-micro-python"
   },
-  "migration": {
-    "current_mechanical_verification": "current-validator",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Language Quality reusable-artifact currency audit judged the exact same frozen artifact Git object under the exact same current toolchain and runtime pins. Judge/provider and Task Packet transport changes do not alter that experiment; the current validator is rerun before promotion and no new provider call is claimed.",
-    "migration_rule": "language-quality-reuse-audit-v1-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "e059e2a6e0491ee58c04a05ce377c4e7eaa55415e17df9310531c5c4689a6520",
-    "source_record": "v1/language-quality/audit-micro-python/e059e2a6e0491ee58c04a05ce377c4e7eaa55415e17df9310531c5c4689a6520.json",
-    "source_record_sha256": "d5ecadf6849a1bdcb1a8b0733fad1250177f5023a8d044616479ed0131cb658a",
-    "source_result_sha256": "80554382f37f8cb331d6bf6625d62da276441f3c46f103fc27be1552f3a6cb7d",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "20a13c6e14ce4f4d6b244cc936730555f8ffaa5eaf9538630bb149d23618db5a",
-    "run_id": "cache-recertify-9f13d62",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "audit-micro-python"
   },
   "result": {

@@ -3,15 +3,16 @@
     "Python"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_evidence_inherited_from": "benchmark/cache/v1/llm-learnability/python/7c6f5b4580c8de40375ef4aa3d2b58f738007e6acb75a2189224719cd0f70e06.json",
     "cap_evidence_inherited_record_sha256": "291bcf13962f1097930092f23ec483663aa0e7449c278753e91a7731430211c0",
     "cap_evidence_source": "agent_trace.json retained by 2026-09-22-62bb50a-gh2",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 54,
-    "primary_complete": false,
+    "primary_complete": true,
     "scored_output_cap": 4000,
     "trial_calls": 3,
     "unit_complete": true,
@@ -58,27 +59,11 @@
     "work_unit_id": "learnability-i3-i4--python",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a",
-    "source_record": "v1/llm-learnability/python/b445356c95fa5b68805c2d4516c523e5eb9ae072bbc8839fca5fc4491d13cc8a.json",
-    "source_record_sha256": "03ce8e5cb5fddbb15137c91a2b329d55f80391e1974d7a9cf0427c8b5a43966e",
-    "source_result_sha256": "4bcbe7f21bf664a12bbb71370ec9d4387e83f0a58e9f0fb9776d616d2a62db85",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "e1ceddd5927d11d74ccf9d3bea658e643238d36c44f22f7e6056ebb4ab2d9eff",
-    "run_id": "cache-recertify-6629ab4",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i3-i4--python"
   },
   "result": {

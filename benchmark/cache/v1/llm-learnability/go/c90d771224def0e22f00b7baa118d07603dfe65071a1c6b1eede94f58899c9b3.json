@@ -3,12 +3,13 @@
     "Go"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 161,
-    "primary_complete": false,
+    "primary_complete": true,
     "scored_output_cap": 4000,
     "trial_calls": 4,
     "unit_complete": true,
@@ -55,27 +56,11 @@
     "work_unit_id": "learnability-i3-i4--go",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "eeb862eaacd722102fab7b3a45d69a7b59bdc31e6e94e4333a40427c8b204332",
-    "source_record": "v1/llm-learnability/go/eeb862eaacd722102fab7b3a45d69a7b59bdc31e6e94e4333a40427c8b204332.json",
-    "source_record_sha256": "c3046a6b646d6e36e5eabf59ec89c0aef7e2e8d9d781b082926353d4deb37615",
-    "source_result_sha256": "6648e6a3bb6d70278d43dcb74952452c4194e5035001ae64016eb4aa499f9591",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "468cb82710587e77764fad595faa3ad974cc072be779f6404b1e3d860172db33",
-    "run_id": "cache-recertify-c401796",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i3-i4--go"
   },
   "result": {

@@ -3,8 +3,10 @@
     "Python"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--python--f16-p1",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34",
-    "source_record": "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-    "source_record_sha256": "eeef1f12a3bbe61b7fd0fa3acafd88a92096f9f18de9f0c433bd5850392c8bac",
-    "source_result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "e5344ab94d7ace2eda3c67f4e68b0de89adb701aedec0d194a1621e5c8e36cfb",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--python--f16-p1"
   },
   "result": {
@@ -82,7 +66,7 @@
     "evidence": {
       "canonical_fragments": {
         "F16.P1": {
-          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "xs = [1, 2, 3]\ntotal = sum(xs)\nreturn total",
           "justification": "xs = [1, 2, 3]; total = sum(xs) is Python's standard literal and sum() builtin.",
           "level": "FULL",
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F16.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "a8c6f8a362df51eefc3777ec26b1267b0d0790e000c0e4101998c20a03e1332c",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
-          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Python",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F16.P1",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-        "source_record_sha256": "eeef1f12a3bbe61b7fd0fa3acafd88a92096f9f18de9f0c433bd5850392c8bac",
-        "source_result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8"
+        "source_record": "baseline/semantic-owners/python.json",
+        "source_record_sha256": "0d4f28b736cb4e24c642e4a1a3140b1eb5aa166f1b85ba33d3d1c5eee6e90182",
+        "source_result_sha256": "3c5cbef08d987b2cba23c40fd7ef3223c5f26ac35161cb2cd89b241c8e855baa"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "4fa6bc65d796b412eb79b7a59c6edbb5d9ed9cba8e37dd4b837f7bc31600c60f",
+  "result_sha256": "ae0b9f01f1b0152bd12e6e3789cc00dee3aefbad26f91d92865af5a21c7e3f1b",
   "schema_version": 1
 }

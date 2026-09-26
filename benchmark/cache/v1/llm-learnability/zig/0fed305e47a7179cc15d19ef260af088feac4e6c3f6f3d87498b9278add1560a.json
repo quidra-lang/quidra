@@ -3,12 +3,13 @@
     "Zig"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 414,
-    "primary_complete": false,
+    "primary_complete": true,
     "scored_output_cap": 4000,
     "trial_calls": 2,
     "unit_complete": true,
@@ -55,27 +56,11 @@
     "work_unit_id": "learnability-i5-i6--zig",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "bb59234c2e8dfed3f58b2ce4fd29aa011195f2ec34a1eec46da922a742f1a7ec",
-    "source_record": "v1/llm-learnability/zig/bb59234c2e8dfed3f58b2ce4fd29aa011195f2ec34a1eec46da922a742f1a7ec.json",
-    "source_record_sha256": "3a03116b4101d25c43194f4f541b45469669defbf8d50443d16d3b1e2a1d8988",
-    "source_result_sha256": "3d8e30be6cd1b7315332774d8c9b2bcf727160e88fedb03a10d2c9241f8007c4",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "5a9fdf628adc2c5247a51e19b39b3de2650d281bf126867f0cbb57413ae60c3f",
-    "run_id": "cache-recertify-c401796",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i5-i6--zig"
   },
   "result": {

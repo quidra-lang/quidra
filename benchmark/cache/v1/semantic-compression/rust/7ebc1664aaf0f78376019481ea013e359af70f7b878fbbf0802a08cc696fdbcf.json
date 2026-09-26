@@ -3,17 +3,14 @@
     "Rust"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
     "canonical_fragment_equivalence_proved": true,
-    "compatibility_migration": "semantic-legacy-consumer-recertification",
     "current_validator_revalidated": true,
-    "primary_complete": false,
-    "semantic_legacy_consumer_recertified": true,
+    "primary_complete": true,
     "unit_complete": true,
-    "validator_pass": true,
-    "validator_recertification_candidate": true,
-    "validator_recertification_source_epoch": "2026-09-medium",
-    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+    "validator_pass": true
   },
   "evaluation": "semantic_compression",
   "fingerprint": "7ebc1664aaf0f78376019481ea013e359af70f7b878fbbf0802a08cc696fdbcf",
@@ -59,50 +56,23 @@
     "work_unit_id": "sc-metrics-local--part-3--rust",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
-    "migration_rule": "semantic-legacy-consumer-recertification",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "73c6b7495fa88f077d2331884803a4965affc8e02291a12f84b4efdafb90dc4a",
-    "source_record": "v1/semantic-compression/rust/73c6b7495fa88f077d2331884803a4965affc8e02291a12f84b4efdafb90dc4a.json",
-    "source_record_sha256": "e9867bbe5033dc44b851019476d1827e46f97e5a2be2fb9086b513fd1f4188d4",
-    "source_result_sha256": "e94ec0acdbede74d548bba362309bc929c0a3b070c8e61fa056ebfc11b12e390",
-    "transformed_fields": [
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "631cafc19b0faa29f9532eaa7067440d7f92d45adb2d2882248478fdfa55bed2",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-metrics-local--part-3--rust"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
-      "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
-      "legacy_fragment_equivalence": {
-        "all_explicit_fragments_matched": false,
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "canonical_fragment_catalog_content_sha256": "747d85fce83d0bf20646982bac18fd8c4c06c386bdab795b734828d2b16de3a2",
         "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
-        "dropped_now_none_probes": [],
-        "proof_mode": "shared-experiment-owner-catalog",
-        "schema_version": 1,
-        "scientific_identity_sha256": "ea696e92fcf76cf2d6fb99e387aae3cce4193cb391d15bebf3c0be93cdfc63f3",
-        "source_density_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
-        "source_density_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
-        "source_metric_record": "v1/semantic-compression/rust/73c6b7495fa88f077d2331884803a4965affc8e02291a12f84b4efdafb90dc4a.json",
-        "source_metric_record_sha256": "e9867bbe5033dc44b851019476d1827e46f97e5a2be2fb9086b513fd1f4188d4",
-        "source_owner_record": "v1/semantic-compression/rust/e76751d96630ff4bde5ed9fcda44b8543915e11c49a6d996bc13764c3ce652ba.json",
-        "source_owner_record_sha256": "5d309a31d88565b5409435f77507f5f11fd25bf78b9ae10293d20d5d523391a3",
-        "source_run_id": "2026-09-23-fce5cfa-gh16"
+        "schema_version": 1
       },
+      "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
       "metric.semantic_determinacy": {
         "basis": "per-probe B_i assigned by inspecting the frozen canonical_task's local surface form for Rust under the frozen toolchain recipe (rustc -O -C debug-assertions=on). A materially different interpretation changes mutation, aliasing, failure, conversion, dispatch, resource behavior, control flow, representation, or observable result, per spec 6.1.3.B. The glyph-neutrality rule (no bonus/penalty merely for '&') was applied.",
         "caveats": [
@@ -392,6 +362,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "53e0435a86acd803b8d7a24f348edcb680e1d7001ed931a68fbe122b59c09368",
+  "result_sha256": "359020b1ead7bc0dfc5b5bbc0dadf1ece274a892809c3e03a874e5137a432325",
   "schema_version": 1
 }

@@ -3,8 +3,10 @@
     "Zig"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--zig--f05-p3",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177",
-    "source_record": "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
-    "source_record_sha256": "f5186ae2446d270530a47c066d4f182ee3c85d3443bf561ee115dc05ac5ea928",
-    "source_result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "3df16691825a23b8ac636bd7d11c1935b55723fc3fa476390bb40d74e9abb7ed",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--zig--f05-p3"
   },
   "result": {
@@ -82,9 +66,9 @@
     "evidence": {
       "canonical_fragments": {
         "F05.P3": {
-          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F05.P3",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P3",
           "fragment": null,
-          "justification": "Zig has no lexical closures: a nested function cannot capture a variable (`k`) from its enclosing function scope; only top-level/comptime-parameterized functions exist, and capturing state requires passing it explicitly as an argument/struct field, which the canonical_task's numbered sub-requirement (2) explicitly forbids (capture, not parameter passing). No documented mechanism satisfies sub-requirement (1); citation: Zig language reference, functions section \u2014 no closures/anonymous capturing functions are supported.",
+          "justification": "Zig has no lexical closures: a nested function cannot capture a variable (`k`) from its enclosing function scope; only top-level/comptime-parameterized functions exist, and capturing state requires passing it explicitly as an argument/struct field, which the canonical_task's numbered sub-requirement (2) explicitly forbids (capture, not parameter passing). No documented mechanism satisfies sub-requirement (1); citation: Zig language reference, functions section — no closures/anonymous capturing functions are supported.",
           "level": "NONE",
           "none_reason": "N-1",
           "partial_reasons": []
@@ -93,9 +77,9 @@
       "canonical_none_verification": {
         "F05.P3": {
           "citations": [
-            "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F05.P3"
+            "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P3"
           ],
-          "conclusion": "Zig has no lexical closures: a nested function cannot capture a variable (`k`) from its enclosing function scope; only top-level/comptime-parameterized functions exist, and capturing state requires passing it explicitly as an argument/struct field, which the canonical_task's numbered sub-requirement (2) explicitly forbids (capture, not parameter passing). No documented mechanism satisfies sub-requirement (1); citation: Zig language reference, functions section \u2014 no closures/anonymous capturing functions are supported.",
+          "conclusion": "Zig has no lexical closures: a nested function cannot capture a variable (`k`) from its enclosing function scope; only top-level/comptime-parameterized functions exist, and capturing state requires passing it explicitly as an argument/struct field, which the canonical_task's numbered sub-requirement (2) explicitly forbids (capture, not parameter passing). No documented mechanism satisfies sub-requirement (1); citation: Zig language reference, functions section — no closures/anonymous capturing functions are supported.",
           "evidence_kinds": [
             "retained-current-validator-certified-owner",
             "evidence-cited-by-current-owner"
@@ -106,13 +90,14 @@
       },
       "canonical_verification": {},
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Zig",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F05.P3",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
-        "source_record_sha256": "f5186ae2446d270530a47c066d4f182ee3c85d3443bf561ee115dc05ac5ea928",
-        "source_result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324"
+        "source_record": "baseline/semantic-owners/zig.json",
+        "source_record_sha256": "fa22170c9a67adf2ec66f54023418e1259895dfc32ee088b36a6a42b850605d4",
+        "source_result_sha256": "f76856426d55fc8f8ed8b020ab895e2d23623c93a20109392c4cbfc1b650927f"
       }
     },
     "requirements": {
@@ -120,6 +105,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "9291a88eb1092cf64a5e316776296b1952485eeb673335332ea30dbda750ec72",
+  "result_sha256": "7c537a89bce5b96251e7491a4339366706b18aaff8801a23db056d4ab8a3f56e",
   "schema_version": 1
 }

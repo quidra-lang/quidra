@@ -1,0 +1,279 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "canonical_fragment_catalog_sha256": "ce7f0d66680dac09b5294a596f148a16a2a7fed0a7f995c068d1e6e6fcbc90d8",
+    "post_cleanup_rebind": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "81d5576cad635f5df3dec556d7e75e6827d9b0c989bcaf0163325712982d1ead",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "3993664460458a56214e77d258f224311e76df54daa8fa870cbea92eee2fa16b",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "eb6479a391dcca58d050516fac0c7859c7d67dc762f7b55561999896e97321ec",
+      "work/audit/semantic-compression/canonical_fragments_go.json": "ce7f0d66680dac09b5294a596f148a16a2a7fed0a7f995c068d1e6e6fcbc90d8"
+    },
+    "requirement_ids": [
+      "metric.capability_efficiency"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--go",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "post_cleanup_rebind": true,
+    "prompt_sha256": "3993664460458a56214e77d258f224311e76df54daa8fa870cbea92eee2fa16b",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--go"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "canonical_fragment_catalog_content_sha256": "7437e6821950a80ee1a3967d67f3abf267252c2d3b727560ed297087adfcd6aa",
+        "canonical_fragment_catalog_sha256": "ce7f0d66680dac09b5294a596f148a16a2a7fed0a7f995c068d1e6e6fcbc90d8",
+        "schema_version": 1
+      },
+      "canonical_fragment_catalog_sha256": "ce7f0d66680dac09b5294a596f148a16a2a7fed0a7f995c068d1e6e6fcbc90d8",
+      "metric.capability_efficiency": {
+        "basis": "per-probe support levels derived from documented Go language spec (go.dev/ref/spec) and standard-library documentation; no toolchain execution was available in this packet-only worker (network and local build tools disabled), so this is a documentation-based estimate, not a build-verified measurement. This limitation is recorded as an infrastructure blocker for the V1 build/run gate rather than fabricated evidence.",
+        "basis_reporting": {
+          "basis": "all-fragments (n_L=44 for Go; common-basis figure requires the other nine languages' fragment sets, not available to this shard)",
+          "n_L": 44
+        },
+        "capability_coverage_C_for_reference_only": 93.18,
+        "capability_efficiency_raw": {
+          "denominator": 82,
+          "formula": "total_complexity_units / supported_capability_points",
+          "lower_is_better": true,
+          "units": 96,
+          "value": 1.1707
+        },
+        "complexity_counting_rule_frozen_before_annotation": {
+          "context_dependent_rules": "Count each documented Go semantic rule whose outcome depends on context beyond the local syntax (e.g. platform int width, slice capacity/aliasing after append, map iteration order, nil-interface-vs-nil-concrete-value comparison).",
+          "distinct_syntax_forms": "Count each distinct Go surface syntax construct (keyword, operator, or stdlib call form) that a reader must recognize to correctly interpret at least one supported probe's fragment, counted once regardless of how many probes reuse it.",
+          "documented_semantic_exceptions": "Count each named exception to an otherwise general rule that Go's own specification/documentation states explicitly (e.g. integer division-by-zero panics but float division-by-zero yields Inf/NaN; signed integer overflow wraps by spec rather than being undefined; comparing uncomparable interface values panics at runtime; Go 1.22 changed for-loop variable scoping).",
+          "implicit_rules": "Count each documented Go behavior that occurs without a dedicated token at the use site (e.g. zero-value initialization, structural interface satisfaction, automatic slice header copy-by-value while sharing backing array, GC-driven deallocation, loop-variable-per-iteration semantics)."
+        },
+        "complexity_itemization": {
+          "context_dependent_rules": [
+            "platform-dependent int width",
+            "slice aliasing vs copy after append reallocation",
+            "map iteration order unspecified",
+            "nil interface vs typed-nil-inside-interface comparison",
+            "integer division panics, float division does not",
+            "channel direction restricts send/receive",
+            "pointer vs value receiver changes method set and mutation visibility",
+            "escape analysis decides stack vs heap allocation (invisible at call site)",
+            "goroutine scheduling order is unspecified",
+            "struct comparability depends on field types",
+            "array vs slice value semantics differ (copy vs shared) though syntactically similar",
+            "string to []byte conversion copies, but iteration over string yields runes not bytes",
+            "unexported struct fields are invisible and unsettable from another package",
+            "interface satisfaction is structural, so which methods count depends on the full method set at the point of assignment",
+            "generic type inference outcome depends on all call-site argument types together",
+            "defer argument evaluation is immediate but call is deferred",
+            "race-freedom of an operation depends on whether sync/atomic or mutex actually wraps every access site, not on syntax alone",
+            "cgo build behavior depends on CGO_ENABLED environment variable",
+            "map read on nil map returns zero value, write on nil map panics",
+            "append may or may not mutate the underlying array depending on capacity",
+            "closures over loop variables changed semantics between pre- and post-1.22 toolchains"
+          ],
+          "distinct_syntax_forms": [
+            ":=",
+            "var",
+            "const",
+            "++",
+            "*T (pointer type)",
+            "&x (address-of)",
+            "*p (dereference)",
+            "struct{}",
+            "interface{}",
+            "type parameters [T any]",
+            "type constraints (cmp.Ordered)",
+            "switch/type-switch",
+            "defer",
+            "go (goroutine)",
+            "chan",
+            "sync.WaitGroup",
+            "sync/atomic",
+            "sync.Mutex",
+            "import \"C\" (cgo)",
+            "//export directive",
+            "map[K]V",
+            "range",
+            "slice literal []T{...}",
+            "slice expr a[i:j]",
+            "multiple return values",
+            "comma-ok idiom",
+            "strconv.Atoi",
+            "sort.Reverse/sort.Sort",
+            "fmt.Println",
+            "panic/recover",
+            "error interface",
+            "unexported identifier (lowercase) visibility",
+            "method receiver (pointer vs value)",
+            "nil literal",
+            "named return values"
+          ],
+          "documented_semantic_exceptions": [
+            "int/int division panics on divide-by-zero, float/float division yields +Inf/-Inf/NaN",
+            "signed integer overflow wraps per spec (defined), unlike C's UB",
+            "comparing two interface values with uncomparable dynamic types panics at runtime even though '==' compiles",
+            "a nil map is safe to read (zero value) but panics on write, exception to the general 'operations on nil are safe' expectation",
+            "array types are comparable with '==' if element type is comparable, but slices/maps/functions are never comparable",
+            "a method with a pointer receiver is not in the method set of a value, an exception to the general 'method set determined by declared receiver type' when substituting into an interface",
+            "Go 1.22 changed for-loop variable semantics (new variable per iteration) as a documented breaking exception from earlier versions",
+            "deferred function argument evaluation happens immediately at the defer statement rather than at call time, an exception to normal call-time evaluation",
+            "const numeric expressions are untyped and can overflow-check at compile time even though runtime int arithmetic wraps silently, a documented split behavior",
+            "struct field visibility crosses package boundaries via reflection/encoding even though normal code access is blocked, a documented exception used by encoding/json etc.",
+            "recover() only has an effect when called directly inside a deferred function, an exception to ordinary function-call semantics",
+            "an empty struct{} occupies zero bytes in most cases, an exception to typical struct sizing rules",
+            "unbuffered channel send/receive synchronizes (happens-before) by spec, whereas buffered channels only synchronize up to capacity, a documented exception",
+            "cgo call overhead and goroutine stack switching is a documented deviation from normal Go call performance/semantics",
+            "comparing NaN floats is always false including NaN==NaN, following IEEE754 rather than Go's usual reflexive equality expectation"
+          ],
+          "implicit_rules": [
+            "zero-value initialization for every declared-but-unassigned variable",
+            "implicit dereference is NOT performed by Go (explicit *p required) but implicit method-set promotion IS (embedded struct fields/methods promoted without a syntax marker)",
+            "garbage collection reclaims heap objects with no destructor call visible in source",
+            "slice header (ptr,len,cap) copy-by-value at call sites while backing array is shared",
+            "structural interface satisfaction requires no 'implements' declaration",
+            "defer statements execute in LIFO order at function return, not at the defer statement site",
+            "goroutine leaks are possible with no compiler diagnostic",
+            "return of named result variables can be implicit (bare 'return')",
+            "map growth/rehashing invalidates no iterator state contract implicitly",
+            "conversion between compatible named types can be implicit within generic type inference",
+            "panic unwinds the stack silently through intervening frames unless recovered",
+            "append reallocation choice (grow vs reuse) is implicit",
+            "unexported fields are zero-valued when decoded across package/reflection boundaries silently",
+            "method value/method expression binding captures receiver implicitly",
+            "string immutability is enforced by the type system without a mutability keyword",
+            "comparable constraint checking for generic type parameters happens implicitly at instantiation",
+            "integer to floating point conversions can silently lose precision for large values",
+            "embedding promotes fields/methods without redeclaration",
+            "channel close semantics allow receive-after-close to yield zero value silently",
+            "the blank identifier '_' silently discards values",
+            "multiple return values require explicit multi-assignment, but error must be explicitly checked or is silently ignorable",
+            "struct literal field zero-fill for omitted fields",
+            "array bounds are part of the type and checked implicitly, unlike slices",
+            "interface method dispatch is a hidden vtable-style indirection with no explicit dispatch syntax",
+            "generic instantiation may cause implicit specialization vs boxing depending on compiler version",
+            "sync.WaitGroup's Add/Done/Wait ordering contract is documented but not enforced by syntax"
+          ]
+        },
+        "complexity_unit_totals": {
+          "context_dependent_rules": 21,
+          "distinct_syntax_forms": 34,
+          "documented_semantic_exceptions": 15,
+          "implicit_rules": 26,
+          "total_complexity_units": 96
+        },
+        "infrastructure_blocker": {
+          "reason": "packet-only worker has no shell/compiler access; the frozen recipe 'go build' could not be invoked to verify V1 (fragments build and match) for the 44 probe fragments. Support levels and complexity counts below are derived from written Go specification/documentation only, per the counting rule for capability_efficiency, and are NOT a substitute for the mandatory V1 build/run evidence. A build-capable environment must re-run V1 before this figure is treated as final.",
+          "status": "blocked"
+        },
+        "language": "Go",
+        "normalization_note": "Per primary.json this is a language-sharded worker (Go only); cross-language min/max needed for a proper 0-100 relative normalization are not available in this packet. The reported requirement score (46) is a provisional monotonic placeholder computed as round(100/(1+raw)) = round(100/2.1707) = 46, preserving 'lower raw value => higher normalized score'. The runner must recompute the final 0-100 figure once all ten languages' raw capability_efficiency values are merged, per spec 6.1.4.E and the common-basis/all-fragments reporting requirement.",
+        "support_counts": {
+          "FULL": 38,
+          "NONE": 0,
+          "PARTIAL": 6,
+          "total_probes": 44
+        },
+        "support_level_by_probe": {
+          "F01.P1": "FULL",
+          "F01.P2": "FULL",
+          "F02.P1": "FULL",
+          "F02.P2": "PARTIAL(P-a: Go always zero-initializes; no genuine uninitialized-storage mechanism)",
+          "F03.P1": "FULL",
+          "F03.P2": "FULL",
+          "F04.P1": "FULL",
+          "F04.P3": "FULL",
+          "F05.P1": "FULL",
+          "F05.P2": "FULL",
+          "F05.P3": "FULL(no generic Map in stdlib pre-1.23; explicit loop referring to neg by name is permitted by canonical_task)",
+          "F06.P1": "FULL",
+          "F06.P2": "FULL",
+          "F07.P1": "FULL",
+          "F07.P2": "FULL",
+          "F08.P1": "FULL(rung iv: plain '+' has documented wraparound behavior for fixed-width signed ints)",
+          "F08.P2": "FULL(rung ii: explicit b==0 guard, no checked-division stdlib op)",
+          "F09.P1": "FULL",
+          "F09.P2": "FULL",
+          "F10.P1": "FULL(rung ii: explicit int32(big) conversion, documented truncation)",
+          "F10.P2": "FULL(explicit float64(i)+d; Go requires explicit conversion)",
+          "F11.P1": "FULL(xs[i] panics out of range; no checked stdlib variant)",
+          "F11.P2": "FULL(xs[1:4] shares backing array)",
+          "F12.P1": "PARTIAL(P-a named substitution: *int with nil, no Optional type)",
+          "F12.P2": "PARTIAL(P-a named substitution: explicit nil check, no monadic map)",
+          "F13.P1": "FULL(strconv.Atoi returns (int,error), propagated via return)",
+          "F13.P2": "FULL(err != nil local handling)",
+          "F14.P1": "PARTIAL(P-a: closedness only via unexported-method sealed-interface idiom, not a first-class closed-sum construct)",
+          "F14.P2": "PARTIAL(P-c: Go type-switch has no compiler-enforced exhaustiveness guarantee)",
+          "F14.P3": "FULL(interface + separate-package implementation, standard Go polymorphism)",
+          "F15.P1": "FULL(Go 1.18+ type parameters)",
+          "F15.P2": "FULL(cmp.Ordered / constraints.Ordered)",
+          "F15.P3": "FULL(interface value heterogeneous slice, dynamic dispatch)",
+          "F16.P1": "FULL(slice literal + explicit loop; no generic Sum in stdlib)",
+          "F16.P2": "FULL(map, range, comma-ok lookup; iteration order documented as unspecified)",
+          "F17.P1": "FULL(defer f.Close())",
+          "F17.P2": "FULL(defer-based close-on-scope-exit is explicitly an enumerated acceptable hook form)",
+          "F18.P1": "FULL(import \"fmt\"; fmt.Println)",
+          "F18.P2": "FULL(exported/unexported identifiers across packages, multi-unit recipe)",
+          "F19.P1": "FULL(goroutines + sync.WaitGroup)",
+          "F19.P2": "FULL(sync/atomic or mutex, documented race-freedom)",
+          "F20.P1": "FULL(cgo import \"C\", built-in FFI)",
+          "F20.P2": "FULL(cgo //export directive, built-in C-ABI export)"
+        },
+        "supported_capability_points_formula": "sum(capability_points(probe) * support_factor(level)) = 38*2*1.0 + 6*2*0.5 = 76 + 6 = 82",
+        "supported_capability_points_numerator": 82
+      }
+    },
+    "requirements": {
+      "metric.capability_efficiency": {
+        "Go": 46
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "1df02d768c184143439d47ec2d414e2b02db76dc1ab2633ae630d437a700f985",
+  "schema_version": 1
+}

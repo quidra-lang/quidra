@@ -3,11 +3,10 @@
     "Java"
   ],
   "certification": {
-    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
-    "ecosystem_snapshot_recertification_candidate": true,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -55,28 +54,11 @@
     "work_unit_id": "ecosystem-external--part-2--java",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
-    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
-    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
-    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "c7c174e23dad13cc1e76741f70f05cd983b6605ad34b0792cb4970fbe2ec4ad9",
-    "run_id": "cache-recertify-584269b",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "ecosystem-external--part-2--java"
   },
   "result": {
@@ -86,7 +68,7 @@
         "candidate_universe": "Named companies with public Java engineering disclosures include Netflix, LinkedIn, Amazon, Google, Uber, and large financial institutions; Netflix was selected as the fixed target because it publishes the most detailed, quantified, and recurring public disclosures of Java application counts and JVM tuning practices.",
         "component_findings": {
           "current_continuity": "Preserved paid evidence (ecosystem-external--part-2--java): A financial institution ran a decade-plus Java modernization/production engagement",
-          "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--java): <cite index=\"2-9\">Of all businesses contacted globally to participate in the Azul 2025 State of Java Survey & Report, only 1% of respondents were disqualified from taking the survey because they did not use Java in their enterprise\u2014highlighting that 99% of organizations surveyed actively use Java.</cite>",
+          "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--java): <cite index=\"2-9\">Of all businesses contacted globally to participate in the Azul 2025 State of Java Survey & Report, only 1% of respondents were disqualified from taking the survey because they did not use Java in their enterprise—highlighting that 99% of organizations surveyed actively use Java.</cite>",
           "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--java): <cite index=\"3-4\">One financial institution partnered with Keyhole across multiple phases from 2011 to 2025, modernizing COBOL-based batch processing with Spring Batch and continuing to invest in the platform for more than a decade thus far.</cite>",
           "named_organizations": "Preserved paid evidence (ecosystem-external--part-2--java): An independent annual industry survey of 2,000+ Java professionals found that the overwhelming majority of surveyed organizations actively use Java in production and that a majority run more than half of their applications on the JVM.",
           "scale_criticality": "Preserved paid evidence (ecosystem-external--part-2--java): Public sources point to production Java usage concentrated in regulated, high-scale sectors (financial services and insurance, telecom, banking) with multi-decade running production systems, plus a documented case of a financial institution's decade-plus modernization program targeting the Java platform."

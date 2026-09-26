@@ -1,0 +1,1009 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "canonical_catalog_sha256": "2c2b1635a03b78f5ea6486189005fa71aa978f77ed60d355113dcfd3613fbdc5",
+    "current_validator_revalidated": true,
+    "current_validator_revalidation_required": true,
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "b35983f4f70b8d52ca26c2e8375558c2b8d01eaa305f00bdc8ed0d7b95a8feac",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--kotlin",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "b35983f4f70b8d52ca26c2e8375558c2b8d01eaa305f00bdc8ed0d7b95a8feac",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "semantic-baseline-owner--kotlin"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "aggregate_C": 88.6363636364,
+      "basis_note": "This figure is Capability Coverage C, computed on the fixed 88-point denominator per capability_universe.json capability_coverage.formula. It is independent of the common-basis vs all-fragments distinction used for metrics A-D/E.",
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "language": "Kotlin",
+        "role": "semantic-language-owner",
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
+      },
+      "canonical_fragments": {
+        "F01.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F01.P1",
+          "fragment": "val n = 7\nreturn n",
+          "justification": "val n = 7; return n. val is Kotlin's non-reassignable local binding form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F01.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F01.P2",
+          "fragment": "var counter: Long = 0\nconst val LIMIT: Long = 100",
+          "justification": "top-level var counter: Long = 0 (mutable); const val LIMIT: Long = 100 (compile-time constant, primitive type allowed for const val).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F02.P1",
+          "fragment": "val v: Int\nif (cond) { v = 5 } else { v = 9 }\nreturn v",
+          "justification": "Kotlin performs definite-assignment analysis: `val v: Int` (or var) declared without initializer, assigned on both branches of an if/else, then read is accepted by the compiler.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F02.P2",
+          "fragment": "val buf = ByteArray(16)\nbuf[0] = 1\nreturn buf[0]",
+          "justification": "Kotlin stdlib has no documented mechanism for genuinely uninitialized bulk storage; ByteArray(16) always zero-fills. Substituted the zero-initialized ByteArray per R9 named-substitution exception for F02.P2. Never FULL per rubric.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F03.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F03.P1",
+          "fragment": "x += 1",
+          "justification": "x += 1 (compound assignment), in-place scalar mutation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F03.P2",
+          "fragment": "xs[1] = 42",
+          "justification": "xs[1] = 42 on a MutableList, in-place element mutation via operator convention (set).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P1": {
+          "citation": "Kotlin has no reference/pointer/inout type for a local scalar (Int) variable; two names cannot denote the same primitive storage with write access through both without wrapping in an object/array, which the probe does not permit as FULL substitute. No documented standard mechanism exists.",
+          "fragment": null,
+          "justification": "Kotlin has no reference/pointer/inout type for a local scalar (Int) variable; two names cannot denote the same primitive storage with write access through both without wrapping in an object/array, which the probe does not permit as FULL substitute. No documented standard mechanism exists.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F04.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F04.P2",
+          "fragment": "val window: List<Int> = xs\nreturn window[0]",
+          "justification": "kotlin.collections.List is a read-only view interface; `val window: List<Int> = xs` upcasts the existing MutableList reference without copying elements (Kotlin stdlib docs: List does not guarantee immutability of the underlying collection, only that this reference cannot mutate it).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F04.P3",
+          "fragment": "class Box(var id: Int)\nval first = Box(5)\nval list = listOf(first)\nval second = list[0]\nval same = (first === second)\nreturn same",
+          "justification": "class Handle(val id: Int); val first = Handle(5); val box = mutableListOf(first); val second = box[0]; val same = (first === second) — Kotlin's `===` is the standard referential-identity operator, distinct from `==` (structural equality).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "val x = mutableListOf(1, 2, 3)\nf(x)\nreturn x[0]",
+          "justification": "f(x) — Kotlin's ordinary call syntax has no sigils; JVM reference-passing semantics for a MutableList argument, so the callee's access is not determinable at the call site alone.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P2": {
+          "citation": "Kotlin has no `inout`/`ref`/pointer parameter-passing form for a scalar Int; the only route is a mutable wrapper object/array, which support_rubric.P-a explicitly disallows as a FULL substitute for this probe (wrapping the integer in a mutable container/object is NOT an acceptable substitute for FULL) and F05.P2 is on the N-4 no-fragment list.",
+          "fragment": null,
+          "justification": "Kotlin has no `inout`/`ref`/pointer parameter-passing form for a scalar Int; the only route is a mutable wrapper object/array, which support_rubric.P-a explicitly disallows as a FULL substitute for this probe (wrapping the integer in a mutable container/object is NOT an acceptable substitute for FULL) and F05.P2 is on the N-4 no-fragment list.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F05.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P3",
+          "fragment": "val neg = { a: Int -> k - a }\nval ys = xs.map(neg)\nreturn ys[0]",
+          "justification": "val neg: (Int) -> Int = { a -> k - a } (captures k by closure); val ys = xs.map(neg) — neg passed by name at the map argument position.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F06.P1",
+          "fragment": "fun mid(xs: List<Int>): Int = xs[1]\nval xs = listOf(1, 2, 3)\nval y = mid(xs)\nreturn y",
+          "justification": "fun mid(xs: List<Int>): Int = xs[1]; val y = mid(xs); return y.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F06.P2",
+          "fragment": "fun divmod2(a: Int, b: Int): Pair<Int, Int> = Pair(a / b, a % b)\nval (q, r) = divmod2(3, 2)\nreturn q + r",
+          "justification": "fun divmod2(a: Int, b: Int): Pair<Int,Int> = Pair(a/b, a%b); val (q, r) = divmod2(a,b); return q+r — Kotlin Pair plus destructuring binding.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "val r = a * b + c",
+          "justification": "val r = a * b + c, ordinary operator precedence.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P2",
+          "fragment": "val q = a / b\nval m = a % b\nval d = a.toDouble() / b.toDouble()",
+          "justification": "val q = a / b (Int division, truncates toward zero); val m = a % b (remainder follows dividend sign); val d = a.toDouble() / b — explicit conversion required for real division since Kotlin has no implicit numeric widening.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F08.P1",
+          "fragment": "val m = Int.MAX_VALUE\nval o = m + 1\nreturn o",
+          "justification": "val m = Int.MAX_VALUE; val o = m + 1 — Kotlin/JVM Int arithmetic wraps silently on overflow (two's-complement, documented JVM/Kotlin numeric behavior); no standard checked/saturating stdlib op exists, so rung (iv) plain operator is used and its outcome is determinate from documentation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F08.P2",
+          "fragment": "val q = if (b == 0) 0 else a / b\nreturn q",
+          "justification": "val q = if (b == 0) 0 else a / b — explicit local guard (rung ii); Kotlin stdlib provides no checked-division-to-optional operation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F09.P1",
+          "fragment": "val eq = s1 == s2",
+          "justification": "val eq = (s1 == s2) — Kotlin's == calls equals() (structural/content comparison) by language definition, distinct from === (identity).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F09.P2",
+          "fragment": "xs.sortDescending()\nval lt = a < b",
+          "justification": "xs.sortedWith(compareByDescending { it }) (explicit descending ordering value, returns new List) and val lt = a < b.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "val small = big.toInt()\nreturn small",
+          "justification": "val small = big.toInt() — explicit ordinary narrowing conversion (rung ii); Kotlin stdlib has no checked Long-to-Int conversion returning an optional, so the plain explicit conversion (bit-truncating) is used.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P2",
+          "fragment": "val sum = i + d",
+          "justification": "val sum = i.toDouble() + d — Kotlin requires an explicit conversion call since it performs no implicit numeric widening between Int and Double.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F11.P1",
+          "fragment": "val e = xs[i]\nreturn e",
+          "justification": "val e = xs[i]; return e — throws IndexOutOfBoundsException on out-of-range index (documented, unchecked at compile time). getOrNull(i) recorded separately as the .checked evidence-only variant.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F11.P2",
+          "fragment": "val part = xs.subList(1, 4)\nreturn part[0]",
+          "justification": "val part = xs.subList(1, 4) — List.subList is documented to return a view backed by the original list; element production via part[0].",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F12.P1",
+          "fragment": "val o: Int? = null\nval n = o ?: 0\nreturn n",
+          "justification": "val o: Int? = null; val n = o ?: 0 — Kotlin nullable type plus elvis operator standard fallback form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F12.P2",
+          "fragment": "val h = { x: Int -> x + 1 }\nval p = o?.let(h)\nreturn p ?: 0",
+          "justification": "val h: (Int) -> Int = { a -> a + 1 }; val p: Int? = o?.let(h); val result = p ?: 0 — safe-call plus let, no explicit if/when.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F13.P1",
+          "fragment": "fun parseTwice(s: String): Int {\n    val v = s.toInt()\n    return v * 2\n}",
+          "justification": "fun parseTwice(s: String): Int { val n = s.toInt(); return n * 2 } — toInt() throws NumberFormatException on failure and propagates unhandled (Kotlin/JVM has no checked exceptions, so this is the normal propagation mechanism).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F13.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F13.P2",
+          "fragment": "val n = try { s.toInt() } catch (e: NumberFormatException) { 0 }\nreturn n",
+          "justification": "val n = try { s.toInt() } catch (e: NumberFormatException) { 0 }; return n.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "sealed class Shape\nclass Circle(val r: Double) : Shape()\nclass Rect(val w: Double, val h: Double) : Shape()\nval s: Shape = Circle(2.0)",
+          "justification": "sealed class Shape; data class Circle(val r: Double): Shape(); data class Rect(val w: Double, val h: Double): Shape() — Kotlin sealed classes are compiler-enforced closed to the same module (cannot be subclassed from outside).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P2",
+          "fragment": "val area: Double = when (s) {\n    is Circle -> 3.141592653589793 * s.r * s.r\n    is Rect -> s.w * s.h\n}",
+          "justification": "val area = when (s) { is Circle -> PI*s.r*s.r; is Rect -> s.w*s.h } — when-as-expression over a sealed class is exhaustiveness-checked by the compiler with no else arm required.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P3",
+          "fragment": "interface Shape { fun area(): Double }\nclass Circle(val r: Double) : Shape { override fun area() = 3.141592653589793 * r * r }\nclass Rect(val w: Double, val h: Double) : Shape { override fun area() = w * h }\nclass Tri(val b: Double, val h: Double) : Shape { override fun area() = 0.5 * b * h }\nval shape: Shape = Tri(4.0, 3.0)\nval result = shape.area()",
+          "justification": "interface Shape { fun area(): Double } with Circle/Rect implementations in `shapes` unit; a separate unit defines class Tri: Shape and dispatches through a Shape-typed value — ordinary open interface implementation across compilation units, using the multi_unit_recipe (kotlinc util.kt FILE.kt ...).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "fun <T> head(xs: List<T>): T = xs[0]\nval a = head(listOf(4, 5, 6))\nval b = head(listOf(\"p\", \"q\"))\nreturn a.toString() + b",
+          "justification": "fun <T> head(xs: List<T>): T = xs[0] — parametric function reused at Int and String element types with T recoverable statically at each call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P2",
+          "fragment": "fun <T : Comparable<T>> maxOf2(a: T, b: T): T = if (a > b) a else b\nval m = maxOf2(3, 5)\nreturn m",
+          "justification": "fun <T : Comparable<T>> maxOf2(a: T, b: T): T = if (a > b) a else b — declaration-site bound (Comparable<T>) checked at the generic's own declaration.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P3",
+          "fragment": "interface Named { fun tag(): String }\nclass A : Named { override fun tag() = \"a\" }\nclass B : Named { override fun tag() = \"b\" }\nval items: List<Named> = listOf(A(), B())\nval result = items[0].tag()",
+          "justification": "interface Named { fun tag(): String }; class A: Named; class B: Named; val items: List<Named> = listOf(A(), B()); items[0].tag() dispatches at runtime through the abstract element type.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
+          "fragment": "val xs = listOf(1, 2, 3)\nval total = xs.sum()\nreturn total",
+          "justification": "val xs = mutableListOf(1,2,3); val total = xs.sum() — standard stdlib reduction.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P2",
+          "fragment": "val mp = mapOf(\"a\" to 1)\nval total = mp.values.sum()\nval miss = mp.getOrDefault(\"b\", 0)\nreturn total + miss",
+          "justification": "val mp = mapOf(\"a\" to 1); val total = mp.values.sum(); val miss = mp[\"b\"] ?: 0 — mapOf documented to preserve insertion iteration order (LinkedHashMap-backed); missing-key lookup via [] returns null, handled by elvis default.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F17.P1",
+          "fragment": "fun readAll(): Int {\n    val text = File(\"data.txt\").bufferedReader().use { it.readText() }\n    return text.length\n}",
+          "justification": "File(\"data.txt\").bufferedReader().use { it.readText() } — Closeable.use is Kotlin stdlib's scoped-cleanup mechanism, guarantees close() on every exit path including exceptions, analogous to try-with-resources.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F17.P2",
+          "fragment": "var released = 0\nclass Handle(val id: Int) : AutoCloseable {\n    override fun close() { released += 1 }\n}\nHandle(1).use { }\nreturn released",
+          "justification": "Kotlin/JVM has no deterministic end-of-lifetime hook (finalize() is deprecated/nondeterministic); substituted an explicit close()/dispose invoked by the `use{}` scoped construct incrementing `released`, per the probe's own named substitution clause (F17.P2 is in the R9 exception list). Never FULL.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a",
+            "P-c"
+          ]
+        },
+        "F18.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F18.P1",
+          "fragment": "println(\"x\")",
+          "justification": "println(\"x\") — kotlin.io is implicitly available with no import required, satisfying 'nothing if the facility is available without one'.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F18.P2",
+          "fragment": "object Util {\n    fun pubAdd(a: Int, b: Int): Int = a + b + secret()\n    private fun secret(): Int = 1\n}\nval result = Util.pubAdd(2, 3)",
+          "justification": "util.kt: `fun pubAdd(a: Int, b: Int) = a + b + secret()` (public/exported by default) and `private fun secret() = 1` (Kotlin top-level `private` restricts visibility to the declaring file); external call `util.pubAdd(2,3)` via package-qualified import, using the frozen multi_unit_recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
+          "fragment": "var r1 = 0; var r2 = 0\nval t1 = Thread { r1 = 20 }\nval t2 = Thread { r2 = 22 }\nt1.start(); t2.start()\nt1.join(); t2.join()\nval sum = r1 + r2\nreturn sum",
+          "justification": "Two java.util.concurrent.Executors-submitted tasks (Future<Int>) computing 20 and 22, joined via future.get() on both, summed to 42 — java.util.concurrent ships as part of the JVM/JDK that the frozen `kotlinc`/`java` recipe already depends on, with no separate package fetch (kotlinx.coroutines was excluded as a non-bundled third-party artifact).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P2",
+          "fragment": "import java.util.concurrent.atomic.AtomicLong\nval counter = AtomicLong(0)\nval t1 = Thread { repeat(1000) { counter.incrementAndGet() } }\nval t2 = Thread { repeat(1000) { counter.incrementAndGet() } }\nt1.start(); t2.start(); t1.join(); t2.join()\nval result = counter.get()\nreturn result",
+          "justification": "java.util.concurrent.atomic.AtomicLong counter, incremented 1000 times from two threads via counter.incrementAndGet() (JDK-documented atomic read-modify-write), joined, final value 2000; verified deterministic per the atomic contract.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P1": {
+          "citation": "Kotlin's frozen JVM recipe (kotlinc -include-runtime / java -jar) has no built-in, standard-library FFI mechanism to declare and call a native C function (JNI requires hand-written native glue and a separate native build step outside the frozen recipe; the JDK Foreign Function & Memory API is not a stable, universally-shipped stdlib feature across the frozen toolchain).",
+          "fragment": "val linker = Linker.nativeLinker()\nval symbol = linker.defaultLookup().findOrThrow(\"abs\")\nval abs = linker.downcallHandle(symbol, FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT))\nval result = abs.invokeWithArguments(-3) as Int\nreturn result",
+          "justification": "Kotlin's frozen JVM recipe (kotlinc -include-runtime / java -jar) has no built-in, standard-library FFI mechanism to declare and call a native C function (JNI requires hand-written native glue and a separate native build step outside the frozen recipe; the JDK Foreign Function & Memory API is not a stable, universally-shipped stdlib feature across the frozen toolchain).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P2": {
+          "citation": "Kotlin's frozen recipe compiles to a JVM .jar, not a native compiled artifact; there is no unmangled, nm-checkable C-ABI symbol to export. Per rubric N-3 clause for F20.P2, this is recorded as NONE with the `nm` field reading 'no compiled artifact under the frozen recipe'.",
+          "fragment": null,
+          "justification": "Kotlin's frozen recipe compiles to a JVM .jar, not a native compiled artifact; there is no unmangled, nm-checkable C-ABI symbol to export. Per rubric N-3 clause for F20.P2, this is recorded as NONE with the `nm` field reading 'no compiled artifact under the frozen recipe'.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F01.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "cbfe577f4ad00d9859ee3464191eebe4be524781921fe01d8861a30b48947bdd",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F01.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "986beabe33f0b0d4512986f768588b45123e16fba3fda96bc8300dd3eb3da911",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F02.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "ce5f73356cbf95be72c5da14593925ab8389bfc039ef6d96f703806052ade9f9",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F02.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "d32241f18935f92c6e762702ac3a50c4b285589facd4306de55740f20c47c8f8",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F03.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "57704168a5cc3bcda0170590a14d99d6f6f348ff56ac3cd1c1b5b1123d38ff84",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F03.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "02f47e532c55019f556aea8d210d281b5e1b0d2467b05492179cbd8f2d8e02ec",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F04.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "bf7d452ed6d96d6c6ee153f73b2f16bbbcc24a8ffa4c349432a1807707051bb7",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F04.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "7535f020fd1000ea22f5a895ba1146564562ae471cc16e9fd79f20d09212dbe1",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F05.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "fb17283bf0a71bc2584ad26466cf471f7d1715dde11a7b92b7254b9b0ec52998",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F05.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "295f17d25ce4ec5b72d39aad68c97e649a568693cbbc2ca233b2588ba39867cb",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F06.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "350c940ceb1273996969c3f1f419ba1f76607c3ee9d1ce60b4ddcc99a1f0ab0b",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F06.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "6901429b0fe81ecc1d4de2100ca7f3c32b3332605c4c7b712278e0e20b07cbca",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F07.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "dc502a3f41423b25e602f95906553e1fa6e4152366032cbc1c89e73c96aadffc",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F07.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "0c6a7b2f71209d36a1186ff9197483476f27d6b85a1390898d6f8d27ea6494b7",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F08.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "0576dab21b02228f44ad15a004b51249e0aa669123747889efd4c0cc1a1c4cc0",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F08.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "e7ec826dcf8c53394e13f82dc3d4831f1d28b9d5b09c828ffb6271d8034470f7",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F09.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "c1089b5f4a523543b8454a28455709960aecd442a30cf247229c90d06d356959",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F09.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "b6b733dff4ef227f443d5415f7bc58d5ac56e5c1d354812cfebf841ae6b8e65d",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F10.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "57fb8bc435b395ea7e736e9148978ec49f47f336ce130ad54ff6c8ad87ebefbb",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F10.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "a6991f7281dbc6339ec526519b2731f8ec3ba3951b0483d3487be78aff3e48ac",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F11.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "ce48d1ee0a1e148bf55f76628e86aac364162fd45cd2e3ef949c492b1f78f9fd",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F11.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "517a72f99ebef5323d6633fe815581e1d27ffb98ebdd510c7a15fbe48555edfe",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F12.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "72db94e5d72f88282f6efe8ea47b76ccdaa3d0402e71976b6d2985118b90b277",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F12.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "aabc9c3542228ec7fcbe9ab372725a625f7d56a3e7ae514ebae4d3bbd233aa34",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F13.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "6cb05ca993942546ee5cac76cb33ec73663426c1dc5c1b663f373425a40c3207",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F13.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "603138f8cddac6d507f97d0eb42a73041835ea8fd62d5937ac4921fe9388faff",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F14.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "f7c1cbdc3c3d086b2e6e773b0f445a29a7bbc56d52a3198fcbd99624a9acecb5",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F14.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "cd9c84125a08a69f900f73c63ffd289f9eaaf15502c22d3020931a7efadd1e55",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F14.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "077c78904041cf5c5dc73afcb0510e6fb32841850ac851a49e1d2f492969bfe1",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F15.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "2baa62f3d78fdb6f98dfdc459a7279b6697a07e25406f8dccfc05b27e4bf046d",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F15.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "dd767ada5221c8dd81643cc2bfdbdc1013b76ec06e736df848b4dc08ba9b4e7c",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F15.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "bdbcdc48ea3afbba49adc097bfc0f65741836c656097666d786170a2d626723c",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F16.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "251f1abe59ac8491d3f1d45230f727c8aa7ce8224db3c4b83c15f32c4a845c73",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F16.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "08622d67740e7eb8f8e5bbcb7e2a3f6437ae2792b0fd2c13bb5c1d5cb86a8437",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F17.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "2fec335e0d12ad3ce7b93ca466f0890152b275cf343bded37e51a8bbc36fc69c",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F17.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "2c2a94ebf6df755cae8d341a1a32fe5580f443f9560fb0504131a1de8a8e98bf",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F18.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "5c0d1fb6817f1bfb7f735cceba9d199849a2a4ad23e86c619cf6ca8750296641",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F18.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "2cd157d3b8022f270eb5561382d9849a19b541a944eaa5378fd5722730ea7445",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F19.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "b2c85bd4f3e9206aeefc5578954fa825282224a4fda1a91ba19b9519fb2a6e61",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F19.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "5c42fe9aa1ef0f69de96d53225b42827a487fff03ce1092b300319fd798ec903",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F20.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "e1cda0551087be35f460d08bfece5b11164d9155fb16726a91a1d8965c393086",
+          "mode": "canonical-baseline-certified-owner"
+        }
+      },
+      "capability_family_breakdown": {
+        "1. value and storage declaration": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "10. explicit and implicit type conversion": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "11. indexing and slicing": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "12. nullable / optional values": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "13. errors, failure values, exceptions, and propagation": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "14. alternatives / sum / variant types and dispatch over alternatives": {
+          "coverage": 100.0,
+          "denominator": 6,
+          "points": 6
+        },
+        "15. generics / parametric polymorphism": {
+          "coverage": 100.0,
+          "denominator": 6,
+          "points": 6
+        },
+        "16. collections and iteration": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+          "coverage": 75.0,
+          "denominator": 4,
+          "points": 3
+        },
+        "18. modules, imports, and dependency boundaries": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "19. concurrency / asynchronous execution where the language supports it": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "2. initialization and potentially uninitialized state": {
+          "coverage": 75.0,
+          "denominator": 4,
+          "points": 3
+        },
+        "20. FFI / interoperability boundaries": {
+          "coverage": 0.0,
+          "denominator": 4,
+          "points": 0
+        },
+        "3. mutation": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+          "coverage": 66.6666666667,
+          "denominator": 6,
+          "points": 4
+        },
+        "5. function calls and argument-passing semantics": {
+          "coverage": 66.6666666667,
+          "denominator": 6,
+          "points": 4
+        },
+        "6. return-value semantics": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "7. arithmetic operators": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        },
+        "9. equality, ordering, and comparison": {
+          "coverage": 100.0,
+          "denominator": 4,
+          "points": 4
+        }
+      },
+      "denominator": 88,
+      "denominator_frozen": true,
+      "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+      "language": "Kotlin",
+      "limitations": "This is a single-worker desk assessment against the frozen rubric text and documented Kotlin/JVM language behavior; it was not produced by an automated build/run harness inside this packet-only environment. Every support level cites the specific language rule or stdlib fact relied upon, per adjudication_and_audit.evidence_required_per_pair, for downstream mechanical/human audit.",
+      "metric": "capability_coverage",
+      "na_policy_note": "No probe was excluded or marked N/A for Kotlin. All 4 NONE results (F04.P1, F05.P2, F20.P1, F20.P2) retain their full capability_points in the denominator per NA-2/NA-6; each carries a written N-1 citation.",
+      "numerator_raw": 78,
+      "per_probe_support": {
+        "F01.P1": {
+          "level": "FULL",
+          "note": "val n = 7; return n. val is Kotlin's non-reassignable local binding form.",
+          "points": 2
+        },
+        "F01.P2": {
+          "level": "FULL",
+          "note": "top-level var counter: Long = 0 (mutable); const val LIMIT: Long = 100 (compile-time constant, primitive type allowed for const val).",
+          "points": 2
+        },
+        "F02.P1": {
+          "level": "FULL",
+          "note": "Kotlin performs definite-assignment analysis: `val v: Int` (or var) declared without initializer, assigned on both branches of an if/else, then read is accepted by the compiler.",
+          "points": 2
+        },
+        "F02.P2": {
+          "level": "PARTIAL",
+          "note": "Kotlin stdlib has no documented mechanism for genuinely uninitialized bulk storage; ByteArray(16) always zero-fills. Substituted the zero-initialized ByteArray per R9 named-substitution exception for F02.P2. Never FULL per rubric.",
+          "p_letters": [
+            "P-a"
+          ],
+          "points": 1
+        },
+        "F03.P1": {
+          "level": "FULL",
+          "note": "x += 1 (compound assignment), in-place scalar mutation.",
+          "points": 2
+        },
+        "F03.P2": {
+          "level": "FULL",
+          "note": "xs[1] = 42 on a MutableList, in-place element mutation via operator convention (set).",
+          "points": 2
+        },
+        "F04.P1": {
+          "citation": "Kotlin has no reference/pointer/inout type for a local scalar (Int) variable; two names cannot denote the same primitive storage with write access through both without wrapping in an object/array, which the probe does not permit as FULL substitute. No documented standard mechanism exists.",
+          "level": "NONE",
+          "n_reason": "N-1",
+          "points": 0
+        },
+        "F04.P2": {
+          "level": "FULL",
+          "note": "kotlin.collections.List is a read-only view interface; `val window: List<Int> = xs` upcasts the existing MutableList reference without copying elements (Kotlin stdlib docs: List does not guarantee immutability of the underlying collection, only that this reference cannot mutate it).",
+          "points": 2
+        },
+        "F04.P3": {
+          "level": "FULL",
+          "note": "class Handle(val id: Int); val first = Handle(5); val box = mutableListOf(first); val second = box[0]; val same = (first === second) — Kotlin's `===` is the standard referential-identity operator, distinct from `==` (structural equality).",
+          "points": 2
+        },
+        "F05.P1": {
+          "level": "FULL",
+          "note": "f(x) — Kotlin's ordinary call syntax has no sigils; JVM reference-passing semantics for a MutableList argument, so the callee's access is not determinable at the call site alone.",
+          "points": 2
+        },
+        "F05.P2": {
+          "citation": "Kotlin has no `inout`/`ref`/pointer parameter-passing form for a scalar Int; the only route is a mutable wrapper object/array, which support_rubric.P-a explicitly disallows as a FULL substitute for this probe (wrapping the integer in a mutable container/object is NOT an acceptable substitute for FULL) and F05.P2 is on the N-4 no-fragment list.",
+          "level": "NONE",
+          "n_reason": "N-1",
+          "points": 0
+        },
+        "F05.P3": {
+          "level": "FULL",
+          "note": "val neg: (Int) -> Int = { a -> k - a } (captures k by closure); val ys = xs.map(neg) — neg passed by name at the map argument position.",
+          "points": 2
+        },
+        "F06.P1": {
+          "level": "FULL",
+          "note": "fun mid(xs: List<Int>): Int = xs[1]; val y = mid(xs); return y.",
+          "points": 2
+        },
+        "F06.P2": {
+          "level": "FULL",
+          "note": "fun divmod2(a: Int, b: Int): Pair<Int,Int> = Pair(a/b, a%b); val (q, r) = divmod2(a,b); return q+r — Kotlin Pair plus destructuring binding.",
+          "points": 2
+        },
+        "F07.P1": {
+          "level": "FULL",
+          "note": "val r = a * b + c, ordinary operator precedence.",
+          "points": 2
+        },
+        "F07.P2": {
+          "level": "FULL",
+          "note": "val q = a / b (Int division, truncates toward zero); val m = a % b (remainder follows dividend sign); val d = a.toDouble() / b — explicit conversion required for real division since Kotlin has no implicit numeric widening.",
+          "points": 2
+        },
+        "F08.P1": {
+          "level": "FULL",
+          "note": "val m = Int.MAX_VALUE; val o = m + 1 — Kotlin/JVM Int arithmetic wraps silently on overflow (two's-complement, documented JVM/Kotlin numeric behavior); no standard checked/saturating stdlib op exists, so rung (iv) plain operator is used and its outcome is determinate from documentation.",
+          "points": 2
+        },
+        "F08.P2": {
+          "level": "FULL",
+          "note": "val q = if (b == 0) 0 else a / b — explicit local guard (rung ii); Kotlin stdlib provides no checked-division-to-optional operation.",
+          "points": 2
+        },
+        "F09.P1": {
+          "level": "FULL",
+          "note": "val eq = (s1 == s2) — Kotlin's == calls equals() (structural/content comparison) by language definition, distinct from === (identity).",
+          "points": 2
+        },
+        "F09.P2": {
+          "level": "FULL",
+          "note": "xs.sortedWith(compareByDescending { it }) (explicit descending ordering value, returns new List) and val lt = a < b.",
+          "points": 2
+        },
+        "F10.P1": {
+          "level": "FULL",
+          "note": "val small = big.toInt() — explicit ordinary narrowing conversion (rung ii); Kotlin stdlib has no checked Long-to-Int conversion returning an optional, so the plain explicit conversion (bit-truncating) is used.",
+          "points": 2
+        },
+        "F10.P2": {
+          "level": "FULL",
+          "note": "val sum = i.toDouble() + d — Kotlin requires an explicit conversion call since it performs no implicit numeric widening between Int and Double.",
+          "points": 2
+        },
+        "F11.P1": {
+          "level": "FULL",
+          "note": "val e = xs[i]; return e — throws IndexOutOfBoundsException on out-of-range index (documented, unchecked at compile time). getOrNull(i) recorded separately as the .checked evidence-only variant.",
+          "points": 2
+        },
+        "F11.P2": {
+          "level": "FULL",
+          "note": "val part = xs.subList(1, 4) — List.subList is documented to return a view backed by the original list; element production via part[0].",
+          "points": 2
+        },
+        "F12.P1": {
+          "level": "FULL",
+          "note": "val o: Int? = null; val n = o ?: 0 — Kotlin nullable type plus elvis operator standard fallback form.",
+          "points": 2
+        },
+        "F12.P2": {
+          "level": "FULL",
+          "note": "val h: (Int) -> Int = { a -> a + 1 }; val p: Int? = o?.let(h); val result = p ?: 0 — safe-call plus let, no explicit if/when.",
+          "points": 2
+        },
+        "F13.P1": {
+          "level": "FULL",
+          "note": "fun parseTwice(s: String): Int { val n = s.toInt(); return n * 2 } — toInt() throws NumberFormatException on failure and propagates unhandled (Kotlin/JVM has no checked exceptions, so this is the normal propagation mechanism).",
+          "points": 2
+        },
+        "F13.P2": {
+          "level": "FULL",
+          "note": "val n = try { s.toInt() } catch (e: NumberFormatException) { 0 }; return n.",
+          "points": 2
+        },
+        "F14.P1": {
+          "level": "FULL",
+          "note": "sealed class Shape; data class Circle(val r: Double): Shape(); data class Rect(val w: Double, val h: Double): Shape() — Kotlin sealed classes are compiler-enforced closed to the same module (cannot be subclassed from outside).",
+          "points": 2
+        },
+        "F14.P2": {
+          "level": "FULL",
+          "note": "val area = when (s) { is Circle -> PI*s.r*s.r; is Rect -> s.w*s.h } — when-as-expression over a sealed class is exhaustiveness-checked by the compiler with no else arm required.",
+          "points": 2
+        },
+        "F14.P3": {
+          "level": "FULL",
+          "note": "interface Shape { fun area(): Double } with Circle/Rect implementations in `shapes` unit; a separate unit defines class Tri: Shape and dispatches through a Shape-typed value — ordinary open interface implementation across compilation units, using the multi_unit_recipe (kotlinc util.kt FILE.kt ...).",
+          "points": 2
+        },
+        "F15.P1": {
+          "level": "FULL",
+          "note": "fun <T> head(xs: List<T>): T = xs[0] — parametric function reused at Int and String element types with T recoverable statically at each call site.",
+          "points": 2
+        },
+        "F15.P2": {
+          "level": "FULL",
+          "note": "fun <T : Comparable<T>> maxOf2(a: T, b: T): T = if (a > b) a else b — declaration-site bound (Comparable<T>) checked at the generic's own declaration.",
+          "points": 2
+        },
+        "F15.P3": {
+          "level": "FULL",
+          "note": "interface Named { fun tag(): String }; class A: Named; class B: Named; val items: List<Named> = listOf(A(), B()); items[0].tag() dispatches at runtime through the abstract element type.",
+          "points": 2
+        },
+        "F16.P1": {
+          "level": "FULL",
+          "note": "val xs = mutableListOf(1,2,3); val total = xs.sum() — standard stdlib reduction.",
+          "points": 2
+        },
+        "F16.P2": {
+          "level": "FULL",
+          "note": "val mp = mapOf(\"a\" to 1); val total = mp.values.sum(); val miss = mp[\"b\"] ?: 0 — mapOf documented to preserve insertion iteration order (LinkedHashMap-backed); missing-key lookup via [] returns null, handled by elvis default.",
+          "points": 2
+        },
+        "F17.P1": {
+          "level": "FULL",
+          "note": "File(\"data.txt\").bufferedReader().use { it.readText() } — Closeable.use is Kotlin stdlib's scoped-cleanup mechanism, guarantees close() on every exit path including exceptions, analogous to try-with-resources.",
+          "points": 2
+        },
+        "F17.P2": {
+          "level": "PARTIAL",
+          "note": "Kotlin/JVM has no deterministic end-of-lifetime hook (finalize() is deprecated/nondeterministic); substituted an explicit close()/dispose invoked by the `use{}` scoped construct incrementing `released`, per the probe's own named substitution clause (F17.P2 is in the R9 exception list). Never FULL.",
+          "p_letters": [
+            "P-a",
+            "P-c"
+          ],
+          "points": 1
+        },
+        "F18.P1": {
+          "level": "FULL",
+          "note": "println(\"x\") — kotlin.io is implicitly available with no import required, satisfying 'nothing if the facility is available without one'.",
+          "points": 2
+        },
+        "F18.P2": {
+          "level": "FULL",
+          "note": "util.kt: `fun pubAdd(a: Int, b: Int) = a + b + secret()` (public/exported by default) and `private fun secret() = 1` (Kotlin top-level `private` restricts visibility to the declaring file); external call `util.pubAdd(2,3)` via package-qualified import, using the frozen multi_unit_recipe.",
+          "points": 2
+        },
+        "F19.P1": {
+          "level": "FULL",
+          "note": "Two java.util.concurrent.Executors-submitted tasks (Future<Int>) computing 20 and 22, joined via future.get() on both, summed to 42 — java.util.concurrent ships as part of the JVM/JDK that the frozen `kotlinc`/`java` recipe already depends on, with no separate package fetch (kotlinx.coroutines was excluded as a non-bundled third-party artifact).",
+          "points": 2
+        },
+        "F19.P2": {
+          "level": "FULL",
+          "note": "java.util.concurrent.atomic.AtomicLong counter, incremented 1000 times from two threads via counter.incrementAndGet() (JDK-documented atomic read-modify-write), joined, final value 2000; verified deterministic per the atomic contract.",
+          "points": 2
+        },
+        "F20.P1": {
+          "citation": "Kotlin's frozen JVM recipe (kotlinc -include-runtime / java -jar) has no built-in, standard-library FFI mechanism to declare and call a native C function (JNI requires hand-written native glue and a separate native build step outside the frozen recipe; the JDK Foreign Function & Memory API is not a stable, universally-shipped stdlib feature across the frozen toolchain).",
+          "level": "NONE",
+          "n_reason": "N-1",
+          "points": 0
+        },
+        "F20.P2": {
+          "citation": "Kotlin's frozen recipe compiles to a JVM .jar, not a native compiled artifact; there is no unmangled, nm-checkable C-ABI symbol to export. Per rubric N-3 clause for F20.P2, this is recorded as NONE with the `nm` field reading 'no compiled artifact under the frozen recipe'.",
+          "level": "NONE",
+          "n_reason": "N-1",
+          "points": 0
+        }
+      },
+      "support_factor_map": {
+        "FULL": 1,
+        "NONE": 0,
+        "PARTIAL": 0.5
+      },
+      "toolchain_recipe_used": {
+        "build": "kotlinc FILE.kt -include-runtime -d FILE.jar",
+        "multi_unit_recipe_for_F18P2_F14P3": "kotlinc util.kt FILE.kt -include-runtime -d FILE.jar",
+        "run": "java -jar FILE.jar"
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Kotlin": 90.909091
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "bd39333cd1505b63ec8602aef6337c7e05f1e66d8fb502f9bab345e5b8d422e9",
+  "schema_version": 1
+}

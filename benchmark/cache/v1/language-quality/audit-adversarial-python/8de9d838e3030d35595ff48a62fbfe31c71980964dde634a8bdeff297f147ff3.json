@@ -3,11 +3,10 @@
     "Python"
   ],
   "certification": {
-    "compatibility_migration": "language-quality-reuse-audit-v1-projection",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "language_quality_reuse_audit_recertification_candidate": true,
-    "new_paid_provider_call": false,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -43,27 +42,11 @@
     },
     "work_unit_id": "audit-adversarial-python"
   },
-  "migration": {
-    "current_mechanical_verification": "current-validator",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Language Quality reusable-artifact currency audit judged the exact same frozen artifact Git object under the exact same current toolchain and runtime pins. Judge/provider and Task Packet transport changes do not alter that experiment; the current validator is rerun before promotion and no new provider call is claimed.",
-    "migration_rule": "language-quality-reuse-audit-v1-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "7217cdfd608a9f37af79734d4e3b7f63620adf22c5543f2f17b3a13584a255c6",
-    "source_record": "v1/language-quality/audit-adversarial-python/7217cdfd608a9f37af79734d4e3b7f63620adf22c5543f2f17b3a13584a255c6.json",
-    "source_record_sha256": "d917b71b1925ee9483b6feae7099b0823bb189fcf591e6c068ec33e93074ac39",
-    "source_result_sha256": "e72ec32a1bc0743eb24ff5df7b590a2dff2e3da5959ae1242dcec4b7d5165db2",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "03f58f5fcab46ee878d6e31fc41d90fd1b974bdfc449de15a2b72e1825bcb05b",
-    "run_id": "cache-recertify-9f13d62",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "audit-adversarial-python"
   },
   "result": {

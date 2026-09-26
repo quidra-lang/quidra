@@ -3,8 +3,10 @@
     "TypeScript"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -53,29 +55,11 @@
     "work_unit_id": "sc-canonical-fragment--typescript--f08-p1",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186",
-    "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-    "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
-    "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "09ae5452a5f569e285de3f2e4173ad085f3792faefcf60132372137319df1737",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--typescript--f08-p1"
   },
   "result": {
@@ -83,7 +67,7 @@
     "evidence": {
       "canonical_fragments": {
         "F08.P1": {
-          "citation": "legacy-cache:v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json#F08.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F08.P1",
           "fragment": null,
           "justification": "TypeScript/JavaScript number is IEEE-754 binary64 rather than a signed 32-bit integer type. ToInt32 coercion through a bitwise operator is a conversion substitute for the required fixed-width binding, and F08.P1 has no R9 substitution. The prior FULL/P-a interpretations are therefore NONE under the current rubric.",
           "level": "NONE",
@@ -109,13 +93,14 @@
       },
       "canonical_verification": {},
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "TypeScript",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F08.P1",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-        "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
-        "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9"
+        "source_record": "baseline/semantic-owners/typescript.json",
+        "source_record_sha256": "e4c0a1c7301c90f5b8f658a6e1735dc4ca26bcaf89de69d06580e2298036d123",
+        "source_result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472"
       }
     },
     "requirements": {
@@ -123,6 +108,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "fce076842ee98b49beebfd4669dde1679525cf270aaa0472ae22bcea66ee5fa4",
+  "result_sha256": "6d13385d5dfbe2798a9489ddfcff51c7cd1ba0f3bb31403ca163106bbf9440aa",
   "schema_version": 1
 }

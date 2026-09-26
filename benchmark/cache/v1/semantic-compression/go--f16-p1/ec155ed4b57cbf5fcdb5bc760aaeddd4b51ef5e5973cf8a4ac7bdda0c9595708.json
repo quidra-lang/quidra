@@ -3,8 +3,10 @@
     "Go"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--go--f16-p1",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe",
-    "source_record": "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-    "source_record_sha256": "94e53e7feb767902cdd77341fa4c09e010bbc807156395aeba66b6b816ef29ad",
-    "source_result_sha256": "293f7d76d5f7d0a5297897c06a6d20344309e76e282b6327856da64189617263",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "f05aead314df73e8c61ce65cfdd8c4b2a74c753527a26d27fb89459014037fdd",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--go--f16-p1"
   },
   "result": {
@@ -82,7 +66,7 @@
     "evidence": {
       "canonical_fragments": {
         "F16.P1": {
-          "citation": "legacy-cache:v1/semantic-compression/go/c3ecb3195839703799bf2201d88434b4c856fe01d4a27e527a5c55209b041de1.json#F16.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
           "fragment": "xs := []int{1, 2, 3}\ntotal := 0\nfor _, v := range xs { total += v }\nreturn total",
           "justification": "xs := []int32{1,2,3}; explicit range loop summing into total (Go stdlib has no generic Sum/fold for slices), matching the canonical task's fallback to explicit iteration.",
           "level": "FULL",
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F16.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "0c50c70e576e9c73f4b695a080b37847533937a55ca34c0f23b9aebceb40e0d3",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/go/5e58b6b600992c2448b7b4ad4cb6d207b2a4b752e0319260f8d4c4c94a112013.json",
-          "source_record_sha256": "e70793b09f2a19bc4f31a1933d6c3896d5e05923471e2c35b2b937152b20bb8b",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Go",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F16.P1",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-        "source_record_sha256": "94e53e7feb767902cdd77341fa4c09e010bbc807156395aeba66b6b816ef29ad",
-        "source_result_sha256": "293f7d76d5f7d0a5297897c06a6d20344309e76e282b6327856da64189617263"
+        "source_record": "baseline/semantic-owners/go.json",
+        "source_record_sha256": "062a57f5d821c6a23b17a7b67aa5787b34824c7a9b9043b5008c0206cc4c6e3e",
+        "source_result_sha256": "0b7b86c567363edfa4ba4b3b6c2b5c3335e59047d6f7e005797d67987299519d"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "16e70aa4e0149e0adfd204cf10c92dec450614260eae5d4c2d38c460835694a3",
+  "result_sha256": "45e68b0e3ed09a28fafbd52d869ec2f48507150da4ad0a46106794844ae4fa4a",
   "schema_version": 1
 }

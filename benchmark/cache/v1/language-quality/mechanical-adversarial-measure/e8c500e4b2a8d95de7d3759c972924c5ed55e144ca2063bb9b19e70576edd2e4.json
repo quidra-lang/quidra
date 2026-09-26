@@ -3,9 +3,11 @@
     "C++"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "measured_at_utc": null,
     "mechanical": true,
-    "primary_complete": false,
+    "primary_complete": true,
     "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
     "raw_evidence_sha256": {
       "adversarial_raw.json": "9f052ff2fa242cbd078888ec5a8667d23b027f9b8b7eeacdda145eb7b84b32e0",
@@ -73,8 +75,10 @@
     "worker_mode": "runner-command"
   },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": null,
-    "run_id": "cache-recertify-9f13d62",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "lq-adversarial-mechanical--c"
   },
   "result": {

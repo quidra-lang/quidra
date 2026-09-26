@@ -3,17 +3,14 @@
     "Rust"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
     "canonical_fragment_equivalence_proved": true,
-    "compatibility_migration": "semantic-legacy-consumer-recertification",
     "current_validator_revalidated": true,
-    "primary_complete": false,
-    "semantic_legacy_consumer_recertified": true,
+    "primary_complete": true,
     "unit_complete": true,
-    "validator_pass": true,
-    "validator_recertification_candidate": true,
-    "validator_recertification_source_epoch": "2026-09-medium",
-    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+    "validator_pass": true
   },
   "evaluation": "semantic_compression",
   "fingerprint": "c624b9d12f911ffe4d859a9118bf500275335e7e44f20a09bfbe8efe09b55f10",
@@ -59,50 +56,23 @@
     "work_unit_id": "sc-metrics-local--part-2--rust",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
-    "migration_rule": "semantic-legacy-consumer-recertification",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "ab79eafb92f267f87ca816b3010dd0e75272bdffd741d793c6e163a9fe884d9e",
-    "source_record": "v1/semantic-compression/rust/ab79eafb92f267f87ca816b3010dd0e75272bdffd741d793c6e163a9fe884d9e.json",
-    "source_record_sha256": "b1def14a050a8a6937cd767c30584b1d4d3b53511f31cf540e918c62b6cc7c6b",
-    "source_result_sha256": "32601f4e1ef544aedc60f3035320e6e2a1e14d30649dc99ef935edfdf12dbb00",
-    "transformed_fields": [
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "df99a6d2421a79e86ab9b4ca12ae78577db257185a6189526502428ea9d07d05",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-metrics-local--part-2--rust"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
-      "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
-      "legacy_fragment_equivalence": {
-        "all_explicit_fragments_matched": false,
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "canonical_fragment_catalog_content_sha256": "747d85fce83d0bf20646982bac18fd8c4c06c386bdab795b734828d2b16de3a2",
         "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
-        "dropped_now_none_probes": [],
-        "proof_mode": "shared-experiment-owner-catalog",
-        "schema_version": 1,
-        "scientific_identity_sha256": "ea696e92fcf76cf2d6fb99e387aae3cce4193cb391d15bebf3c0be93cdfc63f3",
-        "source_density_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
-        "source_density_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
-        "source_metric_record": "v1/semantic-compression/rust/ab79eafb92f267f87ca816b3010dd0e75272bdffd741d793c6e163a9fe884d9e.json",
-        "source_metric_record_sha256": "b1def14a050a8a6937cd767c30584b1d4d3b53511f31cf540e918c62b6cc7c6b",
-        "source_owner_record": "v1/semantic-compression/rust/e76751d96630ff4bde5ed9fcda44b8543915e11c49a6d996bc13764c3ce652ba.json",
-        "source_owner_record_sha256": "5d309a31d88565b5409435f77507f5f11fd25bf78b9ae10293d20d5d523391a3",
-        "source_run_id": "2026-09-23-fce5cfa-gh16"
+        "schema_version": 1
       },
+      "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
       "metric.semantic_locality": {
         "method": "Per spec 6.1.3.C, for each frozen probe's measured_fragment, the number of required external semantic lookups or declaration-graph hops (callee signature, variable declaration, type declaration, overload set, trait/interface impl, imported definition, global config/mode) needed to resolve the frozen semantic_facts_expected for that probe was counted. A lookup was counted ONLY when it was necessary to resolve a fact in the fixed inventory (per spec: 'a lookup that is optional for extra detail must not be counted'). Context explicitly included inside a probe's measured_fragment boundary (e.g. F05.P2's put declaration, F14.P1's full enum declaration, F20.P2's whole exported function) required zero external lookups. Context the probe declares as 'given'/'already declared elsewhere' (R5) was counted as one non-local lookup only when a listed semantic fact actually depended on it (e.g. the declared element type of an already-declared Vec, or a callee's signature needed to determine caller-side aliasing/move behavior per F05.P1's own scoring note).",
         "normalization": {
@@ -185,6 +155,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "fe2bc88ef4e3af8d5ba7fb3f021cf66f1dac271c58be244b4afa1f574dcfa21b",
+  "result_sha256": "23881943041c2d351a633baf95da2fee1a7b1a1ad9adef2f5e40953f78249b7b",
   "schema_version": 1
 }

@@ -3,8 +3,9 @@
     "C++"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 135,
@@ -57,27 +58,11 @@
     "work_unit_id": "learnability-i3-i4--c",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "d3d68bcd164ac02b771a032250a2cb40eaebb3567323a9c92cb79fa2102f1d17",
-    "source_record": "v1/llm-learnability/c/d3d68bcd164ac02b771a032250a2cb40eaebb3567323a9c92cb79fa2102f1d17.json",
-    "source_record_sha256": "f602a8b72ecce9ee24b3b1d707c4bc08b7a96caca7e0e6da7297be0fa8c480dc",
-    "source_result_sha256": "6fd035e33f7bd2a6ef9a94253d04d8dd5162706dc13cefd634bfea383254f4fd",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "1db997994cfd5604174437fbe88666d328ca8fa19859f3d2eefe32a9f4b1c362",
-    "run_id": "cache-recertify-c401796",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i3-i4--c"
   },
   "result": {

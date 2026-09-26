@@ -3,8 +3,9 @@
     "Quidra"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 83,
@@ -71,27 +72,11 @@
     "work_unit_id": "learnability-i3-i4--quidra",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "7fffdbfe655957dc2e0fd50298a80a967a42d2524d87cb04ceb8dbcc8d7a64b8",
-    "source_record": "v1/llm-learnability/quidra/7fffdbfe655957dc2e0fd50298a80a967a42d2524d87cb04ceb8dbcc8d7a64b8.json",
-    "source_record_sha256": "a7ad24a56610b279692352c6a78893d7f9ecd474f89d5921c889c279a731cf07",
-    "source_result_sha256": "a5cfc39c8767de92c07d1005db644ef653cec39fe7c793f51486ce994e753631",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "e24158a5ac072220af64e3072adf78a146947717fe56b79c25b2cb27d6a916d5",
-    "run_id": "cache-recertify-c401796",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i3-i4--quidra"
   },
   "result": {

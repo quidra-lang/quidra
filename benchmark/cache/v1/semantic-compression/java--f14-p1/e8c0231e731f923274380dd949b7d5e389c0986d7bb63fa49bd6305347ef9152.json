@@ -3,8 +3,10 @@
     "Java"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -53,29 +55,11 @@
     "work_unit_id": "sc-canonical-fragment--java--f14-p1",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0",
-    "source_record": "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-    "source_record_sha256": "e9f5cc1c703dbc5b93395e749cb3dc2346ad98e1c4dbe5c3225821aecd1a72a8",
-    "source_result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "8a66f62b71ef8377671cf6b6bbb1179927f672230a8501dd4bb74ad063f2e2d7",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--java--f14-p1"
   },
   "result": {
@@ -83,9 +67,9 @@
     "evidence": {
       "canonical_fragments": {
         "F14.P1": {
-          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F14.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
           "fragment": "sealed interface Shape permits Circle, Rect {}\nrecord Circle(double r) implements Shape {}\nrecord Rect(double w, double h) implements Shape {}\nShape s = new Circle(2.0);",
-          "justification": "sealed interface Shape permits Circle, Rect {} ; record Circle(double r) implements Shape {} ; record Rect(double w, double h) implements Shape {} \u2014 sealed hierarchy is a closed alternative set enforced by the compiler (Java 17+ sealed classes).",
+          "justification": "sealed interface Shape permits Circle, Rect {} ; record Circle(double r) implements Shape {} ; record Rect(double w, double h) implements Shape {} — sealed hierarchy is a closed alternative set enforced by the compiler (Java 17+ sealed classes).",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
@@ -93,21 +77,20 @@
       },
       "canonical_verification": {
         "F14.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "2649de7fa38b6aca6d8597bd77fd28d8dac947f1cb3dd8e83aeba5d0378432e8",
-          "fragment_origin": "reviewed-current-recertification-override",
-          "mode": "legacy-evidence-recertification",
-          "recertifier": "GPT-5.6 Sol",
-          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Java",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F14.P1",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-        "source_record_sha256": "e9f5cc1c703dbc5b93395e749cb3dc2346ad98e1c4dbe5c3225821aecd1a72a8",
-        "source_result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90"
+        "source_record": "baseline/semantic-owners/java.json",
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
       }
     },
     "requirements": {
@@ -115,6 +98,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "341901acc4daa549b6059c476187293268a14faa3309928e755571808301fbf2",
+  "result_sha256": "681e6ff656544620875f70f2c591baed120337b96b5aada66c9095fc917b3c83",
   "schema_version": 1
 }

@@ -3,10 +3,12 @@
     "Swift"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
     "configuration_signature": "{\"model\": \"claude-sonnet-5\", \"provider\": \"anthropic-messages\", \"sampling\": {\"decoding_state\": \"provider-controlled\", \"effort\": \"high\", \"orchestration_effort\": \"low\", \"sampling_parameters\": \"omitted\"}}",
     "max_trial_output_tokens": 3808,
-    "primary_complete": false,
+    "primary_complete": true,
     "proficiency_integrity": true,
     "proficiency_primary_prompt_set_sha256": "6fe07fad1cdcb51db942958e2ee64486451fea6c1040066925cb71c20cfaf387",
     "proficiency_primary_trial_count": 18,
@@ -84,8 +86,10 @@
     "worker_mode": "sandbox-agent"
   },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "8b7b0d891f17173fc3289fb737e9f55f413b7ce5f115ca1f796977f67a75af61",
-    "run_id": "cache-recertify-4f01484",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "proficiency-trials--swift"
   },
   "result": {

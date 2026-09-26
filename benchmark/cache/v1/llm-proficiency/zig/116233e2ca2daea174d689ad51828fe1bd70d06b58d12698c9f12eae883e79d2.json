@@ -3,6 +3,8 @@
     "Zig"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
     "configuration_signature": "{\"model\": \"claude-sonnet-5\", \"provider\": \"anthropic-messages\", \"sampling\": {\"decoding_state\": \"provider-controlled\", \"effort\": \"high\", \"orchestration_effort\": \"low\", \"sampling_parameters\": \"omitted\"}}",
     "max_trial_output_tokens": 11599,
@@ -84,6 +86,8 @@
     "worker_mode": "sandbox-agent"
   },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "d6f04ccec732df6c9982211353f7c9a0a07da20bbfab29f6fe87d1437a62ffae",
     "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "proficiency-trials--zig"

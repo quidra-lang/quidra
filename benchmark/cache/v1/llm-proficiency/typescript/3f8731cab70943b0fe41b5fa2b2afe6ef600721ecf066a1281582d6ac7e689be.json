@@ -3,6 +3,8 @@
     "TypeScript"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
     "configuration_signature": "{\"model\": \"claude-sonnet-5\", \"provider\": \"anthropic-messages\", \"sampling\": {\"decoding_state\": \"provider-controlled\", \"effort\": \"high\", \"orchestration_effort\": \"low\", \"sampling_parameters\": \"omitted\"}}",
     "max_trial_output_tokens": 15764,
@@ -85,6 +87,8 @@
     "worker_mode": "sandbox-agent"
   },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "a968f0b136ec02d087dbe6752eb68e775cbfe71cce4193a6219ff11971c706f3",
     "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "proficiency-trials--typescript"

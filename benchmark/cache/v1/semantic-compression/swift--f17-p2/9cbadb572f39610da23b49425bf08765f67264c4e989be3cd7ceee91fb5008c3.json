@@ -3,8 +3,10 @@
     "Swift"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--swift--f17-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8",
-    "source_record": "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
-    "source_record_sha256": "a83a1fac2b66451a7c8aa7255bd8ee3d1f2bb6c15d5c2d8c3099b9d734164943",
-    "source_result_sha256": "6ed5cdb79513b4f83b539dda7e842742badcf57d1f1bb522dcabb19dc1662678",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "e564b78bd1d42ab3525b8e96d7a55e04cea0b8210b2431df9b9324d35e38ec14",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--swift--f17-p2"
   },
   "result": {
@@ -82,9 +66,9 @@
     "evidence": {
       "canonical_fragments": {
         "F17.P2": {
-          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F17.P2",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F17.P2",
           "fragment": "class Handle {\n    let id: Int32\n    init(id: Int32) { self.id = id }\n    deinit { released += 1 }\n}\ndo {\n    let h = Handle(id: 1)\n}\nreturn released",
-          "justification": "class Handle { let id: Int32; deinit { released += 1 } } \u2014 deinit is Swift's documented end-of-lifetime hook, run deterministically when ARC drops the last strong reference in the non-cyclic case exercised here.",
+          "justification": "class Handle { let id: Int32; deinit { released += 1 } } — deinit is Swift's documented end-of-lifetime hook, run deterministically when ARC drops the last strong reference in the non-cyclic case exercised here.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F17.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "ecf17fbdfea27accfcdf419bebc1102de087d58ebf959aa272db46664fd2d820",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
-          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Swift",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F17.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
-        "source_record_sha256": "a83a1fac2b66451a7c8aa7255bd8ee3d1f2bb6c15d5c2d8c3099b9d734164943",
-        "source_result_sha256": "6ed5cdb79513b4f83b539dda7e842742badcf57d1f1bb522dcabb19dc1662678"
+        "source_record": "baseline/semantic-owners/swift.json",
+        "source_record_sha256": "355c9d78138c4adbdc818ac38cee45e7e6defd70194043432435de3266c7abe3",
+        "source_result_sha256": "e4af6acfe12f6cdebbbccb0a3f4a1261cb56846b2505fe1e7c7678016ae1d962"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "475d17a2632808b1f0ef84d574ebcf8436e8b2a35d37c24a894fccf6fec72b66",
+  "result_sha256": "222418b2689b47b9d5950e29cb1e71f12a72e8610f44485d5ff33a777b6ed496",
   "schema_version": 1
 }

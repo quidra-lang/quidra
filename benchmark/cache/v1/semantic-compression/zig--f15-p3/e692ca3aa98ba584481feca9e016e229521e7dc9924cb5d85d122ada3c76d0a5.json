@@ -3,8 +3,10 @@
     "Zig"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--zig--f15-p3",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177",
-    "source_record": "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
-    "source_record_sha256": "f5186ae2446d270530a47c066d4f182ee3c85d3443bf561ee115dc05ac5ea928",
-    "source_result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "52b4e3b4e11330ea49478306e8c8b1336cf2cd0d55defc59663fd0a47be9f9c5",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--zig--f15-p3"
   },
   "result": {
@@ -82,7 +66,7 @@
     "evidence": {
       "canonical_fragments": {
         "F15.P3": {
-          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F15.P3",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P3",
           "fragment": "manual vtable/fat-pointer pattern for Named interface with A/B implementations and a heterogeneous []Named-like slice of tagged pointers, dispatched at runtime.",
           "justification": "The current canonical task asks for one declared abstract element type that can hold A and B and dispatch tag at runtime; it does not require a built-in interface construct. A Zig type-erased Named value with *anyopaque context plus a tag function pointer is one declared element type, can populate a heterogeneous sequence, and dispatches to the concrete implementation. The legacy PARTIAL/P-a classification therefore treated the ordinary vtable idiom as a substitute when it actually satisfies every numbered requirement.",
           "level": "FULL",
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F15.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "20bc0baa779fcd69ccd2c6347e33d6cc109c5363e492bebcaf9ecd876edb425f",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
-          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Zig",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F15.P3",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
-        "source_record_sha256": "f5186ae2446d270530a47c066d4f182ee3c85d3443bf561ee115dc05ac5ea928",
-        "source_result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324"
+        "source_record": "baseline/semantic-owners/zig.json",
+        "source_record_sha256": "fa22170c9a67adf2ec66f54023418e1259895dfc32ee088b36a6a42b850605d4",
+        "source_result_sha256": "f76856426d55fc8f8ed8b020ab895e2d23623c93a20109392c4cbfc1b650927f"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "78f93e9e78fbfd874e34b347fb24bdbb5874cdcae9adc5d938f6342858a62d4c",
+  "result_sha256": "fd21be75cf86d5be05845cc316008131773d695eac8c1aeb619658a4a273a4b6",
   "schema_version": 1
 }

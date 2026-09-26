@@ -3,8 +3,10 @@
     "Go"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -53,29 +55,11 @@
     "work_unit_id": "sc-canonical-fragment--go--f20-p1",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe",
-    "source_record": "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-    "source_record_sha256": "94e53e7feb767902cdd77341fa4c09e010bbc807156395aeba66b6b816ef29ad",
-    "source_result_sha256": "293f7d76d5f7d0a5297897c06a6d20344309e76e282b6327856da64189617263",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "f42ca7d9cc81c486c5941308776f1f7f8bccc535058b54a4b7f1c8fb135be55f",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--go--f20-p1"
   },
   "result": {
@@ -83,7 +67,7 @@
     "evidence": {
       "canonical_fragments": {
         "F20.P1": {
-          "citation": "legacy-cache:v1/semantic-compression/go/c3ecb3195839703799bf2201d88434b4c856fe01d4a27e527a5c55209b041de1.json#F20.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F20.P1",
           "fragment": "import \"C\"\nresult := int32(C.abs(C.int(-3)))\nreturn result",
           "justification": "cgo (import \"C\"; C.abs(-3)) is Go's built-in FFI mechanism and ships with the toolchain, but requires CGO_ENABLED and a system C compiler present on PATH -- a toolchain precondition beyond the bare 'go build -o BIN FILE.go' frozen recipe.",
           "level": "FULL",
@@ -93,22 +77,20 @@
       },
       "canonical_verification": {
         "F20.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "bae521eb1c3964f790858e79f5264d34accb3c5171e3cc1743916282dfcccafc",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/go/5e58b6b600992c2448b7b4ad4cb6d207b2a4b752e0319260f8d4c4c94a112013.json",
-          "source_record_sha256": "e70793b09f2a19bc4f31a1933d6c3896d5e05923471e2c35b2b937152b20bb8b",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Go",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F20.P1",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-        "source_record_sha256": "94e53e7feb767902cdd77341fa4c09e010bbc807156395aeba66b6b816ef29ad",
-        "source_result_sha256": "293f7d76d5f7d0a5297897c06a6d20344309e76e282b6327856da64189617263"
+        "source_record": "baseline/semantic-owners/go.json",
+        "source_record_sha256": "062a57f5d821c6a23b17a7b67aa5787b34824c7a9b9043b5008c0206cc4c6e3e",
+        "source_result_sha256": "0b7b86c567363edfa4ba4b3b6c2b5c3335e59047d6f7e005797d67987299519d"
       }
     },
     "requirements": {
@@ -116,6 +98,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "965c69e08f278086dc784757214a6287348d33547d36cf14255bcb5e94d75ca2",
+  "result_sha256": "2c188ea92853808a3327947d63a099de78e88d4ebf2b225f0e4adf09b2b95d16",
   "schema_version": 1
 }

@@ -3,8 +3,10 @@
     "Zig"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--zig--f01-p1",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177",
-    "source_record": "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
-    "source_record_sha256": "f5186ae2446d270530a47c066d4f182ee3c85d3443bf561ee115dc05ac5ea928",
-    "source_result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "f252e30292bc719f569b731a84faf930eef6480cd737ea4ee06140ad43314002",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--zig--f01-p1"
   },
   "result": {
@@ -82,9 +66,9 @@
     "evidence": {
       "canonical_fragments": {
         "F01.P1": {
-          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F01.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F01.P1",
           "fragment": "const n = 7;\nreturn n;",
-          "justification": "const n: i32 = 7; return n; \u2014 immutable binding, no annotation needed beyond literal typing.",
+          "justification": "const n: i32 = 7; return n; — immutable binding, no annotation needed beyond literal typing.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F01.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "17a214f2f09db605c02a73ecf709f9cd967ffc183b89b259b2d89ec7589b70b4",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/zig/e2da8462d986a14773184d463a0f9103c3cd7527042fdd5db1c5f0b95e048fcb.json",
-          "source_record_sha256": "5b3c25fc3e175727edc6a08b298e727ca489312645c063d011a2116bf2017383",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Zig",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F01.P1",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json",
-        "source_record_sha256": "f5186ae2446d270530a47c066d4f182ee3c85d3443bf561ee115dc05ac5ea928",
-        "source_result_sha256": "b9b85d2fc53dba70fd419d9dfdd0cb1fadb3b8c3953f9784dc60e43888f58324"
+        "source_record": "baseline/semantic-owners/zig.json",
+        "source_record_sha256": "fa22170c9a67adf2ec66f54023418e1259895dfc32ee088b36a6a42b850605d4",
+        "source_result_sha256": "f76856426d55fc8f8ed8b020ab895e2d23623c93a20109392c4cbfc1b650927f"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "09b76dc603baa5225b579e5c321994c3bc170131342fbfbf889b481555376bdd",
+  "result_sha256": "3a5a804dd517c762269db667c9c0a250d4830148e0da486b0ec3ce3f313d0594",
   "schema_version": 1
 }

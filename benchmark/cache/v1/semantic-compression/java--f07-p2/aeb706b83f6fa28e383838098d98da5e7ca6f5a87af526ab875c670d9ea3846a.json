@@ -3,8 +3,10 @@
     "Java"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -53,29 +55,11 @@
     "work_unit_id": "sc-canonical-fragment--java--f07-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0",
-    "source_record": "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-    "source_record_sha256": "e9f5cc1c703dbc5b93395e749cb3dc2346ad98e1c4dbe5c3225821aecd1a72a8",
-    "source_result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "3834b5922dff1a48f2f5d6263fa27063ce1e8c1f5fbb5b2baf92f86f23acbf94",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--java--f07-p2"
   },
   "result": {
@@ -83,9 +67,9 @@
     "evidence": {
       "canonical_fragments": {
         "F07.P2": {
-          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F07.P2",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P2",
           "fragment": "int q = a / b;\nint m = a % b;\ndouble d = (double) a / b;",
-          "justification": "int q = a / b; int m = a % b; double d = (double) a / b; \u2014 Java int division truncates toward zero, % follows dividend sign, explicit cast for real division.",
+          "justification": "int q = a / b; int m = a % b; double d = (double) a / b; — Java int division truncates toward zero, % follows dividend sign, explicit cast for real division.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
@@ -93,21 +77,20 @@
       },
       "canonical_verification": {
         "F07.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "e396a6d423790b0618e24e7860126c0d0cd5a58116755ccea1b3dabc03c222f8",
-          "fragment_origin": "reviewed-current-recertification-override",
-          "mode": "legacy-evidence-recertification",
-          "recertifier": "GPT-5.6 Sol",
-          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Java",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F07.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-        "source_record_sha256": "e9f5cc1c703dbc5b93395e749cb3dc2346ad98e1c4dbe5c3225821aecd1a72a8",
-        "source_result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90"
+        "source_record": "baseline/semantic-owners/java.json",
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
       }
     },
     "requirements": {
@@ -115,6 +98,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "62ba89cf5b028e2f9fa6f95a39f1f49971e77d29bd4440ea29f7a35f58799a6d",
+  "result_sha256": "1d5fc02fcaf21141a436174836fcd6e182bd32651946dc89001e282d96ae2324",
   "schema_version": 1
 }

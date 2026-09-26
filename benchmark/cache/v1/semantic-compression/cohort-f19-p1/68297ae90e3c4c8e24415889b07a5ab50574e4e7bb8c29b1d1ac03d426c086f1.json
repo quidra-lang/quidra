@@ -1,9 +1,10 @@
 {
   "assigned_languages": [],
   "certification": {
-    "compatibility_migration": "semantic-support-from-current-catalog",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "semantic_derived_recertification_candidate": true,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -41,64 +42,36 @@
     },
     "work_unit_id": "sc-support-adjudication:F19.P1"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy support adjudication is derived deterministically from the already current-validator-approved canonical owner records. No new model judgment or score is introduced.",
-    "migration_rule": "semantic-support-from-current-catalog",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
-    "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-    "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
-    "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "4b5c269e8665bfdb576b9993af303cd4d440a72f0fadea64e7444b515a5903d8",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-support-adjudication--f19-p1"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
-      "legacy_recertification": {
-        "mode": "support-from-current-canonical-probe-cache",
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "mode": "support-from-canonical-baseline",
         "probe_id": "F19.P1",
-        "schema_version": 1,
-        "source_owner_records": [
-          "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-          "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-          "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-          "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
-          "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-          "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
-          "v1/semantic-compression/rust/b9ea701bf5d6f03c78b226975ba46f767cacf9ca049b09138a8ec68e6cca365e.json",
-          "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
-          "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-          "v1/semantic-compression/zig/8042151a17e8184ced7295e70347372e023f8c18b539e7e75aa5720ba3a0e177.json"
-        ]
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
       }
     },
     "requirements": {
       "annotation.support_adjudication--f19-p1": {
         "C++": {
-          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F19.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
           "fragment": "auto fut1 = std::async(std::launch::async, [] { return 20; });\nauto fut2 = std::async(std::launch::async, [] { return 22; });\nint sum = fut1.get() + fut2.get();\nreturn sum;",
-          "justification": "`auto fut1=std::async(std::launch::async,[]{return 20;}); auto fut2=std::async(std::launch::async,[]{return 22;}); int sum=fut1.get()+fut2.get();` \u2014 std::async/std::future (<future>) is the standard concurrency facility.",
+          "justification": "`auto fut1=std::async(std::launch::async,[]{return 20;}); auto fut2=std::async(std::launch::async,[]{return 22;}); int sum=fut1.get()+fut2.get();` — std::async/std::future (<future>) is the standard concurrency facility.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
         },
         "Go": {
-          "citation": "legacy-cache:v1/semantic-compression/go/c3ecb3195839703799bf2201d88434b4c856fe01d4a27e527a5c55209b041de1.json#F19.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
           "fragment": "ch1 := make(chan int)\nch2 := make(chan int)\ngo func() { ch1 <- 20 }()\ngo func() { ch2 <- 22 }()\nsum := <-ch1 + <-ch2\nreturn sum",
           "justification": "Two goroutines each computing a value, joined via channels or sync.WaitGroup, summed to 42.",
           "level": "FULL",
@@ -106,23 +79,23 @@
           "partial_reasons": []
         },
         "Java": {
-          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F19.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
           "fragment": "Future<Integer> a = pool.submit(() -> 20);\nFuture<Integer> b = pool.submit(() -> 22);\nint sum = a.get() + b.get();\nreturn sum;",
-          "justification": "ExecutorService with two Callable<Integer> tasks (or two Thread instances) computing 20 and 22, Future.get() on both, sum = 42 \u2014 java.util.concurrent is the standard shipped concurrency facility.",
+          "justification": "ExecutorService with two Callable<Integer> tasks (or two Thread instances) computing 20 and 22, Future.get() on both, sum = 42 — java.util.concurrent is the standard shipped concurrency facility.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
         },
         "Kotlin": {
-          "citation": "legacy-cache:v1/semantic-compression/kotlin/7d29a8f7152b864c5360a63ceb31541d74c54c5eb27d35a9043bd937693a6551.json#F19.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
           "fragment": "var r1 = 0; var r2 = 0\nval t1 = Thread { r1 = 20 }\nval t2 = Thread { r2 = 22 }\nt1.start(); t2.start()\nt1.join(); t2.join()\nval sum = r1 + r2\nreturn sum",
-          "justification": "Two java.util.concurrent.Executors-submitted tasks (Future<Int>) computing 20 and 22, joined via future.get() on both, summed to 42 \u2014 java.util.concurrent ships as part of the JVM/JDK that the frozen `kotlinc`/`java` recipe already depends on, with no separate package fetch (kotlinx.coroutines was excluded as a non-bundled third-party artifact).",
+          "justification": "Two java.util.concurrent.Executors-submitted tasks (Future<Int>) computing 20 and 22, joined via future.get() on both, summed to 42 — java.util.concurrent ships as part of the JVM/JDK that the frozen `kotlinc`/`java` recipe already depends on, with no separate package fetch (kotlinx.coroutines was excluded as a non-bundled third-party artifact).",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
         },
         "Python": {
-          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F19.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
           "fragment": "import asyncio\nasync def a(): return 20\nasync def b(): return 22\nasync def main():\n    r1, r2 = await asyncio.gather(a(), b())\n    return r1 + r2\nsum_ = asyncio.run(main())",
           "justification": "asyncio (standard library) with asyncio.gather over two coroutines and asyncio.run() as the entry point is Python's standard async facility.",
           "level": "FULL",
@@ -146,15 +119,15 @@
           "partial_reasons": []
         },
         "Swift": {
-          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F19.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
           "fragment": "async let x = 20\nasync let y = 22\nlet sum = await x + y\nreturn sum",
-          "justification": "async let a = compute20(); async let b = compute22(); let sum = await a + await b \u2014 Swift structured concurrency (async/await, async let) is the standard shipped facility as of the frozen toolchain.",
+          "justification": "async let a = compute20(); async let b = compute22(); let sum = await a + await b — Swift structured concurrency (async/await, async let) is the standard shipped facility as of the frozen toolchain.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
         },
         "TypeScript": {
-          "citation": "legacy-cache:v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json#F19.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
           "fragment": "async function run(): Promise<number> {\n  const [a, b] = await Promise.all([\n    Promise.resolve(20),\n    Promise.resolve(22),\n  ]);\n  return a + b;\n}",
           "justification": "const [a,b] = await Promise.all([f1(), f2()]); const sum = a+b; async/await plus Promise.all is the standard concurrent-join facility; top-level await is available under --module nodenext.",
           "level": "FULL",
@@ -162,9 +135,9 @@
           "partial_reasons": []
         },
         "Zig": {
-          "citation": "legacy-cache:v1/semantic-compression/zig/7987e0da98887a867d668b7dc400d0e5ea6313bd7cf3082a4daf7792fb4c2e18.json#F19.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
           "fragment": "two std.Thread.spawn calls computing 20 and 22 into pointers, t1.join(); t2.join(); return sum.",
-          "justification": "std.Thread.spawn for two threads computing 20 and 22, .join() on both, summing results \u2014 Zig's current (post-async-removal) standard concurrency facility is OS threads via std.Thread, which is a standard, toolchain-shipped mechanism.",
+          "justification": "std.Thread.spawn for two threads computing 20 and 22, .join() on both, summing results — Zig's current (post-async-removal) standard concurrency facility is OS threads via std.Thread, which is a standard, toolchain-shipped mechanism.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
@@ -173,6 +146,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "0b425fa61b3596c52a9c02ec2e45358ced9fb99e452ba497b1fd59f7c95f2cdd",
+  "result_sha256": "36e55b57e726c77ed6b42448e360bb4952764d51ab918b1d04fbae5a269d13aa",
   "schema_version": 1
 }

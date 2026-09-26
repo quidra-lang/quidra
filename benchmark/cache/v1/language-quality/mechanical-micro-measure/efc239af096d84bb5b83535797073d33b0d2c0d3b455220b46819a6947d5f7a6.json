@@ -1,12 +1,13 @@
 {
   "assigned_languages": [],
   "certification": {
-    "compatibility_migration": "micro-measure-input-projection",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
     "measured_at_utc": null,
     "mechanical": true,
     "mechanical_action_projection": "micro-measure-v1",
-    "primary_complete": false,
+    "primary_complete": true,
     "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
     "raw_evidence_sha256": {
       "micro_raw.json": "f1813c155f84de3c22a335f44e01ae26c7d503908537fd8d37c14036554b808b"
@@ -137,27 +138,11 @@
     "work_unit_id": "lq-micro-mechanical",
     "worker_mode": "runner-command"
   },
-  "migration": {
-    "current_mechanical_verification": "current-validator",
-    "current_validator": "PASS",
-    "migration_reason": "Historical mechanical measurement consumed the same scientific programs, fixtures, toolchains and measurement script; unrelated runner-only inputs were projected away and the current validator passed.",
-    "migration_rule": "micro-measure-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "a47881a6b4cf6ef7ccf6e12fa9edce477f57f0ff8ef6c3bff999e38201bfb1fd",
-    "source_record": "v1/language-quality/mechanical-micro-measure/a47881a6b4cf6ef7ccf6e12fa9edce477f57f0ff8ef6c3bff999e38201bfb1fd.json",
-    "source_record_sha256": "71fda54ac374f861eab160955940fedc41e60790503ef7b83754cc772e4999ab",
-    "source_result_sha256": "84ff136284a31d498c5c72c13fd52e4bf3b226dbb1e960a6f8deb554c86e6c0c",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": null,
-    "run_id": "cache-recertify-9f13d62",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "lq-micro-mechanical"
   },
   "result": {

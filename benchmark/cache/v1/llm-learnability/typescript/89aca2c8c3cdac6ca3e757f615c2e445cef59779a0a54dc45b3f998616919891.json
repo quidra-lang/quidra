@@ -3,13 +3,14 @@
     "TypeScript"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_evidence_source": "agent_trace.json retained by 2026-09-22-56f2c65-gh3",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 150,
-    "primary_complete": false,
+    "primary_complete": true,
     "scored_output_cap": 4000,
     "trial_calls": 6,
     "unit_complete": true,
@@ -57,27 +58,11 @@
     "work_unit_id": "learnability-i1-i2--typescript",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "5700b6b8d1600d10e8f208f921f8145accf1e59aba6791017f48367fbe132374",
-    "source_record": "v1/llm-learnability/typescript/5700b6b8d1600d10e8f208f921f8145accf1e59aba6791017f48367fbe132374.json",
-    "source_record_sha256": "792d24cebe509c1da889f8b73781958a4f915bb26b1c532220c558591cd051c8",
-    "source_result_sha256": "b6d1b93ae36f7284c82b46727a36c8f11fb09e6e26de30e63ee1cb8a09d03fc9",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "022f02cf295ca236f762f330f0d7fadb63ccd3308390af9619c2307519f4d5a3",
-    "run_id": "cache-recertify-c401796",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i1-i2--typescript"
   },
   "result": {

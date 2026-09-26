@@ -3,8 +3,10 @@
     "Java"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -54,29 +56,11 @@
     "work_unit_id": "sc-canonical-fragment--java--f20-p1",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0",
-    "source_record": "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-    "source_record_sha256": "e9f5cc1c703dbc5b93395e749cb3dc2346ad98e1c4dbe5c3225821aecd1a72a8",
-    "source_result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "91a6f7ab1786a40c047832e667b719d2e5d8da7830352722092e3830d780964f",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--java--f20-p1"
   },
   "result": {
@@ -84,7 +68,7 @@
     "evidence": {
       "canonical_fragments": {
         "F20.P1": {
-          "citation": "legacy-cache:v1/semantic-compression/java/a6c2922ef53c8117cfb73ca323b45442e425edb038d1ba684d99c9538a8c7f7f.json#F20.P1",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F20.P1",
           "fragment": "Linker linker = Linker.nativeLinker();\nMemorySegment symbol = linker.defaultLookup().findOrThrow(\"abs\");\nMethodHandle abs = linker.downcallHandle(symbol, FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));\nint result = (int) abs.invokeExact(-3);\nreturn result;",
           "justification": "The Java Foreign Function & Memory API (java.lang.foreign) can declare and call C `abs(int)` using only the standard library, but on many currently-common JDK versions this requires an --enable-preview flag or is only fully finalized in the newest LTS (Java 22+); absent a confirmed toolchain fingerprint in this packet, this is recorded as requiring a flag/mode outside the strict frozen recipe.",
           "level": "FULL",
@@ -94,21 +78,20 @@
       },
       "canonical_verification": {
         "F20.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "a28be95808f890e72c004bfefb483939630b8c226829d1c0d8f23c25dfbd9525",
-          "fragment_origin": "reviewed-current-recertification-override",
-          "mode": "legacy-evidence-recertification",
-          "recertifier": "GPT-5.6 Sol",
-          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Java",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F20.P1",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/java/ec2d7c8d0dc52a6c404a43941b4e62c824702f32ada01e6005a2dc478160acd0.json",
-        "source_record_sha256": "e9f5cc1c703dbc5b93395e749cb3dc2346ad98e1c4dbe5c3225821aecd1a72a8",
-        "source_result_sha256": "28d50f12147613f5aecb426e35217a124290be8083dbd0ddfa2aaa266ac7cf90"
+        "source_record": "baseline/semantic-owners/java.json",
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
       }
     },
     "requirements": {
@@ -116,6 +99,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "db0b0beb874201a290bb2a930c04f6e217983fa36c96f7df3ec1330ec2b2316a",
+  "result_sha256": "4a1200c7871d2680955ccf9b0670df8dfa8dd2fcecdc664444eb16f915dd5f6f",
   "schema_version": 1
 }

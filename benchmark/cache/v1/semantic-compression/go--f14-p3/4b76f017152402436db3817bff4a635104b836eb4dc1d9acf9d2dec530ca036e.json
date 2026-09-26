@@ -3,8 +3,10 @@
     "Go"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--go--f14-p3",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe",
-    "source_record": "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-    "source_record_sha256": "94e53e7feb767902cdd77341fa4c09e010bbc807156395aeba66b6b816ef29ad",
-    "source_result_sha256": "293f7d76d5f7d0a5297897c06a6d20344309e76e282b6327856da64189617263",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "d1291630b010f1fd3e10e201d908b29fdea18d0ef27836ccb0c94a036f1e5f69",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--go--f14-p3"
   },
   "result": {
@@ -82,7 +66,7 @@
     "evidence": {
       "canonical_fragments": {
         "F14.P3": {
-          "citation": "legacy-cache:v1/semantic-compression/go/c3ecb3195839703799bf2201d88434b4c856fe01d4a27e527a5c55209b041de1.json#F14.P3",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P3",
           "fragment": "type Shape interface{ Area() float64 }\ntype Circle struct{ R float64 }\nfunc (c Circle) Area() float64 { return 3.141592653589793 * c.R * c.R }\ntype Rect struct{ W, H float64 }\nfunc (r Rect) Area() float64 { return r.W * r.H }\n// separate unit:\ntype Tri struct{ B, H float64 }\nfunc (t Tri) Area() float64 { return 0.5 * t.B * t.H }\nvar s shapes.Shape = Tri{B: 3, H: 4}\nresult := s.Area()",
           "justification": "Go interfaces are open by default: any type in any package, including a separate compilation unit, can implement an existing interface (area() float64) without modifying the original unit. Uses the frozen multi-unit recipe.",
           "level": "FULL",
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F14.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "2448500773a57c98fa119c32860586ccbfc0e1c643bddeb17ea8f09b5af1e776",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/go/5e58b6b600992c2448b7b4ad4cb6d207b2a4b752e0319260f8d4c4c94a112013.json",
-          "source_record_sha256": "e70793b09f2a19bc4f31a1933d6c3896d5e05923471e2c35b2b937152b20bb8b",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Go",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F14.P3",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/go/59713979c2e30999ca1782b344f3fc662e3b027cf9206aca18cd2d9b74bcabbe.json",
-        "source_record_sha256": "94e53e7feb767902cdd77341fa4c09e010bbc807156395aeba66b6b816ef29ad",
-        "source_result_sha256": "293f7d76d5f7d0a5297897c06a6d20344309e76e282b6327856da64189617263"
+        "source_record": "baseline/semantic-owners/go.json",
+        "source_record_sha256": "062a57f5d821c6a23b17a7b67aa5787b34824c7a9b9043b5008c0206cc4c6e3e",
+        "source_result_sha256": "0b7b86c567363edfa4ba4b3b6c2b5c3335e59047d6f7e005797d67987299519d"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "dd9516e1258bb45a74eed6771ea8baa27be5ad688285d91c1b87e192747e45b1",
+  "result_sha256": "da7b5a9bd0fec4b3be2d6d28806c6b7b29f86772c7f314b51575bb62bf70e000",
   "schema_version": 1
 }

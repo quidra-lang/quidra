@@ -3,6 +3,8 @@
     "C++"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
@@ -50,8 +52,10 @@
     "worker_mode": "sandbox-agent"
   },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "70dd344a63613b75202c11bb6deb951cdc0d2e1b39f2628ee56dc79fa8f7d1f5",
-    "run_id": "cache-recertify-4f01484",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "lq-language-development--part-4--c"
   },
   "result": {

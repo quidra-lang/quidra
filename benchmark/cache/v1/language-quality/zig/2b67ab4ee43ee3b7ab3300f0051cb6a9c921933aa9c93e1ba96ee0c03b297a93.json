@@ -3,12 +3,10 @@
     "Zig"
   ],
   "certification": {
-    "compatibility_migration": "language-quality-design-rubric-v1-snapshot",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "language_quality_snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
-    "language_quality_snapshot_recertification_candidate": true,
-    "new_paid_provider_call": false,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -52,28 +50,11 @@
     "work_unit_id": "lq-language-development--part-3--zig",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "current-validator",
-    "current_validator": "PASS",
-    "migration_reason": "Preserved paid Language Quality findings were independently re-adjudicated against the current fixed five-component design rubric. Legacy normalized scores were retained only for audit and were not used to derive component levels. The snapshot is bound to exact source evidence and the current validator recomputes scores.",
-    "migration_rule": "language-quality-design-rubric-v1-snapshot",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
-    "source_record": "snapshots/language_quality/2026-09-design-rubric-v1.json",
-    "source_record_sha256": "5db1fa6f04229bc80ffd9ed2d15a6bd26cce5ffebc7cb94f5d684f06aa4b1ddc",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "92ba9ad39a0d404c4827510b9c6cba8c8a992a6f703d0e900d651cc70252442e",
-    "run_id": "cache-recertify-13feb35",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "lq-language-development--part-3--zig"
   },
   "result": {

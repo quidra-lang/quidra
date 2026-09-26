@@ -3,17 +3,14 @@
     "Quidra"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
     "canonical_fragment_equivalence_proved": true,
-    "compatibility_migration": "semantic-legacy-consumer-recertification",
     "current_validator_revalidated": true,
-    "primary_complete": false,
-    "semantic_legacy_consumer_recertified": true,
+    "primary_complete": true,
     "unit_complete": true,
-    "validator_pass": true,
-    "validator_recertification_candidate": true,
-    "validator_recertification_source_epoch": "2026-09-medium",
-    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+    "validator_pass": true
   },
   "compatibility": {
     "quidra_execution_identity": {
@@ -74,58 +71,23 @@
     "work_unit_id": "sc-metrics-local--part-2--quidra",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
-    "migration_rule": "semantic-legacy-consumer-recertification",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc",
-    "source_record": "v1/semantic-compression/quidra/dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc.json",
-    "source_record_sha256": "dcb19677ec53ddc052d0c6112b5436bc46003fd05bd6e40ecad99cf891ed16f5",
-    "source_result_sha256": "15e473f14727bf34f558bd3b751462a3e24ca7ed6f11b9b217b4904592673ceb",
-    "transformed_fields": [
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "ae77a33535e3bc7ee45d099bc66d81a8955f9f15dcbafb73e07510fd7b8605f0",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-metrics-local--part-2--quidra"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
-      "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
-      "legacy_fragment_equivalence": {
-        "all_explicit_fragments_matched": false,
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "canonical_fragment_catalog_content_sha256": "00f3195f8f1c8ebb6fdd4781f80d03a3cf2a4e05a8e5ebfe960abe099e96a1c9",
         "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
-        "dropped_now_none_probes": [
-          "F05.P3",
-          "F09.P2",
-          "F11.P2",
-          "F14.P3",
-          "F15.P3",
-          "F17.P2",
-          "F20.P2"
-        ],
-        "proof_mode": "prior-certified-equivalence-with-none-drop",
-        "schema_version": 1,
-        "scientific_identity_sha256": "e6eec0c01331b0df35bd2e09e517dadc37ed6a77c7f0b27dcb05577ce55963dd",
-        "source_density_record": "v1/semantic-compression/quidra/e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json",
-        "source_density_record_sha256": "1a70edbbaaa3175122678f3dd363e93422d270deae7d92b1b42dce45b04f02f9",
-        "source_metric_record": "v1/semantic-compression/quidra/dc833ed2356dd5a46aed57c8a34a67a4523095e9ed0df6eca7523993623508cc.json",
-        "source_metric_record_sha256": "dcb19677ec53ddc052d0c6112b5436bc46003fd05bd6e40ecad99cf891ed16f5",
-        "source_owner_record": "v1/semantic-compression/quidra/d9bd8e2e4c1131910636313fd1be4fde6ef5cdb3ed2183680f21464b054e2a23.json",
-        "source_owner_record_sha256": "1278fd0036ddfaac720012e09bbe603925a96f8b6645bed680d1f747a6e78d1e",
-        "source_run_id": "2026-09-23-fce5cfa-gh16"
+        "schema_version": 1
       },
+      "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
       "metric.semantic_locality": {
         "aggregation": {
           "computed_score_unrounded": 67.24,
@@ -208,6 +170,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "ef429cc6e5424ffcc795f705a8faf06c8ac1aa96684ddfa76710d5c9619a5968",
+  "result_sha256": "36db16e86d9081bc6c6a8df2b55f36c881ea3d557f08b640326d38bf8e158ebc",
   "schema_version": 1
 }

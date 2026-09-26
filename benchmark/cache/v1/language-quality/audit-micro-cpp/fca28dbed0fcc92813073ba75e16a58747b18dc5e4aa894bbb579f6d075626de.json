@@ -3,11 +3,10 @@
     "C++"
   ],
   "certification": {
-    "compatibility_migration": "language-quality-reuse-audit-v1-projection",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "language_quality_reuse_audit_recertification_candidate": true,
-    "new_paid_provider_call": false,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -45,27 +44,11 @@
     },
     "work_unit_id": "audit-micro-cpp"
   },
-  "migration": {
-    "current_mechanical_verification": "current-validator",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Language Quality reusable-artifact currency audit judged the exact same frozen artifact Git object under the exact same current toolchain and runtime pins. Judge/provider and Task Packet transport changes do not alter that experiment; the current validator is rerun before promotion and no new provider call is claimed.",
-    "migration_rule": "language-quality-reuse-audit-v1-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "4c83f1e5c365ecee1394c28af442ab7e7d9f19aeb276a4c8b8a07f6c87151b12",
-    "source_record": "v1/language-quality/audit-micro-cpp/4c83f1e5c365ecee1394c28af442ab7e7d9f19aeb276a4c8b8a07f6c87151b12.json",
-    "source_record_sha256": "8ed5437fd4ccfe1c5a59db818c4984993d44838569adcee13f66f03ed2f0fb1b",
-    "source_result_sha256": "83db4db7c2efb052979d5ced1d749197a13b942e4315601568f643b8f6d8341c",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "190238575018f4810eb83948591c34b0ada7af164a3f6e73c636cc8aede36bcb",
-    "run_id": "cache-recertify-9f13d62",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "audit-micro-cpp"
   },
   "result": {

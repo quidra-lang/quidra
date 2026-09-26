@@ -3,11 +3,10 @@
     "Go"
   ],
   "certification": {
-    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
-    "ecosystem_snapshot_recertification_candidate": true,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -53,28 +52,11 @@
     "work_unit_id": "ecosystem-external--part-3--go",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
-    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
-    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
-    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "a3b285d010c9681a0815ce4f50834fb5e8643e59c89e402ffeb59c2f96194b72",
-    "run_id": "cache-recertify-584269b",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "ecosystem-external--part-3--go"
   },
   "result": {

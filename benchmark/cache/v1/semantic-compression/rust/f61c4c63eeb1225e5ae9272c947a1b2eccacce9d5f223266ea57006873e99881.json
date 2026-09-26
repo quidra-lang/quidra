@@ -3,17 +3,14 @@
     "Rust"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
     "canonical_fragment_equivalence_proved": true,
-    "compatibility_migration": "semantic-legacy-consumer-recertification",
     "current_validator_revalidated": true,
-    "primary_complete": false,
-    "semantic_legacy_consumer_recertified": true,
+    "primary_complete": true,
     "unit_complete": true,
-    "validator_pass": true,
-    "validator_recertification_candidate": true,
-    "validator_recertification_source_epoch": "2026-09-medium",
-    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+    "validator_pass": true
   },
   "evaluation": "semantic_compression",
   "fingerprint": "f61c4c63eeb1225e5ae9272c947a1b2eccacce9d5f223266ea57006873e99881",
@@ -59,50 +56,23 @@
     "work_unit_id": "sc-metrics-local--part-1--rust",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
-    "migration_rule": "semantic-legacy-consumer-recertification",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15",
-    "source_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
-    "source_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
-    "source_result_sha256": "f857f08d3367225d5766309c8a11fb1cef65461a07d9cbf69063f1c0a4c84305",
-    "transformed_fields": [
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "1c28a660dc98752d613a97c8ddf9bcc278eff40d8000e6ef630a7fa2f986dcbe",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-metrics-local--part-1--rust"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
-      "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
-      "legacy_fragment_equivalence": {
-        "all_explicit_fragments_matched": true,
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "canonical_fragment_catalog_content_sha256": "747d85fce83d0bf20646982bac18fd8c4c06c386bdab795b734828d2b16de3a2",
         "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
-        "dropped_now_none_probes": [],
-        "proof_mode": "explicit-fragment-match",
-        "schema_version": 1,
-        "scientific_identity_sha256": "ea696e92fcf76cf2d6fb99e387aae3cce4193cb391d15bebf3c0be93cdfc63f3",
-        "source_density_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
-        "source_density_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
-        "source_metric_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
-        "source_metric_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
-        "source_owner_record": "v1/semantic-compression/rust/e76751d96630ff4bde5ed9fcda44b8543915e11c49a6d996bc13764c3ce652ba.json",
-        "source_owner_record_sha256": "5d309a31d88565b5409435f77507f5f11fd25bf78b9ae10293d20d5d523391a3",
-        "source_run_id": "2026-09-23-fce5cfa-gh16"
+        "schema_version": 1
       },
+      "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
       "metric.semantic_density": {
         "aggregate_raw": {
           "explicit_local_sites_total": 175,
@@ -706,6 +676,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "0065f5ca326b5bcd3b47cb817a91df4d63454b4a09428c6d89e1cc84cfff3f4d",
+  "result_sha256": "d8db6d923c621aed519a5e6452c1cd1110ac07590f0bd33943e525a782b1c2bb",
   "schema_version": 1
 }

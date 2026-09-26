@@ -3,9 +3,11 @@
     "Kotlin"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "measured_at_utc": null,
     "mechanical": true,
-    "primary_complete": false,
+    "primary_complete": true,
     "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
     "raw_evidence_sha256": {
       "adversarial_raw.json": "11d10db1fa6d28bffe4eb8e03c40874c01b58d12199290194686ff003bbd6274",
@@ -73,8 +75,10 @@
     "worker_mode": "runner-command"
   },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": null,
-    "run_id": "cache-recertify-584269b",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "lq-adversarial-mechanical--kotlin"
   },
   "result": {

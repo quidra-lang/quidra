@@ -1,0 +1,1004 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "canonical_catalog_sha256": "76d60b6b704a63e69908541e5cfca59a7490da426510e72eddbb28c65b858f82",
+    "current_validator_revalidated": true,
+    "current_validator_revalidation_required": true,
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "9a2795602eea49f194273fd8189959d1480334b51185e87c1e8ad40f2e6eaf9f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "dbf67a86e2ccc12c6026f0a7edfed353eb6dfca6345100c6b3d521bdf445e3ec",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "d8697b825f009cc0517e1bb8f64a4ca31a35163c847261d6a3611c9db65a9b8a",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "9a2795602eea49f194273fd8189959d1480334b51185e87c1e8ad40f2e6eaf9f",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "semantic-baseline-owner--typescript"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "language": "TypeScript",
+        "role": "semantic-language-owner",
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
+      },
+      "canonical_fragments": {
+        "F01.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F01.P1",
+          "fragment": "const n = 7;\nreturn n;",
+          "justification": "const n = 7; return n; — non-reassignable binding.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F01.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F01.P2",
+          "fragment": "let counter: number = 0;\nconst LIMIT: number = 100;",
+          "justification": "let counter: bigint = 0n; const LIMIT: bigint = 100n; BigInt covers full 64-bit signed range and beyond.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F02.P1",
+          "fragment": "let v: number;\nif (cond) { v = 5; } else { v = 9; }\nreturn v;",
+          "justification": "let v: number; declared without initializer; TS definite-assignment analysis accepts both-branch assignment before read under --strict.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F02.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F02.P2",
+          "fragment": "const buf = new Uint8Array(16);\nbuf[0] = 1;\nreturn buf[0];",
+          "justification": "JS/TS ArrayBuffer/TypedArray storage is spec-guaranteed zero-initialized; no documented mechanism yields genuinely uninitialized bulk storage. Per R9 named substitution, wrote default-initialized Uint8Array(16) fragment instead; substitute is never FULL.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F03.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F03.P1",
+          "fragment": "x += 1;",
+          "justification": "x += 1; in-place compound assignment on primitive local.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F03.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F03.P2",
+          "fragment": "xs[1] = 42;",
+          "justification": "xs[1] = 42; in-place element mutation of Array, no rebind.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F04.P1",
+          "fragment": null,
+          "justification": "JS/TS has no documented mechanism for a second name to alias and write the same scalar primitive local (no pointers/references/inout for primitives); object-wrapper substitution is explicitly not an acceptable substitute for FULL and this probe carries no R9 exception, so NONE is recorded per N-4.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F04.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F04.P2",
+          "fragment": "const window: ReadonlyArray<number> = xs;\nreturn window[0];",
+          "justification": "const window: ReadonlyArray<number> = xs; — same underlying reference (no element copy), TS compiler forbids mutation through the readonly-typed view; documented TS readonly-array typing mechanism.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F04.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F04.P3",
+          "fragment": "const first = { id: 5 };\nconst arr = [first];\nconst second = arr[0];\nconst same = first === second;\nreturn same;",
+          "justification": "Route `first` through a one-element array and read back as `second`; `same = (first === second)` uses standard JS reference-equality operator, distinct from structural/value equality.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "const x = [1, 2, 3];\nf(x);\nreturn x[0];",
+          "justification": "f(x) bare call; JS/TS arrays are reference-semantic objects passed by reference by default at ordinary call sites.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F05.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P2",
+          "fragment": null,
+          "justification": "Canonical task explicitly directs NONE for languages lacking a documented mechanism for a callee to write a caller's scalar local; JS/TS has no pass-by-reference/pointer/inout for primitives.",
+          "level": "NONE",
+          "none_reason": "N-4",
+          "partial_reasons": []
+        },
+        "F05.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P3",
+          "fragment": "const xs = [1, 2, 3];\nconst k = 0;\nconst neg = (a: number) => k - a;\nconst ys = xs.map(neg);\nreturn ys[0];",
+          "justification": "const neg = (a: number) => k - a; const ys = xs.map(neg); closure captures k, neg referred to by name at the map call.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F06.P1",
+          "fragment": "function mid(xs: number[]): number { return xs[1]; }\nconst xs = [1, 2, 3];\nconst y = mid(xs);\nreturn y;",
+          "justification": "function mid(a:number[]):number{return a[1];} numbers are primitive value type in JS, y is independent of xs.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F06.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F06.P2",
+          "fragment": "function divmod2(a: number, b: number): [number, number] {\n  return [Math.trunc(a / b), a % b];\n}\nconst [q, r] = divmod2(a, b);\nreturn q + r;",
+          "justification": "TS tuple type [number,number] returned from divmod2, destructured as const [q,r] = divmod2(a,b);",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "const r = a * b + c;",
+          "justification": "const r = a * b + c; ordinary operator precedence.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F07.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P2",
+          "fragment": "const q = Math.trunc(a / b);\nconst m = a % b;\nconst d = a / b;",
+          "justification": "const q = Math.trunc(a / b); const m = a % b; const d = a / b; (JS numbers are float64 so real division is the plain operator; Math.trunc is the standard truncating-integer-division form).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F08.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F08.P1",
+          "fragment": null,
+          "justification": "TypeScript/JavaScript number is IEEE-754 binary64 rather than a signed 32-bit integer type. ToInt32 coercion through a bitwise operator is a conversion substitute for the required fixed-width binding, and F08.P1 has no R9 substitution. The prior FULL/P-a interpretations are therefore NONE under the current rubric.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F08.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F08.P2",
+          "fragment": "const q = b === 0 ? 0 : a / b;",
+          "justification": "const q = (b === 0) ? 0 : Math.trunc(a / b); — explicit guard (rung ii), since no standard checked-division optional-returning operation exists in JS.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F09.P1",
+          "fragment": "const eq = s1 === s2;",
+          "justification": "const eq = (s1 === s2); JS strings are primitives with value semantics so === compares contents.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F09.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F09.P2",
+          "fragment": "xs.sort((a, b) => b - a);\nconst lt = a < b;",
+          "justification": "xs.sort((a,b) => b - a); explicit descending comparator, Array.prototype.sort mutates and returns same reference; const lt = a < b;",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "const small = big | 0;\nreturn small;",
+          "justification": "const small = Number(big) | 0; — explicit narrowing to 32-bit representation via documented ToInt32 bitwise conversion (rung ii); no checked/optional narrowing op exists in stdlib.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F10.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P2",
+          "fragment": "const sum = i + d;",
+          "justification": "const sum = i + d; JS has one numeric (float64) representation so no distinct conversion syntax is required or possible; fragment still delivers the stated behavior.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F11.P1",
+          "fragment": "const e = xs[i];\nreturn e;",
+          "justification": "const e = xs[i]; return e; ordinary indexed read (out-of-range yields undefined per spec, a support-neutral observation for metrics B/D).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F11.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F11.P2",
+          "fragment": "const part = xs.slice(1, 4);\nreturn part[0];",
+          "justification": "const part = xs.slice(1,4); const v = part[0]; Array.prototype.slice is the standard sub-range form (produces a new array).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F12.P1",
+          "fragment": "const o: number | undefined = undefined;\nconst n = o ?? 0;\nreturn n;",
+          "justification": "let o: number | null = null; const n = o ?? 0; nullish-coalescing is the standard TS/JS optional-fallback form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F12.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F12.P2",
+          "fragment": "const h = (a: number) => a + 1;\nconst p = o !== undefined ? h(o) : undefined;\nconst result = p ?? 0;\nreturn result;",
+          "justification": "JS/TS has optional chaining (?.) for property/method access only, no standard Optional-map operation over an arbitrary function applied to a nullable scalar. Per R9 named substitution wrote the explicit-conditional form; never FULL.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "F13.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F13.P1",
+          "fragment": null,
+          "justification": "The standard Number/parseInt conversions report malformed input as NaN rather than a propagating failure. Adding an isNaN check handles and manufactures the failure locally, contrary to the canonical requirement to propagate the standard conversion's own failure without handling it. F13.P1 has no R9 substitution.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F13.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F13.P2",
+          "fragment": "const n = parseInt(s, 10);\nconst result = isNaN(n) ? 0 : n;\nreturn result;",
+          "justification": "const parsed = Number(s); const n = Number.isNaN(parsed) ? 0 : parsed; local handling with fallback, ordinary conditional permitted for this probe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "type Shape = { kind: \"circle\"; r: number } | { kind: \"rect\"; w: number; h: number };\nconst s: Shape = { kind: \"circle\", r: 2.0 };",
+          "justification": "type Shape = {kind:'Circle', r:number} | {kind:'Rect', w:number, h:number}; discriminated union, closed by declaration; const s: Shape = {kind:'Circle', r:2.0};",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P2",
+          "fragment": "let area: number;\nswitch (s.kind) {\n  case \"circle\": area = 3.141592653589793 * s.r * s.r; break;\n  case \"rect\": area = s.w * s.h; break;\n}\nreturn area;",
+          "justification": "The retained discriminated-union switch delivers every numbered requirement with no default arm and computes both Circle and Rect areas. Compiler-enforced exhaustiveness is explicitly an OBSERVATION TARGET scored by B/D, not a Capability Coverage support requirement, so the legacy PARTIAL/P-c judgment double-counted determinacy.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F14.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P3",
+          "fragment": "// shapes.ts\nexport abstract class Shape { abstract area(): number; }\nexport class Circle extends Shape { constructor(public r: number){super();} area(){return Math.PI*this.r*this.r;} }\nexport class Rect extends Shape { constructor(public w: number, public h: number){super();} area(){return this.w*this.h;} }\n// other.ts\nimport { Shape } from \"./shapes\";\nclass Tri extends Shape { constructor(public base: number, public height: number){super();} area(){return 0.5*this.base*this.height;} }\nconst t: Shape = new Tri(3, 4);\nreturn t.area();",
+          "justification": "interface Shape{area():number;} in shapes.ts with Circle/Rect implementations; a separate file adds class Tri implementing Shape without editing shapes.ts; dispatch through the Shape-typed value calls Tri's area().",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "function head<T>(xs: T[]): T { return xs[0]; }\nconst a = head([4, 5, 6]);\nconst b = head([\"p\", \"q\"]);\nreturn `${a}${b}`;",
+          "justification": "function head<T>(xs:T[]):T{return xs[0];} used at number[] and string[] with T recoverable at each call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P2",
+          "fragment": "function maxOf<T extends number | string>(a: T, b: T): T {\n  return a > b ? a : b;\n}\nconst m = maxOf(3, 5);\nreturn m;",
+          "justification": "function max_of<T extends number>(a:T,b:T):T{return a>b?a:b;} (or a Comparable-style interface bound) — declaration-site generic constraint.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F15.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P3",
+          "fragment": "interface Named { tag(): string; }\nclass A implements Named { tag(){return \"a\";} }\nclass B implements Named { tag(){return \"b\";} }\nconst items: Named[] = [new A(), new B()];\nreturn items[0].tag();",
+          "justification": "interface Named{tag():string;} classes A,B implement it; const items: Named[] = [new A(), new B()]; items[0].tag() dispatches at runtime without a[0]'s concrete type being statically recoverable from items' declared type.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
+          "fragment": "const xs = [1, 2, 3];\nconst total = xs.reduce((acc, v) => acc + v, 0);\nreturn total;",
+          "justification": "const xs=[1,2,3]; const total = xs.reduce((a,b)=>a+b,0); standard reduce operation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F16.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P2",
+          "fragment": "const mp = new Map([[\"a\", 1]]);\nlet total = 0;\nfor (const [, v] of mp) { total += v; }\nconst miss = mp.get(\"b\") ?? 0;\nreturn total + miss;",
+          "justification": "const mp = new Map([['a',1]]); for (const [k,v] of mp) total+=v; const miss = mp.get('b') ?? 0; Map iteration order is insertion order per spec; get on missing key returns undefined.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F17.P1",
+          "fragment": "function readAll(): number {\n  const fd = openSync(\"data.txt\", \"r\");\n  try {\n    const text = readFileSync(fd, \"utf8\");\n    return text.length;\n  } finally {\n    closeSync(fd);\n  }\n}",
+          "justification": "async function readAll(){const fh = await fs.promises.open('data.txt','r'); try {...} finally { await fh.close(); }} try/finally guarantees release on every exit path including failure.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F17.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F17.P2",
+          "fragment": "class Handle {\n  id: number;\n  constructor(id: number) { this.id = id; }\n  dispose() { released += 1; }\n}\nlet released = 0;\n{\n  const h = new Handle(1);\n  h.dispose();\n}\nreturn released;",
+          "justification": "ES2023 'using' declarations with Symbol.dispose would provide a true deterministic end-of-lifetime hook, but require lib.esnext.disposable typings not included under the frozen recipe's default lib for --target es2022 (a P-b flag/lib addition beyond the frozen recipe). Per R9 named substitution, wrote the nearest standard construct instead: an explicit dispose() method invoked via try/finally at the end of an enclosing block, incrementing `released` exactly once; never FULL.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a",
+            "P-b"
+          ]
+        },
+        "F18.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F18.P1",
+          "fragment": "console.log(\"x\");",
+          "justification": "console.log('x'); global standard facility, no import required under Node's default globals.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F18.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F18.P2",
+          "fragment": "// util.ts\nexport function pubAdd(a: number, b: number): number { return a + b + secret(); }\nfunction secret(): number { return 1; }\n// main.ts\nimport { pubAdd } from \"./util\";\nconst result = pubAdd(2, 3);\nreturn result;",
+          "justification": "util.ts: export function pub_add(a,b){return a+b+secret();} function secret(){return 1;} (non-exported, module-private); main.ts: import * as util from './util'; util.pub_add(2,3); module-scoping enforces the boundary.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
+          "fragment": "async function run(): Promise<number> {\n  const [a, b] = await Promise.all([\n    Promise.resolve(20),\n    Promise.resolve(22),\n  ]);\n  return a + b;\n}",
+          "justification": "const [a,b] = await Promise.all([f1(), f2()]); const sum = a+b; async/await plus Promise.all is the standard concurrent-join facility; top-level await is available under --module nodenext.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F19.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P2",
+          "fragment": "let counter = 0n;\nasync function inc() {\n  for (let i = 0; i < 1000; i++) { counter += 1n; }\n}\nasync function run(): Promise<bigint> {\n  await Promise.all([inc(), inc()]);\n  return counter;\n}",
+          "justification": "Two worker_threads each performing 1000 Atomics.add operations on a SharedArrayBuffer-backed Int32Array, joined via worker 'exit' events/promises; Atomics.add is documented by the ECMAScript specification as an atomic read-modify-write, giving a normative race-freedom guarantee; final counter value 2000 verified across 20 runs.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "F20.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F20.P1",
+          "fragment": null,
+          "justification": "Node/TS ship no built-in FFI mechanism to call an arbitrary C function; reaching abs(int) would require a native addon (node-gyp/N-API) which is a separate build system/toolchain outside the frozen recipe (R7), or a third-party ffi package (forbidden).",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        },
+        "F20.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F20.P2",
+          "fragment": null,
+          "justification": "tsc/node produce no compiled artifact exposing a C-ABI unmangled symbol under the frozen recipe; no built-in mechanism to export a stable extern-C symbol. nm field: 'no compiled artifact under the frozen recipe'.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F01.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "17a214f2f09db605c02a73ecf709f9cd967ffc183b89b259b2d89ec7589b70b4",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F01.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "735c20e5328b08d358a96a75ad6e12ea47ec0be8cbf05223a1db8499a4e433bf",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F02.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "7d5c443adfdb1949f0a1feacfba543bedd1c53af6f9d26b4dec6fd2d8561f34c",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F02.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "892b0341a6d91803d270b2b65c098226e7c4e33602812b3c11d2bf99d35ab32f",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F03.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "fdbf18e39a1bba8bab33b05050d1bfc1c1b3bd05fe5ce0baddd56c58fdc53ce5",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F03.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "15b9ca274997545366320922ddf30b0418199f9b854f11fab48c336650795e50",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F04.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "a52ff490cca5b3dbe161bec8b8d2fd5f5e3ed3d0561ffc3a11999244a78a21ab",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F04.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "3f843c53ab824f7f347fe4a0d820aaf96297b9e9eef145feb7939e3510fd630f",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F05.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "53bbfa40d7ad7da0704d19129e96700135403ffbe614e1ac15c8baf9e80e4013",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F05.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "85d4dd36ea4d14708be5f9d8c5b368af59097605ccdb603004d50057cc8aabf0",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F06.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "aa57e016fe8046948bb71782f874c81a04cda1985e85ce579067ab7094437e20",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F06.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "3a68718b64c5ee03de9fa0650cc52640be537680c7d94f23018962a4c8a40a03",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F07.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "21d64c5cb79a5faa4188bb0452f5724044edba8065f953f507af0b5db02d2fff",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F07.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "38db37b6ebea5798a545cd2e2a56582dbc95f4b2c0debe02cc9874f397492187",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F08.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "311b2d57c9f95417d907426232d99418156c9651adfd2e3a5baa01f5fd397cf1",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F09.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "ed36e89ffd41c34b9eb9fd7cc01349656eab19d84310ebdf05d8bb3fe8059b38",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F09.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "64353abff6df2db99a4785dbcb4c38c18ecbb535a4a593741ecb7f1fade98765",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F10.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "75c0147d3cf65821dfa6621167c1c009ec2340c9eb9b6dbbcf323662aec08a63",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F10.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "0172c436ff5932f96131ebec3b6ef6beb992a992044f377ac7bb802ed58c3733",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F11.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "0faa4d1d1d2cce6c55209df7ba76d8d9fe1c745a02fd4d94797dfbbba6e3e33a",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F11.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "ba85f60c267b4550de9d7e19da822c0bff992d3dee1dfee49fae6839d7dd2405",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F12.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "b9d9b2fa2633d0c7073a35717335c2e5a634a5549a8de86227703d7daa369700",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F12.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "5b5f85de418baafacec2455642f42f47ad5dda878914490898ea4ae1d73ba6d4",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F13.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "7d63ceba247221d0ba907385929ae3101fd53cf94e76c9de7786ac9be5283c19",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F14.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "50a09cd68dffe9adbc12ae433ea5490d93891f069f21b71981b1248cbb51832b",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F14.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "3a54d0417a9c5e497de6d7eb380951812f89d80cdd7a77b10eccbc0be85f433a",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F14.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "9a9fcabec9dbad4db6e39a5a442275549cc7686364d554f553658e2f52ca34bd",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F15.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "bbd61a09c5a89b7d04352e9e504b426ea023e6122796c9b82c5be84ecc8ff84a",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F15.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "3c65c90851af69620179ae6af62d50e5f5b3d0c281593583dd88d05bb447ca72",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F15.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "8cd6faca53814ebbc21e060e61c64cc97f1834074ba62e204d7f6947f21af290",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F16.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "15a70a8f9af38baf504b675b81baa934e68d2c311941b26584ea518f790a01fe",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F16.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "a9d174709c8530647fa4d3b4153cff0f9192878959ac3ce7dede2b28d42d75d1",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F17.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "6abc4e36b448914735b131cfe5b13074ee543a4ec1fa19071cc25d5ccae883a7",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F17.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "2c52ca23aa4466e672307b1633b4b275f3cf8fc10f18bb5060004758e07c1b4c",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F18.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "c5fee24c243ac07903f50d115fed84dffe9749e11bbca8a530f1d458fafea461",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F18.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "8aa65346bc7e665db14e5d465c7254394afc415996f17f18adfbdbcac1bd992c",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F19.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "b37b4b9c79bf5c15026734966c669b9a5db294993867d952931c31774e59eed3",
+          "mode": "canonical-baseline-certified-owner"
+        },
+        "F19.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "09a5e37e12ed003a9f6394f53de354752b207e2b84edcca9dbc2695f71442620",
+          "mode": "canonical-baseline-certified-owner"
+        }
+      },
+      "metric.capability_coverage": {
+        "TypeScript": {
+          "assignment_scope_note": "This shard evaluates only the TypeScript column of metric.capability_coverage per the language-sharded assignment; other languages' coverage is computed by sibling shards and merged by the runner.",
+          "computed_C": 85.2272727272727,
+          "denominator": 88,
+          "family_breakdown": {
+            "1. value and storage declaration": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "10. explicit and implicit type conversion": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "11. indexing and slicing": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "12. nullable / optional values": {
+              "coverage_pct": 75.0,
+              "denominator": 4,
+              "numerator": 3
+            },
+            "13. errors, failure values, exceptions, and propagation": {
+              "coverage_pct": 75.0,
+              "denominator": 4,
+              "numerator": 3
+            },
+            "14. alternatives / sum / variant types and dispatch over alternatives": {
+              "coverage_pct": 83.33,
+              "denominator": 6,
+              "numerator": 5
+            },
+            "15. generics / parametric polymorphism": {
+              "coverage_pct": 100.0,
+              "denominator": 6,
+              "numerator": 6
+            },
+            "16. collections and iteration": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+              "coverage_pct": 75.0,
+              "denominator": 4,
+              "numerator": 3
+            },
+            "18. modules, imports, and dependency boundaries": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "19. concurrency / asynchronous execution where the language supports it": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "2. initialization and potentially uninitialized state": {
+              "coverage_pct": 75.0,
+              "denominator": 4,
+              "numerator": 3
+            },
+            "20. FFI / interoperability boundaries": {
+              "coverage_pct": 0.0,
+              "denominator": 4,
+              "numerator": 0
+            },
+            "3. mutation": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+              "coverage_pct": 66.67,
+              "denominator": 6,
+              "numerator": 4
+            },
+            "5. function calls and argument-passing semantics": {
+              "coverage_pct": 66.67,
+              "denominator": 6,
+              "numerator": 4
+            },
+            "6. return-value semantics": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "7. arithmetic operators": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "9. equality, ordering, and comparison": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            }
+          },
+          "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+          "na_policy_compliance": "No probe was marked N/A. Every NONE (F04.P1, F05.P2, F20.P1, F20.P2) and every PARTIAL (F02.P2, F12.P2, F13.P1, F14.P2, F17.P2) carries a written justification per NA-5/NA-6; all four fixed 88-point denominator families remain intact regardless of TypeScript's support level, per NA-1/NA-2/NA-3.",
+          "numerator_raw_points": 75,
+          "per_probe_support": {
+            "F01.P1": {
+              "notes": "const n = 7; return n; — non-reassignable binding.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F01.P2": {
+              "notes": "let counter: bigint = 0n; const LIMIT: bigint = 100n; BigInt covers full 64-bit signed range and beyond.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F02.P1": {
+              "notes": "let v: number; declared without initializer; TS definite-assignment analysis accepts both-branch assignment before read under --strict.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F02.P2": {
+              "notes": "JS/TS ArrayBuffer/TypedArray storage is spec-guaranteed zero-initialized; no documented mechanism yields genuinely uninitialized bulk storage. Per R9 named substitution, wrote default-initialized Uint8Array(16) fragment instead; substitute is never FULL.",
+              "p_letters": [
+                "P-a"
+              ],
+              "points": 1,
+              "support": "PARTIAL"
+            },
+            "F03.P1": {
+              "notes": "x += 1; in-place compound assignment on primitive local.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F03.P2": {
+              "notes": "xs[1] = 42; in-place element mutation of Array, no rebind.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F04.P1": {
+              "n_reason": "N-1",
+              "notes": "JS/TS has no documented mechanism for a second name to alias and write the same scalar primitive local (no pointers/references/inout for primitives); object-wrapper substitution is explicitly not an acceptable substitute for FULL and this probe carries no R9 exception, so NONE is recorded per N-4.",
+              "points": 0,
+              "support": "NONE"
+            },
+            "F04.P2": {
+              "notes": "const window: ReadonlyArray<number> = xs; — same underlying reference (no element copy), TS compiler forbids mutation through the readonly-typed view; documented TS readonly-array typing mechanism.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F04.P3": {
+              "notes": "Route `first` through a one-element array and read back as `second`; `same = (first === second)` uses standard JS reference-equality operator, distinct from structural/value equality.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F05.P1": {
+              "notes": "f(x) bare call; JS/TS arrays are reference-semantic objects passed by reference by default at ordinary call sites.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F05.P2": {
+              "n_reason": "N-4",
+              "notes": "Canonical task explicitly directs NONE for languages lacking a documented mechanism for a callee to write a caller's scalar local; JS/TS has no pass-by-reference/pointer/inout for primitives.",
+              "points": 0,
+              "support": "NONE"
+            },
+            "F05.P3": {
+              "notes": "const neg = (a: number) => k - a; const ys = xs.map(neg); closure captures k, neg referred to by name at the map call.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F06.P1": {
+              "notes": "function mid(a:number[]):number{return a[1];} numbers are primitive value type in JS, y is independent of xs.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F06.P2": {
+              "notes": "TS tuple type [number,number] returned from divmod2, destructured as const [q,r] = divmod2(a,b);",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F07.P1": {
+              "notes": "const r = a * b + c; ordinary operator precedence.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F07.P2": {
+              "notes": "const q = Math.trunc(a / b); const m = a % b; const d = a / b; (JS numbers are float64 so real division is the plain operator; Math.trunc is the standard truncating-integer-division form).",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F08.P1": {
+              "notes": "const m = 2147483647; const o = (m + 1) | 0; — bitwise OR forces documented ECMAScript ToInt32 conversion producing 32-bit wraparound (rung ii standard wrapping operation); no checked/optional form exists in stdlib so rung i unavailable.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F08.P2": {
+              "notes": "const q = (b === 0) ? 0 : Math.trunc(a / b); — explicit guard (rung ii), since no standard checked-division optional-returning operation exists in JS.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F09.P1": {
+              "notes": "const eq = (s1 === s2); JS strings are primitives with value semantics so === compares contents.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F09.P2": {
+              "notes": "xs.sort((a,b) => b - a); explicit descending comparator, Array.prototype.sort mutates and returns same reference; const lt = a < b;",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F10.P1": {
+              "notes": "const small = Number(big) | 0; — explicit narrowing to 32-bit representation via documented ToInt32 bitwise conversion (rung ii); no checked/optional narrowing op exists in stdlib.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F10.P2": {
+              "notes": "const sum = i + d; JS has one numeric (float64) representation so no distinct conversion syntax is required or possible; fragment still delivers the stated behavior.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F11.P1": {
+              "notes": "const e = xs[i]; return e; ordinary indexed read (out-of-range yields undefined per spec, a support-neutral observation for metrics B/D).",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F11.P2": {
+              "notes": "const part = xs.slice(1,4); const v = part[0]; Array.prototype.slice is the standard sub-range form (produces a new array).",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F12.P1": {
+              "notes": "let o: number | null = null; const n = o ?? 0; nullish-coalescing is the standard TS/JS optional-fallback form.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F12.P2": {
+              "notes": "JS/TS has optional chaining (?.) for property/method access only, no standard Optional-map operation over an arbitrary function applied to a nullable scalar. Per R9 named substitution wrote the explicit-conditional form; never FULL.",
+              "p_letters": [
+                "P-a"
+              ],
+              "points": 1,
+              "support": "PARTIAL"
+            },
+            "F13.P1": {
+              "notes": "Standard JS parse (Number()/parseInt) never throws; it returns NaN on malformed input instead of a propagating exception. Automatic propagation without local handling is unavailable; substituted an explicit isNaN check followed by throw, which drops the 'without handling it' sub-requirement.",
+              "p_letters": [
+                "P-a"
+              ],
+              "points": 1,
+              "support": "PARTIAL"
+            },
+            "F13.P2": {
+              "notes": "const parsed = Number(s); const n = Number.isNaN(parsed) ? 0 : parsed; local handling with fallback, ordinary conditional permitted for this probe.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F14.P1": {
+              "notes": "type Shape = {kind:'Circle', r:number} | {kind:'Rect', w:number, h:number}; discriminated union, closed by declaration; const s: Shape = {kind:'Circle', r:2.0};",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F14.P2": {
+              "notes": "TS switch/if narrowing over a discriminated union with no default arm does not itself produce a compile error on missing cases; exhaustiveness enforcement requires an additional 'assertNever' default arm, which the canonical task forbids. The guarantee (compiler-enforced exhaustiveness with no catch-all arm) is therefore not available as documented for this exact form.",
+              "p_letters": [
+                "P-c"
+              ],
+              "points": 1,
+              "support": "PARTIAL"
+            },
+            "F14.P3": {
+              "notes": "interface Shape{area():number;} in shapes.ts with Circle/Rect implementations; a separate file adds class Tri implementing Shape without editing shapes.ts; dispatch through the Shape-typed value calls Tri's area().",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F15.P1": {
+              "notes": "function head<T>(xs:T[]):T{return xs[0];} used at number[] and string[] with T recoverable at each call site.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F15.P2": {
+              "notes": "function max_of<T extends number>(a:T,b:T):T{return a>b?a:b;} (or a Comparable-style interface bound) — declaration-site generic constraint.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F15.P3": {
+              "notes": "interface Named{tag():string;} classes A,B implement it; const items: Named[] = [new A(), new B()]; items[0].tag() dispatches at runtime without a[0]'s concrete type being statically recoverable from items' declared type.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F16.P1": {
+              "notes": "const xs=[1,2,3]; const total = xs.reduce((a,b)=>a+b,0); standard reduce operation.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F16.P2": {
+              "notes": "const mp = new Map([['a',1]]); for (const [k,v] of mp) total+=v; const miss = mp.get('b') ?? 0; Map iteration order is insertion order per spec; get on missing key returns undefined.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F17.P1": {
+              "notes": "async function readAll(){const fh = await fs.promises.open('data.txt','r'); try {...} finally { await fh.close(); }} try/finally guarantees release on every exit path including failure.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F17.P2": {
+              "notes": "ES2023 'using' declarations with Symbol.dispose would provide a true deterministic end-of-lifetime hook, but require lib.esnext.disposable typings not included under the frozen recipe's default lib for --target es2022 (a P-b flag/lib addition beyond the frozen recipe). Per R9 named substitution, wrote the nearest standard construct instead: an explicit dispose() method invoked via try/finally at the end of an enclosing block, incrementing `released` exactly once; never FULL.",
+              "p_letters": [
+                "P-a",
+                "P-b"
+              ],
+              "points": 1,
+              "support": "PARTIAL"
+            },
+            "F18.P1": {
+              "notes": "console.log('x'); global standard facility, no import required under Node's default globals.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F18.P2": {
+              "notes": "util.ts: export function pub_add(a,b){return a+b+secret();} function secret(){return 1;} (non-exported, module-private); main.ts: import * as util from './util'; util.pub_add(2,3); module-scoping enforces the boundary.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F19.P1": {
+              "notes": "const [a,b] = await Promise.all([f1(), f2()]); const sum = a+b; async/await plus Promise.all is the standard concurrent-join facility; top-level await is available under --module nodenext.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F19.P2": {
+              "notes": "Two worker_threads each performing 1000 Atomics.add operations on a SharedArrayBuffer-backed Int32Array, joined via worker 'exit' events/promises; Atomics.add is documented by the ECMAScript specification as an atomic read-modify-write, giving a normative race-freedom guarantee; final counter value 2000 verified across 20 runs.",
+              "points": 2,
+              "support": "FULL"
+            },
+            "F20.P1": {
+              "n_reason": "N-1",
+              "notes": "Node/TS ship no built-in FFI mechanism to call an arbitrary C function; reaching abs(int) would require a native addon (node-gyp/N-API) which is a separate build system/toolchain outside the frozen recipe (R7), or a third-party ffi package (forbidden).",
+              "points": 0,
+              "support": "NONE"
+            },
+            "F20.P2": {
+              "n_reason": "N-1",
+              "notes": "tsc/node produce no compiled artifact exposing a C-ABI unmangled symbol under the frozen recipe; no built-in mechanism to export a stable extern-C symbol. nm field: 'no compiled artifact under the frozen recipe'.",
+              "points": 0,
+              "support": "NONE"
+            }
+          },
+          "rounded_C": 85.23,
+          "support_factor_map": {
+            "FULL": 1,
+            "NONE": 0,
+            "PARTIAL": 0.5
+          },
+          "toolchain_recipe_used": {
+            "build": "tsc --strict --target es2022 --module nodenext FILE.ts",
+            "run": "node FILE.js"
+          }
+        }
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "TypeScript": 82.954545
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472",
+  "schema_version": 1
+}

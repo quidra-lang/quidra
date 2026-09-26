@@ -3,11 +3,10 @@
     "C++"
   ],
   "certification": {
-    "compatibility_migration": "language-quality-reuse-audit-v1-projection",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "language_quality_reuse_audit_recertification_candidate": true,
-    "new_paid_provider_call": false,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -45,27 +44,11 @@
     },
     "work_unit_id": "audit-adversarial-cpp"
   },
-  "migration": {
-    "current_mechanical_verification": "current-validator",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Language Quality reusable-artifact currency audit judged the exact same frozen artifact Git object under the exact same current toolchain and runtime pins. Judge/provider and Task Packet transport changes do not alter that experiment; the current validator is rerun before promotion and no new provider call is claimed.",
-    "migration_rule": "language-quality-reuse-audit-v1-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "a85e4e36e86e9c55adaefff99d7ae632be0d14bafc5494079d2c2a04f23f4f07",
-    "source_record": "v1/language-quality/audit-adversarial-cpp/a85e4e36e86e9c55adaefff99d7ae632be0d14bafc5494079d2c2a04f23f4f07.json",
-    "source_record_sha256": "6ca8a610aec438c1c03dbe88cb0d7affc01316d9791cf7587497526730a7c235",
-    "source_result_sha256": "e4550a1e69ee1559e2f75c77d9e1d24414db8863cdefd7fd2cfe8491c04d2453",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "fcc3837445ec2c3b20ef7af6d28cb15522f6c5899c7261b5ab530ec78bdbdc35",
-    "run_id": "cache-recertify-9f13d62",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "audit-adversarial-cpp"
   },
   "result": {
@@ -75,7 +58,7 @@
     "audit_pass": true,
     "audit_scope": "Reusable-artifact currency audit only. No Primary requirement IDs assigned (assigned_requirements.json: assigned=[]). No measurements were taken or reused; this is a semantic-validity review of source against current mainstream C++ toolchains.",
     "caveats_non_blocking": [
-      "ADV-18's missing-return case yields only a warning (not a hard compile error) under default GCC/Clang flags; achieving a 'Compile-time Detection' classification for it requires the harness to build with -Wall -Werror=return-type (or /W4 /WX equivalents) \u2014 this is a harness build-configuration matter external to the source files themselves.",
+      "ADV-18's missing-return case yields only a warning (not a hard compile error) under default GCC/Clang flags; achieving a 'Compile-time Detection' classification for it requires the harness to build with -Wall -Werror=return-type (or /W4 /WX equivalents) — this is a harness build-configuration matter external to the source files themselves.",
       "ADV-21's three depth variants may not differentiate under Clang's default -fbracket-depth=256 ceiling (all three would hit the same fatal diagnostic); GCC has no equivalent default ceiling and would need much larger, stack-size-dependent depths to crash the compiler itself. Recommend recording outcomes per-toolchain rather than assuming one universal classification for this case.",
       "ADV-23 depends on an external binary fixture ('inputs/ADV-23.bin') not present in the audited readable path; its existence/content could not be verified from this packet alone and should be confirmed by the harness maintainers.",
       "ADV-19/20's crash reproducibility depends on the harness's configured stack ulimit; recommend the harness pin an explicit stack size for reproducibility across repeated runs and across languages being compared."
@@ -175,7 +158,7 @@
         "ADV-01_R.cpp"
       ]
     },
-    "coverage_gaps_found": "none \u2014 every hazard category enumerated in spec Section 17's mandatory list has at least one corresponding program; a valid-baseline control case (ADV-22_single-valid.cpp) is also present for calibration.",
+    "coverage_gaps_found": "none — every hazard category enumerated in spec Section 17's mandatory list has at least one corresponding program; a valid-baseline control case (ADV-22_single-valid.cpp) is also present for calibration.",
     "evaluation": "language_quality",
     "files_reviewed_count": 34,
     "per_file_findings": [
@@ -200,7 +183,7 @@
         "id": "ADV-06/07"
       },
       {
-        "finding": "Integer division by zero is UB and reliably raises SIGFPE (hardware trap) on x86/ARM Linux \u2014 a genuine crash test, not a compile issue.",
+        "finding": "Integer division by zero is UB and reliably raises SIGFPE (hardware trap) on x86/ARM Linux — a genuine crash test, not a compile issue.",
         "id": "ADV-08"
       },
       {
@@ -236,7 +219,7 @@
         "id": "ADV-17"
       },
       {
-        "finding": "pick(bool) with a missing return on the false path compiles under default flags (GCC/Clang emit only a -Wreturn-type warning, not an error) and is UB at runtime when the omitted path executes. Correctly represents the 'missing return' hazard; classification as Compile-time Detection vs. Runtime/Silent-Bug in the harness depends on whether the build enables -Werror=return-type \u2014 this is a build-flag/harness-configuration detail, not a defect in the source file itself.",
+        "finding": "pick(bool) with a missing return on the false path compiles under default flags (GCC/Clang emit only a -Wreturn-type warning, not an error) and is UB at runtime when the omitted path executes. Correctly represents the 'missing return' hazard; classification as Compile-time Detection vs. Runtime/Silent-Bug in the harness depends on whether the build enables -Werror=return-type — this is a build-flag/harness-configuration detail, not a defect in the source file itself.",
         "id": "ADV-18"
       },
       {
@@ -244,7 +227,7 @@
         "id": "ADV-19/20"
       },
       {
-        "finding": "IMPORTANT TOOLCHAIN-SPECIFIC BEHAVIOR CONFIRMED: Clang enforces a default -fbracket-depth limit of 256 for nested parentheses/brackets/braces, producing a clean, non-crashing fatal compile-time diagnostic ('bracket nesting level exceeded maximum of 256') once nesting exceeds that threshold. GCC has no such default limit and has been empirically shown to compile expressions with up to ~1024 nested levels without issue, only failing via an actual compiler stack overflow at a much higher, stack-size-dependent depth (analogous unbounded recursive-descent-parser stack overflows have been documented across many other parsers). Consequence for this artifact: under Clang, ALL THREE graduated depth variants (the default file, depth1000, and depth10000) will hit the identical 256-level fatal diagnostic and therefore cannot differentiate compiler behavior across depths on Clang alone; under GCC they may differentiate (e.g., depth1000 may compile fine while a much deeper variant may eventually stack-overflow the compiler). This does not invalidate the source files \u2014 they remain syntactically well-formed (parentheses balanced) and functionally serve the 'extreme parser nesting' hazard \u2014 but the harness/runner should record per-toolchain outcomes separately rather than assuming a single classification, and should recognize Clang's structured 'bracket nesting level exceeded' fatal_error as a Compile-time Detection outcome rather than a Crash.",
+        "finding": "IMPORTANT TOOLCHAIN-SPECIFIC BEHAVIOR CONFIRMED: Clang enforces a default -fbracket-depth limit of 256 for nested parentheses/brackets/braces, producing a clean, non-crashing fatal compile-time diagnostic ('bracket nesting level exceeded maximum of 256') once nesting exceeds that threshold. GCC has no such default limit and has been empirically shown to compile expressions with up to ~1024 nested levels without issue, only failing via an actual compiler stack overflow at a much higher, stack-size-dependent depth (analogous unbounded recursive-descent-parser stack overflows have been documented across many other parsers). Consequence for this artifact: under Clang, ALL THREE graduated depth variants (the default file, depth1000, and depth10000) will hit the identical 256-level fatal diagnostic and therefore cannot differentiate compiler behavior across depths on Clang alone; under GCC they may differentiate (e.g., depth1000 may compile fine while a much deeper variant may eventually stack-overflow the compiler). This does not invalidate the source files — they remain syntactically well-formed (parentheses balanced) and functionally serve the 'extreme parser nesting' hazard — but the harness/runner should record per-toolchain outcomes separately rather than assuming a single classification, and should recognize Clang's structured 'bracket nesting level exceeded' fatal_error as a Compile-time Detection outcome rather than a Crash.",
         "id": "ADV-21 (3 variants)"
       },
       {
@@ -264,11 +247,11 @@
         "id": "ADV-23"
       },
       {
-        "finding": "The literal 9223372036854775809 exceeds LLONG_MAX and is assigned to a plain 'long long'. Per the same conforming-extension behavior confirmed for ADV-03, GCC/Clang will treat the over-large decimal literal as unsigned (or __int128 in GCC) with a warning, not a hard compile error, then narrow it into long long with wraparound \u2014 correctly exercising the intended 'huge numeric literal' probe rather than a hard build failure.",
+        "finding": "The literal 9223372036854775809 exceeds LLONG_MAX and is assigned to a plain 'long long'. Per the same conforming-extension behavior confirmed for ADV-03, GCC/Clang will treat the over-large decimal literal as unsigned (or __int128 in GCC) with a warning, not a hard compile error, then narrow it into long long with wraparound — correctly exercising the intended 'huge numeric literal' probe rather than a hard build failure.",
         "id": "ADV-24"
       },
       {
-        "finding": "stoll() on invalid/unbounded external input throws std::invalid_argument/std::out_of_range; if unhandled this calls std::terminate and crashes the process \u2014 a valid 'invalid external input' probe. ADV-26's binary search over a fixed 7-element array read from stdin is algorithmically correct and exercises boundary/array-access behavior under adversarial target values.",
+        "finding": "stoll() on invalid/unbounded external input throws std::invalid_argument/std::out_of_range; if unhandled this calls std::terminate and crashes the process — a valid 'invalid external input' probe. ADV-26's binary search over a fixed 7-element array read from stdin is algorithmically correct and exercises boundary/array-access behavior under adversarial target values.",
         "id": "ADV-25/26"
       }
     ],

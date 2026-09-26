@@ -3,11 +3,10 @@
     "Python"
   ],
   "certification": {
-    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
-    "ecosystem_snapshot_recertification_candidate": true,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -54,28 +53,11 @@
     "work_unit_id": "ecosystem-tooling--part-4--python",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
-    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
-    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
-    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "cc356209de914f31c9ac74e76540e797c6fdcc892ffc314d33747490c32a6842",
-    "run_id": "cache-recertify-584269b",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "ecosystem-tooling--part-4--python"
   },
   "result": {
@@ -85,9 +67,9 @@
         "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--python; recertification did not select a new language-specific target.",
         "component_findings": {
           "artifact_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--python): C4 Artifact integrity: code signing / checksums / provenance attestation on official release artifacts - 20 pts",
-          "channel_breadth": "Preserved paid evidence (ecosystem-tooling--part-4--python): Multiple independently maintained install/version-manager channels exist beyond the base installer: the new Python Install Manager and Microsoft Store on Windows, Homebrew on macOS, apt/yum/pacman on Linux, and version managers pyenv, conda/Anaconda/Miniconda, and uv (which 'can install and manage Python versions directly, replacing the need for tools like pyenv' and pulls 'prebuilt CPython binaries from python-build-standalone' with installs that 'don\u2019t need admin privileges'). uv itself ships via a standalone shell/PowerShell installer, pip/pipx, Homebrew, Chocolatey, WinGet and Scoop. Score: 20/20.",
+          "channel_breadth": "Preserved paid evidence (ecosystem-tooling--part-4--python): Multiple independently maintained install/version-manager channels exist beyond the base installer: the new Python Install Manager and Microsoft Store on Windows, Homebrew on macOS, apt/yum/pacman on Linux, and version managers pyenv, conda/Anaconda/Miniconda, and uv (which 'can install and manage Python versions directly, replacing the need for tools like pyenv' and pulls 'prebuilt CPython binaries from python-build-standalone' with installs that 'don’t need admin privileges'). uv itself ships via a standalone shell/PowerShell installer, pip/pipx, Homebrew, Chocolatey, WinGet and Scoop. Score: 20/20.",
           "install_docs": "Preserved paid evidence (ecosystem-tooling--part-4--python): Official documentation (python.org/downloads, docs.python.org/3/using/windows.html, wiki.python.org BeginnersGuide) gives per-OS install guidance, and third-party tutorials (Real Python) closely mirror and extend it with platform-specific nuance (Store vs. traditional installer vs. WSL on Windows; Homebrew vs. official installer on macOS; package manager vs. source build on Linux). Score: 19/20.",
-          "installers": "Preserved paid evidence (ecosystem-tooling--part-4--python): Python.org provides dedicated Windows and macOS installer pages; per search evidence, 'On Windows the most stable build is available from the official download page' and users 'should download and run the installer from that page' (wiki.python.org/BeginnersGuide). macOS installer packages are versioned and dated on python.org/downloads/macos/ (e.g. Python 3.14.7 - Aug. 5, 2026). Linux has no single official one-click binary installer; Real Python notes 'you won\u2019t find an official installer that you can execute on your Linux system to install Python like you can on macOS and Windows,' but nearly universal availability via distro package managers and rolling-release repos compensates. Score: 1",
+          "installers": "Preserved paid evidence (ecosystem-tooling--part-4--python): Python.org provides dedicated Windows and macOS installer pages; per search evidence, 'On Windows the most stable build is available from the official download page' and users 'should download and run the installer from that page' (wiki.python.org/BeginnersGuide). macOS installer packages are versioned and dated on python.org/downloads/macos/ (e.g. Python 3.14.7 - Aug. 5, 2026). Linux has no single official one-click binary installer; Real Python notes 'you won’t find an official installer that you can execute on your Linux system to install Python like you can on macOS and Windows,' but nearly universal availability via distro package managers and rolling-release repos compensates. Score: 1",
           "package_version_manager": "Preserved paid evidence (ecosystem-tooling--part-4--python): pip ships bundled with the interpreter (Wikipedia: 'Most distributions of Python come with pip preinstalled... Python 2.7.9 and later... and Python 3.4 and later include pip by default'). The wheel binary format (PEP 427) lets pip and uv install pre-built packages without compilation ('pip and uv prefer wheels over source distributions whenever a compatible build exists on PyPI'), and manylinux wheels give near-universal binary installs across Linux variants (Real Python: manylinux wheels give a 'hassle-free installation of the package regardless of your specific Linux variant'). PyPI hosts a very large, actively growing package/version corpus. Score: 20/20."
         },
         "component_levels": {
@@ -129,7 +111,7 @@
         "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--python; recertification did not select a new language-specific target.",
         "component_findings": {
           "compat_deprecation": "Preserved paid evidence (ecosystem-tooling--part-4--python): Python maintains a documented deprecation/removal policy (PEP 387) with warnings issued at least one release ahead of removal, and stdlib/runtime changes are gated through the PEP process; however, real behavioral changes occur release-over-release (e.g. removals of previously deprecated stdlib modules, and multi-year phased rollout of free-threading changes to the C API surface), which is a modest compatibility-stability cost, though it is a governed rather than ad hoc process, as shown by the phased PEP 703/PEP 779 rollout ('Phase II would make the free-threaded build officially supported but still optional'). Score: 18/20.",
-          "governance_change": "Preserved paid evidence (ecosystem-tooling--part-4--python): A concrete recent test of governance stability: PEP 2026 proposed switching CPython to calendar versioning ('Python 3.26 will be the first version after this change, released in 2026'), went through the full PEP process, and was ultimately not adopted \u2014 external tracking confirms 'the Steering Council rejected it on 2025-02-06' and 'Python continues with the existing 3.x numbering.' This shows disruptive scheme changes are filtered through formal deliberation rather than applied unilaterally, preserving existing versioning continuity. Similarly, the multi-year, criteria-gated PEP 703/PEP 779 process for free-threading ('this PEP establishes clear expectations and requirements for moving to P",
+          "governance_change": "Preserved paid evidence (ecosystem-tooling--part-4--python): A concrete recent test of governance stability: PEP 2026 proposed switching CPython to calendar versioning ('Python 3.26 will be the first version after this change, released in 2026'), went through the full PEP process, and was ultimately not adopted — external tracking confirms 'the Steering Council rejected it on 2025-02-06' and 'Python continues with the existing 3.x numbering.' This shows disruptive scheme changes are filtered through formal deliberation rather than applied unilaterally, preserving existing versioning continuity. Similarly, the multi-year, criteria-gated PEP 703/PEP 779 process for free-threading ('this PEP establishes clear expectations and requirements for moving to P",
           "release_cadence": "Preserved paid evidence (ecosystem-tooling--part-4--python): D1 Documented, predictable release cadence actually followed in practice - 20 pts",
           "release_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--python): Release artifacts carry verifiable provenance: Sigstore signing (from 3.9.14/3.10.7/3.11.0 onward), Apple Developer ID-signed macOS installers, and Authenticode/Azure Trusted Signing-signed Windows binaries, all documented on the official downloads page. Score: 19/20.",
           "support_policy": "Preserved paid evidence (ecosystem-tooling--part-4--python): PEP 602 documents an explicit five-year lifecycle per release: 'After the release of Python 3.X.0, the 3.X series is maintained for five years,' with roughly two years of full bugfix support followed by three years of security-only, source-only fixes ('For the next thirty six months (3 years) it receives security updates and source-only releases are made on an as-needed basis'). Concrete EOL dates are published and tracked (e.g. 'Python 3.10 reaches end of life on October 31, 2026'). Score: 20/20."

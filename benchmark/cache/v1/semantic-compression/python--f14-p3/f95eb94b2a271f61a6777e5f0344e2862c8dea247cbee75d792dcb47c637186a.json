@@ -3,8 +3,10 @@
     "Python"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--python--f14-p3",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34",
-    "source_record": "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-    "source_record_sha256": "eeef1f12a3bbe61b7fd0fa3acafd88a92096f9f18de9f0c433bd5850392c8bac",
-    "source_result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "f39847f6125215be58cfdcef4b6223e49679675f468adfa0fcd73092c9aac6fd",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--python--f14-p3"
   },
   "result": {
@@ -82,7 +66,7 @@
     "evidence": {
       "canonical_fragments": {
         "F14.P3": {
-          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F14.P3",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P3",
           "fragment": "# shapes.py\nclass Shape(ABC):\n    @abstractmethod\n    def area(self): ...\nclass Circle(Shape):\n    def __init__(self, r): self.r = r\n    def area(self): return 3.141592653589793 * self.r * self.r\nclass Rect(Shape):\n    def __init__(self, w, h): self.w=w; self.h=h\n    def area(self): return self.w*self.h\n# other.py\nclass Tri(Shape):\n    def __init__(self, b, h): self.b=b; self.h=h\n    def area(self): return 0.5*self.b*self.h\nt = Tri(3,4)\nresult = t.area()",
           "justification": "Python's duck typing/ABC mechanism trivially allows a Tri class defined in a separate module to implement area() and be dispatched through the abstract interface without editing the shapes unit.",
           "level": "FULL",
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F14.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "085eca0398a60fa1596c03b92810bbcaa3f25ab8a51b9edceb7be7c61f3e01d2",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
-          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Python",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F14.P3",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-        "source_record_sha256": "eeef1f12a3bbe61b7fd0fa3acafd88a92096f9f18de9f0c433bd5850392c8bac",
-        "source_result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8"
+        "source_record": "baseline/semantic-owners/python.json",
+        "source_record_sha256": "0d4f28b736cb4e24c642e4a1a3140b1eb5aa166f1b85ba33d3d1c5eee6e90182",
+        "source_result_sha256": "3c5cbef08d987b2cba23c40fd7ef3223c5f26ac35161cb2cd89b241c8e855baa"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "ae9652313a45ed183b311d56c9cc761f0df991be9df4e64a9ec8f438b4559f0d",
+  "result_sha256": "a619a29d2c915722ffcffb705443b40f6ff70dc2085fe1e824359988a7d705bb",
   "schema_version": 1
 }

@@ -3,10 +3,12 @@
     "Go"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
     "configuration_signature": "{\"model\": \"claude-sonnet-5\", \"provider\": \"anthropic-messages\", \"sampling\": {\"decoding_state\": \"provider-controlled\", \"effort\": \"high\", \"orchestration_effort\": \"low\", \"sampling_parameters\": \"omitted\"}}",
     "max_trial_output_tokens": 3121,
-    "primary_complete": false,
+    "primary_complete": true,
     "proficiency_integrity": true,
     "proficiency_primary_prompt_set_sha256": "7a51ed17fa6782bd1d69d76ae82f540f258a01c89a0cdf3cbb1951b4560c2326",
     "proficiency_primary_trial_count": 18,
@@ -84,8 +86,10 @@
     "worker_mode": "sandbox-agent"
   },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "11cfc16795a27c2c3eef2d1c5641dea2efe04c9a276766b93dd29b77bb43b15c",
-    "run_id": "cache-recertify-4f01484",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "proficiency-trials--go"
   },
   "result": {

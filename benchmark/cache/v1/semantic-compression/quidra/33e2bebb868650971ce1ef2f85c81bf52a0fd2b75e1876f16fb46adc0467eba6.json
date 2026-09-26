@@ -3,17 +3,14 @@
     "Quidra"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
     "canonical_fragment_equivalence_proved": true,
-    "compatibility_migration": "semantic-legacy-consumer-recertification",
     "current_validator_revalidated": true,
-    "primary_complete": false,
-    "semantic_legacy_consumer_recertified": true,
+    "primary_complete": true,
     "unit_complete": true,
-    "validator_pass": true,
-    "validator_recertification_candidate": true,
-    "validator_recertification_source_epoch": "2026-09-medium",
-    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+    "validator_pass": true
   },
   "compatibility": {
     "quidra_execution_identity": {
@@ -74,33 +71,22 @@
     "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
-    "migration_rule": "semantic-legacy-consumer-recertification",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3",
-    "source_record": "v1/semantic-compression/quidra/184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3.json",
-    "source_record_sha256": "88231692c86fe8f4258c4c950edf786986f1fa4c004fa3fde203cbb7e67970a6",
-    "source_result_sha256": "7086625aeb632e2708a53ea353b9bf58abc4b1cc0aca194c2668afc607b10f01",
-    "transformed_fields": [
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "44ca3387ac64db64d31d17aab8144e50108cb9b3dd2aba2675caa55282b00217",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra"
   },
   "result": {
     "evaluation": "semantic_compression",
     "evidence": {
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "canonical_fragment_catalog_content_sha256": "00f3195f8f1c8ebb6fdd4781f80d03a3cf2a4e05a8e5ebfe960abe099e96a1c9",
+        "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
+        "schema_version": 1
+      },
       "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
       "checklist_categories": [
         "implicit_conversions",
@@ -117,30 +103,6 @@
       "counting_rule": "For each of the 44 frozen probes, count how many of the 9 checklist categories describe a semantically material behavior that occurs in the Quidra fragment without being signaled by the fixed local syntax at the use site, per capability_universe.json canonical_task and R1-R10 authoring rules. A behavior already made unambiguous by fixed local syntax under the language spec (e.g. Quidra explicit conversions, explicit references, explicit try/error unions, explicit generic constraints, static-only method resolution) is excluded per the frozen exclusion clause. Probes scored NONE for Quidra (no fragment exists) are excluded from this metric's basis and reported separately; their absence is scored only through Capability Coverage C, not Hidden Semantic Cost.",
       "double_counting_avoidance": "Each probe's count reflects distinct underlying rules; a single runtime-panic mechanism (checked arithmetic/bounds/allocation) is counted once per probe under implicit_exception_or_failure_propagation and not duplicated under context_dependent_overflow_numeric_behavior for the same construct, per semantic_compression.md instruction not to count the same underlying rule twice inside one metric.",
       "language": "Quidra",
-      "legacy_fragment_equivalence": {
-        "all_explicit_fragments_matched": false,
-        "canonical_fragment_catalog_content_sha256": "00f3195f8f1c8ebb6fdd4781f80d03a3cf2a4e05a8e5ebfe960abe099e96a1c9",
-        "canonical_fragment_catalog_sha256": "e7a8d22ca93c27d07f654b2c32b610d94a69849d6ae72bcbb84e5441c3da9bc8",
-        "dropped_now_none_probes": [
-          "F05.P3",
-          "F09.P2",
-          "F11.P2",
-          "F14.P3",
-          "F15.P3",
-          "F17.P2",
-          "F20.P2"
-        ],
-        "proof_mode": "prior-certified-equivalence-with-none-drop",
-        "schema_version": 1,
-        "scientific_identity_sha256": "e6eec0c01331b0df35bd2e09e517dadc37ed6a77c7f0b27dcb05577ce55963dd",
-        "source_density_record": "v1/semantic-compression/quidra/e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3.json",
-        "source_density_record_sha256": "1a70edbbaaa3175122678f3dd363e93422d270deae7d92b1b42dce45b04f02f9",
-        "source_metric_record": "v1/semantic-compression/quidra/184954a8a2bc52f205f31011877e5bad7af38831488e2edade17e429509c92f3.json",
-        "source_metric_record_sha256": "88231692c86fe8f4258c4c950edf786986f1fa4c004fa3fde203cbb7e67970a6",
-        "source_owner_record": "v1/semantic-compression/quidra/d9bd8e2e4c1131910636313fd1be4fde6ef5cdb3ed2183680f21464b054e2a23.json",
-        "source_owner_record_sha256": "1278fd0036ddfaac720012e09bbe603925a96f8b6645bed680d1f747a6e78d1e",
-        "source_run_id": "2026-09-23-fce5cfa-gh16"
-      },
       "max_possible_hidden_count": 351,
       "methodology_reference": "benchmark/template/methodology-assets/semantic_compression: semantic_compression.md section D; checklist frozen before annotation per common.md methodology.",
       "metric": "metric.hidden_semantic_cost",
@@ -347,6 +309,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "854737bde4e080bc5c5241c1aa76d754f42ad360f81dd2f2eb73fbb7b034baaa",
+  "result_sha256": "63d43124e071678a7b18e58eea7aff0b89ca171cdfe3f3788e900cebb8a4831a",
   "schema_version": 1
 }

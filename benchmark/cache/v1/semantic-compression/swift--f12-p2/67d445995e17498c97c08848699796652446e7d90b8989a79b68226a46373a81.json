@@ -3,8 +3,10 @@
     "Swift"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--swift--f12-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8",
-    "source_record": "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
-    "source_record_sha256": "a83a1fac2b66451a7c8aa7255bd8ee3d1f2bb6c15d5c2d8c3099b9d734164943",
-    "source_result_sha256": "6ed5cdb79513b4f83b539dda7e842742badcf57d1f1bb522dcabb19dc1662678",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "de1dcfb58bfc8a1d1898eb33a7fdb3da63fc0987a74fd358bf8eb3f1a100f3be",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--swift--f12-p2"
   },
   "result": {
@@ -82,9 +66,9 @@
     "evidence": {
       "canonical_fragments": {
         "F12.P2": {
-          "citation": "legacy-cache:v1/semantic-compression/swift/de6b710687c082df5829fd056234f4a4a1198e3606aa7323e4998e0c05c79a40.json#F12.P2",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F12.P2",
           "fragment": "let h = { (x: Int32) -> Int32 in x + 1 }\nlet p = o.map(h)\nreturn p ?? 0",
-          "justification": "let h: (Int32) -> Int32 = { $0 + 1 }; let p = o.map(h); let result = p ?? 0 \u2014 Optional.map is the documented optional-preserving chaining operation, no explicit if/switch needed.",
+          "justification": "let h: (Int32) -> Int32 = { $0 + 1 }; let p = o.map(h); let result = p ?? 0 — Optional.map is the documented optional-preserving chaining operation, no explicit if/switch needed.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
@@ -92,22 +76,20 @@
       },
       "canonical_verification": {
         "F12.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "61f4f1298709a388b879bcf8f4014406418a3638e4ae1a92810e3463f6b178ae",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/swift/a2702f9def9cccfa7afd90b6b641ba237ad41e2f078f6cf18379a33ca874bd19.json",
-          "source_record_sha256": "a493cec51bf3974ad64b045d86175522dfa9cca5e4f1896c0c1312cb9344cfe4",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Swift",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F12.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/swift/142b6bfd545f4f0d95104188ea74a64e328e4b4a48a7f761890dcc70a96de1f8.json",
-        "source_record_sha256": "a83a1fac2b66451a7c8aa7255bd8ee3d1f2bb6c15d5c2d8c3099b9d734164943",
-        "source_result_sha256": "6ed5cdb79513b4f83b539dda7e842742badcf57d1f1bb522dcabb19dc1662678"
+        "source_record": "baseline/semantic-owners/swift.json",
+        "source_record_sha256": "355c9d78138c4adbdc818ac38cee45e7e6defd70194043432435de3266c7abe3",
+        "source_result_sha256": "e4af6acfe12f6cdebbbccb0a3f4a1261cb56846b2505fe1e7c7678016ae1d962"
       }
     },
     "requirements": {
@@ -115,6 +97,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "41c46988289c6e18c08f41fe0e7557c3c0e6be1db0c786b466c9aacfaa9cbe87",
+  "result_sha256": "2af38a287fb67a0046efe01e573c889e2f8d29bfe288280e6209eb7a5aa04bbf",
   "schema_version": 1
 }

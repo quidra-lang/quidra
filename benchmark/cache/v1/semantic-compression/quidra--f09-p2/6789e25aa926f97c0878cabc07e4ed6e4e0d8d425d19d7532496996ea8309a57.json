@@ -3,8 +3,10 @@
     "Quidra"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -67,29 +69,11 @@
     "work_unit_id": "sc-canonical-fragment--quidra--f09-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed",
-    "source_record": "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
-    "source_record_sha256": "90cc983fab485ea7878fac4ea911e066c5c339462e2aa2b82bd3e302bf43dd47",
-    "source_result_sha256": "96e18a2c3885847e156b64a354b91d7dadcdafcbc3449bf88631e07113061edc",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "c24ab4ea28a5da9990f6f0dae3256586fe6a3ccf42e2f91a48732d94f2837e5d",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--quidra--f09-p2"
   },
   "result": {
@@ -121,13 +105,14 @@
       },
       "canonical_verification": {},
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Quidra",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F09.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/quidra/e1b4299a86340d4168e73f4aaafbcc1aad2f4a25651d408a7ebaaf847c03aaed.json",
-        "source_record_sha256": "90cc983fab485ea7878fac4ea911e066c5c339462e2aa2b82bd3e302bf43dd47",
-        "source_result_sha256": "96e18a2c3885847e156b64a354b91d7dadcdafcbc3449bf88631e07113061edc"
+        "source_record": "baseline/semantic-owners/quidra.json",
+        "source_record_sha256": "055c1f5636388bd7776877da876c431e9cf00c89c44312dc15269d3b80a4c5f6",
+        "source_result_sha256": "b494906f28f93f7c673650bff034bebab459169cbe24349a9b946e1ec35e3c0e"
       }
     },
     "requirements": {
@@ -135,6 +120,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "16f7a4695919d20684209c9c22f5a627d985c646d7d0c6729695372de4969bb6",
+  "result_sha256": "4fde2a71ad1ce3ad0b7510f44ae838f7f8d9128a051ffe3f9118a2963ce4f1ee",
   "schema_version": 1
 }

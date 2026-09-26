@@ -3,15 +3,16 @@
     "Go"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_evidence_inherited_from": "benchmark/cache/v1/llm-learnability/go/a43fba70d7507e92b76c482c5d375fae3c8960d4c9289764b950d5b1475267f7.json",
     "cap_evidence_inherited_record_sha256": "2769a80991ba67e4e6e3e2214aad1e99280df007d878c2b197490463cc874c9e",
     "cap_evidence_source": "agent_trace.json retained by 2026-09-22-62bb50a-gh2",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 429,
-    "primary_complete": false,
+    "primary_complete": true,
     "scored_output_cap": 4000,
     "trial_calls": 4,
     "unit_complete": true,
@@ -58,27 +59,11 @@
     "work_unit_id": "learnability-i5-i6--go",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a",
-    "source_record": "v1/llm-learnability/go/ca579526287dce9f49292744c4fc6eb147b26c81d8bbe5572da442d679dd810a.json",
-    "source_record_sha256": "28cefecb4b577fb33793f390f542f5150cc0d25adb355dd7229333590f56e9e8",
-    "source_result_sha256": "9103c475ac21db2607f0a18c3636eabae980fe05936b0e0513dab83116a42528",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "376ba8e55469aa38c8a8bbc6f72030a6af84039fe8e4396c4d4b2061be729b05",
-    "run_id": "cache-recertify-6629ab4",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i5-i6--go"
   },
   "result": {
@@ -148,7 +133,7 @@
       },
       "condition.i6_prior_conflict_resistance": {
         "condition_task_effectiveness_score": 100,
-        "description": "Reversible counterfactual arithmetic mapping: '+' means subtraction, '-' means addition (swapped from prior lexical expectation), '*' and '/' unchanged, strict left-to-right evaluation with no precedence. Specification stated unambiguously; inverse mapping is reversible (swap again restores standard arithmetic). No semantic traps altering real program results were used\u2014only the token-to-operation binding was swapped.",
+        "description": "Reversible counterfactual arithmetic mapping: '+' means subtraction, '-' means addition (swapped from prior lexical expectation), '*' and '/' unchanged, strict left-to-right evaluation with no precedence. Specification stated unambiguously; inverse mapping is reversible (swap again restores standard arithmetic). No semantic traps altering real program results were used—only the token-to-operation binding was swapped.",
         "failure_modes_observed": "none; model correctly applied the swapped '+'/'-' mapping and strict left-to-right evaluation in both independent trials, resisting the prior lexical expectation that '+' means addition.",
         "metrics": {
           "compile_parse_success": 100,

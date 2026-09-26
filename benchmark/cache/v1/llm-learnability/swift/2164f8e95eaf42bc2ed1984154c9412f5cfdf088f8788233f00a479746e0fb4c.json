@@ -3,13 +3,14 @@
     "Swift"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_evidence_source": "agent_trace.json retained by 2026-09-22-56f2c65-gh3",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 189,
-    "primary_complete": false,
+    "primary_complete": true,
     "scored_output_cap": 4000,
     "trial_calls": 3,
     "unit_complete": true,
@@ -56,27 +57,11 @@
     "work_unit_id": "learnability-i3-i4--swift",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "85cde18ab8a281680d6130e4b1cba309ab3774b713c7609f590a77245965b9b6",
-    "source_record": "v1/llm-learnability/swift/85cde18ab8a281680d6130e4b1cba309ab3774b713c7609f590a77245965b9b6.json",
-    "source_record_sha256": "213846e24b063f003a3f7ca718ca02e0007f190c291fa2845fc703367fa59545",
-    "source_result_sha256": "e943c73163006933123616a8c236cc8d4e5232710a602d925ddd0953409ffd20",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "6ac9eab3b6155dd8de4c344b7717e52acac0e9df58f492e36a77e699588ceb77",
-    "run_id": "cache-recertify-c401796",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i3-i4--swift"
   },
   "result": {

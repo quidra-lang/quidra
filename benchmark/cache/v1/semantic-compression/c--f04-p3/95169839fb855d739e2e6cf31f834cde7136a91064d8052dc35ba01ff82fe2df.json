@@ -3,8 +3,10 @@
     "C++"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -54,29 +56,11 @@
     "work_unit_id": "sc-canonical-fragment--c--f04-p3",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843",
-    "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-    "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
-    "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "60f6eeac9b167f5b98c1c789bc31d485b535ddcd4613eb4af0ff03be59f19221",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--c--f04-p3"
   },
   "result": {
@@ -84,7 +68,7 @@
     "evidence": {
       "canonical_fragments": {
         "F04.P3": {
-          "citation": "legacy-cache:v1/semantic-compression/c/b4e61ea114e16be011510351097a8342a6c3fdee54fcab71d5b1a60f83e2e277.json#F04.P3",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F04.P3",
           "fragment": "struct Obj { int id; };\nauto first = std::make_shared<Obj>(Obj{5});\nstd::vector<std::shared_ptr<Obj>> box{first};\nauto second = box[0];\nbool same = (first == second);\nreturn same;",
           "justification": "Heap-allocated object via `new`, second handle obtained by routing through a one-element `std::vector<Obj*>`, identity compared with pointer equality `first==second` (reference/pointer identity, not value equality).",
           "level": "FULL",
@@ -94,22 +78,20 @@
       },
       "canonical_verification": {
         "F04.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "f6417341c46d7bd6659ff83f744be500d713ed0bb79e32cdec3d90bb375cd032",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/c/4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130.json",
-          "source_record_sha256": "dd5ff0f4b6ee862365fab7110973fa1c4aa733be1b6d55d8c19e588c928717c3",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "C++",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F04.P3",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/c/f9bd4f9beb088576109bd79e5fedbf848b6ed56af2cdc7864b278cdc20fd0843.json",
-        "source_record_sha256": "c1170d1764ba0e97bc249609c1e98c478f22dbee4ceec3878ed17e717e1ba02a",
-        "source_result_sha256": "6be1cad1f6cf3a35def266c61e96d535c773e8144c5710cf7b591fef678016b6"
+        "source_record": "baseline/semantic-owners/c.json",
+        "source_record_sha256": "01afb96e5f77cf86c153fe8dca6ae53411a88086aa2626c66deaf26342f2a7db",
+        "source_result_sha256": "345b613943ed9a6f3bf7eb8dc619bc775b1d816dfb08642d83fa531320a181e8"
       }
     },
     "requirements": {
@@ -117,6 +99,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "4634f7dac0da112a1ed88e80f11147c42cf5c408af2b310f531b26f7c83e6bec",
+  "result_sha256": "1f24b62df9fb2999eddd81e9e59bdb77617e329a00ff983098b72be42d75a4ed",
   "schema_version": 1
 }

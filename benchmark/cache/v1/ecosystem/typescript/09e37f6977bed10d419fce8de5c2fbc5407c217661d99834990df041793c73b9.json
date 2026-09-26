@@ -3,11 +3,10 @@
     "TypeScript"
   ],
   "certification": {
-    "compatibility_migration": "ecosystem-runner-rubric-v2-snapshot",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
-    "ecosystem_snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
-    "ecosystem_snapshot_recertification_candidate": true,
-    "primary_complete": false,
+    "primary_complete": true,
     "unit_complete": true,
     "validator_pass": true
   },
@@ -55,28 +54,11 @@
     "work_unit_id": "ecosystem-external--part-2--typescript",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Preserved paid Ecosystem findings/citations were centrally re-adjudicated under the current runner-owned fixed rubric. Legacy language-local scores were not copied.",
-    "migration_rule": "ecosystem-runner-rubric-v2-snapshot",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
-    "source_record": "snapshots/ecosystem/2026-09-runner-rubric-v2.json",
-    "source_record_sha256": "d46c3ae1e61ed88952b6420f1b5d8baf0a347e10436ee58336768d3dd656c8e9",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "4f6d2b58184d01eaae95c7a7a83b029bf635c5f30aa769e35aad3fd7e657a07e",
-    "run_id": "cache-recertify-584269b",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "ecosystem-external--part-2--typescript"
   },
   "result": {
@@ -87,7 +69,7 @@
         "component_findings": {
           "current_continuity": "Preserved paid evidence (ecosystem-external--part-2--typescript): Third-party developer-survey data shows very high professional usage. <cite index='3-12'>The Stack Overflow 2025 Developer Survey reports TypeScript at 73% professional usage, up from around 34% in 2020.</cite> Package-ecosystem indicators corroborate heavy production reliance: <cite index='3-14'>DefinitelyTyped: now ships 35,000+ @types packages, covering roughly 95% of npm's public registry ... npm downloads: the typescript package itself passed 25 million weekly downloads in Q1 2026, up 40%</cite>.",
           "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--typescript): All three rubric legs are strongly satisfied: multiple large, independently verifiable named-company production migrations with documented outcomes; native first-class support across every platform in the fixed deployment-platform universe (including TypeScript-native platforms like Deno Deploy); and high independent survey-confirmed professional usage share (73% per Stack Overflow 2025). The score is not perfect only because some of the named-company evidence is relayed through secondary/aggregator sources rather than each company's own primary engineering blog post, which slightly limits direct verifiability of the most-cited claims (e.g., Slack, Shopify, Microsoft specifics beyond Airbnb'",
-          "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--typescript): Multiple large, independently identifiable companies have publicly documented production TypeScript adoption. <cite index='9-1'>Real companies\u2014including Microsoft, Slack, Airbnb, Google (Angular), and Shopify\u2014have publicly documented major migrations and quality improvements.</cite> The Airbnb case is the most detailed and frequently cited: <cite index='9-10,9-11,9-12'>Airbnb engineer Brie Bunge presented at JSConf Hawaii 2019 (February 2019) that a post-mortem analysis of Airbnb's production bugs found that 38% of bugs that reached production could have been prevented by TypeScript. This number\u2014consistent with the academic research by Gao et al.\u2014became widely shared across the developer com",
+          "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--typescript): Multiple large, independently identifiable companies have publicly documented production TypeScript adoption. <cite index='9-1'>Real companies—including Microsoft, Slack, Airbnb, Google (Angular), and Shopify—have publicly documented major migrations and quality improvements.</cite> The Airbnb case is the most detailed and frequently cited: <cite index='9-10,9-11,9-12'>Airbnb engineer Brie Bunge presented at JSConf Hawaii 2019 (February 2019) that a post-mortem analysis of Airbnb's production bugs found that 38% of bugs that reached production could have been prevented by TypeScript. This number—consistent with the academic research by Gao et al.—became widely shared across the developer com",
           "named_organizations": "Preserved paid evidence (ecosystem-external--part-2--typescript): All three rubric legs are strongly satisfied: multiple large, independently verifiable named-company production migrations with documented outcomes; native first-class support across every platform in the fixed deployment-platform universe (including TypeScript-native platforms like Deno Deploy); and high independent survey-confirmed professional usage share (73% per Stack Overflow 2025). The score is not perfect only because some of the named-company evidence is relayed through secondary/aggregator sources rather than each company's own primary engineering blog post, which slightly limits direct verifiability of the most-cited claims (e.g., Slack, Shopify, Microsoft specifics beyond Airbnb'",
           "scale_criticality": "Preserved paid evidence (ecosystem-external--part-2--typescript): TypeScript/JavaScript has native, first-class support across every platform in the frozen list. Serverless/edge: <cite index='19-18,19-19'>Cloudflare Workers is a serverless platform that runs JavaScript, TypeScript, or WebAssembly at the edge on Cloudflare's global network. It uses V8 isolates, lightweight sandboxed runtimes, allowing for extremely fast cold starts (often under 5 ms) and low-latency request handling close to users.</cite> Vercel and Netlify both run TypeScript-based edge/serverless functions: <cite index='19-2'>Integrated with Vercel's frontend hosting and build pipeline.</cite> and <cite index='19-4'>Built on Deno runtime, running at Netlify's CDN edge.</cite> Deno Deploy "
         },
@@ -114,7 +96,7 @@
         "candidate_universe": "Full list on the Microsoft TypeScript Editor Support wiki page (Visual Studio, VS Code, WebStorm/JetBrains IDEs, Atom, Eclipse, Emacs, NeoVim/Vim, NetBeans, Sublime Text, Notepad++), plus the linter/formatter/build-tool landscape referenced in Microsoft's own TypeScript tooling guidance (ESLint, typescript-eslint, Prettier, Biome, Oxlint, webpack, esbuild, Vite, ts-node).",
         "component_findings": {
           "build_test_coverage": "Preserved paid evidence (ecosystem-external--part-2--typescript): TypeScript has essentially complete third-party tool coverage across every checklist category: broad IDE/editor support natively documented by the language steward, a mature and actively released type-aware linter (typescript-eslint) with tens of thousands of dependent npm projects, a dominant formatter (Prettier) plus emerging faster Rust-based alternatives (Biome, Oxlint), a debugger built into the most widely used editor (VS Code) as well as JetBrains WebStorm, and first-party Microsoft tooling guidance reinforcing the standard toolchain. No checklist category is missing or weak; the only minor deduction reflects that some newer Rust-based tools still have partial rule-coverage gaps relat",
-          "ci_devops": "Preserved paid evidence (ecosystem-external--part-2--typescript): Microsoft itself publishes first-party developer guidance recommending this exact ESLint+Prettier+VS Code toolchain, including editor extensions: <cite index='14-1,14-2,14-3'>Boost your productivity with these must-have extensions: Prettier ESLint TypeScript Formatter \u2013 Formats TypeScript code through Prettier, then through ESLint. Path Intellisense \u2013 Auto-suggests import paths. Error Lens \u2013 Highlights TypeScript errors inline.</cite>",
+          "ci_devops": "Preserved paid evidence (ecosystem-external--part-2--typescript): Microsoft itself publishes first-party developer guidance recommending this exact ESLint+Prettier+VS Code toolchain, including editor extensions: <cite index='14-1,14-2,14-3'>Boost your productivity with these must-have extensions: Prettier ESLint TypeScript Formatter – Formats TypeScript code through Prettier, then through ESLint. Path Intellisense – Auto-suggests import paths. Error Lens – Highlights TypeScript errors inline.</cite>",
           "debug_profile": "Preserved paid evidence (ecosystem-external--part-2--typescript): TypeScript has essentially complete third-party tool coverage across every checklist category: broad IDE/editor support natively documented by the language steward, a mature and actively released type-aware linter (typescript-eslint) with tens of thousands of dependent npm projects, a dominant formatter (Prettier) plus emerging faster Rust-based alternatives (Biome, Oxlint), a debugger built into the most widely used editor (VS Code) as well as JetBrains WebStorm, and first-party Microsoft tooling guidance reinforcing the standard toolchain. No checklist category is missing or weak; the only minor deduction reflects that some newer Rust-based tools still have partial rule-coverage gaps relat",
           "editor_ide": "Preserved paid evidence (ecosystem-external--part-2--typescript): TypeScript has essentially complete third-party tool coverage across every checklist category: broad IDE/editor support natively documented by the language steward, a mature and actively released type-aware linter (typescript-eslint) with tens of thousands of dependent npm projects, a dominant formatter (Prettier) plus emerging faster Rust-based alternatives (Biome, Oxlint), a debugger built into the most widely used editor (VS Code) as well as JetBrains WebStorm, and first-party Microsoft tooling guidance reinforcing the standard toolchain. No checklist category is missing or weak; the only minor deduction reflects that some newer Rust-based tools still have partial rule-coverage gaps relat",
           "lint_format_static": "Preserved paid evidence (ecosystem-external--part-2--typescript): typescript-eslint is the de facto official-adjacent linting layer; per its own site, <cite index='44-1,44-3,44-4,44-5'>Powerful static analysis for JavaScript and TypeScript ... The parser and services for linting TypeScript code with ESLint, as well as how tools such as Prettier read TypeScript code. Over 100 rules that check for best practices, likely bugs, and stylistic consistency in modern JavaScript and TypeScript codebases. Industry-leading services that use TypeScript's type APIs to make a more powerful breed of lint rules for deeper insights into code.</cite> Registry-level adoption is large: <cite index='43-1,43-3'>Latest version: 8.70.0, last published: 13 days ago ... There are 1"

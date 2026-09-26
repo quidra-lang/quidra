@@ -3,8 +3,10 @@
     "TypeScript"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -53,29 +55,11 @@
     "work_unit_id": "sc-canonical-fragment--typescript--f14-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186",
-    "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-    "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
-    "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "ce1b3cdfca090b230905b956717300163ddf0d059ec35dd85d816c2be7a4f0bc",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--typescript--f14-p2"
   },
   "result": {
@@ -83,7 +67,7 @@
     "evidence": {
       "canonical_fragments": {
         "F14.P2": {
-          "citation": "legacy-cache:v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json#F14.P2",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P2",
           "fragment": "let area: number;\nswitch (s.kind) {\n  case \"circle\": area = 3.141592653589793 * s.r * s.r; break;\n  case \"rect\": area = s.w * s.h; break;\n}\nreturn area;",
           "justification": "The retained discriminated-union switch delivers every numbered requirement with no default arm and computes both Circle and Rect areas. Compiler-enforced exhaustiveness is explicitly an OBSERVATION TARGET scored by B/D, not a Capability Coverage support requirement, so the legacy PARTIAL/P-c judgment double-counted determinacy.",
           "level": "FULL",
@@ -93,22 +77,20 @@
       },
       "canonical_verification": {
         "F14.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "3a54d0417a9c5e497de6d7eb380951812f89d80cdd7a77b10eccbc0be85f433a",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/typescript/adade02e7ddb150eeb42e9efd9ea777625c989b83c22819c4996fd318430886b.json",
-          "source_record_sha256": "cf0893eefa36d727e65cb40b78eb66d4945d5c861577b049497c13c1278fea95",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "TypeScript",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F14.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-        "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
-        "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9"
+        "source_record": "baseline/semantic-owners/typescript.json",
+        "source_record_sha256": "e4c0a1c7301c90f5b8f658a6e1735dc4ca26bcaf89de69d06580e2298036d123",
+        "source_result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472"
       }
     },
     "requirements": {
@@ -116,6 +98,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "f19b99e18f869b51c013e2779b71ff96d56b9e58216e0966ef9dc5e173c07ea2",
+  "result_sha256": "8d579352a678a92243c5506dbbfa1e8ba562c4ad566ed17dbdfb69f43ef7abf5",
   "schema_version": 1
 }

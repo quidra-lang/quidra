@@ -3,17 +3,14 @@
     "Rust"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
     "canonical_fragment_equivalence_proved": true,
-    "compatibility_migration": "semantic-legacy-consumer-recertification",
     "current_validator_revalidated": true,
-    "primary_complete": false,
-    "semantic_legacy_consumer_recertified": true,
+    "primary_complete": true,
     "unit_complete": true,
-    "validator_pass": true,
-    "validator_recertification_candidate": true,
-    "validator_recertification_source_epoch": "2026-09-medium",
-    "validator_recertification_target_epoch": "2026-09-canonical-fragments-v6-fixed-stdout"
+    "validator_pass": true
   },
   "evaluation": "semantic_compression",
   "fingerprint": "d615a7ca4904b415948e4802e35d307b69ac74261eabcca7d029b198bdf96b23",
@@ -59,28 +56,11 @@
     "work_unit_id": "sc-metrics-hidden-coverage--part-1--rust",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A preserved paid Semantic Compression metric shard with the same scientific experiment identity as the recertified owner was rebound to the current canonical catalog. Explicit legacy fragments, when present, matched exactly; the current metric validator re-checks the result.",
-    "migration_rule": "semantic-legacy-consumer-recertification",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "cb3fad8de8a49fd7ac901d68aa142ae76288c97dc5f695c6f59eb0c4ebd19d0f",
-    "source_record": "v1/semantic-compression/rust/cb3fad8de8a49fd7ac901d68aa142ae76288c97dc5f695c6f59eb0c4ebd19d0f.json",
-    "source_record_sha256": "cc9873b8f8cea748c6c595f8504a8bdb6887aecbbe588b782ed1a1542cdde497",
-    "source_result_sha256": "78be16e56dfd76b595cf7035d0d3bcb9429aa28c5fde425dc5ba3ac4e33f537d",
-    "transformed_fields": [
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "88d633765d7cae1b6417f6418145b1f8bda584fef48331910f52eee986be6b0f",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-metrics-hidden-coverage--part-1--rust"
   },
   "result": {
@@ -88,6 +68,12 @@
     "evidence": {
       "basis": "all-fragments (Rust only; common-basis figure requires merge of all 10 language shards by the runner)",
       "basis_size_note": "This shard measures Rust only, per assigned_requirements.json. Cross-language common-basis restriction (probes where all 10 languages have a fragment) cannot be determined from a single-language shard; the runner must recompute the common-basis figure after merging all language shards, per capability_universe.json interaction_with_quality_metrics.common_basis_rule.",
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "canonical_fragment_catalog_content_sha256": "747d85fce83d0bf20646982bac18fd8c4c06c386bdab795b734828d2b16de3a2",
+        "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
+        "schema_version": 1
+      },
       "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
       "caveats": [
         "This is a single-language (Rust-only) shard per the runner's max_requirement_ids_per_multi_language_agent / language-sharding plan. The methodology's common-basis rule (metrics computed primarily on probes where ALL TEN languages have a fragment) cannot be evaluated from this shard alone; the runner must intersect this shard's per-probe support status with the other nine language shards before computing the final common-basis hidden_semantic_cost figure.",
@@ -113,22 +99,6 @@
       "fragment_count_n_L": 44,
       "fragment_count_note": "All 44 probes were assessed as expressible for Rust at FULL or PARTIAL support under the frozen recipe (rustc -O -C debug-assertions=on); no NONE fragments were required to compute this metric. Support-level adjudication itself is out of scope for this metric worker (owned by capability coverage) and is not asserted here as final.",
       "language": "Rust",
-      "legacy_fragment_equivalence": {
-        "all_explicit_fragments_matched": false,
-        "canonical_fragment_catalog_content_sha256": "747d85fce83d0bf20646982bac18fd8c4c06c386bdab795b734828d2b16de3a2",
-        "canonical_fragment_catalog_sha256": "25e3bc77fc9de059f171f12820c6ca714418c6977948df20f3ab7fdd16f09d8e",
-        "dropped_now_none_probes": [],
-        "proof_mode": "shared-experiment-owner-catalog",
-        "schema_version": 1,
-        "scientific_identity_sha256": "ea696e92fcf76cf2d6fb99e387aae3cce4193cb391d15bebf3c0be93cdfc63f3",
-        "source_density_record": "v1/semantic-compression/rust/f79204eb17c7847d1b7ae896ded2a98f1cd3e2a8496eb7bf8101292783d47d15.json",
-        "source_density_record_sha256": "067d1705bb49e46b2b77f234c419161ae91a3b04b38713af0374fbda9ac8d95b",
-        "source_metric_record": "v1/semantic-compression/rust/cb3fad8de8a49fd7ac901d68aa142ae76288c97dc5f695c6f59eb0c4ebd19d0f.json",
-        "source_metric_record_sha256": "cc9873b8f8cea748c6c595f8504a8bdb6887aecbbe588b782ed1a1542cdde497",
-        "source_owner_record": "v1/semantic-compression/rust/e76751d96630ff4bde5ed9fcda44b8543915e11c49a6d996bc13764c3ce652ba.json",
-        "source_owner_record_sha256": "5d309a31d88565b5409435f77507f5f11fd25bf78b9ae10293d20d5d523391a3",
-        "source_run_id": "2026-09-23-fce5cfa-gh16"
-      },
       "metric": "hidden_semantic_cost",
       "raw_hidden_cost_count_by_probe": {
         "F01.P1": {
@@ -358,6 +328,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "072b7856aa40629e7d784d62222b9608d9b9001aed586f499cac55a0b837741a",
+  "result_sha256": "cfdb941f566167e932e3d56acd30a95cbcee0eaf3a11f60387a1002c90058a22",
   "schema_version": 1
 }

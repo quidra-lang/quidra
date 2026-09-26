@@ -3,8 +3,10 @@
     "TypeScript"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -53,29 +55,11 @@
     "work_unit_id": "sc-canonical-fragment--typescript--f04-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186",
-    "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-    "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
-    "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "542d89919ec5e500d8a3c4ac8405f1e367287c2b7f63a9bde52972f483f44837",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--typescript--f04-p2"
   },
   "result": {
@@ -83,9 +67,9 @@
     "evidence": {
       "canonical_fragments": {
         "F04.P2": {
-          "citation": "legacy-cache:v1/semantic-compression/typescript/b666e9fc8b8392a97cbfc795a71aaad4abb0d5c38d3956669414e1b87c3a740c.json#F04.P2",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F04.P2",
           "fragment": "const window: ReadonlyArray<number> = xs;\nreturn window[0];",
-          "justification": "const window: ReadonlyArray<number> = xs; \u2014 same underlying reference (no element copy), TS compiler forbids mutation through the readonly-typed view; documented TS readonly-array typing mechanism.",
+          "justification": "const window: ReadonlyArray<number> = xs; — same underlying reference (no element copy), TS compiler forbids mutation through the readonly-typed view; documented TS readonly-array typing mechanism.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
@@ -93,21 +77,20 @@
       },
       "canonical_verification": {
         "F04.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "a52ff490cca5b3dbe161bec8b8d2fd5f5e3ed3d0561ffc3a11999244a78a21ab",
-          "fragment_origin": "reviewed-current-recertification-override",
-          "mode": "legacy-evidence-recertification",
-          "recertifier": "GPT-5.6 Sol",
-          "source": "LEGACY_SC_FRAGMENT_OVERRIDES"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "TypeScript",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F04.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/typescript/9f04016da96ee8a2b3b7d71059f74e9c2832f38a51e5a321ef60123d21fd2186.json",
-        "source_record_sha256": "a3627a32eaa18bee2fd0163565caca19a753f777912c630950695d323f204353",
-        "source_result_sha256": "bdc142e1942f8f02d71469ed260c4da09fbe00284579847baf8ffb9d0cc19ae9"
+        "source_record": "baseline/semantic-owners/typescript.json",
+        "source_record_sha256": "e4c0a1c7301c90f5b8f658a6e1735dc4ca26bcaf89de69d06580e2298036d123",
+        "source_result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472"
       }
     },
     "requirements": {
@@ -115,6 +98,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "2204a3039cdceec2e6325fc9b85ece63c2f4a9bc87624c323cdc24333f523d01",
+  "result_sha256": "c8fe1b20996748ded6790f9f766a245451b567b8037fc390f640bae4f58b7cc5",
   "schema_version": 1
 }

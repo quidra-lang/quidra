@@ -3,10 +3,12 @@
     "Kotlin"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_truncated_trial_calls": 0,
     "configuration_signature": "{\"model\": \"claude-sonnet-5\", \"provider\": \"anthropic-messages\", \"sampling\": {\"decoding_state\": \"provider-controlled\", \"effort\": \"high\", \"orchestration_effort\": \"low\", \"sampling_parameters\": \"omitted\"}}",
     "max_trial_output_tokens": 4344,
-    "primary_complete": false,
+    "primary_complete": true,
     "proficiency_integrity": true,
     "proficiency_primary_prompt_set_sha256": "9f26cf463fbc9ddf042c479a983706219fa92a1a7c8f6d7f0e48f288556b81cf",
     "proficiency_primary_trial_count": 18,
@@ -86,8 +88,10 @@
     "worker_mode": "sandbox-agent"
   },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "7ad20c6186994a8142350fdd469f8c287afcb4a8b05c3618df24e678a27c84cb",
-    "run_id": "cache-recertify-4f01484",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "proficiency-trials--kotlin"
   },
   "result": {

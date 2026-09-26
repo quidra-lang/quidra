@@ -3,8 +3,10 @@
     "Python"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -52,29 +54,11 @@
     "work_unit_id": "sc-canonical-fragment--python--f15-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34",
-    "source_record": "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-    "source_record_sha256": "eeef1f12a3bbe61b7fd0fa3acafd88a92096f9f18de9f0c433bd5850392c8bac",
-    "source_result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "4c5c485fd6029a1884d986e7af25c16f558cb5528a39fc3b162c07b6c55f53bc",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--python--f15-p2"
   },
   "result": {
@@ -82,7 +66,7 @@
     "evidence": {
       "canonical_fragments": {
         "F15.P2": {
-          "citation": "legacy-cache:v1/semantic-compression/python/adbce2d6842ad5e23e732b360fd0b8f269cdf5c78d6609bce9049c12c254fdda.json#F15.P2",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P2",
           "fragment": "from typing import TypeVar\nT = TypeVar(\"T\", bound=\"SupportsRichComparison\")\ndef max_of(a: T, b: T) -> T:\n    return a if a > b else b\nm = max_of(3, 5)\nreturn m",
           "justification": "Per the canonical_task's own named substitution clause: Python has no declaration-site constraint mechanism enforced by the language; ordinary comparison operators are used without an enforced bound.",
           "level": "PARTIAL",
@@ -94,22 +78,20 @@
       },
       "canonical_verification": {
         "F15.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "6f6bd05ef5d1f05b727a231102503294fb5043c1bccb227f2c5954c8f290bdd0",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/python/f6965960d39dec752d58141ba773c56effa5c9b5278381724b1e4e759e8e131b.json",
-          "source_record_sha256": "a1bbed10fdc3bcb598ec5948bc6a5bb4eda0829c11d8ab8639dc8942f89492f5",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Python",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F15.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/python/bdf18b2c9501d2119da0df8dbb35cab5a55cd598caedacf5faf09219800d5c34.json",
-        "source_record_sha256": "eeef1f12a3bbe61b7fd0fa3acafd88a92096f9f18de9f0c433bd5850392c8bac",
-        "source_result_sha256": "5895b949d570d19871a10d79aa417968635ae876ee139bb9d7d7512280af0cf8"
+        "source_record": "baseline/semantic-owners/python.json",
+        "source_record_sha256": "0d4f28b736cb4e24c642e4a1a3140b1eb5aa166f1b85ba33d3d1c5eee6e90182",
+        "source_result_sha256": "3c5cbef08d987b2cba23c40fd7ef3223c5f26ac35161cb2cd89b241c8e855baa"
       }
     },
     "requirements": {
@@ -117,6 +99,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "41c79b60bef0f7c1b885c32af05526f626ee72bcb7a251ca83a351afbb0e05d5",
+  "result_sha256": "4e8f74d39fa9d7c7c91a8c596e7a0a6d155c4168a348b358ca2151ef245b72a2",
   "schema_version": 1
 }

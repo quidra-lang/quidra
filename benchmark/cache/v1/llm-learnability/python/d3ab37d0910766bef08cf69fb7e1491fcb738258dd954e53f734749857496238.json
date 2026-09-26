@@ -3,13 +3,14 @@
     "Python"
   ],
   "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "cap_evidence_source": "agent_trace.json retained by 2026-09-22-56f2c65-gh3",
     "cap_truncated_trial_calls": 0,
-    "compatibility_migration": "scoped-input-projection",
     "current_validator_revalidated": true,
     "learnability_integrity": true,
     "max_trial_output_tokens": 444,
-    "primary_complete": false,
+    "primary_complete": true,
     "scored_output_cap": 4000,
     "trial_calls": 2,
     "unit_complete": true,
@@ -56,27 +57,11 @@
     "work_unit_id": "learnability-i5-i6--python",
     "worker_mode": "sandbox-agent"
   },
-  "migration": {
-    "current_mechanical_verification": "not-applicable",
-    "current_validator": "PASS",
-    "migration_reason": "Legacy paid evidence is scientifically unchanged; only the scoped Task Packet/fingerprint representation changed. Every non-scoped dependency and selected prompt component was proved identical, except that Learnability may project away the explicitly Semantic Compression-only worker-core output-transport section after the remaining worker rules compare byte-for-byte.",
-    "migration_rule": "scoped-input-projection",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "3e6b51ebffee1b7441045840703a05db193d82706b735f50872f832fc485b4b2",
-    "source_record": "v1/llm-learnability/python/3e6b51ebffee1b7441045840703a05db193d82706b735f50872f832fc485b4b2.json",
-    "source_record_sha256": "4ab28e330338fdd757c2abe24f41d02e208a9f85b03cb8376bcb9d6ccdacab9e",
-    "source_result_sha256": "cda6b62b92336da039fa8ae52458a14f3e5734553e6ba639ccac718ada8a5799",
-    "transformed_fields": [
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "c30caea1a81600d4df42f359ffefa5a1887d3094b64501ca602cdd9c3595cffc",
-    "run_id": "cache-recertify-c401796",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "learnability-i5-i6--python"
   },
   "result": {

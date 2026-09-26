@@ -3,8 +3,10 @@
     "Kotlin"
   ],
   "certification": {
-    "compatibility_migration": "semantic-probe-from-current-owner",
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
     "current_validator_revalidated": true,
+    "primary_complete": true,
     "semantic_probe_projection_candidate": true,
     "unit_complete": true,
     "validator_pass": true
@@ -54,29 +56,11 @@
     "work_unit_id": "sc-canonical-fragment--kotlin--f10-p2",
     "worker_mode": "packet-only"
   },
-  "migration": {
-    "current_mechanical_verification": "not-performed-legacy-evidence-recertification",
-    "current_validator": "PASS",
-    "migration_reason": "A current-validator-certified language owner was split into its exact probe\u00d7language leaves without changing the selected canonical record. The retained source bytes and result digest remain explicit provenance.",
-    "migration_rule": "semantic-probe-from-current-owner",
-    "migration_rule_version": 1,
-    "schema_version": 1,
-    "source_fingerprint": "d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee",
-    "source_record": "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
-    "source_record_sha256": "4730061f5e810a8d5883ed61528797bb63c33db1c6b526c14fedd08d14aefe23",
-    "source_result_sha256": "b1da3fa706b840fce1b06ea5dae1116cb99ca84ac8de719f96886986e82f6d76",
-    "transformed_fields": [
-      "requirements",
-      "evidence",
-      "fingerprint",
-      "fingerprint_payload",
-      "provenance",
-      "certification"
-    ]
-  },
   "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
     "prompt_sha256": "5f46c9b28b8644ec826dcfbde19b5467d3df50d650586d042b0993fd26900a6c",
-    "run_id": "cache-recertify-d12749f",
+    "run_id": "2026-09-25-5dc8989-gh25",
     "work_unit_id": "sc-canonical-fragment--kotlin--f10-p2"
   },
   "result": {
@@ -84,9 +68,9 @@
     "evidence": {
       "canonical_fragments": {
         "F10.P2": {
-          "citation": "legacy-cache:v1/semantic-compression/kotlin/7d29a8f7152b864c5360a63ceb31541d74c54c5eb27d35a9043bd937693a6551.json#F10.P2",
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P2",
           "fragment": "val sum = i + d",
-          "justification": "val sum = i.toDouble() + d \u2014 Kotlin requires an explicit conversion call since it performs no implicit numeric widening between Int and Double.",
+          "justification": "val sum = i.toDouble() + d — Kotlin requires an explicit conversion call since it performs no implicit numeric widening between Int and Double.",
           "level": "FULL",
           "none_reason": null,
           "partial_reasons": []
@@ -94,22 +78,20 @@
       },
       "canonical_verification": {
         "F10.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
           "canonical_fragment_sha256": "a6991f7281dbc6339ec526519b2731f8ec3ba3951b0483d3487be78aff3e48ac",
-          "fragment_origin": "legacy-semantic-density",
-          "mode": "legacy-evidence-recertification",
-          "source_record": "v1/semantic-compression/kotlin/de23033b3284cc4a1add3a5e036ac700603d3f5148fd3ba3aeefc04e440182a9.json",
-          "source_record_sha256": "7503853a0bdf27a1f6fd8ec3c8c79de7c403a64ccef4c4e5d4b7a2a92aa80428",
-          "source_run_id": "2026-09-23-fce5cfa-gh16"
+          "mode": "canonical-baseline-probe-projection"
         }
       },
       "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
         "language": "Kotlin",
-        "mode": "probe-from-current-certified-language-owner",
+        "mode": "probe-from-canonical-baseline-owner",
         "probe_id": "F10.P2",
         "schema_version": 1,
-        "source_record": "v1/semantic-compression/kotlin/d814e28dac08faa8e570cfa46361323465bf430aae62ea0d85fd18a8a778b5ee.json",
-        "source_record_sha256": "4730061f5e810a8d5883ed61528797bb63c33db1c6b526c14fedd08d14aefe23",
-        "source_result_sha256": "b1da3fa706b840fce1b06ea5dae1116cb99ca84ac8de719f96886986e82f6d76"
+        "source_record": "baseline/semantic-owners/kotlin.json",
+        "source_record_sha256": "28f271c1c5529261b480c3109d5b07b08c7131955c41e2143e390906e6d75194",
+        "source_result_sha256": "bd39333cd1505b63ec8602aef6337c7e05f1e66d8fb502f9bab345e5b8d422e9"
       }
     },
     "requirements": {
@@ -117,6 +99,6 @@
     },
     "schema_version": 1
   },
-  "result_sha256": "b912b7327b7b19033f1df998fe79cb2a10a27cfd2ee71af89f10634203d60f8d",
+  "result_sha256": "49afacca0b0c47b5e328736b03eb70c0bf5c46645b06fd1977fd3fc8d3dcea58",
   "schema_version": 1
 }

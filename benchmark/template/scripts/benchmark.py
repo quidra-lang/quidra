@@ -144,9 +144,20 @@ def validate_language_generation_config(root: Path) -> dict[str, Any]:
             f"missing={missing}, extra={extra}"
         )
 
+    rows = config["languages"]
+    quidra = rows.get("Quidra") or {}
+    if (
+        quidra.get("version_source") != "project.toml:[project].version"
+        or "version" in quidra
+    ):
+        raise BenchmarkError(
+            "Quidra generation identity must come only from "
+            "project.toml [project].version; benchmark/config.json must not "
+            "declare a Quidra version"
+        )
+
     pins = json_load(template / "runtime" / "toolchains.json").get("toolchains") or {}
     mismatches: list[str] = []
-    rows = config["languages"]
     for language, pin_key in LANGUAGE_GENERATION_PIN_KEYS.items():
         configured_version = str((rows.get(language) or {}).get("version") or "")
         pinned_version = str(pins.get(pin_key) or "")
@@ -8613,6 +8624,11 @@ def same_version_certified_record(
     return None
 
 
+LEGACY_MECHANICAL_CACHE_EPOCH_ALIASES = {
+    "2026-09": "github-hosted-ubuntu-latest-v1",
+}
+
+
 def same_generation_cache_payload_compatible(
     unit: dict[str, Any],
     current: dict[str, Any],
@@ -8630,6 +8646,10 @@ def same_generation_cache_payload_compatible(
         if evaluation == "ecosystem":
             # Calendar/declared epochs are not language-generation identity.
             value.pop("cache_epoch", None)
+        if mechanical_unit(unit):
+            epoch = str(value.get("cache_epoch") or "")
+            if epoch in LEGACY_MECHANICAL_CACHE_EPOCH_ALIASES:
+                value["cache_epoch"] = LEGACY_MECHANICAL_CACHE_EPOCH_ALIASES[epoch]
         if action == "adversarial-measure":
             scripts = value.get("measurement_script_hashes") or {}
             value["measurement_script_hashes"] = {
@@ -16320,7 +16340,12 @@ def cache_impact(source: Path) -> dict[str, Any]:
                 changed.append(f"runtime_toolchain_pins:{language}")
         epoch_name = "mechanical" if payload.get("result_kind") == "mechanical" else evaluation
         if str(epochs.get(epoch_name, "stable")) == "declared":
-            if payload.get("cache_epoch") != declared.get(epoch_name):
+            recorded_epoch = payload.get("cache_epoch")
+            if epoch_name == "mechanical":
+                recorded_epoch = LEGACY_MECHANICAL_CACHE_EPOCH_ALIASES.get(
+                    str(recorded_epoch or ""), recorded_epoch
+                )
+            if recorded_epoch != declared.get(epoch_name):
                 changed.append("cache_epoch")
         for name, recorded in (payload.get("measurement_script_hashes") or {}).items():
             script = template / "scripts" / name

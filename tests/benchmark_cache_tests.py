@@ -2526,6 +2526,20 @@ def assert_all_languages_use_version_generations() -> None:
         config_bytes = config_path.read_bytes()
         toolchain_bytes = toolchain_path.read_bytes()
 
+        invalid_quidra = benchmark.json_load(config_path)
+        invalid_quidra["languages"]["Quidra"] = {
+            "id": "quidra",
+            "version": "0.3.0",
+        }
+        benchmark.json_dump(config_path, invalid_quidra)
+        try:
+            benchmark.validate_language_generation_config(root)
+        except benchmark.BenchmarkError as exc:
+            assert "project.toml [project].version" in str(exc), exc
+        else:
+            raise AssertionError("a config-authored Quidra version was accepted")
+        config_path.write_bytes(config_bytes)
+
         for language, new_version, pin_key in (
             ("Python", "9.9.9", "PYTHON_PIN"),
             ("Rust", "9.9.8", "RUST_PIN"),
@@ -2773,6 +2787,27 @@ def main() -> None:
         # crossing a date/month boundary must not invalidate a language result.
         epoch_policy = benchmark.cache_policy(root)
         assert benchmark.cache_epoch(root, "ecosystem") == "stable"
+        assert (
+            benchmark.cache_epoch(root, "mechanical")
+            == "github-hosted-ubuntu-latest-v1"
+        )
+        mechanical_unit = {
+            "evaluation": "language_quality",
+            "execution_kind": "command",
+            "runner_action": "micro-measure-raw",
+            "result_kind": "requirements",
+        }
+        current_mechanical = {
+            "assigned_languages": ["Python"],
+            "cache_epoch": "github-hosted-ubuntu-latest-v1",
+        }
+        legacy_mechanical = {
+            "assigned_languages": ["Python"],
+            "cache_epoch": "2026-09",
+        }
+        assert benchmark.same_generation_cache_payload_compatible(
+            mechanical_unit, current_mechanical, legacy_mechanical
+        )
         for evaluation in ("semantic_compression", "llm_proficiency"):
             assert benchmark.cache_epoch(root, evaluation) == (
                 epoch_policy["declared_epochs"][evaluation]

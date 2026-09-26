@@ -553,10 +553,60 @@ jobs:
           assert not report.get("superseded"), report.get("superseded")
           PY
 
-      - name: Prove exact-only clean replay is zero paid and formally complete
+      - name: Rebind cleanup-induced metric keys and prove zero-paid clean replay
         run: |
           set -euo pipefail
-          rm -rf .quidra-benchmark
+          python benchmark/template/scripts/benchmark.py discard-workspace \
+            --source-repo "$GITHUB_WORKSPACE" || true
+
+          # First transition run: exact-only hydration should expose only the
+          # 40 Semantic metric consumers whose generated canonical-catalog
+          # provenance changed when legacy sources were replaced by the
+          # self-contained baseline owners.
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --sandbox-mode container \
+            --run-id canonical-post-cleanup-rebind \
+            --provider anthropic-messages \
+            --model "$BENCHMARK_MODEL"
+
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          python .github/scripts/rebind_semantic_metrics_once.py stage \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --output "$RUNNER_TEMP/post-cleanup-rebind-plan.json"
+
+          # Promote only validator-PASS COMPLETE results. No provider call is
+          # made: the 40 scientific result objects are byte-identical to the
+          # completed baseline and are merely rebound to their post-cleanup
+          # exact Task Packets.
+          python benchmark/template/scripts/benchmark.py checkpoint-cache \
+            --source-repo "$GITHUB_WORKSPACE" \
+            > "$RUNNER_TEMP/post-cleanup-promotion.json"
+
+          python .github/scripts/rebind_semantic_metrics_once.py prune \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --plan "$RUNNER_TEMP/post-cleanup-rebind-plan.json" \
+            --promotion "$RUNNER_TEMP/post-cleanup-promotion.json"
+
+          python benchmark/template/scripts/benchmark.py discard-workspace \
+            --source-repo "$GITHUB_WORKSPACE"
+
+          # Freeze the 40 replacement exact keys into the candidate before the
+          # real clean-room proof, so the final run cannot see uncommitted cache.
+          git add -A
+          git diff --cached --check
+          git commit --amend --no-edit
+          test -z "$(git status --porcelain=v1)"
+          test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 687
+
+          # Second run: no transition/rebind path is available here. This is
+          # exactly the state a future second benchmark sees.
           python benchmark/template/scripts/benchmark.py init \
             --source-repo "$GITHUB_WORKSPACE" \
             --sandbox-mode container \
@@ -580,7 +630,7 @@ jobs:
 
           python - "$RUNNER_TEMP/budget-plan.json" \
             "$GITHUB_WORKSPACE/.quidra-benchmark/results/cache_status.json" <<'PY'
-          import collections, json, sys
+          import json, sys
           from pathlib import Path
           plan = json.loads(Path(sys.argv[1]).read_text())
           cache = json.loads(Path(sys.argv[2]).read_text())
@@ -588,22 +638,20 @@ jobs:
               "cache_hits": len(cache.get("hits", {})),
               "cache_misses": len(cache.get("misses", {})),
               "cache_invalidated": len(cache.get("invalidated", {})),
-              "paid_calls_upper_bound": int(plan.get("expected_paid_api_calls_upper_bound", 0) or 0),
-              "recommended_budget_usd": float(plan.get("recommended_budget_usd", 0) or 0),
+              "paid_calls_upper_bound": int(
+                  plan.get("expected_paid_api_calls_upper_bound", 0) or 0
+              ),
+              "recommended_budget_usd": float(
+                  plan.get("recommended_budget_usd", 0) or 0
+              ),
           }
           print(json.dumps(report, indent=2, sort_keys=True))
-          if cache.get("invalidated"):
-              reasons = collections.Counter(
-                  str(row.get("reason") or "")
-                  for row in cache["invalidated"].values()
-              )
-              print("invalidated reasons:")
-              print(json.dumps(reasons, indent=2, sort_keys=True))
           assert not plan.get("hard_blockers"), plan.get("hard_blockers")
           assert report["paid_calls_upper_bound"] == 0, report
           assert report["recommended_budget_usd"] == 0.0, report
           assert report["cache_misses"] == 0, report
           assert report["cache_invalidated"] == 0, report
+          assert report["cache_hits"] == 687, report
           PY
 
           python benchmark/template/scripts/sandbox_launcher.py run \
@@ -635,6 +683,7 @@ jobs:
           python benchmark/template/scripts/benchmark.py discard-workspace \
             --source-repo "$GITHUB_WORKSPACE"
           rm -f .github/scripts/benchmark_cleanup_once.py
+          rm -f .github/scripts/rebind_semantic_metrics_once.py
           rm -f .github/scripts/canonicalize_benchmark_cache_once.py
           rm -f scripts/canonicalize_benchmark_cache_once.py
           rm -f .github/workflows/benchmark-cleanup-once.yml

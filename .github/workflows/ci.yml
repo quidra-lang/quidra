@@ -517,7 +517,8 @@ jobs:
           python -m py_compile \
             benchmark/template/scripts/benchmark.py \
             benchmark/template/scripts/production_run.py \
-            benchmark/template/scripts/sandbox_launcher.py
+            benchmark/template/scripts/sandbox_launcher.py \
+            .github/scripts/rebind_semantic_metrics_once.py
           test "$(find benchmark/cache/v1 -type f -name '*.json' | wc -l)" -eq 687
 
           git config user.name "github-actions[bot]"
@@ -582,9 +583,9 @@ jobs:
             --output "$RUNNER_TEMP/post-cleanup-rebind-plan.json"
 
           # Promote only validator-PASS COMPLETE results. No provider call is
-          # made: the 40 scientific result objects are byte-identical to the
-          # completed baseline and are merely rebound to their post-cleanup
-          # exact Task Packets.
+          # made: metric requirements and annotations remain unchanged. Only
+          # runner-owned catalog-hash attestations are rebound to the
+          # self-contained post-cleanup canonical catalog.
           python benchmark/template/scripts/benchmark.py checkpoint-cache \
             --source-repo "$GITHUB_WORKSPACE" \
             > "$RUNNER_TEMP/post-cleanup-promotion.json"

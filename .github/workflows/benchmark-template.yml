@@ -180,8 +180,14 @@ jobs:
               assert any(row["language"] == current_id for row in published["ranking"])
               assert not any(row["language"] == "Quidra" for row in published["ranking"])
               for values in published["normalized_metric_scores"].values():
-                  assert current_id in values, (evaluation, values)
                   assert "Quidra" not in values, (evaluation, values)
+              expected_quidra_metrics = (
+                  base["versions"][0]["normalized_metric_scores"].get(evaluation, {})
+              )
+              for requirement_id in expected_quidra_metrics:
+                  assert current_id in published["normalized_metric_scores"][requirement_id], (
+                      evaluation, requirement_id
+                  )
 
           fixed = {
               "Quidra": 77.5, "Python": 47.0, "C++": 20.0, "Rust": 68.0,

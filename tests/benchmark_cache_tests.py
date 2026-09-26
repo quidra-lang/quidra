@@ -1071,7 +1071,7 @@ def assert_cached_validator_rejection_becomes_miss() -> None:
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
         fingerprint = install_cache_record(root, unit, task)
-        rel = benchmark.cache_record_relative(unit, fingerprint, payload)
+        rel = benchmark.cache_record_relative(unit, fingerprint)
         path = root / "cache" / rel
         record = benchmark.json_load(path)
         # Worker-provided arithmetic is deliberately non-authoritative:

@@ -2,6 +2,8 @@
 
 These are proposed language changes, not current specification.
 
+> Candidates are temporary tracking notes. Remove each entry once the underlying issue or design question is resolved.
+
 ## Separate array equality from tensor comparisons
 
 **Status:** Candidate

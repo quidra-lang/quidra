@@ -551,7 +551,8 @@ jobs:
                   assert token not in text, (path, token)
               run_ids = historical_run_id.findall(text)
               if path == root / "config" / "cache_policy.json":
-                  assert run_ids == ["2026-09-25-5dc8989-gh25"], (path, run_ids)
+                  assert run_ids == ["2026-09-25-5dc8989"], (path, run_ids)
+                  assert text.count("2026-09-25-5dc8989-gh25") == 1, path
               else:
                   assert not run_ids, (path, run_ids)
 

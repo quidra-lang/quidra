@@ -660,37 +660,43 @@ def assert_adversarial_mechanical_language_shards_are_independent() -> None:
 
 
 def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
-    """The micro suite, the adversarial set and the Quidra audit are certified.
+    """A current per-language LQ raw shard is cacheable by language generation.
 
-    They are mechanical: no model, only the pinned image, the snapshot's
-    compiler, the frozen programs and the measurement scripts. Left out of the
-    cache, the third rehearsal spent five hours and fifty minutes of its
-    six-hour job measuring them again and was cancelled before its one paid
-    unit could finish. The key carries every measured language's toolchain
-    and pins, the read paths, the measurement scripts, the Quidra versions and
-    the declared mechanical epoch; the raw samples stay in the run artifact.
+    The old contract test modeled the retired ten-language mixed micro unit.
+    Production now measures one language per raw shard, then normalizes the ten
+    cached/fresh raw rows in a free runner-only unit. This fixture deliberately
+    uses the Quidra shard so it also proves same-project-version skip semantics.
     """
-    languages = list(benchmark.metadata_languages(root))
-    toolchains = benchmark.json_load(root / "results/toolchains.json")
-    for language in languages:
-        if language == "Quidra":
-            continue
-        toolchains["toolchains"].setdefault(language, {"canonical": f"{language}-1.0-test"})
-    benchmark.json_dump(root / "results/toolchains.json", toolchains)
     programs = root / "repo" / "tests" / "benchmark" / "quidra" / "micro"
     programs.mkdir(parents=True, exist_ok=True)
     (programs / "mb00.qui").write_text("print(1)\n", encoding="utf-8")
     (root / "repo" / "project.toml").write_text(
-        '[project]\nname = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n', encoding="utf-8"
+        '[project]\nname = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n',
+        encoding="utf-8",
     )
-    result_path = root / "work" / "root" / "commands" / "lq-micro-mechanical" / "result.json"
+
+    result_path = (
+        root / "work" / "root" / "commands"
+        / "lq-micro-raw--quidra" / "result.json"
+    )
     unit = {
-        "id": "lq-micro-mechanical", "evaluation": "language_quality", "phase": "measurement",
-        "execution_kind": "command", "result_kind": "requirements", "runner_action": "micro-measure",
-        "requirement_ids": ["metric.native_execution_performance"], "dependencies": [],
+        "id": "lq-micro-raw--quidra",
+        "evaluation": "language_quality",
+        "phase": "measurement",
+        "execution_kind": "command",
+        "result_kind": "requirements",
+        "runner_action": "micro-measure-raw",
+        "requirement_ids": [],
+        "dependencies": [],
         "read_paths": ["repo/tests/benchmark/quidra", "template/workloads"],
-        "evidence_paths": [str(result_path)], "network_allowed": False, "max_attempts": 3,
-        "worker_mode": "runner-command", "assigned_languages": [],
+        "evidence_paths": [str(result_path)],
+        "network_allowed": False,
+        "max_attempts": 3,
+        "worker_mode": "runner-command",
+        "assigned_languages": ["Quidra"],
+        "language_generations": {
+            "Quidra": benchmark.language_generation(root, "Quidra")
+        },
         "input_hashes": {
             "benchmark_metadata": benchmark.sha256_file(
                 root / "template/config/benchmark_metadata.json"
@@ -703,38 +709,75 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
             ),
         },
     }
-    assert benchmark.cache_eligible_unit(root, unit), "a mechanical measurement is not cacheable"
-    assert benchmark.cache_scope(unit) == "mechanical-micro-measure"
+
+    assert benchmark.cache_eligible_unit(root, unit), (
+        "a per-language mechanical raw measurement is not cacheable"
+    )
+    assert benchmark.cache_scope(unit) == (
+        "quidra_v0.3.0--mechanical-micro-measure-raw"
+    )
     task = benchmark.mechanical_task(unit)
     pair = benchmark.cache_fingerprint(root, unit, task)
-    assert pair is not None, "a mechanical unit produced no cache key"
+    assert pair is not None, "a Quidra raw micro shard produced no cache key"
     fingerprint, payload = pair
-    assert set(payload["toolchains"]) == set(languages) - {"Quidra"}, payload["toolchains"]
-    assert payload["quidra_target"] == {"version": "0.3.0", "language_version": "0.2"}
+    assert payload["toolchains"] == {}, payload["toolchains"]
+    assert payload["quidra_target"] == {
+        "version": "0.3.0",
+        "language_version": "0.2",
+    }
     assert set(payload["measurement_script_hashes"]) == {"micro_measure.py"}
     assert payload["provider"] is None and payload["model"] is None
-    assert payload["result_kind"] == "mechanical" and payload["cache_epoch"] == "2026-09"
+    assert payload["result_kind"] == "mechanical"
+    assert payload["runner_action"] == "micro-measure-raw"
+    assert payload["cache_epoch"] == "2026-09"
     assert "repo/tests/benchmark/quidra" in payload["readable_input_content_hashes"]
 
-    # A completed measurement promotes into the source repository's cache.
+    # A raw shard records no normalized metric. Its immutable output is the
+    # normalization-ready row consumed later by the free ten-language normalizer.
     result = {
-        "schema_version": 1, "evaluation": "language_quality",
-        "requirements": {"metric.native_execution_performance": {lang: 50.0 for lang in languages}},
-        "evidence": {"raw": "/quidra-benchmark/work/root/commands/lq-micro-mechanical/micro_raw.json"},
+        "schema_version": 1,
+        "evaluation": "language_quality",
+        "requirements": {},
+        "normalization_raw": {
+            "Quidra": {
+                "startup_seconds": 1.0,
+                "startup_rss_bytes": 1024.0,
+                "workloads": {
+                    "mb00": {
+                        "cold_seconds": 1.0,
+                        "steady_seconds": 1.0,
+                        "compile_effective_seconds": 1.0,
+                        "rss_bytes": 1024.0,
+                        "source_bytes": 10.0,
+                        "artifact_effective_bytes": 4096.0,
+                    }
+                },
+            }
+        },
+        "evidence": {
+            "raw": (
+                "/quidra-benchmark/work/root/commands/"
+                "lq-micro-raw--quidra/micro_raw.json"
+            )
+        },
     }
     benchmark.json_dump(result_path, result)
     (result_path.parent / "micro_raw.json").write_text("{}\n", encoding="utf-8")
     freeze_manifest(root, unit)
     ledger = benchmark.json_load(root / "work/root/ledger.json")
-    ledger["units"][unit["id"]].update({"status": "COMPLETE", "validation_result": "PASS"})
+    ledger["units"][unit["id"]].update(
+        {"status": "COMPLETE", "validation_result": "PASS"}
+    )
     benchmark.json_dump(root / "work/root/ledger.json", ledger)
+
     source = tmp / "source"
     (source / "benchmark" / "cache").mkdir(parents=True)
     summary = benchmark.promote_certified_cache(source, root)
     assert summary["promoted"] == 1, summary
     rel = benchmark.cache_record_relative(unit, fingerprint, payload)
     record_path = source / "benchmark" / "cache" / rel
-    assert record_path.is_file() and "mechanical-micro-measure" in rel.as_posix()
+    assert record_path.is_file()
+    assert "quidra_v0.3.0--mechanical-micro-measure-raw" in rel.as_posix()
     record = benchmark.json_load(record_path)
     assert record["certification"]["mechanical"] is True
     assert (
@@ -744,7 +787,7 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     assert "micro_raw.json" in record["certification"]["raw_evidence_sha256"]
     assert record["result"] == result
 
-    # A later run with the same inputs hydrates the record instead of measuring.
+    # A later run with the exact same generation/inputs hydrates the raw shard.
     shutil.rmtree(result_path.parent)
     freeze_manifest(root, unit)
     benchmark.json_dump(root / "cache" / rel, record)
@@ -758,23 +801,22 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     status = benchmark.json_load(root / "results/cache_status.json")
     assert unit["id"] in status["hits"]
 
-    # The runner reuses the record before its command could run: advance used
-    # to execute every ready command unit first and consult the cache only
-    # afterwards, so the certified five-hour micro suite was measured again
-    # and the container smoke's re-measured audit collided with the certified
-    # one at import. Here the measurement script cannot succeed (no compiler
-    # in this workspace), so a unit that ran it would be retried and blocked.
+    # Advance must consult the cache before trying to execute the expensive
+    # mechanical shard. This workspace has no real Quidra compiler, so execution
+    # would fail; a PASS proves hydration happened first.
     shutil.rmtree(result_path.parent)
     freeze_manifest(root, unit)
-    benchmark.json_dump(root / "results" / "privacy_check.json", {"schema_version": 1, "ok": True})
-    assert benchmark.cmd_advance(argparse.Namespace(
-        workspace=str(root), evaluation="language_quality"
-    )) == 0
+    benchmark.json_dump(
+        root / "results" / "privacy_check.json",
+        {"schema_version": 1, "ok": True},
+    )
+    assert benchmark.cmd_advance(
+        argparse.Namespace(workspace=str(root), evaluation="language_quality")
+    ) == 0
     ledger = benchmark.json_load(root / "work/root/ledger.json")
     state = ledger["units"][unit["id"]]
-    assert state["status"] == "COMPLETE" and state["validation_result"] == "PASS", state
-    # One attempt: the hydration itself. A measurement attempt would have
-    # failed and been retried, leaving FAIL entries behind.
+    assert state["status"] == "COMPLETE"
+    assert state["validation_result"] == "PASS"
     assert int(state.get("attempts", 0) or 0) == 1, state
     assert [a["result"] for a in state["attempt_history"]] == ["PASS"], state
     assert benchmark.json_load(result_path) == result
@@ -782,14 +824,10 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     status = benchmark.json_load(root / "results/cache_status.json")
     assert unit["id"] in status["hits"] and unit["id"] not in status["misses"]
 
-    # Same declared Quidra version is an immutable generation. Even when its
-    # implementation/readable source changes and therefore the exact cache key
-    # changes, the archived generation must hydrate instead of being measured
-    # again. This is the concrete "same version => skip Quidra" contract.
-    # Version history is now derived from the ordinary generation cache, not
-    # from a parallel version_history store. Seed one complete synthetic Quidra
-    # generation across all five Primary evaluations so the same-version
-    # compatibility lookup sees the production shape.
+    # Version history is derived from the ordinary generation cache, not from
+    # a parallel history tree. Seed one complete synthetic Quidra generation
+    # across all five Primary evaluations so same-version fallback sees the
+    # production archive shape while this unit test stays self-contained.
     for evaluation in benchmark.PRIMARY_NAMES:
         benchmark.json_dump(
             benchmark.generation_file(
@@ -810,6 +848,13 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
                 "normalization_raw": {},
             },
         )
+    run = benchmark.json_load(root / "run.json")
+    run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
+    benchmark.json_dump(root / "run.json", run)
+
+    # Same project.toml version means the generation is immutable. Changing
+    # implementation/readable source changes the exact fingerprint, but must
+    # fall back to the already-certified 0.3.0 shard instead of re-measuring.
     (programs / "mb00.qui").write_text("print(2)\n", encoding="utf-8")
     changed_same_version = benchmark.cache_fingerprint(root, unit, task)
     assert changed_same_version is not None
@@ -817,29 +862,45 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     shutil.rmtree(result_path.parent)
     freeze_manifest(root, unit)
     assert benchmark.hydrate_certified_cache(root, "language_quality") == 1
-    same_receipt = benchmark.json_load(result_path.parent / "cache_receipt.json")
+    same_receipt = benchmark.json_load(
+        result_path.parent / "cache_receipt.json"
+    )
     assert same_receipt["reuse_mode"] == "quidra_same_version", same_receipt
     same_status = benchmark.json_load(root / "results/cache_status.json")
     assert same_status["hits"][unit["id"]]["reuse_mode"] == "quidra_same_version"
 
-    # A bumped project.toml version is a new generation and must not use the
-    # same-version fallback. It remains PENDING for a fresh measurement.
+    # A project.toml version bump creates a different cache scope. The real
+    # planner would regenerate language_generations, so mirror that here.
     (root / "repo" / "project.toml").write_text(
         '[project]\nname = "Quidra"\nversion = "0.4.0"\nlanguage_version = "0.2"\n',
         encoding="utf-8",
     )
+    bumped_unit = dict(unit)
+    bumped_unit["language_generations"] = {
+        "Quidra": benchmark.language_generation(root, "Quidra")
+    }
+    assert benchmark.cache_scope(bumped_unit) == (
+        "quidra_v0.4.0--mechanical-micro-measure-raw"
+    )
     shutil.rmtree(result_path.parent)
-    freeze_manifest(root, unit)
+    freeze_manifest(root, bumped_unit)
     assert benchmark.hydrate_certified_cache(root, "language_quality") == 0
     bumped_ledger = benchmark.json_load(root / "work/root/ledger.json")
-    assert bumped_ledger["units"][unit["id"]]["status"] == "PENDING"
+    assert bumped_ledger["units"][bumped_unit["id"]]["status"] == "PENDING"
+
+    # Restore 0.3.0 for the remaining exact-key dependency checks.
     (root / "repo" / "project.toml").write_text(
         '[project]\nname = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n',
         encoding="utf-8",
     )
+    unit["language_generations"] = {
+        "Quidra": benchmark.language_generation(root, "Quidra")
+    }
     (programs / "mb00.qui").write_text("print(1)\n", encoding="utf-8")
 
-    # A changed Quidra program or measurement script re-keys the measurement.
+    # Source or the script that actually executes the shard remains an exact-key
+    # dependency. These changes do not create a new generation id, but they do
+    # change the exact fingerprint before same-version compatibility is applied.
     (programs / "mb00.qui").write_text("print(2)\n", encoding="utf-8")
     assert benchmark.cache_fingerprint(root, unit, task)[0] != fingerprint
     (programs / "mb00.qui").write_text("print(1)\n", encoding="utf-8")
@@ -851,6 +912,7 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     assert benchmark.cache_fingerprint(root, unit, task)[0] == fingerprint
     shutil.rmtree(result_path.parent, ignore_errors=True)
     (root / "cache" / rel).unlink()
+
 
 
 def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:

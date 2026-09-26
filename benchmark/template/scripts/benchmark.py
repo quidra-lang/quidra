@@ -17967,6 +17967,16 @@ def build_language_generation_entries(
         raw_by_evaluation[evaluation] = current_generation_normalization_raw(
             root, evaluation, generations
         )
+        missing_raw = sorted(
+            str(row["generation_id"])
+            for row in generations.values()
+            if str(row["generation_id"]) not in raw_by_evaluation[evaluation]
+        )
+        if missing_raw:
+            raise BenchmarkError(
+                f"{evaluation}: refusing to archive generations without "
+                f"normalization raw: {', '.join(missing_raw)}"
+            )
     run = json_load(root / "run.json")
     entries: dict[str, dict[str, Any]] = {}
     for language in languages:

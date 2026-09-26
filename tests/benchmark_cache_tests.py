@@ -2363,7 +2363,7 @@ def assert_all_languages_use_version_generations() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         (root / "repo" / "project.toml").write_text(
-            '[project]\\nname = "Quidra"\\nversion = "0.3.0"\\nlanguage_version = "0.2"\\n',
+            '[project]\nname = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n',
             encoding="utf-8",
         )
         languages = benchmark.metadata_languages(root)

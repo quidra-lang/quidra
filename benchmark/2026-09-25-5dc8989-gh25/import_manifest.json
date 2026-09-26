@@ -2,7 +2,7 @@
   "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
   "post_run_source_branch": "benchmark",
   "post_run_source_commit": "e81273b15200a3409ddd513f1082790acfdd3da1",
-  "retained_file_count": 237,
+  "retained_file_count": 238,
   "retained_files_sha256": {
     "audit/semantic_compression.json": "ec9afb7eeb31f65d5c1c56b5c0f031b542a8278f6890df2b46aeac2c6c1265ce",
     "breakdown/ecosystem.json": "3d2495d111e6393902294eb0c7672b260ce8fc16095971ef460dfc48fc52c310",
@@ -240,7 +240,8 @@
     "evidence/semantic_compression/worker-sc-metrics-local--part-3--zig.json": "a7a9126140a5ef2f2dc7ea7f499106bf84d938e692b8b3846df8ad14a526067d",
     "provenance.json": "9fcb3a7aea4ea951c69cc36d1d72db16f46374f5401787d97ca84e77404807aa",
     "rankings.json": "d02c6b82a79a3ae34e58f7471f8f985cea96e98866769e196bfabc20f014e616",
-    "summary.json": "ae93920e4af516a168d53e0ee25b42daab8f04779e07639e1b29f7b2d3af6d6b"
+    "summary.json": "ae93920e4af516a168d53e0ee25b42daab8f04779e07639e1b29f7b2d3af6d6b",
+    "versioned_scores.json": "ecab845b3e4eb5c55a52b870878c1e452d0bcf76a8443987e9f557b0432dfe23"
   },
   "retention_policy": "compact-summary-only",
   "run_id": "2026-09-25-5dc8989-gh25",

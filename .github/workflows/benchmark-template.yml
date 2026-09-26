@@ -169,6 +169,19 @@ jobs:
               Path("benchmark/quidra_versions/index.json")
           )
           assert [row["language_id"] for row in base["versions"]] == [current_id]
+          existing_versioned = json.loads(
+              Path("benchmark/2026-09-25-5dc8989-gh25/versioned_scores.json").read_text()
+          )
+          for evaluation, published in existing_versioned["evaluations"].items():
+              assert published["current_quidra_id"] == current_id, (evaluation, published)
+              assert published["language_count"] == 10, (evaluation, published)
+              assert current_id in published["scores"], (evaluation, published)
+              assert "Quidra" not in published["scores"], (evaluation, published)
+              assert any(row["language"] == current_id for row in published["ranking"])
+              assert not any(row["language"] == "Quidra" for row in published["ranking"])
+              for values in published["normalized_metric_scores"].values():
+                  assert current_id in values, (evaluation, values)
+                  assert "Quidra" not in values, (evaluation, values)
 
           fixed = {
               "Quidra": 77.5, "Python": 47.0, "C++": 20.0, "Rust": 68.0,
@@ -299,6 +312,7 @@ jobs:
           python -m json.tool benchmark/template/config/sandbox_agent.json >/dev/null
           python -m json.tool benchmark/template/config/cache_policy.json >/dev/null
           python -m json.tool benchmark/quidra_versions/index.json >/dev/null
+          python -m json.tool benchmark/2026-09-25-5dc8989-gh25/versioned_scores.json >/dev/null
           for version_result in benchmark/quidra_versions/quidra_v*/result.json; do
             python -m json.tool "$version_result" >/dev/null
           done

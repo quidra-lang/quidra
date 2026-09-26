@@ -839,7 +839,7 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     assert benchmark.cache_fingerprint(root, unit, task)[0] != fingerprint
     script.write_bytes(original)
     assert benchmark.cache_fingerprint(root, unit, task)[0] == fingerprint
-    shutil.rmtree(result_path.parent)
+    shutil.rmtree(result_path.parent, ignore_errors=True)
     (root / "cache" / rel).unlink()
 
 

@@ -13,6 +13,7 @@ on:
       - "tests/benchmark_adversarial_tests.py"
       - "tests/benchmark_semantic_compression_tests.py"
       - "benchmark/cache/**"
+      - "benchmark/quidra_versions/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
       - ".github/actions/benchmark-primary/**"
@@ -27,6 +28,7 @@ on:
       - "tests/benchmark_adversarial_tests.py"
       - "tests/benchmark_semantic_compression_tests.py"
       - "benchmark/cache/**"
+      - "benchmark/quidra_versions/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
       - ".github/actions/benchmark-primary/**"
@@ -171,6 +173,8 @@ jobs:
           python -m json.tool benchmark/template/config/inference_gateway.json >/dev/null
           python -m json.tool benchmark/template/config/sandbox_agent.json >/dev/null
           python -m json.tool benchmark/template/config/cache_policy.json >/dev/null
+          python -m json.tool benchmark/quidra_versions/index.json >/dev/null
+          python -m json.tool benchmark/quidra_versions/quidra_v0.3.0/result.json >/dev/null
           python -m json.tool benchmark/template/runtime/toolchains.json >/dev/null
           python -m json.tool benchmark/template/reuse/catalog.json >/dev/null
           python benchmark/template/scripts/benchmark.py --help >/dev/null
@@ -198,6 +202,75 @@ jobs:
           )
           assert [row["rank"] for row in ranking] == [1, 1, 3], ranking
           assert [row["score"] for row in ranking] == [80.0, 80.0, 79.99], ranking
+
+          assert module.project_version(Path(".")) == "0.3.0"
+          history = module.load_quidra_version_history_file(
+              Path("benchmark/quidra_versions/index.json")
+          )
+          assert history["versions"][0]["language_id"] == "quidra_v0.3.0"
+
+          fixed = {
+              "Quidra": 77.5, "Python": 47.0, "C++": 20.0, "Rust": 68.0,
+              "Go": 72.0, "Java": 53.0, "TypeScript": 48.0, "Kotlin": 69.0,
+              "Swift": 77.0, "Zig": 78.0,
+          }
+          same_scores, same_order = module.versioned_scores_from_history(
+              fixed, "semantic_compression", "0.3.0", history
+          )
+          assert len(same_scores) == 10
+          assert "Quidra" not in same_scores
+          assert "quidra_v0.3.0" in same_scores
+
+          new_scores, new_order = module.versioned_scores_from_history(
+              fixed, "semantic_compression", "0.4.0", history
+          )
+          assert len(new_scores) == 11
+          assert {"quidra_v0.3.0", "quidra_v0.4.0"} <= set(new_scores)
+
+          history_two = json.loads(json.dumps(history))
+          history_two["versions"].append({
+              "version": "0.4.0",
+              "language_id": "quidra_v0.4.0",
+              "source_run_id": "synthetic",
+              "source_commit_sha": "0" * 40,
+              "primary_scores": {"semantic_compression": 80.0},
+              "normalized_metric_scores": {},
+          })
+          third_scores, third_order = module.versioned_scores_from_history(
+              fixed, "semantic_compression", "0.5.0", history_two
+          )
+          assert len(third_scores) == 12
+          assert {"quidra_v0.3.0", "quidra_v0.4.0", "quidra_v0.5.0"} <= set(third_scores)
+          assert len(module.deterministic_ranking(third_scores, third_order)) == 12
+
+          payload = {
+              "schema_version": 1,
+              "cache_schema_version": 1,
+              "evaluation": "llm_learnability",
+              "work_unit_id": "learnability-i3-i4--quidra",
+              "requirement_ids": ["condition.i3", "condition.i4"],
+              "assigned_languages": ["Quidra"],
+              "provider": "anthropic-messages",
+              "model": "claude-sonnet-5",
+              "frozen_sampling": {"effort": "high"},
+              "unit_input_hashes": {"primary_config": "same"},
+              "runtime_toolchain_pins": {"Quidra": {}},
+              "cache_epoch": "stable",
+              "exact_task_packet_sha256": "old",
+              "readable_input_content_hashes": {"repo/docs": "old"},
+              "quidra_target": {"version": "0.3.0", "language_version": "0.2"},
+          }
+          changed_impl = json.loads(json.dumps(payload))
+          changed_impl["exact_task_packet_sha256"] = "new"
+          changed_impl["readable_input_content_hashes"] = {"repo/docs": "new"}
+          changed_impl["quidra_target"]["language_version"] = "0.3"
+          assert module.same_version_cache_payload_compatible(changed_impl, payload)
+          changed_version = json.loads(json.dumps(changed_impl))
+          changed_version["quidra_target"]["version"] = "0.4.0"
+          assert not module.same_version_cache_payload_compatible(changed_version, payload)
+          changed_model = json.loads(json.dumps(changed_impl))
+          changed_model["model"] = "different-model"
+          assert not module.same_version_cache_payload_compatible(changed_model, payload)
 
           root = Path("benchmark/template")
           required = [

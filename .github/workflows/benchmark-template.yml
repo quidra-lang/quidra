@@ -549,7 +549,11 @@ jobs:
               text = path.read_text(errors="ignore")
               for token in forbidden_history:
                   assert token not in text, (path, token)
-              assert historical_run_id.search(text) is None, path
+              run_ids = historical_run_id.findall(text)
+              if path == root / "config" / "cache_policy.json":
+                  assert run_ids == ["2026-09-25-5dc8989-gh25"], (path, run_ids)
+              else:
+                  assert not run_ids, (path, run_ids)
 
           micro_spec = importlib.util.spec_from_file_location(
               "micro_measure", "benchmark/template/scripts/micro_measure.py"

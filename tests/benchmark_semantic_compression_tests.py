@@ -563,7 +563,11 @@ def assert_repository_semantic_cache_uses_detached_contract() -> None:
         (ROOT / "benchmark/cache/v1/semantic-compression")
         .glob("*_v*--f*-p*/*.json")
     )
-    assert len(paths) == 440, len(paths)
+    # Ten languages x 44 probe shards. A checkpoint re-keys a reused shard under
+    # its current exact fingerprint without pruning the older record, so a
+    # shard may hold more than one certified record.
+    shards = {path.parent.name for path in paths}
+    assert len(shards) == 440, len(shards)
     for path in paths:
         record = json.loads(path.read_text())
         assert benchmark._cache_record_self_integrity_problem(record) is None, path

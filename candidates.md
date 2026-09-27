@@ -150,10 +150,11 @@ Another file may import this module and access values such as `lib.x` or call `l
 
 - Keep Quidra's ordinary source-order visibility rule: a user-defined name is visible only after it has been declared. Do not implicitly hoist later function or class declarations.
 - Add explicit top-level prototype declarations as the opt-in mechanism for forward visibility. A prototype makes only that declared name and its declared interface visible from that source position onward; it does not make unrelated later declarations visible.
-- A function prototype is exactly a function signature without a body. No extra `prototype`, `declare`, or similar keyword is introduced.
+- A function prototype is exactly a function signature without a body, terminated by `;`. No extra `prototype`, `declare`, or similar keyword is introduced.
+- The semicolon is reserved for prototype declarations only. Ordinary statements and full function/class definitions do not accept a trailing `;`; Quidra does not make semicolons generally optional.
 
 ```quidra
-int calculate(int value)
+int calculate(int value);
 
 if main
     print(calculate(10))
@@ -166,7 +167,7 @@ int calculate(int value)
 - If a function prototype exists, it is the single source of truth for default arguments. Defaults are written on the prototype only; the later definition repeats the parameter types and names but omits default expressions. This prevents duplicated call-interface metadata from drifting.
 
 ```quidra
-int add(int a, int b = 1)
+int add(int a, int b = 1);
 
 print(add(10))
 
@@ -179,18 +180,18 @@ int add(int a, int b)
 - Generic functions may be prototyped using the same signature syntax as their later definitions.
 
 ```quidra
-T first<T>(T[] values)
+T first<T>(T[] values);
 
 T first<T>(T[] values)
     return values[0]
 ```
 
-- A class prototype is the class header with no body, for example `class User` or `class Box<T>`. It makes the class type name available for later type references while leaving fields and methods to the single later full definition.
+- A class prototype is the class header with no body followed by `;`, for example `class User;` or `class Box<T>;`. It makes the class type name available for later type references while leaving fields and methods to the single later full definition.
 
 ```quidra
-class User
+class User;
 
-User create_user(string name)
+User create_user(string name);
 
 class User
     string name
@@ -202,7 +203,7 @@ User create_user(string name)
 ```
 
 - A class prototype does not duplicate field or method declarations. The full class body remains the single source of truth for class structure.
-- Generic classes may likewise be forward-declared, for example `class Box<T>`, and the later class definition must use the same generic parameter contract.
+- Generic classes may likewise be forward-declared, for example `class Box<T>;`, and the later class definition must use the same generic parameter contract.
 - Once a class name has been explicitly prototyped, the checker may resolve its later complete definition when validating uses of that type. This explicit forward declaration does not permit otherwise-invalid layouts or ownership structures; impossible by-value recursive layouts and other existing type errors remain compile-time errors.
 - Method prototypes inside a class are intentionally not added by this proposal. Methods continue to be defined normally inside the class body. The forward-declaration surface is limited to top-level functions and top-level classes.
 - A full class body is analyzed as one member namespace. All fields and methods declared in that class are visible to every method body regardless of their textual order, so methods may call later methods and access fields written later in the class without method-level prototypes.
@@ -228,7 +229,7 @@ int factorial(int n)
         return 1
     return n * factorial(n - 1)
 
-bool odd(int n)
+bool odd(int n);
 
 bool even(int n)
     if n == 0
@@ -244,7 +245,7 @@ bool odd(int n)
 - Constructors do not get a separate prototype form. Once a class name has been explicitly prototyped, a use such as `Point(...)` may resolve against the `construct` members in that class's later complete definition, including overload selection, parameter defaults, visibility such as `private`, and fallible-constructor behavior. Without a prior class declaration, the type name and therefore its constructor call remain unavailable.
 
 ```quidra
-class Point
+class Point;
 
 Point make()
     return Point(1.0, 2.0)
@@ -268,12 +269,12 @@ class Point
 - Function prototypes therefore never form an overload set. Once a function name is introduced by a prototype or definition, another function declaration with that same name is not a second overload; only the single matching later definition of that prototype is permitted. The same one-name/one-meaning rule keeps named arguments, defaults, generics, and forward visibility deterministic.
 
 ```quidra
-int parse_text(string value)
-int parse_bin(bin value)
+int parse_text(string value);
+int parse_bin(bin value);
 
 // Not an overload set:
-// int parse(string value)
-// int parse(bin value)
+// int parse(string value);
+// int parse(bin value);
 ```
 
 - The resulting visibility model is: top-level names are downward-visible unless explicitly prototyped; class members are mutually visible throughout their class body; method-local names are downward-visible only.

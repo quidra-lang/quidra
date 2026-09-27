@@ -1,0 +1,358 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "canonical_fragment_catalog_sha256": "dc335970a5901a56dde6524d2ffaf2862a89ad775ae4f2009a92f3e519f0f3ca",
+    "post_cleanup_rebind": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "00ad3b2a4576d17ede0f4cbda314deb70bf84e6bac9e701a95c05cf2f4cf59fe",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "a5411d6ff6b081bf26fd40f965940ead4c735db862f5f7f68e3c1598f065f226",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "eb6479a391dcca58d050516fac0c7859c7d67dc762f7b55561999896e97321ec",
+      "work/audit/semantic-compression/canonical_fragments_java.json": "dc335970a5901a56dde6524d2ffaf2862a89ad775ae4f2009a92f3e519f0f3ca"
+    },
+    "requirement_ids": [
+      "metric.semantic_locality"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "1d441dd9732821c80f95df874c541f4c88d3928af09651abc5d5d5735d67a5e8",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-local--part-2--java",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "post_cleanup_rebind": true,
+    "prompt_sha256": "a5411d6ff6b081bf26fd40f965940ead4c735db862f5f7f68e3c1598f065f226",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-metrics-local--part-2--java"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "aggregate_calculation": {
+        "cap_per_probe": 7,
+        "computed_score": 88.16,
+        "formula": "score = 100 * (1 - mean_lookups / cap_per_probe)",
+        "mean_lookups": 0.829,
+        "n_measured_probes": 41,
+        "reported_score_rounded": 88.2,
+        "sum_lookups_over_measured_probes": 34
+      },
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "canonical_fragment_catalog_content_sha256": "e3eb21d7bd5998e08405091865e244407a315ab741b85c7a19388ad25116b0b1",
+        "canonical_fragment_catalog_sha256": "dc335970a5901a56dde6524d2ffaf2862a89ad775ae4f2009a92f3e519f0f3ca",
+        "schema_version": 1
+      },
+      "canonical_fragment_catalog_sha256": "dc335970a5901a56dde6524d2ffaf2862a89ad775ae4f2009a92f3e519f0f3ca",
+      "known_limitations": [
+        "This is a single-language (Java) shard; the frozen common-basis figure for Semantic Locality (spec: interaction_with_quality_metrics.common_basis_rule) requires the runner to intersect this probe-by-probe fragment existence with the other 9 languages' shards and recompute the metric restricted to the common basis. The all-fragments figure above (88.2, n_L=41) is the correct provisional Java figure and is explicitly labeled as such per the spec's dual-basis publication requirement.",
+        "Lookup counts reflect this worker's mechanical application of R10/R5 and standard JDK documentation; they were not produced by compiling and running each fragment under the frozen toolchain (packet-only mode, no local build tools available), so V1 (build/run verification) evidence for these Java fragments must still be produced by a build-capable worker before these entries can be treated as fully audited.",
+        "The cap-of-7 normalization denominator is this worker's documented, symmetric choice (matching the 7 lookup-kind categories named in methodology 6.1.3.C) since the methodology text does not itself freeze a specific normalization divisor for this metric; it must be applied identically to all languages by whichever worker computes their locality shards, and the runner should verify cross-shard consistency of this constant before aggregation."
+      ],
+      "language": "Java",
+      "measurement_note": "This shard measures Java only, as assigned. Per capability_universe.json interaction_with_quality_metrics, metrics A-D are computed on a COMMON BASIS across all 10 languages, determined at aggregation time by the runner from all language shards. The figures below are the Java-side raw and per-probe data required for that aggregation; the runner must intersect this with the other 9 languages' NONE/support results before computing the final common-basis figure. A provisional Java-only aggregate (all-fragments basis, n_L=41 of 44) is reported here for audit and is NOT itself the final common-basis Semantic Locality score.",
+      "methodology_reference": "semantic_compression.md section 6.1.3.C; capability_universe.json probes[] and support_rubric; semantic_site_matrix.json probes[].sites[]",
+      "metric": "semantic_locality",
+      "n_fragments_java": 41,
+      "n_none_java": 3,
+      "n_probes_total": 44,
+      "none_probes": [],
+      "normalization_rule": "Semantic Compression methodology (6.1.3.C) mandates recording raw lookup counts and states 'lower lookup cost is better' but does not freeze a specific 0-100 normalization formula for this metric. This worker applies, and documents for auditability, a symmetric linear normalization pinned before language-specific annotation of this shard: per-probe lookup counts are capped at 7 (the number of distinct lookup kinds enumerated in the methodology: callee signature, variable declaration, type declaration, overload set, trait/interface implementation, imported definition, global configuration/compiler mode), score_probe = 100 * (1 - min(lookups,7)/7), and the language's aggregate = 100 * (1 - mean(lookups)/7) computed over the all-fragments basis (n_L). This same formula is intended to be applied identically to every language's shard so no language receives a different cap or scale.",
+      "per_probe": [
+        {
+          "basis": "local, immutable primitive binding; mutability/type/init all explicit in the two-line fragment",
+          "lookups": 0,
+          "probe_id": "F01.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "static field + static final constant, both annotated explicitly at declaration",
+          "lookups": 0,
+          "probe_id": "F01.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "Java definite-assignment analysis is fully local to the method body",
+          "lookups": 0,
+          "probe_id": "F02.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "P-a substitution: Java arrays are always zero-initialized (new byte[16]); the zero-fill is IMPLICIT (JLS default), not a lookup",
+          "lookups": 0,
+          "probe_id": "F02.P2",
+          "support": "PARTIAL"
+        },
+        {
+          "basis": "x++ / x+=1 on a local; overflow wrap is IMPLICIT JLS behavior, not a declaration lookup",
+          "lookups": 0,
+          "probe_id": "F03.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "xs.set(1,42): 1 hop to xs's own declaration (given context) to confirm its declared mutable List type; 1 hop to List.set's documented in-place/exception behavior",
+          "lookups": 2,
+          "probe_id": "F03.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "Collections.unmodifiableList(xs): 1 hop to xs's declaration; 1 hop to Collections.unmodifiableList javadoc to confirm non-copying view + write-rejection",
+          "lookups": 2,
+          "probe_id": "F04.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "== on a user-defined reference type is fixed-by-JLS identity comparison; no operator overloading in Java, so no lookup needed",
+          "lookups": 0,
+          "probe_id": "F04.P3",
+          "support": "FULL"
+        },
+        {
+          "basis": "bare call f(x): per R5, f's declaration is 'given elsewhere' and excluded from tokens but counted as 1 non-local lookup to resolve aliasing/mutation outcome",
+          "lookups": 1,
+          "probe_id": "F05.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "lambda capturing k, applied via Stream.map or manual loop; 1 hop to the standard higher-order operation's documented behavior",
+          "lookups": 1,
+          "probe_id": "F05.P3",
+          "support": "FULL"
+        },
+        {
+          "basis": "xs.get(1): 1 hop to List.get javadoc to determine reference-vs-copy semantics of the returned boxed element",
+          "lookups": 1,
+          "probe_id": "F06.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "local record DivMod(int q,int r) declared in-fragment; record-pattern deconstruction (Java 21) destructures q,r in one local construct",
+          "lookups": 0,
+          "probe_id": "F06.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "a*b+c fully local; JLS precedence/width fixed",
+          "lookups": 0,
+          "probe_id": "F07.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "integer division truncates toward zero and % follows dividend sign by fixed JLS rule, no external lookup",
+          "lookups": 0,
+          "probe_id": "F07.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "Math.addExact(m,1) in try/catch (rung i): 1 hop to java.lang.Math.addExact documented overflow-throw behavior",
+          "lookups": 1,
+          "probe_id": "F08.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "local guard on b==0 (rung ii); no external lookup needed",
+          "lookups": 0,
+          "probe_id": "F08.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "s1.equals(s2): 1 hop to java.lang.String.equals javadoc confirming content, not identity, comparison",
+          "lookups": 1,
+          "probe_id": "F09.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "xs.sort(Comparator.reverseOrder()): 1 hop to Comparator.reverseOrder javadoc; 1 hop to List.sort javadoc confirming in-place mutation",
+          "lookups": 2,
+          "probe_id": "F09.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "explicit narrowing cast (int) big (rung ii, since Math.toIntExact throws rather than returning an optional/error value so rung i is unavailable); JLS-fixed truncation, no lookup",
+          "lookups": 0,
+          "probe_id": "F10.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "i + d triggers JLS binary numeric promotion of i to double; fixed rule, no lookup",
+          "lookups": 0,
+          "probe_id": "F10.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "xs.get(i) on ArrayList: 1 hop to ArrayList.get javadoc confirming IndexOutOfBoundsException on out-of-range index",
+          "lookups": 1,
+          "probe_id": "F11.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "xs.subList(1,4): 1 hop to xs's declaration; 1 hop to List.subList javadoc confirming it is a live view backed by the original list",
+          "lookups": 2,
+          "probe_id": "F11.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "Optional.empty()/orElse(0): 1 hop to java.util.Optional javadoc",
+          "lookups": 1,
+          "probe_id": "F12.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "o.map(...): 1 hop to Optional.map javadoc confirming short-circuit on empty",
+          "lookups": 1,
+          "probe_id": "F12.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "Integer.parseInt(s) propagating unchecked NumberFormatException: 1 hop to Integer.parseInt javadoc (unchecked exceptions carry no declaration-site signal in Java)",
+          "lookups": 1,
+          "probe_id": "F13.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "try/catch(NumberFormatException): 1 hop to Integer.parseInt javadoc to know the specific exception type to catch",
+          "lookups": 1,
+          "probe_id": "F13.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "sealed interface Shape permits Circle, Rect declared with its two record implementations in the same fragment; closedness is locally visible via the permits clause",
+          "lookups": 0,
+          "probe_id": "F14.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "pattern-matching switch over sealed Shape: 1 hop to Shape's own declaration (from F14.P1, outside this probe's fragment) to confirm the permits set the compiler is exhaustiveness-checking against",
+          "lookups": 1,
+          "probe_id": "F14.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "non-sealed Shape interface in a separate 'shapes' unit, Tri implementing it from a second unit: 1 hop to Shape's interface declaration/signature",
+          "lookups": 1,
+          "probe_id": "F14.P3",
+          "support": "FULL"
+        },
+        {
+          "basis": "generic method <T> T head(List<T> xs) declared in-fragment; both call sites and combination are local",
+          "lookups": 0,
+          "probe_id": "F15.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "<T extends Comparable<T>> max_of: 1 hop to java.lang.Comparable's compareTo contract",
+          "lookups": 1,
+          "probe_id": "F15.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "interface Named plus A,B and the heterogeneous List<Named> and dispatching call are all declared within the measured fragment",
+          "lookups": 0,
+          "probe_id": "F15.P3",
+          "support": "FULL"
+        },
+        {
+          "basis": "xs.stream().mapToInt(Integer::intValue).sum(): 1 hop to Stream/IntStream.sum documented behavior",
+          "lookups": 1,
+          "probe_id": "F16.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "Map iteration + getOrDefault: 1 hop confirming iteration order is unspecified for the chosen Map implementation; 1 hop to Map.getOrDefault javadoc",
+          "lookups": 2,
+          "probe_id": "F16.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "try (var in = new FileReader(...)): 1 hop to confirm FileReader implements Closeable/AutoCloseable for try-with-resources",
+          "lookups": 1,
+          "probe_id": "F17.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "Handle implements AutoCloseable, closed via try-with-resources block exit: 1 hop to AutoCloseable/try-with-resources semantics; this is FULL (not a finalize()-based substitute) because 'close-on-scope-exit' is one of the canonical_task's own accepted deterministic hooks",
+          "lookups": 1,
+          "probe_id": "F17.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "System.out.println: java.lang is implicitly imported; no explicit import declaration and no external lookup needed to resolve availability",
+          "lookups": 0,
+          "probe_id": "F18.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "external qualified call util.Util.pubAdd(2,3) against a separate package/unit: 1 hop to the util.Util class declaration",
+          "lookups": 1,
+          "probe_id": "F18.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "CompletableFuture.supplyAsync + join: 1 hop to CompletableFuture API contract; 1 hop to join's blocking-wait semantics",
+          "lookups": 2,
+          "probe_id": "F19.P1",
+          "support": "FULL"
+        },
+        {
+          "basis": "AtomicLong.incrementAndGet from two threads + join: 1 hop to AtomicLong's documented atomicity guarantee; 1 hop to Thread.join semantics",
+          "lookups": 2,
+          "probe_id": "F19.P2",
+          "support": "FULL"
+        },
+        {
+          "basis": "java.lang.foreign (Panama FFM API) call to C abs(): 1 hop to Linker.nativeLinker contract; 1 hop to FunctionDescriptor/MethodHandle invocation semantics; 1 hop to SymbolLookup resolution semantics",
+          "lookups": 3,
+          "probe_id": "F20.P1",
+          "support": "FULL"
+        }
+      ],
+      "raw_measure_definition": "For each probe, raw locality lookups = count of required external semantic lookups/declaration-graph hops (callee signature, variable declaration, type declaration, overload set, trait/interface implementation, imported definition, global configuration/compiler mode) needed to resolve the probe's frozen semantic_site_matrix facts for Java, beyond what is available from the measured_fragment's local surface form. EXPLICIT_LOCAL and IMPLICIT-classified facts contribute 0 (IMPLICIT means the language spec fixes the behavior without requiring any declaration-graph hop; it is captured instead by Hidden Semantic Cost, not Locality). Probes scored NONE for Java (no fragment exists) are excluded from the average per the interaction_with_quality_metrics common-basis handling for that language's own figures, and are recorded separately."
+    },
+    "requirements": {
+      "metric.semantic_locality": {
+        "Java": 88.2
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "1c8816a4947f3a386fa9c1c81e0f2a8cc4ffccaa2d2490e222282dad10cb6c14",
+  "schema_version": 1
+}

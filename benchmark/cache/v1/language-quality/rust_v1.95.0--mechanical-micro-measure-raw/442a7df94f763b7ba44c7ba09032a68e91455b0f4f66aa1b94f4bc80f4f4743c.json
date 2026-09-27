@@ -1,0 +1,182 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "measured_at_utc": null,
+    "mechanical": true,
+    "primary_complete": false,
+    "raw_evidence_retained_in": "GitHub Actions artifact 10726282512 from 2026-09-22-bc3d9dd-gh9",
+    "raw_evidence_sha256": {},
+    "runner_action": "micro-measure-raw",
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "442a7df94f763b7ba44c7ba09032a68e91455b0f4f66aa1b94f4bc80f4f4743c",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "github-hosted-ubuntu-latest-v1",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": null,
+    "frozen_sampling": null,
+    "model": null,
+    "network_allowed": false,
+    "provider": null,
+    "readable_input_content_hashes": {
+      "template/fixtures": "e1ed425ab09a1dd75ff0dc48293a8b7ef92e949dca828bcfd439e0be1cae4ac7",
+      "template/methodology-assets/scoring": "a3be91ff162f3411462bb19e1858b517d5d21301795cd2a728344d9a1c35dd58",
+      "template/programs/rust/adversarial": "6146d3338572181c436d4d9c91395b33d366da3ebd1f3ad3bb77b25418f34eed",
+      "template/programs/rust/micro": "477bed528952f34f4bf68318001bdc4e3f4ca15d102fac1abd391c817886f96d",
+      "template/validators/micro": "e1eab465ec9ccef45e60cb201130b8e4cfd079acd03d28889455cde47d097c68",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [],
+    "result_kind": "mechanical",
+    "runner_action": "micro-measure-raw",
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "59f63312c6f2bf3a4bda671cdd23d3f4c4b1b0d27e7a9a3ac35ddd8b304eb21d",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py command-result-check --workspace /quidra-benchmark --id lq-micro-raw--rust",
+    "work_unit_id": "lq-micro-raw--rust",
+    "worker_mode": "runner-command"
+  },
+  "language_generations": {
+    "Rust": {
+      "generation_id": "rust_v1.95.0",
+      "id": "rust",
+      "language": "Rust",
+      "version": "1.95.0",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": null,
+    "run_id": "2026-09-22-bc3d9dd-gh9",
+    "source_artifact_id": "10726282512",
+    "work_unit_id": "lq-micro-raw--rust"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "source": "certified baseline raw evidence",
+      "source_artifact_id": "10726282512",
+      "source_raw_sha256": "f1813c155f84de3c22a335f44e01ae26c7d503908537fd8d37c14036554b808b",
+      "source_run_id": "2026-09-22-bc3d9dd-gh9"
+    },
+    "normalization_raw": {
+      "Rust": {
+        "startup_rss_bytes": 11649024,
+        "startup_seconds": 0.001349428,
+        "workloads": {
+          "mb01": {
+            "artifact_effective_bytes": 4357448,
+            "cold_seconds": 0.158695151,
+            "compile_effective_seconds": 0.158046739,
+            "rss_bytes": 11628544,
+            "source_bytes": 1251,
+            "steady_seconds": 0.1570684325
+          },
+          "mb02": {
+            "artifact_effective_bytes": 4357424,
+            "cold_seconds": 0.903344436,
+            "compile_effective_seconds": 0.158402601,
+            "rss_bytes": 11632640,
+            "source_bytes": 1298,
+            "steady_seconds": 0.9014092065
+          },
+          "mb03": {
+            "artifact_effective_bytes": 4357744,
+            "cold_seconds": 0.860324246,
+            "compile_effective_seconds": 0.1563577,
+            "rss_bytes": 11653120,
+            "source_bytes": 1612,
+            "steady_seconds": 0.8088357509999999
+          },
+          "mb04": {
+            "artifact_effective_bytes": 4383872,
+            "cold_seconds": 1.272318517,
+            "compile_effective_seconds": 0.167639272,
+            "rss_bytes": 11612160,
+            "source_bytes": 2337,
+            "steady_seconds": 1.27038636
+          },
+          "mb05": {
+            "artifact_effective_bytes": 4383584,
+            "cold_seconds": 0.79373262,
+            "compile_effective_seconds": 0.162451057,
+            "rss_bytes": 34111488,
+            "source_bytes": 2094,
+            "steady_seconds": 0.7919782854999999
+          },
+          "mb06": {
+            "artifact_effective_bytes": 4384368,
+            "cold_seconds": 1.34541355,
+            "compile_effective_seconds": 0.168626944,
+            "rss_bytes": 11636736,
+            "source_bytes": 2411,
+            "steady_seconds": 1.3440397955
+          },
+          "mb07": {
+            "artifact_effective_bytes": 4360040,
+            "cold_seconds": 0.775547413,
+            "compile_effective_seconds": 0.194531702,
+            "rss_bytes": 50073600,
+            "source_bytes": 3726,
+            "steady_seconds": 0.7731559084999999
+          },
+          "mb08": {
+            "artifact_effective_bytes": 4366392,
+            "cold_seconds": 0.780998404,
+            "compile_effective_seconds": 0.190370796,
+            "rss_bytes": 22110208,
+            "source_bytes": 3879,
+            "steady_seconds": 0.7447265765
+          },
+          "mb09": {
+            "artifact_effective_bytes": 4391256,
+            "cold_seconds": 0.496554968,
+            "compile_effective_seconds": 0.188156794,
+            "rss_bytes": 34062336,
+            "source_bytes": 3970,
+            "steady_seconds": 0.494510528
+          },
+          "mb10": {
+            "artifact_effective_bytes": 4374992,
+            "cold_seconds": 0.562765247,
+            "compile_effective_seconds": 0.217599269,
+            "rss_bytes": 11718656,
+            "source_bytes": 3209,
+            "steady_seconds": 0.5930788284999999
+          },
+          "mb11": {
+            "artifact_effective_bytes": 4382672,
+            "cold_seconds": 0.344494996,
+            "compile_effective_seconds": 0.263699175,
+            "rss_bytes": 35962880,
+            "source_bytes": 3550,
+            "steady_seconds": 0.3873203005
+          }
+        }
+      }
+    },
+    "requirements": {},
+    "schema_version": 1
+  },
+  "result_sha256": "161a9b188681434ccff26b5d2f31a38e5c942b8ebfe3fe2647f835d4000115e3",
+  "schema_version": 1
+}

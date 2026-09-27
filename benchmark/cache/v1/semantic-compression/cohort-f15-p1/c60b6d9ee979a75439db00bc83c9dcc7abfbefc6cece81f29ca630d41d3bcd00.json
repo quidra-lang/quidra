@@ -1,0 +1,153 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "c60b6d9ee979a75439db00bc83c9dcc7abfbefc6cece81f29ca630d41d3bcd00",
+  "fingerprint_payload": {
+    "assigned_languages": [],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/audit/semantic-compression/support_adjudication_f15-p1.json": "b28c22dfffe80b4fa40011c61cf7b5e542d3bf5ea15a728cf9033bc12b120731"
+    },
+    "requirement_ids": [
+      "annotation.support_adjudication--f15-p1"
+    ],
+    "runtime_toolchain_pins": {},
+    "schema_version": 1,
+    "semantic_evidence_contract": "sc-support-adjudication-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "27d9c247f8c9e5c59a5be3cab63ed35f7e7ed8af2292b71729edd54f68ed2e72",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-support-adjudication:F15.P1"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "9fde9aa919c7010596ae4b10b9796d164dc46603edb7de50b37f3dad64e2b633",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-support-adjudication--f15-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "mode": "support-from-canonical-baseline",
+        "probe_id": "F15.P1",
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
+      }
+    },
+    "requirements": {
+      "annotation.support_adjudication--f15-p1": {
+        "C++": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "template<typename T> T head(const std::vector<T>& xs) { return xs[0]; }\nauto a = head(std::vector<int>{4, 5, 6});\nauto b = head(std::vector<std::string>{\"p\", \"q\"});\nstd::string result = std::to_string(a) + b;",
+          "justification": "`template<typename T> T head(const std::vector<T>& xs){ return xs[0]; }` — template result type is exactly T, not erased/boxed; used at int and std::string.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Go": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "func head[T any](xs []T) T {\n return xs[0]\n}\na := head([]int{4, 5, 6})\nb := head([]string{\"p\", \"q\"})\nresult := strconv.Itoa(a) + b",
+          "justification": "Go 1.18+ generics: func head[T any](s []T) T { return s[0] }; used at []int32 and []string, both with statically recoverable result type T.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Java": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "static <T> T head(List<T> xs) { return xs.get(0); }\nint a = head(List.of(4, 5, 6));\nString b = head(List.of(\"p\", \"q\"));\nString result = Integer.toString(a) + b;",
+          "justification": "static <T> T head(List<T> xs) { return xs.get(0); } — declared result type T is statically recoverable from the generic signature even though erased at runtime; used at Integer and String call sites.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Kotlin": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "fun <T> head(xs: List<T>): T = xs[0]\nval a = head(listOf(4, 5, 6))\nval b = head(listOf(\"p\", \"q\"))\nreturn a.toString() + b",
+          "justification": "fun <T> head(xs: List<T>): T = xs[0] — parametric function reused at Int and String element types with T recoverable statically at each call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Python": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "def head(xs: list[T]) -> T:\n    return xs[0]\na = head([4, 5, 6])\nb = head([\"p\", \"q\"])\nreturn str(a) + b",
+          "justification": "Per the canonical_task's own named substitution clause: Python has only a universal dynamic type, no enforced parametric generics; the nearest standard (untyped) function form is substituted.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "Quidra": {
+          "citation": "language.md 'Generics': `T first<T>(T[] values) return values[0]` is the exact verbatim example of an unconstrained generic function reused at two element types.",
+          "fragment": "T head<T>(T[] values)\n    return values[0]\n\nint a = head([4, 5, 6])\nstring b = head([\"p\", \"q\"])\nreturn a.string() + b",
+          "justification": "language.md 'Generics': `T first<T>(T[] values) return values[0]` is the exact verbatim example of an unconstrained generic function reused at two element types.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Rust": {
+          "citation": "Rust Reference generics/monomorphization",
+          "fragment": "fn head<T: Copy>(xs: &[T]) -> T { xs[0] }\nlet a = head(&[4, 5, 6]);\nlet b = head(&[\"p\", \"q\"]);\nformat!(\"{}{}\", a, b)",
+          "justification": "Rust Reference generics/monomorphization",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Swift": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "func head<T>(_ xs: [T]) -> T { return xs[0] }\nlet a = head([4, 5, 6])\nlet b = head([\"p\", \"q\"])\nreturn \"\\(a)\" + b",
+          "justification": "func head<T>(_ xs: [T]) -> T { xs[0] } reused at Int32 and String — Swift generics preserve the T -> T static relationship (no type erasure to Any).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "TypeScript": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "function head<T>(xs: T[]): T { return xs[0]; }\nconst a = head([4, 5, 6]);\nconst b = head([\"p\", \"q\"]);\nreturn `${a}${b}`;",
+          "justification": "function head<T>(xs:T[]):T{return xs[0];} used at number[] and string[] with T recoverable at each call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Zig": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "fn head(comptime T: type, xs: []const T) T { return xs[0]; }\nconst a = head(i32, .{4,5,6});\nconst b = head([]const u8, .{\"p\",\"q\"});",
+          "justification": "fn head(comptime T: type, xs: []const T) T { return xs[0]; } — declaration-level parametric type T with a statically recoverable T->T result relationship, reused at i32 and []const u8.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "1784f1dd5f35cbabfa1c7e8da84ed9c99c1eab4f2388009047e7e260f3d49103",
+  "schema_version": 1
+}

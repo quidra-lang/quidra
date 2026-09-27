@@ -16,7 +16,7 @@ from typing import Any
 
 TEMPLATE = Path(__file__).resolve().parent.parent
 METADATA_PATH = TEMPLATE / "config" / "benchmark_metadata.json"
-MASTER_PROMPT = TEMPLATE.parent / "master_prompt.md"
+ROOT_README = TEMPLATE.parent / "README.md"
 
 
 def read_json(path: Path) -> Any:
@@ -166,16 +166,16 @@ def check() -> list[str]:
     if "config/benchmark_metadata.json" not in readme:
         fail("README.md: config/benchmark_metadata.json is missing from the layout list")
 
-    if not MASTER_PROMPT.is_file():
-        fail(f"{MASTER_PROMPT} is missing")
+    if not ROOT_README.is_file():
+        fail(f"{ROOT_README} is missing")
     else:
-        prompt_names = numbered_list(
-            read_text(MASTER_PROMPT), "## 2. Five independent Primary evaluations"
+        documented_names = numbered_list(
+            read_text(ROOT_README), "## Primary evaluations"
         )
-        if prompt_names != display_names:
+        if documented_names != display_names:
             fail(
-                "master_prompt.md section 2 must list exactly "
-                f"{display_names} in order, got {prompt_names}"
+                "benchmark/README.md Primary evaluations must list exactly "
+                f"{display_names} in order, got {documented_names}"
             )
 
     cli = load_module(TEMPLATE / "scripts" / "benchmark.py", "benchmark_cli_metadata_check")

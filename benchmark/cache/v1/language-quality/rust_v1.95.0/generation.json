@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "language": "Rust",
+  "version": "1.95.0",
+  "generation_id": "rust_v1.95.0",
+  "language_id": "rust_v1.95.0",
+  "version_source": "benchmark/config.json",
+  "evaluation": "language_quality",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 72.2403610054183,
+  "normalized_metric_scores": {
+    "metric.adversarial_input_robustness": 69.29,
+    "metric.binary_artifact_size": 0.09367268807077704,
+    "metric.boundary_value_safety": 51.93,
+    "metric.code_efficiency_conciseness": 75,
+    "metric.compile_build_performance": 0.5562088937812052,
+    "metric.concurrency": 90,
+    "metric.debuggability": 54.49,
+    "metric.dependency_simplicity": 100,
+    "metric.diagnostics": 100,
+    "metric.early_error_detection": 64.47,
+    "metric.ffi_interoperability_design": 100,
+    "metric.functionality_expressiveness": 100,
+    "metric.implementation_robustness": 97.06,
+    "metric.long_running_performance": 82.04414036745156,
+    "metric.memory_efficiency": 95.93133920926942,
+    "metric.memory_safety": 77.78,
+    "metric.native_execution_performance": 84.00013935030809,
+    "metric.portability_design_platform_neutrality": 90,
+    "metric.readability": 80,
+    "metric.runtime_overhead": 99.68354430379746,
+    "metric.runtime_safety": 39.02,
+    "metric.silent_bug_resistance": 75,
+    "metric.source_code_size": 79.87066355750797,
+    "metric.startup_latency": 92.44420598950074,
+    "metric.type_safety": 51.67
+  },
+  "normalization_raw": {
+    "startup_rss_bytes": 11649024,
+    "startup_seconds": 0.001349428,
+    "workloads": {
+      "mb01": {
+        "artifact_effective_bytes": 4357448,
+        "cold_seconds": 0.158695151,
+        "compile_effective_seconds": 0.158046739,
+        "rss_bytes": 11628544,
+        "source_bytes": 1251,
+        "steady_seconds": 0.1570684325
+      },
+      "mb02": {
+        "artifact_effective_bytes": 4357424,
+        "cold_seconds": 0.903344436,
+        "compile_effective_seconds": 0.158402601,
+        "rss_bytes": 11632640,
+        "source_bytes": 1298,
+        "steady_seconds": 0.9014092065
+      },
+      "mb03": {
+        "artifact_effective_bytes": 4357744,
+        "cold_seconds": 0.860324246,
+        "compile_effective_seconds": 0.1563577,
+        "rss_bytes": 11653120,
+        "source_bytes": 1612,
+        "steady_seconds": 0.8088357509999999
+      },
+      "mb04": {
+        "artifact_effective_bytes": 4383872,
+        "cold_seconds": 1.272318517,
+        "compile_effective_seconds": 0.167639272,
+        "rss_bytes": 11612160,
+        "source_bytes": 2337,
+        "steady_seconds": 1.27038636
+      },
+      "mb05": {
+        "artifact_effective_bytes": 4383584,
+        "cold_seconds": 0.79373262,
+        "compile_effective_seconds": 0.162451057,
+        "rss_bytes": 34111488,
+        "source_bytes": 2094,
+        "steady_seconds": 0.7919782854999999
+      },
+      "mb06": {
+        "artifact_effective_bytes": 4384368,
+        "cold_seconds": 1.34541355,
+        "compile_effective_seconds": 0.168626944,
+        "rss_bytes": 11636736,
+        "source_bytes": 2411,
+        "steady_seconds": 1.3440397955
+      },
+      "mb07": {
+        "artifact_effective_bytes": 4360040,
+        "cold_seconds": 0.775547413,
+        "compile_effective_seconds": 0.194531702,
+        "rss_bytes": 50073600,
+        "source_bytes": 3726,
+        "steady_seconds": 0.7731559084999999
+      },
+      "mb08": {
+        "artifact_effective_bytes": 4366392,
+        "cold_seconds": 0.780998404,
+        "compile_effective_seconds": 0.190370796,
+        "rss_bytes": 22110208,
+        "source_bytes": 3879,
+        "steady_seconds": 0.7447265765
+      },
+      "mb09": {
+        "artifact_effective_bytes": 4391256,
+        "cold_seconds": 0.496554968,
+        "compile_effective_seconds": 0.188156794,
+        "rss_bytes": 34062336,
+        "source_bytes": 3970,
+        "steady_seconds": 0.494510528
+      },
+      "mb10": {
+        "artifact_effective_bytes": 4374992,
+        "cold_seconds": 0.562765247,
+        "compile_effective_seconds": 0.217599269,
+        "rss_bytes": 11718656,
+        "source_bytes": 3209,
+        "steady_seconds": 0.5930788284999999
+      },
+      "mb11": {
+        "artifact_effective_bytes": 4382672,
+        "cold_seconds": 0.344494996,
+        "compile_effective_seconds": 0.263699175,
+        "rss_bytes": 35962880,
+        "source_bytes": 3550,
+        "steady_seconds": 0.3873203005
+      }
+    }
+  }
+}

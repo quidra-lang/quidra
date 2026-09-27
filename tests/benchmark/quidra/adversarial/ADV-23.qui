@@ -1,0 +1,7 @@
+print("ADV-START")
+io.flush()
+string text = file.read("inputs/ADV-23.bin")
+print("OBS=CP:{len(text)}")
+io.flush()
+print("ADV-END")
+io.flush()

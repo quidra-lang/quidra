@@ -1,0 +1,102 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "7a9646bb369ceb6a0309acfe525b547a2ad4606c9180c39b1abf2f4dace2e8fd",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "3d4a656cee8bb5ffa9bdf1afda682bcce0b3064d881de210e23798d3eb3dbd2d",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/typescript--f03-p2.json": "54f6b82717fe7b4263b9e693c610004627a7572b0a5f31eefa88f2653c9beec3"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f03-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--typescript--f03-p2",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "3d4a656cee8bb5ffa9bdf1afda682bcce0b3064d881de210e23798d3eb3dbd2d",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-canonical-fragment--typescript--f03-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F03.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F03.P2",
+          "fragment": "xs[1] = 42;",
+          "justification": "xs[1] = 42; in-place element mutation of Array, no rebind.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F03.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "15b9ca274997545366320922ddf30b0418199f9b854f11fab48c336650795e50",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "TypeScript",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F03.P2",
+        "schema_version": 2,
+        "source_record_sha256": "e4c0a1c7301c90f5b8f658a6e1735dc4ca26bcaf89de69d06580e2298036d123",
+        "source_result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f03-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "98b5aa2556fff441171edfc748fbc6d5ca83c4ce225bdd00ddb89d5605e515ec",
+  "schema_version": 1
+}

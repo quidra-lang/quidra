@@ -216,7 +216,7 @@ struct CliArgumentOptional { ValueId out; ValueId name; ValueId index; ValueId d
 struct CliOption { ValueId out; ValueId name; ValueId default_value; Type type; };
 struct CliFlag { ValueId out; ValueId name; };
 struct CliFinish {};
-struct IoFlush {};
+struct IoFlush { ValueId out; Type result_type; };
 struct FileOpen { ValueId out; ValueId path; Type result_type; };
 struct FileCreate { ValueId out; ValueId path; Type result_type; };
 struct FileAppend { ValueId out; ValueId path; Type result_type; };
@@ -341,8 +341,10 @@ struct Call {
 struct VariantMake { ValueId out; int tag; ValueId payload; Type container_type; Type payload_type; };
 struct VariantTag { ValueId out; ValueId container; };
 struct VariantPayload { ValueId out; ValueId container; Type payload_type; };
-struct Print { ValueId value; Type type; };
-struct Write { ValueId value; Type type; };
+// print/write/io.flush report output failure as an error alternative: the
+// result is void | error, and a discarded error fails fast at the statement.
+struct Print { ValueId value; Type type; ValueId out; Type result_type; };
+struct Write { ValueId value; Type type; ValueId out; Type result_type; };
 struct ReplDisplay {
     ValueId value;
     Type type;

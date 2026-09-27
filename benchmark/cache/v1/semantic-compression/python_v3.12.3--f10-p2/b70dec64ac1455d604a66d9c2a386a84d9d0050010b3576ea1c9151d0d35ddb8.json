@@ -1,0 +1,101 @@
+{
+  "assigned_languages": [
+    "Python"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "b70dec64ac1455d604a66d9c2a386a84d9d0050010b3576ea1c9151d0d35ddb8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "b72b5f24fd9160aab3aafd0c028fdaf580d50b3f4176c91aa9f22272702334cd",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/python--f10-p2.json": "f017a54cf15b7ebe25b6178a3a440c076d0518ede8582afa4cc6cf954a8692dd"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f10-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Python": {
+        "PYTHON_PIN": "3.12.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Python": "3.12.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--python--f10-p2",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "b72b5f24fd9160aab3aafd0c028fdaf580d50b3f4176c91aa9f22272702334cd",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-canonical-fragment--python--f10-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F10.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P2",
+          "fragment": "sum = i + d",
+          "justification": "i + d triggers Python's implicit int-to-float promotion in ordinary mixed arithmetic.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F10.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "8c5a9d649d4f33564498b0257d4091d34a39a809f69f5ed7bf45f026dd9c8e67",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Python",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F10.P2",
+        "schema_version": 2,
+        "source_record_sha256": "0d4f28b736cb4e24c642e4a1a3140b1eb5aa166f1b85ba33d3d1c5eee6e90182",
+        "source_result_sha256": "3c5cbef08d987b2cba23c40fd7ef3223c5f26ac35161cb2cd89b241c8e855baa"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f10-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "8e77b791b0f76bbeece78742ca9a47cc39be1a92742cb6c0f15990ca32cd8139",
+  "schema_version": 1
+}

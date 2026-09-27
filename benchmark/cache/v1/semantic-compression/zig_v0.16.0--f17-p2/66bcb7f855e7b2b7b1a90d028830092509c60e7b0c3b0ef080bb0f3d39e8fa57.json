@@ -1,0 +1,103 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "66bcb7f855e7b2b7b1a90d028830092509c60e7b0c3b0ef080bb0f3d39e8fa57",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "d247a6c4c032e48b61157cfae1d54a15e75582c728d832d1d6a19edc488646ac",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/zig--f17-p2.json": "e824f26d6ab1c3cde2f4c5ac33a7cdb095932b504a05d099c2a16b6958dface2"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f17-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--zig--f17-p2",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "d247a6c4c032e48b61157cfae1d54a15e75582c728d832d1d6a19edc488646ac",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-canonical-fragment--zig--f17-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F17.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F17.P2",
+          "fragment": "var released: i32 = 0;\nconst Handle = struct { id: i32, fn deinit(self:*Handle) void { released += 1; } };\n{ var h = Handle{.id=1}; defer h.deinit(); }\nreturn released;",
+          "justification": "P-a: Zig has no automatic end-of-lifetime hook (no destructors/drop); a user type's cleanup (incrementing `released`) must be invoked explicitly via `defer h.deinit();` at the call site rather than triggered automatically by the language at scope exit, the named R9-style substitution for a deterministic destructor.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        }
+      },
+      "canonical_verification": {
+        "F17.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "7d4339018b42fd68381a1f62939bb6d20779d0d0165841b5646e292e1e952f2a",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Zig",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F17.P2",
+        "schema_version": 2,
+        "source_record_sha256": "fa22170c9a67adf2ec66f54023418e1259895dfc32ee088b36a6a42b850605d4",
+        "source_result_sha256": "f76856426d55fc8f8ed8b020ab895e2d23623c93a20109392c4cbfc1b650927f"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f17-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "076980859754c477e584c27f376c4b2e7ffa8c9a5f6a08ce93c7903a17ebe6eb",
+  "schema_version": 1
+}

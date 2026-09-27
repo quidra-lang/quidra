@@ -19,6 +19,8 @@ jobs:
         run: python3 tests/metadata_ssot_tests.py
       - name: Issue AI triage helper tests
         run: python3 tests/issue_triage_tests.py
+      - name: Playground helper tests
+        run: python3 tests/playground_tests.py
 
   release-build:
     runs-on: ubuntu-latest
@@ -63,6 +65,14 @@ jobs:
         run: cmake --build build --parallel
       - name: Tests
         run: ctest --test-dir build --output-on-failure --parallel 4
+      - name: Benchmark programs stay current with the compiler
+        if: matrix.compiler == 'clang' && matrix.standard == 20
+        run: |
+          # The Quidra side of the Language Quality benchmark lives in
+          # tests/benchmark/quidra and is measured by the compiler built from
+          # this tree, so a language change that breaks or invalidates one of
+          # those programs must fail the commit that made it.
+          tests/benchmark_programs.sh build/quidra
       - name: Package smoke
         if: matrix.compiler == 'gcc'
         run: |
@@ -89,6 +99,40 @@ jobs:
         run: ctest --test-dir build-release-compat --output-on-failure --parallel 4
       - name: Native smoke
         run: bash scripts/native-smoke.sh ./build-release-compat/quidra "$PWD"
+
+  # The browser frontend is a first-class target, so it is built and actually
+  # exercised on every push. A build that nobody runs rots into a fork.
+  wasm-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.7
+          actions-cache-folder: emsdk-cache
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Configure the frontend-only build
+        run: >-
+          emcmake cmake -S . -B build-wasm
+          -DCMAKE_BUILD_TYPE=Release
+          -DQUIDRA_WARNINGS_AS_ERRORS=ON
+      - name: Confirm no native runtime dependency was pulled in
+        run: |
+          # The frontend build must not require CURL/PNG/JPEG/TIFF/WebP/FFmpeg.
+          # None of them are installed on this runner, so a successful configure
+          # above is the assertion; this step makes the intent explicit.
+          ! grep -q "CURL_INCLUDE_DIR" build-wasm/CMakeCache.txt
+      - name: Build
+        run: cmake --build build-wasm --target quidra_wasm --parallel
+      - name: Report artifact size
+        run: |
+          raw=$(stat -c%s build-wasm/quidra-core.wasm)
+          gz=$(gzip -9 -c build-wasm/quidra-core.wasm | wc -c)
+          echo "quidra-core.wasm: ${raw} bytes raw, ${gz} bytes gzip" >> "$GITHUB_STEP_SUMMARY"
+      - name: Exercise the WebAssembly API
+        run: node tests/wasm_api_tests.mjs build-wasm
 
   gpu-contracts:
     runs-on: ubuntu-latest
@@ -203,13 +247,33 @@ jobs:
             scripts
             src
             tests
+      - name: Identify vcpkg binary cache ABI
+        id: vcpkg-cache-abi
+        shell: pwsh
+        run: |
+          $vcpkgRevision = (git -C "$env:VCPKG_INSTALLATION_ROOT" rev-parse HEAD).Trim()
+          if (-not $vcpkgRevision) { throw "Could not determine the vcpkg revision" }
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installationPath = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+          if (-not $installationPath) { throw "Could not locate Visual Studio" }
+
+          $msvcRoot = Join-Path $installationPath "VC\Tools\MSVC"
+          $msvcVersion = (Get-ChildItem $msvcRoot -Directory | Sort-Object Name -Descending | Select-Object -First 1).Name
+          if (-not $msvcVersion) { throw "Could not determine the MSVC toolset version" }
+
+          "vcpkg_revision=$vcpkgRevision" >> $env:GITHUB_OUTPUT
+          "msvc_version=$msvcVersion" >> $env:GITHUB_OUTPUT
       - name: Restore vcpkg binary cache
         uses: actions/cache@v4
         with:
           path: .vcpkg-binary-cache
-          key: vcpkg-windows-x64-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          # vcpkg packages are ABI-sensitive. Keep cache reuse within the
+          # exact hosted MSVC toolset and vcpkg revision so a stale Actions
+          # cache cannot report a hit while vcpkg restores zero packages.
+          key: vcpkg-windows-x64-${{ runner.os }}-msvc${{ steps.vcpkg-cache-abi.outputs.msvc_version }}-vcpkg${{ steps.vcpkg-cache-abi.outputs.vcpkg_revision }}-${{ hashFiles('.github/workflows/ci.yml') }}
           restore-keys: |
-            vcpkg-windows-x64-${{ runner.os }}-
+            vcpkg-windows-x64-${{ runner.os }}-msvc${{ steps.vcpkg-cache-abi.outputs.msvc_version }}-vcpkg${{ steps.vcpkg-cache-abi.outputs.vcpkg_revision }}-
       - name: Prepare vcpkg binary cache
         shell: pwsh
         run: New-Item -ItemType Directory -Force -Path .vcpkg-binary-cache | Out-Null
@@ -251,7 +315,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "binary expression run failed with exit code $LASTEXITCODE" }
           if (($binary -join "`n").Trim() -ne "64") { throw "binary expression smoke failed: $binary" }
           Set-Content -Path build/json-smoke.qui -Value @'
-          string source = "{{" + quote + "name" + quote + ":" + quote + "Quidra" + quote + "," + quote + "items" + quote + ":[1,2]}}"
+          string source = "{{" + QUOTE + "name" + QUOTE + ":" + QUOTE + "Quidra" + QUOTE + "," + QUOTE + "items" + QUOTE + ":[1,2]}}"
           auto parsed = json.parse(source)
           match parsed
               json.Value root
@@ -299,11 +363,8 @@ jobs:
           class WindowsNeuralModel
               neural.Parameter<float32> weight
 
-          WindowsNeuralModel model = WindowsNeuralModel(
-              weight = neural.Parameter<float32>(
-                  value = tensor.ones<float32>([1])
-              )
-          )
+          WindowsNeuralModel model
+          model.weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
 
           neural<float32> first_prediction = model.weight.track()
           neural<float32> first_loss = neural.mean(

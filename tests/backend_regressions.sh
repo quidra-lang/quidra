@@ -62,7 +62,7 @@ void go()
     string[] buffer = []
     for i in range(0, 3)
         state = (state * 48271) % 2147483647
-        string[] fields = [i.string(), " ", state.string(), enter]
+        string[] fields = [i.string(), " ", state.string(), ENTER]
         string line = fields.join("")
         buffer = buffer.append(line)
     string joined = buffer.join("|")
@@ -211,9 +211,13 @@ class Pair
     int a
     int b
 
+    construct(int a_value, int b_value)
+        a = a_value
+        b = b_value
+
 Pair | error make(bool ok)
     if ok
-        return Pair(a = 2, b = 3)
+        return Pair(2, 3)
     return error("bad")
 
 int | error sum(bool ok)
@@ -234,9 +238,8 @@ cat > "$TMP/step-prevalidation.qui" <<'QUI'
 class StepModel
     neural.Parameter value
 
-StepModel model = StepModel(
-    value = neural.Parameter(value = tensor.ones<float32>([1]))
-)
+StepModel model
+model.value = neural.Parameter(value = tensor.ones<float32>([1]))
 neural prediction = model.value.track()
 neural loss = neural.mean(prediction * prediction)
 neural.Gradients gradients = neural.grad(loss)
@@ -260,12 +263,11 @@ class MomentUpdateModel
     neural.Parameter<float32> second_weight
     neural.Parameter<float32> second_bias
 
-MomentUpdateModel model = MomentUpdateModel(
-    first_weight = neural.Parameter<float32>(value = tensor.ones<float32>([2, 2])),
-    first_bias = neural.Parameter<float32>(value = tensor.zeros<float32>([2])),
-    second_weight = neural.Parameter<float32>(value = tensor.ones<float32>([1, 2])),
-    second_bias = neural.Parameter<float32>(value = tensor.zeros<float32>([1]))
-)
+MomentUpdateModel model
+model.first_weight = neural.Parameter<float32>(value = tensor.ones<float32>([2, 2]))
+model.first_bias = neural.Parameter<float32>(value = tensor.zeros<float32>([2]))
+model.second_weight = neural.Parameter<float32>(value = tensor.ones<float32>([1, 2]))
+model.second_bias = neural.Parameter<float32>(value = tensor.zeros<float32>([1]))
 tensor<float32> values = tensor.ones<float32>([1, 2])
 neural first = neural.affine(
     neural.track(values), model.first_weight, model.first_bias

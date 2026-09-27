@@ -2617,7 +2617,7 @@
         "the recorded stage or class",
         "any other language's session"
       ],
-      "agent_configuration": "Exactly the fixed LLM execution configuration of spec 6.2: one model identity for all ten languages, temperature 0, top-p 1.0, seed 0, fresh isolated session per session, no cross-session memory, no web retrieval, compiler and runtime access allowed and identical in purpose across languages, maximum 3 repair turns.",
+      "agent_configuration": "Exactly the fixed LLM execution configuration of spec 6.2: one model identity for all ten languages, the same decoding state for every language as recorded in primary.json sampling (the evaluated model family controls decoding and rejects temperature, top-p and top-k, so none are sent), fresh isolated session per session, no cross-session memory, no web retrieval, compiler and runtime access allowed and identical in purpose across languages, maximum 3 repair turns.",
       "termination": "The session ends when the patched program, built and run under the frozen recipe, produces the case's reference observation (or a diagnosed failure, for a DIAGNOSED_FAILURE case, verified by re-running the decision procedure and obtaining stage `Compile-time Detection`, `Static Checking Before Execution` or `Runtime Safe Detection`), or when the third repair turn has been consumed.",
       "no_human_edits": "The agent's own output is used verbatim. A human may not edit generated source and count the result as a success (spec 9, spec 32)."
     },

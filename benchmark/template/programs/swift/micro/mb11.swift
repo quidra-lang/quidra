@@ -1,7 +1,11 @@
 // MB-11 - Collections: Swift's own Dictionary, Set and Array under
 // insert / update / lookup / delete / iterate. Default capacity everywhere.
 // Section 4.12(d) pins Dictionary<Int,Int>, Set<Int> and Array<Int> for swift.
+#if canImport(Darwin)
 import Darwin  // fflush(stdout) for the section 5.2 ITER lines
+#else
+import Glibc   // the same fflush(stdout) on Linux, where the benchmark runs
+#endif
 
 /// Lehmer / MINSTD generator, frozen for every language in the suite.
 struct Lcg {

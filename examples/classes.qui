@@ -2,6 +2,10 @@ class Point
     int x
     int y
 
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
     int sum()
         return x + y
 
@@ -12,6 +16,10 @@ class LabeledPoint
     Point point
     string label
 
+    construct(Point point_value, string label_value)
+        point = point_value
+        label = label_value
+
     int sum()
         return point.sum()
 
@@ -19,33 +27,43 @@ class OffsetPoint
     Point point
     int offset
 
+    construct(Point point_value, int offset_value)
+        point = point_value
+        offset = offset_value
+
     int sum()
         return point.sum() + offset
 
 class Box
     Point point
 
+    construct(Point point_value)
+        point = point_value
+
 class Counter
     int value
+
+    construct(int value_value)
+        value = value_value
 
     void increment()
         value = value + 1
 
-Point a = Point(x = 1, y = 2)
+Point a = Point(1, 2)
 Point b = a
 b.x = 9
 
 Point &alias = &a
 alias.y = 5
 
-LabeledPoint labeled = LabeledPoint(point = Point(x = 3, y = 4), label = "p")
-OffsetPoint offset = OffsetPoint(point = Point(x = 3, y = 4), offset = 10)
+LabeledPoint labeled = LabeledPoint(Point(3, 4), "p")
+OffsetPoint offset = OffsetPoint(Point(3, 4), 10)
 
-Box box = Box(point = a)
+Box box = Box(a)
 Box copy = box
 copy.point.x = 99
 
-Counter counter = Counter(value = 1)
+Counter counter = Counter(1)
 counter.increment()
 
 print(a.x)

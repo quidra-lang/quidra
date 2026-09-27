@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Mechanical micro-benchmark execution for Quidra Language Quality.
 
-Quidra sources are authored anew for the evaluated commit by a narrow leaf worker.
-This script owns all repeatable post-authoring work: target compiler build,
-correctness validation, build/run timing, peak RSS, source/artifact sizes and
-normalization into requirement-level 0-100 scores.
+Quidra sources live in the evaluated snapshot (primary.json
+language_quality.quidra_program_root) and are re-audited against the compiler
+built from that snapshot by the `audit` command before anything is timed. This
+script owns all repeatable work: the audit, target compiler build, correctness
+validation, build/run timing, peak RSS, source/artifact sizes and normalization
+into requirement-level 0-100 scores.
 """
 from __future__ import annotations
 
@@ -93,9 +95,19 @@ def benchmark_env(root: Path, cwd: Path) -> dict[str, str]:
         "LANG": "C",
         "TZ": "UTC",
     }
-    java_home = Path("/opt/homebrew/opt/openjdk")
-    if java_home.exists():
-        env["JAVA_HOME"] = str(java_home)
+    for var, candidate in (
+        ("JAVA_HOME", "/opt/homebrew/opt/openjdk"),
+        ("JAVA_HOME", "/opt/java"),
+        ("RUSTUP_HOME", "/opt/rust"),
+        ("CARGO_HOME", "/opt/rust"),
+    ):
+        if var not in env and Path(candidate).exists():
+            env[var] = candidate
+    # Toolchains that keep a build cache must be able to write it somewhere the
+    # sandbox allows; HOME is inside the workspace but say so explicitly.
+    env.setdefault("GOCACHE", str(root / "tmp" / "go-build"))
+    env.setdefault("GOPATH", str(root / "tmp" / "gopath"))
+    env.setdefault("GOTOOLCHAIN", "local")
     return env
 
 
@@ -188,61 +200,32 @@ def manifest_unit(root: Path, unit_id: str) -> dict[str, Any]:
     raise MeasureError(f"unknown work unit: {unit_id}")
 
 
+def quidra_program_root(root: Path) -> Path:
+    """Where the evaluated snapshot keeps its own benchmark programs.
+
+    Quidra's programs are maintained with the compiler, under the path frozen
+    in primary.json, and are read from the snapshot mounted read-only at
+    /quidra-benchmark/repo. They are re-audited for every evaluated commit by
+    the quidra-audit command unit before anything is measured.
+    """
+    primary = load_json(root / "template" / "config" / "primary.json")
+    relative = str(
+        (primary.get("language_quality") or {}).get("quidra_program_root")
+        or "tests/benchmark/quidra"
+    )
+    return root / "repo" / relative
+
+
 def quidra_representation_path(root: Path) -> Path:
-    manifest = load_json(root / "work" / "root" / "manifest.json")
-    matches = [
-        u for u in manifest.get("work_units", [])
-        if u.get("id") == "lq-qudra-representation"
-    ]
-    if len(matches) != 1:
-        raise MeasureError(
-            "lq-qudra-representation unit is missing from the frozen manifest"
-        )
-    agent = root / "work" / "agents" / str(matches[0]["assigned_agent_id"])
-    return agent / "quidra_representation.json"
-
-
-def quidra_authoring_units(root: Path) -> list[dict[str, Any]]:
-    manifest = load_json(root / "work" / "root" / "manifest.json")
-    units = [
-        u for u in manifest.get("work_units", [])
-        if str(u.get("id", "")).startswith("lq-qudra-micro-authoring-")
-    ]
-    if not units:
-        raise MeasureError("Quidra micro authoring shards are missing from the frozen manifest")
-    expected = {STARTUP_WORKLOAD, *WORKLOADS}
-    owners: dict[str, list[str]] = {}
-    for unit in units:
-        workloads = list(unit.get("workload_ids", []))
-        if not workloads or len(workloads) > 3:
-            raise MeasureError(
-                f"{unit.get('id')}: Quidra authoring shard must own 1..3 workloads"
-            )
-        for workload in workloads:
-            owners.setdefault(workload, []).append(str(unit.get("id")))
-    missing = sorted(expected - set(owners))
-    duplicate = sorted(k for k, v in owners.items() if len(v) != 1)
-    unknown = sorted(set(owners) - expected)
-    if missing or duplicate or unknown:
-        raise MeasureError(
-            "invalid Quidra authoring shard coverage; "
-            f"missing={missing}, duplicate={duplicate}, unknown={unknown}"
-        )
-    return units
+    return quidra_program_root(root) / "representation.json"
 
 
 def quidra_source_path(root: Path, workload: str) -> Path:
-    matches = [
-        unit for unit in quidra_authoring_units(root)
-        if workload in set(unit.get("workload_ids", []))
-    ]
-    if len(matches) != 1:
-        raise MeasureError(f"Quidra workload ownership is not unique: {workload}")
-    unit = matches[0]
-    agent = root / "work" / "agents" / str(unit["assigned_agent_id"])
-    path = agent / "programs" / f"{workload}.qui"
+    path = quidra_program_root(root) / "micro" / f"{workload}.qui"
     if not path.is_file():
-        raise MeasureError(f"missing Quidra source for {workload}: {path}")
+        raise MeasureError(
+            f"missing Quidra source for {workload} in the evaluated snapshot: {path}"
+        )
     return path
 
 
@@ -394,7 +377,15 @@ def prepare_cell(root: Path, language: str, workload: str, compiler: Path) -> di
         run_cmd = [str(binary)]
         artifact, artifact_kind = binary, "file"
     elif language == "Zig":
-        build_cmd = ["zig", "build-exe", "-OReleaseFast", str(local), f"-femit-bin={binary}"]
+        # Section 4.12 pins Zig's allocator to std.heap.c_allocator, which is
+        # libc malloc. macOS links libc implicitly; Linux, where the benchmark
+        # runs, refuses a libc dependency that the build command does not name.
+        # The workload table (workloads/micro.md) still shows the command
+        # without -lc: that file is a readable input of every Language Quality
+        # language-development unit, and editing it re-keys their certified
+        # records (the first attempt did, and re-bought them). The flag names
+        # the pinned allocator's own dependency; it changes no measurement.
+        build_cmd = ["zig", "build-exe", "-OReleaseFast", "-lc", str(local), f"-femit-bin={binary}"]
         run_cmd = [str(binary)]
         artifact, artifact_kind = binary, "file"
     else:
@@ -505,24 +496,34 @@ def pause() -> None:
     time.sleep(IDLE_SECONDS)
 
 
+# Peak RSS is read from the kernel's own accounting of the measured child, not
+# from a platform-specific `time` binary: a throwaway interpreter runs the
+# program and reports getrusage(RUSAGE_CHILDREN), which only that one child can
+# have contributed to. Linux reports ru_maxrss in kilobytes, Darwin in bytes.
+RSS_WRAPPER = (
+    "import json, resource, subprocess, sys\n"
+    "p = subprocess.run(sys.argv[1:])\n"
+    "r = resource.getrusage(resource.RUSAGE_CHILDREN)\n"
+    "scale = 1 if sys.platform == 'darwin' else 1024\n"
+    "sys.stderr.write('\\n@@rss ' + json.dumps({'peak_rss_bytes': r.ru_maxrss * scale}) + '\\n')\n"
+    "sys.exit(p.returncode)\n"
+)
+
+
 def wrapped_memory_run(root: Path, cell: dict[str, Any]) -> dict[str, Any]:
-    if sys.platform != "darwin":
-        raise MeasureError(
-            "scored micro RSS measurement currently requires Darwin /usr/bin/time -l, "
-            "as frozen by template/workloads/micro.md"
-        )
-    cmd = ["/usr/bin/time", "-l", *cell["run_cmd"]]
+    cmd = [sys.executable, "-c", RSS_WRAPPER, *cell["run_cmd"]]
     result = run_command(cmd, Path(cell["workdir"]), benchmark_env(root, Path(cell["workdir"])))
     if not result["timed_out"] and result["exit_code"] != 0:
         raise MeasureError(
             f"wrapped run failed for {cell['language']} {cell['workload']}: {result['stderr']}"
         )
-    m = re.search(r"(?m)^\s*(\d+)\s+maximum resident set size\s*$", result["stderr"])
+    m = re.search(r"(?m)^@@rss (\{.*\})\s*$", result["stderr"])
     if not m:
         raise MeasureError(
-            f"could not parse BSD time peak RSS for {cell['language']} {cell['workload']}"
+            f"could not read peak RSS for {cell['language']} {cell['workload']}"
         )
-    result["peak_rss_bytes"] = int(m.group(1))
+    result["peak_rss_bytes"] = int(json.loads(m.group(1))["peak_rss_bytes"])
+    result["stderr"] = result["stderr"][: m.start()].rstrip()
     return result
 
 
@@ -639,6 +640,100 @@ def summarize_or_na(values: list[float], reason: str | None = None) -> dict[str,
     }
 
 
+def _project_version_ssot(root: Path) -> str:
+    """Read [project].version from the evaluated project.toml SSOT."""
+    path = root / "repo" / "project.toml"
+    if not path.is_file():
+        raise MeasureError(f"evaluated snapshot has no project.toml: {path}")
+    in_project = False
+    versions: list[str] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line == "[project]":
+            in_project = True
+            continue
+        if in_project and line.startswith("["):
+            break
+        if not in_project or not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        if sep and key.strip() == "version":
+            value = value.strip()
+            if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+                versions.append(value[1:-1])
+    if len(versions) != 1:
+        raise MeasureError("project.toml [project] must declare version exactly once")
+    return versions[0]
+
+
+def archived_quidra_generation(root: Path) -> dict[str, Any] | None:
+    """The immutable Quidra generation matching project.toml, if one was published."""
+    history_path = root / "version_history" / "index.json"
+    if not history_path.is_file():
+        return None
+    history = load_json(history_path)
+    if (
+        history.get("schema_version") != 1
+        or history.get("version_ssot") != "project.toml:[project].version"
+    ):
+        raise MeasureError("invalid Quidra version history contract")
+    version = _project_version_ssot(root)
+    row = next(
+        (
+            item for item in (history.get("versions") or [])
+            if isinstance(item, dict) and str(item.get("version") or "") == version
+        ),
+        None,
+    )
+    if row is None:
+        return None
+    return row
+
+
+def archived_quidra_requirement_scores(
+    root: Path, requirement_ids: list[str],
+) -> dict[str, Any] | None:
+    """Return immutable same-version LQ scores, or None when fresh Quidra work is required."""
+    row = archived_quidra_generation(root)
+    if row is None:
+        return None
+    version = _project_version_ssot(root)
+    source = ((row.get("normalized_metric_scores") or {}).get("language_quality") or {})
+    scores: dict[str, Any] = {}
+    for requirement_id in requirement_ids:
+        value = source.get(str(requirement_id))
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            scores[str(requirement_id)] = float(value)
+        elif (
+            isinstance(value, dict)
+            and value.get("status") == "N/A"
+            and isinstance(value.get("reason"), str)
+        ):
+            scores[str(requirement_id)] = dict(value)
+        else:
+            # A generation is skipped only when every requested score is already
+            # immutable. Missing history falls back to the ordinary measurement.
+            return None
+    return {
+        "version": version,
+        "language_id": str(row.get("language_id") or f"quidra_v{version}"),
+        "scores": scores,
+    }
+
+
+def execution_languages_with_archived_quidra(
+    root: Path, requirement_ids: list[str], languages: list[str],
+) -> tuple[list[str], dict[str, Any] | None]:
+    """Remove Quidra from scored execution only for an already archived project version."""
+    chosen = list(languages)
+    if "Quidra" not in chosen:
+        return chosen, None
+    archived = archived_quidra_requirement_scores(root, requirement_ids)
+    if archived is None:
+        return chosen, None
+    return [language for language in chosen if language != "Quidra"], archived
+
+
 def parse_steady_samples(stdout: str) -> list[float]:
     values = []
     for line in stdout.splitlines():
@@ -668,7 +763,11 @@ def validate_quidra_representation(root: Path, representation_path: Path) -> dic
     expected_commit = str(
         load_json(root / "run.json").get("evaluated", {}).get("commit_sha", "")
     )
-    if not expected_commit or representation.get("evaluated_commit_sha") != expected_commit:
+    recorded = representation.get("evaluated_commit_sha")
+    # A manifest maintained inside the evaluated snapshot cannot know its own
+    # commit; it says so with the literal sentinel and is bound to the commit by
+    # being part of it.
+    if recorded != "evaluated-snapshot" and (not expected_commit or recorded != expected_commit):
         raise MeasureError("Quidra representation manifest commit SHA mismatch")
     required_fields = set(schema.get("required_top_level_fields", []))
     missing_fields = sorted(required_fields - set(representation))
@@ -710,140 +809,197 @@ def validate_quidra_representation(root: Path, representation_path: Path) -> dic
     return representation
 
 
-def require_audit_result(agent: Path) -> dict[str, Any]:
-    result_path = agent / "result.json"
-    if not result_path.is_file():
-        raise MeasureError("Quidra support-task result.json is missing")
-    result = load_json(result_path)
-    if result.get("schema_version") != 1 or result.get("evaluation") != "language_quality":
-        raise MeasureError("Quidra support-task result.json metadata is invalid")
-    if result.get("audit_pass") is not True:
-        raise MeasureError("Quidra support-task worker did not return audit_pass=true")
-    return result
+def audit(root: Path, unit_id: str) -> int:
+    """Re-audit the snapshot's Quidra benchmark programs against its own compiler.
 
-
-def verify_quidra_representation_unit(root: Path, agent_id: str) -> int:
-    agent = root / "work" / "agents" / agent_id
-    require_audit_result(agent)
-    representation_path = agent / "quidra_representation.json"
-    if synthetic_mode(root):
-        dump_json(agent / "quidra_representation_validation.json", {
-            "schema_version": 1,
-            "synthetic_ci": True,
-        })
-        print(json.dumps({
-            "ok": True,
-            "agent_id": agent_id,
-            "synthetic_ci": True,
-        }, indent=2))
-        return 0
-
-    representation = validate_quidra_representation(root, representation_path)
-    dump_json(agent / "quidra_representation_validation.json", {
-        "schema_version": 1,
-        "evaluated_commit_sha": representation["evaluated_commit_sha"],
-        "representation_sha256": hashlib.sha256(
-            representation_path.read_bytes()
-        ).hexdigest(),
-        "valid": True,
-    })
-    print(json.dumps({
-        "ok": True,
-        "agent_id": agent_id,
-        "representation": str(representation_path),
-    }, indent=2))
-    return 0
-
-
-def verify_quidra_shard(root: Path, unit_id: str, agent_id: str) -> int:
+    This is the `quidra-audit` command unit. It replaces per-run authoring of
+    Quidra programs by a model: the programs live in the evaluated snapshot and
+    are maintained with the compiler, so a run's job is to prove they are current
+    - every micro program builds with the compiler built from this commit, runs
+    once, matches the frozen oracle and speaks steady mode; every scored
+    adversarial program is present with the frozen skeleton; the generated
+    adversarial sources are exactly what the frozen generators produce; and the
+    representation manifest and type-binding amendment are valid. Any failure is
+    an authoring/infrastructure blocker for the evaluation, never a language
+    score.
+    """
     unit = manifest_unit(root, unit_id)
-    if unit.get("assigned_agent_id") != agent_id:
-        raise MeasureError("Quidra authoring shard agent mismatch")
-    workloads = list(unit.get("workload_ids", []))
-    if not workloads or len(workloads) > 3:
-        raise MeasureError("Quidra authoring shard must own between 1 and 3 workloads")
-    # Validate global coverage before accepting any shard so overlap/omission is caught early.
-    quidra_authoring_units(root)
-
-    agent = root / "work" / "agents" / agent_id
-    require_audit_result(agent)
+    if unit.get("runner_action") != "quidra-audit":
+        raise MeasureError(f"{unit_id} is not a quidra-audit command unit")
+    out_dir = root / "work" / "root" / "commands" / unit_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    gate = "gate.quidra_programs_current"
     if synthetic_mode(root):
-        dump_json(agent / "quidra_micro_validation.json", {
+        dump_json(out_dir / "result.json", {
             "schema_version": 1,
-            "synthetic_ci": True,
-            "workloads": workloads,
+            "evaluation": "language_quality",
+            "requirements": {gate: True},
+            "evidence": {"synthetic_ci": True},
+        })
+        print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
+        return 0
+
+    archived = archived_quidra_generation(root)
+    if archived is not None:
+        # project.toml [project].version is the target-generation SSOT. Once a
+        # generation has a formal archived result, repeating this audit would
+        # compile and execute Quidra again even though the user explicitly chose
+        # same-version immutability. Do not touch the compiler or target programs.
+        evidence = {
+            "quidra_version_reuse": {
+                "version": str(archived.get("version") or ""),
+                "language_id": str(archived.get("language_id") or ""),
+                "source_run_id": archived.get("source_run_id"),
+            },
+            "execution_skipped": True,
+            "reason": "same project.toml version already has an immutable benchmark generation",
+        }
+        dump_json(out_dir / "result.json", {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": {gate: True},
+            "evidence": evidence,
         })
         print(json.dumps({
             "ok": True,
-            "agent_id": agent_id,
-            "workloads": workloads,
-            "synthetic_ci": True,
+            "unit_id": unit_id,
+            "quidra_version_reuse": evidence["quidra_version_reuse"],
+            "execution_skipped": True,
         }, indent=2))
         return 0
 
-    validate_quidra_representation(root, quidra_representation_path(root))
+    programs = quidra_program_root(root)
+    problems: list[str] = []
+    evidence: dict[str, Any] = {"program_root": str(programs), "micro": [], "adversarial": {}}
+    if not programs.is_dir():
+        raise MeasureError(
+            f"quidra benchmark programs are absent from the evaluated snapshot at {programs}"
+        )
+
+    representation_path = quidra_representation_path(root)
+    try:
+        validate_quidra_representation(root, representation_path)
+        evidence["representation_sha256"] = hashlib.sha256(
+            representation_path.read_bytes()
+        ).hexdigest()
+    except MeasureError as exc:
+        problems.append(f"representation.json: {exc}")
+
+    amendment_path = programs / "quidra_type_binding_amendment.json"
+    if not amendment_path.is_file():
+        problems.append("quidra_type_binding_amendment.json is missing")
+    else:
+        amendment = load_json(amendment_path)
+        evidence["amendment_sha256"] = hashlib.sha256(amendment_path.read_bytes()).hexdigest()
+        for key in ("default_arithmetic_type", "fixed_width_i64", "fixed_width_i32",
+                    "fixed_width_u32", "float64", "default_string_type",
+                    "default_ordered_sequence", "most_general_reference", "null_or_absent_value"):
+            row = (amendment.get("bindings") or {}).get(key) or {}
+            if not row.get("construct") or not row.get("citation"):
+                problems.append(f"amendment: binding {key} lacks a construct or citation")
+
     compiler = ensure_target_compiler(root)
     expected = expected_outputs(root)
     checker = checker_module(root)
-    report = []
-
-    for workload in workloads:
-        source = agent / "programs" / f"{workload}.qui"
-        if not source.is_file():
-            raise MeasureError(f"Quidra authoring source is missing: {source}")
-        cell = prepare_cell(root, "Quidra", workload, compiler)
-        build = build_once(root, cell)
-        run = run_once(root, cell)
-        require_ok(run, f"Quidra correctness run {workload}")
-        if workload == STARTUP_WORKLOAD:
-            validate_startup_output(run["stdout"])
-            report.append({
+    for workload in [STARTUP_WORKLOAD, *WORKLOADS]:
+        try:
+            source = quidra_source_path(root, workload)
+            cell = prepare_cell(root, "Quidra", workload, compiler)
+            build = build_once(root, cell)
+            run = run_once(root, cell)
+            require_ok(run, f"Quidra correctness run {workload}")
+            if workload == STARTUP_WORKLOAD:
+                validate_startup_output(run["stdout"])
+            else:
+                validate_output(checker, expected[workload], run["stdout"])
+                steady = run_once(root, cell, "steady", 3)
+                require_ok(steady, f"Quidra steady-mode smoke {workload}")
+                if len(parse_steady_samples(steady["stdout"])) != 3:
+                    raise MeasureError(f"{workload} steady mode did not emit exactly 3 ITER rows")
+                validate_output(checker, expected[workload], steady["stdout"])
+            evidence["micro"].append({
                 "workload": workload,
                 "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
                 "build_wall_seconds": build["wall_seconds"] if build else 0.0,
                 "correct": True,
-                "startup_probe": True,
             })
-            continue
+        except MeasureError as exc:
+            problems.append(f"micro {workload}: {exc}")
 
-        validate_output(checker, expected[workload], run["stdout"])
-        steady = run_once(root, cell, "steady", 3)
-        require_ok(steady, f"Quidra steady-mode smoke {workload}")
-        if len(parse_steady_samples(steady["stdout"])) != 3:
-            raise MeasureError(
-                f"Quidra {workload} steady mode did not emit exactly 3 ITER rows"
-            )
-        validate_output(checker, expected[workload], steady["stdout"])
-        report.append({
-            "workload": workload,
-            "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
-            "build_wall_seconds": build["wall_seconds"] if build else 0.0,
-            "correct": True,
-            "steady_mode": True,
+    adversarial = programs / "adversarial"
+    generator = adversarial / "generate.py"
+    if generator.is_file():
+        check = run_command(
+            [sys.executable, str(generator), "--check"], adversarial,
+            benchmark_env(root, adversarial), timeout=120,
+        )
+        if check["exit_code"] != 0:
+            problems.append("adversarial generated sources are stale: " + (check["stderr"] or check["stdout"]).strip()[:300])
+    else:
+        problems.append("adversarial/generate.py is missing")
+    asset = load_json(
+        root / "template" / "methodology-assets" / "language_quality" / "adversarial_cases.json"
+    )
+    tm3a = set()
+    if amendment_path.is_file():
+        tm3a = {
+            k for k, v in (load_json(amendment_path).get("tm3_determinations") or {}).items()
+            if v.get("branch") == "TM3a"
+        }
+    present = 0
+    for row in asset["fixed_scored_case_variant_list"]["rows"]:
+        for program in row["programs"]:
+            base, _, variant = program.partition("/")
+            case_id = base.split("_", 1)[0]
+            if case_id in tm3a or program in tm3a:
+                continue
+            stem = f"{base}_{variant}" if variant else base
+            source = adversarial / f"{stem}.qui"
+            if not source.is_file():
+                problems.append(f"adversarial {program}: no source {source.name}")
+                continue
+            text = source.read_text(encoding="utf-8", errors="replace")
+            if program not in ("ADV-22a", "ADV-22b") and not all(
+                marker in text for marker in ('print("ADV-START")', 'print("ADV-END")', "OBS=")
+            ):
+                problems.append(f"adversarial {program}: frozen skeleton lines are missing")
+            present += 1
+    evidence["adversarial"] = {"programs_present": present, "tm3a_cases": sorted(tm3a)}
+
+    if problems:
+        dump_json(out_dir / "result.json", {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": {gate: False},
+            "evidence": {**evidence, "problems": problems},
         })
-
-    dump_json(agent / "quidra_micro_validation.json", {
+        raise MeasureError(
+            "quidra benchmark programs audit failed: " + "; ".join(problems)[:1500]
+        )
+    dump_json(out_dir / "result.json", {
         "schema_version": 1,
-        "unit_id": unit_id,
-        "representation_sha256": hashlib.sha256(
-            quidra_representation_path(root).read_bytes()
-        ).hexdigest(),
-        "workloads": report,
+        "evaluation": "language_quality",
+        "requirements": {gate: True},
+        "evidence": evidence,
     })
-    print(json.dumps({
-        "ok": True,
-        "agent_id": agent_id,
-        "unit_id": unit_id,
-        "workloads": workloads,
-    }, indent=2))
+    print(json.dumps({"ok": True, "unit_id": unit_id, "result": str(out_dir / "result.json")}, indent=2))
     return 0
 
 
 
 def measure(root: Path, unit_id: str) -> int:
     unit = manifest_unit(root, unit_id)
-    if unit.get("runner_action") != "micro-measure":
-        raise MeasureError(f"{unit_id} is not a micro-measure command unit")
+    action = str(unit.get("runner_action") or "")
+    if action not in {"micro-measure", "micro-measure-raw"}:
+        raise MeasureError(f"{unit_id} is not a micro measurement command unit")
+    selected_languages = [
+        str(language) for language in (unit.get("assigned_languages") or [])
+    ] or list(LANGUAGES)
+    unknown = sorted(set(selected_languages) - set(LANGUAGES))
+    if unknown:
+        raise MeasureError("unknown assigned micro language(s): " + ", ".join(unknown))
+    if action == "micro-measure-raw" and len(selected_languages) != 1:
+        raise MeasureError("micro-measure-raw requires exactly one assigned language")
     if synthetic_mode(root):
         out_dir = root / "work" / "root" / "commands" / unit_id
         scores = {lang: float(90 - index) for index, lang in enumerate(LANGUAGES)}
@@ -861,18 +1017,27 @@ def measure(root: Path, unit_id: str) -> int:
             "schema_version": 1,
             "evaluation": "language_quality",
             "requirements": requirements,
+            "normalization_raw": {},
             "evidence": {"synthetic_ci": True},
         })
         print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
         return 0
-    if sys.platform != "darwin":
-        raise MeasureError(
-            "Language Quality micro measurement is frozen to the macOS measurement protocol; "
-            "run it on the declared Darwin benchmark host"
+
+    if action == "micro-measure-raw":
+        measured_languages = list(selected_languages)
+        quidra_reuse = None
+    else:
+        measured_languages, quidra_reuse = execution_languages_with_archived_quidra(
+            root,
+            [str(value) for value in unit.get("requirement_ids", [])],
+            selected_languages,
         )
-    quidra_authoring_units(root)
-    validate_quidra_representation(root, quidra_representation_path(root))
-    compiler = ensure_target_compiler(root)
+
+    if "Quidra" in measured_languages:
+        validate_quidra_representation(root, quidra_representation_path(root))
+        compiler = ensure_target_compiler(root)
+    else:
+        compiler = Path("/quidra-benchmark/no-quidra-compiler")
     expected = expected_outputs(root)
     checker = checker_module(root)
     primary = load_json(root / "template" / "config" / "primary.json")
@@ -883,19 +1048,35 @@ def measure(root: Path, unit_id: str) -> int:
     raw_path = out_dir / "micro_raw.json"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    required_bins = ["cmake", "python3", "clang++", "rustc", "go", "javac", "java", "tsc", "node", "kotlinc", "swiftc", "zig"]
+    bins_by_language = {
+        "Quidra": ["cmake"],
+        "Python": ["python3"],
+        "C++": ["clang++"],
+        "Rust": ["rustc"],
+        "Go": ["go"],
+        "Java": ["javac", "java"],
+        "TypeScript": ["tsc", "node"],
+        "Kotlin": ["kotlinc", "java"],
+        "Swift": ["swiftc"],
+        "Zig": ["zig"],
+    }
+    required_bins = sorted({
+        binary
+        for language in measured_languages
+        for binary in bins_by_language[language]
+    })
     missing = [name for name in required_bins if shutil.which(name) is None]
     if missing:
         raise MeasureError("missing required micro toolchains: " + ", ".join(missing))
 
     cells: dict[str, dict[str, dict[str, Any]]] = {w: {} for w in WORKLOADS}
     for workload in WORKLOADS:
-        for language in LANGUAGES:
+        for language in measured_languages:
             cells[workload][language] = prepare_cell(root, language, workload, compiler)
 
     correctness = []
     for workload in WORKLOADS:
-        for language in LANGUAGES:
+        for language in measured_languages:
             cell = cells[workload][language]
             if cell["build_cmd"] is not None:
                 build_once(root, cell)
@@ -927,9 +1108,9 @@ def measure(root: Path, unit_id: str) -> int:
 
     startup_cells = {
         language: prepare_cell(root, language, STARTUP_WORKLOAD, compiler)
-        for language in LANGUAGES
+        for language in measured_languages
     }
-    for language in LANGUAGES:
+    for language in measured_languages:
         cell = startup_cells[language]
         if cell["build_cmd"] is not None:
             build_once(root, cell)
@@ -944,7 +1125,7 @@ def measure(root: Path, unit_id: str) -> int:
 
     startup_samples: dict[str, list[float]] = {lang: [] for lang in LANGUAGES}
     startup_rss_samples: dict[str, list[float]] = {lang: [] for lang in LANGUAGES}
-    startup_group = [startup_cells[lang] for lang in LANGUAGES]
+    startup_group = [startup_cells[lang] for lang in measured_languages]
 
     def measure_startup(_batch: str) -> None:
         for round_index in range(warmups):
@@ -1032,7 +1213,7 @@ def measure(root: Path, unit_id: str) -> int:
     def measure_compile(workload: str) -> None:
         build_cells = [
             cells[workload][lang]
-            for lang in LANGUAGES
+            for lang in measured_languages
             if cells[workload][lang]["build_cmd"] is not None
         ]
         for round_index in range(measured):
@@ -1052,7 +1233,7 @@ def measure(root: Path, unit_id: str) -> int:
                     float(result["wall_seconds"])
                 )
                 pause()
-        for lang in LANGUAGES:
+        for lang in measured_languages:
             if cells[workload][lang]["build_cmd"] is None:
                 compile_samples[workload][lang] = [0.0] * measured
 
@@ -1062,12 +1243,12 @@ def measure(root: Path, unit_id: str) -> int:
     # Downstream execution still needs a current artifact even when compile timing
     # for a workload became infrastructure N/A.
     for workload in WORKLOADS:
-        for lang in LANGUAGES:
+        for lang in measured_languages:
             if cells[workload][lang]["build_cmd"] is not None:
                 build_once(root, cells[workload][lang])
 
     def measure_cold(workload: str) -> None:
-        group = [cells[workload][lang] for lang in LANGUAGES]
+        group = [cells[workload][lang] for lang in measured_languages]
         for round_index in range(warmups):
             order = deterministic_order(
                 run_id, workload, "cold-warmup", round_index, group
@@ -1110,7 +1291,7 @@ def measure(root: Path, unit_id: str) -> int:
     )
 
     def measure_rss(workload: str) -> None:
-        group = [cells[workload][lang] for lang in LANGUAGES]
+        group = [cells[workload][lang] for lang in measured_languages]
         for round_index in range(warmups):
             order = deterministic_order(
                 run_id, workload, "rss-warmup", round_index, group
@@ -1152,7 +1333,7 @@ def measure(root: Path, unit_id: str) -> int:
     )
 
     def measure_steady(workload: str) -> None:
-        group = [cells[workload][lang] for lang in LANGUAGES]
+        group = [cells[workload][lang] for lang in measured_languages]
         for process_index in range(2):
             order = deterministic_order(
                 run_id, workload, "steady", process_index, group
@@ -1195,16 +1376,28 @@ def measure(root: Path, unit_id: str) -> int:
         WORKLOADS, "steady", measure_steady, host_checks
     )
 
-    source_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    artifact_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    compile_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    cold_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    rss_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
-    steady_raw: dict[str, dict[str, float | None]] = {w: {} for w in WORKLOADS}
+    source_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    artifact_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    compile_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    cold_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    rss_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
+    steady_raw: dict[str, dict[str, float | None]] = {
+        w: {lang: None for lang in LANGUAGES} for w in WORKLOADS
+    }
     summaries: dict[str, Any] = {}
     for workload in WORKLOADS:
         summaries[workload] = {}
-        for language in LANGUAGES:
+        for language in measured_languages:
             cell = cells[workload][language]
             source_raw[workload][language] = float(Path(cell["source"]).stat().st_size)
             artifact_raw[workload][language] = float(artifact_size(cell))
@@ -1265,6 +1458,33 @@ def measure(root: Path, unit_id: str) -> int:
         )
         for lang in LANGUAGES
     }
+    normalization_raw = {
+        language: {
+            "workloads": {
+                workload: {
+                    "source_bytes": source_raw[workload][language],
+                    "artifact_effective_bytes": (
+                        None
+                        if artifact_raw[workload][language] is None
+                        else float(artifact_raw[workload][language]) + 4096.0
+                    ),
+                    "compile_effective_seconds": (
+                        None
+                        if compile_raw[workload][language] is None
+                        else float(compile_raw[workload][language]) + float(compile_epsilon)
+                    ),
+                    "cold_seconds": cold_raw[workload][language],
+                    "rss_bytes": rss_raw[workload][language],
+                    "steady_seconds": steady_raw[workload][language],
+                }
+                for workload in WORKLOADS
+            },
+            "startup_seconds": startup_raw[language],
+            "startup_rss_bytes": runtime_overhead_raw[language],
+        }
+        for language in measured_languages
+    }
+
     all_requirements = {
         "metric.native_execution_performance": family_c_workload_scores(cold_raw),
         "metric.long_running_performance": family_c_workload_scores(steady_raw),
@@ -1275,6 +1495,11 @@ def measure(root: Path, unit_id: str) -> int:
         "metric.source_code_size": family_c_workload_scores(source_raw),
         "metric.binary_artifact_size": family_c_workload_scores(artifact_raw, 4096.0),
     }
+    if quidra_reuse is not None:
+        for requirement_id, archived_score in quidra_reuse["scores"].items():
+            if requirement_id in all_requirements:
+                all_requirements[requirement_id]["Quidra"] = archived_score
+
     assigned_requirement_ids = list(unit.get("requirement_ids", []))
     unsupported = sorted(set(assigned_requirement_ids) - set(all_requirements))
     if unsupported:
@@ -1289,11 +1514,13 @@ def measure(root: Path, unit_id: str) -> int:
         "schema_version": 1,
         "evaluation": "language_quality",
         "requirements": requirements,
+        "normalization_raw": normalization_raw,
         "evidence": {
             "raw": str(raw_path),
             "compile_epsilon_seconds": compile_epsilon,
             "artifact_epsilon_bytes": 4096,
-            "target_compiler": str(compiler),
+            "target_compiler": (str(compiler) if quidra_reuse is None else None),
+            "quidra_version_reuse": quidra_reuse,
         },
     }
     dump_json(raw_path, {
@@ -1321,38 +1548,224 @@ def measure(root: Path, unit_id: str) -> int:
             for lang in LANGUAGES
         },
         "summaries": summaries,
+        "normalization_raw": normalization_raw,
+        "quidra_version_reuse": quidra_reuse,
     })
     dump_json(out_dir / "result.json", result)
     print(json.dumps({"ok": True, "unit_id": unit_id, "result": str(out_dir / 'result.json')}, indent=2))
     return 0
 
 
+def normalize(root: Path, unit_id: str) -> int:
+    """Normalize cached/fresh per-language raw micro measurements together."""
+    unit = manifest_unit(root, unit_id)
+    if unit.get("runner_action") != "micro-normalize":
+        raise MeasureError(f"{unit_id} is not a micro-normalize command unit")
+    out_dir = root / "work" / "root" / "commands" / unit_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if synthetic_mode(root):
+        scores = {lang: float(90 - index) for index, lang in enumerate(LANGUAGES)}
+        requirements = {
+            rid: dict(scores)
+            for rid in unit.get("requirement_ids", [])
+            if str(rid).startswith(("metric.", "condition."))
+        }
+        dump_json(out_dir / "result.json", {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": requirements,
+            "evidence": {"synthetic_ci": True, "normalization_only": True},
+        })
+        print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
+        return 0
+
+    rows: dict[str, dict[str, Any]] = {}
+    sources: dict[str, str] = {}
+    for dependency in unit.get("dependencies", []):
+        if not str(dependency).startswith("lq-micro-raw--"):
+            continue
+        path = root / "work" / "root" / "commands" / str(dependency) / "result.json"
+        if not path.is_file():
+            raise MeasureError(f"missing raw micro dependency result: {dependency}")
+        result = load_json(path)
+        raw = result.get("normalization_raw")
+        if not isinstance(raw, dict) or len(raw) != 1:
+            raise MeasureError(f"{dependency}: invalid normalization_raw payload")
+        language, row = next(iter(raw.items()))
+        if language in rows:
+            raise MeasureError(f"duplicate raw micro language: {language}")
+        if language not in LANGUAGES or not isinstance(row, dict):
+            raise MeasureError(f"{dependency}: invalid raw micro language payload")
+        rows[language] = row
+        sources[language] = str(path)
+
+    if set(rows) != set(LANGUAGES):
+        missing = sorted(set(LANGUAGES) - set(rows))
+        extra = sorted(set(rows) - set(LANGUAGES))
+        raise MeasureError(
+            f"micro normalization requires every fixed language; missing={missing}, extra={extra}"
+        )
+
+    source_raw = {workload: {} for workload in WORKLOADS}
+    artifact_raw = {workload: {} for workload in WORKLOADS}
+    compile_raw = {workload: {} for workload in WORKLOADS}
+    cold_raw = {workload: {} for workload in WORKLOADS}
+    rss_raw = {workload: {} for workload in WORKLOADS}
+    steady_raw = {workload: {} for workload in WORKLOADS}
+    startup_raw: dict[str, float | None] = {}
+    runtime_overhead_raw: dict[str, float | None] = {}
+
+    for language in LANGUAGES:
+        row = rows[language]
+        workloads = row.get("workloads")
+        if not isinstance(workloads, dict) or set(workloads) != set(WORKLOADS):
+            raise MeasureError(f"{language}: normalization raw workloads are incomplete")
+        for workload in WORKLOADS:
+            values = workloads[workload]
+            if not isinstance(values, dict):
+                raise MeasureError(f"{language}/{workload}: invalid normalization raw row")
+            source_raw[workload][language] = values.get("source_bytes")
+            artifact_raw[workload][language] = values.get("artifact_effective_bytes")
+            compile_raw[workload][language] = values.get("compile_effective_seconds")
+            cold_raw[workload][language] = values.get("cold_seconds")
+            rss_raw[workload][language] = values.get("rss_bytes")
+            steady_raw[workload][language] = values.get("steady_seconds")
+        startup_raw[language] = row.get("startup_seconds")
+        runtime_overhead_raw[language] = row.get("startup_rss_bytes")
+
+    all_requirements = {
+        "metric.native_execution_performance": family_c_workload_scores(cold_raw),
+        "metric.long_running_performance": family_c_workload_scores(steady_raw),
+        "metric.compile_build_performance": family_c_workload_scores(compile_raw),
+        "metric.startup_latency": family_c_language_scores(startup_raw),
+        "metric.memory_efficiency": family_c_workload_scores(rss_raw),
+        "metric.runtime_overhead": family_c_language_scores(runtime_overhead_raw),
+        "metric.source_code_size": family_c_workload_scores(source_raw),
+        "metric.binary_artifact_size": family_c_workload_scores(artifact_raw),
+    }
+    assigned = list(unit.get("requirement_ids", []))
+    unsupported = sorted(set(assigned) - set(all_requirements))
+    if unsupported:
+        raise MeasureError(
+            "micro-normalize received unsupported requirement IDs: "
+            + ", ".join(unsupported)
+        )
+    requirements = {rid: all_requirements[rid] for rid in assigned}
+    dump_json(out_dir / "result.json", {
+        "schema_version": 1,
+        "evaluation": "language_quality",
+        "requirements": requirements,
+        "evidence": {
+            "normalization_only": True,
+            "raw_sources": sources,
+            "normalization_uses_effective_raw_values": True,
+        },
+    })
+    print(json.dumps({"ok": True, "unit_id": unit_id, "result": str(out_dir / "result.json")}, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Quidra mechanical micro benchmark runner")
     sub = p.add_subparsers(dest="command", required=True)
-    verify_rep = sub.add_parser("verify-representation")
-    verify_rep.add_argument("--workspace", required=True)
-    verify_rep.add_argument("--agent-id", required=True)
-    verify_shard = sub.add_parser("verify-shard")
-    verify_shard.add_argument("--workspace", required=True)
-    verify_shard.add_argument("--unit-id", required=True)
-    verify_shard.add_argument("--agent-id", required=True)
+    audit_p = sub.add_parser("audit", help="re-audit the snapshot's Quidra benchmark programs")
+    audit_p.add_argument("--workspace", required=True)
+    audit_p.add_argument("--unit-id", required=True)
     measure_p = sub.add_parser("measure")
     measure_p.add_argument("--workspace", required=True)
     measure_p.add_argument("--unit-id", required=True)
+    normalize_p = sub.add_parser(
+        "normalize",
+        help="normalize the ten cached/fresh per-language raw micro measurements",
+    )
+    normalize_p.add_argument("--workspace", required=True)
+    normalize_p.add_argument("--unit-id", required=True)
+    build_p = sub.add_parser(
+        "build-target",
+        help="build the evaluated Quidra compiler into the workspace before scored work needs it",
+    )
+    build_p.add_argument("--workspace", required=True)
+    check_p = sub.add_parser(
+        "build-check",
+        help="compile every comparison-language micro program once, without measuring",
+    )
+    check_p.add_argument("--workspace", required=True)
+    check_p.add_argument(
+        "--language", action="append", default=None,
+        help="restrict to one language (repeatable); default: every comparison language",
+    )
+    check_p.add_argument(
+        "--run", action="store_true",
+        help="also run each program once and check its output against the frozen oracle",
+    )
     return p
+
+
+def build_check(root: Path, languages: list[str] | None = None, run: bool = False) -> int:
+    """Compile every comparison-language micro program once, without measuring.
+
+    The third paid run was the first to reach the mechanical measurement, and
+    it found the Swift programs importing Darwin, which no Linux toolchain has;
+    the whole Language Quality evaluation was blocked on a build nothing had
+    tried before paying. This is that try, for the runtime image's CI: every
+    program is copied into the workspace and built exactly as `measure` builds
+    it, and any failure is reported with the compiler's message. With `run`,
+    each program is also executed once and its output checked against the
+    frozen oracle, so a Linux-only runtime difference is found for free too.
+    """
+    chosen = list(languages or [language for language in CONFIGS if language != "Quidra"])
+    unknown = [language for language in chosen if language not in CONFIGS]
+    if unknown:
+        raise MeasureError(f"unknown language(s): {', '.join(unknown)}")
+    report: dict[str, Any] = {"schema_version": 1, "ok": True, "built": [], "failed": []}
+    # The build environment points TMPDIR at the workspace's own tmp directory.
+    (root / "tmp").mkdir(exist_ok=True)
+    expected = expected_outputs(root) if run else {}
+    checker = checker_module(root) if run else None
+    for language in chosen:
+        for workload in [STARTUP_WORKLOAD, *WORKLOADS]:
+            try:
+                cell = prepare_cell(root, language, workload, Path("quidra"))
+                build_once(root, cell)
+                if run:
+                    result = run_once(root, cell)
+                    require_ok(result, f"run {language} {workload}")
+                    if workload == STARTUP_WORKLOAD:
+                        validate_startup_output(result["stdout"])
+                    else:
+                        validate_output(checker, expected[workload], result["stdout"])
+                report["built"].append(f"{language}/{workload}")
+            except (MeasureError, OSError, ValueError, subprocess.SubprocessError) as exc:
+                report["ok"] = False
+                report["failed"].append({
+                    "language": language, "workload": workload, "error": str(exc)[:2000],
+                })
+    print(json.dumps(report, indent=2))
+    return 0 if report["ok"] else 1
+
+
+def build_target(root: Path) -> int:
+    compiler = ensure_target_compiler(root)
+    record = load_json(root / "results" / "target_toolchain.json")
+    print(json.dumps({"ok": True, "compiler_path": str(compiler), **record}, indent=2))
+    return 0
 
 
 def main() -> int:
     args = build_parser().parse_args()
     try:
         root = root_from(args.workspace)
-        if args.command == "verify-representation":
-            return verify_quidra_representation_unit(root, args.agent_id)
-        if args.command == "verify-shard":
-            return verify_quidra_shard(root, args.unit_id, args.agent_id)
+        if args.command == "audit":
+            return audit(root, args.unit_id)
         if args.command == "measure":
             return measure(root, args.unit_id)
+        if args.command == "normalize":
+            return normalize(root, args.unit_id)
+        if args.command == "build-target":
+            return build_target(root)
+        if args.command == "build-check":
+            return build_check(root, args.language, bool(args.run))
         raise MeasureError(f"unknown command: {args.command}")
     except (MeasureError, OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
         print(f"micro measure error: {exc}", file=sys.stderr)

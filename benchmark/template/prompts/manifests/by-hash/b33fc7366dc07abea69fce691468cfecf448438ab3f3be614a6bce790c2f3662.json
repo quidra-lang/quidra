@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 41532,
+      "kind": "task-input:work/root/semantic-probes/java--f15-p2.json",
+      "sha256": "ffe0c65bf6d1281e623ff42f41209b3093fa3eb175a06ec3a2a316d383dff750"
+    },
+    {
+      "bytes": 3858,
+      "kind": "task",
+      "sha256": "bfad680ab608db35de1e5aaf1c375d92e8590f2a1d3c9cedbce67d94717100ab"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "67e08b627d5e2a85f5e2c250617419c6ee25853c2b777b6525d07ab93521a344"
+    }
+  ],
+  "prompt_sha256": "b33fc7366dc07abea69fce691468cfecf448438ab3f3be614a6bce790c2f3662",
+  "rendered_bytes": 62409,
+  "schema_version": 1
+}

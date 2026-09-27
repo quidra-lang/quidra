@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Kotlin",
+  "version": "2.3.21",
+  "generation_id": "kotlin_v2.3.21",
+  "language_id": "kotlin_v2.3.21",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_learnability",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 97.60000000000001,
+  "normalized_metric_scores": {
+    "condition.i1_keyword_anonymization": 100,
+    "condition.i2_vocabulary_anonymization": 100,
+    "condition.i3_structural_surface_perturbation": 96,
+    "condition.i4_novel_rule_generalization": 95,
+    "condition.i5_held_out_rule_composition": 96,
+    "condition.i6_prior_conflict_resistance": 98
+  },
+  "normalization_raw": {}
+}

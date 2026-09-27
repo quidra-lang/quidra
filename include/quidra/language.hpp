@@ -60,7 +60,7 @@ inline constexpr std::optional<std::string_view> canonical_builtin_type_name(std
 enum class BuiltinCallable {
     Print,
     Write,
-    Input,
+    Scan,
     IoFlush,
     Exit,
     Range,
@@ -191,21 +191,21 @@ struct BuiltinCallableInfo {
 // monotonic name-resolution rule, adding an entry here reserves a previously
 // usable source name and is therefore a compatibility-breaking language change.
 // Prefer namespaced standard-library functions or value methods for new APIs.
-inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 7> builtin_callables{{
     {"print", BuiltinCallable::Print},
     {"write", BuiltinCallable::Write},
-    {"input", BuiltinCallable::Input},
+    {"scan", BuiltinCallable::Scan},
     {"range", BuiltinCallable::Range},
     {"array", BuiltinCallable::Array},
     {"len", BuiltinCallable::Len},
-    {"abs", BuiltinCallable::Abs},
-    {"sqrt", BuiltinCallable::Sqrt},
-    {"min", BuiltinCallable::Min},
-    {"max", BuiltinCallable::Max},
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 111> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 115> intrinsic_callables{{
+    {"$std.math.abs", BuiltinCallable::Abs},
+    {"$std.math.sqrt", BuiltinCallable::Sqrt},
+    {"$std.math.min", BuiltinCallable::Min},
+    {"$std.math.max", BuiltinCallable::Max},
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -483,7 +483,10 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         return std::nullopt;
     }
     if (module != "math") return std::nullopt;
-    if (member == "abs" || member == "sqrt" || member == "min" || member == "max") return member;
+    if (member == "abs") return "$std.math.abs";
+    if (member == "sqrt") return "$std.math.sqrt";
+    if (member == "min") return "$std.math.min";
+    if (member == "max") return "$std.math.max";
     if (member == "sin") return "$std.math.sin";
     if (member == "cos") return "$std.math.cos";
     if (member == "tan") return "$std.math.tan";
@@ -521,14 +524,14 @@ inline constexpr bool is_builtin_callable(std::string_view name) {
 }
 
 inline constexpr std::array<std::pair<std::string_view, std::string_view>, 8> builtin_text_constants{{
-    {"enter", "\n"},
-    {"tab", "\t"},
-    {"home", "\r"},
-    {"quote", "\""},
-    {"backspace", "\b"},
-    {"page", "\f"},
-    {"vtab", "\v"},
-    {"bell", "\a"},
+    {"ENTER", "\n"},
+    {"TAB", "\t"},
+    {"HOME", "\r"},
+    {"QUOTE", "\""},
+    {"BACKSPACE", "\b"},
+    {"PAGE", "\f"},
+    {"VTAB", "\v"},
+    {"BELL", "\a"},
 }};
 
 inline constexpr bool is_builtin_text_constant(std::string_view name) {
@@ -546,10 +549,39 @@ inline constexpr std::string_view builtin_text_constant(std::string_view name) {
     return {};
 }
 
+// The text constants are the only built-in values spelled in capitals: they
+// stand for characters that cannot be written directly, and the capitals mark
+// them as language-provided symbols rather than user bindings. Before language
+// 0.2 they were lowercase; a lowercase spelling now resolves to nothing, and
+// this names the constant the writer most likely meant.
+inline constexpr std::string_view renamed_text_constant(std::string_view name) {
+    for (const auto& [candidate, value] : builtin_text_constants) {
+        (void)value;
+        if (candidate.size() != name.size()) continue;
+        bool same = true;
+        for (std::size_t i = 0; i < name.size(); ++i) {
+            char c = name[i];
+            if (c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
+            if (c != candidate[i]) { same = false; break; }
+        }
+        if (same && candidate != name) return candidate;
+    }
+    return {};
+}
+
+// `Point point` creates the value at the declaration, with its declared
+// defaults, so fields can be assigned one by one. Standard-library value
+// types that user code cannot construct (file handles, generators, process
+// results and the like) stay uninitialized until the library supplies them.
+inline constexpr bool class_storage_established_at_declaration(std::string_view class_name) {
+    return !class_name.starts_with("$std.");
+}
+
 inline constexpr bool is_reserved_value_name(std::string_view name) {
     return is_builtin_text_constant(name) || is_builtin_callable(name) ||
            is_builtin_type_name(name) || is_standard_module(name) ||
-           name == "fn" || name == "auto" || name == "union";
+           name == "fn" || name == "auto" || name == "union" ||
+           name == "construct";
 }
 
 inline std::string builtin_types_json() {

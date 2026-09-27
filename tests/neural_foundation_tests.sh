@@ -53,10 +53,9 @@ class Model
     neural.Parameter<float32> weight
     neural.Parameter<float32> bias
 
-Model model = Model(
-    weight = neural.Parameter<float32>(value = tensor.ones<float32>([1, 2])),
-    bias = neural.Parameter<float32>(value = tensor.zeros<float32>([1]))
-)
+Model model
+model.weight = neural.Parameter<float32>(value = tensor.ones<float32>([1, 2]))
+model.bias = neural.Parameter<float32>(value = tensor.zeros<float32>([1]))
 tensor<float32> samples = tensor.ones<float32>([1, 2])
 neural<float32> prediction = neural.affine(
     neural.track(samples), model.weight, model.bias
@@ -78,9 +77,8 @@ cat > "$TMP/dtype-cast.qui" <<'QUI'
 class Model
     neural.Parameter<float32> value
 
-Model model = Model(
-    value = neural.Parameter<float32>(value = tensor.ones<float32>([2]))
-)
+Model model
+model.value = neural.Parameter<float32>(value = tensor.ones<float32>([2]))
 neural<float32><2> tracked = model.value.track()
 neural<float><2> promoted = float(tracked)
 tensor<float><2> restored = promoted.untrack()
@@ -148,11 +146,8 @@ cat > "$TMP/neural-scalar-grad.qui" <<'QUI'
 class ScalarModel
     neural.Parameter<float32> value
 
-ScalarModel model = ScalarModel(
-    value = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1]) * float32(2)
-    )
-)
+ScalarModel model
+model.value = neural.Parameter<float32>( value = tensor.ones<float32>([1]) * float32(2) )
 neural<float32> x = model.value.track()
 neural<float32> transformed = (float32(5) - x * float32(3)) / float32(2)
 neural<float32> reciprocal = float32(8) / x
@@ -178,9 +173,8 @@ print(tensor_copy[0].item())
 class AliasModel
     neural.Parameter<float32> weight
 
-AliasModel unused_alias_model = AliasModel(
-    weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
-)
+AliasModel unused_alias_model
+unused_alias_model.weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
 neural<float32> unused_source = unused_alias_model.weight.track()
 neural<float32> unused_alias = unused_source
 neural<float32> unused_loss = neural.mean(unused_source + float32(1))
@@ -189,9 +183,8 @@ neural.update(&unused_alias_model, unused_gradients, rate = 0.1)
 print(math.abs(float(unused_alias_model.weight.raw()[0].item()) - 0.9) < 0.000001)
 print(unused_alias.untrack()[0].item())
 
-AliasModel shared_path_model = AliasModel(
-    weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
-)
+AliasModel shared_path_model
+shared_path_model.weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
 neural<float32> shared_source = shared_path_model.weight.track()
 neural<float32> shared_alias = shared_source
 neural<float32> shared_loss = neural.mean(shared_source + shared_alias)
@@ -202,9 +195,8 @@ print(math.abs(float(shared_path_model.weight.raw()[0].item()) - 0.8) < 0.000001
 class CopyModel
     neural.Parameter<float32> weight
 
-CopyModel original_model = CopyModel(
-    weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
-)
+CopyModel original_model
+original_model.weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
 CopyModel copied_model = original_model
 neural<float32> copied_value = copied_model.weight.track()
 neural<float32> copied_loss = neural.mean(copied_value * copied_value)
@@ -235,18 +227,16 @@ class MomentState
     neural.State<int> step
     neural.State<bin> moments
 
-Model model = Model(
-    left = neural.Parameter<float32>(value = tensor.ones<float32>([1])),
-    right = neural.Parameter<float32>(value = tensor.ones<float32>([1]) * 2.0)
-)
-MomentState state = MomentState(
-    rate = 0.1,
-    beta1 = 0.9,
-    beta2 = 0.999,
-    epsilon = 0.00000001,
-    step = neural.State<int>(value = 0),
-    moments = neural.State<bin>(value = bin.fill(0, 0))
-)
+Model model
+model.left = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
+model.right = neural.Parameter<float32>(value = tensor.ones<float32>([1]) * 2.0)
+MomentState state
+state.rate = 0.1
+state.beta1 = 0.9
+state.beta2 = 0.999
+state.epsilon = 0.00000001
+state.step = neural.State<int>(value = 0)
+state.moments = neural.State<bin>(value = bin.fill(0, 0))
 neural<float32> left = model.left.track()
 neural<float32> right = model.right.track()
 neural<float32> loss = neural.mean(left * left) + neural.mean(right * right)
@@ -298,10 +288,9 @@ class Model
 tensor<float32> identity = tensor.zeros<float32>([1, 1, 2, 2])
 identity[0, 0, 0, 0] = 1.0
 identity[0, 0, 1, 1] = 1.0
-Model model = Model(
-    weight = neural.Parameter<float32>(value = identity),
-    bias = neural.Parameter<float32>(value = tensor.zeros<float32>([1]))
-)
+Model model
+model.weight = neural.Parameter<float32>(value = identity)
+model.bias = neural.Parameter<float32>(value = tensor.zeros<float32>([1]))
 
 tensor<float32> samples = tensor.zeros<float32>([1, 1, 3, 3])
 int value = 1
@@ -345,14 +334,9 @@ class ConvCoverage
     neural.Parameter<float32> weight
     neural.Parameter<float32> bias
 
-ConvCoverage pointwise = ConvCoverage(
-    weight = neural.Parameter<float32>(
-        value = tensor.ones<float32>([3, 2, 1, 1])
-    ),
-    bias = neural.Parameter<float32>(
-        value = tensor.ones<float32>([3])
-    )
-)
+ConvCoverage pointwise
+pointwise.weight = neural.Parameter<float32>( value = tensor.ones<float32>([3, 2, 1, 1]) )
+pointwise.bias = neural.Parameter<float32>( value = tensor.ones<float32>([3]) )
 tensor<float32> batch = tensor.ones<float32>([2, 2, 3, 5])
 tensor<float32> point = neural.convolve2d(
     batch, pointwise.weight, pointwise.bias, 1, 0
@@ -370,14 +354,9 @@ print(point_stride.shape()[2])
 print(point_stride.shape()[3])
 print(point_stride[1, 1, 1, 2].item())
 
-ConvCoverage three = ConvCoverage(
-    weight = neural.Parameter<float32>(
-        value = tensor.ones<float32>([3, 2, 3, 3])
-    ),
-    bias = neural.Parameter<float32>(
-        value = tensor.ones<float32>([3])
-    )
-)
+ConvCoverage three
+three.weight = neural.Parameter<float32>( value = tensor.ones<float32>([3, 2, 3, 3]) )
+three.bias = neural.Parameter<float32>( value = tensor.ones<float32>([3]) )
 tensor<float32> three_plain = neural.convolve2d(
     tensor.ones<float32>([2, 2, 5, 7]),
     three.weight, three.bias, 1, 0
@@ -404,14 +383,9 @@ print(three_stride.shape()[3])
 print(three_stride[0, 0, 0, 0].item())
 print(three_stride[0, 0, 1, 1].item())
 
-ConvCoverage five = ConvCoverage(
-    weight = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1, 1, 5, 5])
-    ),
-    bias = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1])
-    )
-)
+ConvCoverage five
+five.weight = neural.Parameter<float32>( value = tensor.ones<float32>([1, 1, 5, 5]) )
+five.bias = neural.Parameter<float32>( value = tensor.ones<float32>([1]) )
 tensor<float32> five_out = neural.convolve2d(
     tensor.ones<float32>([1, 1, 6, 8]),
     five.weight, five.bias, 1, 0
@@ -425,17 +399,10 @@ class ConvBackward
     neural.Parameter<float32> weight
     neural.Parameter<float32> bias
 
-ConvBackward backward = ConvBackward(
-    pixels = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1, 1, 3, 3])
-    ),
-    weight = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1, 1, 3, 3])
-    ),
-    bias = neural.Parameter<float32>(
-        value = tensor.zeros<float32>([1])
-    )
-)
+ConvBackward backward
+backward.pixels = neural.Parameter<float32>( value = tensor.ones<float32>([1, 1, 3, 3]) )
+backward.weight = neural.Parameter<float32>( value = tensor.ones<float32>([1, 1, 3, 3]) )
+backward.bias = neural.Parameter<float32>( value = tensor.zeros<float32>([1]) )
 neural<float32> tracked_out = neural.convolve2d(
     backward.pixels.track(), backward.weight, backward.bias, 1, 0
 )
@@ -450,17 +417,10 @@ class PointBackward
     neural.Parameter<float32> weight
     neural.Parameter<float32> bias
 
-PointBackward point_backward = PointBackward(
-    pixels = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1, 2, 2, 2])
-    ),
-    weight = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1, 2, 1, 1])
-    ),
-    bias = neural.Parameter<float32>(
-        value = tensor.zeros<float32>([1])
-    )
-)
+PointBackward point_backward
+point_backward.pixels = neural.Parameter<float32>( value = tensor.ones<float32>([1, 2, 2, 2]) )
+point_backward.weight = neural.Parameter<float32>( value = tensor.ones<float32>([1, 2, 1, 1]) )
+point_backward.bias = neural.Parameter<float32>( value = tensor.zeros<float32>([1]) )
 neural<float32> point_tracked = neural.convolve2d(
     point_backward.pixels.track(),
     point_backward.weight,
@@ -478,14 +438,9 @@ class Conv64
     neural.Parameter<float> weight
     neural.Parameter<float> bias
 
-Conv64 wide = Conv64(
-    weight = neural.Parameter<float>(
-        value = tensor.ones<float>([1, 1, 3, 3])
-    ),
-    bias = neural.Parameter<float>(
-        value = tensor.ones<float>([1])
-    )
-)
+Conv64 wide
+wide.weight = neural.Parameter<float>( value = tensor.ones<float>([1, 1, 3, 3]) )
+wide.bias = neural.Parameter<float>( value = tensor.ones<float>([1]) )
 tensor<float> wide_out = neural.convolve2d(
     tensor.ones<float>([1, 1, 3, 3]),
     wide.weight, wide.bias, 1, 0
@@ -506,10 +461,9 @@ class Model
     neural.Parameter<float32> weight
     neural.State<int> steps
 
-Model model = Model(
-    weight = neural.Parameter<float32>(value = tensor.ones<float32>([2])),
-    steps = neural.State<int>(value = 3)
-)
+Model model
+model.weight = neural.Parameter<float32>(value = tensor.ones<float32>([2]))
+model.steps = neural.State<int>(value = 3)
 neural.save(model, path = "$TMP/foundation.quistate")
 
 neural<float32> prediction = model.weight.track()
@@ -536,10 +490,9 @@ class Model
     neural.Parameter<float32> weight
     neural.State<int> steps
 
-Model other = Model(
-    weight = neural.Parameter<float32>(value = tensor.ones<float32>([5])),
-    steps = neural.State<int>(value = 0)
-)
+Model other
+other.weight = neural.Parameter<float32>(value = tensor.ones<float32>([5]))
+other.steps = neural.State<int>(value = 0)
 neural.load(&model = &other, path = "$TMP/foundation.quistate")
 print(other.weight.raw()[0].item())
 QUI
@@ -601,9 +554,9 @@ class Masked
 void observe(const Masked &subject, neural<float32> value)
     auto ignored = subject.forward(value)
 
-Masked subject = Masked(
-    rate = 0.5, rng = neural.State<uint64>(value = uint64(7))
-)
+Masked subject
+subject.rate = 0.5
+subject.rng = neural.State<uint64>(value = uint64(7))
 observe(&subject, neural.track(tensor.ones<float32>([4])))
 QUI
 
@@ -633,16 +586,11 @@ class Normalized
 void observe(const Normalized &subject, neural<float32> value)
     auto ignored = subject.forward(value)
 
-Normalized subject = Normalized(
-    scale = neural.Parameter<float32>(value = tensor.ones<float32>([2])),
-    bias = neural.Parameter<float32>(value = tensor.zeros<float32>([2])),
-    running_mean = neural.State<tensor<float32>>(
-        value = tensor.zeros<float32>([2])
-    ),
-    running_variance = neural.State<tensor<float32>>(
-        value = tensor.ones<float32>([2])
-    )
-)
+Normalized subject
+subject.scale = neural.Parameter<float32>(value = tensor.ones<float32>([2]))
+subject.bias = neural.Parameter<float32>(value = tensor.zeros<float32>([2]))
+subject.running_mean = neural.State<tensor<float32>>( value = tensor.zeros<float32>([2]) )
+subject.running_variance = neural.State<tensor<float32>>( value = tensor.ones<float32>([2]) )
 observe(&subject, neural.track(tensor.ones<float32>([2, 2])))
 QUI
 

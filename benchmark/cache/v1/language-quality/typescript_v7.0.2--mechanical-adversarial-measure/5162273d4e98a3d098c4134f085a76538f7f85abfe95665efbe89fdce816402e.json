@@ -1,0 +1,123 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "measured_at_utc": null,
+    "mechanical": true,
+    "primary_complete": true,
+    "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
+    "raw_evidence_sha256": {
+      "adversarial_raw.json": "91fff5417f51eb4f38f94a18ed8cecd2de15b39acec6f10a103bfc86d90998ed",
+      "cells/": "242cade4fac2d8f2a25ce03254b65829c7ba8167041a82425b98219b52dfe208"
+    },
+    "runner_action": "adversarial-measure",
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "5162273d4e98a3d098c4134f085a76538f7f85abfe95665efbe89fdce816402e",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "github-hosted-ubuntu-latest-v1",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": null,
+    "frozen_sampling": null,
+    "model": null,
+    "network_allowed": false,
+    "provider": null,
+    "readable_input_content_hashes": {
+      "template/methodology-assets/language_quality": "538847ef64cef3ab9a27f0fd76ba32fa0df952dcd11c9f2719a1067e3ee37723",
+      "template/methodology-assets/scoring": "a3be91ff162f3411462bb19e1858b517d5d21301795cd2a728344d9a1c35dd58",
+      "template/programs/typescript/adversarial": "1b38dd91d4f6cadfd78800183c415c5c77b8fe197be5be5ef08bb54d2cd9f31b",
+      "template/programs/typescript/micro": "f57b3731c18c106a72b6fa001b98f8ddd22ff973a7d894580fb64e3301e8d0ab"
+    },
+    "requirement_ids": [
+      "metric.type_safety",
+      "metric.memory_safety",
+      "metric.runtime_safety",
+      "metric.boundary_value_safety",
+      "metric.adversarial_input_robustness",
+      "metric.early_error_detection",
+      "metric.debuggability",
+      "metric.silent_bug_resistance",
+      "metric.implementation_robustness"
+    ],
+    "result_kind": "mechanical",
+    "runner_action": "adversarial-measure",
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "59f63312c6f2bf3a4bda671cdd23d3f4c4b1b0d27e7a9a3ac35ddd8b304eb21d",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py command-result-check --workspace /quidra-benchmark --id lq-adversarial-mechanical--typescript",
+    "work_unit_id": "lq-adversarial-mechanical--typescript",
+    "worker_mode": "runner-command"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": null,
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "lq-adversarial-mechanical--typescript"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "assigned_languages": [
+        "TypeScript"
+      ],
+      "programs_per_language": 37,
+      "quidra_na_reason": null,
+      "raw": "/quidra-benchmark/work/root/commands/lq-adversarial-mechanical--typescript/adversarial_raw.json",
+      "scorer": "adversarial_measure.py (mechanical replay of D0..D7)"
+    },
+    "requirements": {
+      "metric.adversarial_input_robustness": {
+        "TypeScript": 59.29
+      },
+      "metric.boundary_value_safety": {
+        "TypeScript": 22.27
+      },
+      "metric.debuggability": {
+        "TypeScript": 38.46
+      },
+      "metric.early_error_detection": {
+        "TypeScript": 44.62
+      },
+      "metric.implementation_robustness": {
+        "TypeScript": 100
+      },
+      "metric.memory_safety": {
+        "TypeScript": 55.56
+      },
+      "metric.runtime_safety": {
+        "TypeScript": 22.22
+      },
+      "metric.silent_bug_resistance": {
+        "TypeScript": 52.94
+      },
+      "metric.type_safety": {
+        "TypeScript": 33.33
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "49df115f4ce2201c66661944d04b19702256f0b9651dfbe7aa67384cefa84302",
+  "schema_version": 1
+}

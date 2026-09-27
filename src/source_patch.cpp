@@ -118,6 +118,21 @@ public:
 private:
     std::string_view text_;
     std::size_t pos_{};
+    std::size_t depth_{};
+    // The patch schema is a fixed, shallow shape, so this is about ten times
+    // its real need. Without it, 50,000 nested '[' exhausts the stack: this is
+    // the one parser here whose input is untrusted JSON.
+    static constexpr std::size_t max_depth = 64;
+
+    struct DepthScope {
+        explicit DepthScope(std::size_t& depth) : depth_(depth) { ++depth_; }
+        ~DepthScope() { --depth_; }
+        DepthScope(const DepthScope&) = delete;
+        DepthScope& operator=(const DepthScope&) = delete;
+
+    private:
+        std::size_t& depth_;
+    };
 
     bool eof() const { return pos_ >= text_.size(); }
     char peek() const { return eof() ? '\0' : text_[pos_]; }
@@ -261,6 +276,8 @@ private:
 
     Json parse_value() {
         skip_ws();
+        if (depth_ >= max_depth) fail("Patch JSON nesting is too deep.");
+        DepthScope scope(depth_);
         if (eof()) fail("Unexpected end of patch JSON.");
         if (peek() == '"') return Json{parse_string()};
         if (peek() == '{') return parse_object();

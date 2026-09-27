@@ -1,0 +1,151 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "b18b0336253648110f18b7121ecd5a3db48eee9cde3801b6015414888400526e",
+  "fingerprint_payload": {
+    "assigned_languages": [],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/audit/semantic-compression/support_adjudication_f05-p1.json": "b6568c47e6b5edc16987af55829269ccf5ecdfd13d32d95b66570a8da761ec46"
+    },
+    "requirement_ids": [
+      "annotation.support_adjudication--f05-p1"
+    ],
+    "runtime_toolchain_pins": {},
+    "schema_version": 1,
+    "semantic_evidence_contract": "sc-support-adjudication-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "27d9c247f8c9e5c59a5be3cab63ed35f7e7ed8af2292b71729edd54f68ed2e72",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-support-adjudication:F05.P1"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "cf19fa9c9ca3054c3516378fc8f238ad7984fd86955f36a2a3e477b0a6d25e9c",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-support-adjudication--f05-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "mode": "support-from-canonical-baseline",
+        "probe_id": "F05.P1",
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
+      }
+    },
+    "requirements": {
+      "annotation.support_adjudication--f05-p1": {
+        "C++": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "std::vector<int> x{1, 2, 3};\nf(x);\nreturn x[0];",
+          "justification": "`f(x)` bare call, `x` a std::vector<int> passed with no sigil — plainest ordinary call-site form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Go": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "x := []int{1, 2, 3}\nf(x)\nreturn x[0]",
+          "justification": "Bare call f(x) with x a slice; ordinary Go call-site syntax with no sigils.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Java": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "List<Integer> x = new ArrayList<>(List.of(1, 2, 3));\nf(x);\nreturn x.get(0);",
+          "justification": "Ordinary call f(x) on a List argument passes the reference by value; callee can read/write/resize elements of the same underlying object, observable through x afterward.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Kotlin": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "val x = mutableListOf(1, 2, 3)\nf(x)\nreturn x[0]",
+          "justification": "f(x) — Kotlin's ordinary call syntax has no sigils; JVM reference-passing semantics for a MutableList argument, so the callee's access is not determinable at the call site alone.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Python": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "x = [1, 2, 3]\nf(x)\ne = x[0]\nreturn e",
+          "justification": "f(x) is Python's ordinary bare call form; objects are passed by object reference per Python's evaluation model.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Quidra": {
+          "citation": "language.md: 'Ordinary arguments have value semantics' -- the ordinary bare call-site form f(x) is unambiguous value-passing by the language's own contract; llm-guide.md item 17.",
+          "fragment": "int[] x = [1, 2, 3]\nf(x)\nreturn x[0]",
+          "justification": "language.md: 'Ordinary arguments have value semantics' -- the ordinary bare call-site form f(x) is unambiguous value-passing by the language's own contract; llm-guide.md item 17.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Rust": {
+          "citation": "Rust Reference 6.5 Call expressions; ownership/move semantics",
+          "fragment": "let x = vec![1, 2, 3];\nf(x);\nx[0]",
+          "justification": "Rust Reference 6.5 Call expressions; ownership/move semantics",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Swift": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "let x = [1, 2, 3]\nf(x)\nreturn x[0]",
+          "justification": "f(x) — ordinary bare call syntax; Array has value semantics (COW) so no sigil is required or available at the call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "TypeScript": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "const x = [1, 2, 3];\nf(x);\nreturn x[0];",
+          "justification": "f(x) bare call; JS/TS arrays are reference-semantic objects passed by reference by default at ordinary call sites.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Zig": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P1",
+          "fragment": "var x = ArrayList(i32) with 1,2,3;\nf(x);\nreturn x.items[0];",
+          "justification": "f(x) bare call — Zig has no implicit reference passing for aggregate value types at an ordinary call site; ArrayList passed by value is a struct copy of the descriptor, elements are heap-shared depending on type, expressible and buildable.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "48c43e26016767186e6a39849c7c481b2e015efd33245fa20e52f9e1a4743055",
+  "schema_version": 1
+}

@@ -36,7 +36,6 @@ def manifest_fields(project: dict) -> dict:
     meta = project["project"]
     return {
         "language": meta["name"],
-        "language_version": meta["language_version"],
         "compiler_version": meta["version"],
         "tagline": meta["tagline"],
         "source_extension": meta["extension"],

@@ -1,0 +1,111 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "335c4a3408ab1d19a17f56fe14029ea699a6dec1f292e586c15fd3ad41063854",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "7b4ea3056c80361a585c6abfa27e205a4eda54ccbd8b861e8a85bcc899943771",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82",
+      "work/root/semantic-probes/typescript--f20-p1.json": "028158406b47af1606ee6c807585a09fda761ddb84d130624366a20b84d41cc1"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f20-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--typescript--f20-p1",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "7b4ea3056c80361a585c6abfa27e205a4eda54ccbd8b861e8a85bcc899943771",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-canonical-fragment--typescript--f20-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F20.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F20.P1",
+          "fragment": null,
+          "justification": "Node/TS ship no built-in FFI mechanism to call an arbitrary C function; reaching abs(int) would require a native addon (node-gyp/N-API) which is a separate build system/toolchain outside the frozen recipe (R7), or a third-party ffi package (forbidden).",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        }
+      },
+      "canonical_none_verification": {
+        "F20.P1": {
+          "citations": [
+            "canonical-baseline:2026-09-25-5dc8989-gh25#F20.P1"
+          ],
+          "conclusion": "Node/TS ship no built-in FFI mechanism to call an arbitrary C function; reaching abs(int) would require a native addon (node-gyp/N-API) which is a separate build system/toolchain outside the frozen recipe (R7), or a third-party ffi package (forbidden).",
+          "evidence_kinds": [
+            "retained-current-validator-certified-owner",
+            "evidence-cited-by-current-owner"
+          ],
+          "generation_failures_not_used_as_evidence": true,
+          "none_reason": "N-1"
+        }
+      },
+      "canonical_verification": {},
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "TypeScript",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F20.P1",
+        "schema_version": 2,
+        "source_record_sha256": "e4c0a1c7301c90f5b8f658a6e1735dc4ca26bcaf89de69d06580e2298036d123",
+        "source_result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f20-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "ceaed95ee6bbeafbeae1dcce2852877a93d8625cd88dc5ae14d26550892ed889",
+  "schema_version": 1
+}

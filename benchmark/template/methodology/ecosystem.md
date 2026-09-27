@@ -72,9 +72,50 @@ Keep mixed concepts split from Language Quality:
 
 Do **not** move these maturity, availability, adoption or network-effect factors back into Language Quality merely because some of them are first-party. Whether a capability is first-party or third-party is not the boundary; whether it primarily measures intrinsic language/implementation quality or accumulated surrounding maturity is.
 
-For each Ecosystem metric, define and freeze an objective rubric or proxy before scoring any language. The same evidence sources, snapshot date or observation window, query rules, thresholds, and 0–100 conversion must be applied unchanged to all 10 languages.
+For each Ecosystem metric, use the objective rubric/proxy already frozen in `template/methodology-assets/ecosystem/rubrics.json` before any language is scored. The same component universe, evidence selection rule, snapshot/observation-window policy, evidence-level thresholds, and 0–100 conversion are applied unchanged to all 10 languages by the trusted runner.
 
 For **Toolchain Stability / Release Maturity**, language age, first-release date, and elapsed years are contextual metadata only. They must not be a threshold, direct score, or automatic penalty/bonus. Score frozen, currently observable evidence such as release reproducibility, versioning/support policy, compatibility guarantees, supported artifact availability, maintenance/release cadence, and documented stability commitments, using the same rubric for all languages.
+
+### Frozen runner-owned rubric contract
+
+The authoritative Ecosystem scoring rubric is the machine-readable file:
+
+`template/methodology-assets/ecosystem/rubrics.json`
+
+It is frozen before evidence collection and contains exactly five equally weighted components for every Ecosystem metric, one shared 0–4 evidence level scale, the level-to-points mapping, the metric-specific evidence selection rule, and the common evidence-window/retrieval policy. Language-specific workers **must not invent, tune, or replace** these rubrics.
+
+For every assigned metric, a language worker returns semantic evidence only:
+
+- `rubric_id`: exact ID from the frozen asset;
+- `component_levels`: exactly the five frozen component IDs, each an integer 0–4;
+- `component_findings`: exactly the same five IDs, each with a concise evidence-based finding;
+- `sources`: non-empty source identifiers or URLs supporting the findings;
+- `snapshot_date`: the evidence snapshot date;
+- `limitations`: known evidence limitations;
+- `candidate_universe`: the language-specific candidate universe selected under the frozen rule before scoring;
+- `selection_rule`: the exact frozen metric selection-rule string;
+- `retrieval_route`: `provider-brokered web search`.
+
+The trusted runner validates this structure and mechanically computes the 0–100 metric score from the frozen level-to-points mapping. A worker-supplied normalized score is not authoritative and is overwritten. Therefore the LLM performs the part that requires semantic judgment—finding and classifying evidence—while the runner owns rubric identity, component universe, weights, arithmetic, score range, and cross-language consistency.
+
+A missing applicable capability is scored through the frozen rubric rather than silently changed to `N/A`. If a worker changes the rubric, omits a component, uses a non-integer/out-of-range level, or provides no evidence source, its result is invalid and must be retried rather than scored.
+
+### Certified evidence recertification
+
+A rubric revision does not require throwing away already-paid evidence. Historical
+Ecosystem worker results may be used only as **evidence sources**, never as authoritative
+normalized scores, when their language-local rubric differs from the current runner-owned
+rubric. A trusted, frozen recertification snapshot may centrally classify that preserved
+evidence into the current five component levels. During a run, the snapshot is only a
+candidate cache source: the runner synthesizes the ordinary current evidence shape and
+passes it through this section's complete current validator and score arithmetic before a
+leaf may become COMPLETE or be checkpointed under the current exact fingerprint.
+
+The snapshot is bound to the same rubric set, evidence snapshot date and declared
+Ecosystem epoch. Its Quidra rows are additionally bound to the exact compiler/runtime
+execution identity. If any of those identities change, the affected row is not reused and
+ordinary current evidence collection runs instead. This mechanism reduces repeated paid
+retrieval without weakening the frozen v2 rubric or allowing a legacy score to bypass it.
 
 ### Predeclared sampling
 

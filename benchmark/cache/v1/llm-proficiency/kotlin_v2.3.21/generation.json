@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "language": "Kotlin",
+  "version": "2.3.21",
+  "generation_id": "kotlin_v2.3.21",
+  "language_id": "kotlin_v2.3.21",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 77.64875500345063,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 72.22222222222223,
+    "metric.correct_at_1": 72.22222222222223,
+    "metric.correct_at_n": 100,
+    "metric.diagnosis_efficiency": 0,
+    "metric.generated_code_compile_performance": 60,
+    "metric.generated_code_memory_efficiency": 70,
+    "metric.generated_code_performance": 70,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 66.66666666666667,
+    "metric.repair_efficiency": 86.11111111111111,
+    "metric.repair_success_rate": 100,
+    "metric.silent_bug_resistance": 100,
+    "metric.source_token_efficiency": 70,
+    "metric.specification_compliance": 100,
+    "metric.syntax_hallucination_resistance": 72.2,
+    "metric.test_pass_rate": 65.21739130434783,
+    "metric.total_token_efficiency": 65,
+    "metric.unseen_case_generalization": 73.80952380952381
+  },
+  "normalization_raw": {
+    "measurement_epoch": "github-hosted-ubuntu-latest-v1",
+    "performance_accounting": "trusted runner verification; wall time is unwrapped, peak RSS uses a separate RUSAGE_CHILDREN replay, compile time is the frozen build/parse command",
+    "primary_trial_set_sha256": "83f62bf31d39a405725642ae9c9cdc71b463f781a7cc0b546fd8db44f167709f",
+    "schema_version": 1,
+    "token_accounting": "provider-reported model-visible input/cache/output tokens; source_tokens is the terminal source completion's output_tokens",
+    "trials": {
+      "gmm--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.729693599,
+        "generated_code_memory_bytes": 50057216,
+        "generated_code_performance_seconds": 0.074994669,
+        "source_tokens": 1180,
+        "task_completion_tokens": 16207
+      },
+      "gmm--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.806083869,
+        "generated_code_memory_bytes": 52789248,
+        "generated_code_performance_seconds": 0.08592407,
+        "source_tokens": 1418,
+        "task_completion_tokens": 3211
+      },
+      "gmm--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.573196109,
+        "generated_code_memory_bytes": 50057216,
+        "generated_code_performance_seconds": 0.073730244,
+        "source_tokens": 1217,
+        "task_completion_tokens": 3009
+      },
+      "gmm--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 6.129484036,
+        "generated_code_memory_bytes": 50786304,
+        "generated_code_performance_seconds": 0.092973815,
+        "source_tokens": 1919,
+        "task_completion_tokens": 2943
+      },
+      "gmm--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.837950482,
+        "generated_code_memory_bytes": 50634752,
+        "generated_code_performance_seconds": 0.087293286,
+        "source_tokens": 1380,
+        "task_completion_tokens": 15178
+      },
+      "gmm--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.835625003,
+        "generated_code_memory_bytes": 50782208,
+        "generated_code_performance_seconds": 0.089922913,
+        "source_tokens": 2414,
+        "task_completion_tokens": 3439
+      },
+      "lightgrad--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.733999659,
+        "generated_code_memory_bytes": 52774912,
+        "generated_code_performance_seconds": 0.0899081125,
+        "source_tokens": 877,
+        "task_completion_tokens": 2376
+      },
+      "lightgrad--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.68494453,
+        "generated_code_memory_bytes": 50089984,
+        "generated_code_performance_seconds": 0.0795436875,
+        "source_tokens": 1250,
+        "task_completion_tokens": 2751
+      },
+      "lightgrad--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.483763585,
+        "generated_code_memory_bytes": 50290688,
+        "generated_code_performance_seconds": 0.0936619615,
+        "source_tokens": 811,
+        "task_completion_tokens": 2311
+      },
+      "lightgrad--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.553710755,
+        "generated_code_memory_bytes": 57010176,
+        "generated_code_performance_seconds": 0.101850208,
+        "source_tokens": 1931,
+        "task_completion_tokens": 2807
+      },
+      "lightgrad--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.553140351,
+        "generated_code_memory_bytes": 52846592,
+        "generated_code_performance_seconds": 0.089550018,
+        "source_tokens": 1685,
+        "task_completion_tokens": 2563
+      },
+      "lightgrad--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.72204361,
+        "generated_code_memory_bytes": 57282560,
+        "generated_code_performance_seconds": 0.1061990525,
+        "source_tokens": 1064,
+        "task_completion_tokens": 12170
+      },
+      "svm--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.951784734,
+        "generated_code_memory_bytes": 50892800,
+        "generated_code_performance_seconds": 0.095769449,
+        "source_tokens": 1721,
+        "task_completion_tokens": 3756
+      },
+      "svm--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 6.101201858,
+        "generated_code_memory_bytes": 50708480,
+        "generated_code_performance_seconds": 0.093079749,
+        "source_tokens": 1684,
+        "task_completion_tokens": 3721
+      },
+      "svm--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 6.14607357,
+        "generated_code_memory_bytes": 51073024,
+        "generated_code_performance_seconds": 0.099746049,
+        "source_tokens": 4344,
+        "task_completion_tokens": 6380
+      },
+      "svm--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 6.092466362,
+        "generated_code_memory_bytes": 52006912,
+        "generated_code_performance_seconds": 0.092587008,
+        "source_tokens": 2578,
+        "task_completion_tokens": 3764
+      },
+      "svm--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.926781734,
+        "generated_code_memory_bytes": 51085312,
+        "generated_code_performance_seconds": 0.08234216,
+        "source_tokens": 1515,
+        "task_completion_tokens": 15371
+      },
+      "svm--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 5.990966689,
+        "generated_code_memory_bytes": 52948992,
+        "generated_code_performance_seconds": 0.092386153,
+        "source_tokens": 1263,
+        "task_completion_tokens": 15778
+      }
+    },
+    "workload_contract_sha256": "749d1789ce20f6a510762f9b2df728cb32cce55fcb4ed8ddd06a586e0581f162"
+  }
+}

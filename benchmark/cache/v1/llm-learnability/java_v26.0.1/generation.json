@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Java",
+  "version": "26.0.1",
+  "generation_id": "java_v26.0.1",
+  "language_id": "java_v26.0.1",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_learnability",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 97.8,
+  "normalized_metric_scores": {
+    "condition.i1_keyword_anonymization": 100,
+    "condition.i2_vocabulary_anonymization": 100,
+    "condition.i3_structural_surface_perturbation": 92,
+    "condition.i4_novel_rule_generalization": 95,
+    "condition.i5_held_out_rule_composition": 100,
+    "condition.i6_prior_conflict_resistance": 100
+  },
+  "normalization_raw": {}
+}

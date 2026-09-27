@@ -282,7 +282,12 @@ struct NodeCollector {
                 parents.pop_back();
             }
         }
+        std::size_t constructors = 0;
         for (const auto& method : declaration.methods) {
+            if (method.is_constructor) {
+                function(method, "$construct." + declaration.name + "." + std::to_string(constructors++));
+                continue;
+            }
             function(method, "$method." + declaration.name + "." + method.name);
         }
         parents.pop_back();

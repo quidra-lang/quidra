@@ -307,6 +307,8 @@ For each randomized subtest:
 5. report minimum and maximum;
 6. use the mean as that subtest's primary score.
 
+The trusted runner owns all arithmetic above. A Learnability worker must preserve one `metric_scores` object per Primary trial under `evidence.learnability_runner_input[condition_id].trials[]`, containing exactly the twelve frozen condition metrics above on the 0-100 scale. The worker does **not** choose the condition score or its mean. The runner validates the exact Primary replication count, computes each trial's weighted Condition Task Effectiveness Score, then computes mean, population standard deviation, minimum and maximum, and overwrites `requirements[condition_id][language]` with the mechanically derived mean. Any worker-authored condition total is ignored.
+
 Then calculate:
 
 **LLM Learnability Score = 0.20*I1 + 0.20*I2 + 0.15*I3 + 0.20*I4 + 0.15*I5 + 0.10*I6**
@@ -416,11 +418,7 @@ This includes:
 
 For each trial, preserve enough information to reconstruct the exact final input presented to the model.
 
-This file,
-
-`benchmark/master_prompt.md`
-
-is the authoritative specification for future runs and may be revised between runs. For a completed run, that run's immutable `prompt.md` is the authoritative copy of the specification actually used.
+The frozen files under `benchmark/template/` are the executable and scientific contract for a run. This file is the authoritative methodology for this Primary evaluation. Completed runs retain the template/configuration hashes and provenance needed to identify the exact contract that produced the result.
 
 ---
 

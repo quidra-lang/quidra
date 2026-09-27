@@ -1,5 +1,9 @@
 // MB-03 - Integer arithmetic: mixed add / multiply / modulo / xor / divide.
+#if canImport(Darwin)
 import Darwin  // fflush(stdout) for the section 5.2 ITER lines
+#else
+import Glibc   // the same fflush(stdout) on Linux, where the benchmark runs
+#endif
 
 /// The whole workload body (methodology 06 section 4, MB-03).
 func workload() -> String {

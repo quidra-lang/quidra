@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 40016,
+      "kind": "task-input:work/root/semantic-probes/c--f12-p2.json",
+      "sha256": "acb76881b2f8b0a2ebb883a72f6e10a749e787cd9c6ce8f8405846290e4fb286"
+    },
+    {
+      "bytes": 3839,
+      "kind": "task",
+      "sha256": "8e32d827dade7ab9f42e2f9b96526a85bed080b75fb72cee365a95aca8b1b653"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "d3c358a54a93c37234e52506ca77e1466bdbbd7f7f013c0545cc3c782f5d0d20"
+    }
+  ],
+  "prompt_sha256": "2f578c5b56c23cd7781231b9ba5a74eb682c300e53d5fea32fa3fd8aa1f9aae6",
+  "rendered_bytes": 60874,
+  "schema_version": 1
+}

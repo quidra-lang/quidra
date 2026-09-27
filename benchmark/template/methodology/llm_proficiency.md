@@ -42,17 +42,26 @@ All LLM Proficiency replication counts are read **only** from `/quidra-benchmark
 Binding controls:
 
 - one exact model/version and provider/client interface for the whole Primary evaluation;
-- exactly `llm_proficiency.independent_trials_per_replicated_cell` fresh independent trials for every replicated Proficiency cell;
+- exactly `llm_proficiency.independent_trials_per_replicated_cell` fresh independent trials for every replicated Proficiency cell, with one trial assigned to each entry of the equally sized frozen `llm_proficiency.primary_prompt_variants` list;
 - at most `llm_proficiency.max_repair_turns` repair turns per trial;
 - identical decoding controls or the same recorded provider-controlled/unavailable state for all languages;
 - identical prompt structure/budget, oracle policy, success stopping rule and token-accounting rule across languages;
 - no prior scored generation, repair history, sibling-agent output or hidden parent conversation in a fresh trial;
+- hidden-oracle cases are score-only holdout evidence: they never decide whether another repair turn is offered, and no hidden verdict/count/input/output is model-visible; repair turns are driven only by compilation diagnostics and public-case failures;
 - provider/network/rate-limit failures are infrastructure events, never incorrect language/model generations;
 - actual scored prompts are content-addressed with `prompt-save` before dispatch.
 
 If deterministic decoding produces duplicate outputs, preserve all configured independent trials and report duplication; do not add ad-hoc prompt noise.
 
+For every Primary Proficiency initial completion and repair completion, the trusted runtime writes the returned source into an isolated trial directory, performs the frozen target-language compile/parse step, and executes the frozen run recipe. The worker does not choose these commands. **Generation Success Rate**, **Compile / Parse Success Rate**, **Correct@1**, **Correct@N**, **Test Pass Rate**, **Repair Success Rate**, **Repair Efficiency**, **Diagnosis Efficiency**, **Silent Bug Resistance**, **Prompt Robustness**, and **Unseen-case Generalization** are runner-owned facts projected from trusted trial/oracle evidence before result validation. Test Pass Rate uses all trusted public/hidden oracle cases across scored calls; Prompt Robustness uses the worst first-attempt full-oracle correctness rate across the frozen equivalent prompt variants; Unseen-case Generalization uses first-attempt hidden-case pass rate.
+
+Correctness is determined by an external hidden-input oracle. Each frozen workload exposes its protocol and public example to the scored model, while the trusted runtime additionally executes predeclared hidden stdin cases that are excluded from worker read paths and scored prompts. A completion is correct only when it passes every trusted public and hidden case; a literal or hard-coded public answer therefore cannot earn Correct@1/Correct@N. Full hidden inputs, expected answers, case identities, and hidden-run stdout/stderr remain trusted evidence only. Repair feedback is runtime-owned: compile diagnostics and public-case failures may be returned, while hidden failures are reported only as a count, so the orchestration worker cannot tutor the scored model or leak the oracle. Qualitative metrics that are not fully determined by these executions remain separately adjudicated from preserved source and evidence.
+
 The Primary replicated-cell universe is exactly the Cartesian product of `llm_proficiency.primary_workloads` and `llm_proficiency.primary_scenarios` from `primary.json`. Do not add or drop a workload/scenario cell during a run.
+
+The concrete Primary tasks are frozen offline in `methodology-assets/llm_proficiency/workloads.json`. That asset records the exact upstream commit provenance and the predeclared common subset for SVM, GMM and LightGrad, plus the complete specification, validation contract and one frozen C++ reference implementation per workload. A scored run never fetches or reinterprets the live upstream repositories.
+
+The trusted sandbox runtime, not the orchestration worker, constructs every initial Proficiency trial prompt from that frozen asset. The three Primary trials of one workload/scenario cell use the three predeclared equivalent prompt layouts in `primary_prompt_variants` (canonical, scenario-first, contract-first), one fresh session per layout; the semantic specification, validation contract, build/run recipe, reference source when applicable, and all restrictions are identical. The same variant set and ordering are used for every language. The `specification_to_implementation` prompt contains no reference source; the `reference_to_porting` prompt contains the same frozen C++ reference for every target language. A worker-supplied replacement initial prompt is rejected before inference. Prompt hashes are rechecked by the integrity gate and certified into cache records.
 
 Extended replication is diagnostic only and begins after all five Primary evaluations are complete or legitimately blocked.
 
@@ -132,6 +141,74 @@ All normalized LLM scores must follow:
 
 **100 = best, 0 = worst.**
 
+### 9.0.1 Runner-owned repair and failure metrics
+
+The following formulas are frozen before measurement and are applied identically to
+all languages:
+
+- **Repair Success Rate**: among trials whose initial completion fails the
+  compile/public repair gate, the percentage that reaches that same public gate
+  on a later repair completion. Hidden oracle cases are score-only and never
+  create a repair opportunity. If no trial needs repair, the score is 100.
+- **Repair Efficiency**: per trial, passing the compile/public repair gate on the
+  first attempt scores 100. If the first public-gate success occurs after repair
+  number `k`, with `R` the fixed `max_repair_turns`, score
+  `100 * (1 - k/(R+1))`; an unrepaired public-gate failure scores 0. Report the
+  arithmetic mean across the fixed Primary trial set.
+- **Diagnosis Efficiency**: among trials whose initial completion fails the
+  compile/public repair gate, the percentage that passes that gate on the
+  **first** repair. If no trial needs repair, the score is 100. Because repair
+  feedback is runtime-owned, this measures whether the model can act on the first
+  trusted public diagnostic rather than whether an orchestration worker can coach it.
+- **Silent Bug Resistance**: among first completions that compile/parse and
+  execute oracle cases, a silent-bug trial is one where at least one oracle run
+  exits 0 but its output disagrees with the trusted oracle. Resistance is
+  `100 * (eligible_trials - silent_bug_trials) / eligible_trials`. If no first
+  completion is eligible, the score is 0 rather than an unearned 100.
+
+These metrics are recomputed from runner-only evidence; a worker-provided score
+cannot override them.
+
+### 9.0.2 Runner-owned token and generated-code efficiency metrics
+
+Five additional metrics are also runner-owned: **Source Token Efficiency**, **Total
+Token Efficiency**, **Generated Code Performance**, **Generated Code Memory
+Efficiency**, and **Generated Code Compile Performance**.
+
+For every fixed Primary trial, the trusted runner preserves provider-reported token
+usage. Source tokens are the terminal source completion's output tokens; Task
+Completion Tokens are the sum of all model-visible provider input/cache/output
+tokens consumed by the trial through first success or budget exhaustion. Both use
+Family-C lower-is-better normalization at the exact trial cell, then an unweighted
+mean across the fixed Primary trial set.
+
+For a fully correct generated source, runtime is the median wall time across the
+frozen oracle cases, peak memory is the median child peak RSS from separate
+oracle-case replays, and compile performance is the frozen build/parse command's
+wall time. These are likewise Family-C normalized at the exact trial cell before
+the unweighted Primary-trial mean.
+
+If a trial never produces a fully correct source, each of the three generated-code
+physical-efficiency metrics scores **0 for that trial**. This is a failed applicable
+capability, not N/A. If a fully correct source exists but the trusted runner cannot
+obtain a required physical measurement, the evaluation is incomplete rather than
+silently dropping that metric's weight.
+
+The immutable language-generation cache preserves only the minimum raw needed to
+recompute these five comparison-dependent metrics: the two token counts, the
+three physical measurements, and the fully-correct-source flag for each fixed
+Primary trial, together with the frozen workload/trial-set identity and mechanical
+measurement epoch. Full provider conversations, generated sources, and trial
+traces are run/private evidence and are not generation-cache payloads.
+
+Only **Syntax Hallucination Resistance** and **Specification Compliance** remain
+worker-judged Proficiency metrics, because the current frozen contract has no
+cross-language mechanical predicate that can distinguish syntax hallucination
+from other compile failures or verify every non-output specification constraint.
+Their evidence must still be explicit; all other sixteen weighted metrics are
+runner-owned.
+
+
 The configured trial allocation in Section 6.2 is part of validity, not merely a reporting preference. Every replicated cell that contributes to Proficiency Correct@1 or Prompt Robustness must contain exactly the Primary independent-trial count from `primary.json` before the LLM Proficiency score may be published.
 
 If fewer required trials are available, preserve the observations as a clearly labelled **pilot / partial result**, mark the primary evaluation `PARTIAL`, and do not publish LLM Proficiency Score or Ranking.
@@ -194,7 +271,7 @@ Do not alter these weights after any scored LLM output has been observed.
 
 # 16. LLM Implementation Scenarios
 
-For the Primary score, evaluate exactly the workloads listed in `llm_proficiency.primary_workloads` under exactly the scenarios listed in `llm_proficiency.primary_scenarios`. Additional substantial tasks may be run only as extended diagnostics after Primary completion and do not change the Primary cell universe.
+For the Primary score, evaluate exactly the workloads listed in `llm_proficiency.primary_workloads` under exactly the scenarios listed in `llm_proficiency.primary_scenarios`. The workload text and reference source are not authored during a run: they come only from the frozen `methodology-assets/llm_proficiency/workloads.json` contract and are inserted by the trusted runtime. Additional substantial tasks may be run only as extended diagnostics after Primary completion and do not change the Primary cell universe.
 
 ## A. Specification → Implementation
 
@@ -223,21 +300,16 @@ Do not merge them into a single raw dataset.
 
 # 21. Unseen-case Generalization
 
-Provide the LLM with:
+Primary Unseen-case Generalization is runner-owned. Each workload prompt exposes
+the input/output protocol and one public example, while the trusted verifier runs
+additional predeclared hidden inputs from the frozen workload contract. Hidden
+inputs, expected values and hidden-run output are never placed in a scored prompt
+or worker-readable input.
 
-- part of the language specification
-- a limited number of examples
-
-Then test cases not directly demonstrated in those examples, including:
-
-- new rule combinations
-- boundary cases
-- nested expressions
-- type combinations
-- error cases
-- API combinations
-
-Measure how reliably the LLM derives correct behavior from the known rules.
+The Primary score uses the **first completion only**, before any repair feedback:
+it is the percentage of hidden oracle cases passed across all frozen
+workload/scenario/prompt-variant trials. This keeps generalization distinct from
+Repair Success and Correct@N. The same hidden case set is used for every language.
 
 Score this as:
 
@@ -247,20 +319,20 @@ Score this as:
 
 # 22. Prompt Robustness
 
-For the same semantic task, create equivalent prompt variations.
+Primary Prompt Robustness uses the three frozen equivalent layouts named by
+`llm_proficiency.primary_prompt_variants`. They change only presentation order
+and formatting of the same semantic task; no variant adds or removes a
+requirement, example, reference, validation rule or toolchain rule. Each
+workload/scenario cell receives one fresh trial for each variant, so this costs
+the same 18 initial Primary trials as the previous three-replication design.
 
-Vary aspects such as:
+For each prompt variant, compute the first-attempt full-oracle correctness rate
+over all Primary workload/scenario cells. **Prompt Robustness is the minimum of
+those per-variant correctness rates.** Using the worst variant rather than
+agreement alone prevents a consistently wrong model from receiving a high
+robustness score.
 
-- wording
-- sentence order
-- concise vs verbose phrasing
-- formatting
-
-Keep the requested behavior unchanged.
-
-Use the same variation set for every language.
-
-Measure whether output correctness remains stable.
+The same variant set and ordering are used for every language.
 
 Score this as:
 
@@ -318,11 +390,7 @@ This includes:
 
 For each trial, preserve enough information to reconstruct the exact final input presented to the model.
 
-This file,
-
-`benchmark/master_prompt.md`
-
-is the authoritative specification for future runs and may be revised between runs. For a completed run, that run's immutable `prompt.md` is the authoritative copy of the specification actually used.
+The frozen files under `benchmark/template/` are the executable and scientific contract for a run. This file is the authoritative methodology for this Primary evaluation. Completed runs retain the template/configuration hashes and provenance needed to identify the exact contract that produced the result.
 
 ---
 

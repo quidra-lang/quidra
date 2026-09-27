@@ -1,5 +1,9 @@
 // MB-01 - Fibonacci: naive double recursion, n = 30...37 inclusive.
+#if canImport(Darwin)
 import Darwin  // fflush(stdout) for the section 5.2 ITER lines
+#else
+import Glibc   // the same fflush(stdout) on Linux, where the benchmark runs
+#endif
 
 func fib(_ n: Int) -> Int {
     if n < 2 {

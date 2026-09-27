@@ -450,7 +450,7 @@ int main(int argc, char** argv) {
             }
             (void)quidra::check_file(input, quidra::CompileOptions{max_errors}, fs::current_path());
             if (json) {
-                std::cout << "{\"ok\":true,\"language_version\":\"" << quidra::language_version
+                std::cout << "{\"ok\":true,\"compiler_version\":\"" << quidra::compiler_version
                           << "\",\"truncated\":false,\"diagnostics\":[]}\n";
             } else {
                 std::cout << input.string() << ": ok\n";

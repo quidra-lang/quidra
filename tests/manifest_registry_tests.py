@@ -35,7 +35,7 @@ if not registry:
 # callables in that registry; those are checked by compiling them instead.
 declared = set(manifest["current_builtins"])
 non_callable = {
-    "error", "enter", "tab", "home", "quote", "backspace", "page", "vtab", "bell",
+    "error", "ENTER", "TAB", "HOME", "QUOTE", "BACKSPACE", "PAGE", "VTAB", "BELL",
 }
 claimed_callables = declared - non_callable
 

@@ -1,0 +1,31 @@
+print("ADV-START")
+io.flush()
+string read_input_line()
+    string line = ""
+    void | error read = scan(&line)
+    match read
+        void
+            return line
+        error problem
+            process.exit(2)
+int[] values = array(7, fill = 0)
+for i in range(7)
+    values[i] = int.parse(read_input_line())
+int target = int.parse(read_input_line())
+int lo = 0
+int hi = 6
+int result = -1
+bool searching = true
+while searching and lo <= hi
+    int mid = (lo + hi) / 2
+    if values[mid] == target
+        result = mid
+        searching = false
+    elif values[mid] < target
+        lo = mid + 1
+    else
+        hi = mid - 1
+print("OBS=IDX:{result}")
+io.flush()
+print("ADV-END")
+io.flush()

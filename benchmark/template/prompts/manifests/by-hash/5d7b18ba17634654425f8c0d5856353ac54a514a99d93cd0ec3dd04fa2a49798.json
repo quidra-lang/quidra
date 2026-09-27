@@ -1,0 +1,57 @@
+{
+  "components": [
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 4890,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "a74413295e23deda2ce14c970eebb8a76809de4ea225d01d23969b4a45a1f2cc"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 114782,
+      "kind": "task-input:template/methodology-assets/semantic_compression/capability_universe.json",
+      "sha256": "25fe1ff0be667e245256ff08e2b65ed048d4604e3b6fd7436080593317fdec3b"
+    },
+    {
+      "bytes": 4451,
+      "kind": "task-input:template/methodology-assets/semantic_compression/none_capability_evidence.json",
+      "sha256": "6e803850938a0886421a80cff8a61215df0b9328c43a18566983bba23c1f384d"
+    },
+    {
+      "bytes": 365790,
+      "kind": "task-input:template/methodology-assets/semantic_compression/semantic_site_matrix.json",
+      "sha256": "7b7913f75da5a0d36c8e363747d0a658671f548b1a3c4b259f8f99cfc27caaf6"
+    },
+    {
+      "bytes": 23179,
+      "kind": "task-input:work/audit/semantic-compression/canonical_fragments_python.json",
+      "sha256": "cb3c8947549f57a9699068f08dc616d8da0576616ea05d2086a10f651d4168fb"
+    },
+    {
+      "bytes": 3296,
+      "kind": "task",
+      "sha256": "42ac15565e23545505583321be9a8e676bdc0e81e01fbc12eea4274a35fd32c4"
+    },
+    {
+      "bytes": 258,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "97eb7c63bbe757c56fa88d5fc73fad3233f615f6108d85e654d5c20652a0f915"
+    }
+  ],
+  "prompt_sha256": "5d7b18ba17634654425f8c0d5856353ac54a514a99d93cd0ec3dd04fa2a49798",
+  "rendered_bytes": 527280,
+  "schema_version": 1
+}

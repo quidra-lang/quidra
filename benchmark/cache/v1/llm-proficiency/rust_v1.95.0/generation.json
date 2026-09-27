@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "language": "Rust",
+  "version": "1.95.0",
+  "generation_id": "rust_v1.95.0",
+  "language_id": "rust_v1.95.0",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 86.87946379647747,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 77.77777777777777,
+    "metric.correct_at_1": 77.77777777777777,
+    "metric.correct_at_n": 100,
+    "metric.diagnosis_efficiency": 100,
+    "metric.generated_code_compile_performance": 85,
+    "metric.generated_code_memory_efficiency": 80,
+    "metric.generated_code_performance": 80,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 66.66666666666667,
+    "metric.repair_efficiency": 94.44444444444444,
+    "metric.repair_success_rate": 100,
+    "metric.silent_bug_resistance": 100,
+    "metric.source_token_efficiency": 80,
+    "metric.specification_compliance": 90,
+    "metric.syntax_hallucination_resistance": 77.8,
+    "metric.test_pass_rate": 82.1917808219178,
+    "metric.total_token_efficiency": 75,
+    "metric.unseen_case_generalization": 78.57142857142857
+  },
+  "normalization_raw": {
+    "measurement_epoch": "github-hosted-ubuntu-latest-v1",
+    "performance_accounting": "trusted runner verification; wall time is unwrapped, peak RSS uses a separate RUSAGE_CHILDREN replay, compile time is the frozen build/parse command",
+    "primary_trial_set_sha256": "83f62bf31d39a405725642ae9c9cdc71b463f781a7cc0b546fd8db44f167709f",
+    "schema_version": 1,
+    "token_accounting": "provider-reported model-visible input/cache/output tokens; source_tokens is the terminal source completion's output_tokens",
+    "trials": {
+      "gmm--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.270267628,
+        "generated_code_memory_bytes": 11788288,
+        "generated_code_performance_seconds": 0.001808596,
+        "source_tokens": 1208,
+        "task_completion_tokens": 2992
+      },
+      "gmm--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.30582365,
+        "generated_code_memory_bytes": 11837440,
+        "generated_code_performance_seconds": 0.001887566,
+        "source_tokens": 1481,
+        "task_completion_tokens": 3267
+      },
+      "gmm--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.259907213,
+        "generated_code_memory_bytes": 11788288,
+        "generated_code_performance_seconds": 0.002034181,
+        "source_tokens": 1196,
+        "task_completion_tokens": 7814
+      },
+      "gmm--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.346512855,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.001445572,
+        "source_tokens": 2252,
+        "task_completion_tokens": 3269
+      },
+      "gmm--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.308928377,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.00166432,
+        "source_tokens": 1443,
+        "task_completion_tokens": 8022
+      },
+      "gmm--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.316438255,
+        "generated_code_memory_bytes": 11730944,
+        "generated_code_performance_seconds": 0.001714664,
+        "source_tokens": 2558,
+        "task_completion_tokens": 3576
+      },
+      "lightgrad--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.279598633,
+        "generated_code_memory_bytes": 11728896,
+        "generated_code_performance_seconds": 0.001526578,
+        "source_tokens": 1611,
+        "task_completion_tokens": 3103
+      },
+      "lightgrad--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.280699599,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.0012259885,
+        "source_tokens": 1349,
+        "task_completion_tokens": 2843
+      },
+      "lightgrad--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.287198385,
+        "generated_code_memory_bytes": 11800576,
+        "generated_code_performance_seconds": 0.001245179,
+        "source_tokens": 1409,
+        "task_completion_tokens": 10990
+      },
+      "lightgrad--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.249298212,
+        "generated_code_memory_bytes": 11794432,
+        "generated_code_performance_seconds": 0.0014090345,
+        "source_tokens": 2704,
+        "task_completion_tokens": 3573
+      },
+      "lightgrad--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.262673951,
+        "generated_code_memory_bytes": 11782144,
+        "generated_code_performance_seconds": 0.001325126,
+        "source_tokens": 3197,
+        "task_completion_tokens": 4068
+      },
+      "lightgrad--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.270146816,
+        "generated_code_memory_bytes": 11747328,
+        "generated_code_performance_seconds": 0.0015804635,
+        "source_tokens": 2517,
+        "task_completion_tokens": 3387
+      },
+      "svm--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.276253467,
+        "generated_code_memory_bytes": 11747328,
+        "generated_code_performance_seconds": 0.00161634,
+        "source_tokens": 1956,
+        "task_completion_tokens": 3984
+      },
+      "svm--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.273236919,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.001719533,
+        "source_tokens": 3236,
+        "task_completion_tokens": 5266
+      },
+      "svm--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.365452043,
+        "generated_code_memory_bytes": 11812864,
+        "generated_code_performance_seconds": 0.006270939,
+        "source_tokens": 2122,
+        "task_completion_tokens": 4151
+      },
+      "svm--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.302195594,
+        "generated_code_memory_bytes": 11812864,
+        "generated_code_performance_seconds": 0.001576065,
+        "source_tokens": 2219,
+        "task_completion_tokens": 3398
+      },
+      "svm--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.314160795,
+        "generated_code_memory_bytes": 11730944,
+        "generated_code_performance_seconds": 0.001627462,
+        "source_tokens": 1601,
+        "task_completion_tokens": 9238
+      },
+      "svm--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.305195714,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.00158938,
+        "source_tokens": 3770,
+        "task_completion_tokens": 4950
+      }
+    },
+    "workload_contract_sha256": "749d1789ce20f6a510762f9b2df728cb32cce55fcb4ed8ddd06a586e0581f162"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "3582fbbd7fb15d8b57542b015754a172292597dd69f0a5347f3fa428205c8845",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "f8bbd8a35ff749e4d75c07736d318a866614ae133bd3e738446a379767b328cc",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/rust--f14-p3.json": "0e01097d2e0e0f37a460492e362f233b4f948e3399f779efdfe3610b1fcb5759"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f14-p3"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--rust--f14-p3",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "f8bbd8a35ff749e4d75c07736d318a866614ae133bd3e738446a379767b328cc",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-canonical-fragment--rust--f14-p3"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F14.P3": {
+          "citation": "Rust Reference trait objects (dyn Trait); multi-unit recipe frozen for this probe",
+          "fragment": "[shapes.rs] pub trait Shape { fn area(&self) -> f64; } pub struct Circle { pub r: f64 } impl Shape for Circle {...} pub struct Rect {...} impl Shape for Rect {...} [main.rs] struct Tri { b: f64, hh: f64 } impl shapes::Shape for Tri {...} let t: Box<dyn shapes::Shape> = Box::new(Tri { b: 4.0, hh: 3.0 }); t.area()",
+          "justification": "Rust Reference trait objects (dyn Trait); multi-unit recipe frozen for this probe",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F14.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "910fdf0b50e38caf4cad7863eb82fd67c234cd84ceb5d33a7c0ff1c5909b442e",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Rust",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F14.P3",
+        "schema_version": 2,
+        "source_record_sha256": "220285a21d253d2993df7f1f8bb60b265d4ba79904cda34cf52dbfa54e0788cb",
+        "source_result_sha256": "477e484dc9de28436a89079eeec8000018293822b8b4863eb4492fd471688d71"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f14-p3": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "854d23c8efa82e4ba46a4d94dc7cf273b9fc361fb5f006458e178871f7532fd9",
+  "schema_version": 1
+}

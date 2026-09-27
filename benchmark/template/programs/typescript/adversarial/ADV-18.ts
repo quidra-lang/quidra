@@ -1,12 +1,12 @@
 declare function require(m: string): any;
 
+console.log("ADV-START");
+
 function pick(b: boolean): bigint {
     if (b) {
         return 1n;
     }
 }
-
-console.log("ADV-START");
 
 const lines: string[] = require("fs").readFileSync(0, "utf8").split("\n");
 const b: boolean = lines[0] === "1";

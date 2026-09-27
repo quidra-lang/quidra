@@ -1,0 +1,182 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "measured_at_utc": null,
+    "mechanical": true,
+    "primary_complete": false,
+    "raw_evidence_retained_in": "GitHub Actions artifact 10726282512 from 2026-09-22-bc3d9dd-gh9",
+    "raw_evidence_sha256": {},
+    "runner_action": "micro-measure-raw",
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "e8b535e1c7268bb061fc3bb40e88c2acc8603160102f32fbf78633723e01de27",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "github-hosted-ubuntu-latest-v1",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": null,
+    "frozen_sampling": null,
+    "model": null,
+    "network_allowed": false,
+    "provider": null,
+    "readable_input_content_hashes": {
+      "template/fixtures": "e1ed425ab09a1dd75ff0dc48293a8b7ef92e949dca828bcfd439e0be1cae4ac7",
+      "template/methodology-assets/scoring": "a3be91ff162f3411462bb19e1858b517d5d21301795cd2a728344d9a1c35dd58",
+      "template/programs/go/adversarial": "aad03ddfd836f297e500b6f08d74a2df1e155d5962f2d9f37bf5ed82cdc3aacf",
+      "template/programs/go/micro": "8688f406727cbca6065027552c337ece570d426e334df29977d4bcee30d5f3a1",
+      "template/validators/micro": "e1eab465ec9ccef45e60cb201130b8e4cfd079acd03d28889455cde47d097c68",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [],
+    "result_kind": "mechanical",
+    "runner_action": "micro-measure-raw",
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "59f63312c6f2bf3a4bda671cdd23d3f4c4b1b0d27e7a9a3ac35ddd8b304eb21d",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py command-result-check --workspace /quidra-benchmark --id lq-micro-raw--go",
+    "work_unit_id": "lq-micro-raw--go",
+    "worker_mode": "runner-command"
+  },
+  "language_generations": {
+    "Go": {
+      "generation_id": "go_v1.26.3",
+      "id": "go",
+      "language": "Go",
+      "version": "1.26.3",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": null,
+    "run_id": "2026-09-22-bc3d9dd-gh9",
+    "source_artifact_id": "10726282512",
+    "work_unit_id": "lq-micro-raw--go"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "source": "certified baseline raw evidence",
+      "source_artifact_id": "10726282512",
+      "source_raw_sha256": "f1813c155f84de3c22a335f44e01ae26c7d503908537fd8d37c14036554b808b",
+      "source_run_id": "2026-09-22-bc3d9dd-gh9"
+    },
+    "normalization_raw": {
+      "Go": {
+        "startup_rss_bytes": 11649024,
+        "startup_seconds": 0.001926244,
+        "workloads": {
+          "mb01": {
+            "artifact_effective_bytes": 2423245,
+            "cold_seconds": 0.362539673,
+            "compile_effective_seconds": 0.132617163,
+            "rss_bytes": 11644928,
+            "source_bytes": 1316,
+            "steady_seconds": 0.360713906
+          },
+          "mb02": {
+            "artifact_effective_bytes": 2423268,
+            "cold_seconds": 0.87366177,
+            "compile_effective_seconds": 0.128352297,
+            "rss_bytes": 11649024,
+            "source_bytes": 1222,
+            "steady_seconds": 0.8711019285
+          },
+          "mb03": {
+            "artifact_effective_bytes": 2423484,
+            "cold_seconds": 0.861459289,
+            "compile_effective_seconds": 0.131247754,
+            "rss_bytes": 11628544,
+            "source_bytes": 1455,
+            "steady_seconds": 0.8596576155
+          },
+          "mb04": {
+            "artifact_effective_bytes": 2427838,
+            "cold_seconds": 1.310152423,
+            "compile_effective_seconds": 0.130764847,
+            "rss_bytes": 11657216,
+            "source_bytes": 2078,
+            "steady_seconds": 1.307217947
+          },
+          "mb05": {
+            "artifact_effective_bytes": 2423270,
+            "cold_seconds": 0.792525678,
+            "compile_effective_seconds": 0.127676351,
+            "rss_bytes": 37679104,
+            "source_bytes": 1866,
+            "steady_seconds": 0.790662381
+          },
+          "mb06": {
+            "artifact_effective_bytes": 2427870,
+            "cold_seconds": 1.999278791,
+            "compile_effective_seconds": 0.129907028,
+            "rss_bytes": 11644928,
+            "source_bytes": 2118,
+            "steady_seconds": 1.8743354425
+          },
+          "mb07": {
+            "artifact_effective_bytes": 2432605,
+            "cold_seconds": 0.786511503,
+            "compile_effective_seconds": 0.127007109,
+            "rss_bytes": 86102016,
+            "source_bytes": 2657,
+            "steady_seconds": 0.7827637705
+          },
+          "mb08": {
+            "artifact_effective_bytes": 2435194,
+            "cold_seconds": 0.808040924,
+            "compile_effective_seconds": 0.129874241,
+            "rss_bytes": 31821824,
+            "source_bytes": 3234,
+            "steady_seconds": 0.8063640065
+          },
+          "mb09": {
+            "artifact_effective_bytes": 2433447,
+            "cold_seconds": 0.333324574,
+            "compile_effective_seconds": 0.130029508,
+            "rss_bytes": 37785600,
+            "source_bytes": 3160,
+            "steady_seconds": 0.3293189345
+          },
+          "mb10": {
+            "artifact_effective_bytes": 2471811,
+            "cold_seconds": 0.629375157,
+            "compile_effective_seconds": 0.134490771,
+            "rss_bytes": 11653120,
+            "source_bytes": 3264,
+            "steady_seconds": 0.6272804375000001
+          },
+          "mb11": {
+            "artifact_effective_bytes": 2435785,
+            "cold_seconds": 0.476091459,
+            "compile_effective_seconds": 0.13112653,
+            "rss_bytes": 84246528,
+            "source_bytes": 2862,
+            "steady_seconds": 0.55039935
+          }
+        }
+      }
+    },
+    "requirements": {},
+    "schema_version": 1
+  },
+  "result_sha256": "9a0ae23745b25a3c0d2a6be08bc274546c8e804c4a3bf09ee5383b341e57d7c1",
+  "schema_version": 1
+}

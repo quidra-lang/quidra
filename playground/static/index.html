@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Quidra Playground</title><link rel="stylesheet" href="/styles.css"></head>
+<body>
+<header><div class="brand"><b>Q</b><div><strong>Quidra Playground</strong><small>Maximum Meaning Per Token</small></div></div><span id="version">Quidra</span></header>
+<main>
+<section class="panel editor"><div class="toolbar"><select id="examples"></select><button id="format">Format</button><button id="run" class="primary">▶ Run</button></div><textarea id="source" spellcheck="false"></textarea><footer>Ctrl/⌘ + Enter: Run · Ctrl/⌘ + Shift + Enter: Check</footer></section>
+<section class="panel output"><nav><button data-mode="run" class="active">Output</button><button data-mode="check">Check</button><button data-mode="ir">Quidra IR</button><button data-mode="llvm">LLVM IR</button></nav><div class="status"><span id="status">Ready</span><span id="time"></span></div><pre id="out">Press Run to compile and execute this program.</pre></section>
+</main>
+<div class="bottom">Runs against your real local Quidra compiler. <a href="https://github.com/quidra-lang/quidra" target="_blank" rel="noreferrer">GitHub</a></div>
+<script src="/app.js" defer></script></body></html>

@@ -1,0 +1,338 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "canonical_fragment_catalog_sha256": "7b6737309b52a1419a01b3336b24dc03de273282713d78e5583bd3266acf1f4a",
+    "post_cleanup_rebind": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "a41607537fd37aa9867a5099afac845ffbb60795530fb633385650ed4b5f6197",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "4d0facd4c7df79214721f383094df3fd71a7d6bd45ad162ed7a6d4fc6ec4e2ed",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "eb6479a391dcca58d050516fac0c7859c7d67dc762f7b55561999896e97321ec",
+      "work/audit/semantic-compression/canonical_fragments_typescript.json": "7b6737309b52a1419a01b3336b24dc03de273282713d78e5583bd3266acf1f4a"
+    },
+    "requirement_ids": [
+      "metric.semantic_locality"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "1d441dd9732821c80f95df874c541f4c88d3928af09651abc5d5d5735d67a5e8",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-local--part-2--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "post_cleanup_rebind": true,
+    "prompt_sha256": "4d0facd4c7df79214721f383094df3fd71a7d6bd45ad162ed7a6d4fc6ec4e2ed",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-metrics-local--part-2--typescript"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "canonical_fragment_catalog_content_sha256": "40d8313707d300aed29926bb5f921b81799a60753c2ace097ea0d9ed4c39ce9e",
+        "canonical_fragment_catalog_sha256": "7b6737309b52a1419a01b3336b24dc03de273282713d78e5583bd3266acf1f4a",
+        "schema_version": 1
+      },
+      "canonical_fragment_catalog_sha256": "7b6737309b52a1419a01b3336b24dc03de273282713d78e5583bd3266acf1f4a",
+      "metric.semantic_locality": {
+        "aggregate_computation": {
+          "computed_score": 90.42,
+          "excluded_none_count": 4,
+          "included_probe_count": 40,
+          "mean_lookups": 0.575,
+          "normalization_formula": "score = 100 * (1 - mean_lookups / LOOKUP_CAP), LOOKUP_CAP = 6 (max plausible distinct external-lookup categories per site per the frozen list: callee signature, variable declaration, type declaration, overload set, trait/interface implementation, imported definition, global configuration/mode), clamped to [0,100].",
+          "rounded_score": 90,
+          "sum_lookups": 23
+        },
+        "basis_size": 40,
+        "basis_type": "all-fragments (TypeScript-only; common-basis pending cross-language merge)",
+        "caveats": [
+          "This is a single-language (TypeScript-only) computation performed in isolation from the other nine language shards; the runner must recompute the common-basis figure (probes where ALL TEN languages have a fragment) once all shards are merged, per capability_universe.json interaction_with_quality_metrics.common_basis_rule.",
+          "Lookup counts were estimated per-probe (not exhaustively per individual semantic_site_matrix.json site_id row) because no other language's fragment/support data was available in this packet to establish the common basis; a full site-level recount is recommended once fragments are authored and published per pre_measurement_validation V1.",
+          "No actual TypeScript source fragments were compiled/run under the frozen recipe in this packet-only worker (no toolchain access); support levels and lookup counts are documented judgments consistent with TypeScript/Node/ECMAScript standard documentation and are marked as such rather than fabricated build evidence."
+        ],
+        "language": "TypeScript",
+        "method": "For each of the 44 frozen probes, determined TypeScript support level (FULL/PARTIAL/NONE) under the frozen recipe (tsc --strict --target es2022 --module nodenext), then estimated the minimum non-local lookup count required to resolve the probe's semantic facts from the fragment's local surface form alone. Only lookups required (not optional/for-detail) were counted, per the frozen locality rule. Probes scored NONE for TypeScript (no fragment exists) are excluded from the aggregate, consistent with the common-basis / all-fragments distinction in capability_universe.json (interaction_with_quality_metrics). This worker computed the all-fragments TypeScript figure since cross-language common-basis membership requires results from the other nine language workers, which are out of this packet's scope; the runner is expected to recompute the common-basis figure once all language shards are merged.",
+        "metric_definition_source": "semantic_compression.md section 6.1.3.C: number of required external semantic lookups or declaration-graph hops needed to resolve a fact in the fixed inventory; lower is better.",
+        "none_probes_excluded": [],
+        "per_probe_lookup_counts": [
+          {
+            "lookups": 0,
+            "note": "const n = 7; return n; — fully local, type inferred.",
+            "probe_id": "F01.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "let counter: number = 0; const LIMIT: number = 100; — local.",
+            "probe_id": "F01.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "let v: number; definite-assignment analysis is local to the fragment.",
+            "probe_id": "F02.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "Substituted with new Uint8Array(16) (R9); zero-fill guarantee must be looked up in the TypedArray standard-library declaration, not visible locally.",
+            "probe_id": "F02.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "lookups": 0,
+            "note": "x += 1; local.",
+            "probe_id": "F03.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "xs[1] = 42; local.",
+            "probe_id": "F03.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "const window: ReadonlyArray<number> = xs; ReadonlyArray's non-copying/read-only guarantee requires consulting the lib.es5.d.ts standard declaration.",
+            "probe_id": "F04.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "Round-trip through a one-element array and === reference comparison; JS reference-equality semantics for objects are fixed language behavior, resolvable without a specific external declaration lookup.",
+            "probe_id": "F04.P3",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "Bare call f(x); JS pass-by-reference-for-objects semantics is fixed language behavior (IMPLICIT), not a per-site lookup.",
+            "probe_id": "F05.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "const neg = (a:number)=>k-a; xs.map(neg); local.",
+            "probe_id": "F05.P3",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "Element extraction and return of a primitive number; local.",
+            "probe_id": "F06.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "Tuple return type [number, number]; destructuring binding is local syntax.",
+            "probe_id": "F06.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "const r = a*b+c; local.",
+            "probe_id": "F07.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "Math.trunc(a/b), a%b, a/b; general JS numeric-operator semantics, not a site-specific external lookup.",
+            "probe_id": "F07.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "Explicit local guard b===0 ? 0 : (a/b)|0; outcome fully visible at the site.",
+            "probe_id": "F08.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "s1 === s2; that JS string equality compares contents (not identity) is fixed language semantics documented in the spec, an external lookup.",
+            "probe_id": "F09.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "xs.sort((a,b)=>b-a); in-place mutation guarantee requires consulting Array.prototype.sort's standard-library documentation.",
+            "probe_id": "F09.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "big|0 narrowing relies on the same external bitwise-operator specification lookup as F08.P1.",
+            "probe_id": "F10.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "i + d; understanding that JS has one unified number representation (no separate int/float) is an external language-spec fact.",
+            "probe_id": "F10.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "xs[i]; out-of-range behavior (returns undefined, no trap) is documented in the Array/ECMAScript spec, not visible at the site.",
+            "probe_id": "F11.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "xs.slice(1,4); copy-vs-share behavior requires consulting Array.prototype.slice's documentation.",
+            "probe_id": "F11.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "o: number|undefined; n = o ?? 0; nullish-coalescing semantics require consulting the TypeScript/ECMAScript operator specification.",
+            "probe_id": "F12.P1",
+            "support": "PARTIAL"
+          },
+          {
+            "lookups": 1,
+            "note": "No standard optional-aware map for a bare union type; substituted with a manual check, whose short-circuit semantics still require the language operator spec.",
+            "probe_id": "F12.P2",
+            "support": "PARTIAL"
+          },
+          {
+            "lookups": 1,
+            "note": "Same Number()/NaN documentation lookup as F13.P1, applied to local recovery.",
+            "probe_id": "F13.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "Discriminated union type Shape = Circle|Rect; closedness is a compile-time-only TypeScript type-system guarantee requiring consultation of TS's discriminated-union documentation.",
+            "probe_id": "F14.P1",
+            "support": "PARTIAL"
+          },
+          {
+            "lookups": 1,
+            "note": "switch on discriminant with a `never` exhaustiveness check; the exhaustiveness guarantee is documented in the TypeScript handbook, not visible from the switch syntax alone.",
+            "probe_id": "F14.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "Tri implementing an interface exported from a separate module; requires following the imported interface declaration.",
+            "probe_id": "F14.P3",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "function head<T>(xs:T[]):T; the type-parameter relationship is fully visible in the local declaration.",
+            "probe_id": "F15.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "function max_of<T extends number>; declaration-site constraint is local.",
+            "probe_id": "F15.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "interface Named plus two implementing classes and a Named[] array, all declared within the measured fragment/unit.",
+            "probe_id": "F15.P3",
+            "support": "FULL"
+          },
+          {
+            "lookups": 0,
+            "note": "xs.reduce((a,b)=>a+b,0); local, standard idiom.",
+            "probe_id": "F16.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "Map with .entries() and .get(key) ?? 0; insertion-order iteration guarantee is documented in the Map standard-library specification, not visible locally.",
+            "probe_id": "F16.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "try/finally around Node's fs read; correctness of the cleanup point requires consulting the imported fs module's API documentation.",
+            "probe_id": "F17.P1",
+            "support": "PARTIAL"
+          },
+          {
+            "lookups": 1,
+            "note": "TypeScript 5.2+ `using` declaration with [Symbol.dispose]; the deterministic end-of-scope disposal guarantee requires consulting the Symbol.dispose/explicit-resource-management standard-library declaration.",
+            "probe_id": "F17.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "console.log(...); console is an ambient global whose availability/behavior requires consulting the global lib declaration.",
+            "probe_id": "F18.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "export function pub_add / unexported secret in a util module; module-boundary enforcement requires consulting the module/import declaration.",
+            "probe_id": "F18.P2",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "Promise.all([...]) with two async functions; the join/combine guarantee requires consulting the Promise standard-library documentation.",
+            "probe_id": "F19.P1",
+            "support": "FULL"
+          },
+          {
+            "lookups": 1,
+            "note": "Single-threaded event-loop execution makes the increments race-free without an explicit lock; this normative guarantee is documented in the ECMAScript/Node execution-model specification, not visible at the increment site.",
+            "probe_id": "F19.P2",
+            "support": "PARTIAL"
+          }
+        ]
+      }
+    },
+    "requirements": {
+      "metric.semantic_locality": {
+        "TypeScript": 90
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "5291e7181948d990359bfa310e74c282aa48d9c26d6d2a2a46747df5fe4d2c3f",
+  "schema_version": 1
+}

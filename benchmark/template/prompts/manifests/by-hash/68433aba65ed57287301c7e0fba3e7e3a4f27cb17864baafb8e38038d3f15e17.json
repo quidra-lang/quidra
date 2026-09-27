@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 3449,
+      "kind": "task",
+      "sha256": "7241c0036f01f7cf2a5ab23e4712622eb1c7a078f2f3da39c1f2171ac540f100"
+    },
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 4361,
+      "kind": "embedded:ecosystem.md",
+      "sha256": "5fc912af97ddea10e6c56e6250b6e358419c1afd451f6b68fc84198644e43f66"
+    },
+    {
+      "bytes": 4435,
+      "kind": "embedded:primary.json",
+      "sha256": "a0993d53b8f07a3c17badf1e1b1c15c966f43b8ec2c9c32c4302fa5595a1df3e"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 285,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "dd4addd02b146efe346911b807322b99ef331e8b450c1bf0d3c786affa452aa3"
+    },
+    {
+      "bytes": 21176,
+      "kind": "task-input:template/methodology-assets/ecosystem/rubrics.json",
+      "sha256": "87d9af9dfac793d9a6c2f905e453c2789335c23f26378cb78e016e1972e8dd41"
+    }
+  ],
+  "prompt_sha256": "68433aba65ed57287301c7e0fba3e7e3a4f27cb17864baafb8e38038d3f15e17",
+  "rendered_bytes": 39708,
+  "schema_version": 1
+}

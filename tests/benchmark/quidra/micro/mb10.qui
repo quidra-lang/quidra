@@ -1,0 +1,96 @@
+// MB-10 - File I/O: text write of three files through the ordinary file handle
+// writer, then read-back through the ordinary line reader with integer parsing.
+// Quidra's file.Handle does not expose a configurable buffer size; the handle's
+// own buffering is what the language offers and is recorded in representation.json.
+// Methodology 06 section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K.
+cli args
+    string mode = argument(default = "once")
+    int iterations = argument(default = 7)
+
+// Lehmer / MINSTD generator, frozen for every language in the suite.
+class Lcg
+    int state
+
+    construct(int seed)
+        state = seed
+
+    int next_int()
+        state = (48271 * state) % 2147483647
+        return state
+
+class Result
+    int sum_v
+    int chk
+    int nbytes
+    int lines
+
+// The whole workload body (methodology 06 section 4, MB-10).
+Result workload()
+    int n = 1000000
+    int rounds = 3
+    Lcg g = Lcg(20270917)
+    int sum_v = 0
+    int chk = 0
+    int nbytes = 0
+    int lines = 0
+
+    for r in range(rounds)
+        string name = "mb10_round_{r}.txt"
+
+        file.Handle writer = file.create(name)
+        for i in range(n)
+            int v = g.next_int()
+            string record = "{i} {v}{ENTER}"
+            writer.write(record)
+            nbytes = nbytes + len(record)
+        writer.flush()
+        writer.close()
+
+        file.Handle reader = file.open(name)
+        int idx = 0
+        bool more = true
+        while more
+            string | none | error next = reader.read_line()
+            match next
+                string text
+                    string[] fields = text.split(" ")
+                    int a = int.parse(fields[0])
+                    int v = int.parse(fields[1])
+                    if a != idx
+                        process.exit(3)
+                    idx = idx + 1
+                    lines = lines + 1
+                    sum_v = (sum_v + v) % 1000000007
+                    chk = (chk * 31 + (v % 1000003)) % 1000003
+                none
+                    more = false
+                error problem
+                    process.exit(3)
+        reader.close()
+
+    Result result
+    result.sum_v = sum_v
+    result.chk = chk
+    result.nbytes = nbytes
+    result.lines = lines
+    return result
+
+Result timed(int index)
+    time.Instant start = time.now()
+    Result result = workload()
+    time.Duration elapsed = time.since(start)
+    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    print("ITER {index} {elapsed_ns}")
+    io.flush()
+    return result
+
+Result result
+if args.mode == "steady"
+    int k = math.max(args.iterations, 1)
+    result = timed(0)
+    for i in range(1, k)
+        result = timed(i)
+else
+    result = workload()
+
+print("MB10 {result.sum_v} {result.chk} {result.nbytes} {result.lines}")

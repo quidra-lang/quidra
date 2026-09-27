@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "language": "C++",
+  "version": "18.1.3",
+  "generation_id": "cpp_v18.1.3",
+  "language_id": "cpp_v18.1.3",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 76.53333333333332,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 66.66666666666667,
+    "metric.correct_at_1": 66.66666666666667,
+    "metric.correct_at_n": 100,
+    "metric.diagnosis_efficiency": 0,
+    "metric.generated_code_compile_performance": 90,
+    "metric.generated_code_memory_efficiency": 70,
+    "metric.generated_code_performance": 70,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 50,
+    "metric.repair_efficiency": 83.33333333333333,
+    "metric.repair_success_rate": 100,
+    "metric.silent_bug_resistance": 100,
+    "metric.source_token_efficiency": 70,
+    "metric.specification_compliance": 100,
+    "metric.syntax_hallucination_resistance": 90,
+    "metric.test_pass_rate": 60,
+    "metric.total_token_efficiency": 70,
+    "metric.unseen_case_generalization": 66.66666666666667
+  },
+  "normalization_raw": {
+    "measurement_epoch": "github-hosted-ubuntu-latest-v1",
+    "performance_accounting": "trusted runner verification; wall time is unwrapped, peak RSS uses a separate RUSAGE_CHILDREN replay, compile time is the frozen build/parse command",
+    "primary_trial_set_sha256": "83f62bf31d39a405725642ae9c9cdc71b463f781a7cc0b546fd8db44f167709f",
+    "schema_version": 1,
+    "token_accounting": "provider-reported model-visible input/cache/output tokens; source_tokens is the terminal source completion's output_tokens",
+    "trials": {
+      "gmm--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.895712626,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.001827293,
+        "source_tokens": 814,
+        "task_completion_tokens": 11321
+      },
+      "gmm--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.874981908,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.001607684,
+        "source_tokens": 817,
+        "task_completion_tokens": 2603
+      },
+      "gmm--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.862112478,
+        "generated_code_memory_bytes": 11726848,
+        "generated_code_performance_seconds": 0.001728219,
+        "source_tokens": 756,
+        "task_completion_tokens": 10976
+      },
+      "gmm--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 2.672221091,
+        "generated_code_memory_bytes": 11821056,
+        "generated_code_performance_seconds": 0.001757253,
+        "source_tokens": 1306,
+        "task_completion_tokens": 2323
+      },
+      "gmm--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 2.639183723,
+        "generated_code_memory_bytes": 11821056,
+        "generated_code_performance_seconds": 0.001690158,
+        "source_tokens": 1453,
+        "task_completion_tokens": 2472
+      },
+      "gmm--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 2.660333758,
+        "generated_code_memory_bytes": 11788288,
+        "generated_code_performance_seconds": 0.002000355,
+        "source_tokens": 1185,
+        "task_completion_tokens": 11885
+      },
+      "lightgrad--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 1.088535508,
+        "generated_code_memory_bytes": 11730944,
+        "generated_code_performance_seconds": 0.001730513,
+        "source_tokens": 812,
+        "task_completion_tokens": 2304
+      },
+      "lightgrad--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 1.102266261,
+        "generated_code_memory_bytes": 11816960,
+        "generated_code_performance_seconds": 0.0023289725,
+        "source_tokens": 914,
+        "task_completion_tokens": 2408
+      },
+      "lightgrad--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 1.086345767,
+        "generated_code_memory_bytes": 11835392,
+        "generated_code_performance_seconds": 0.001691971,
+        "source_tokens": 709,
+        "task_completion_tokens": 9818
+      },
+      "lightgrad--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 2.799663745,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.0025023249999999997,
+        "source_tokens": 1126,
+        "task_completion_tokens": 1995
+      },
+      "lightgrad--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 2.716871551,
+        "generated_code_memory_bytes": 11773952,
+        "generated_code_performance_seconds": 0.0017130650000000002,
+        "source_tokens": 990,
+        "task_completion_tokens": 10758
+      },
+      "lightgrad--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 1.16805736,
+        "generated_code_memory_bytes": 11804672,
+        "generated_code_performance_seconds": 0.0018060735,
+        "source_tokens": 2074,
+        "task_completion_tokens": 2944
+      },
+      "svm--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.891938926,
+        "generated_code_memory_bytes": 11788288,
+        "generated_code_performance_seconds": 0.002732741,
+        "source_tokens": 838,
+        "task_completion_tokens": 2866
+      },
+      "svm--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.886878372,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.002354705,
+        "source_tokens": 838,
+        "task_completion_tokens": 12203
+      },
+      "svm--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.935277168,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.004278318,
+        "source_tokens": 838,
+        "task_completion_tokens": 2867
+      },
+      "svm--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 2.616535265,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.003161359,
+        "source_tokens": 1747,
+        "task_completion_tokens": 2926
+      },
+      "svm--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 2.573829237,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.002211498,
+        "source_tokens": 2020,
+        "task_completion_tokens": 3201
+      },
+      "svm--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 2.682106815,
+        "generated_code_memory_bytes": 11800576,
+        "generated_code_performance_seconds": 0.002435238,
+        "source_tokens": 1820,
+        "task_completion_tokens": 3000
+      }
+    },
+    "workload_contract_sha256": "749d1789ce20f6a510762f9b2df728cb32cce55fcb4ed8ddd06a586e0581f162"
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "language": "Quidra",
+  "version": "0.3.0",
+  "generation_id": "quidra_v0.3.0",
+  "language_id": "quidra_v0.3.0",
+  "version_source": "project.toml:[project].version",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 5.31578947368421,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 0,
+    "metric.correct_at_1": 0,
+    "metric.correct_at_n": 0,
+    "metric.diagnosis_efficiency": 0,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 0,
+    "metric.repair_efficiency": 0,
+    "metric.repair_success_rate": 0,
+    "metric.silent_bug_resistance": 0,
+    "metric.source_token_efficiency": 25,
+    "metric.specification_compliance": 0,
+    "metric.syntax_hallucination_resistance": 0,
+    "metric.test_pass_rate": 0,
+    "metric.total_token_efficiency": 10,
+    "metric.unseen_case_generalization": 0
+  },
+  "normalization_raw": {
+    "measurement_epoch": "github-hosted-ubuntu-latest-v1",
+    "performance_accounting": "trusted runner verification; wall time is unwrapped, peak RSS uses a separate RUSAGE_CHILDREN replay, compile time is the frozen build/parse command",
+    "primary_trial_set_sha256": "83f62bf31d39a405725642ae9c9cdc71b463f781a7cc0b546fd8db44f167709f",
+    "schema_version": 1,
+    "token_accounting": "provider-reported model-visible input/cache/output tokens; source_tokens is the terminal source completion's output_tokens",
+    "trials": {
+      "gmm--reference-to-porting--t1": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 5415,
+        "task_completion_tokens": 55888
+      },
+      "gmm--reference-to-porting--t2": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 10356,
+        "task_completion_tokens": 59460
+      },
+      "gmm--reference-to-porting--t3": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 1231,
+        "task_completion_tokens": 39636
+      },
+      "gmm--specification-to-implementation--t1": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 10204,
+        "task_completion_tokens": 39829
+      },
+      "gmm--specification-to-implementation--t2": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 2786,
+        "task_completion_tokens": 30209
+      },
+      "gmm--specification-to-implementation--t3": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 4058,
+        "task_completion_tokens": 50939
+      },
+      "lightgrad--reference-to-porting--t1": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 1387,
+        "task_completion_tokens": 45958
+      },
+      "lightgrad--reference-to-porting--t2": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 10764,
+        "task_completion_tokens": 57719
+      },
+      "lightgrad--reference-to-porting--t3": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 11897,
+        "task_completion_tokens": 70325
+      },
+      "lightgrad--specification-to-implementation--t1": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 8487,
+        "task_completion_tokens": 48141
+      },
+      "lightgrad--specification-to-implementation--t2": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 16384,
+        "task_completion_tokens": 44656
+      },
+      "lightgrad--specification-to-implementation--t3": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 16384,
+        "task_completion_tokens": 70621
+      },
+      "svm--reference-to-porting--t1": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 10863,
+        "task_completion_tokens": 61075
+      },
+      "svm--reference-to-porting--t2": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 1388,
+        "task_completion_tokens": 37761
+      },
+      "svm--reference-to-porting--t3": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 16384,
+        "task_completion_tokens": 57625
+      },
+      "svm--specification-to-implementation--t1": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 2162,
+        "task_completion_tokens": 31602
+      },
+      "svm--specification-to-implementation--t2": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 5342,
+        "task_completion_tokens": 47481
+      },
+      "svm--specification-to-implementation--t3": {
+        "fully_correct_source_available": false,
+        "generated_code_compile_seconds": null,
+        "generated_code_memory_bytes": null,
+        "generated_code_performance_seconds": null,
+        "source_tokens": 2006,
+        "task_completion_tokens": 35485
+      }
+    },
+    "workload_contract_sha256": "749d1789ce20f6a510762f9b2df728cb32cce55fcb4ed8ddd06a586e0581f162"
+  }
+}

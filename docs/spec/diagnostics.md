@@ -58,6 +58,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `MATCH_CASE` | A match case is duplicate or incompatible with the subject union. | Use each actual alternative exactly once. |
 | `MATCH_EXHAUSTIVE` | A match omits one or more alternatives. | Cover every union alternative. |
 | `MISSING_RETURN` | A non-`void` function can reach the end. | Return a value on every continuing path. |
+| `NESTING_DEPTH` | Expression or statement nesting exceeds the compiler's safety budget. | Reduce nesting: split the expression or extract a function. |
 | `NOT_CALLABLE` | A binding is invoked even though its type is not callable. | Call a function/function-value binding instead, or remove the call syntax. |
 | `NUMERIC_CAST` | A statically known explicit numeric cast would change the value. | Choose an exact destination or an operation that states the intended transformation. |
 | `NUMERIC_FAMILY` | Integer-family and real-family literals/expressions are being mixed or materialized across families implicitly. | Keep the expression within one numeric family or write an explicit cast/conversion. |
@@ -132,7 +133,7 @@ Deterministic runtime safety failures terminate with status `101`. They include:
 - a zero `range` step;
 - call depth exceeding the native safety limit before host stack exhaustion.
 
-An explicit `error("message")` is instead a typed value. Numeric `Type.parse(text)` returns `error` for invalid or out-of-range text. `input()` returns `none` for EOF and `error` for input failure.
+An explicit `error("message")` is instead a typed value. Numeric `Type.parse(text)` returns `error` for invalid or out-of-range text. `scan(...)` returns `error` for end of input, invalid text, or input that does not match its format, and `print`, `write`, and `io.flush` return `error` for an output failure; an expression statement that discards such an error fails fast.
 
 Floating-point exceptional values follow IEEE-754 behavior. Runtime text is canonicalized to `nan`, `inf`, and `-inf`.
 

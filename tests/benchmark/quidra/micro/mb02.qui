@@ -1,0 +1,37 @@
+// MB-02 - Factorial: recompute k! mod M from scratch for every k.
+// Methodology 06 section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K.
+cli args
+    string mode = argument(default = "once")
+    int iterations = argument(default = 7)
+
+// The whole workload body (methodology 06 section 4, MB-02).
+int workload()
+    int m = 1000003
+    int n = 20000
+    int total = 0
+    for k in range(1, n + 1)
+        int f = 1
+        for j in range(2, k + 1)
+            f = (f * j) % m
+        total = (total + f) % m
+    return total
+
+int timed(int index)
+    time.Instant start = time.now()
+    int result = workload()
+    time.Duration elapsed = time.since(start)
+    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    print("ITER {index} {elapsed_ns}")
+    io.flush()
+    return result
+
+int total
+if args.mode == "steady"
+    int k = math.max(args.iterations, 1)
+    total = timed(0)
+    for i in range(1, k)
+        total = timed(i)
+else
+    total = workload()
+
+print("MB02 {total}")

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Quidra",
+  "version": "0.3.0",
+  "generation_id": "quidra_v0.3.0",
+  "language_id": "quidra_v0.3.0",
+  "version_source": "project.toml:[project].version",
+  "evaluation": "llm_learnability",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 71.966,
+  "normalized_metric_scores": {
+    "condition.i1_keyword_anonymization": 96,
+    "condition.i2_vocabulary_anonymization": 57.33,
+    "condition.i3_structural_surface_perturbation": 100,
+    "condition.i4_novel_rule_generalization": 100,
+    "condition.i5_held_out_rule_composition": 34,
+    "condition.i6_prior_conflict_resistance": 12
+  },
+  "normalization_raw": {}
+}

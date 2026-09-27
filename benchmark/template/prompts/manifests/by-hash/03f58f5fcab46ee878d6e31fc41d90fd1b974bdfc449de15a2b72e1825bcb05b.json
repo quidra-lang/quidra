@@ -1,0 +1,242 @@
+{
+  "components": [
+    {
+      "bytes": 2885,
+      "kind": "task",
+      "sha256": "9a9b98876a74b58f81f6cbdc319d189309b95794caef0c689fa38912236df733"
+    },
+    {
+      "bytes": 4966,
+      "kind": "embedded:worker_core.md",
+      "sha256": "1f8027d9618b8b800e6df5f6f1358bb0b18f145d7bb33c7e82e6fe3770253e46"
+    },
+    {
+      "bytes": 25727,
+      "kind": "embedded:language_quality.md",
+      "sha256": "495340b54875ae0c4f6fe0a206a9ad6d38333b85ff7f13eeae92fda0a0c8e170"
+    },
+    {
+      "bytes": 5629,
+      "kind": "embedded:primary.json",
+      "sha256": "284da6969f5b5b07fe78932514432938e8064877be8c76809eb1446da15ad2da"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 217,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "6bbf0614f80241da379950d53b37258f03d819d435348eacfaf055946786b781"
+    },
+    {
+      "bytes": 375,
+      "kind": "task-input:template/programs/python/adversarial/ADV-01_C.py",
+      "sha256": "1a8e743335186f3b0ada3b9697bd784e3d72e2ff099bd65dc239226e3b732944"
+    },
+    {
+      "bytes": 368,
+      "kind": "task-input:template/programs/python/adversarial/ADV-01_R.py",
+      "sha256": "c7fb80ff2583096998e1798e8a3315f037ac1c2c0aac189ff185a47976b5fbd3"
+    },
+    {
+      "bytes": 313,
+      "kind": "task-input:template/programs/python/adversarial/ADV-02_C.py",
+      "sha256": "76696234fe14ddb1104fe74c468ce08fec814a33e86db7e772394ec88ddae2df"
+    },
+    {
+      "bytes": 306,
+      "kind": "task-input:template/programs/python/adversarial/ADV-02_R.py",
+      "sha256": "8f05f3d8bb9ef4703cfdf06e0b81d4b3d8ca8c55e0aa0f4f89aa09a7c0b20535"
+    },
+    {
+      "bytes": 314,
+      "kind": "task-input:template/programs/python/adversarial/ADV-03_C.py",
+      "sha256": "31bfe5f4d46666fa049fa1eb44d8d5c20ee485b09076c2224111e0ac28299192"
+    },
+    {
+      "bytes": 306,
+      "kind": "task-input:template/programs/python/adversarial/ADV-03_R.py",
+      "sha256": "058e92cdb0cc6f143c53cb505fdcb68c8bf7ac07c899e140c10b4687f0347f66"
+    },
+    {
+      "bytes": 387,
+      "kind": "task-input:template/programs/python/adversarial/ADV-04a_C.py",
+      "sha256": "71013d0a02670a8080558d4d8ade9f56c9fd8d51f7d67dbf502fdfad908d7bd9"
+    },
+    {
+      "bytes": 409,
+      "kind": "task-input:template/programs/python/adversarial/ADV-04a_R.py",
+      "sha256": "5f8e5d3f7c4df81ca67036ac664624a3c45b855a177f1d98b95c4a51ede85d76"
+    },
+    {
+      "bytes": 372,
+      "kind": "task-input:template/programs/python/adversarial/ADV-04b_C.py",
+      "sha256": "1a7d12cc4d9201ee7c3dc16a237fdad5a86fd80961a3d58cbc0e7a9c41887ad0"
+    },
+    {
+      "bytes": 393,
+      "kind": "task-input:template/programs/python/adversarial/ADV-04b_R.py",
+      "sha256": "ca703e344b5d3dc3169dafa5a3369cb22cc34b776906f430c807484a6ce37374"
+    },
+    {
+      "bytes": 330,
+      "kind": "task-input:template/programs/python/adversarial/ADV-05_C.py",
+      "sha256": "24915cdfe3b7d2fb6904b7972f75fcae9960c5edb0395061d6d94ece72b804a8"
+    },
+    {
+      "bytes": 340,
+      "kind": "task-input:template/programs/python/adversarial/ADV-05_R.py",
+      "sha256": "114500a1610df9692789875754961da3a610aa155c1ebec8d053bfbeaf33740b"
+    },
+    {
+      "bytes": 460,
+      "kind": "task-input:template/programs/python/adversarial/ADV-06_R.py",
+      "sha256": "54b2b6895c96353a807d0cf24b30a7836edbdf5a00c4ccb534db2489758a490b"
+    },
+    {
+      "bytes": 418,
+      "kind": "task-input:template/programs/python/adversarial/ADV-07_R.py",
+      "sha256": "de48f2c169f22ba06b9697092123e74d88804089a2f9263df935dc2d4076403d"
+    },
+    {
+      "bytes": 385,
+      "kind": "task-input:template/programs/python/adversarial/ADV-08_C.py",
+      "sha256": "e1016062a248253358245322e51d0d836c3d085506bb0357dbee553d07bc6569"
+    },
+    {
+      "bytes": 407,
+      "kind": "task-input:template/programs/python/adversarial/ADV-08_R.py",
+      "sha256": "f28e47d8cdac976d4d3699346f1de875be6bb859ab69332bc413c0f96cba6f77"
+    },
+    {
+      "bytes": 425,
+      "kind": "task-input:template/programs/python/adversarial/ADV-09_C.py",
+      "sha256": "02ecb28fda73ad7dacc0f17724d42b8e5afe81462124ecad78c5717aeda8f661"
+    },
+    {
+      "bytes": 435,
+      "kind": "task-input:template/programs/python/adversarial/ADV-09_R.py",
+      "sha256": "6a3dd36d8de83c8a2b6579490ab5059332989c10f943266765f4b69b688b16f2"
+    },
+    {
+      "bytes": 424,
+      "kind": "task-input:template/programs/python/adversarial/ADV-10_C.py",
+      "sha256": "8df9c1fa298ae291ec9da404941d2f6fed1a40030fe9a38144c648d1393d255a"
+    },
+    {
+      "bytes": 435,
+      "kind": "task-input:template/programs/python/adversarial/ADV-10_R.py",
+      "sha256": "181ca862f941d840b2b85c90152efda50e0e0d67c10b9a71cb1efa97c0599f9b"
+    },
+    {
+      "bytes": 442,
+      "kind": "task-input:template/programs/python/adversarial/ADV-11_R.py",
+      "sha256": "5a21cd9282dfcfa32a28a581dfdcf9cdf0782cd78b1fabf135ec33797a50a730"
+    },
+    {
+      "bytes": 376,
+      "kind": "task-input:template/programs/python/adversarial/ADV-12.py",
+      "sha256": "c31ba784118cdd0229cbdabd658c520d5b0dda07d9b4a59675fe7599f57937b6"
+    },
+    {
+      "bytes": 491,
+      "kind": "task-input:template/programs/python/adversarial/ADV-13.py",
+      "sha256": "c4428b6edbf6e6d8ffd00995bee07c815ab650d89059ff3e7a8a7da6bac5fdb4"
+    },
+    {
+      "bytes": 387,
+      "kind": "task-input:template/programs/python/adversarial/ADV-14_R.py",
+      "sha256": "6660cc1abc709cf54ac738612e764d82a0ba3e5919580b70bc0388cf6f654106"
+    },
+    {
+      "bytes": 529,
+      "kind": "task-input:template/programs/python/adversarial/ADV-15.py",
+      "sha256": "473842b68e9bbe98d791e705bbc825d48410f6e404050ea32f1b4f53c0a3a250"
+    },
+    {
+      "bytes": 402,
+      "kind": "task-input:template/programs/python/adversarial/ADV-16.py",
+      "sha256": "b1691c7748990fe8a01d9fb37bae65d08d985ec4aa9bf0f5dba6d5c539d69582"
+    },
+    {
+      "bytes": 311,
+      "kind": "task-input:template/programs/python/adversarial/ADV-17.py",
+      "sha256": "63e5f9380c2d3f6d9e7966b6339e14ee9c67157749ffbf14289dc7f4c666b548"
+    },
+    {
+      "bytes": 394,
+      "kind": "task-input:template/programs/python/adversarial/ADV-18.py",
+      "sha256": "dbb0304ed14ec5bd4e971595d56ddacf96d673f4e7e0aacab5a87cf0085f5a58"
+    },
+    {
+      "bytes": 449,
+      "kind": "task-input:template/programs/python/adversarial/ADV-19.py",
+      "sha256": "a793bbaa7dac7129d3791c00fbb62c517c75b4c40e8425f29c29f9f60ac67f27"
+    },
+    {
+      "bytes": 509,
+      "kind": "task-input:template/programs/python/adversarial/ADV-20.py",
+      "sha256": "bd5a10798fa6e1dbd4adb456de552fc26498e96b2327520cf2735085312337a6"
+    },
+    {
+      "bytes": 200314,
+      "kind": "task-input:template/programs/python/adversarial/ADV-21.py",
+      "sha256": "4afb0c21a593a59b87040655217f3a0f1e7a4e1177d6414046adb4b1824570fd"
+    },
+    {
+      "bytes": 2324,
+      "kind": "task-input:template/programs/python/adversarial/ADV-21_depth1000.py",
+      "sha256": "14bc4f8b4cbfd4b02504fd35232007ffae316ec243d38bfd6d940480112f37bf"
+    },
+    {
+      "bytes": 20325,
+      "kind": "task-input:template/programs/python/adversarial/ADV-21_depth10000.py",
+      "sha256": "f67bb0695ada959a9092b4d6529af087c7ae5f05dd0a1e8e98d53f7b2de3c35b"
+    },
+    {
+      "bytes": 341,
+      "kind": "task-input:template/programs/python/adversarial/ADV-22-valid.py",
+      "sha256": "6db95315f921c1c2298c79a82f18515fdd6f8347e8e0b7bd54849bdf0c3ce507"
+    },
+    {
+      "bytes": 274,
+      "kind": "task-input:template/programs/python/adversarial/ADV-22a.py",
+      "sha256": "8e7bda6080981e34af63cf60e552c06fdeaa511be52820d58b1125e9e0f158b6"
+    },
+    {
+      "bytes": 339,
+      "kind": "task-input:template/programs/python/adversarial/ADV-22b.py",
+      "sha256": "a87dcddfb734a81503047b56ec9392faac99c7f304ddbd1f2f52d7b52836649a"
+    },
+    {
+      "bytes": 320,
+      "kind": "task-input:template/programs/python/adversarial/ADV-23.py",
+      "sha256": "10d9144f43a9f7e82929b63dd8a661e1288dc19645ba5a508681976e61b13f54"
+    },
+    {
+      "bytes": 306,
+      "kind": "task-input:template/programs/python/adversarial/ADV-24.py",
+      "sha256": "067c6bf54534085e2c0753ef57e190246401a29396bdd4b02ebd4cc04cc68828"
+    },
+    {
+      "bytes": 371,
+      "kind": "task-input:template/programs/python/adversarial/ADV-25_R.py",
+      "sha256": "d90bc824a0b950a27f126d8028feafab82cce9e5d4f1b225cef585547d7ddc53"
+    },
+    {
+      "bytes": 622,
+      "kind": "task-input:template/programs/python/adversarial/ADV-26_R.py",
+      "sha256": "42b7652cccc50bcb65dcdb7b77199f142fa371c204b5d09c218e2c37dbed8ba9"
+    },
+    {
+      "bytes": 436,
+      "kind": "task-input:work/root/plans/reuse-audit-inputs/adversarial-python.json",
+      "sha256": "b100719e5f407ee6df59d94ce2ddb041119c8fd00ad3c3effb90c216b1e97f7a"
+    }
+  ],
+  "prompt_sha256": "03f58f5fcab46ee878d6e31fc41d90fd1b974bdfc449de15a2b72e1825bcb05b",
+  "rendered_bytes": 278324,
+  "schema_version": 1
+}

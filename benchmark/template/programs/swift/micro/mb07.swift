@@ -1,5 +1,9 @@
 // MB-07 - Sorting: bottom-up iterative merge sort, ascending, stable, ping-pong buffers.
+#if canImport(Darwin)
 import Darwin  // fflush(stdout) for the section 5.2 ITER lines
+#else
+import Glibc   // the same fflush(stdout) on Linux, where the benchmark runs
+#endif
 
 /// Lehmer / MINSTD generator, frozen for every language in the suite.
 struct Lcg {

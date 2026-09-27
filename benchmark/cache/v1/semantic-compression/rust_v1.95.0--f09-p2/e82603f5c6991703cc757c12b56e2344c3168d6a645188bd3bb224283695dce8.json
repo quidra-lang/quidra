@@ -1,0 +1,101 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "e82603f5c6991703cc757c12b56e2344c3168d6a645188bd3bb224283695dce8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "1da517a5fcc46d2026f7743f2f95cc0eaa58f3399d3327f75be6ca34f9a3a22a",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/rust--f09-p2.json": "2addd9a3e8478248e1d0ea124f9adf5f0d95010c5812d105e8b34a24fab4ead6"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f09-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--rust--f09-p2",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "1da517a5fcc46d2026f7743f2f95cc0eaa58f3399d3327f75be6ca34f9a3a22a",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-canonical-fragment--rust--f09-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F09.P2": {
+          "citation": "slice::sort_by documentation (in-place)",
+          "fragment": "xs.sort_by(|a, b| b.cmp(a));\nlet lt = a < b;",
+          "justification": "slice::sort_by documentation (in-place)",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F09.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "171083ef7d50aa36eba8abd834a22dc750f60b0b1a03bc3100cd77d87275ffdd",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Rust",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F09.P2",
+        "schema_version": 2,
+        "source_record_sha256": "220285a21d253d2993df7f1f8bb60b265d4ba79904cda34cf52dbfa54e0788cb",
+        "source_result_sha256": "477e484dc9de28436a89079eeec8000018293822b8b4863eb4492fd471688d71"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f09-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "ed0efc83f1be2e341dfcf52683cb4ebd3078c10e2a2b09906d3d7b7a3a5bf81f",
+  "schema_version": 1
+}

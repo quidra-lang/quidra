@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "language": "Go",
+  "version": "1.26.3",
+  "generation_id": "go_v1.26.3",
+  "language_id": "go_v1.26.3",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_proficiency",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 82.77109523809521,
+  "normalized_metric_scores": {
+    "metric.compile_parse_success_rate": 72.22222222222223,
+    "metric.correct_at_1": 72.22222222222223,
+    "metric.correct_at_n": 100,
+    "metric.diagnosis_efficiency": 100,
+    "metric.generated_code_compile_performance": 85,
+    "metric.generated_code_memory_efficiency": 70,
+    "metric.generated_code_performance": 70,
+    "metric.generation_success_rate": 100,
+    "metric.prompt_robustness": 66.66666666666667,
+    "metric.repair_efficiency": 93.05555555555556,
+    "metric.repair_success_rate": 100,
+    "metric.silent_bug_resistance": 100,
+    "metric.source_token_efficiency": 65,
+    "metric.specification_compliance": 72.2,
+    "metric.syntax_hallucination_resistance": 72.2,
+    "metric.test_pass_rate": 80,
+    "metric.total_token_efficiency": 65,
+    "metric.unseen_case_generalization": 76.19047619047619
+  },
+  "normalization_raw": {
+    "measurement_epoch": "github-hosted-ubuntu-latest-v1",
+    "performance_accounting": "trusted runner verification; wall time is unwrapped, peak RSS uses a separate RUSAGE_CHILDREN replay, compile time is the frozen build/parse command",
+    "primary_trial_set_sha256": "83f62bf31d39a405725642ae9c9cdc71b463f781a7cc0b546fd8db44f167709f",
+    "schema_version": 1,
+    "token_accounting": "provider-reported model-visible input/cache/output tokens; source_tokens is the terminal source completion's output_tokens",
+    "trials": {
+      "gmm--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.174299836,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.002476621,
+        "source_tokens": 1182,
+        "task_completion_tokens": 7296
+      },
+      "gmm--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.178178409,
+        "generated_code_memory_bytes": 11821056,
+        "generated_code_performance_seconds": 0.002844526,
+        "source_tokens": 1008,
+        "task_completion_tokens": 2779
+      },
+      "gmm--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.175889439,
+        "generated_code_memory_bytes": 11821056,
+        "generated_code_performance_seconds": 0.002462702,
+        "source_tokens": 1041,
+        "task_completion_tokens": 6868
+      },
+      "gmm--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.162765581,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.002077069,
+        "source_tokens": 1558,
+        "task_completion_tokens": 2560
+      },
+      "gmm--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.179973768,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.002041754,
+        "source_tokens": 1307,
+        "task_completion_tokens": 6362
+      },
+      "gmm--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.175322845,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.002364044,
+        "source_tokens": 1659,
+        "task_completion_tokens": 2662
+      },
+      "lightgrad--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.171607109,
+        "generated_code_memory_bytes": 11749376,
+        "generated_code_performance_seconds": 0.002176783,
+        "source_tokens": 723,
+        "task_completion_tokens": 2200
+      },
+      "lightgrad--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.174427238,
+        "generated_code_memory_bytes": 11786240,
+        "generated_code_performance_seconds": 0.0022582590000000003,
+        "source_tokens": 780,
+        "task_completion_tokens": 2259
+      },
+      "lightgrad--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.183052552,
+        "generated_code_memory_bytes": 11798528,
+        "generated_code_performance_seconds": 0.0019487964999999998,
+        "source_tokens": 732,
+        "task_completion_tokens": 2210
+      },
+      "lightgrad--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.178612692,
+        "generated_code_memory_bytes": 11751424,
+        "generated_code_performance_seconds": 0.0020818679999999997,
+        "source_tokens": 1762,
+        "task_completion_tokens": 2616
+      },
+      "lightgrad--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.16995339,
+        "generated_code_memory_bytes": 11771904,
+        "generated_code_performance_seconds": 0.002028854,
+        "source_tokens": 1614,
+        "task_completion_tokens": 2470
+      },
+      "lightgrad--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.179004471,
+        "generated_code_memory_bytes": 11794432,
+        "generated_code_performance_seconds": 0.0021278390000000003,
+        "source_tokens": 1965,
+        "task_completion_tokens": 2820
+      },
+      "svm--reference-to-porting--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.170178345,
+        "generated_code_memory_bytes": 11776000,
+        "generated_code_performance_seconds": 0.003009047,
+        "source_tokens": 1285,
+        "task_completion_tokens": 3298
+      },
+      "svm--reference-to-porting--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.176017906,
+        "generated_code_memory_bytes": 11722752,
+        "generated_code_performance_seconds": 0.002530857,
+        "source_tokens": 1718,
+        "task_completion_tokens": 3733
+      },
+      "svm--reference-to-porting--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.168050714,
+        "generated_code_memory_bytes": 11726848,
+        "generated_code_performance_seconds": 0.002681002,
+        "source_tokens": 1536,
+        "task_completion_tokens": 3550
+      },
+      "svm--specification-to-implementation--t1": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 4.997117589,
+        "generated_code_memory_bytes": 11800576,
+        "generated_code_performance_seconds": 0.002710142,
+        "source_tokens": 2230,
+        "task_completion_tokens": 3394
+      },
+      "svm--specification-to-implementation--t2": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.172334293,
+        "generated_code_memory_bytes": 11837440,
+        "generated_code_performance_seconds": 0.002381548,
+        "source_tokens": 1350,
+        "task_completion_tokens": 7752
+      },
+      "svm--specification-to-implementation--t3": {
+        "fully_correct_source_available": true,
+        "generated_code_compile_seconds": 0.176879097,
+        "generated_code_memory_bytes": 11812864,
+        "generated_code_performance_seconds": 0.003204934,
+        "source_tokens": 1350,
+        "task_completion_tokens": 8406
+      }
+    },
+    "workload_contract_sha256": "749d1789ce20f6a510762f9b2df728cb32cce55fcb4ed8ddd06a586e0581f162"
+  }
+}

@@ -14,7 +14,6 @@ inline constexpr std::string_view source_extension = "@QUIDRA_PROJECT_EXTENSION@
 inline constexpr std::string_view tagline = "@QUIDRA_TAGLINE@";
 
 inline constexpr std::string_view compiler_version = "@PROJECT_VERSION@";
-inline constexpr std::string_view language_version = "@QUIDRA_LANGUAGE_VERSION@";
 
 // Format versions, independent of compiler_version.
 inline constexpr std::string_view ir_version = "@QUIDRA_IR_VERSION@";

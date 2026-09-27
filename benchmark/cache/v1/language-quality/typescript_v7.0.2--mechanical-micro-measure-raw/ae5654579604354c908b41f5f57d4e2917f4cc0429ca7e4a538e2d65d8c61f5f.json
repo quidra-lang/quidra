@@ -1,0 +1,183 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "measured_at_utc": null,
+    "mechanical": true,
+    "primary_complete": false,
+    "raw_evidence_retained_in": "GitHub Actions artifact 10726282512 from 2026-09-22-bc3d9dd-gh9",
+    "raw_evidence_sha256": {},
+    "runner_action": "micro-measure-raw",
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "ae5654579604354c908b41f5f57d4e2917f4cc0429ca7e4a538e2d65d8c61f5f",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "github-hosted-ubuntu-latest-v1",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": null,
+    "frozen_sampling": null,
+    "model": null,
+    "network_allowed": false,
+    "provider": null,
+    "readable_input_content_hashes": {
+      "template/fixtures": "e1ed425ab09a1dd75ff0dc48293a8b7ef92e949dca828bcfd439e0be1cae4ac7",
+      "template/methodology-assets/scoring": "a3be91ff162f3411462bb19e1858b517d5d21301795cd2a728344d9a1c35dd58",
+      "template/programs/typescript/adversarial": "1b38dd91d4f6cadfd78800183c415c5c77b8fe197be5be5ef08bb54d2cd9f31b",
+      "template/programs/typescript/micro": "f57b3731c18c106a72b6fa001b98f8ddd22ff973a7d894580fb64e3301e8d0ab",
+      "template/validators/micro": "e1eab465ec9ccef45e60cb201130b8e4cfd079acd03d28889455cde47d097c68",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [],
+    "result_kind": "mechanical",
+    "runner_action": "micro-measure-raw",
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "59f63312c6f2bf3a4bda671cdd23d3f4c4b1b0d27e7a9a3ac35ddd8b304eb21d",
+      "primary_config": "0a9d9a8c26345f7b238e36c1e0d1226a6c2518e312cd9bc8e177240e4c558a5a"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py command-result-check --workspace /quidra-benchmark --id lq-micro-raw--typescript",
+    "work_unit_id": "lq-micro-raw--typescript",
+    "worker_mode": "runner-command"
+  },
+  "language_generations": {
+    "TypeScript": {
+      "generation_id": "typescript_v7.0.2",
+      "id": "typescript",
+      "language": "TypeScript",
+      "version": "7.0.2",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": null,
+    "run_id": "2026-09-22-bc3d9dd-gh9",
+    "source_artifact_id": "10726282512",
+    "work_unit_id": "lq-micro-raw--typescript"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "source": "certified baseline raw evidence",
+      "source_artifact_id": "10726282512",
+      "source_raw_sha256": "f1813c155f84de3c22a335f44e01ae26c7d503908537fd8d37c14036554b808b",
+      "source_run_id": "2026-09-22-bc3d9dd-gh9"
+    },
+    "normalization_raw": {
+      "TypeScript": {
+        "startup_rss_bytes": 52535296,
+        "startup_seconds": 0.025206191,
+        "workloads": {
+          "mb01": {
+            "artifact_effective_bytes": 5650,
+            "cold_seconds": 0.730869755,
+            "compile_effective_seconds": 0.330108574,
+            "rss_bytes": 58408960,
+            "source_bytes": 1596,
+            "steady_seconds": 0.698096528
+          },
+          "mb02": {
+            "artifact_effective_bytes": 5872,
+            "cold_seconds": 3.858054011,
+            "compile_effective_seconds": 0.3285922,
+            "rss_bytes": 59371520,
+            "source_bytes": 1794,
+            "steady_seconds": 3.8647334035
+          },
+          "mb03": {
+            "artifact_effective_bytes": 6271,
+            "cold_seconds": 6.174754972,
+            "compile_effective_seconds": 0.330240093,
+            "rss_bytes": 59998208,
+            "source_bytes": 2291,
+            "steady_seconds": 6.146852988
+          },
+          "mb04": {
+            "artifact_effective_bytes": 7081,
+            "cold_seconds": 1.247261684,
+            "compile_effective_seconds": 0.332484908,
+            "rss_bytes": 61284352,
+            "source_bytes": 3063,
+            "steady_seconds": 1.215418439
+          },
+          "mb05": {
+            "artifact_effective_bytes": 6782,
+            "cold_seconds": 0.925796693,
+            "compile_effective_seconds": 0.327253812,
+            "rss_bytes": 93388800,
+            "source_bytes": 2690,
+            "steady_seconds": 0.8863765690000001
+          },
+          "mb06": {
+            "artifact_effective_bytes": 7191,
+            "cold_seconds": 1.14315044,
+            "compile_effective_seconds": 0.321439952,
+            "rss_bytes": 68239360,
+            "source_bytes": 3147,
+            "steady_seconds": 1.1019463875
+          },
+          "mb07": {
+            "artifact_effective_bytes": 8422,
+            "cold_seconds": 2.3023142,
+            "compile_effective_seconds": 0.324323714,
+            "rss_bytes": 140447744,
+            "source_bytes": 4157,
+            "steady_seconds": 2.210611856
+          },
+          "mb08": {
+            "artifact_effective_bytes": 9112,
+            "cold_seconds": 3.638783435,
+            "compile_effective_seconds": 0.326608328,
+            "rss_bytes": 133222400,
+            "source_bytes": 4972,
+            "steady_seconds": 3.5595248990000004
+          },
+          "mb09": {
+            "artifact_effective_bytes": 9252,
+            "cold_seconds": 0.891187845,
+            "compile_effective_seconds": 0.327618133,
+            "rss_bytes": 94498816,
+            "source_bytes": 4995,
+            "steady_seconds": 0.8418926090000001
+          },
+          "mb10": {
+            "artifact_effective_bytes": 8828,
+            "cold_seconds": 1.65001013,
+            "compile_effective_seconds": 0.33639912,
+            "rss_bytes": 97001472,
+            "source_bytes": 5229,
+            "steady_seconds": 1.530839969
+          },
+          "mb11": {
+            "artifact_effective_bytes": 8548,
+            "cold_seconds": 1.096916677,
+            "compile_effective_seconds": 0.324697097,
+            "rss_bytes": 212094976,
+            "source_bytes": 4422,
+            "steady_seconds": 1.0371466805
+          }
+        }
+      }
+    },
+    "requirements": {},
+    "schema_version": 1
+  },
+  "result_sha256": "3d764afa65631199470723844e75cb1285543023d1a13316f3bfe28a2217d9e4",
+  "schema_version": 1
+}

@@ -1,0 +1,155 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "7b3c31bb64c1a6800e6ee5b548bcbbb1f41b106cbe903946836c64ce4f272680",
+  "fingerprint_payload": {
+    "assigned_languages": [],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/audit/semantic-compression/support_adjudication_f14-p1.json": "cbe6270ea4131917067b2ada8157af42a51a38d24551806d9bce87ab2be6b4a8"
+    },
+    "requirement_ids": [
+      "annotation.support_adjudication--f14-p1"
+    ],
+    "runtime_toolchain_pins": {},
+    "schema_version": 1,
+    "semantic_evidence_contract": "sc-support-adjudication-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "27d9c247f8c9e5c59a5be3cab63ed35f7e7ed8af2292b71729edd54f68ed2e72",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-support-adjudication:F14.P1"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "95a50fc25ea6b0ba01ad3ee5614e1cf96269039da19a24a4f641914b1e5fea83",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-support-adjudication--f14-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "mode": "support-from-canonical-baseline",
+        "probe_id": "F14.P1",
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
+      }
+    },
+    "requirements": {
+      "annotation.support_adjudication--f14-p1": {
+        "C++": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "struct Circle { double r; };\nstruct Rect { double w, h; };\nusing Shape = std::variant<Circle, Rect>;\nShape s = Circle{2.0};",
+          "justification": "`using Shape = std::variant<Circle,Rect>; Shape s = Circle{2.0};` — std::variant (C++17) is a closed alternative set fixed at the type's declaration; no code elsewhere can add a third alternative to this Shape alias.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Go": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "type Shape interface{ isShape() }\ntype Circle struct{ r float64 }\nfunc (Circle) isShape() {}\ntype Rect struct{ w, h float64 }\nfunc (Rect) isShape() {}\nvar s Shape = Circle{r: 2.0}",
+          "justification": "Go has no native closed sum/variant type. Named substitution (R9): a 'sealed interface' pattern (an interface with an unexported method) approximates closedness within the compilation unit; construction of a Circle literal bound to the Shape interface value satisfies the rest.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "Java": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "sealed interface Shape permits Circle, Rect {}\nrecord Circle(double r) implements Shape {}\nrecord Rect(double w, double h) implements Shape {}\nShape s = new Circle(2.0);",
+          "justification": "sealed interface Shape permits Circle, Rect {} ; record Circle(double r) implements Shape {} ; record Rect(double w, double h) implements Shape {} — sealed hierarchy is a closed alternative set enforced by the compiler (Java 17+ sealed classes).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Kotlin": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "sealed class Shape\nclass Circle(val r: Double) : Shape()\nclass Rect(val w: Double, val h: Double) : Shape()\nval s: Shape = Circle(2.0)",
+          "justification": "sealed class Shape; data class Circle(val r: Double): Shape(); data class Rect(val w: Double, val h: Double): Shape() — Kotlin sealed classes are compiler-enforced closed to the same module (cannot be subclassed from outside).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Python": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "@dataclass\nclass Circle:\n    r: float\n@dataclass\nclass Rect:\n    w: float\n    h: float\nShape = Union[Circle, Rect]\ns: Shape = Circle(2.0)",
+          "justification": "Python has no closed-sum-type declaration; a class hierarchy or dataclass union is the nearest standard substitute, but nothing in the language prevents a third case being added elsewhere, per R9 named substitution.",
+          "level": "PARTIAL",
+          "none_reason": null,
+          "partial_reasons": [
+            "P-a"
+          ]
+        },
+        "Quidra": {
+          "citation": "language.md 'Named enums and variants': enums are a closed, exhaustively-matched set of variants each carrying at most one explicitly typed payload; a two-field Rect payload is expressed as a small payload class, which is a natural composition rather than a substitution of the closedness mechanism being tested.",
+          "fragment": "class RectData\n    float w\n    float h\n\nenum Shape\n    Circle(float)\n    Rect(RectData)\n\nShape s = Shape.Circle(2.0)",
+          "justification": "language.md 'Named enums and variants': enums are a closed, exhaustively-matched set of variants each carrying at most one explicitly typed payload; a two-field Rect payload is expressed as a small payload class, which is a natural composition rather than a substitution of the closedness mechanism being tested.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Rust": {
+          "citation": "Rust Reference 6.1.1 Enumerations (closed set)",
+          "fragment": "enum Shape { Circle { r: f64 }, Rect { w: f64, h: f64 } }\nlet s: Shape = Shape::Circle { r: 2.0 };",
+          "justification": "Rust Reference 6.1.1 Enumerations (closed set)",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Swift": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "enum Shape {\n    case circle(r: Double)\n    case rect(w: Double, h: Double)\n}\nlet s: Shape = .circle(r: 2.0)",
+          "justification": "enum Shape { case circle(r: Double); case rect(w: Double, h: Double) } — enum is a closed, exhaustively-checked sum type; language rules forbid adding a case from elsewhere.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "TypeScript": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "type Shape = { kind: \"circle\"; r: number } | { kind: \"rect\"; w: number; h: number };\nconst s: Shape = { kind: \"circle\", r: 2.0 };",
+          "justification": "type Shape = {kind:'Circle', r:number} | {kind:'Rect', w:number, h:number}; discriminated union, closed by declaration; const s: Shape = {kind:'Circle', r:2.0};",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Zig": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "const Shape = union(enum) { Circle: struct{r:f64}, Rect: struct{w:f64,h:f64} };\nconst s: Shape = .{.Circle = .{.r=2.0}};",
+          "justification": "union(enum) { Circle: f64, Rect: struct{w:f64,h:f64} } is a closed, exhaustive tagged union; the compiler forbids adding a case elsewhere.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "9ba8ab0b7db0a71daf5f3095f9fec6bcd33ef2a53a8018b763f9e5ddaa7154c8",
+  "schema_version": 1
+}

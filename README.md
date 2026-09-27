@@ -4,6 +4,11 @@
 
 Quidra is a statically typed, native general-purpose programming language designed for both humans and language models.
 
+Try Quidra Playground, which runs the real compiler frontend rather than an imitation of it:
+
+- **Hosted** — <https://quidra-lang.github.io/playground/> (nothing to install)
+- **Local** — after a [local build](#playground), <http://127.0.0.1:8787> (adds Run and LLVM IR)
+
 Its primary optimization target is **semantic density**: how much reliable intent can be recovered from each token without hidden conventions, guesswork, or repeated ceremony. Fewer characters are not automatically better. Fewer tokens are better only when the same meaning remains explicit, stable, and mechanically checkable.
 
 The name **Quidra** is inspired by the Latin *quidditas* — the “whatness” or essence of a thing.
@@ -186,7 +191,7 @@ class Point
     int x
     int y
 
-Point point = Point()
+Point point
 point.x = 10
 // point.y is still uninitialized
 ```
@@ -501,10 +506,10 @@ Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `
 string name = "Quidra"
 string repeated = string.repeat("a", 6)
 print("Hello, {name}")
-print("first{enter}second")
+print("first{ENTER}second")
 ```
 
-Backslash is literal rather than an escape introducer. Named immutable values such as `enter`, `tab`, `home`, and `quote` represent control characters.
+Backslash is literal rather than an escape introducer. Named immutable values such as `ENTER`, `TAB`, `HOME`, and `QUOTE` represent control characters.
 
 Immutable backing storage may be shared internally because that sharing cannot change observable value semantics. For the same reason, `text = text + piece` in a loop is linear overall rather than quadratic: when the target is the sole owner of its storage, the append reuses it with geometric growth instead of copying the accumulated prefix each time.
 
@@ -527,14 +532,21 @@ class Point
     float x
     float y = 0.0
 
+    construct(float px, float py)
+        x = px
+        y = py
+
     float length_squared()
         return x * x + y * y
 
-Point point = Point(x = 3.0)
+Point point = Point(3.0, 4.0)
 print(point.length_squared())
+
+Point origin
+origin.x = 0.0
 ```
 
-Fields and methods use one `class` construct. Methods access fields directly; there is no `self` or `this` syntax. Members are public by default; prefix a field or method with `private` to restrict access to methods of that class.
+Fields and methods use one `class` construct. Methods access fields directly; there is no `self` or `this` syntax. A class may declare several `construct` members, distinguished by their parameters; `T(...)` always runs one of them, and a call that fits none or more than one is rejected. A declaration without an initializer creates the value with its field defaults so fields can be assigned one at a time. A constructor that can fail is spelled `Point | error construct(...)`; `Point p = Point(...)` then fails fast on error and `try Point(...)` propagates it. Members are public by default; prefix a field, method, or constructor with `private` to restrict access to methods of that class.
 
 ```quidra
 class Counter
@@ -547,9 +559,9 @@ class Counter
         increment_raw()
 ```
 
-Private fields cannot be read, written, or addressed outside their declaring class. They may still be supplied during named construction so factory functions can initialize hidden state. Private methods cannot be called outside their declaring class.
+Private fields cannot be read, written, or addressed outside their declaring class; a constructor initializes hidden state. Private methods cannot be called outside their declaring class.
 
-Construction is named by field. Fields may remain uninitialized when no value/default is supplied, and the checker tracks that state field by field.
+Fields may remain uninitialized when no assignment or default supplies them, and the checker tracks that state field by field.
 
 Class equality is value equality and requires compared fields to be definitely initialized.
 
@@ -569,10 +581,10 @@ import geometry = "./geometry.qui"
 import shared = "@/shared.qui"
 import plot = plotting
 
-geometry.Point point = geometry.Point(x = 2, y = 3)
+geometry.Point point = geometry.Point(2, 3)
 ```
 
-Relative quoted paths resolve from the importing file. `@/` resolves from the command working directory. Installed packages never silently fall back to a same-named file in the working directory.
+Relative quoted paths resolve from the importing file. `@/` resolves from the command working directory. Installed packages never silently fall back to a same-named file in the working directory. A module's own imports stay private unless it writes `public import mode = "./mode.qui"`, which re-exports the target as a nested namespace such as `dnn.mode.fast()`.
 
 Imported modules contain declarations only. Executable top-level statements belong to the root program. Import cycles are rejected.
 
@@ -582,13 +594,16 @@ Imported modules contain declarations only. Executable top-level statements belo
 class Box<T>
     T value
 
+    construct(T initial)
+        value = initial
+
     T get()
         return value
 
 T first<T>(T[] values)
     return values[0]
 
-Box<int> box = Box<int>(value = 7)
+Box<int> box = Box<int>(7)
 print(first<int>([4, 5]))
 ```
 
@@ -622,10 +637,15 @@ Blocks use four-space indentation. Conditions are `bool`; numeric truthiness is 
 print("line")
 write("prompt: ")
 
-string | none | error line = input()
+string line
+scan(&line)
+
+int n
+int m
+scan("{&n} {&m}")
 ```
 
-`print` appends a newline. `write` does not. `input()` returns a line, `none` at EOF, or `error` for an input failure.
+`print` appends a newline. `write` does not. Both return `void | error`, so an output failure fails fast when the call is a statement. `scan` reads one line: `scan(&x)` reads a single value into `x`, and a format such as `"{&name},{&age}"` splits the line at its literal text and parses each `{&target}` by the target's type; a `string` target takes the text as it is. End of input, invalid text, and leftover input are `error`, which fails fast for a statement and can be handled through `void | error read = scan(...)`.
 
 ## Text, arrays, and conditional chains
 
@@ -719,9 +739,8 @@ fields.
 class Scale
     neural.Parameter<float32> value
 
-Scale model = Scale(
-    value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
-)
+Scale model
+model.value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
 neural<float32> prediction = model.value.track() * float32(2)
 neural<float32> loss = neural.mean(prediction * prediction)
 neural.Gradients gradients = neural.grad(loss)
@@ -745,9 +764,12 @@ through a normal package import:
 ```quidra
 import dnn
 
-dnn.LinearLayer | error layer = dnn.Linear(features_in = 2, features_out = 1)
-dnn.AdamOptimizer | error optimizer = dnn.Adam()
+dnn.Linear layer = dnn.Linear(2, 1)
+dnn.Adam optimizer = dnn.Adam()
+dnn.mode.deterministic()
 ```
+
+Layers and optimizers are classes with constructors that can fail, so `dnn.Linear(2, 1)` fails fast on an invalid shape and `try dnn.Linear(2, 1)` propagates the error. `dnn.mode.fast()` and `dnn.mode.deterministic()` select the execution mode.
 
 Model and training state use one typed, non-executable `.quistate` format through
 `neural.save(...)` and `neural.load(...)`. Saving uses atomic replacement. Loading requires exact nominal root types,
@@ -763,7 +785,7 @@ The static checker rejects, among other things:
 - invalid field initialization paths,
 - attempts to write, rebind, or regain write authority through const access paths,
 - reference type mismatches,
-- implicit lossy numeric conversions,
+- implicit representation-changing numeric conversions,
 - incomplete union matches,
 - use of partially initialized class values where fully initialized values are required,
 - import cycles and namespace collisions,
@@ -820,7 +842,7 @@ The current implementation includes:
 - definite-initialization analysis for bindings, fields, arrays, and tensors,
 - receiver and reference-parameter effect summaries, including read-only `const T &` paths,
 - unions, exhaustive matching, and explicit `error` propagation,
-- fixed-width numeric checking with strict implicit conversion, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
+- fixed-width numeric checking with no implicit representation-changing conversion, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
 - partially initialized classes, explicit composition, and value equality,
 - explicit safe storage references with pinned substorage lifetime,
 - monotonic bare-name resolution and always-visible standard namespaces,
@@ -834,6 +856,50 @@ The current implementation includes:
 - structured diagnostics, source inspection, and revision/hash-validated node-level patching.
 
 The source extension is `.qui`.
+
+## Playground
+
+Quidra includes a local browser playground backed by the real compiler. After building Quidra:
+
+```bash
+python3 playground/server.py --quidra ./build/quidra
+```
+
+The playground opens on `http://127.0.0.1:8787/` and provides **Run**, **Check**, **Format**, **Quidra IR**, and **LLVM IR** views. If `quidra` is already on `PATH`, `--quidra` can be omitted.
+
+The included server is deliberately loopback-only and intended for local development. Each execution uses a fresh temporary working directory, a wall-clock timeout, a small concurrency limit, a reduced child-process environment, and a per-session request token. A public multi-user deployment must execute user programs inside a separately hardened sandbox; this local server is not a multi-tenant security boundary.
+
+
+### Public Playground (WebAssembly)
+
+The local server above is the developer-facing playground: it shells out to the
+real `quidra` binary, so it can offer **Run** and **LLVM IR**.
+
+The public playground at **<https://quidra-lang.github.io/playground/>**
+([source](https://github.com/quidra-lang/playground)) is a different thing: a
+fully static site that runs the compiler frontend in the browser. It loads `quidra_core` compiled to WebAssembly, so **Check**, **Format**,
+**Quidra IR**, **Inspect** and **Patch** all run on the visitor's machine with no
+server, and the source never leaves the tab. It deliberately has no Run button --
+execution needs LLVM, the native runtime and OS process facilities, none of which
+the frontend carries.
+
+It is not a reimplementation. The playground has no parser, checker, formatter or
+IR of its own; it calls the same `quidra::check`, `quidra::format_source`,
+`quidra::ir::lower`, `quidra::inspect_source_json` and `quidra::apply_source_patch`
+entry points this repository already exposes.
+
+Build the frontend bridge with the Emscripten toolchain:
+
+```bash
+emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
+cmake --build build-wasm --target quidra_wasm
+node tests/wasm_api_tests.mjs build-wasm
+```
+
+`QUIDRA_BUILD_WASM_FRONTEND` (implied by Emscripten) restricts the build to
+`quidra_core` and `src/wasm_api.cpp`. That configuration needs no CURL, PNG,
+JPEG, TIFF, WebP, FFmpeg, GPU backend or native runtime, because those belong to
+the generated-program runtime and the CLI rather than to the frontend.
 
 ## Build
 
@@ -886,8 +952,8 @@ Run `quidra` with no arguments from a terminal to start the native REPL. REPL su
 
 ```text
 $ quidra
-Quidra 0.2.0
->>> 1 + 2
+Quidra 0.3.0
+>>> int(1) + 2
 3
 >>> int x = 5
 >>> x
@@ -930,13 +996,13 @@ Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameter
 quidra
 quidra repl
 quidra lsp
-quidra install dnn
-quidra install dnn@0.1.0
+quidra install quidra-dnn
+quidra install quidra-dnn@<release-version>
 quidra install ./my-package
-quidra remove dnn
+quidra remove quidra-dnn
 quidra list
-quidra package-info dnn
-quidra package-info dnn --json
+quidra package-info quidra-dnn
+quidra package-info quidra-dnn --json
 quidra lock program.qui
 quidra lock program.qui --check
 quidra package-path
@@ -960,9 +1026,11 @@ quidra describe
 ```
 
 Released packages are installed from immutable `vMAJOR.MINOR.PATCH` tags, never
-from `main`, `develop`, or another moving branch. A bare first-party package
-name such as `dnn` resolves to `quidra-lang/dnn`; with no version written,
-Quidra chooses the newest released tag compatible with the running compiler.
+from `main`, `develop`, or another moving branch. A canonical first-party
+distribution name such as `quidra-dnn` resolves to `quidra-lang/dnn`; with no
+version written, Quidra chooses the newest released tag compatible with the
+running compiler. The legacy short spelling `dnn` remains accepted as a
+compatibility alias.
 `quidra.package` records the package version and its
 `requires.quidra`/package dependency ranges. Local directory installation and
 `QUIDRA_PACKAGE_PATH` remain available for development.
@@ -1002,7 +1070,7 @@ import plot = plotting
 
 The reserved standard namespaces are `math`, `io`, `cli`, `file`, `environment`, `test`, `time`, `gpu`, `task`, `atomic`, `ref`, `random`, `process`, `map`, `set`, `json`, `http`, `stats`, `linear`, `signal`, `image`, `video`, `tensor`, and `neural`. Only referenced standard implementations are linked into a program. Boolean logic is spelled `and`, `or`, and `not`.
 
-`math` provides `pi`, `e`, `sin`, `cos`, `tan`, `log`, `exp`, `pow`, `trunc`, `round`, `floor`, `ceil`, `is_finite`, and namespaced access to `abs`, `sqrt`, `min`, and `max`. `io.flush()` explicitly flushes standard output. `atomic.counter(initial)` creates an explicit shared `atomic.Counter` with checked atomic `add` and `load` operations for structured task sharing. `ref.Cell<T>` is the explicit opt-in reference-semantic container: copies retain one managed allocation, `.value` is shared, and `.same()` compares allocation identity.
+`math` provides `pi`, `e`, `abs`, `sqrt`, `min`, `max`, `sin`, `cos`, `tan`, `log`, `exp`, `pow`, `trunc`, `round`, `floor`, `ceil`, and `is_finite`; these functions have no bare spellings. `io.flush()` explicitly flushes standard output and returns `void | error`. `atomic.counter(initial)` creates an explicit shared `atomic.Counter` with checked atomic `add` and `load` operations for structured task sharing. `ref.Cell<T>` is the explicit opt-in reference-semantic container: copies retain one managed allocation, `.value` is shared, and `.same()` compares allocation identity.
 
 `task.all(operations)` runs capture-free task functions with bounded workers and waits for all of them to finish. Integer- and floating-result task arrays return results in operation order; the counter overload is the explicit shared-state form.
 
@@ -1101,7 +1169,7 @@ Keys/elements are currently fixed-width integer types, `bigint`, `bool`, or `str
 `json` exposes immutable parsed values without collapsing JSON `null` into Quidra `none`:
 
 ```quidra
-string source = "{{" + quote + "name" + quote + ":" + quote + "Quidra" + quote + "," + quote + "items" + quote + ":[1,2]}}"
+string source = "{{" + QUOTE + "name" + QUOTE + ":" + QUOTE + "Quidra" + QUOTE + "," + QUOTE + "items" + QUOTE + ":[1,2]}}"
 auto parsed = json.parse(source)
 match parsed
     json.Value root

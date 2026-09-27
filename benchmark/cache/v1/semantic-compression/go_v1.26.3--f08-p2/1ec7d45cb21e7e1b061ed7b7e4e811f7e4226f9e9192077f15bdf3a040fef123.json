@@ -1,0 +1,101 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "1ec7d45cb21e7e1b061ed7b7e4e811f7e4226f9e9192077f15bdf3a040fef123",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "88a2506d7346cf8a2eb74d2c58d6635815ee9d19301a374046a4bd9774ad9f34",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/go--f08-p2.json": "5c3094d70676d7e8a54c5ae2bfcf278fd5b9ce45d95bc30195dd0dd231bac6cf"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f08-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--go--f08-p2",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+    "prompt_sha256": "88a2506d7346cf8a2eb74d2c58d6635815ee9d19301a374046a4bd9774ad9f34",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-canonical-fragment--go--f08-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F08.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F08.P2",
+          "fragment": "var q int32\nif b == 0 { q = 0 } else { q = a / b }\nreturn q",
+          "justification": "Rung (ii) used: explicit guard 'if b == 0 { q = 0 } else { q = a / b }', an approved rung in the canonical task's preference order.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F08.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "90e10d9508f221df7457757cec42795d34c440106e5473e9d817a38616974bb9",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Go",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F08.P2",
+        "schema_version": 2,
+        "source_record_sha256": "062a57f5d821c6a23b17a7b67aa5787b34824c7a9b9043b5008c0206cc4c6e3e",
+        "source_result_sha256": "0b7b86c567363edfa4ba4b3b6c2b5c3335e59047d6f7e005797d67987299519d"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f08-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "1f5c045280af7c8d2bc647631b562894c4a359d7da67e767aae72bb42103b824",
+  "schema_version": 1
+}

@@ -1,0 +1,742 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "canonical_fragment_catalog_sha256": "a2ef276c901fd30bdd6ed52b217308bbbc4cdb643be758b4b3e316501a5f6d3f",
+    "post_cleanup_rebind": true,
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "d5eb509c74fce9fea88b530533a351562519c4cbea52c08c55912efbc271558e",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "408f02e12a68ff89ca31e19445437ca120e74089c3935a73da3939d1117c6972",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "eb6479a391dcca58d050516fac0c7859c7d67dc762f7b55561999896e97321ec",
+      "work/audit/semantic-compression/canonical_fragments_swift.json": "a2ef276c901fd30bdd6ed52b217308bbbc4cdb643be758b4b3e316501a5f6d3f"
+    },
+    "requirement_ids": [
+      "metric.capability_efficiency"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--swift",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "canonical_baseline": true,
+    "post_cleanup_rebind": true,
+    "prompt_sha256": "408f02e12a68ff89ca31e19445437ca120e74089c3935a73da3939d1117c6972",
+    "run_id": "2026-09-25-5dc8989-gh25",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-3--swift"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline_equivalence": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "canonical_fragment_catalog_content_sha256": "d3c47541c05c800dc03a6f8dad37b2327d1392d97a5b8f3e26822f99e948b568",
+        "canonical_fragment_catalog_sha256": "a2ef276c901fd30bdd6ed52b217308bbbc4cdb643be758b4b3e316501a5f6d3f",
+        "schema_version": 1
+      },
+      "canonical_fragment_catalog_sha256": "a2ef276c901fd30bdd6ed52b217308bbbc4cdb643be758b4b3e316501a5f6d3f",
+      "metric.capability_efficiency": {
+        "basis": "all-fragments",
+        "basis_size_n_L_swift": 44,
+        "common_basis_note": "Per capability_universe.json interaction_with_quality_metrics, metric E's numerator should ultimately be computed on the COMMON BASIS (probes where all ten languages have a fragment), published alongside the all-fragments basis with each language's fragment count n_L. This shard, covering only Swift, reports the ALL-FRAGMENTS basis (n_L = 43 supported probes out of 44, one PARTIAL is F04.P1 counted as supported at 0.5 weight in the capability sum, F20.P2 similarly PARTIAL) because it has no access to the other nine languages' fragment sets to compute the common basis intersection. The runner must recompute the common-basis figure once all language shards are merged.",
+        "counting_rule_frozen_before_annotation": {
+          "caveat": "This worker did not have live access to the official Swift Programming Language Reference or stdlib documentation pages (packet-only, no network). Counts below are the assessor's structured recollection of documented Swift semantics rather than citations pulled from consulted documentation text at annotation time. Per the frozen rule, an uncited sub-count is not asserted as authoritative '0' anywhere; all sub-counts are recorded as observed integers with this limitation flagged, and a full audit MUST re-verify each row against the official Swift reference before this figure is treated as final evidence.",
+          "context_dependent_rules": "Count of language rules whose interpretation depends on context beyond the immediate token (e.g. definite-assignment analysis, iteration-order being unspecified, COW/value-semantics sharing rules, ARC scoping).",
+          "distinct_syntax_forms": "Count of distinct surface syntactic constructs required to write the measured_fragment for the probe (e.g. a declaration keyword, an operator, a call form) that a reader must recognize to interpret the fragment.",
+          "documented_semantic_exceptions": "Count of documented special-case behaviors that deviate from a general rule (e.g. trap-on-overflow, trap-on-out-of-range-index, must-deallocate exception).",
+          "implicit_rules": "Count of behaviors that occur without an explicit local marker (e.g. implicit type inference, implicit copy-on-write sharing, implicit closure capture)."
+        },
+        "language": "Swift",
+        "limitations_and_required_followup": [
+          "This assessment was produced by a packet-only worker with no network access and no ability to actually build/run Swift code under the frozen toolchain recipe (swiftc -O). Support levels (FULL/PARTIAL/NONE) and complexity sub-counts here are a structured expert estimate based on documented Swift language semantics, not a live V1 (build-and-run) or V2 (validator exercised on known cases) verification as required by pre_measurement_validation.",
+          "Before this figure is published as final Semantic Compression evidence, the fragments listed under fragment_form must be authored in full (with the required wrapper), built and run under the frozen Swift recipe (swiftc -O FILE.swift -o BIN), and the observed output compared against each probe's canonical_task result, per R6 and V1.",
+          "The normalized_0_100 score is a provisional bound-based transform, not a true cross-language normalization, and must be recomputed by the runner once all ten languages have been measured on the same probe basis."
+        ],
+        "methodology_note": "Per spec 6.1.4.E, Capability Efficiency = counted semantic-complexity units required to express/interpret the supported probes, divided by supported capability points (sum of capability_points * support_factor over the 44 fixed probes). Lower raw value is better. This shard covers ONLY Swift; no cross-language min/max was available to this worker, so the 0-100 normalized figure below is a provisional, transparently-bounded self-normalization (documented assumption, NOT a cross-language computation) and MUST be recomputed by the runner once all ten languages' raw efficiency values are aggregated.",
+        "normalization": {
+          "assumed_max_raw": 2.0,
+          "assumed_min_raw": 0.6,
+          "assumed_range_status": "PROVISIONAL: this single-language shard has no visibility into the other nine languages' raw efficiency values, so assumed_min/assumed_max are a documented placeholder bound, not an observed cross-language range. The runner MUST replace this normalization with one computed from all ten languages' raw values once available, per spec 6.1 aggregation rules.",
+          "computed_normalized_score_swift": 75,
+          "rule": "Lower raw complexity-units-per-supported-capability-point is better. Normalized_0_100 = 100 * (assumed_max - raw) / (assumed_max - assumed_min), clipped to [0,100]."
+        },
+        "per_probe_swift": [
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 1,
+              "total": 2
+            },
+            "fragment_form": "func f() -> Int { let n = 7; return n }",
+            "probe_id": "F01.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 2,
+              "implicit": 1,
+              "total": 3
+            },
+            "fragment_form": "var counter: Int64 = 0; let LIMIT: Int64 = 100",
+            "probe_id": "F01.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "var v: Int32; if cond { v = 5 } else { v = 9 }; return v",
+            "probe_id": "F02.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 1,
+              "total": 4
+            },
+            "fragment_form": "UnsafeMutableBufferPointer<UInt8>.allocate(capacity: 16)",
+            "probe_id": "F02.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "x += 1",
+            "probe_id": "F03.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 1,
+              "total": 3
+            },
+            "fragment_form": "xs[1] = 42",
+            "probe_id": "F03.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 1,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 1,
+              "total": 4
+            },
+            "fragment_form": "withUnsafeMutablePointer(to: &slot) { port in port.pointee = 9 }",
+            "letters": [
+              "P-d"
+            ],
+            "probe_id": "F04.P1",
+            "support": "PARTIAL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 1,
+              "total": 3
+            },
+            "fragment_form": "let window = xs[...]; window[0]",
+            "probe_id": "F04.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "first === second",
+            "probe_id": "F04.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 1,
+              "total": 3
+            },
+            "fragment_form": "f(x)",
+            "probe_id": "F05.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "func put(_ v: inout Int32) { v = 12 }; put(&cell)",
+            "probe_id": "F05.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 1,
+              "total": 2
+            },
+            "fragment_form": "func neg(_ a: Int32) -> Int32 { k - a }; xs.map(neg)",
+            "probe_id": "F05.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "func mid(_ xs: [Int]) -> Int { xs[1] }",
+            "probe_id": "F06.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "func divmod2(...) -> (Int32, Int32) { (a/b, a%b) }",
+            "probe_id": "F06.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "let r = a * b + c",
+            "probe_id": "F07.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 1,
+              "total": 3
+            },
+            "fragment_form": "let q = a/b; let m = a%b; let d = Double(a)/Double(b)",
+            "probe_id": "F07.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "let o = m &+ 1",
+            "probe_id": "F08.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 0,
+              "total": 3
+            },
+            "fragment_form": "let q = b == 0 ? 0 : a / b",
+            "probe_id": "F08.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "let eq = s1 == s2",
+            "probe_id": "F09.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "xs.sort(by: >); let lt = a < b",
+            "probe_id": "F09.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "let small = Int32(exactly: big) ?? 0",
+            "probe_id": "F10.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "let sum = Double(i) + d",
+            "probe_id": "F10.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "let e = xs[i]",
+            "probe_id": "F11.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 1,
+              "total": 3
+            },
+            "fragment_form": "let part = xs[1..<4]; part[0]",
+            "probe_id": "F11.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "var o: Int32? = nil; let n = o ?? 0",
+            "probe_id": "F12.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "func h(_ a: Int32) -> Int32 { a+1 }; let p = o.map(h)",
+            "probe_id": "F12.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "guard let v = Int(s) else { throw ParseError.bad }; return v*2",
+            "probe_id": "F13.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "let n = Int(s) ?? 0",
+            "probe_id": "F13.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "enum Shape { case circle(r: Double); case rect(w: Double, h: Double) }",
+            "probe_id": "F14.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "switch s { case .circle(let r): ...; case .rect(let w,let h): ... }",
+            "probe_id": "F14.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "protocol Shape { func area() -> Double }; struct Tri: Shape { ... } (separate file)",
+            "probe_id": "F14.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "func head<T>(_ xs: [T]) -> T { xs[0] }",
+            "probe_id": "F15.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "func max_of<T: Comparable>(_ a: T, _ b: T) -> T { a > b ? a : b }",
+            "probe_id": "F15.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "protocol Named { func tag() -> String }; let items: [any Named] = [A(), B()]; items[0].tag()",
+            "probe_id": "F15.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "let xs = [1,2,3]; let total = xs.reduce(0,+)",
+            "probe_id": "F16.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "let total = mp.values.reduce(0,+); let miss = mp[\"b\", default: 0]",
+            "probe_id": "F16.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "defer { fh.closeFile() }",
+            "probe_id": "F17.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "class Handle { deinit { released += 1 } }",
+            "probe_id": "F17.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "print(\"x\")",
+            "probe_id": "F18.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 0,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 1
+            },
+            "fragment_form": "public func pub_add(...); private func secret() (in util.swift, called from FILE.swift)",
+            "probe_id": "F18.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "async let a = 20; async let b = 22; let sum = await a + await b",
+            "probe_id": "F19.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "actor Counter { var v = 0; func inc() { v += 1 } }",
+            "probe_id": "F19.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 0,
+              "forms": 1,
+              "implicit": 0,
+              "total": 2
+            },
+            "fragment_form": "import Glibc; abs(-3)",
+            "probe_id": "F20.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 1,
+            "capability_points": 2,
+            "complexity": {
+              "context": 1,
+              "exceptions": 1,
+              "forms": 1,
+              "implicit": 1,
+              "total": 4
+            },
+            "fragment_form": "@_cdecl(\"add2\") func add2(_ a: Int32, _ b: Int32) -> Int32 { a + b }",
+            "letters": [
+              "P-d"
+            ],
+            "probe_id": "F20.P2",
+            "support": "PARTIAL"
+          }
+        ],
+        "sums": {
+          "capability_coverage_C_percent_swift": 97.7,
+          "raw_capability_efficiency_units_per_supported_point": 0.953,
+          "supported_capability_points_awarded": 86,
+          "total_complexity_units_over_supported_probes": 82,
+          "total_fixed_capability_points_denominator": 88
+        }
+      }
+    },
+    "requirements": {
+      "metric.capability_efficiency": {
+        "Swift": 75
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "0a825600ec3d51f4868745d5655c8599ab77f041c481e66fa17af69489f85f0f",
+  "schema_version": 1
+}

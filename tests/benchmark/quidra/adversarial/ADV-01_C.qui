@@ -1,0 +1,8 @@
+print("ADV-START")
+io.flush()
+int a = 9223372036854775807
+int32 v = int32(a)
+print("OBS=V:{v}")
+io.flush()
+print("ADV-END")
+io.flush()

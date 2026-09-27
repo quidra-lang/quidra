@@ -7,6 +7,7 @@ This is the authoritative detailed specification for **Primary Evaluation 3 — 
 The deterministic runner assigns these IDs to frozen work units before measurement. Across non-aggregation work units, every ID below must be covered by the current run plan. These IDs are orchestration metadata; they do not change the scoring definition.
 
 - `coverage.all_10_languages`
+- `gate.quidra_programs_current`
 - `metric.native_execution_performance`
 - `metric.long_running_performance`
 - `metric.compile_build_performance`
@@ -132,6 +133,19 @@ Source size and artifact size must remain separate metrics.
 - FFI / Interoperability Design
 - Concurrency
 
+These eight **Language / Development** metrics use the frozen
+`methodology-assets/language_quality/design_rubrics.json` contract. Each metric
+has exactly five equally weighted components and fixed levels 0..4. The
+language-scoped worker performs only the semantic judgment: it assigns one
+frozen level per component and cites existing frozen `repo/...` or
+`template/...` evidence. The trusted runner owns all arithmetic, maps levels
+to 0/5/10/15/20 points, sums the five components to the normalized 0–100
+metric score, and overwrites any worker-supplied numeric score. The rubric set
+is mechanically validated by `gate.language_quality_design_rubrics_frozen`
+before any of these judgment workers may run. External ecosystem maturity,
+popularity and live web evidence are forbidden here and belong exclusively to
+Primary Evaluation 4.
+
 ## Safety / Robustness
 
 - Type Safety
@@ -211,7 +225,7 @@ Measure:
 - Startup Time
 - Binary Size
 
-Quidra contributes exactly one scored execution configuration: the compiled/native program produced from the evaluated commit. Current Quidra program sources are authored for that commit, while repeatable build, correctness, timing, memory, and size measurements are runner-owned.
+Quidra contributes exactly one scored execution configuration: the compiled/native program produced from the evaluated commit. Quidra's program sources are maintained inside the evaluated snapshot (`tests/benchmark/quidra`), together with the compiler that runs them, and the deterministic runner re-audits them against that commit's compiler before any measurement (`gate.quidra_programs_current`): every program must build, run, match the frozen oracle and honour the frozen representation pins. A stale or missing program is an authoring/infrastructure blocker, never a language score. Repeatable build, correctness, timing, memory, and size measurements are runner-owned.
 
 ---
 

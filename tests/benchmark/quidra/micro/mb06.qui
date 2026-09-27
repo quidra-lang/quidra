@@ -1,0 +1,73 @@
+// MB-06 - Matrix multiplication: classical i-j-k order over flat row-major storage.
+// Methodology 06 section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K.
+cli args
+    string mode = argument(default = "once")
+    int iterations = argument(default = 7)
+
+// Lehmer / MINSTD generator, frozen for every language in the suite.
+class Lcg
+    int state
+
+    construct(int seed)
+        state = seed
+
+    int next_int()
+        state = (48271 * state) % 2147483647
+        return state
+
+    float next_unit()
+        return float(next_int()) / 2147483647.0
+
+class Result
+    float sum_c
+    float c_first
+    float c_last
+
+// The whole workload body, generation included (methodology 06 section 4, MB-06).
+Result workload()
+    int n = 512
+    int rounds = 3
+    Lcg g = Lcg(20266917)
+    float[] a = array(n * n, fill = 0.0)
+    float[] b = array(n * n, fill = 0.0)
+    float[] c = array(n * n, fill = 0.0)
+    for i in range(n * n)
+        a[i] = g.next_unit()
+    for i in range(n * n)
+        b[i] = g.next_unit()
+    for r in range(rounds)
+        a[r] = a[r] + 1.0e-9
+        for i in range(n)
+            for j in range(n)
+                float s = 0.0
+                for k in range(n)
+                    s = s + a[i * n + k] * b[k * n + j]
+                c[i * n + j] = s
+    float sum_c = 0.0
+    for i in range(n * n)
+        sum_c = sum_c + c[i]
+    Result result
+    result.sum_c = sum_c
+    result.c_first = c[0]
+    result.c_last = c[n * n - 1]
+    return result
+
+Result timed(int index)
+    time.Instant start = time.now()
+    Result result = workload()
+    time.Duration elapsed = time.since(start)
+    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    print("ITER {index} {elapsed_ns}")
+    io.flush()
+    return result
+
+Result result
+if args.mode == "steady"
+    int k = math.max(args.iterations, 1)
+    result = timed(0)
+    for i in range(1, k)
+        result = timed(i)
+else
+    result = workload()
+
+print("MB06 sumC={result.sum_c:sig=17} c_first={result.c_first:sig=17} c_last={result.c_last:sig=17}")

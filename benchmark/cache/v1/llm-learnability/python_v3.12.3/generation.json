@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "language": "Python",
+  "version": "3.12.3",
+  "generation_id": "python_v3.12.3",
+  "language_id": "python_v3.12.3",
+  "version_source": "benchmark/config.json",
+  "evaluation": "llm_learnability",
+  "source_run_id": "2026-09-25-5dc8989-gh25",
+  "source_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+  "primary_score": 98.02499999999999,
+  "normalized_metric_scores": {
+    "condition.i1_keyword_anonymization": 100,
+    "condition.i2_vocabulary_anonymization": 100,
+    "condition.i3_structural_surface_perturbation": 100,
+    "condition.i4_novel_rule_generalization": 100,
+    "condition.i5_held_out_rule_composition": 91.5,
+    "condition.i6_prior_conflict_resistance": 93
+  },
+  "normalization_raw": {}
+}

@@ -7,6 +7,7 @@
         "gate.capability_universe",
         "gate.semantic_site_matrix",
         "gate.matrix_validator",
+        "gate.semantic_premeasurement_validation",
         "gate.comparability_audit",
         "coverage.all_frozen_probes",
         "metric.semantic_density",
@@ -33,6 +34,8 @@
     "language_quality": {
       "required": [
         "coverage.all_10_languages",
+        "gate.language_quality_design_rubrics_frozen",
+        "gate.quidra_programs_current",
         "metric.native_execution_performance",
         "metric.long_running_performance",
         "metric.compile_build_performance",
@@ -87,6 +90,7 @@
         "gate.fixed_model_configuration",
         "gate.prompt_preservation",
         "coverage.all_10_languages",
+        "gate.proficiency_workload_contract",
         "metric.generation_success_rate",
         "metric.compile_parse_success_rate",
         "metric.correct_at_1",

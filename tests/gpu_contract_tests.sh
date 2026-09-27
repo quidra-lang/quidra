@@ -524,11 +524,8 @@ cat > "$TMP/gpu-autograd-fanin.qui" <<'QUI'
 class Model
     neural.Parameter<float32> value
 
-Model model = Model(
-    value = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1], gpu = 0)
-    )
-)
+Model model
+model.value = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) )
 neural<float32> first_track = model.value.track()
 neural<float32> second_track = model.value.track()
 neural<float32> first = first_track * first_track
@@ -549,14 +546,9 @@ class DivModel
     neural.Parameter<float32> left
     neural.Parameter<float32> right
 
-DivModel model = DivModel(
-    left = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1], gpu = 0) * float32(2)
-    ),
-    right = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1], gpu = 0) * float32(4)
-    )
-)
+DivModel model
+model.left = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(2) )
+model.right = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(4) )
 neural<float32> quotient = model.left.track() / model.right.track()
 neural<float32> loss = neural.mean(quotient)
 neural.Gradients gradients = neural.grad(loss)
@@ -578,11 +570,8 @@ cat > "$TMP/gpu-autograd-scalar.qui" <<'QUI'
 class ScalarModel
     neural.Parameter<float32> value
 
-ScalarModel model = ScalarModel(
-    value = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1], gpu = 0) * float32(2)
-    )
-)
+ScalarModel model
+model.value = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(2) )
 neural<float32> x = model.value.track()
 neural<float32> transformed = (float32(5) - x * float32(3)) / float32(2)
 neural<float32> reciprocal = float32(8) / x

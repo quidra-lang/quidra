@@ -1,0 +1,8 @@
+print("ADV-START")
+io.flush()
+string | none text = none
+int length = len(text)
+print("OBS=LEN:{length}")
+io.flush()
+print("ADV-END")
+io.flush()

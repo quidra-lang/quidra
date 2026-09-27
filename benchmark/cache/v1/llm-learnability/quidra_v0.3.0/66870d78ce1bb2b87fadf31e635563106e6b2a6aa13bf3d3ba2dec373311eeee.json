@@ -1,0 +1,176 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "cap_truncated_trial_calls": 0,
+    "current_validator_revalidated": true,
+    "learnability_integrity": true,
+    "max_trial_output_tokens": 83,
+    "primary_complete": true,
+    "scored_output_cap": 16384,
+    "trial_calls": 3,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "081e7730e2e89159d53751326e2b7f850ffc134b",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "563853d9cc14d422f50ba5d56ff7f8802a46a1e0",
+        "project.toml": "bb477b1aeee2236d3efacb614deb748a42901e73",
+        "quidra.manifest.json": "76b9b1e0c57c8d5c90c1cdce191b8633991b290a",
+        "src": "e3895d804d41a29ad1d7edcf5b02f73e14f81176"
+      },
+      "schema_version": 1,
+      "sha256": "bb59b233ed3f4c3b7c4a36746886fb34f879ffe1f83960155881066a59553e4b"
+    }
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "66870d78ce1bb2b87fadf31e635563106e6b2a6aa13bf3d3ba2dec373311eeee",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "13da91023d35d8531ffc1e058df6bb5b866ec686fa47721b11792b6ff2fe9bb7",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "f9359a7a5191b1ea0cdb787f8dd6c9d73c5dc38c6f068ef8f37564fea74a6297"
+    },
+    "requirement_ids": [
+      "condition.i3_structural_surface_perturbation",
+      "condition.i4_novel_rule_generalization"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "b8552e335eda6498e056e46f0e2a813db8f689c28ae25012c2629680c523d44f",
+      "primary_config": "537d069f552add2314ebd16ab8c0566487c08e12dbb0ff0be7f38235d57b509f"
+    },
+    "work_unit_id": "learnability-i3-i4--quidra",
+    "worker_mode": "sandbox-agent"
+  },
+  "language_generations": {
+    "Quidra": {
+      "generation_id": "quidra_v0.3.0",
+      "id": "quidra",
+      "language": "Quidra",
+      "version": "0.3.0",
+      "version_source": "project.toml:[project].version"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "13da91023d35d8531ffc1e058df6bb5b866ec686fa47721b11792b6ff2fe9bb7",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "learnability-i3-i4--quidra"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "i3_structural_surface_perturbation": {
+        "max": 100,
+        "mean": 100,
+        "min": 100,
+        "notes": "Both independently generated transformation sets were followed correctly on the first attempt (Correct@1) with mechanical reverse-mapping and quidra run verification of unchanged semantics; primary score computed as mean over the two predeclared transformation sets per methodology aggregation rule.",
+        "seed_scores": [
+          100,
+          100
+        ],
+        "stddev": 0,
+        "transformation_budget": "3 reversible surface substitutions per set (call-argument separator, call-argument grouping delimiter, one operator spelling), matched across sets",
+        "transformation_sets_used_for_primary": 2,
+        "trials": [
+          {
+            "completion_path": "trials/i3-t1/completion_01.txt",
+            "correct_at_1": true,
+            "expected_stdout": "25",
+            "prompt_path": "trials/i3-t1/prompt_01.txt",
+            "quidra_check": "pass (implied by successful run; program compiled and executed)",
+            "quidra_run_stdout": "25",
+            "reverse_mapped_file": "i3-t1-stripped.qui",
+            "set": "A (seed=1)",
+            "trial_id": "i3-t1"
+          },
+          {
+            "completion_path": "trials/i3-t2/completion_01.txt",
+            "correct_at_1": true,
+            "expected_stdout": "1\n0\n",
+            "prompt_path": "trials/i3-t2/prompt_01.txt",
+            "quidra_run_stdout": "1\n0\n",
+            "reverse_mapped_file": "i3-t2-stripped.qui",
+            "set": "B (seed=2)",
+            "trial_id": "i3-t2"
+          }
+        ]
+      },
+      "i4_novel_rule_generalization": {
+        "max": 100,
+        "mean": 100,
+        "min": 100,
+        "notes": "Single primary trial (novel_rule_generalization_trials_per_language=1 per primary.json) applied the synthetic overlay rule correctly on first attempt; mechanical validation before stripping confirmed correct application, and post-strip semantics matched baseline behavior exactly.",
+        "rule_sets_used": 1,
+        "seed_scores": [
+          100
+        ],
+        "stddev": 0,
+        "trials": [
+          {
+            "completion_path": "trials/i4-t1/completion_01.txt",
+            "correct_at_1": true,
+            "expected_stdout": "5\n100\n",
+            "mechanical_validation": "reassigned binding 'total_mut' correctly suffixed; non-reassigned binding 'threshold' correctly unsuffixed; validated by static scan per reference pack protocol",
+            "prompt_path": "trials/i4-t1/prompt_01.txt",
+            "quidra_run_stdout": "5\n100\n",
+            "reverse_mapped_file": "i4-t1-stripped.qui",
+            "rule": "R1 mutability marker rule (synthetic overlay, described only in reference_pack/i4_novel_rule_generalization.md)",
+            "trial_id": "i4-t1"
+          }
+        ],
+        "trials_per_language": 1
+      },
+      "leakage_file": "learnability_leakage.json",
+      "methodology_note": "Condition Task Effectiveness Score components (Compile/Parse Success, Correct@1, Test Pass Rate, Specification Compliance, Silent Bug Resistance) all evaluate to full pass given first-attempt correct completions verified by direct quidra toolchain invocation; no repairs were required (max_repair_turns budget of 3 unused). Aggregate condition score reported as mean over predeclared primary replications (2 sets for I3, 1 trial for I4), consistent with llm_learnability.aggregation = mean_over_predeclared_replications in primary.json.",
+      "preflight_file": "learnability_preflight.json",
+      "reference_packs": [
+        "reference_pack/i3_structural_surface_perturbation.md",
+        "reference_pack/i4_novel_rule_generalization.md"
+      ],
+      "toolchain_evidence": {
+        "baseline_fixture_check_and_run": "fixtures/i3_baseline.qui checked (quidra check --json: ok:true) and run (quidra run: stdout '5')",
+        "direct_run_action": "quidra --version -> exit 0, stdout 'quidra 0.3.0'"
+      }
+    },
+    "requirements": {
+      "condition.i3_structural_surface_perturbation": {
+        "Quidra": 100
+      },
+      "condition.i4_novel_rule_generalization": {
+        "Quidra": 100
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "a5cfc39c8767de92c07d1005db644ef653cec39fe7c793f51486ce994e753631",
+  "schema_version": 1
+}

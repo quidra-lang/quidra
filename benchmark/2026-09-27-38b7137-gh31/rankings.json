@@ -1,0 +1,362 @@
+{
+  "language_counts": {
+    "ecosystem": 10,
+    "language_quality": 10,
+    "llm_learnability": 10,
+    "llm_proficiency": 10,
+    "semantic_compression": 10
+  },
+  "ranking_basis": {
+    "ecosystem": {
+      "interpretation": "descriptive ranking of the frozen Primary sample; it does not claim statistical superiority beyond the measured sample",
+      "precision_decimals": 2,
+      "tie_policy": "competition rank on published score"
+    },
+    "language_quality": {
+      "interpretation": "descriptive ranking of the frozen Primary sample; it does not claim statistical superiority beyond the measured sample",
+      "precision_decimals": 2,
+      "tie_policy": "competition rank on published score"
+    },
+    "llm_learnability": {
+      "interpretation": "descriptive ranking of the frozen Primary sample; it does not claim statistical superiority beyond the measured sample",
+      "precision_decimals": 2,
+      "tie_policy": "competition rank on published score"
+    },
+    "llm_proficiency": {
+      "interpretation": "descriptive ranking of the frozen Primary sample; it does not claim statistical superiority beyond the measured sample",
+      "precision_decimals": 2,
+      "tie_policy": "competition rank on published score"
+    },
+    "semantic_compression": {
+      "interpretation": "descriptive ranking of the frozen Primary sample; it does not claim statistical superiority beyond the measured sample",
+      "precision_decimals": 2,
+      "tie_policy": "competition rank on published score"
+    }
+  },
+  "rankings": {
+    "ecosystem": [
+      {
+        "language": "java_v26.0.1",
+        "rank": 1,
+        "score": 99.25
+      },
+      {
+        "language": "typescript_v7.0.2",
+        "rank": 2,
+        "score": 98.5
+      },
+      {
+        "language": "python_v3.12.3",
+        "rank": 3,
+        "score": 98.25
+      },
+      {
+        "language": "kotlin_v2.3.21",
+        "rank": 4,
+        "score": 97.75
+      },
+      {
+        "language": "go_v1.26.3",
+        "rank": 5,
+        "score": 97.5
+      },
+      {
+        "language": "rust_v1.95.0",
+        "rank": 5,
+        "score": 97.5
+      },
+      {
+        "language": "cpp_v18.1.3",
+        "rank": 7,
+        "score": 96.25
+      },
+      {
+        "language": "swift_v6.2.3",
+        "rank": 8,
+        "score": 91.0
+      },
+      {
+        "language": "zig_v0.16.0",
+        "rank": 9,
+        "score": 66.5
+      },
+      {
+        "language": "quidra_v0.3.0",
+        "rank": 10,
+        "score": 32.5
+      }
+    ],
+    "language_quality": [
+      {
+        "language": "rust_v1.95.0",
+        "rank": 1,
+        "score": 72.24
+      },
+      {
+        "language": "go_v1.26.3",
+        "rank": 2,
+        "score": 67.22
+      },
+      {
+        "language": "zig_v0.16.0",
+        "rank": 3,
+        "score": 66.76
+      },
+      {
+        "language": "quidra_v0.3.0",
+        "rank": 4,
+        "score": 66.13
+      },
+      {
+        "language": "python_v3.12.3",
+        "rank": 5,
+        "score": 64.4
+      },
+      {
+        "language": "swift_v6.2.3",
+        "rank": 6,
+        "score": 63.64
+      },
+      {
+        "language": "java_v26.0.1",
+        "rank": 7,
+        "score": 58.77
+      },
+      {
+        "language": "kotlin_v2.3.21",
+        "rank": 8,
+        "score": 56.95
+      },
+      {
+        "language": "cpp_v18.1.3",
+        "rank": 9,
+        "score": 51.32
+      },
+      {
+        "language": "typescript_v7.0.2",
+        "rank": 10,
+        "score": 46.72
+      }
+    ],
+    "llm_learnability": [
+      {
+        "language": "swift_v6.2.3",
+        "rank": 1,
+        "score": 100.0
+      },
+      {
+        "language": "typescript_v7.0.2",
+        "rank": 2,
+        "score": 99.1
+      },
+      {
+        "language": "rust_v1.95.0",
+        "rank": 3,
+        "score": 98.4
+      },
+      {
+        "language": "python_v3.12.3",
+        "rank": 4,
+        "score": 98.02
+      },
+      {
+        "language": "java_v26.0.1",
+        "rank": 5,
+        "score": 97.8
+      },
+      {
+        "language": "kotlin_v2.3.21",
+        "rank": 6,
+        "score": 97.6
+      },
+      {
+        "language": "cpp_v18.1.3",
+        "rank": 7,
+        "score": 97.5
+      },
+      {
+        "language": "go_v1.26.3",
+        "rank": 8,
+        "score": 91.58
+      },
+      {
+        "language": "zig_v0.16.0",
+        "rank": 9,
+        "score": 81.67
+      },
+      {
+        "language": "quidra_v0.3.0",
+        "rank": 10,
+        "score": 71.97
+      }
+    ],
+    "llm_proficiency": [
+      {
+        "language": "python_v3.12.3",
+        "rank": 1,
+        "score": 88.68
+      },
+      {
+        "language": "rust_v1.95.0",
+        "rank": 2,
+        "score": 85.28
+      },
+      {
+        "language": "go_v1.26.3",
+        "rank": 3,
+        "score": 82.57
+      },
+      {
+        "language": "cpp_v18.1.3",
+        "rank": 4,
+        "score": 76.48
+      },
+      {
+        "language": "kotlin_v2.3.21",
+        "rank": 5,
+        "score": 74.01
+      },
+      {
+        "language": "java_v26.0.1",
+        "rank": 6,
+        "score": 72.02
+      },
+      {
+        "language": "swift_v6.2.3",
+        "rank": 7,
+        "score": 64.78
+      },
+      {
+        "language": "typescript_v7.0.2",
+        "rank": 8,
+        "score": 30.99
+      },
+      {
+        "language": "zig_v0.16.0",
+        "rank": 9,
+        "score": 5.24
+      },
+      {
+        "language": "quidra_v0.3.0",
+        "rank": 10,
+        "score": 4.91
+      }
+    ],
+    "semantic_compression": [
+      {
+        "language": "zig_v0.16.0",
+        "rank": 1,
+        "score": 78.48
+      },
+      {
+        "language": "quidra_v0.3.0",
+        "rank": 2,
+        "score": 77.52
+      },
+      {
+        "language": "swift_v6.2.3",
+        "rank": 3,
+        "score": 77.34
+      },
+      {
+        "language": "go_v1.26.3",
+        "rank": 4,
+        "score": 72.08
+      },
+      {
+        "language": "kotlin_v2.3.21",
+        "rank": 5,
+        "score": 69.24
+      },
+      {
+        "language": "rust_v1.95.0",
+        "rank": 6,
+        "score": 67.91
+      },
+      {
+        "language": "java_v26.0.1",
+        "rank": 7,
+        "score": 53.48
+      },
+      {
+        "language": "typescript_v7.0.2",
+        "rank": 8,
+        "score": 48.19
+      },
+      {
+        "language": "python_v3.12.3",
+        "rank": 9,
+        "score": 46.99
+      },
+      {
+        "language": "cpp_v18.1.3",
+        "rank": 10,
+        "score": 20.38
+      }
+    ]
+  },
+  "run_id": "2026-09-27-38b7137-gh31",
+  "schema_version": 1,
+  "scores": {
+    "ecosystem": {
+      "cpp_v18.1.3": 96.25,
+      "go_v1.26.3": 97.5,
+      "java_v26.0.1": 99.25,
+      "kotlin_v2.3.21": 97.75,
+      "python_v3.12.3": 98.25,
+      "quidra_v0.3.0": 32.5,
+      "rust_v1.95.0": 97.5,
+      "swift_v6.2.3": 91.0,
+      "typescript_v7.0.2": 98.5,
+      "zig_v0.16.0": 66.5
+    },
+    "language_quality": {
+      "cpp_v18.1.3": 51.320820186391,
+      "go_v1.26.3": 67.22157728292946,
+      "java_v26.0.1": 58.765173938390916,
+      "kotlin_v2.3.21": 56.94819491778603,
+      "python_v3.12.3": 64.40178735946432,
+      "quidra_v0.3.0": 66.13439696794185,
+      "rust_v1.95.0": 72.2403610054183,
+      "swift_v6.2.3": 63.64485712212921,
+      "typescript_v7.0.2": 46.723465068899664,
+      "zig_v0.16.0": 66.76257680783553
+    },
+    "llm_learnability": {
+      "cpp_v18.1.3": 97.50000000000001,
+      "go_v1.26.3": 91.584,
+      "java_v26.0.1": 97.8,
+      "kotlin_v2.3.21": 97.60000000000001,
+      "python_v3.12.3": 98.02499999999999,
+      "quidra_v0.3.0": 71.966,
+      "rust_v1.95.0": 98.4,
+      "swift_v6.2.3": 100.0,
+      "typescript_v7.0.2": 99.10000000000001,
+      "zig_v0.16.0": 81.668
+    },
+    "llm_proficiency": {
+      "cpp_v18.1.3": 76.47798440774416,
+      "go_v1.26.3": 82.57181569726356,
+      "java_v26.0.1": 72.02182160228726,
+      "kotlin_v2.3.21": 74.01315823895776,
+      "python_v3.12.3": 88.67695764828265,
+      "quidra_v0.3.0": 4.906549202269298,
+      "rust_v1.95.0": 85.27887844965609,
+      "swift_v6.2.3": 64.77992729477317,
+      "typescript_v7.0.2": 30.99066744986877,
+      "zig_v0.16.0": 5.2380495418514155
+    },
+    "semantic_compression": {
+      "cpp_v18.1.3": 20.379131468284033,
+      "go_v1.26.3": 72.08001380940367,
+      "java_v26.0.1": 53.48128701647593,
+      "kotlin_v2.3.21": 69.23975861928048,
+      "python_v3.12.3": 46.991189076973654,
+      "quidra_v0.3.0": 77.52310146325776,
+      "rust_v1.95.0": 67.90867954601302,
+      "swift_v6.2.3": 77.34366141184545,
+      "typescript_v7.0.2": 48.191614989179804,
+      "zig_v0.16.0": 78.47945837680206
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 5211,
+      "kind": "embedded:worker_core.md",
+      "sha256": "7536c2bff320857ff700a3345df7e62205d6fe47aafb8f0df2e402a08f19a6cb"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 41045,
+      "kind": "task-input:work/root/semantic-probes/python--f06-p2.json",
+      "sha256": "54b2d0b17291c446c8ddfe6a9714ef4f42ce5e54b09e8bf12fbf0cef60e20b60"
+    },
+    {
+      "bytes": 3872,
+      "kind": "task",
+      "sha256": "25c4671587d475072406048f9afbbbc6d02efbb51e9bd8ace3d1e2dda30bc46c"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "8b1dc6cbe9b06665c5c3c1c9a32cd9b736cf6d5ff3f6587282fcd86b5ede830b"
+    }
+  ],
+  "prompt_sha256": "241751722c9a5064844dfc375497ee741decdbd359bd255e95b79e3bcb903050",
+  "rendered_bytes": 62181,
+  "schema_version": 1
+}

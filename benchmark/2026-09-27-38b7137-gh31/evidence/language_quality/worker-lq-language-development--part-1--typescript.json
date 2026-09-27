@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-1--typescript",
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "TypeScript",
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "abstraction_ceremony": 3,
+            "control_data_ceremony": 4,
+            "declaration_ceremony": 4,
+            "error_resource_ceremony": 3,
+            "semantic_work_ratio": 4
+          },
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.conciseness.v1",
+          "score_0_100": 90
+        },
+        "metric.readability": {
+          "component_levels": {
+            "consistency_regular_forms": 3,
+            "control_effect_traceability": 2,
+            "local_intent_visibility": 3,
+            "name_type_signal": 3,
+            "structural_clarity": 4
+          },
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.readability.v1",
+          "score_0_100": 75
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.code_efficiency_conciseness": {
+      "component_findings": {
+        "abstraction_ceremony": "Recertified level 3 under the current criterion: Reusable abstractions such as types, interfaces/traits/generics or equivalent mechanisms can be declared and consumed without excessive scaffolding. Evidence basis: TypeScript | Static source inspection of assigned readable programs (template/programs/typescript/micro and adversarial) under frozen workload definitions. No execution/runtime timing performed by this worker; conciseness scored from source-level expressiveness per unit of semantic work, following language_quality.md fairness rules (idiomatic, non-degraded code; no algorithm substitution). | MB03 (integer arithmetic mix) implemented in 61 lines including required boilerplate (declare const process/require shims needed because the frozen build compiles a single .ts file without @types/node). The core workload() function is 16 lines and directly expresses the five pinned arithmetic operations with no extra scaffolding. | TypeScript's structural typing, arrow functions, template literals, and interface destructuring keep per-operation code compact; modular reduction and floor-division expressed as single-line arithmetic without explicit casts since values stay within the safe integer range (< 2^53). | Ambient declarations for process/require (~10 lines) are an artifact of the frozen no-@types/node build recipe, not a language conciseness deficiency; identical overhead appears across all TS micro-benchmarks reviewed (mb00-mb11). | Adversarial corpus (ADV-01..26) is terse and idiomatic: most single-concept adversarial cases are under 20 lines (e.g. ADV-02_C.ts at 137 bytes), consist\u2026",
+        "control_data_ceremony": "Recertified level 4 under the current criterion: Common control flow and collection/data manipulation avoid repetitive structural ceremony unrelated to the algorithm. Evidence basis: TypeScript | Static source inspection of assigned readable programs (template/programs/typescript/micro and adversarial) under frozen workload definitions. No execution/runtime timing performed by this worker; conciseness scored from source-level expressiveness per unit of semantic work, following language_quality.md fairness rules (idiomatic, non-degraded code; no algorithm substitution). | MB03 (integer arithmetic mix) implemented in 61 lines including required boilerplate (declare const process/require shims needed because the frozen build compiles a single .ts file without @types/node). The core workload() function is 16 lines and directly expresses the five pinned arithmetic operations with no extra scaffolding. | TypeScript's structural typing, arrow functions, template literals, and interface destructuring keep per-operation code compact; modular reduction and floor-division expressed as single-line arithmetic without explicit casts since values stay within the safe integer range (< 2^53). | Ambient declarations for process/require (~10 lines) are an artifact of the frozen no-@types/node build recipe, not a language conciseness deficiency; identical overhead appears across all TS micro-benchmarks reviewed (mb00-mb11). | Adversarial corpus (ADV-01..26) is terse and idiomatic: most single-concept adversarial cases are under 20 lines (e.g. ADV-02_C.ts at 137 bytes), consist\u2026",
+        "declaration_ceremony": "Recertified level 4 under the current criterion: Routine variables, functions, parameters and returns can be expressed without disproportionate mandatory boilerplate. Evidence basis: TypeScript | Static source inspection of assigned readable programs (template/programs/typescript/micro and adversarial) under frozen workload definitions. No execution/runtime timing performed by this worker; conciseness scored from source-level expressiveness per unit of semantic work, following language_quality.md fairness rules (idiomatic, non-degraded code; no algorithm substitution). | MB03 (integer arithmetic mix) implemented in 61 lines including required boilerplate (declare const process/require shims needed because the frozen build compiles a single .ts file without @types/node). The core workload() function is 16 lines and directly expresses the five pinned arithmetic operations with no extra scaffolding. | TypeScript's structural typing, arrow functions, template literals, and interface destructuring keep per-operation code compact; modular reduction and floor-division expressed as single-line arithmetic without explicit casts since values stay within the safe integer range (< 2^53). | Ambient declarations for process/require (~10 lines) are an artifact of the frozen no-@types/node build recipe, not a language conciseness deficiency; identical overhead appears across all TS micro-benchmarks reviewed (mb00-mb11). | Adversarial corpus (ADV-01..26) is terse and idiomatic: most single-concept adversarial cases are under 20 lines (e.g. ADV-02_C.ts at 137 bytes), consist\u2026",
+        "error_resource_ceremony": "Recertified level 3 under the current criterion: Ordinary error/resource handling expresses intent without pervasive mandatory boilerplate while retaining clear semantics. Evidence basis: TypeScript | Static source inspection of assigned readable programs (template/programs/typescript/micro and adversarial) under frozen workload definitions. No execution/runtime timing performed by this worker; conciseness scored from source-level expressiveness per unit of semantic work, following language_quality.md fairness rules (idiomatic, non-degraded code; no algorithm substitution). | MB03 (integer arithmetic mix) implemented in 61 lines including required boilerplate (declare const process/require shims needed because the frozen build compiles a single .ts file without @types/node). The core workload() function is 16 lines and directly expresses the five pinned arithmetic operations with no extra scaffolding. | TypeScript's structural typing, arrow functions, template literals, and interface destructuring keep per-operation code compact; modular reduction and floor-division expressed as single-line arithmetic without explicit casts since values stay within the safe integer range (< 2^53). | Ambient declarations for process/require (~10 lines) are an artifact of the frozen no-@types/node build recipe, not a language conciseness deficiency; identical overhead appears across all TS micro-benchmarks reviewed (mb00-mb11). | Adversarial corpus (ADV-01..26) is terse and idiomatic: most single-concept adversarial cases are under 20 lines (e.g. ADV-02_C.ts at 137 bytes), consist\u2026",
+        "semantic_work_ratio": "Recertified level 4 under the current criterion: Idiomatic source spends most syntax on domain/algorithm meaning rather than language-mandated plumbing; this is a qualitative ceremony judgment, not a second source-size measurement. Evidence basis: TypeScript | Static source inspection of assigned readable programs (template/programs/typescript/micro and adversarial) under frozen workload definitions. No execution/runtime timing performed by this worker; conciseness scored from source-level expressiveness per unit of semantic work, following language_quality.md fairness rules (idiomatic, non-degraded code; no algorithm substitution). | MB03 (integer arithmetic mix) implemented in 61 lines including required boilerplate (declare const process/require shims needed because the frozen build compiles a single .ts file without @types/node). The core workload() function is 16 lines and directly expresses the five pinned arithmetic operations with no extra scaffolding. | TypeScript's structural typing, arrow functions, template literals, and interface destructuring keep per-operation code compact; modular reduction and floor-division expressed as single-line arithmetic without explicit casts since values stay within the safe integer range (< 2^53). | Ambient declarations for process/require (~10 lines) are an artifact of the frozen no-@types/node build recipe, not a language conciseness deficiency; identical overhead appears across all TS micro-benchmarks reviewed (mb00-mb11). | Adversarial corpus (ADV-01..26) is terse and idiomatic: most single-concept adversarial cases are under 20 lines (e.g. ADV-02_C.ts at 137 bytes), consist\u2026"
+      },
+      "component_levels": {
+        "abstraction_ceremony": 3,
+        "control_data_ceremony": 4,
+        "declaration_ceremony": 4,
+        "error_resource_ceremony": 3,
+        "semantic_work_ratio": 4
+      },
+      "evidence_refs": [
+        "template/programs/typescript/micro",
+        "template/programs/typescript/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 78,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "7860492ae0f83e6d210a4e60a526ecc1ae252a004bb1ab69a0705a3c7bd979ca",
+        "source_record": "benchmark/cache/v1/language-quality/typescript/a87c32edf6fea5c314acade72264308af72228ab89f9fcd1b1eee4b62073b75a.json",
+        "source_record_sha256": "259ba72a79763426614f0dfab9b7c2ff6903b551b2f41d646007998e261892fa",
+        "source_result_sha256": "3eaf52d2899c38ba603b866fe038b30ed7cc502a732b042decb6a123076a8c6d",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.conciseness.v1",
+      "runner_score_0_100": 90,
+      "selection_rule": "Judge intrinsic mandatory ceremony for the same kinds of ordinary programs. Do not reuse raw LOC/bytes/tokens as the score and do not reward external libraries."
+    },
+    "metric.readability": {
+      "component_findings": {
+        "consistency_regular_forms": "Recertified level 3 under the current criterion: Similar concepts use regular forms with few special-case spellings or context-dependent surface rules. Evidence basis: TypeScript | Static source inspection of the same corpus; readability scored on naming clarity, structural decomposition, comment/documentation practice, and syntactic clarity of control flow, per language_quality.md guidance to use idiomatic, production-reasonable style. | Workload files (mb00-mb11) carry frozen-spec header comments citing the exact methodology section and pinned constants, plus explanatory comments for non-obvious representability/precision reasoning (e.g. mb03.ts explains why plain number is exact and why 32-bit XOR semantics hold) -- exemplary self-documenting style enabled by TS comment conventions. | Function decomposition is clean: workload() isolates pure computation from main()'s I/O/mode-handling concerns, aided by TypeScript interfaces (Mb03Result) giving named, self-describing return shapes instead of anonymous tuples/arrays -- a readability advantage over languages lacking structural return types. | Control flow is linear and idiomatic (for-loops, no clever bit tricks substituted for pinned arithmetic), matching the requirement that no algorithmic optimizations obscure the reference computation. | Naming is consistent and descriptive (sAdd, sXor, sMul, sDiv mirror the spec's operation names) across all reviewed micro-benchmarks, aiding cross-file comparison. | Minor readability friction: ambient declare blocks and require/hrtime typings needed for\u2026",
+        "control_effect_traceability": "Recertified level 2 under the current criterion: Control flow, mutation and exceptional/effectful behavior can be followed from ordinary idiomatic source with bounded cognitive indirection. Evidence basis: TypeScript | Static source inspection of the same corpus; readability scored on naming clarity, structural decomposition, comment/documentation practice, and syntactic clarity of control flow, per language_quality.md guidance to use idiomatic, production-reasonable style. | Workload files (mb00-mb11) carry frozen-spec header comments citing the exact methodology section and pinned constants, plus explanatory comments for non-obvious representability/precision reasoning (e.g. mb03.ts explains why plain number is exact and why 32-bit XOR semantics hold) -- exemplary self-documenting style enabled by TS comment conventions. | Function decomposition is clean: workload() isolates pure computation from main()'s I/O/mode-handling concerns, aided by TypeScript interfaces (Mb03Result) giving named, self-describing return shapes instead of anonymous tuples/arrays -- a readability advantage over languages lacking structural return types. | Control flow is linear and idiomatic (for-loops, no clever bit tricks substituted for pinned arithmetic), matching the requirement that no algorithmic optimizations obscure the reference computation. | Naming is consistent and descriptive (sAdd, sXor, sMul, sDiv mirror the spec's operation names) across all reviewed micro-benchmarks, aiding cross-file comparison. | Minor readability friction: ambient declare blocks and require/hrtime typings needed for\u2026",
+        "local_intent_visibility": "Recertified level 3 under the current criterion: A local expression/statement makes its operation and important effects reasonably apparent without unrelated context. Evidence basis: TypeScript | Static source inspection of the same corpus; readability scored on naming clarity, structural decomposition, comment/documentation practice, and syntactic clarity of control flow, per language_quality.md guidance to use idiomatic, production-reasonable style. | Workload files (mb00-mb11) carry frozen-spec header comments citing the exact methodology section and pinned constants, plus explanatory comments for non-obvious representability/precision reasoning (e.g. mb03.ts explains why plain number is exact and why 32-bit XOR semantics hold) -- exemplary self-documenting style enabled by TS comment conventions. | Function decomposition is clean: workload() isolates pure computation from main()'s I/O/mode-handling concerns, aided by TypeScript interfaces (Mb03Result) giving named, self-describing return shapes instead of anonymous tuples/arrays -- a readability advantage over languages lacking structural return types. | Control flow is linear and idiomatic (for-loops, no clever bit tricks substituted for pinned arithmetic), matching the requirement that no algorithmic optimizations obscure the reference computation. | Naming is consistent and descriptive (sAdd, sXor, sMul, sDiv mirror the spec's operation names) across all reviewed micro-benchmarks, aiding cross-file comparison. | Minor readability friction: ambient declare blocks and require/hrtime typings needed for\u2026",
+        "name_type_signal": "Recertified level 3 under the current criterion: The language permits names/types/signatures to communicate intent without forcing distracting noise or hiding essential information. Evidence basis: TypeScript | Static source inspection of the same corpus; readability scored on naming clarity, structural decomposition, comment/documentation practice, and syntactic clarity of control flow, per language_quality.md guidance to use idiomatic, production-reasonable style. | Workload files (mb00-mb11) carry frozen-spec header comments citing the exact methodology section and pinned constants, plus explanatory comments for non-obvious representability/precision reasoning (e.g. mb03.ts explains why plain number is exact and why 32-bit XOR semantics hold) -- exemplary self-documenting style enabled by TS comment conventions. | Function decomposition is clean: workload() isolates pure computation from main()'s I/O/mode-handling concerns, aided by TypeScript interfaces (Mb03Result) giving named, self-describing return shapes instead of anonymous tuples/arrays -- a readability advantage over languages lacking structural return types. | Control flow is linear and idiomatic (for-loops, no clever bit tricks substituted for pinned arithmetic), matching the requirement that no algorithmic optimizations obscure the reference computation. | Naming is consistent and descriptive (sAdd, sXor, sMul, sDiv mirror the spec's operation names) across all reviewed micro-benchmarks, aiding cross-file comparison. | Minor readability friction: ambient declare blocks and require/hrtime typings needed for\u2026",
+        "structural_clarity": "Recertified level 4 under the current criterion: Blocks, declarations, calls and data construction have visually and syntactically clear structure. Evidence basis: TypeScript | Static source inspection of the same corpus; readability scored on naming clarity, structural decomposition, comment/documentation practice, and syntactic clarity of control flow, per language_quality.md guidance to use idiomatic, production-reasonable style. | Workload files (mb00-mb11) carry frozen-spec header comments citing the exact methodology section and pinned constants, plus explanatory comments for non-obvious representability/precision reasoning (e.g. mb03.ts explains why plain number is exact and why 32-bit XOR semantics hold) -- exemplary self-documenting style enabled by TS comment conventions. | Function decomposition is clean: workload() isolates pure computation from main()'s I/O/mode-handling concerns, aided by TypeScript interfaces (Mb03Result) giving named, self-describing return shapes instead of anonymous tuples/arrays -- a readability advantage over languages lacking structural return types. | Control flow is linear and idiomatic (for-loops, no clever bit tricks substituted for pinned arithmetic), matching the requirement that no algorithmic optimizations obscure the reference computation. | Naming is consistent and descriptive (sAdd, sXor, sMul, sDiv mirror the spec's operation names) across all reviewed micro-benchmarks, aiding cross-file comparison. | Minor readability friction: ambient declare blocks and require/hrtime typings needed for\u2026"
+      },
+      "component_levels": {
+        "consistency_regular_forms": 3,
+        "control_effect_traceability": 2,
+        "local_intent_visibility": 3,
+        "name_type_signal": 3,
+        "structural_clarity": 4
+      },
+      "evidence_refs": [
+        "template/programs/typescript/micro",
+        "template/programs/typescript/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 82,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "9be26fee7ea70710c830648873796b2663e8efe50b1ce4360aac7bdb2ae8b153",
+        "source_record": "benchmark/cache/v1/language-quality/typescript/a87c32edf6fea5c314acade72264308af72228ab89f9fcd1b1eee4b62073b75a.json",
+        "source_record_sha256": "259ba72a79763426614f0dfab9b7c2ff6903b551b2f41d646007998e261892fa",
+        "source_result_sha256": "3eaf52d2899c38ba603b866fe038b30ed7cc502a732b042decb6a123076a8c6d",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.readability.v1",
+      "runner_score_0_100": 75,
+      "selection_rule": "Judge readability of idiomatic code under the frozen corpus and documented syntax/semantics, without inventing human-study results."
+    }
+  },
+  "requirement_ids": [
+    "metric.code_efficiency_conciseness",
+    "metric.readability"
+  ],
+  "requirements": {
+    "metric.code_efficiency_conciseness": {
+      "TypeScript": 90.0
+    },
+    "metric.readability": {
+      "TypeScript": 75.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-1--typescript"
+}

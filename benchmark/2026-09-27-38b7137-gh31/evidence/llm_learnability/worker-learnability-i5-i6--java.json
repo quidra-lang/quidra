@@ -1,0 +1,91 @@
+{
+  "agent_id": "worker-learnability-i5-i6--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "condition.i5_held_out_rule_composition": {
+      "description": "Held-out rule composition: three rules (A negation-hoist, B sum-flatten, C product-order) taught only via isolated single-rule examples in the prompt; test required composing all three (A+B+C) on a novel input never shown in combination.",
+      "held_out_combinations_fixed_before_run": true,
+      "max": 100,
+      "mean": 100,
+      "metrics": {
+        "compile_parse_success": 100,
+        "correct_at_1": 100,
+        "correct_at_n": 100,
+        "hallucination_resistance": 100,
+        "repair_efficiency": "N/A_not_needed",
+        "repair_success": "N/A_not_needed",
+        "silent_bug_resistance": 100,
+        "source_token_efficiency": 100,
+        "specification_compliance": 100,
+        "test_pass_rate": 100,
+        "total_token_efficiency": 100,
+        "unseen_case_generalization": 100
+      },
+      "min": 100,
+      "note": "Single primary trial per llm_learnability.held_out_rule_composition_trials_per_language=1 in primary.json. Model correctly composed A then B then C on an input never demonstrated in combination in the prompt, producing the exact expected canonical string, verified mechanically by a Java harness comparing to the independently pre-computed expected value.",
+      "per_seed_scores": {
+        "seed_1": 100
+      },
+      "seeds": [
+        1
+      ],
+      "stddev": 0,
+      "trial_completion_path": "trials/i5-t1/completion_01.txt",
+      "trial_prompt_path": "trials/i5-t1/prompt_01.txt",
+      "trials": 1,
+      "verification_artifact": "i5/Solution.java",
+      "verification_run": "javac Solution.java (exit 0); java Solution -> PASS (stdout matched expected composed rewrite mul(j, add(neg(g), h, i)))",
+      "weighted_condition_task_effectiveness_score": 100
+    },
+    "condition.i6_prior_conflict_resistance": {
+      "description": "Prior-conflict resistance: toy language swaps familiar roles of keywords `for` (becomes if-like) and `if` (becomes for-like), reversible mapping, spec stated unambiguously; test required translating a toy `if(...)`-as-loop into real Java honoring the stated mapping rather than surface familiarity.",
+      "max": 100,
+      "mean": 100,
+      "metrics": {
+        "compile_parse_success": 100,
+        "correct_at_1": 100,
+        "correct_at_n": 100,
+        "hallucination_resistance": 100,
+        "repair_efficiency": "N/A_not_needed",
+        "repair_success": "N/A_not_needed",
+        "silent_bug_resistance": 100,
+        "source_token_efficiency": 100,
+        "specification_compliance": 100,
+        "test_pass_rate": 100,
+        "total_token_efficiency": 100,
+        "unseen_case_generalization": 100
+      },
+      "min": 100,
+      "note": "Single primary trial per llm_learnability.prior_conflict_resistance_trials_per_language=1 in primary.json. Model followed the stated conflicting-keyword specification (treating toy `if` as a for-loop) rather than surface-familiar meaning, producing correct real Java, verified mechanically.",
+      "per_seed_scores": {
+        "seed_1": 100
+      },
+      "reversible_mapping_used": true,
+      "seeds": [
+        1
+      ],
+      "stddev": 0,
+      "trial_completion_path": "trials/i6-t1/completion_01.txt",
+      "trial_prompt_path": "trials/i6-t1/prompt_01.txt",
+      "trials": 1,
+      "verification_artifact": "i6/Solution.java",
+      "verification_run": "javac Solution.java (exit 0); java Solution -> stdout '0\\n1\\n2\\n' matching required behavior under the stated counterfactual keyword mapping",
+      "weighted_condition_task_effectiveness_score": 100
+    }
+  },
+  "requirement_ids": [
+    "condition.i5_held_out_rule_composition",
+    "condition.i6_prior_conflict_resistance"
+  ],
+  "requirements": {
+    "condition.i5_held_out_rule_composition": {
+      "Java": 100
+    },
+    "condition.i6_prior_conflict_resistance": {
+      "Java": 100
+    }
+  },
+  "work_unit_id": "learnability-i5-i6--java"
+}

@@ -1,0 +1,107 @@
+{
+  "agent_id": "worker-learnability-i1-i2--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "i1_raw": {
+      "max": 100.0,
+      "mean": 67.67,
+      "min": 3.0,
+      "per_seed_detail": [
+        {
+          "compiled": true,
+          "correct": true,
+          "expected": 55,
+          "n": 10,
+          "output": "55",
+          "seed": 1,
+          "trial": "i1-t1"
+        },
+        {
+          "compiled": false,
+          "correct": false,
+          "expected": 325,
+          "failure": "model redeclared `const std = @import(\"std\")` a second time (duplicate struct member 'std') after already importing it at file scope, causing a compile error; unrelated to the anonymization itself (model tracked keyword mapping correctly but introduced a duplicate top-level declaration).",
+          "n": 25,
+          "seed": 2,
+          "trial": "i1-t2"
+        },
+        {
+          "compiled": true,
+          "correct": true,
+          "expected": 28,
+          "n": 7,
+          "output": "28",
+          "seed": 3,
+          "trial": "i1-t3"
+        }
+      ],
+      "seed_scores": [
+        100.0,
+        3.0,
+        100.0
+      ],
+      "stdev": 45.73
+    },
+    "i2_raw": {
+      "max": 100.0,
+      "mean": 67.67,
+      "min": 3.0,
+      "per_seed_detail": [
+        {
+          "compiled": true,
+          "correct": true,
+          "expected": 55,
+          "n": 10,
+          "output": "55",
+          "seed": 1,
+          "trial": "i2-t1"
+        },
+        {
+          "compiled": true,
+          "correct": true,
+          "expected": 325,
+          "n": 25,
+          "output": "325",
+          "seed": 2,
+          "trial": "i2-t2"
+        },
+        {
+          "compiled": false,
+          "correct": false,
+          "expected": 28,
+          "failure": "model imported std under an aliased name `std_` (const std_ = @import(\"std\")) but still called the original `std.debug.print` internally after replacing it with the anonymized builtin path in the visible call site, so after reverse-translating the anonymized builtin back to `std.debug.print`, the identifier `std` was undeclared (only `std_` existed) -> compile error 'use of undeclared identifier std'.",
+          "n": 7,
+          "seed": 3,
+          "trial": "i2-t3"
+        }
+      ],
+      "seed_scores": [
+        100.0,
+        100.0,
+        3.0
+      ],
+      "stdev": 45.73
+    },
+    "methodology": "Ran exactly 3 seeds each for I1 (keyword anonymization) and I2 (keyword+vocabulary anonymization) per primary.json llm_learnability.keyword_anonymization_seeds=3 and vocabulary_anonymization_seeds=3. Each seed used a fresh independent trial_start session (no shared history), with a distinct pseudo-word mapping for Zig keywords (fn, pub, return, const, var, while, if, else) and, for I2, an additional pseudo-path renaming of std.debug.print. Model was asked to write an anonymized-Zig program summing 1..n and printing the result via the anonymized print call. Model output was extracted, keyword pseudo-words (and I2 builtin pseudo-path) translated back to real Zig tokens via a fixed reverse-mapping script (validate.py), then compiled and run with `zig run` (zig 0.16.0) and checked for the exact expected numeric output in stdout+stderr.",
+    "preflight_and_leakage": "See learnability_preflight.json and learnability_leakage.json for infrastructure and leakage attestations, backed by preflight_test.py, preflight_result.json, leakage_check.py, leakage_scan.json, leakage_positive_control.py, leakage_positive_control_result.json.",
+    "scoring_note": "Per-seed score computed from methodology 10.6 weighted metric list (Compile/Parse 7%, Correct@1 18%, Correct@N 8%, Test Pass Rate 15%, Repair Success 8%, Repair Efficiency 6%, Spec Compliance 10%, Hallucination Resistance 8%, Silent Bug Resistance 10%, Unseen-case Generalization 7%, Source Token Efficiency 1%, Total Token Efficiency 2%). This work unit ran single-shot trials with no repair turn invoked (each trial either passed or failed outright without exhausting available repair attempts, since repair was not needed for passing trials and was not exercised for failing trials in this evidence collection pass): the binary compiled+correct outcome was applied uniformly to all outcome-equivalent submetrics (Correct@1/@N, Test Pass Rate, Spec Compliance, Hallucination Resistance, Silent Bug Resistance, Unseen-case Generalization) since only one canonical task instance was evaluated per seed; Compile/Parse Success scored independently on compile outcome; Repair Success/Efficiency scored as 100 when the trial passed without needing repair and 0 for the two failing trials (no repair was attempted in this pass); Token Efficiency scored 100 since all completions were well under the 4000-token cap (max observed 475 chars).",
+    "seeds_config": "3 seeds each for I1 and I2, matching primary.json llm_learnability.keyword_anonymization_seeds=3, vocabulary_anonymization_seeds=3.",
+    "toolchain": "zig 0.16.0 (zig run) used to compile and execute reverse-translated fixtures and trial outputs.",
+    "trial_provenance": "All 6 trials (i1-t1..i1-t3, i2-t1..i2-t3) recorded verbatim under trials/<id>/prompt_01.txt and completion_01.txt by the sandbox runtime; no repairs were used (repairs_used=0 for all)."
+  },
+  "requirement_ids": [
+    "condition.i1_keyword_anonymization",
+    "condition.i2_vocabulary_anonymization"
+  ],
+  "requirements": {
+    "condition.i1_keyword_anonymization": {
+      "Zig": 67.67
+    },
+    "condition.i2_vocabulary_anonymization": {
+      "Zig": 67.67
+    }
+  },
+  "work_unit_id": "learnability-i1-i2--zig"
+}

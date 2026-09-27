@@ -1,0 +1,108 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "4bcd1a8b711a986520cc05f141e68744ee5d13beb718a522804ff41e08167be7",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "18eb7da62d15b50bed86bad18080bbacba4beb270d545037a6d3c29a69e4d578",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/rust--f02-p1.json": "c4871eadb205085f826eef295e87027cb9a231b3873e3dab98ceda1c8f7deb63"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f02-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--rust--f02-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Rust": {
+      "generation_id": "rust_v1.95.0",
+      "id": "rust",
+      "language": "Rust",
+      "version": "1.95.0",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "18eb7da62d15b50bed86bad18080bbacba4beb270d545037a6d3c29a69e4d578",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--rust--f02-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F02.P1": {
+          "citation": "Rust Reference 6.3 Variables; borrow/initializedness checker",
+          "fragment": "let v: i32;\nif cond { v = 5; } else { v = 9; }\nv",
+          "justification": "Rust Reference 6.3 Variables; borrow/initializedness checker",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F02.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "8101c2f5bf816961e08a826aa445c2e85f7f26af7e7e9ebb0b9caa6bfa899b55",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Rust",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F02.P1",
+        "schema_version": 2,
+        "source_record_sha256": "220285a21d253d2993df7f1f8bb60b265d4ba79904cda34cf52dbfa54e0788cb",
+        "source_result_sha256": "477e484dc9de28436a89079eeec8000018293822b8b4863eb4492fd471688d71"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f02-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d4caa162bbac531e4ecd5065fb098648e48736e6a0a4a71bdf62adb7804d10f4",
+  "schema_version": 1
+}

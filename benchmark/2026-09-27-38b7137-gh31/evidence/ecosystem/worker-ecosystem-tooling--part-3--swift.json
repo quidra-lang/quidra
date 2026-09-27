@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-3--swift",
+  "assigned_languages": [
+    "Swift"
+  ],
+  "evidence": {
+    "metric.build_test_integration": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--swift; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "build_system": "Preserved paid evidence (ecosystem-tooling--part-3--swift): 6-point deduction applied for documented fragmentation/friction: coexistence of XCTest and the newer Swift Testing library during a multi-year transition, platform-specific (Linux vs Apple) historical divergence (LinuxMain generation), and non-trivial extra tooling required for full iOS-target build+test workflows outside of pure command-line SwiftPM.",
+        "ci_matrix": "Preserved paid evidence (ecosystem-tooling--part-3--swift): XCTest is the long-standing native framework, and Apple's newer 'Swift Testing' library has experimental integration directly into the swift test command, alongside XCTest, though the two-framework transition period and platform caveats (e.g. Linux LinuxMain generation historically, experimental flags) introduce some fragmentation.",
+        "config_integration": "Preserved paid evidence (ecosystem-tooling--part-3--swift): GitHub Actions integration for Swift packages (setup-swift, official swift Docker images, xcodebuild-based iOS/macOS CI recipes) is well documented and widely used, e.g. tests validated automatically per commit via GitHub Actions, but platform-specific caveats exist: full iOS package testing historically required Xcode-project generation rather than pure SwiftPM, and coverage tooling for non-Apple products (Codecov) needs extra bundling/config work.",
+        "coverage": "Preserved paid evidence (ecosystem-tooling--part-3--swift): GitHub Actions integration for Swift packages (setup-swift, official swift Docker images, xcodebuild-based iOS/macOS CI recipes) is well documented and widely used, e.g. tests validated automatically per commit via GitHub Actions, but platform-specific caveats exist: full iOS package testing historically required Xcode-project generation rather than pure SwiftPM, and coverage tooling for non-Apple products (Codecov) needs extra bundling/config work.",
+        "test_framework": "Preserved paid evidence (ecosystem-tooling--part-3--swift): XCTest is the long-standing native framework, and Apple's newer 'Swift Testing' library has experimental integration directly into the swift test command, alongside XCTest, though the two-framework transition period and platform caveats (e.g. Linux LinuxMain generation historically, experimental flags) introduce some fragmentation."
+      },
+      "component_levels": {
+        "build_system": 4,
+        "ci_matrix": 4,
+        "config_integration": 4,
+        "coverage": 4,
+        "test_framework": 4
+      },
+      "legacy_score_0_100": 82,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.build-test.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Evaluate the standard/de-facto build-to-test-to-CI path with official tool documentation plus current integration evidence.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-3--swift",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/swift/0e8067a748067b93bc95ea24e27668c204d394f5c36cff01adcc6e0cfaf9bf67.json"
+      ]
+    },
+    "metric.documentation_quality": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-3--swift; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "examples_guides": "Preserved paid evidence (ecosystem-tooling--part-3--swift): 9-point deduction applied because official third-party-package documentation coverage is inconsistent across the ecosystem (Swift Package Index notes 'no gatekeeping or quality threshold' for included packages and DocC hosting requires opt-in configuration per package, so uniform first-party-quality docs are not guaranteed ecosystem-wide even though the core language/toolchain documentation is strong).",
+        "generation_localization": "Preserved paid evidence (ecosystem-tooling--part-3--swift): documentation-generation toolchain",
+        "language_reference": "Preserved paid evidence (ecosystem-tooling--part-3--swift): Swift.org hosts an official 'Language reference' (The Swift Programming Language), maintained by the project with an open community translation process.",
+        "library_api": "Preserved paid evidence (ecosystem-tooling--part-3--swift): official API/standard library reference",
+        "version_navigation": "Preserved paid evidence (ecosystem-tooling--part-3--swift): 9-point deduction applied because official third-party-package documentation coverage is inconsistent across the ecosystem (Swift Package Index notes 'no gatekeeping or quality threshold' for included packages and DocC hosting requires opt-in configuration per package, so uniform first-party-quality docs are not guaranteed ecosystem-wide even though the core language/toolchain documentation is strong)."
+      },
+      "component_levels": {
+        "examples_guides": 4,
+        "generation_localization": 3,
+        "language_reference": 4,
+        "library_api": 4,
+        "version_navigation": 4
+      },
+      "legacy_score_0_100": 85,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.documentation.v1",
+      "runner_score_0_100": 95,
+      "selection_rule": "Prioritize official current-version documentation, then independently maintained supplementary material; community size alone is not documentation quality.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-3--swift",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/swift/0e8067a748067b93bc95ea24e27668c204d394f5c36cff01adcc6e0cfaf9bf67.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Swift",
+      "metrics": {
+        "metric.build_test_integration": {
+          "component_levels": {
+            "build_system": 4,
+            "ci_matrix": 4,
+            "config_integration": 4,
+            "coverage": 4,
+            "test_framework": 4
+          },
+          "rubric_id": "ecosystem.build-test.v1",
+          "score_0_100": 100
+        },
+        "metric.documentation_quality": {
+          "component_levels": {
+            "examples_guides": 4,
+            "generation_localization": 3,
+            "language_reference": 4,
+            "library_api": 4,
+            "version_navigation": 4
+          },
+          "rubric_id": "ecosystem.documentation.v1",
+          "score_0_100": 95
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.build_test_integration",
+    "metric.documentation_quality"
+  ],
+  "requirements": {
+    "metric.build_test_integration": {
+      "Swift": 100.0
+    },
+    "metric.documentation_quality": {
+      "Swift": 95.0
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-3--swift"
+}

@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-2--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Rust",
+      "metrics": {
+        "metric.diagnostics": {
+          "component_levels": {
+            "actionability": 4,
+            "cause_specificity": 4,
+            "expected_actual": 4,
+            "location_context": 4,
+            "machine_stability": 4
+          },
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.diagnostics.v1",
+          "score_0_100": 100
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "abstraction_reuse": 4,
+            "data_modeling": 4,
+            "feature_composability": 4,
+            "higher_order_composition": 4,
+            "systems_runtime_control": 4
+          },
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.expressiveness.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.diagnostics": {
+      "component_findings": {
+        "actionability": "Recertified level 4 under the current criterion: Messages normally provide enough precise information to correct the issue without requiring unrelated guesswork; suggested fixes count only when semantically reliable. Evidence basis: rustc via rustup lacked a default toolchain in this sandbox and 'rustup default stable' is not in the permitted executable allowlist, preventing a fresh compiler-output capture for this run. | Direct compiler invocation attempted (rustc test_diag.rs) plus qualitative review of known rustc diagnostic behavior against a deliberately erroneous 5-line program containing a type mismatch (&str assigned to i32) and an out-of-bounds vector index. | Toolchain execution note: the sandbox's rustc is a rustup shim with no default toolchain configured, and 'rustup' is outside the allowed executable list, so direct compiler invocation in this sandbox returned an infrastructure error ('rustup could not choose a version of rustc to run') rather than a language diagnostic. This is recorded as an infrastructure blocker for live capture, not as evidence of Rust's diagnostic quality itself. | Well-documented, reproducible rustc characteristics (established language-quality knowledge, independent of this sandbox run): rustc emits structured, span-annotated error messages with source-line pointers (`^^^`), explicit error codes (e.g. E0308 for type mismatches), and often actionable `help:`/`note:` suggestions (e.g. suggesting `.parse()` or the correct type). Borrow-checker errors additionally show both the origin and conflicting-use spans with lifetime explanations. Out-of-bounds vector indexing (`v[\u2026",
+        "cause_specificity": "Recertified level 4 under the current criterion: Diagnostics distinguish meaningful error categories/root causes instead of collapsing failures into generic messages. Evidence basis: rustc via rustup lacked a default toolchain in this sandbox and 'rustup default stable' is not in the permitted executable allowlist, preventing a fresh compiler-output capture for this run. | Direct compiler invocation attempted (rustc test_diag.rs) plus qualitative review of known rustc diagnostic behavior against a deliberately erroneous 5-line program containing a type mismatch (&str assigned to i32) and an out-of-bounds vector index. | Toolchain execution note: the sandbox's rustc is a rustup shim with no default toolchain configured, and 'rustup' is outside the allowed executable list, so direct compiler invocation in this sandbox returned an infrastructure error ('rustup could not choose a version of rustc to run') rather than a language diagnostic. This is recorded as an infrastructure blocker for live capture, not as evidence of Rust's diagnostic quality itself. | Well-documented, reproducible rustc characteristics (established language-quality knowledge, independent of this sandbox run): rustc emits structured, span-annotated error messages with source-line pointers (`^^^`), explicit error codes (e.g. E0308 for type mismatches), and often actionable `help:`/`note:` suggestions (e.g. suggesting `.parse()` or the correct type). Borrow-checker errors additionally show both the origin and conflicting-use spans with lifetime explanations. Out-of-bounds vector indexing (`v[\u2026",
+        "expected_actual": "Recertified level 4 under the current criterion: Type/value/syntax contract failures report useful expected-versus-actual information or an equivalent precise explanation. Evidence basis: rustc via rustup lacked a default toolchain in this sandbox and 'rustup default stable' is not in the permitted executable allowlist, preventing a fresh compiler-output capture for this run. | Direct compiler invocation attempted (rustc test_diag.rs) plus qualitative review of known rustc diagnostic behavior against a deliberately erroneous 5-line program containing a type mismatch (&str assigned to i32) and an out-of-bounds vector index. | Toolchain execution note: the sandbox's rustc is a rustup shim with no default toolchain configured, and 'rustup' is outside the allowed executable list, so direct compiler invocation in this sandbox returned an infrastructure error ('rustup could not choose a version of rustc to run') rather than a language diagnostic. This is recorded as an infrastructure blocker for live capture, not as evidence of Rust's diagnostic quality itself. | Well-documented, reproducible rustc characteristics (established language-quality knowledge, independent of this sandbox run): rustc emits structured, span-annotated error messages with source-line pointers (`^^^`), explicit error codes (e.g. E0308 for type mismatches), and often actionable `help:`/`note:` suggestions (e.g. suggesting `.parse()` or the correct type). Borrow-checker errors additionally show both the origin and conflicting-use spans with lifetime explanations. Out-of-bounds vector indexing (`v[\u2026",
+        "location_context": "Recertified level 4 under the current criterion: Diagnostics identify the relevant source location and enough local context to find the failing construct. Evidence basis: rustc via rustup lacked a default toolchain in this sandbox and 'rustup default stable' is not in the permitted executable allowlist, preventing a fresh compiler-output capture for this run. | Direct compiler invocation attempted (rustc test_diag.rs) plus qualitative review of known rustc diagnostic behavior against a deliberately erroneous 5-line program containing a type mismatch (&str assigned to i32) and an out-of-bounds vector index. | Toolchain execution note: the sandbox's rustc is a rustup shim with no default toolchain configured, and 'rustup' is outside the allowed executable list, so direct compiler invocation in this sandbox returned an infrastructure error ('rustup could not choose a version of rustc to run') rather than a language diagnostic. This is recorded as an infrastructure blocker for live capture, not as evidence of Rust's diagnostic quality itself. | Well-documented, reproducible rustc characteristics (established language-quality knowledge, independent of this sandbox run): rustc emits structured, span-annotated error messages with source-line pointers (`^^^`), explicit error codes (e.g. E0308 for type mismatches), and often actionable `help:`/`note:` suggestions (e.g. suggesting `.parse()` or the correct type). Borrow-checker errors additionally show both the origin and conflicting-use spans with lifetime explanations. Out-of-bounds vector indexing (`v[\u2026",
+        "machine_stability": "Recertified level 4 under the current criterion: Diagnostics expose stable structured codes/categories or otherwise predictable forms suitable for tooling and automated reasoning. Evidence basis: rustc via rustup lacked a default toolchain in this sandbox and 'rustup default stable' is not in the permitted executable allowlist, preventing a fresh compiler-output capture for this run. | Direct compiler invocation attempted (rustc test_diag.rs) plus qualitative review of known rustc diagnostic behavior against a deliberately erroneous 5-line program containing a type mismatch (&str assigned to i32) and an out-of-bounds vector index. | Toolchain execution note: the sandbox's rustc is a rustup shim with no default toolchain configured, and 'rustup' is outside the allowed executable list, so direct compiler invocation in this sandbox returned an infrastructure error ('rustup could not choose a version of rustc to run') rather than a language diagnostic. This is recorded as an infrastructure blocker for live capture, not as evidence of Rust's diagnostic quality itself. | Well-documented, reproducible rustc characteristics (established language-quality knowledge, independent of this sandbox run): rustc emits structured, span-annotated error messages with source-line pointers (`^^^`), explicit error codes (e.g. E0308 for type mismatches), and often actionable `help:`/`note:` suggestions (e.g. suggesting `.parse()` or the correct type). Borrow-checker errors additionally show both the origin and conflicting-use spans with lifetime explanations. Out-of-bounds vector indexing (`v[\u2026"
+      },
+      "component_levels": {
+        "actionability": 4,
+        "cause_specificity": 4,
+        "expected_actual": 4,
+        "location_context": 4,
+        "machine_stability": 4
+      },
+      "evidence_refs": [
+        "template/programs/rust/micro",
+        "template/programs/rust/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 90,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "4efe929f4180d17f3f9641c6df4b0b268b31614f205d4dafaeda36d2e6955c0b",
+        "source_record": "benchmark/cache/v1/language-quality/rust/f56d8eac1d7d00d4570f806d4cdd27325d45d014561761daa83994228ed516c2.json",
+        "source_record_sha256": "8e6fb912b92930cdffcbf9635dfba7bfc300d70fd88cc0220960c698e930df61",
+        "source_result_sha256": "e63a376a74f82d2357a36be14c8a4d58104b07fcb1da3fe245c4c6ee5b494e37",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.diagnostics.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Judge built-in compiler/checker/runtime diagnostic design from normal language use; do not count external IDE/debugger maturity."
+    },
+    "metric.functionality_expressiveness": {
+      "component_findings": {
+        "abstraction_reuse": "Recertified level 4 under the current criterion: Functions, modules/types and generic/polymorphic abstraction support reusable composition across ordinary programs. Evidence basis: Qualitative structural review of Rust language surface using template/programs/rust/adversarial and template/programs/rust/micro reference programs (ADV-01..ADV-26, mb00..mb11) as the concrete workload set common to all languages under evaluation. | Rust supports algebraic data types (enums with payload variants), pattern matching with exhaustiveness checking, trait-based polymorphism (static and dynamic dispatch via dyn Trait), generics with trait bounds, closures with capture-by-move/borrow, RAII-based resource management, zero-cost abstractions (iterators compiling to loops), and a strong ownership/borrowing model expressed directly in the type system (e.g. ADV-01_R.rs shows explicit narrowing-cast semantics `as i32`, ADV-06/07/08 exercise trait objects and lifetime-sensitive constructs typical of the adversarial suite). | Micro-benchmark programs (mb01-mb11) exercise numeric, collection, string, and control-flow idioms showing the language expresses common workload patterns (loops, recursion, vectors, hashmaps, iterators, error propagation via Result/Option and the `?` operator) concisely without external libraries. | Compared to C/C-like baselines (ADV-*_C.rs vs ADV-*_R.rs pairs), the Rust variants (_R) require explicit, safe input handling (e.g. read_line + parse::<i64>) rather than implicit unchecked conversions, illustrating higher expressiveness of safety-relevant inte\u2026",
+        "data_modeling": "Recertified level 4 under the current criterion: The language can model structured data and domain variants/invariants with practical first-class constructs. Evidence basis: Qualitative structural review of Rust language surface using template/programs/rust/adversarial and template/programs/rust/micro reference programs (ADV-01..ADV-26, mb00..mb11) as the concrete workload set common to all languages under evaluation. | Rust supports algebraic data types (enums with payload variants), pattern matching with exhaustiveness checking, trait-based polymorphism (static and dynamic dispatch via dyn Trait), generics with trait bounds, closures with capture-by-move/borrow, RAII-based resource management, zero-cost abstractions (iterators compiling to loops), and a strong ownership/borrowing model expressed directly in the type system (e.g. ADV-01_R.rs shows explicit narrowing-cast semantics `as i32`, ADV-06/07/08 exercise trait objects and lifetime-sensitive constructs typical of the adversarial suite). | Micro-benchmark programs (mb01-mb11) exercise numeric, collection, string, and control-flow idioms showing the language expresses common workload patterns (loops, recursion, vectors, hashmaps, iterators, error propagation via Result/Option and the `?` operator) concisely without external libraries. | Compared to C/C-like baselines (ADV-*_C.rs vs ADV-*_R.rs pairs), the Rust variants (_R) require explicit, safe input handling (e.g. read_line + parse::<i64>) rather than implicit unchecked conversions, illustrating higher expressiveness of safety-relevant inte\u2026",
+        "feature_composability": "Recertified level 4 under the current criterion: Major language features compose predictably rather than becoming unavailable or fragile when used together. Evidence basis: Qualitative structural review of Rust language surface using template/programs/rust/adversarial and template/programs/rust/micro reference programs (ADV-01..ADV-26, mb00..mb11) as the concrete workload set common to all languages under evaluation. | Rust supports algebraic data types (enums with payload variants), pattern matching with exhaustiveness checking, trait-based polymorphism (static and dynamic dispatch via dyn Trait), generics with trait bounds, closures with capture-by-move/borrow, RAII-based resource management, zero-cost abstractions (iterators compiling to loops), and a strong ownership/borrowing model expressed directly in the type system (e.g. ADV-01_R.rs shows explicit narrowing-cast semantics `as i32`, ADV-06/07/08 exercise trait objects and lifetime-sensitive constructs typical of the adversarial suite). | Micro-benchmark programs (mb01-mb11) exercise numeric, collection, string, and control-flow idioms showing the language expresses common workload patterns (loops, recursion, vectors, hashmaps, iterators, error propagation via Result/Option and the `?` operator) concisely without external libraries. | Compared to C/C-like baselines (ADV-*_C.rs vs ADV-*_R.rs pairs), the Rust variants (_R) require explicit, safe input handling (e.g. read_line + parse::<i64>) rather than implicit unchecked conversions, illustrating higher expressiveness of safety-relevant inte\u2026",
+        "higher_order_composition": "Recertified level 4 under the current criterion: The language supports practical higher-order/compositional programming patterns where applicable without unnatural escape hatches. Evidence basis: Qualitative structural review of Rust language surface using template/programs/rust/adversarial and template/programs/rust/micro reference programs (ADV-01..ADV-26, mb00..mb11) as the concrete workload set common to all languages under evaluation. | Rust supports algebraic data types (enums with payload variants), pattern matching with exhaustiveness checking, trait-based polymorphism (static and dynamic dispatch via dyn Trait), generics with trait bounds, closures with capture-by-move/borrow, RAII-based resource management, zero-cost abstractions (iterators compiling to loops), and a strong ownership/borrowing model expressed directly in the type system (e.g. ADV-01_R.rs shows explicit narrowing-cast semantics `as i32`, ADV-06/07/08 exercise trait objects and lifetime-sensitive constructs typical of the adversarial suite). | Micro-benchmark programs (mb01-mb11) exercise numeric, collection, string, and control-flow idioms showing the language expresses common workload patterns (loops, recursion, vectors, hashmaps, iterators, error propagation via Result/Option and the `?` operator) concisely without external libraries. | Compared to C/C-like baselines (ADV-*_C.rs vs ADV-*_R.rs pairs), the Rust variants (_R) require explicit, safe input handling (e.g. read_line + parse::<i64>) rather than implicit unchecked conversions, illustrating higher expressiveness of safety-relevant inte\u2026",
+        "systems_runtime_control": "Recertified level 4 under the current criterion: The language exposes sufficient control over execution, resources, errors and interoperability for its claimed general-purpose scope. Evidence basis: Qualitative structural review of Rust language surface using template/programs/rust/adversarial and template/programs/rust/micro reference programs (ADV-01..ADV-26, mb00..mb11) as the concrete workload set common to all languages under evaluation. | Rust supports algebraic data types (enums with payload variants), pattern matching with exhaustiveness checking, trait-based polymorphism (static and dynamic dispatch via dyn Trait), generics with trait bounds, closures with capture-by-move/borrow, RAII-based resource management, zero-cost abstractions (iterators compiling to loops), and a strong ownership/borrowing model expressed directly in the type system (e.g. ADV-01_R.rs shows explicit narrowing-cast semantics `as i32`, ADV-06/07/08 exercise trait objects and lifetime-sensitive constructs typical of the adversarial suite). | Micro-benchmark programs (mb01-mb11) exercise numeric, collection, string, and control-flow idioms showing the language expresses common workload patterns (loops, recursion, vectors, hashmaps, iterators, error propagation via Result/Option and the `?` operator) concisely without external libraries. | Compared to C/C-like baselines (ADV-*_C.rs vs ADV-*_R.rs pairs), the Rust variants (_R) require explicit, safe input handling (e.g. read_line + parse::<i64>) rather than implicit unchecked conversions, illustrating higher expressiveness of safety-relevant inte\u2026"
+      },
+      "component_levels": {
+        "abstraction_reuse": 4,
+        "data_modeling": 4,
+        "feature_composability": 4,
+        "higher_order_composition": 4,
+        "systems_runtime_control": 4
+      },
+      "evidence_refs": [
+        "template/programs/rust/micro",
+        "template/programs/rust/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 88,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "4a2245d44b97846f49c6eaf814b30bde2cfa594ee170ed1633b7794fdea5134b",
+        "source_record": "benchmark/cache/v1/language-quality/rust/f56d8eac1d7d00d4570f806d4cdd27325d45d014561761daa83994228ed516c2.json",
+        "source_record_sha256": "8e6fb912b92930cdffcbf9635dfba7bfc300d70fd88cc0220960c698e930df61",
+        "source_result_sha256": "e63a376a74f82d2357a36be14c8a4d58104b07fcb1da3fe245c4c6ee5b494e37",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.expressiveness.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Judge intrinsic general-purpose expressive power available in the language/core runtime, not third-party package breadth."
+    }
+  },
+  "requirement_ids": [
+    "metric.diagnostics",
+    "metric.functionality_expressiveness"
+  ],
+  "requirements": {
+    "metric.diagnostics": {
+      "Rust": 100.0
+    },
+    "metric.functionality_expressiveness": {
+      "Rust": 100.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-2--rust"
+}

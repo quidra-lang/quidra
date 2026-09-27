@@ -1,0 +1,109 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "2f4f1aa052975b8f0af8809c6d1f1c7fe6ec918a1a43284670fefe669e9b583f",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "6472b6b4b703381961d194fabba5d6075b1751e46ce3984b55b64d0ccb907fe3",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/typescript--f18-p2.json": "5e85ddf07ac2038a808368efc37a13c68feeb397975fcbc997a0eef30b180fc5"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f18-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--typescript--f18-p2",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "TypeScript": {
+      "generation_id": "typescript_v7.0.2",
+      "id": "typescript",
+      "language": "TypeScript",
+      "version": "7.0.2",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "6472b6b4b703381961d194fabba5d6075b1751e46ce3984b55b64d0ccb907fe3",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--typescript--f18-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F18.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F18.P2",
+          "fragment": "// util.ts\nexport function pubAdd(a: number, b: number): number { return a + b + secret(); }\nfunction secret(): number { return 1; }\n// main.ts\nimport { pubAdd } from \"./util\";\nconst result = pubAdd(2, 3);\nreturn result;",
+          "justification": "util.ts: export function pub_add(a,b){return a+b+secret();} function secret(){return 1;} (non-exported, module-private); main.ts: import * as util from './util'; util.pub_add(2,3); module-scoping enforces the boundary.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F18.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "8aa65346bc7e665db14e5d465c7254394afc415996f17f18adfbdbcac1bd992c",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "TypeScript",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F18.P2",
+        "schema_version": 2,
+        "source_record_sha256": "e4c0a1c7301c90f5b8f658a6e1735dc4ca26bcaf89de69d06580e2298036d123",
+        "source_result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f18-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "99fad953c7241dcdd430777afb6f5499b70a1dc7e5f75d1366497ce58b51de27",
+  "schema_version": 1
+}

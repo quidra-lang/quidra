@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 5211,
+      "kind": "embedded:worker_core.md",
+      "sha256": "7536c2bff320857ff700a3345df7e62205d6fe47aafb8f0df2e402a08f19a6cb"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 41612,
+      "kind": "task-input:work/root/semantic-probes/zig--f09-p2.json",
+      "sha256": "33b8ade63b4d15df65c9f4c59893e47eba37fb12479f02339ee8a42570ee7c06"
+    },
+    {
+      "bytes": 3851,
+      "kind": "task",
+      "sha256": "1946f228067e1e875a309a30220e9439e6dcf3a2c9239900ffe4970d4d497dc4"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "e02094640c9f9cf4814f50cd9a0e525fb555510e7a4f2553b7d7809441c47ab2"
+    }
+  ],
+  "prompt_sha256": "e17beb2ec90a1404224514450054a5866d4e3c0b3f54c084a5f4785d9a4f54c3",
+  "rendered_bytes": 62727,
+  "schema_version": 1
+}

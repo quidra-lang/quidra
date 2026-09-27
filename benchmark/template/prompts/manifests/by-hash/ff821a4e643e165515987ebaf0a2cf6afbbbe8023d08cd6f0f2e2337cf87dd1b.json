@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 5211,
+      "kind": "embedded:worker_core.md",
+      "sha256": "7536c2bff320857ff700a3345df7e62205d6fe47aafb8f0df2e402a08f19a6cb"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 41512,
+      "kind": "task-input:work/root/semantic-probes/kotlin--f08-p2.json",
+      "sha256": "ae64d10864ff454b8c1ad8fe72a326f40fce8d2592bdd48289389ba381ca0df8"
+    },
+    {
+      "bytes": 3872,
+      "kind": "task",
+      "sha256": "e3dd300e1ee257e59f420fcfe876ab3ed3f1330636ce41c0087f106e207786cc"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "b6ef30b3cb4d2eb8f2f4bab604f5980270f4a940be5fb063ffce87785f74ec6e"
+    }
+  ],
+  "prompt_sha256": "ff821a4e643e165515987ebaf0a2cf6afbbbe8023d08cd6f0f2e2337cf87dd1b",
+  "rendered_bytes": 62648,
+  "schema_version": 1
+}

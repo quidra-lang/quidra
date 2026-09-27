@@ -1,0 +1,113 @@
+{
+  "agent_id": "worker-ecosystem-external--part-1--typescript",
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "evidence": {
+    "metric.package_ecosystem_activity_maintenance": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-external--part-1--typescript; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "dependency_metadata": "Preserved paid evidence (ecosystem-external--part-1--typescript): npmjs.com listed Jest's latest version (30.5.2) as published a day before the snapshot, and pkgpulse's health-score comparison rated Jest 86/100 for combined maintenance, quality, security and popularity signals.",
+        "distribution_artifacts": "Preserved paid evidence (ecosystem-external--part-1--typescript): Sampled flagship packages across validation, testing, type-definitions, and core tooling show release activity within the last 1-7 days to 3 months, with independent third-party health scorers (Snyk, Socket.dev, PkgPulse) classifying maintenance as 'Sustainable' or 'Healthy'/'very good'. One sampled flagship (Express core framework) showed a materially slower 9-month release gap, which is reflected as a partial deduction since package_ecosystem_activity_maintenance must account for variance, not only the most-active samples. The registry-wide caveat that raw package counts include abandoned packages was also treated as a moderating factor rather than a straightforward positive.",
+        "recent_maintenance": "Preserved paid evidence (ecosystem-external--part-1--typescript): Sampled flagship packages across validation, testing, type-definitions, and core tooling show release activity within the last 1-7 days to 3 months, with independent third-party health scorers (Snyk, Socket.dev, PkgPulse) classifying maintenance as 'Sustainable' or 'Healthy'/'very good'. One sampled flagship (Express core framework) showed a materially slower 9-month release gap, which is reflected as a partial deduction since package_ecosystem_activity_maintenance must account for variance, not only the most-active samples. The registry-wide caveat that raw package counts include abandoned packages was also treated as a moderating factor rather than a straightforward positive.",
+        "registry_discovery": "Preserved paid evidence (ecosystem-external--part-1--typescript): Sampled flagship packages across validation, testing, type-definitions, and core tooling show release activity within the last 1-7 days to 3 months, with independent third-party health scorers (Snyk, Socket.dev, PkgPulse) classifying maintenance as 'Sustainable' or 'Healthy'/'very good'. One sampled flagship (Express core framework) showed a materially slower 9-month release gap, which is reflected as a partial deduction since package_ecosystem_activity_maintenance must account for variance, not only the most-active samples. The registry-wide caveat that raw package counts include abandoned packages was also treated as a moderating factor rather than a straightforward positive.",
+        "security_provenance": "Preserved paid evidence (ecosystem-external--part-1--typescript): Sampled flagship packages across validation, testing, type-definitions, and core tooling show release activity within the last 1-7 days to 3 months, with independent third-party health scorers (Snyk, Socket.dev, PkgPulse) classifying maintenance as 'Sustainable' or 'Healthy'/'very good'. One sampled flagship (Express core framework) showed a materially slower 9-month release gap, which is reflected as a partial deduction since package_ecosystem_activity_maintenance must account for variance, not only the most-active samples. The registry-wide caveat that raw package counts include abandoned packages was also treated as a moderating factor rather than a straightforward positive."
+      },
+      "component_levels": {
+        "dependency_metadata": 4,
+        "distribution_artifacts": 4,
+        "recent_maintenance": 4,
+        "registry_discovery": 4,
+        "security_provenance": 4
+      },
+      "legacy_score_0_100": 93,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.package-activity.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Use the primary package registry/ecosystem for the language when one exists and evaluate current observable maintenance within the fixed activity window; package count alone is never sufficient.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-1--typescript",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/fec909c2edf74ac0254b1f4cd27ff295f069c634ee80c7e4fc23fead22b13467.json",
+        "https://www.npmcharts.com/"
+      ]
+    },
+    "metric.third_party_library_availability_domain_coverage": {
+      "candidate_universe": "express, koa, @hapi/hapi, connect, @nestjs/core, fastify",
+      "component_findings": {
+        "application_testing": "Preserved paid evidence (ecosystem-external--part-1--typescript): All 7 predeclared domains have a mature, high-download, actively-shipping flagship library with either native TypeScript-first design (Zod) or first-class/official TypeScript type support (Express, React, Jest, Redux Toolkit), plus a dedicated large-scale community safety net (DefinitelyTyped, 8,000+ typed packages) for anything not natively typed. Coverage is judged near-complete but not scored 100 because a small residual of niche/enterprise domains still rely on community (not maintainer-shipped) types of variable quality, per DefinitelyTyped's own scope note that untyped packages are common in the broader npm ecosystem.",
+        "data_numerical": "Preserved paid evidence (ecosystem-external--part-1--typescript): Redux Toolkit is reported as remaining the standard for large-scale React applications requiring strict unidirectional data flow, with approximately 9 million weekly downloads, alongside actively growing alternatives (Zustand ~7M monthly, Jotai, Recoil) in the same category.",
+        "ml_ai": "Preserved paid evidence (ecosystem-external--part-1--typescript): The public npm registry replication endpoint reported about 4.04 million registry documents in mid-2026, and npm is described as remaining one of the most widely used software package registries, serving billions of downloads on a regular basis.",
+        "storage_interchange": "Preserved paid evidence (ecosystem-external--part-1--typescript): All 7 predeclared domains have a mature, high-download, actively-shipping flagship library with either native TypeScript-first design (Zod) or first-class/official TypeScript type support (Express, React, Jest, Redux Toolkit), plus a dedicated large-scale community safety net (DefinitelyTyped, 8,000+ typed packages) for anything not natively typed. Coverage is judged near-complete but not scored 100 because a small residual of niche/enterprise domains still rely on community (not maintainer-shipped) types of variable quality, per DefinitelyTyped's own scope note that untyped packages are common in the broader npm ecosystem.",
+        "web_network": "Preserved paid evidence (ecosystem-external--part-1--typescript): Express sits behind an estimated 1.2 million production websites and ships tens of millions of weekly npm downloads; npmjs.com lists 107,905 other projects in the registry depending on it, with a maintained 5.x line (latest 5.2.1)."
+      },
+      "component_levels": {
+        "application_testing": 4,
+        "data_numerical": 4,
+        "ml_ai": 4,
+        "storage_interchange": 4,
+        "web_network": 4
+      },
+      "legacy_score_0_100": 97,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.library-domain-coverage.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Inspect the same five fixed domain groups for every language; prefer the official package index or official ecosystem directory, then independent package/project evidence.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-1--typescript",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/fec909c2edf74ac0254b1f4cd27ff295f069c634ee80c7e4fc23fead22b13467.json",
+        "https://www.npmcharts.com/"
+      ]
+    },
+    "runner_scoring": {
+      "language": "TypeScript",
+      "metrics": {
+        "metric.package_ecosystem_activity_maintenance": {
+          "component_levels": {
+            "dependency_metadata": 4,
+            "distribution_artifacts": 4,
+            "recent_maintenance": 4,
+            "registry_discovery": 4,
+            "security_provenance": 4
+          },
+          "rubric_id": "ecosystem.package-activity.v1",
+          "score_0_100": 100
+        },
+        "metric.third_party_library_availability_domain_coverage": {
+          "component_levels": {
+            "application_testing": 4,
+            "data_numerical": 4,
+            "ml_ai": 4,
+            "storage_interchange": 4,
+            "web_network": 4
+          },
+          "rubric_id": "ecosystem.library-domain-coverage.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.package_ecosystem_activity_maintenance",
+    "metric.third_party_library_availability_domain_coverage"
+  ],
+  "requirements": {
+    "metric.package_ecosystem_activity_maintenance": {
+      "TypeScript": 100.0
+    },
+    "metric.third_party_library_availability_domain_coverage": {
+      "TypeScript": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-1--typescript"
+}

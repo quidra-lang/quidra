@@ -1,0 +1,141 @@
+{
+  "agent_id": "worker-ecosystem-external--part-1--kotlin",
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "evidence": {
+    "metric.package_ecosystem_activity_maintenance": {
+      "candidate_universe": "Reuse of the same 8 domain-representative libraries selected under metric.third_party_library_availability_domain_coverage (excluding the JVM-interop-only logging entry), applied identically for maintenance-activity measurement to avoid introducing a second, independent sampling frame.",
+      "component_findings": {
+        "dependency_metadata": "Preserved paid evidence (ecosystem-external--part-1--kotlin): Kotest (via Arrow dependency bump)",
+        "distribution_artifacts": "Preserved paid evidence (ecosystem-external--part-1--kotlin): per-package recency_score: 100 if days_since<=30; 90 if <=60; 75 if <=180; 60 if <=365; 30 if <=730; 0 otherwise. final score = arithmetic mean of per-package recency_scores.",
+        "recent_maintenance": "Preserved paid evidence (ecosystem-external--part-1--kotlin): Release-date recency on Maven Central is a maintenance proxy, not a direct measure of code quality or issue-response time; some mature libraries (e.g. kotlinx.coroutines, kotlinx.serialization) intentionally ship less frequently once API-stable while still receiving continuous commit activity upstream, so the measured 100-180 day gaps likely understate true maintenance health for those specific packages. This proxy was collected identically for all languages in this evaluation.",
+        "registry_discovery": "Preserved paid evidence (ecosystem-external--part-1--kotlin): per-package recency_score: 100 if days_since<=30; 90 if <=60; 75 if <=180; 60 if <=365; 30 if <=730; 0 otherwise. final score = arithmetic mean of per-package recency_scores.",
+        "security_provenance": "Preserved paid evidence (ecosystem-external--part-1--kotlin): arrow-kt/arrow's past-year commit-activity panel shows activity 'Updated Sep 1, 2026.'"
+      },
+      "component_levels": {
+        "dependency_metadata": 4,
+        "distribution_artifacts": 4,
+        "recent_maintenance": 4,
+        "registry_discovery": 4,
+        "security_provenance": 4
+      },
+      "legacy_score_0_100": 86,
+      "limitations": "Release-date recency on Maven Central is a maintenance proxy, not a direct measure of code quality or issue-response time; some mature libraries (e.g. kotlinx.coroutines, kotlinx.serialization) intentionally ship less frequently once API-stable while still receiving continuous commit activity upstream, so the measured 100-180 day gaps likely understate true maintenance health for those specific packages. This proxy was collected identically for all languages in this evaluation.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.package-activity.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Use the primary package registry/ecosystem for the language when one exists and evaluate current observable maintenance within the fixed activity window; package count alone is never sufficient.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-1--kotlin",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/kotlin/1cc6a2972cab39d92330dbc45d34586d40da6705a1dc12c9d344ee4e6ec79cae.json",
+        "https://mvnrepository.com/artifact/io.ktor",
+        "https://mvnrepository.com/artifact/org.jetbrains.exposed",
+        "https://github.com/arrow-kt",
+        "https://github.com/arrow-kt/arrow-website/pull/495",
+        "https://mvnrepository.com/artifact/io.insert-koin",
+        "https://mvnrepository.com/artifact/org.jetbrains.kotlinx",
+        "https://mvnrepository.com/artifact/com.github.ajalt.clikt",
+        "https://blog.jetbrains.com/ktor/2026/09/18/ktor-3-6-0-is-now-available/",
+        "https://kotlinlang.org/docs/multiplatform/multiplatform-upgrade-app.html",
+        "https://ktor.io/docs/client-serialization.html",
+        "https://blog.jetbrains.com/kotlin/2026/01/exposed-1-0-is-now-available/",
+        "https://kotlinlang.org/docs/serialization.html",
+        "https://github.com/Kotlin/kotlinx.coroutines",
+        "https://github.com/MicroUtils/kotlin-logging/releases",
+        "https://sourceforge.net/projects/kotlin-logging.mirror/"
+      ]
+    },
+    "metric.third_party_library_availability_domain_coverage": {
+      "candidate_universe": "kotlinlang.org/docs (serialization.html, coroutines docs, Ktor references); jetbrains.com/exposed; github.com/AAkira/Kotlin-Multiplatform-Libraries/wiki category lists (Network, Test, DI, Command Line Interface, etc.)",
+      "component_findings": {
+        "application_testing": "Preserved paid evidence (ecosystem-external--part-1--kotlin): kotlinlang.org states that 'All Kotlin serialization format libraries are part of the org.jetbrains.kotlinx: group' and lists JSON, CBOR and other supported formats. Maven Central shows kotlinx-serialization-core with 'Last Release on Apr 9, 2026.'",
+        "data_numerical": "Preserved paid evidence (ecosystem-external--part-1--kotlin): kotlinlang.org states that 'All Kotlin serialization format libraries are part of the org.jetbrains.kotlinx: group' and lists JSON, CBOR and other supported formats. Maven Central shows kotlinx-serialization-core with 'Last Release on Apr 9, 2026.'",
+        "ml_ai": "Preserved paid evidence (ecosystem-external--part-1--kotlin): kotlinlang.org states that 'All Kotlin serialization format libraries are part of the org.jetbrains.kotlinx: group' and lists JSON, CBOR and other supported formats. Maven Central shows kotlinx-serialization-core with 'Last Release on Apr 9, 2026.'",
+        "storage_interchange": "Preserved paid evidence (ecosystem-external--part-1--kotlin): kotlinlang.org states that 'All Kotlin serialization format libraries are part of the org.jetbrains.kotlinx: group' and lists JSON, CBOR and other supported formats. Maven Central shows kotlinx-serialization-core with 'Last Release on Apr 9, 2026.'",
+        "web_network": "Preserved paid evidence (ecosystem-external--part-1--kotlin): Ktor 3.6.0 was announced with 'typed authentication, OpenID Connect, HTTP/3 for Netty, and simpler Kotlin Multiplatform clients.' Maven Central lists the io.ktor group with 'Last Release on Sep 17, 2026.'"
+      },
+      "component_levels": {
+        "application_testing": 4,
+        "data_numerical": 4,
+        "ml_ai": 3,
+        "storage_interchange": 4,
+        "web_network": 4
+      },
+      "legacy_score_0_100": 92,
+      "limitations": "Raw popularity indicators (stars, downloads) were not used as a standalone proxy; release-date recency from Maven Central was used as a declared, consistently-collected proxy for currency. Kotlin's full interop with the Java/Maven ecosystem is a structural strength not fully captured by this 10-domain sample; domains such as desktop GUI, ML/data-science, and embedded/bare-metal were excluded from the fixed sample and are comparatively less mature natively in Kotlin than in some other ecosystems.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.library-domain-coverage.v1",
+      "runner_score_0_100": 95,
+      "selection_rule": "Inspect the same five fixed domain groups for every language; prefer the official package index or official ecosystem directory, then independent package/project evidence.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-1--kotlin",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/kotlin/1cc6a2972cab39d92330dbc45d34586d40da6705a1dc12c9d344ee4e6ec79cae.json",
+        "https://blog.jetbrains.com/ktor/2026/09/18/ktor-3-6-0-is-now-available/",
+        "https://mvnrepository.com/artifact/io.ktor",
+        "https://kotlinlang.org/docs/multiplatform/multiplatform-upgrade-app.html",
+        "https://ktor.io/docs/client-serialization.html",
+        "https://blog.jetbrains.com/kotlin/2026/01/exposed-1-0-is-now-available/",
+        "https://mvnrepository.com/artifact/org.jetbrains.exposed",
+        "https://kotlinlang.org/docs/serialization.html",
+        "https://mvnrepository.com/artifact/org.jetbrains.kotlinx",
+        "https://github.com/arrow-kt/arrow-website/pull/495",
+        "https://github.com/Kotlin/kotlinx.coroutines",
+        "https://mvnrepository.com/artifact/io.insert-koin",
+        "https://github.com/arrow-kt",
+        "https://mvnrepository.com/artifact/com.github.ajalt.clikt",
+        "https://github.com/MicroUtils/kotlin-logging/releases",
+        "https://sourceforge.net/projects/kotlin-logging.mirror/"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Kotlin",
+      "metrics": {
+        "metric.package_ecosystem_activity_maintenance": {
+          "component_levels": {
+            "dependency_metadata": 4,
+            "distribution_artifacts": 4,
+            "recent_maintenance": 4,
+            "registry_discovery": 4,
+            "security_provenance": 4
+          },
+          "rubric_id": "ecosystem.package-activity.v1",
+          "score_0_100": 100
+        },
+        "metric.third_party_library_availability_domain_coverage": {
+          "component_levels": {
+            "application_testing": 4,
+            "data_numerical": 4,
+            "ml_ai": 3,
+            "storage_interchange": 4,
+            "web_network": 4
+          },
+          "rubric_id": "ecosystem.library-domain-coverage.v1",
+          "score_0_100": 95
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.package_ecosystem_activity_maintenance",
+    "metric.third_party_library_availability_domain_coverage"
+  ],
+  "requirements": {
+    "metric.package_ecosystem_activity_maintenance": {
+      "Kotlin": 100.0
+    },
+    "metric.third_party_library_availability_domain_coverage": {
+      "Kotlin": 95.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-1--kotlin"
+}

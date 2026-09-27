@@ -1,0 +1,109 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "6878512b07fcf5fe39bc0464c5ce49aa5a3cca8d367cd89a96b818ec65195563",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "7ea36b3ee39cd86501783a2077f51d678d616dd5156752d8f06be4f8db54858c",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/java--f15-p3.json": "402e691bddaefc51f8780446c5ced47961f98a1e93d101d5be84c752ead6438f"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f15-p3"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--java--f15-p3",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Java": {
+      "generation_id": "java_v26.0.1",
+      "id": "java",
+      "language": "Java",
+      "version": "26.0.1",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "7ea36b3ee39cd86501783a2077f51d678d616dd5156752d8f06be4f8db54858c",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--java--f15-p3"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F15.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P3",
+          "fragment": "interface Named { String tag(); }\nclass A implements Named { public String tag() { return \"a\"; } }\nclass B implements Named { public String tag() { return \"b\"; } }\nList<Named> items = List.of(new A(), new B());\nreturn items.get(0).tag();",
+          "justification": "interface Named { String tag(); } with A, B implementing it; List<Named> items holding one of each; items.get(0).tag() dispatched at runtime to A's implementation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F15.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "ec6124dbed62d9d76f51fcaaed38ea79c638c5ca2743b8cd52c8d0116e2674ba",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Java",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F15.P3",
+        "schema_version": 2,
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f15-p3": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "397c34b5c4ce979a2e3f1c2b95a28f6829db5257d004021e94567e0514838e63",
+  "schema_version": 1
+}

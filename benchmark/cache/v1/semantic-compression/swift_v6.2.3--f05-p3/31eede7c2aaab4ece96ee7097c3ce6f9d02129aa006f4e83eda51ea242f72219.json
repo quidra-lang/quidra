@@ -1,0 +1,108 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "31eede7c2aaab4ece96ee7097c3ce6f9d02129aa006f4e83eda51ea242f72219",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "f79f2553898a12d475fb9dc6868c61096f80ee288c8e82dd98571a60b2c45885",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/swift--f05-p3.json": "42a45d6b8a3dd8b2fabb7e4dd861e388a03179fcafa7b22c8ab24ee916dd3927"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f05-p3"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--swift--f05-p3",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Swift": {
+      "generation_id": "swift_v6.2.3",
+      "id": "swift",
+      "language": "Swift",
+      "version": "6.2.3",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "f79f2553898a12d475fb9dc6868c61096f80ee288c8e82dd98571a60b2c45885",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--swift--f05-p3"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F05.P3": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F05.P3",
+          "fragment": "let neg = { (a: Int32) -> Int32 in k - a }\nlet ys = xs.map(neg)\nreturn ys[0]",
+          "justification": "let neg: (Int32) -> Int32 = { a in k - a }; let ys = xs.map(neg) \u2014 closures are first-class values capturing k, referenced by name at the map call site.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F05.P3": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "f82e472b3ca7f0eb48fd075ed9448dc24a3f0fba5c4cfd08a120222b15de8815",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Swift",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F05.P3",
+        "schema_version": 2,
+        "source_record_sha256": "355c9d78138c4adbdc818ac38cee45e7e6defd70194043432435de3266c7abe3",
+        "source_result_sha256": "e4af6acfe12f6cdebbbccb0a3f4a1261cb56846b2505fe1e7c7678016ae1d962"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f05-p3": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "24fd3a81fd0e9118e5aba09fd3afebc6f15b581321f0ed2eaa2b7c1eb21f4a51",
+  "schema_version": 1
+}

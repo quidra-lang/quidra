@@ -1,0 +1,110 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "28a9dd4473efd345c1fb784005a1d092421429e277763b67dda7d98091f2e20a",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "625cbf2fb03529ccd5970026670396f304fc3326c3dc4b45e704fe5eaa5716e4",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/c--f12-p1.json": "33dc2e665a564ebbc6ff04c648f1e67d2e68baf641af918cbd625e614a9d9363"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f12-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--c--f12-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "C++": {
+      "generation_id": "cpp_v18.1.3",
+      "id": "cpp",
+      "language": "C++",
+      "version": "18.1.3",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "625cbf2fb03529ccd5970026670396f304fc3326c3dc4b45e704fe5eaa5716e4",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--c--f12-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F12.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F12.P1",
+          "fragment": "std::optional<int> o = std::nullopt;\nint n = o.value_or(0);\nreturn n;",
+          "justification": "`std::optional<int> o = std::nullopt; int n = o.value_or(0); return n;` \u2014 std::optional (C++17) is a documented type-level absent-value construct with standard fallback form.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F12.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "a15dbf30fc9d69e2ba99d2900d6e791a6e2bbd0af7e944e97843e8661b964ad1",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "C++",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F12.P1",
+        "schema_version": 2,
+        "source_record_sha256": "01afb96e5f77cf86c153fe8dca6ae53411a88086aa2626c66deaf26342f2a7db",
+        "source_result_sha256": "345b613943ed9a6f3bf7eb8dc619bc775b1d816dfb08642d83fa531320a181e8"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f12-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "6651f442bec342c5a8837a9cc2f6ca3e0035a0987053103e188a0d15875e50cc",
+  "schema_version": 1
+}

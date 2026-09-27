@@ -1,0 +1,109 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "ba59df4ec2c2928f6beef1876b7de05dee397826f775684c48cf609c9e598f1c",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "0f5891bad412bf9fecc34c24b3d0f52281ec6915623cdb79c9c9732b1cce93a1",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/java--f06-p2.json": "3c8e4cf14655a6c8a83aad4e226b9021de6d32095021579986947167a3f8c5a3"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f06-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--java--f06-p2",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Java": {
+      "generation_id": "java_v26.0.1",
+      "id": "java",
+      "language": "Java",
+      "version": "26.0.1",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "0f5891bad412bf9fecc34c24b3d0f52281ec6915623cdb79c9c9732b1cce93a1",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--java--f06-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F06.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F06.P2",
+          "fragment": "record Pair(int q, int r) {}\nstatic Pair divmod2(int a, int b) { return new Pair(a / b, a % b); }\nPair p = divmod2(a, b);\nreturn p.q() + p.r();",
+          "justification": "record Pair(int q, int r) {} (Java 16+ record) used as the standard multiple-result mechanism; divmod2 returns new Pair(a/b, a%b).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F06.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "4d771e11f84a1d59dcc3f447031e1f18c1783f1fd97f5c5acd32b0be53e100ba",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Java",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F06.P2",
+        "schema_version": 2,
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f06-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "3cebd5f9fc4ae86b10283eef8607b97010d6db669d2c114c71a3fc96d8446ca5",
+  "schema_version": 1
+}

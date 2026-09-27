@@ -1,0 +1,123 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "081e7730e2e89159d53751326e2b7f850ffc134b",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "563853d9cc14d422f50ba5d56ff7f8802a46a1e0",
+        "project.toml": "bb477b1aeee2236d3efacb614deb748a42901e73",
+        "quidra.manifest.json": "76b9b1e0c57c8d5c90c1cdce191b8633991b290a",
+        "src": "e3895d804d41a29ad1d7edcf5b02f73e14f81176"
+      },
+      "schema_version": 1,
+      "sha256": "bb59b233ed3f4c3b7c4a36746886fb34f879ffe1f83960155881066a59553e4b"
+    }
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "e54588b1622d7dba41378bb3a0d33a68b31c637d02b6854da2521322f3b437d9",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "49f68bde0abc79c46c53a52430dad63f506e7ac083b1eec41360fd98f4fe7a2e",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs/spec": "8574ed09823b1ffd4aa9e7ed5cb2dc29f50ea5008b1957274e8181672e091998",
+      "work/root/f20_runtime_facts.json": "87188e2b0a2c68226032f42f9857b5fada1d094528137f1acb2a3a046e5f0b82",
+      "work/root/semantic-probes/quidra--f20-p1.json": "56fdec81a5f215dbfdcc2216cd636bba697bbcd371bc456788979d964f6c0cdd"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f20-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--quidra--f20-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Quidra": {
+      "generation_id": "quidra_v0.3.0",
+      "id": "quidra",
+      "language": "Quidra",
+      "version": "0.3.0",
+      "version_source": "project.toml:[project].version"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "49f68bde0abc79c46c53a52430dad63f506e7ac083b1eec41360fd98f4fe7a2e",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--quidra--f20-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F20.P1": {
+          "citation": "language.md 'C FFI' / architecture.md 'C FFI boundary': `extern int c_abs(int value) = \"llabs\"; print(c_abs(-42))` is the verbatim spec example, matching this probe (`abs(int)`, argument -3, expected 3).",
+          "fragment": "extern int c_abs(int value) = \"llabs\"\nint result = c_abs(-3)\nreturn result",
+          "justification": "language.md 'C FFI' / architecture.md 'C FFI boundary': `extern int c_abs(int value) = \"llabs\"; print(c_abs(-42))` is the verbatim spec example, matching this probe (`abs(int)`, argument -3, expected 3).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F20.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "5e0a1bba9546d6ccc30ece22dbcc3f669fe69c49808e6a59324d0bd74a6247ef",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Quidra",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F20.P1",
+        "schema_version": 2,
+        "source_record_sha256": "055c1f5636388bd7776877da876c431e9cf00c89c44312dc15269d3b80a4c5f6",
+        "source_result_sha256": "b494906f28f93f7c673650bff034bebab459169cbe24349a9b946e1ec35e3c0e"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f20-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "fa7a7b3a6e23a3699a070fa45e0a1685aab2fe38d18490b0a42f3fdd9e956c0e",
+  "schema_version": 1
+}

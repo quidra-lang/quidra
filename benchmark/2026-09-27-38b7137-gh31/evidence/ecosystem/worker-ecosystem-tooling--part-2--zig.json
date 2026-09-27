@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-2--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "metric.debugger_profiler_support": {
+      "candidate_universe": "same retrieval methodology as above metric: official docs, marketplace/plugin registries, and recent (2024-2026) technical blog posts/GitHub issues describing debugger and profiler usage with the language's toolchain",
+      "component_findings": {
+        "advanced_debug": "Preserved paid evidence (ecosystem-tooling--part-2--zig): A general Zig debugging tutorial states 'While Zig doesn\u2019t have a built-in debugger, you can integrate external debuggers like LLDB or GDB to step through your Zig code, set breakpoints, inspect variables, and analyze memory state at runtime.'",
+        "basic_debug": "Preserved paid evidence (ecosystem-tooling--part-2--zig): A general Zig debugging tutorial states 'While Zig doesn\u2019t have a built-in debugger, you can integrate external debuggers like LLDB or GDB to step through your Zig code, set breakpoints, inspect variables, and analyze memory state at runtime.'",
+        "cpu_profile": "Preserved paid evidence (ecosystem-tooling--part-2--zig): A dedicated survey of profiling on Apple Silicon states the constraints stem from incompatible tooling: 'perf: Linux-exclusive (kernel-dependent) - valgrind: No macOS/arm64 support - tracy: Limited callstack sampling,' requiring workaround tools such as Samply and an unofficial fork of Andrew Kelley's 'poop' that 'taps into Apple\u2019s private kperf framework via an experimental fork,' with the caveat that 'Andrew will not be accepting mac support for the tool' upstream.",
+        "integration_platforms": "Preserved paid evidence (ecosystem-tooling--part-2--zig): Tracy, the most commonly cited general-purpose profiler used with Zig, documents that direct first-class support is only for C, C++ and (in some builds) Lua/Python, while 'third-party bindings to many other languages exist on the internet, such as Rust, Zig, C#, OCaml, Odin, etc.' \u2014 i.e. Zig integration is community-maintained, not first-party.",
+        "memory_profile": "Preserved paid evidence (ecosystem-tooling--part-2--zig): 0-100 proxy score built from four equally-weighted 0-25 pillars: (1) whether mainstream native debuggers (GDB/LLDB) can load and step through the language's compiled binaries; (2) breadth of IDE/editor debugger integration (launch-config templates, dedicated DAP adapters, first-party or well-adopted third-party IDE plugins); (3) out-of-the-box debugging ergonomics for the language's own data model (e.g. whether composite/optional/tagged types print legibly without extra tooling); (4) breadth, official status and cross-platform consistency of profiler tooling (CPU/memory/allocation profilers, hardware-counter tools, flamegraph/tracing integration)."
+      },
+      "component_levels": {
+        "advanced_debug": 3,
+        "basic_debug": 4,
+        "cpu_profile": 3,
+        "integration_platforms": 3,
+        "memory_profile": 3
+      },
+      "legacy_score_0_100": 52,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.debug-profile.v1",
+      "runner_score_0_100": 80,
+      "selection_rule": "Evaluate implemented, documented debugging/profiling workflows on current supported toolchains; generic OS tools count only when language-aware use is documented.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-2--zig",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/zig/28ed4c81039b2876517babba31a4809ce19709be0941b4ce485243cb0095785b.json"
+      ]
+    },
+    "metric.ide_editor_support_quality": {
+      "candidate_universe": "same retrieval methodology as above metric: official docs, marketplace/plugin registries, and recent (2024-2026) technical blog posts/GitHub issues describing debugger and profiler usage with the language's toolchain",
+      "component_findings": {
+        "breadth_maintenance": "Preserved paid evidence (ecosystem-tooling--part-2--zig): 19/25 - Official VS Code extension (ziglang/vscode-zig) plus a JetBrains plugin (ZigBrains) and community Neovim/Sublime integrations exist and are actively updated, but none are bundled/first-party the way e.g. Go's or Rust's tooling is inside major IDEs by default.",
+        "completion_types": "Preserved paid evidence (ecosystem-tooling--part-2--zig): ZLS's own feature list states it 'supports most language features, including simple type function support, payload capture type resolution, custom packages, and others' but that 'Support for comptime and semantic analysis is Work-in-Progress.'",
+        "debug_integration": "Preserved paid evidence (ecosystem-tooling--part-2--zig): 16/25 - Works via generic C/C++-oriented VS Code extensions (webfreak.debug, CodeLLDB) reusing 'C++ (GDB/LLDB)' launch templates, plus a JetBrains plugin with native LLDB/GDB integration and community Neovim DAP recipes; none of this is Zig-native tooling built specifically for the language.",
+        "refactor_actions": "Preserved paid evidence (ecosystem-tooling--part-2--zig): 0-100 proxy score built from four equally-weighted 0-25 pillars, applied identically to every language in the fixed 10-language set: (1) existence and maintenance status of a first-party or de-facto-official language server (LSP); (2) breadth of major editor/IDE plugin coverage (VS Code, JetBrains, Neovim/Vim, Sublime or equivalent); (3) LSP feature completeness (completion, hover, go-to-definition/declaration, find references, rename, formatting, semantic highlighting, inlay hints, code actions, folding); (4) maturity/reliability, i.e. whether core language semantics (not just syntax) are fully understood by tooling, and whether the toolchain's fast-moving release cadence causes frequent br",
+        "syntax_navigation": "Preserved paid evidence (ecosystem-tooling--part-2--zig): The official vscode-zig extension 'enables developers to write, build, test, and debug Zig code with integrated toolchain management, syntax highlighting, and optional language server features,' using a dual-provider architecture so 'the extension can operate without ZLS by using direct Zig compiler invocations, but enabling ZLS unlocks features like code completion, go-to-definition, hover information, and semantic highlighting.'"
+      },
+      "component_levels": {
+        "breadth_maintenance": 3,
+        "completion_types": 3,
+        "debug_integration": 3,
+        "refactor_actions": 2,
+        "syntax_navigation": 3
+      },
+      "legacy_score_0_100": 70,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.ide-editor.v1",
+      "runner_score_0_100": 70,
+      "selection_rule": "Inspect the same editor capabilities across at least the dominant general-purpose editor and any major dedicated IDE when available.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-2--zig",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/zig/28ed4c81039b2876517babba31a4809ce19709be0941b4ce485243cb0095785b.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Zig",
+      "metrics": {
+        "metric.debugger_profiler_support": {
+          "component_levels": {
+            "advanced_debug": 3,
+            "basic_debug": 4,
+            "cpu_profile": 3,
+            "integration_platforms": 3,
+            "memory_profile": 3
+          },
+          "rubric_id": "ecosystem.debug-profile.v1",
+          "score_0_100": 80
+        },
+        "metric.ide_editor_support_quality": {
+          "component_levels": {
+            "breadth_maintenance": 3,
+            "completion_types": 3,
+            "debug_integration": 3,
+            "refactor_actions": 2,
+            "syntax_navigation": 3
+          },
+          "rubric_id": "ecosystem.ide-editor.v1",
+          "score_0_100": 70
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.debugger_profiler_support",
+    "metric.ide_editor_support_quality"
+  ],
+  "requirements": {
+    "metric.debugger_profiler_support": {
+      "Zig": 80.0
+    },
+    "metric.ide_editor_support_quality": {
+      "Zig": 70.0
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-2--zig"
+}

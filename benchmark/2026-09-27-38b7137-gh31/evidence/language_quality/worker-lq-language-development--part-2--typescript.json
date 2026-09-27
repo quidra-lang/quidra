@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-2--typescript",
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "TypeScript",
+      "metrics": {
+        "metric.diagnostics": {
+          "component_levels": {
+            "actionability": 4,
+            "cause_specificity": 4,
+            "expected_actual": 4,
+            "location_context": 4,
+            "machine_stability": 3
+          },
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.diagnostics.v1",
+          "score_0_100": 95
+        },
+        "metric.functionality_expressiveness": {
+          "component_levels": {
+            "abstraction_reuse": 4,
+            "data_modeling": 4,
+            "feature_composability": 4,
+            "higher_order_composition": 4,
+            "systems_runtime_control": 2
+          },
+          "evidence_refs": [
+            "template/programs/typescript/micro",
+            "template/programs/typescript/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.expressiveness.v1",
+          "score_0_100": 90
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.diagnostics": {
+      "component_findings": {
+        "actionability": "Recertified level 4 under the current criterion: Messages normally provide enough precise information to correct the issue without requiring unrelated guesswork; suggested fixes count only when semantically reliable. Evidence basis: Type erasure means unsound casts/any bypass static diagnostics entirely, producing later, less specific runtime errors instead of caught compile-time errors. | Some diagnostic messages for deeply nested generic/conditional types become verbose and hard to parse (structural type mismatch dumps). | No built-in exhaustiveness-checking diagnostic beyond manual never assertions in switch statements. | Assessed compile-time and runtime diagnostic quality using tsc static analysis expectations on representative micro/adversarial programs, plus known TypeScript/Node.js runtime error reporting characteristics (stack traces, source maps). | tsc provides structured diagnostics (error code, message, file:line:col, and often a source excerpt) for the type errors intentionally probed by adversarial fixtures such as ADV-01_C.ts/ADV-22 bigint-narrowing conversions. | Deeply recursive adversarial cases (ADV-21_depth1000.ts, ADV-21_depth10000.ts) are designed to trigger runtime RangeError: Maximum call stack size exceeded, which Node.js reports with a truncated but instrumented stack trace; source maps map back to original .ts lines when enabled. | Because TypeScript type errors are compile-time-only (erased at runtime), certain type violations occurring only through any/unsafe casts or external JS interop surface as opaque runtime TypeErrors rather than the richer compile-time diagnostics. | ts\u2026",
+        "cause_specificity": "Recertified level 4 under the current criterion: Diagnostics distinguish meaningful error categories/root causes instead of collapsing failures into generic messages. Evidence basis: Type erasure means unsound casts/any bypass static diagnostics entirely, producing later, less specific runtime errors instead of caught compile-time errors. | Some diagnostic messages for deeply nested generic/conditional types become verbose and hard to parse (structural type mismatch dumps). | No built-in exhaustiveness-checking diagnostic beyond manual never assertions in switch statements. | Assessed compile-time and runtime diagnostic quality using tsc static analysis expectations on representative micro/adversarial programs, plus known TypeScript/Node.js runtime error reporting characteristics (stack traces, source maps). | tsc provides structured diagnostics (error code, message, file:line:col, and often a source excerpt) for the type errors intentionally probed by adversarial fixtures such as ADV-01_C.ts/ADV-22 bigint-narrowing conversions. | Deeply recursive adversarial cases (ADV-21_depth1000.ts, ADV-21_depth10000.ts) are designed to trigger runtime RangeError: Maximum call stack size exceeded, which Node.js reports with a truncated but instrumented stack trace; source maps map back to original .ts lines when enabled. | Because TypeScript type errors are compile-time-only (erased at runtime), certain type violations occurring only through any/unsafe casts or external JS interop surface as opaque runtime TypeErrors rather than the richer compile-time diagnostics. | ts\u2026",
+        "expected_actual": "Recertified level 4 under the current criterion: Type/value/syntax contract failures report useful expected-versus-actual information or an equivalent precise explanation. Evidence basis: Type erasure means unsound casts/any bypass static diagnostics entirely, producing later, less specific runtime errors instead of caught compile-time errors. | Some diagnostic messages for deeply nested generic/conditional types become verbose and hard to parse (structural type mismatch dumps). | No built-in exhaustiveness-checking diagnostic beyond manual never assertions in switch statements. | Assessed compile-time and runtime diagnostic quality using tsc static analysis expectations on representative micro/adversarial programs, plus known TypeScript/Node.js runtime error reporting characteristics (stack traces, source maps). | tsc provides structured diagnostics (error code, message, file:line:col, and often a source excerpt) for the type errors intentionally probed by adversarial fixtures such as ADV-01_C.ts/ADV-22 bigint-narrowing conversions. | Deeply recursive adversarial cases (ADV-21_depth1000.ts, ADV-21_depth10000.ts) are designed to trigger runtime RangeError: Maximum call stack size exceeded, which Node.js reports with a truncated but instrumented stack trace; source maps map back to original .ts lines when enabled. | Because TypeScript type errors are compile-time-only (erased at runtime), certain type violations occurring only through any/unsafe casts or external JS interop surface as opaque runtime TypeErrors rather than the richer compile-time diagnostics. | ts\u2026",
+        "location_context": "Recertified level 4 under the current criterion: Diagnostics identify the relevant source location and enough local context to find the failing construct. Evidence basis: Type erasure means unsound casts/any bypass static diagnostics entirely, producing later, less specific runtime errors instead of caught compile-time errors. | Some diagnostic messages for deeply nested generic/conditional types become verbose and hard to parse (structural type mismatch dumps). | No built-in exhaustiveness-checking diagnostic beyond manual never assertions in switch statements. | Assessed compile-time and runtime diagnostic quality using tsc static analysis expectations on representative micro/adversarial programs, plus known TypeScript/Node.js runtime error reporting characteristics (stack traces, source maps). | tsc provides structured diagnostics (error code, message, file:line:col, and often a source excerpt) for the type errors intentionally probed by adversarial fixtures such as ADV-01_C.ts/ADV-22 bigint-narrowing conversions. | Deeply recursive adversarial cases (ADV-21_depth1000.ts, ADV-21_depth10000.ts) are designed to trigger runtime RangeError: Maximum call stack size exceeded, which Node.js reports with a truncated but instrumented stack trace; source maps map back to original .ts lines when enabled. | Because TypeScript type errors are compile-time-only (erased at runtime), certain type violations occurring only through any/unsafe casts or external JS interop surface as opaque runtime TypeErrors rather than the richer compile-time diagnostics. | ts\u2026",
+        "machine_stability": "Recertified level 3 under the current criterion: Diagnostics expose stable structured codes/categories or otherwise predictable forms suitable for tooling and automated reasoning. Evidence basis: Type erasure means unsound casts/any bypass static diagnostics entirely, producing later, less specific runtime errors instead of caught compile-time errors. | Some diagnostic messages for deeply nested generic/conditional types become verbose and hard to parse (structural type mismatch dumps). | No built-in exhaustiveness-checking diagnostic beyond manual never assertions in switch statements. | Assessed compile-time and runtime diagnostic quality using tsc static analysis expectations on representative micro/adversarial programs, plus known TypeScript/Node.js runtime error reporting characteristics (stack traces, source maps). | tsc provides structured diagnostics (error code, message, file:line:col, and often a source excerpt) for the type errors intentionally probed by adversarial fixtures such as ADV-01_C.ts/ADV-22 bigint-narrowing conversions. | Deeply recursive adversarial cases (ADV-21_depth1000.ts, ADV-21_depth10000.ts) are designed to trigger runtime RangeError: Maximum call stack size exceeded, which Node.js reports with a truncated but instrumented stack trace; source maps map back to original .ts lines when enabled. | Because TypeScript type errors are compile-time-only (erased at runtime), certain type violations occurring only through any/unsafe casts or external JS interop surface as opaque runtime TypeErrors rather than the richer compile-time diagnostics. | ts\u2026"
+      },
+      "component_levels": {
+        "actionability": 4,
+        "cause_specificity": 4,
+        "expected_actual": 4,
+        "location_context": 4,
+        "machine_stability": 3
+      },
+      "evidence_refs": [
+        "template/programs/typescript/micro",
+        "template/programs/typescript/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 80,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "04bf45d001f105b17a891e6c772e264da6ef2816591bf549ebe7221b99c6437e",
+        "source_record": "benchmark/cache/v1/language-quality/typescript/6ed835ce519b1ece5066724e3030af41b4c3cbebdf103de73a67006ea9a1411b.json",
+        "source_record_sha256": "52eee1437859b3fd16b41b30dff1e569ad94b2e00c7c9d7ba87b6bbb78a6269e",
+        "source_result_sha256": "fbff72caa312a93cee83439d49a3505a60ebc3affeb882e60463667065dcf60c",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.diagnostics.v1",
+      "runner_score_0_100": 95,
+      "selection_rule": "Judge built-in compiler/checker/runtime diagnostic design from normal language use; do not count external IDE/debugger maturity."
+    },
+    "metric.functionality_expressiveness": {
+      "component_findings": {
+        "abstraction_reuse": "Recertified level 4 under the current criterion: Functions, modules/types and generic/polymorphic abstraction support reusable composition across ordinary programs. Evidence basis: No native pattern matching / exhaustive match expression (must emulate via switch + never-check). | No true nominal typing or built-in immutable value types; numeric model still bifurcated between number and bigint (evidenced by ADV-01_C.ts, ADV-22a/b conversions). | Erased generics at runtime (type information not available for runtime reflection) unlike languages with reified generics. | Inspected TypeScript adversarial and micro program corpora under template/programs/typescript/{adversarial,micro} to assess expressive surface: structural typing, union/intersection types, generics, mapped/conditional types, template literal types, discriminated unions, async/await, optional chaining, bigint, typed arrays. | ADV-01_C.ts exercises bigint to Number to Int32Array numeric-conversion narrowing semantics, showing rich builtin numeric type support and typed-array interop. | ADV-22a/ADV-22b probe bigint literal typing and truncation behavior at compile boundaries. | Micro benchmark suite (mb00-mb11) escalates in complexity (22 bytes to about 5KB) covering common algorithmic idioms (loops, arrays, recursion, closures) implementable concisely due to first-class functions, arrow syntax, destructuring, and structural interfaces. | Adversarial suite ADV-11..ADV-26 covers deep recursion (ADV-21 variants up to depth 10000), showing stack-limit behavior and large-input handling that stresses\u2026",
+        "data_modeling": "Recertified level 4 under the current criterion: The language can model structured data and domain variants/invariants with practical first-class constructs. Evidence basis: No native pattern matching / exhaustive match expression (must emulate via switch + never-check). | No true nominal typing or built-in immutable value types; numeric model still bifurcated between number and bigint (evidenced by ADV-01_C.ts, ADV-22a/b conversions). | Erased generics at runtime (type information not available for runtime reflection) unlike languages with reified generics. | Inspected TypeScript adversarial and micro program corpora under template/programs/typescript/{adversarial,micro} to assess expressive surface: structural typing, union/intersection types, generics, mapped/conditional types, template literal types, discriminated unions, async/await, optional chaining, bigint, typed arrays. | ADV-01_C.ts exercises bigint to Number to Int32Array numeric-conversion narrowing semantics, showing rich builtin numeric type support and typed-array interop. | ADV-22a/ADV-22b probe bigint literal typing and truncation behavior at compile boundaries. | Micro benchmark suite (mb00-mb11) escalates in complexity (22 bytes to about 5KB) covering common algorithmic idioms (loops, arrays, recursion, closures) implementable concisely due to first-class functions, arrow syntax, destructuring, and structural interfaces. | Adversarial suite ADV-11..ADV-26 covers deep recursion (ADV-21 variants up to depth 10000), showing stack-limit behavior and large-input handling that stresses\u2026",
+        "feature_composability": "Recertified level 4 under the current criterion: Major language features compose predictably rather than becoming unavailable or fragile when used together. Evidence basis: No native pattern matching / exhaustive match expression (must emulate via switch + never-check). | No true nominal typing or built-in immutable value types; numeric model still bifurcated between number and bigint (evidenced by ADV-01_C.ts, ADV-22a/b conversions). | Erased generics at runtime (type information not available for runtime reflection) unlike languages with reified generics. | Inspected TypeScript adversarial and micro program corpora under template/programs/typescript/{adversarial,micro} to assess expressive surface: structural typing, union/intersection types, generics, mapped/conditional types, template literal types, discriminated unions, async/await, optional chaining, bigint, typed arrays. | ADV-01_C.ts exercises bigint to Number to Int32Array numeric-conversion narrowing semantics, showing rich builtin numeric type support and typed-array interop. | ADV-22a/ADV-22b probe bigint literal typing and truncation behavior at compile boundaries. | Micro benchmark suite (mb00-mb11) escalates in complexity (22 bytes to about 5KB) covering common algorithmic idioms (loops, arrays, recursion, closures) implementable concisely due to first-class functions, arrow syntax, destructuring, and structural interfaces. | Adversarial suite ADV-11..ADV-26 covers deep recursion (ADV-21 variants up to depth 10000), showing stack-limit behavior and large-input handling that stresses\u2026",
+        "higher_order_composition": "Recertified level 4 under the current criterion: The language supports practical higher-order/compositional programming patterns where applicable without unnatural escape hatches. Evidence basis: No native pattern matching / exhaustive match expression (must emulate via switch + never-check). | No true nominal typing or built-in immutable value types; numeric model still bifurcated between number and bigint (evidenced by ADV-01_C.ts, ADV-22a/b conversions). | Erased generics at runtime (type information not available for runtime reflection) unlike languages with reified generics. | Inspected TypeScript adversarial and micro program corpora under template/programs/typescript/{adversarial,micro} to assess expressive surface: structural typing, union/intersection types, generics, mapped/conditional types, template literal types, discriminated unions, async/await, optional chaining, bigint, typed arrays. | ADV-01_C.ts exercises bigint to Number to Int32Array numeric-conversion narrowing semantics, showing rich builtin numeric type support and typed-array interop. | ADV-22a/ADV-22b probe bigint literal typing and truncation behavior at compile boundaries. | Micro benchmark suite (mb00-mb11) escalates in complexity (22 bytes to about 5KB) covering common algorithmic idioms (loops, arrays, recursion, closures) implementable concisely due to first-class functions, arrow syntax, destructuring, and structural interfaces. | Adversarial suite ADV-11..ADV-26 covers deep recursion (ADV-21 variants up to depth 10000), showing stack-limit behavior and large-input handling that stresses\u2026",
+        "systems_runtime_control": "Recertified level 2 under the current criterion: The language exposes sufficient control over execution, resources, errors and interoperability for its claimed general-purpose scope. Evidence basis: No native pattern matching / exhaustive match expression (must emulate via switch + never-check). | No true nominal typing or built-in immutable value types; numeric model still bifurcated between number and bigint (evidenced by ADV-01_C.ts, ADV-22a/b conversions). | Erased generics at runtime (type information not available for runtime reflection) unlike languages with reified generics. | Inspected TypeScript adversarial and micro program corpora under template/programs/typescript/{adversarial,micro} to assess expressive surface: structural typing, union/intersection types, generics, mapped/conditional types, template literal types, discriminated unions, async/await, optional chaining, bigint, typed arrays. | ADV-01_C.ts exercises bigint to Number to Int32Array numeric-conversion narrowing semantics, showing rich builtin numeric type support and typed-array interop. | ADV-22a/ADV-22b probe bigint literal typing and truncation behavior at compile boundaries. | Micro benchmark suite (mb00-mb11) escalates in complexity (22 bytes to about 5KB) covering common algorithmic idioms (loops, arrays, recursion, closures) implementable concisely due to first-class functions, arrow syntax, destructuring, and structural interfaces. | Adversarial suite ADV-11..ADV-26 covers deep recursion (ADV-21 variants up to depth 10000), showing stack-limit behavior and large-input handling that stresses\u2026"
+      },
+      "component_levels": {
+        "abstraction_reuse": 4,
+        "data_modeling": 4,
+        "feature_composability": 4,
+        "higher_order_composition": 4,
+        "systems_runtime_control": 2
+      },
+      "evidence_refs": [
+        "template/programs/typescript/micro",
+        "template/programs/typescript/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 88,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "49d6fc8e5ec7cd52f3f0b8b4ffc8582b6af085be8ee93340fc0164b779873832",
+        "source_record": "benchmark/cache/v1/language-quality/typescript/6ed835ce519b1ece5066724e3030af41b4c3cbebdf103de73a67006ea9a1411b.json",
+        "source_record_sha256": "52eee1437859b3fd16b41b30dff1e569ad94b2e00c7c9d7ba87b6bbb78a6269e",
+        "source_result_sha256": "fbff72caa312a93cee83439d49a3505a60ebc3affeb882e60463667065dcf60c",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.expressiveness.v1",
+      "runner_score_0_100": 90,
+      "selection_rule": "Judge intrinsic general-purpose expressive power available in the language/core runtime, not third-party package breadth."
+    }
+  },
+  "requirement_ids": [
+    "metric.diagnostics",
+    "metric.functionality_expressiveness"
+  ],
+  "requirements": {
+    "metric.diagnostics": {
+      "TypeScript": 95.0
+    },
+    "metric.functionality_expressiveness": {
+      "TypeScript": 90.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-2--typescript"
+}

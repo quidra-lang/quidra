@@ -1,0 +1,109 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "69152295658398efd26c578b0ea20098a34253fd0047a6fbe21c3f4e04da844d",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "146449748b3093e01737790ba13c2dd5e8e7635651ec683fff55b61865b9c57f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/typescript--f06-p1.json": "97e40f3f7797de3b3d0bf8722fdf5daee6cefa0c544993ffd14ce7b734655802"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f06-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--typescript--f06-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "TypeScript": {
+      "generation_id": "typescript_v7.0.2",
+      "id": "typescript",
+      "language": "TypeScript",
+      "version": "7.0.2",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "146449748b3093e01737790ba13c2dd5e8e7635651ec683fff55b61865b9c57f",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--typescript--f06-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F06.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F06.P1",
+          "fragment": "function mid(xs: number[]): number { return xs[1]; }\nconst xs = [1, 2, 3];\nconst y = mid(xs);\nreturn y;",
+          "justification": "function mid(a:number[]):number{return a[1];} numbers are primitive value type in JS, y is independent of xs.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F06.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "aa57e016fe8046948bb71782f874c81a04cda1985e85ce579067ab7094437e20",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "TypeScript",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F06.P1",
+        "schema_version": 2,
+        "source_record_sha256": "e4c0a1c7301c90f5b8f658a6e1735dc4ca26bcaf89de69d06580e2298036d123",
+        "source_result_sha256": "ea1d188b0fc7a745d5490cdf5741f0d1d2c429f34fdf52b9ee3a421d46600472"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f06-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d73a19540221b034d5fe3268b83a426872ec53f990b7d493c86c981b564e8cbd",
+  "schema_version": 1
+}

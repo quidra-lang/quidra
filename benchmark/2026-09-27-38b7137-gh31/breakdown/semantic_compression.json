@@ -1,0 +1,988 @@
+{
+  "aggregation": {
+    "coverage_from_support": {
+      "formula": "100 * sum(capability_points * support_factor) / sum(capability_points)",
+      "requires_every_probe": true,
+      "why": "Capability Coverage is the sum of the points the frozen award_formula gives each probe's support level, so it is derivable from the levels themselves. Deriving it keeps the published coverage and the levels the comparability audit judged as one statement instead of two: when a support adjudication settles a level across the cohort, coverage follows it. The derivation reproduces every shard's own reported value exactly on the run it was written against, so it invents nothing; it only removes the gap a corrected level would otherwise open."
+    },
+    "coverage_metric": "metric.capability_coverage",
+    "quality_weights": {
+      "metric.capability_efficiency": 0.15,
+      "metric.hidden_semantic_cost": 0.2,
+      "metric.semantic_density": 0.2,
+      "metric.semantic_determinacy": 0.25,
+      "metric.semantic_locality": 0.2
+    },
+    "recompute_from_evidence": {
+      "common_basis": "probes for which all ten languages recorded a per-probe row",
+      "metrics": {
+        "metric.capability_efficiency": {
+          "denominator_pattern": "supported_capability_points",
+          "direction": "lower_is_better",
+          "numerator_pattern": "(total_(semantic_)?complexity_units|sum_of_totals)",
+          "raw_patterns": [
+            "raw.*(_e\\b|_e_|efficiency)",
+            "efficiency.*raw",
+            "units_per_point"
+          ],
+          "reduce": "language_ratio"
+        },
+        "metric.hidden_semantic_cost": {
+          "direction": "lower_is_better",
+          "fields": [
+            "count",
+            "hidden_count",
+            "hidden",
+            "categories_triggered",
+            "hidden_categories"
+          ],
+          "reduce": "mean"
+        },
+        "metric.semantic_density": {
+          "denominator": [
+            "tokens",
+            "lexical_tokens",
+            "token_count",
+            "lexical_source_tokens",
+            "source_tokens"
+          ],
+          "direction": "higher_is_better",
+          "numerator": [
+            "explicit_local_facts",
+            "explicit_local_sites",
+            "explicit_local_count",
+            "explicit_local",
+            "explicit_local_semantic_sites"
+          ],
+          "reduce": "ratio"
+        },
+        "metric.semantic_determinacy": {
+          "direction": "lower_is_better",
+          "fields": [
+            "b",
+            "b_i",
+            "branching",
+            "branch_count",
+            "branching_factor",
+            "interpretations"
+          ],
+          "reduce": "mean_log2"
+        },
+        "metric.semantic_locality": {
+          "direction": "lower_is_better",
+          "fields": [
+            "l",
+            "lookups",
+            "lookup_count",
+            "required_lookups",
+            "hops",
+            "nonlocal_lookups",
+            "lookup"
+          ],
+          "reduce": "mean"
+        }
+      },
+      "normalization": "min_max_across_languages",
+      "why": "Methodology 6.1.4 freezes each metric's raw value and its direction but not the map from that raw value to the 0-100 scale the metrics are reported on, and a language shard cannot see the other nine. Left to the workers, the first full run received min(100, raw*1000) from one language, min(100, raw/0.35*100) from another and raw*100 from five more, which the harmonic combination would have mixed into a ranking. The runner recomputes every quality metric from the per-probe evidence each shard recorded, on the basis the shards themselves said it must: the probes every language covered."
+    },
+    "support_level_owner": {
+      "fields": [
+        "support",
+        "support_level",
+        "level"
+      ],
+      "fields_note": "The shards wrote the same statement under different names - a bare `support`, or a `level` inside a `per_probe_support` mapping - so the owner's level is read under any of these names, exactly as sc_row_number reads a metric's raw value under its own synonyms. A shard in a new shape needs this list extended.",
+      "levels": {
+        "FULL": 1.0,
+        "NONE": 0.0,
+        "PARTIAL": 0.5
+      },
+      "requirement_id": "metric.capability_coverage",
+      "why": "Every metric shard annotated the support level of every probe it touched, and nothing reconciled them, so one language could carry several levels for one probe under different field names. The first blinded comparability audit correctly refused such a sample: a record that states two levels has not stated one. Capability Coverage is the metric that is definitionally the support ledger, so it owns the level; the others cite it. The runner projects that one level, and the points the frozen award_formula derives from it, into the audit sample, and records every annotation it replaced."
+    },
+    "type": "semantic_harmonic"
+  },
+  "categories": [],
+  "evaluation": "semantic_compression",
+  "languages": [
+    "Quidra",
+    "Python",
+    "C++",
+    "Rust",
+    "Go",
+    "Java",
+    "TypeScript",
+    "Kotlin",
+    "Swift",
+    "Zig"
+  ],
+  "published": {
+    "blockers": [],
+    "ranking": [
+      {
+        "language": "Zig",
+        "rank": 1,
+        "score": 78.48
+      },
+      {
+        "language": "Quidra",
+        "rank": 2,
+        "score": 77.52
+      },
+      {
+        "language": "Swift",
+        "rank": 3,
+        "score": 77.34
+      },
+      {
+        "language": "Go",
+        "rank": 4,
+        "score": 72.08
+      },
+      {
+        "language": "Kotlin",
+        "rank": 5,
+        "score": 69.24
+      },
+      {
+        "language": "Rust",
+        "rank": 6,
+        "score": 67.91
+      },
+      {
+        "language": "Java",
+        "rank": 7,
+        "score": 53.48
+      },
+      {
+        "language": "TypeScript",
+        "rank": 8,
+        "score": 48.19
+      },
+      {
+        "language": "Python",
+        "rank": 9,
+        "score": 46.99
+      },
+      {
+        "language": "C++",
+        "rank": 10,
+        "score": 20.38
+      }
+    ],
+    "score": 77.52310146325776,
+    "scores": {
+      "C++": 20.379131468284033,
+      "Go": 72.08001380940367,
+      "Java": 53.48128701647593,
+      "Kotlin": 69.23975861928048,
+      "Python": 46.991189076973654,
+      "Quidra": 77.52310146325776,
+      "Rust": 67.90867954601302,
+      "Swift": 77.34366141184545,
+      "TypeScript": 48.191614989179804,
+      "Zig": 78.47945837680206
+    }
+  },
+  "reconstruction": {
+    "max_abs_error_vs_published": 0.0,
+    "note": "Recomputed with the same functions the aggregate used. A null error means the evaluation published no scores to compare against.",
+    "recomputed_scores": {
+      "C++": 20.379131468284033,
+      "Go": 72.08001380940367,
+      "Java": 53.48128701647593,
+      "Kotlin": 69.23975861928048,
+      "Python": 46.991189076973654,
+      "Quidra": 77.52310146325776,
+      "Rust": 67.90867954601302,
+      "Swift": 77.34366141184545,
+      "TypeScript": 48.191614989179804,
+      "Zig": 78.47945837680206
+    }
+  },
+  "requirements": [
+    {
+      "measured_by": [
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--quidra"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--python"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--c"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--rust"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--go"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--java"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--typescript"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--kotlin"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--swift"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-1--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "sc-metrics-local--part-1--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Swift",
+          "rank": 2,
+          "score": 70.49
+        },
+        {
+          "language": "Zig",
+          "rank": 3,
+          "score": 58.69
+        },
+        {
+          "language": "Kotlin",
+          "rank": 4,
+          "score": 58.52
+        },
+        {
+          "language": "Go",
+          "rank": 5,
+          "score": 45.65
+        },
+        {
+          "language": "Rust",
+          "rank": 6,
+          "score": 29.99
+        },
+        {
+          "language": "Python",
+          "rank": 7,
+          "score": 23.42
+        },
+        {
+          "language": "TypeScript",
+          "rank": 8,
+          "score": 10.88
+        },
+        {
+          "language": "C++",
+          "rank": 9,
+          "score": 4.96
+        },
+        {
+          "language": "Java",
+          "rank": 10,
+          "score": 0.0
+        }
+      ],
+      "requirement_id": "metric.semantic_density",
+      "scores": {
+        "C++": 4.96,
+        "Go": 45.65,
+        "Java": 0.0,
+        "Kotlin": 58.52,
+        "Python": 23.42,
+        "Quidra": 100.0,
+        "Rust": 29.99,
+        "Swift": 70.49,
+        "TypeScript": 10.88,
+        "Zig": 58.69
+      },
+      "weight": 0.2
+    },
+    {
+      "measured_by": [
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--quidra"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--python"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--c"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--rust"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--go"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--java"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--typescript"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--kotlin"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--swift"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-3--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "sc-metrics-local--part-3--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Quidra",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "TypeScript",
+          "rank": 2,
+          "score": 80.33
+        },
+        {
+          "language": "Swift",
+          "rank": 2,
+          "score": 80.33
+        },
+        {
+          "language": "Rust",
+          "rank": 4,
+          "score": 70.5
+        },
+        {
+          "language": "Java",
+          "rank": 4,
+          "score": 70.5
+        },
+        {
+          "language": "Python",
+          "rank": 6,
+          "score": 64.75
+        },
+        {
+          "language": "Kotlin",
+          "rank": 6,
+          "score": 64.75
+        },
+        {
+          "language": "Zig",
+          "rank": 8,
+          "score": 45.08
+        },
+        {
+          "language": "Go",
+          "rank": 9,
+          "score": 41.0
+        },
+        {
+          "language": "C++",
+          "rank": 10,
+          "score": 0.0
+        }
+      ],
+      "requirement_id": "metric.semantic_determinacy",
+      "scores": {
+        "C++": 0.0,
+        "Go": 41.0,
+        "Java": 70.5,
+        "Kotlin": 64.75,
+        "Python": 64.75,
+        "Quidra": 100.0,
+        "Rust": 70.5,
+        "Swift": 80.33,
+        "TypeScript": 80.33,
+        "Zig": 45.08
+      },
+      "weight": 0.25
+    },
+    {
+      "measured_by": [
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--quidra"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--python"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--c"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--rust"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--go"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--java"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--typescript"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--kotlin"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--swift"
+        },
+        {
+          "agent_id": "worker-sc-metrics-local--part-2--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "sc-metrics-local--part-2--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Zig",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Go",
+          "rank": 2,
+          "score": 91.86
+        },
+        {
+          "language": "Python",
+          "rank": 3,
+          "score": 45.93
+        },
+        {
+          "language": "TypeScript",
+          "rank": 4,
+          "score": 40.19
+        },
+        {
+          "language": "Quidra",
+          "rank": 5,
+          "score": 34.45
+        },
+        {
+          "language": "Rust",
+          "rank": 6,
+          "score": 28.71
+        },
+        {
+          "language": "Kotlin",
+          "rank": 6,
+          "score": 28.71
+        },
+        {
+          "language": "Java",
+          "rank": 8,
+          "score": 17.22
+        },
+        {
+          "language": "C++",
+          "rank": 9,
+          "score": 0.0
+        },
+        {
+          "language": "Swift",
+          "rank": 9,
+          "score": 0.0
+        }
+      ],
+      "requirement_id": "metric.semantic_locality",
+      "scores": {
+        "C++": 0.0,
+        "Go": 91.86,
+        "Java": 17.22,
+        "Kotlin": 28.71,
+        "Python": 45.93,
+        "Quidra": 34.45,
+        "Rust": 28.71,
+        "Swift": 0.0,
+        "TypeScript": 40.19,
+        "Zig": 100.0
+      },
+      "weight": 0.2
+    },
+    {
+      "measured_by": [
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--quidra"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--python"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--c"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--rust"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--go"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--java"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--typescript"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--kotlin"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--swift"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-1--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-1--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Zig",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Quidra",
+          "rank": 2,
+          "score": 81.48
+        },
+        {
+          "language": "Swift",
+          "rank": 3,
+          "score": 74.07
+        },
+        {
+          "language": "Rust",
+          "rank": 4,
+          "score": 66.67
+        },
+        {
+          "language": "Kotlin",
+          "rank": 4,
+          "score": 66.67
+        },
+        {
+          "language": "Go",
+          "rank": 6,
+          "score": 48.15
+        },
+        {
+          "language": "Java",
+          "rank": 6,
+          "score": 48.15
+        },
+        {
+          "language": "Python",
+          "rank": 8,
+          "score": 18.52
+        },
+        {
+          "language": "C++",
+          "rank": 9,
+          "score": 11.11
+        },
+        {
+          "language": "TypeScript",
+          "rank": 10,
+          "score": 0.0
+        }
+      ],
+      "requirement_id": "metric.hidden_semantic_cost",
+      "scores": {
+        "C++": 11.11,
+        "Go": 48.15,
+        "Java": 48.15,
+        "Kotlin": 66.67,
+        "Python": 18.52,
+        "Quidra": 81.48,
+        "Rust": 66.67,
+        "Swift": 74.07,
+        "TypeScript": 0.0,
+        "Zig": 100.0
+      },
+      "weight": 0.2
+    },
+    {
+      "measured_by": [
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--quidra",
+          "assigned_languages": [
+            "Quidra"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--quidra"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--python",
+          "assigned_languages": [
+            "Python"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--python"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--c",
+          "assigned_languages": [
+            "C++"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--c"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--rust",
+          "assigned_languages": [
+            "Rust"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--rust"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--go",
+          "assigned_languages": [
+            "Go"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--go"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--java",
+          "assigned_languages": [
+            "Java"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--java"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--typescript",
+          "assigned_languages": [
+            "TypeScript"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--typescript"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--kotlin",
+          "assigned_languages": [
+            "Kotlin"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--kotlin"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--swift",
+          "assigned_languages": [
+            "Swift"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--swift"
+        },
+        {
+          "agent_id": "worker-sc-metrics-hidden-coverage--part-3--zig",
+          "assigned_languages": [
+            "Zig"
+          ],
+          "work_unit_id": "sc-metrics-hidden-coverage--part-3--zig"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "Swift",
+          "rank": 1,
+          "score": 100.0
+        },
+        {
+          "language": "Go",
+          "rank": 2,
+          "score": 82.2
+        },
+        {
+          "language": "Rust",
+          "rank": 3,
+          "score": 60.12
+        },
+        {
+          "language": "Kotlin",
+          "rank": 4,
+          "score": 59.63
+        },
+        {
+          "language": "C++",
+          "rank": 5,
+          "score": 54.31
+        },
+        {
+          "language": "Java",
+          "rank": 6,
+          "score": 47.9
+        },
+        {
+          "language": "Quidra",
+          "rank": 7,
+          "score": 36.46
+        },
+        {
+          "language": "Zig",
+          "rank": 8,
+          "score": 27.91
+        },
+        {
+          "language": "TypeScript",
+          "rank": 9,
+          "score": 24.43
+        },
+        {
+          "language": "Python",
+          "rank": 10,
+          "score": 0.0
+        }
+      ],
+      "requirement_id": "metric.capability_efficiency",
+      "scores": {
+        "C++": 54.31,
+        "Go": 82.2,
+        "Java": 47.9,
+        "Kotlin": 59.63,
+        "Python": 0.0,
+        "Quidra": 36.46,
+        "Rust": 60.12,
+        "Swift": 100.0,
+        "TypeScript": 24.43,
+        "Zig": 27.91
+      },
+      "weight": 0.15
+    },
+    {
+      "measured_by": [
+        {
+          "agent_id": "system-sc-capability-coverage",
+          "assigned_languages": [],
+          "work_unit_id": "sc-capability-coverage"
+        }
+      ],
+      "not_applicable": {},
+      "ranking": [
+        {
+          "language": "C++",
+          "rank": 1,
+          "score": 98.86
+        },
+        {
+          "language": "Rust",
+          "rank": 1,
+          "score": 98.86
+        },
+        {
+          "language": "Swift",
+          "rank": 3,
+          "score": 97.73
+        },
+        {
+          "language": "Zig",
+          "rank": 4,
+          "score": 94.32
+        },
+        {
+          "language": "Go",
+          "rank": 5,
+          "score": 90.91
+        },
+        {
+          "language": "Java",
+          "rank": 5,
+          "score": 90.91
+        },
+        {
+          "language": "Kotlin",
+          "rank": 5,
+          "score": 90.91
+        },
+        {
+          "language": "TypeScript",
+          "rank": 8,
+          "score": 82.95
+        },
+        {
+          "language": "Quidra",
+          "rank": 9,
+          "score": 81.82
+        },
+        {
+          "language": "Python",
+          "rank": 10,
+          "score": 77.27
+        }
+      ],
+      "requirement_id": "metric.capability_coverage",
+      "role": "coverage",
+      "scores": {
+        "C++": 98.86,
+        "Go": 90.91,
+        "Java": 90.91,
+        "Kotlin": 90.91,
+        "Python": 77.27,
+        "Quidra": 81.82,
+        "Rust": 98.86,
+        "Swift": 97.73,
+        "TypeScript": 82.95,
+        "Zig": 94.32
+      }
+    }
+  ],
+  "schema_version": 1,
+  "status": "COMPLETE"
+}

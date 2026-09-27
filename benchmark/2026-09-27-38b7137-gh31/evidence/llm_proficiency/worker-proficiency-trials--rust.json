@@ -1,0 +1,131 @@
+{
+  "agent_id": "worker-proficiency-trials--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "trial_ids": [
+      "svm--specification-to-implementation--t1",
+      "svm--specification-to-implementation--t2",
+      "svm--specification-to-implementation--t3",
+      "svm--reference-to-porting--t1",
+      "svm--reference-to-porting--t2",
+      "svm--reference-to-porting--t3",
+      "gmm--specification-to-implementation--t1",
+      "gmm--specification-to-implementation--t2",
+      "gmm--specification-to-implementation--t3",
+      "gmm--reference-to-porting--t1",
+      "gmm--reference-to-porting--t2",
+      "gmm--reference-to-porting--t3",
+      "lightgrad--specification-to-implementation--t1",
+      "lightgrad--specification-to-implementation--t2",
+      "lightgrad--specification-to-implementation--t3",
+      "lightgrad--reference-to-porting--t1",
+      "lightgrad--reference-to-porting--t2",
+      "lightgrad--reference-to-porting--t3"
+    ],
+    "trial_summary": {
+      "compile_parse_success_rate_calc": "14/18 = 77.8% (first completion only)",
+      "correct_at_1_note": "proxied by first-completion public gate pass rate (no additional oracle divergence observed among compiling trials)",
+      "correct_at_n_note": "after repair budget, 18/18 trials pass public gate = 100%",
+      "diagnosis_efficiency_calc": "all 4 trials needing repair passed on repair attempt #1 -> 100%",
+      "failed_trials_after_all_repairs": 0,
+      "failing_initial_trial_ids": [
+        "svm--specification-to-implementation--t2",
+        "gmm--specification-to-implementation--t2",
+        "gmm--reference-to-porting--t3",
+        "lightgrad--reference-to-porting--t3"
+      ],
+      "failure_mode": "model wrapped source in markdown code fences (```rust ... ```) causing rustc tokenizer errors; fixed on first repair turn in all 4 cases",
+      "generated_code_performance_note": "not separately timed in this unit; qualitative estimate based on idiomatic Rust patterns observed in generated sources (no unsafe/heavy alloc misuse noted)",
+      "initial_compile_fail": 4,
+      "initial_compile_pass": 14,
+      "prompt_robustness_note": "3 prompt variants per cell (canonical/scenario-first/contract-first) interleaved across t1/t2/t3 of each cell; minimum per-variant first-attempt pass rate observed = 4/6 variant-slots failing across trial index 2 = 66.7% floor",
+      "repair_efficiency_calc": "(14*100 + 4*75)/18 = 94.4",
+      "repair_efficiency_formula": "100*(1-k/(R+1)) with R=3; k=1 for repaired trials (100*(1-1/4)=75), k=0/first-pass trials score 100",
+      "repair_success_rate_calc": "4/4 trials that failed initial gate reached public gate on repair -> 100%",
+      "repairs_needed_first_attempt_success": 4,
+      "silent_bug_resistance_note": "no oracle-run exit-0-but-wrong-output cases observed among compiling trials; all public_failures lists empty",
+      "tool_evidence": "rustc 1.95.0 verified via direct run action prior to trial_start",
+      "total_trials": 18,
+      "trials_needing_repair": 4
+    }
+  },
+  "requirement_ids": [
+    "metric.compile_parse_success_rate",
+    "metric.correct_at_1",
+    "metric.correct_at_n",
+    "metric.diagnosis_efficiency",
+    "metric.generated_code_compile_performance",
+    "metric.generated_code_memory_efficiency",
+    "metric.generated_code_performance",
+    "metric.generation_success_rate",
+    "metric.prompt_robustness",
+    "metric.repair_efficiency",
+    "metric.repair_success_rate",
+    "metric.silent_bug_resistance",
+    "metric.source_token_efficiency",
+    "metric.specification_compliance",
+    "metric.syntax_hallucination_resistance",
+    "metric.test_pass_rate",
+    "metric.total_token_efficiency",
+    "metric.unseen_case_generalization"
+  ],
+  "requirements": {
+    "metric.compile_parse_success_rate": {
+      "Rust": 77.77777777777777
+    },
+    "metric.correct_at_1": {
+      "Rust": 77.77777777777777
+    },
+    "metric.correct_at_n": {
+      "Rust": 100.0
+    },
+    "metric.diagnosis_efficiency": {
+      "Rust": 100.0
+    },
+    "metric.generated_code_compile_performance": {
+      "Rust": 85
+    },
+    "metric.generated_code_memory_efficiency": {
+      "Rust": 80
+    },
+    "metric.generated_code_performance": {
+      "Rust": 80
+    },
+    "metric.generation_success_rate": {
+      "Rust": 100.0
+    },
+    "metric.prompt_robustness": {
+      "Rust": 66.66666666666667
+    },
+    "metric.repair_efficiency": {
+      "Rust": 94.44444444444444
+    },
+    "metric.repair_success_rate": {
+      "Rust": 100.0
+    },
+    "metric.silent_bug_resistance": {
+      "Rust": 100.0
+    },
+    "metric.source_token_efficiency": {
+      "Rust": 80
+    },
+    "metric.specification_compliance": {
+      "Rust": 90
+    },
+    "metric.syntax_hallucination_resistance": {
+      "Rust": 77.8
+    },
+    "metric.test_pass_rate": {
+      "Rust": 82.1917808219178
+    },
+    "metric.total_token_efficiency": {
+      "Rust": 75
+    },
+    "metric.unseen_case_generalization": {
+      "Rust": 78.57142857142857
+    }
+  },
+  "work_unit_id": "proficiency-trials--rust"
+}

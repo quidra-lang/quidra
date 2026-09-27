@@ -1,0 +1,110 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "45caf0705342c203762d1f4a785cc4d080fe36f8f5457fa4879aa5b65ccf4759",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "aefcf218b9a7a62087bc50145b2c90a0db73cd2b2d094b3ff6aa70fc08ff6aa8",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/c--f15-p1.json": "e6891b28459ce2eec0620c3fb4dda1a4016990dec853adb9fa96ac140768af71"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f15-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--c--f15-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "C++": {
+      "generation_id": "cpp_v18.1.3",
+      "id": "cpp",
+      "language": "C++",
+      "version": "18.1.3",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "aefcf218b9a7a62087bc50145b2c90a0db73cd2b2d094b3ff6aa70fc08ff6aa8",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--c--f15-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F15.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F15.P1",
+          "fragment": "template<typename T> T head(const std::vector<T>& xs) { return xs[0]; }\nauto a = head(std::vector<int>{4, 5, 6});\nauto b = head(std::vector<std::string>{\"p\", \"q\"});\nstd::string result = std::to_string(a) + b;",
+          "justification": "`template<typename T> T head(const std::vector<T>& xs){ return xs[0]; }` \u2014 template result type is exactly T, not erased/boxed; used at int and std::string.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F15.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "0c5d0c0047423ff863b85640e0afa96fa9033df71b6e2d126e22fc5f0d5f2a78",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "C++",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F15.P1",
+        "schema_version": 2,
+        "source_record_sha256": "01afb96e5f77cf86c153fe8dca6ae53411a88086aa2626c66deaf26342f2a7db",
+        "source_result_sha256": "345b613943ed9a6f3bf7eb8dc619bc775b1d816dfb08642d83fa531320a181e8"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f15-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d9664993a5f323b405673087631f963a8798a622f24189193f8f332eb30f72a2",
+  "schema_version": 1
+}

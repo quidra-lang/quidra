@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-learnability-i1-i2--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "i1_keyword_anonymization": {
+      "description": "Rust grammar keywords (fn,let,if,else,for,return,use,match) renamed to pseudo-words (zorf,klim,trin,plor,wexil,yalp,brivo,sceld) in the prompt; ordinary identifiers and stdlib names left intact. Model asked to write anonymized-keyword pseudo-code then produce a compilable real Rust translation.",
+      "max": 100,
+      "mean": 100.0,
+      "min": 100,
+      "seed_scores": [
+        100,
+        100,
+        100
+      ],
+      "seeds": [
+        {
+          "compiled": true,
+          "correct": true,
+          "expected": "Sum: 55 Parity: odd",
+          "score": 100,
+          "seed": 1,
+          "stdout": "Sum: 55 Parity: odd",
+          "task": "sum 1..=10 with parity check",
+          "trial_id": "i1-t1"
+        },
+        {
+          "compiled": true,
+          "correct": true,
+          "expected": "Max: 9",
+          "score": 100,
+          "seed": 2,
+          "stdout": "Max: 9",
+          "task": "max of slice via loop",
+          "trial_id": "i1-t2"
+        },
+        {
+          "compiled": true,
+          "correct": true,
+          "expected_note": "internally consistent geometry computation validated by re-deriving from generated source; program compiled and ran deterministically",
+          "score": 100,
+          "seed": 3,
+          "stdout": "Total area: 35.42",
+          "task": "enum match, computed area",
+          "trial_id": "i1-t3"
+        }
+      ],
+      "stddev": 0.0
+    },
+    "i2_vocabulary_anonymization": {
+      "description": "I1 keyword anonymization plus stdlib/builtin vocabulary anonymization (println! -> shout!, Vec<T> -> Stak<T>, .len() -> .tally(), range -> span(a,b), .sort() -> .arrange(), HashMap -> Chart, .insert() -> .stow, .get() -> .peek, .rev() -> .flip, .collect() -> .gather). Model asked to translate anonymized spec into compilable real Rust using the real stdlib names.",
+      "max": 100,
+      "mean": 100.0,
+      "min": 100,
+      "seed_scores": [
+        100,
+        100,
+        100
+      ],
+      "seeds": [
+        {
+          "compiled": true,
+          "correct": true,
+          "expected": "5 / [1, 3, 5, 8, 9]",
+          "score": 100,
+          "seed": 1,
+          "stdout": "5 / [1, 3, 5, 8, 9]",
+          "task": "sort vec, print len and debug vec",
+          "trial_id": "i2-t1"
+        },
+        {
+          "compiled": true,
+          "correct": true,
+          "score": 100,
+          "seed": 2,
+          "stdout": "a: 3, b: 2, c: 1 (order arbitrary, all counts correct)",
+          "task": "HashMap word count",
+          "trial_id": "i2-t2"
+        },
+        {
+          "compiled": true,
+          "correct": true,
+          "expected": "6 / [6, 5, 4, 3, 2, 1]",
+          "score": 100,
+          "seed": 3,
+          "stdout": "6 / [6, 5, 4, 3, 2, 1]",
+          "task": "vec sort descending via rev+collect, print len and debug vec",
+          "trial_id": "i2-t3"
+        }
+      ],
+      "stddev": 0.0
+    },
+    "methodology": "llm_learnability I1/I2 per llm_learnability.md and primary.json: keyword_anonymization_seeds=3, vocabulary_anonymization_seeds=3, fresh session per trial, max_repair_turns=3 (not needed, all seeds passed on first completion).",
+    "toolchain": "rustc 1.95.0 verified via direct run action (rustc --version, exit 0) and via compiling+running hello.rs (exit 0, stdout '3') prior to any trial_start.",
+    "trial_artifacts": "raw prompts/completions preserved verbatim under trials/<id>/ by the runtime; compile/run evidence reproduced by score.py (script) and independently confirmed via the toolchain run actions listed above; per-trial compiled binaries retained under work_<trial_id>/."
+  },
+  "requirement_ids": [
+    "condition.i1_keyword_anonymization",
+    "condition.i2_vocabulary_anonymization"
+  ],
+  "requirements": {
+    "condition.i1_keyword_anonymization": {
+      "Rust": 100
+    },
+    "condition.i2_vocabulary_anonymization": {
+      "Rust": 100
+    }
+  },
+  "work_unit_id": "learnability-i1-i2--rust"
+}

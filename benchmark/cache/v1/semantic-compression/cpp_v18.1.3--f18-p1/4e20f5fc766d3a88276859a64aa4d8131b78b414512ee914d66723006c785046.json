@@ -1,0 +1,110 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "4e20f5fc766d3a88276859a64aa4d8131b78b414512ee914d66723006c785046",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "c976c6f47c31a0b3bccbe9fe727b11f5de4bae7baa750e8712f0e2f580dc7585",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/c--f18-p1.json": "79919673e7bdbebaed52ef25da838ff96528e009ae307d971b362605cd1c0b3b"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f18-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--c--f18-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "C++": {
+      "generation_id": "cpp_v18.1.3",
+      "id": "cpp",
+      "language": "C++",
+      "version": "18.1.3",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "c976c6f47c31a0b3bccbe9fe727b11f5de4bae7baa750e8712f0e2f580dc7585",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--c--f18-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F18.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F18.P1",
+          "fragment": "#include <iostream>\nstd::cout << \"x\" << std::endl;",
+          "justification": "`#include <iostream>` then `std::cout << \"x\\n\";` \u2014 include makes std::cout available; iostream's the standard console facility.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F18.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "9a027a3c4b0dbfca5f334997e996ba0b8fe60d90f9441641970b9d17f4c9a984",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "C++",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F18.P1",
+        "schema_version": 2,
+        "source_record_sha256": "01afb96e5f77cf86c153fe8dca6ae53411a88086aa2626c66deaf26342f2a7db",
+        "source_result_sha256": "345b613943ed9a6f3bf7eb8dc619bc775b1d816dfb08642d83fa531320a181e8"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f18-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "f6a0acf9569fc647ef870d807702a2baa83a3bd469392981aa0d57c66ae05e9f",
+  "schema_version": 1
+}

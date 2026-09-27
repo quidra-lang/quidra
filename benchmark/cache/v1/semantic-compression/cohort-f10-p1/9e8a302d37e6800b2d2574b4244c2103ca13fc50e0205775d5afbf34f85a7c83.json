@@ -1,0 +1,150 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "9e8a302d37e6800b2d2574b4244c2103ca13fc50e0205775d5afbf34f85a7c83",
+  "fingerprint_payload": {
+    "assigned_languages": [],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/audit/semantic-compression/support_adjudication_f10-p1.json": "bbafd93763936559158e10ab1fd203601a2f05daf74aa004e7d25d58536cdded"
+    },
+    "requirement_ids": [
+      "annotation.support_adjudication--f10-p1"
+    ],
+    "runtime_toolchain_pins": {},
+    "schema_version": 1,
+    "semantic_evidence_contract": "sc-support-adjudication-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "27d9c247f8c9e5c59a5be3cab63ed35f7e7ed8af2292b71729edd54f68ed2e72",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-support-adjudication:F10.P1"
+  },
+  "language_generations": {},
+  "provenance": {
+    "prompt_sha256": "4b909922484bd54ad54ed83ddc09e7b1bb89ed5af41bffe88e616131eca102ea",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-support-adjudication--f10-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "mode": "support-from-canonical-baseline",
+        "probe_id": "F10.P1",
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
+      }
+    },
+    "requirements": {
+      "annotation.support_adjudication--f10-p1": {
+        "C++": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "int small = static_cast<int>(big);\nreturn small;",
+          "justification": "`int32_t small = static_cast<int32_t>(big);` explicit narrowing conversion (rung ii); C++20 `std::in_range<int32_t>(big)` also available for a checked-style guard.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Go": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "small := int32(big)\nreturn small",
+          "justification": "small := int32(big) -- Go's ordinary explicit narrowing conversion (rung ii; no checked-conversion stdlib op exists).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Java": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "int small;\ntry { small = Math.toIntExact(big); } catch (ArithmeticException e) { small = 0; }\nreturn small;",
+          "justification": "int small; try { small = Math.toIntExact(big); } catch (ArithmeticException e) { small = 0; } \u2014 Math.toIntExact is the standard checked narrowing operation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Kotlin": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "val small = big.toInt()\nreturn small",
+          "justification": "val small = big.toInt() \u2014 explicit ordinary narrowing conversion (rung ii); Kotlin stdlib has no checked Long-to-Int conversion returning an optional, so the plain explicit conversion (bit-truncating) is used.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Python": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "import ctypes\nsmall = ctypes.c_int32(big).value\nreturn small",
+          "justification": "ctypes.c_int32 is a standard-library signed 32-bit representation and its explicit construction is a standard narrowing conversion. The unchanged preference ladder therefore reaches rung (ii) without a named-substitution exception.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Quidra": {
+          "citation": "numeric-and-bin.md 'Conversion': `int32(big)` is the ordinary explicit narrowing cast; 'Integer narrowing never wraps or clamps' and is deterministically range-checked at runtime (rung ii, frozen checked-mode behavior).",
+          "fragment": "int32 small = int32(big)\nreturn small",
+          "justification": "numeric-and-bin.md 'Conversion': `int32(big)` is the ordinary explicit narrowing cast; 'Integer narrowing never wraps or clamps' and is deterministically range-checked at runtime (rung ii, frozen checked-mode behavior).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Rust": {
+          "citation": "TryFrom<i64> for i32 documentation",
+          "fragment": "let small: i32 = big.try_into().unwrap_or(0);\nsmall",
+          "justification": "TryFrom<i64> for i32 documentation",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Swift": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "let small = Int32(exactly: big) ?? 0\nreturn small",
+          "justification": "let small = Int32(exactly: big) ?? 0 \u2014 rung (i) failable initializer reports out-of-range as nil.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "TypeScript": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "const small = big | 0;\nreturn small;",
+          "justification": "const small = Number(big) | 0; \u2014 explicit narrowing to 32-bit representation via documented ToInt32 bitwise conversion (rung ii); no checked/optional narrowing op exists in stdlib.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Zig": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F10.P1",
+          "fragment": "const small: i32 = std.math.cast(i32, big) orelse 0;",
+          "justification": "std.math.cast(i32, big) returns ?i32 (rung i, checked conversion yielding optional) \u2014 explicit, documented.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "d13be5a0bf88463091d4aa16cde13c0ee09da7991b739f8299240b5153d52065",
+  "schema_version": 1
+}

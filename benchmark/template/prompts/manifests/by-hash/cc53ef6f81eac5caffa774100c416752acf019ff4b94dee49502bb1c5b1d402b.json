@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 5211,
+      "kind": "embedded:worker_core.md",
+      "sha256": "7536c2bff320857ff700a3345df7e62205d6fe47aafb8f0df2e402a08f19a6cb"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 42105,
+      "kind": "task-input:work/root/semantic-probes/go--f20-p2.json",
+      "sha256": "9b9e2f9af3da5446a99b6949b7ccebd3eabdaf9fdc06331d43f71e9f0b71ca64"
+    },
+    {
+      "bytes": 3844,
+      "kind": "task",
+      "sha256": "aae7338ebaa4613635f55b2bd23c80ba582f3b9322c3e380a8e6e2750e39ceb8"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "4b30f24f1688272fa530d4e7acf5a01325c36b7b946c38c219e48362117be712"
+    }
+  ],
+  "prompt_sha256": "cc53ef6f81eac5caffa774100c416752acf019ff4b94dee49502bb1c5b1d402b",
+  "rendered_bytes": 63213,
+  "schema_version": 1
+}

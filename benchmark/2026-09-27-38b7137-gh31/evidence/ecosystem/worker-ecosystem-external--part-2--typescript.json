@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-ecosystem-external--part-2--typescript",
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "evidence": {
+    "metric.production_adoption_deployment_evidence": {
+      "candidate_universe": "Public company engineering-blog case studies and conference talks identifiable via web search; the fixed platform list above; the most recent published Stack Overflow Developer Survey usage figures.",
+      "component_findings": {
+        "current_continuity": "Preserved paid evidence (ecosystem-external--part-2--typescript): Third-party developer-survey data shows very high professional usage. <cite index='3-12'>The Stack Overflow 2025 Developer Survey reports TypeScript at 73% professional usage, up from around 34% in 2020.</cite> Package-ecosystem indicators corroborate heavy production reliance: <cite index='3-14'>DefinitelyTyped: now ships 35,000+ @types packages, covering roughly 95% of npm's public registry ... npm downloads: the typescript package itself passed 25 million weekly downloads in Q1 2026, up 40%</cite>.",
+        "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--typescript): All three rubric legs are strongly satisfied: multiple large, independently verifiable named-company production migrations with documented outcomes; native first-class support across every platform in the fixed deployment-platform universe (including TypeScript-native platforms like Deno Deploy); and high independent survey-confirmed professional usage share (73% per Stack Overflow 2025). The score is not perfect only because some of the named-company evidence is relayed through secondary/aggregator sources rather than each company's own primary engineering blog post, which slightly limits direct verifiability of the most-cited claims (e.g., Slack, Shopify, Microsoft specifics beyond Airbnb'",
+        "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--typescript): Multiple large, independently identifiable companies have publicly documented production TypeScript adoption. <cite index='9-1'>Real companies\u2014including Microsoft, Slack, Airbnb, Google (Angular), and Shopify\u2014have publicly documented major migrations and quality improvements.</cite> The Airbnb case is the most detailed and frequently cited: <cite index='9-10,9-11,9-12'>Airbnb engineer Brie Bunge presented at JSConf Hawaii 2019 (February 2019) that a post-mortem analysis of Airbnb's production bugs found that 38% of bugs that reached production could have been prevented by TypeScript. This number\u2014consistent with the academic research by Gao et al.\u2014became widely shared across the developer com",
+        "named_organizations": "Preserved paid evidence (ecosystem-external--part-2--typescript): All three rubric legs are strongly satisfied: multiple large, independently verifiable named-company production migrations with documented outcomes; native first-class support across every platform in the fixed deployment-platform universe (including TypeScript-native platforms like Deno Deploy); and high independent survey-confirmed professional usage share (73% per Stack Overflow 2025). The score is not perfect only because some of the named-company evidence is relayed through secondary/aggregator sources rather than each company's own primary engineering blog post, which slightly limits direct verifiability of the most-cited claims (e.g., Slack, Shopify, Microsoft specifics beyond Airbnb'",
+        "scale_criticality": "Preserved paid evidence (ecosystem-external--part-2--typescript): TypeScript/JavaScript has native, first-class support across every platform in the frozen list. Serverless/edge: <cite index='19-18,19-19'>Cloudflare Workers is a serverless platform that runs JavaScript, TypeScript, or WebAssembly at the edge on Cloudflare's global network. It uses V8 isolates, lightweight sandboxed runtimes, allowing for extremely fast cold starts (often under 5 ms) and low-latency request handling close to users.</cite> Vercel and Netlify both run TypeScript-based edge/serverless functions: <cite index='19-2'>Integrated with Vercel's frontend hosting and build pipeline.</cite> and <cite index='19-4'>Built on Deno runtime, running at Netlify's CDN edge.</cite> Deno Deploy "
+      },
+      "component_levels": {
+        "current_continuity": 4,
+        "deployment_depth": 4,
+        "domain_diversity": 4,
+        "named_organizations": 4,
+        "scale_criticality": 4
+      },
+      "legacy_score_0_100": 96,
+      "limitations": "Survey percentages and download counts are reported here as one corroborating data point among three independent rubric legs (named-company evidence, platform-native-support evidence, survey evidence), not as the sole basis for the score, per the methodology's restriction on standalone popularity proxies. Some sourced commentary pages are SEO/marketing-style aggregator content rather than primary company engineering posts; the strongest primary evidence used above is the conference-talk citation (Airbnb/Brie Bunge, JSConf Hawaii 2019) relayed through a secondary source, and Microsoft/Slack/Shopify migrations are cited via a secondary aggregator rather than each company's own blog, which is disclosed as a source-quality limitation.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.production-adoption.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Use public, independently checkable production evidence; named deployments must be documented by the deploying organization or corroborated by credible independent sources. Popularity surveys alone do not prove deployment.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-2--typescript",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/51bbb966adbe07b656fb49e3dc97a3215985da777584457bfff385eaa413d90e.json"
+      ]
+    },
+    "metric.third_party_tool_availability": {
+      "candidate_universe": "Full list on the Microsoft TypeScript Editor Support wiki page (Visual Studio, VS Code, WebStorm/JetBrains IDEs, Atom, Eclipse, Emacs, NeoVim/Vim, NetBeans, Sublime Text, Notepad++), plus the linter/formatter/build-tool landscape referenced in Microsoft's own TypeScript tooling guidance (ESLint, typescript-eslint, Prettier, Biome, Oxlint, webpack, esbuild, Vite, ts-node).",
+      "component_findings": {
+        "build_test_coverage": "Preserved paid evidence (ecosystem-external--part-2--typescript): TypeScript has essentially complete third-party tool coverage across every checklist category: broad IDE/editor support natively documented by the language steward, a mature and actively released type-aware linter (typescript-eslint) with tens of thousands of dependent npm projects, a dominant formatter (Prettier) plus emerging faster Rust-based alternatives (Biome, Oxlint), a debugger built into the most widely used editor (VS Code) as well as JetBrains WebStorm, and first-party Microsoft tooling guidance reinforcing the standard toolchain. No checklist category is missing or weak; the only minor deduction reflects that some newer Rust-based tools still have partial rule-coverage gaps relat",
+        "ci_devops": "Preserved paid evidence (ecosystem-external--part-2--typescript): Microsoft itself publishes first-party developer guidance recommending this exact ESLint+Prettier+VS Code toolchain, including editor extensions: <cite index='14-1,14-2,14-3'>Boost your productivity with these must-have extensions: Prettier ESLint TypeScript Formatter \u2013 Formats TypeScript code through Prettier, then through ESLint. Path Intellisense \u2013 Auto-suggests import paths. Error Lens \u2013 Highlights TypeScript errors inline.</cite>",
+        "debug_profile": "Preserved paid evidence (ecosystem-external--part-2--typescript): TypeScript has essentially complete third-party tool coverage across every checklist category: broad IDE/editor support natively documented by the language steward, a mature and actively released type-aware linter (typescript-eslint) with tens of thousands of dependent npm projects, a dominant formatter (Prettier) plus emerging faster Rust-based alternatives (Biome, Oxlint), a debugger built into the most widely used editor (VS Code) as well as JetBrains WebStorm, and first-party Microsoft tooling guidance reinforcing the standard toolchain. No checklist category is missing or weak; the only minor deduction reflects that some newer Rust-based tools still have partial rule-coverage gaps relat",
+        "editor_ide": "Preserved paid evidence (ecosystem-external--part-2--typescript): TypeScript has essentially complete third-party tool coverage across every checklist category: broad IDE/editor support natively documented by the language steward, a mature and actively released type-aware linter (typescript-eslint) with tens of thousands of dependent npm projects, a dominant formatter (Prettier) plus emerging faster Rust-based alternatives (Biome, Oxlint), a debugger built into the most widely used editor (VS Code) as well as JetBrains WebStorm, and first-party Microsoft tooling guidance reinforcing the standard toolchain. No checklist category is missing or weak; the only minor deduction reflects that some newer Rust-based tools still have partial rule-coverage gaps relat",
+        "lint_format_static": "Preserved paid evidence (ecosystem-external--part-2--typescript): typescript-eslint is the de facto official-adjacent linting layer; per its own site, <cite index='44-1,44-3,44-4,44-5'>Powerful static analysis for JavaScript and TypeScript ... The parser and services for linting TypeScript code with ESLint, as well as how tools such as Prettier read TypeScript code. Over 100 rules that check for best practices, likely bugs, and stylistic consistency in modern JavaScript and TypeScript codebases. Industry-leading services that use TypeScript's type APIs to make a more powerful breed of lint rules for deeper insights into code.</cite> Registry-level adoption is large: <cite index='43-1,43-3'>Latest version: 8.70.0, last published: 13 days ago ... There are 1"
+      },
+      "component_levels": {
+        "build_test_coverage": 4,
+        "ci_devops": 4,
+        "debug_profile": 4,
+        "editor_ide": 4,
+        "lint_format_static": 4
+      },
+      "legacy_score_0_100": 97,
+      "limitations": "Weekly npm download / dependent-project counts and GitHub stars are used here only as one corroborating signal for tool reuse breadth, not as the sole basis for the score; they are combined with official-documentation citations (Microsoft's own editor-support wiki and tooling blog) and independent comparative tooling analyses, consistent with the methodology's restriction on using raw popularity counts as a standalone proxy.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.third-party-tools.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Inspect the same fixed tool categories for every language and require independently maintained current tools; official first-party tools may be cited only as context, not as third-party availability.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-2--typescript",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/typescript/51bbb966adbe07b656fb49e3dc97a3215985da777584457bfff385eaa413d90e.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "TypeScript",
+      "metrics": {
+        "metric.production_adoption_deployment_evidence": {
+          "component_levels": {
+            "current_continuity": 4,
+            "deployment_depth": 4,
+            "domain_diversity": 4,
+            "named_organizations": 4,
+            "scale_criticality": 4
+          },
+          "rubric_id": "ecosystem.production-adoption.v1",
+          "score_0_100": 100
+        },
+        "metric.third_party_tool_availability": {
+          "component_levels": {
+            "build_test_coverage": 4,
+            "ci_devops": 4,
+            "debug_profile": 4,
+            "editor_ide": 4,
+            "lint_format_static": 4
+          },
+          "rubric_id": "ecosystem.third-party-tools.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.production_adoption_deployment_evidence",
+    "metric.third_party_tool_availability"
+  ],
+  "requirements": {
+    "metric.production_adoption_deployment_evidence": {
+      "TypeScript": 100.0
+    },
+    "metric.third_party_tool_availability": {
+      "TypeScript": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-2--typescript"
+}

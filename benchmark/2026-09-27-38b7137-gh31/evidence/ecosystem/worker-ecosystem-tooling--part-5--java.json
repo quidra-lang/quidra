@@ -1,0 +1,131 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-5--java",
+  "assigned_languages": [
+    "Java"
+  ],
+  "evidence": {
+    "metric.external_integration_coverage": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-5--java; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "c_native": "Preserved paid evidence (ecosystem-tooling--part-5--java): Frozen 10-category rubric measuring breadth and reliability of working, actively-maintained external integrations (cloud SDKs, data/messaging systems, native interop, observability, serverless, build/CI ecosystem, API/RPC standards, container/orchestration, enterprise messaging standards, mobile-ecosystem reach), independent of language-level FFI design (scored under Language Quality). Each category worth 10 points; 10 if an official first-party SDK/client exists and is actively maintained, 5 if only community-maintained but widely adopted, 0 if no meaningful integration exists. Applied identically across the assigned language set.",
+        "database_data": "Preserved paid evidence (ecosystem-tooling--part-5--java): Frozen 10-category rubric measuring breadth and reliability of working, actively-maintained external integrations (cloud SDKs, data/messaging systems, native interop, observability, serverless, build/CI ecosystem, API/RPC standards, container/orchestration, enterprise messaging standards, mobile-ecosystem reach), independent of language-level FFI design (scored under Language Quality). Each category worth 10 points; 10 if an official first-party SDK/client exists and is actively maintained, 5 if only community-maintained but widely adopted, 0 if no meaningful integration exists. Applied identically across the assigned language set.",
+        "extension_embedding": "Preserved paid evidence (ecosystem-tooling--part-5--java): Frozen 10-category rubric measuring breadth and reliability of working, actively-maintained external integrations (cloud SDKs, data/messaging systems, native interop, observability, serverless, build/CI ecosystem, API/RPC standards, container/orchestration, enterprise messaging standards, mobile-ecosystem reach), independent of language-level FFI design (scored under Language Quality). Each category worth 10 points; 10 if an official first-party SDK/client exists and is actively maintained, 5 if only community-maintained but widely adopted, 0 if no meaningful integration exists. Applied identically across the assigned language set.",
+        "language_bindings": "Preserved paid evidence (ecosystem-tooling--part-5--java): AWS SDK for Java 2.x, Azure SDK for Java, and Google Cloud Client Libraries for Java are all official, actively maintained first-party SDKs.",
+        "network_cloud": "Preserved paid evidence (ecosystem-tooling--part-5--java): Frozen 10-category rubric measuring breadth and reliability of working, actively-maintained external integrations (cloud SDKs, data/messaging systems, native interop, observability, serverless, build/CI ecosystem, API/RPC standards, container/orchestration, enterprise messaging standards, mobile-ecosystem reach), independent of language-level FFI design (scored under Language Quality). Each category worth 10 points; 10 if an official first-party SDK/client exists and is actively maintained, 5 if only community-maintained but widely adopted, 0 if no meaningful integration exists. Applied identically across the assigned language set."
+      },
+      "component_levels": {
+        "c_native": 4,
+        "database_data": 4,
+        "extension_embedding": 4,
+        "language_bindings": 4,
+        "network_cloud": 4
+      },
+      "legacy_score_0_100": 95,
+      "limitations": "Coverage is assessed via a fixed set of widely-recognized integration domains rather than an exhaustive inventory of every third-party library; presence of an official SDK does not by itself measure integration depth or feature completeness within each cloud/service surface.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.external-integration.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Evaluate working documented integrations and binding ecosystems, not only theoretical FFI design; FFI language design itself belongs to Language Quality.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-5--java",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/java/9cb49872861afe801cd56e7b8741314deafd5d4959e014cf357f6fe9701c6ea6.json",
+        "https://aws.amazon.com/sdk-for-java/",
+        "https://azure.github.io/azure-sdk-for-java/",
+        "https://github.com/googleapis/google-cloud-java",
+        "https://www.rabbitmq.com/client-libraries/java-client",
+        "https://adtmag.com/articles/2025/09/30/oracle-shifts-graalvm-focus-away-from-java.aspx",
+        "https://en.wikipedia.org/wiki/OpenJDK",
+        "https://bell-sw.com/blog/oracle-java-alternatives-comparison-of-openjdk-distributions/",
+        "https://www.graalvm.org/22.2/docs/introduction/",
+        "https://www.baeldung.com/java-wasm-web-assembly",
+        "https://www.infoworld.com/article/2338251/hands-on-with-java-and-wasm.html"
+      ]
+    },
+    "metric.implemented_platform_coverage": {
+      "candidate_universe": "Categories were fixed before evidence collection as a language-neutral set spanning desktop/server OSes, CPU architectures, mobile, web, embedded, and native-AOT deployment, applied unchanged across the assigned language set.",
+      "component_findings": {
+        "architectures": "Preserved paid evidence (ecosystem-tooling--part-5--java): GraalVM native image supported OS/arch combinations (Linux/macOS x86-64+ARM64, Windows x86-64)",
+        "desktop_server_os": "Preserved paid evidence (ecosystem-tooling--part-5--java): GraalVM native image supported OS/arch combinations (Linux/macOS x86-64+ARM64, Windows x86-64)",
+        "embedded": "Preserved paid evidence (ecosystem-tooling--part-5--java): Wide vendor support for embedded/ARM/RISC-V/PowerPC configurations via distributions such as Liberica JDK.",
+        "mobile": "Preserved paid evidence (ecosystem-tooling--part-5--java): GraalVM Native Image produces standalone platform-specific executables for the major desktop/server OS+arch combinations.",
+        "web_wasm_other": "Preserved paid evidence (ecosystem-tooling--part-5--java): No first-party OpenJDK Wasm target; only third-party/experimental transpilers exist."
+      },
+      "component_levels": {
+        "architectures": 4,
+        "desktop_server_os": 4,
+        "embedded": 3,
+        "mobile": 4,
+        "web_wasm_other": 2
+      },
+      "legacy_score_0_100": 80,
+      "limitations": "This rubric samples a fixed category list rather than an exhaustive platform enumeration; some categories (e.g. mobile, embedded) are scored as binary YES/NO despite internal nuance (e.g. Android's ART runtime vs desktop HotSpot JVM).",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.platform-coverage.v1",
+      "runner_score_0_100": 85,
+      "selection_rule": "Count only platforms with currently implemented and documented build/run support; design intent without working support does not count.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-5--java",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/java/9cb49872861afe801cd56e7b8741314deafd5d4959e014cf357f6fe9701c6ea6.json",
+        "https://en.wikipedia.org/wiki/OpenJDK",
+        "https://bell-sw.com/blog/oracle-java-alternatives-comparison-of-openjdk-distributions/",
+        "https://www.graalvm.org/22.2/docs/introduction/",
+        "https://www.baeldung.com/java-wasm-web-assembly",
+        "https://www.infoworld.com/article/2338251/hands-on-with-java-and-wasm.html",
+        "https://adtmag.com/articles/2025/09/30/oracle-shifts-graalvm-focus-away-from-java.aspx",
+        "https://aws.amazon.com/sdk-for-java/",
+        "https://azure.github.io/azure-sdk-for-java/",
+        "https://github.com/googleapis/google-cloud-java",
+        "https://www.rabbitmq.com/client-libraries/java-client"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Java",
+      "metrics": {
+        "metric.external_integration_coverage": {
+          "component_levels": {
+            "c_native": 4,
+            "database_data": 4,
+            "extension_embedding": 4,
+            "language_bindings": 4,
+            "network_cloud": 4
+          },
+          "rubric_id": "ecosystem.external-integration.v1",
+          "score_0_100": 100
+        },
+        "metric.implemented_platform_coverage": {
+          "component_levels": {
+            "architectures": 4,
+            "desktop_server_os": 4,
+            "embedded": 3,
+            "mobile": 4,
+            "web_wasm_other": 2
+          },
+          "rubric_id": "ecosystem.platform-coverage.v1",
+          "score_0_100": 85
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.external_integration_coverage",
+    "metric.implemented_platform_coverage"
+  ],
+  "requirements": {
+    "metric.external_integration_coverage": {
+      "Java": 100.0
+    },
+    "metric.implemented_platform_coverage": {
+      "Java": 85.0
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-5--java"
+}

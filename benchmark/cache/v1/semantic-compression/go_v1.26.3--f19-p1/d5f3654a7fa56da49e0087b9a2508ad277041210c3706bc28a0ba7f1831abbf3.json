@@ -1,0 +1,108 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "d5f3654a7fa56da49e0087b9a2508ad277041210c3706bc28a0ba7f1831abbf3",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "976a48dbbd0d03cabf0ea47459dd839abb28b1dcb9a5e124798033b93917faae",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/go--f19-p1.json": "0ae84e8fd2b64bc5c3c773bd0b1e468aa2f8b4890266abb858c806345f769144"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f19-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--go--f19-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Go": {
+      "generation_id": "go_v1.26.3",
+      "id": "go",
+      "language": "Go",
+      "version": "1.26.3",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "976a48dbbd0d03cabf0ea47459dd839abb28b1dcb9a5e124798033b93917faae",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--go--f19-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F19.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F19.P1",
+          "fragment": "ch1 := make(chan int)\nch2 := make(chan int)\ngo func() { ch1 <- 20 }()\ngo func() { ch2 <- 22 }()\nsum := <-ch1 + <-ch2\nreturn sum",
+          "justification": "Two goroutines each computing a value, joined via channels or sync.WaitGroup, summed to 42.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F19.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "385b6cf5c55f7301c406186d2709aea306ba55680185676c08bd9b20b1903f31",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Go",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F19.P1",
+        "schema_version": 2,
+        "source_record_sha256": "062a57f5d821c6a23b17a7b67aa5787b34824c7a9b9043b5008c0206cc4c6e3e",
+        "source_result_sha256": "0b7b86c567363edfa4ba4b3b6c2b5c3335e59047d6f7e005797d67987299519d"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f19-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "ccc2c17cfb346a98ed29fe37ccf3455ad1949106b345c884f7b04f43630997c2",
+  "schema_version": 1
+}

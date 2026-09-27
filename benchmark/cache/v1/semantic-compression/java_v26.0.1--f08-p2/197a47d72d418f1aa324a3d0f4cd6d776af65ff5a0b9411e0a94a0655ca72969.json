@@ -1,0 +1,109 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "197a47d72d418f1aa324a3d0f4cd6d776af65ff5a0b9411e0a94a0655ca72969",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "d5ab0b1399acd7d0f45b27f996039ecc70f225eff9c6ab9cee125621a93df4a9",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/java--f08-p2.json": "588b602059653dd045cba7b4b006469351a4cb7377873a8be7f59cd30de22535"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f08-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--java--f08-p2",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Java": {
+      "generation_id": "java_v26.0.1",
+      "id": "java",
+      "language": "Java",
+      "version": "26.0.1",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "d5ab0b1399acd7d0f45b27f996039ecc70f225eff9c6ab9cee125621a93df4a9",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--java--f08-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F08.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F08.P2",
+          "fragment": "int q = (b == 0) ? 0 : a / b;\nreturn q;",
+          "justification": "int q = (b == 0) ? 0 : a / b; \u2014 Java has no checked-division-to-optional standard op; explicit guard is the documented next rung.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F08.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "a61629663a5ec92b246bbe3ec938b172da5055c49ed549c7451c1a3acb4c8346",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Java",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F08.P2",
+        "schema_version": 2,
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f08-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "e94e3b2f6ddf800a53560e0a4f2590df9ac6d6439d70d6225a0d176110037ca8",
+  "schema_version": 1
+}

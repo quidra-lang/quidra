@@ -1,0 +1,110 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "a38dce0bfee1724e6ccc3e857ecadb3118db945ec6e03d16688e7dc071afbb74",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "c4f8236ef84adfd68a8927460785fa9a88deac9c09969a27a5f72b6cbfb0681e",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/kotlin--f14-p2.json": "86233db4cc6c8d09715fbf7c7b18582b2500eb895c0d4186346993d31ba496d2"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f14-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--kotlin--f14-p2",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Kotlin": {
+      "generation_id": "kotlin_v2.3.21",
+      "id": "kotlin",
+      "language": "Kotlin",
+      "version": "2.3.21",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "c4f8236ef84adfd68a8927460785fa9a88deac9c09969a27a5f72b6cbfb0681e",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--kotlin--f14-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F14.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P2",
+          "fragment": "val area: Double = when (s) {\n    is Circle -> 3.141592653589793 * s.r * s.r\n    is Rect -> s.w * s.h\n}",
+          "justification": "val area = when (s) { is Circle -> PI*s.r*s.r; is Rect -> s.w*s.h } \u2014 when-as-expression over a sealed class is exhaustiveness-checked by the compiler with no else arm required.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F14.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "cd9c84125a08a69f900f73c63ffd289f9eaaf15502c22d3020931a7efadd1e55",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Kotlin",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F14.P2",
+        "schema_version": 2,
+        "source_record_sha256": "28f271c1c5529261b480c3109d5b07b08c7131955c41e2143e390906e6d75194",
+        "source_result_sha256": "bd39333cd1505b63ec8602aef6337c7e05f1e66d8fb502f9bab345e5b8d422e9"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f14-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "c936f27d0d06d95edaa244ef73246f0d92a8b5fe7f59be7d9bcee2887638050c",
+  "schema_version": 1
+}

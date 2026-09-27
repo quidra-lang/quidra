@@ -1,0 +1,108 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "7584fa4fd9d77193fe1f5df39d7f68aa4f778a748f1ff984d00a0d1a396be94c",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "a64a72eb311cc4d1512849ca4fbd5c228e5bb970e46dff869434c1d3aff3f726",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/rust--f19-p2.json": "247a51d6705a8ab42d34ff02b67443c027524acd446984a342e1bd2db3f6d4b1"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f19-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--rust--f19-p2",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Rust": {
+      "generation_id": "rust_v1.95.0",
+      "id": "rust",
+      "language": "Rust",
+      "version": "1.95.0",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "a64a72eb311cc4d1512849ca4fbd5c228e5bb970e46dff869434c1d3aff3f726",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--rust--f19-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F19.P2": {
+          "citation": "std::sync::atomic::AtomicI64 documentation",
+          "fragment": "let counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0)); let c1 = counter.clone(); let c2 = counter.clone(); let h1 = std::thread::spawn(move || { for _ in 0..1000 { c1.fetch_add(1, std::sync::atomic::Ordering::SeqCst); } }); let h2 = std::thread::spawn(move || { for _ in 0..1000 { c2.fetch_add(1, std::sync::atomic::Ordering::SeqCst); } }); h1.join().unwrap(); h2.join().unwrap(); counter.load(std::sync::atomic::Ordering::SeqCst)",
+          "justification": "std::sync::atomic::AtomicI64 documentation",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F19.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "6a53c03fde53f31d27059e90845a3b25b8680da1d5254e422807211791f8c757",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Rust",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F19.P2",
+        "schema_version": 2,
+        "source_record_sha256": "220285a21d253d2993df7f1f8bb60b265d4ba79904cda34cf52dbfa54e0788cb",
+        "source_result_sha256": "477e484dc9de28436a89079eeec8000018293822b8b4863eb4492fd471688d71"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f19-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "98ae2ccf895891ee0d9888348a803cc50de779c8a1120057f7ddb5f9029d9f20",
+  "schema_version": 1
+}

@@ -1,0 +1,109 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "b2ab5113a82421123c2a7a5fdad400d7a18bc776602938ff3205e96e329fa089",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "2ad6580a05db5b151aa90c7a2915ae463c13414ce861253594932d2d7a524982",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/java--f09-p2.json": "e6983797203b432ddeec7a665eefb8aeb68d0dddabfb92a7b8de1ae446a7af71"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f09-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--java--f09-p2",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Java": {
+      "generation_id": "java_v26.0.1",
+      "id": "java",
+      "language": "Java",
+      "version": "26.0.1",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "2ad6580a05db5b151aa90c7a2915ae463c13414ce861253594932d2d7a524982",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--java--f09-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F09.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F09.P2",
+          "fragment": "xs.sort(Comparator.reverseOrder());\nboolean lt = a < b;",
+          "justification": "xs.sort(Comparator.reverseOrder()); boolean lt = a < b; \u2014 explicit descending order supplied, in-place sort of the List.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F09.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "075afbaea8ded35a9a8e70b9e3d5b9fd4e46fe8154712c0da744ebe8fa65c3e3",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Java",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F09.P2",
+        "schema_version": 2,
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f09-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "54b69d6df2cad3ab92fcb4486db95f1657459ddbda3599f79cfff305ba6a903c",
+  "schema_version": 1
+}

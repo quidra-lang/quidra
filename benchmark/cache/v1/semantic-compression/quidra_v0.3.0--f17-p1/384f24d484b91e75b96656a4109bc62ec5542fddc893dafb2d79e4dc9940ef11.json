@@ -1,0 +1,122 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "081e7730e2e89159d53751326e2b7f850ffc134b",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "563853d9cc14d422f50ba5d56ff7f8802a46a1e0",
+        "project.toml": "bb477b1aeee2236d3efacb614deb748a42901e73",
+        "quidra.manifest.json": "76b9b1e0c57c8d5c90c1cdce191b8633991b290a",
+        "src": "e3895d804d41a29ad1d7edcf5b02f73e14f81176"
+      },
+      "schema_version": 1,
+      "sha256": "bb59b233ed3f4c3b7c4a36746886fb34f879ffe1f83960155881066a59553e4b"
+    }
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "384f24d484b91e75b96656a4109bc62ec5542fddc893dafb2d79e4dc9940ef11",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "1c9748ad1abea40490de314aacc95bbf26fd9c811ef6d6ae8a21525823d10e37",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs/spec": "8574ed09823b1ffd4aa9e7ed5cb2dc29f50ea5008b1957274e8181672e091998",
+      "work/root/semantic-probes/quidra--f17-p1.json": "1fcfe74133552a9bd06a6366f480e158d965efad242593f5dc312f8ee282ef52"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f17-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--quidra--f17-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Quidra": {
+      "generation_id": "quidra_v0.3.0",
+      "id": "quidra",
+      "language": "Quidra",
+      "version": "0.3.0",
+      "version_source": "project.toml:[project].version"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "1c9748ad1abea40490de314aacc95bbf26fd9c811ef6d6ae8a21525823d10e37",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--quidra--f17-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F17.P1": {
+          "citation": "language.md 'file': 'If close() is not called, that owned handle closes its native file deterministically when the handle leaves its lifetime, including ordinary return and error propagation; no defer or manual cleanup is required' -- this is exactly the guaranteed deterministic release-on-every-exit-path behavior the probe requires.",
+          "fragment": "int | error read_all()\n    file.Handle handle = try file.open(\"data.txt\")\n    string text = try handle.read()\n    return len(text.utf8())",
+          "justification": "language.md 'file': 'If close() is not called, that owned handle closes its native file deterministically when the handle leaves its lifetime, including ordinary return and error propagation; no defer or manual cleanup is required' -- this is exactly the guaranteed deterministic release-on-every-exit-path behavior the probe requires.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F17.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "b7504abd710f2391ef7ef07c39443a571a2e611bb8800357b696ea0e12824856",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Quidra",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F17.P1",
+        "schema_version": 2,
+        "source_record_sha256": "055c1f5636388bd7776877da876c431e9cf00c89c44312dc15269d3b80a4c5f6",
+        "source_result_sha256": "b494906f28f93f7c673650bff034bebab459169cbe24349a9b946e1ec35e3c0e"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f17-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "fc1ccce6246c132f965ed292afda7b4bced5de2c5600f7636e1c10ebac4fce49",
+  "schema_version": 1
+}

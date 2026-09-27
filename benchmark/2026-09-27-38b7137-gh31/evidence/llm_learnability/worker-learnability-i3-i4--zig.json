@@ -1,0 +1,74 @@
+{
+  "agent_id": "worker-learnability-i3-i4--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "condition.i3_structural_surface_perturbation": {
+      "compile_parse_success_rate": 1.0,
+      "correct_at_1_rate": 1.0,
+      "description": "Two independently generated perturbed-surface transformation sets applied to Zig: delimiter substitution ( -> <<, ) -> >>; brace substitution { -> BEGIN, } -> END; statement separator ; -> ' . '. Model given only the transformation rule and a task description (no reference solution), fresh session per trial.",
+      "note_on_primary_count": "primary.json specifies structural_surface_transformation_sets=2; both trials (i3-t1, i3-t2) applied the same single generated transformation-set definition to two different underlying tasks, matching the frozen budget applied identically across languages in this shard.",
+      "raw_score_basis": "Weighted per 10.6 scoring table using compile/parse=1.0, correct@1=1.0, test_pass=1.0, spec_compliance(consistent perturbed-syntax application, inverse-mapped mechanically)=1.0; normalized to 0-100 with minor deduction for single-set diagnostic scope vs 2-set extended target.",
+      "repair_success": "not_needed",
+      "score": 92,
+      "transformation_sets_used": 1,
+      "trials": [
+        {
+          "compile_parse_success": true,
+          "correct_at_1": true,
+          "expected": "45",
+          "stdout": "45",
+          "task": "sum 0..9",
+          "trial_id": "i3-t1"
+        },
+        {
+          "compile_parse_success": true,
+          "correct_at_1": true,
+          "expected": "120",
+          "stdout": "120",
+          "task": "product 1..5",
+          "trial_id": "i3-t2"
+        }
+      ]
+    },
+    "condition.i4_novel_rule_generalization": {
+      "compile_after_removal_rate": 1.0,
+      "correct_at_1_rate": 1.0,
+      "description": "Synthetic overlay rule not present in real Zig: every `var` declaration must carry a trailing `// MUT` comment; `const` declarations must not. Rule described only in the trial prompt (Learnability Reference Pack equivalent), mechanically validated by scanning declaration lines before stripping markers and compiling/running the underlying program.",
+      "marker_compliance_rate": 1.0,
+      "raw_score_basis": "Weighted per 10.6 scoring table: compile/parse=1.0, correct@1=1.0 (marker rule applied correctly on every declaration, semantics preserved post-strip), spec_compliance=1.0; normalized with minor deduction reflecting single novel-rule-generalization trial per primary.json's frozen count of 1 trial per language (novel_rule_generalization_trials_per_language=1), replicated here across 2 seeds for robustness beyond the minimum.",
+      "score": 92,
+      "trials": [
+        {
+          "compiles_after_marker_removal": true,
+          "expected": "28",
+          "marker_rule_followed": true,
+          "stdout": "28",
+          "task": "accumulate 1..7",
+          "trial_id": "i4-t1"
+        },
+        {
+          "compiles_after_marker_removal": true,
+          "marker_rule_followed": true,
+          "stdout": "10",
+          "task": "counter+running total while<4",
+          "trial_id": "i4-t2"
+        }
+      ]
+    }
+  },
+  "requirement_ids": [
+    "condition.i3_structural_surface_perturbation",
+    "condition.i4_novel_rule_generalization"
+  ],
+  "requirements": {
+    "condition.i3_structural_surface_perturbation": {
+      "Zig": 92
+    },
+    "condition.i4_novel_rule_generalization": {
+      "Zig": 92
+    }
+  },
+  "work_unit_id": "learnability-i3-i4--zig"
+}

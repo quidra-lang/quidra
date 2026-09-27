@@ -1,0 +1,150 @@
+{
+  "agent_id": "worker-learnability-i5-i6--go",
+  "assigned_languages": [
+    "Go"
+  ],
+  "evidence": {
+    "condition.i5_held_out_rule_composition": {
+      "condition_task_effectiveness_score": 100,
+      "description": "Zorb mini-language: three rules (INC, DBL, NEG) taught only via isolated single-rule examples (Example A: INC-only, Example B: DBL-only, Example C: NEG-only). Held-out test programs require compositions never shown together: T1=INC+DBL, T2=DBL+NEG+INC, T3=INC+INC+DBL+NEG+INC (all three rules combined). Composition set fixed before running trials.",
+      "metrics": {
+        "compile_parse_success": 100,
+        "correct_at_1": 100,
+        "correct_at_n": 100,
+        "hallucination_resistance": 100,
+        "repair_efficiency": {
+          "reason": "No repairs required",
+          "status": "N/A"
+        },
+        "repair_success": {
+          "reason": "No repairs required; both trials passed on first attempt (Correct@1)",
+          "status": "N/A"
+        },
+        "silent_bug_resistance": 100,
+        "source_token_efficiency": 100,
+        "specification_compliance": 100,
+        "test_pass_rate": 100,
+        "total_token_efficiency": 100,
+        "unseen_case_generalization": 100
+      },
+      "seeds": {
+        "max": 100,
+        "mean": 100,
+        "min": 100,
+        "n": 2,
+        "scores": [
+          100,
+          100
+        ],
+        "stddev": 0
+      },
+      "trials": [
+        {
+          "compile_success": true,
+          "correct": true,
+          "expected": {
+            "T1": 6,
+            "T2": -1,
+            "T3": -3
+          },
+          "stdout": "T1: 6\nT2: -1\nT3: -3\n",
+          "trial_id": "i5-t1"
+        },
+        {
+          "compile_success": true,
+          "correct": true,
+          "expected": {
+            "T1": 6,
+            "T2": -1,
+            "T3": -3
+          },
+          "stdout": "T1: 6\nT2: -1\nT3: -3\n",
+          "trial_id": "i5-t2"
+        }
+      ],
+      "weights_used": {
+        "note": "Repair-related weights (8%+6%=14%) redistributed proportionally across remaining scored metrics since no repair events occurred; net result still 100 because every scored metric was 100."
+      }
+    },
+    "condition.i6_prior_conflict_resistance": {
+      "condition_task_effectiveness_score": 100,
+      "description": "Reversible counterfactual arithmetic mapping: '+' means subtraction, '-' means addition (swapped from prior lexical expectation), '*' and '/' unchanged, strict left-to-right evaluation with no precedence. Specification stated unambiguously; inverse mapping is reversible (swap again restores standard arithmetic). No semantic traps altering real program results were used\u2014only the token-to-operation binding was swapped.",
+      "failure_modes_observed": "none; model correctly applied the swapped '+'/'-' mapping and strict left-to-right evaluation in both independent trials, resisting the prior lexical expectation that '+' means addition.",
+      "metrics": {
+        "compile_parse_success": 100,
+        "correct_at_1": 100,
+        "correct_at_n": 100,
+        "hallucination_resistance": 100,
+        "repair_efficiency": {
+          "reason": "No repairs required",
+          "status": "N/A"
+        },
+        "repair_success": {
+          "reason": "No repairs required; both trials passed on first attempt",
+          "status": "N/A"
+        },
+        "silent_bug_resistance": 100,
+        "source_token_efficiency": 100,
+        "specification_compliance": 100,
+        "test_pass_rate": 100,
+        "total_token_efficiency": 100,
+        "unseen_case_generalization": 100
+      },
+      "seeds": {
+        "max": 100,
+        "mean": 100,
+        "min": 100,
+        "n": 2,
+        "scores": [
+          100,
+          100
+        ],
+        "stddev": 0
+      },
+      "trials": [
+        {
+          "compile_success": true,
+          "correct": true,
+          "expected": {
+            "R1": 7,
+            "R2": 13,
+            "R3": 17,
+            "R4": 11
+          },
+          "stdout": "R1: 7\nR2: 13\nR3: 17\nR4: 11\n",
+          "trial_id": "i6-t1"
+        },
+        {
+          "compile_success": true,
+          "correct": true,
+          "expected": {
+            "R1": 7,
+            "R2": 13,
+            "R3": 17,
+            "R4": 11
+          },
+          "stdout": "R1: 7\nR2: 13\nR3: 17\nR4: 11\n",
+          "trial_id": "i6-t2"
+        }
+      ]
+    },
+    "methodology_notes": {
+      "fixed_before_results": "Held-out composition set (I5) and swapped-token mapping (I6) were fixed in the trial prompts before any trial was started or observed.",
+      "trial_budget_used": "4 of 8 allotted trial_start calls; 2 independent fresh-session trials per condition (i5, i6), each evaluated for Go only per this shard's assignment.",
+      "validation_method": "Each completion's Go code block was extracted via extract.py, compiled and executed with `go run`, and stdout was compared programmatically against pre-computed expected values."
+    }
+  },
+  "requirement_ids": [
+    "condition.i5_held_out_rule_composition",
+    "condition.i6_prior_conflict_resistance"
+  ],
+  "requirements": {
+    "condition.i5_held_out_rule_composition": {
+      "Go": 100
+    },
+    "condition.i6_prior_conflict_resistance": {
+      "Go": 100
+    }
+  },
+  "work_unit_id": "learnability-i5-i6--go"
+}

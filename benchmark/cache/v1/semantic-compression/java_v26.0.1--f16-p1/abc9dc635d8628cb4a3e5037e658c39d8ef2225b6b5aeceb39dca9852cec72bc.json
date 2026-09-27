@@ -1,0 +1,109 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "abc9dc635d8628cb4a3e5037e658c39d8ef2225b6b5aeceb39dca9852cec72bc",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "6439fa96aa268b2ee6c881d7d32c8dd6e2d7501b5fd96eac3bc65210bd5cfc69",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/java--f16-p1.json": "c7a6366a3f8f6408f1535120df133ad5274a9418ddb974666d509f7a17242ea5"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f16-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--java--f16-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Java": {
+      "generation_id": "java_v26.0.1",
+      "id": "java",
+      "language": "Java",
+      "version": "26.0.1",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "6439fa96aa268b2ee6c881d7d32c8dd6e2d7501b5fd96eac3bc65210bd5cfc69",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--java--f16-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F16.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F16.P1",
+          "fragment": "List<Integer> xs = List.of(1, 2, 3);\nint total = xs.stream().mapToInt(Integer::intValue).sum();\nreturn total;",
+          "justification": "List<Integer> xs = new ArrayList<>(List.of(1,2,3)); int total = xs.stream().mapToInt(Integer::intValue).sum(); \u2014 standard sum/stream operation.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F16.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "e1b721db0c91b139282822be87111b633660edd8775b7a7212a9d26e75c1351b",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Java",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F16.P1",
+        "schema_version": 2,
+        "source_record_sha256": "929148ce7fef301b14abdff66bf4941d4fd03a07004d04a3cc0d32b46b750024",
+        "source_result_sha256": "ff92944db16edc43843bbffb6d55c04a4e9a0b986332d299ca1ae6b3e222018e"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f16-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "78faf6e7b403a615d03f23c521170d5732ddf546fddc0577ce0c4bdfd4de65db",
+  "schema_version": 1
+}

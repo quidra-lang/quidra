@@ -1,0 +1,115 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-4--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "metric.installation_distribution_experience": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--quidra; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "artifact_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Tagged releases v0.1.0, v0.2.0, v0.3.0, v0.3.1 each carry attached release assets (6, 6, 6, and 4 assets respectively), consistent with automated per-platform artifact publication, but no evidence was found of listing in any OS or language package manager (apt, Homebrew, Chocolatey, winget, scoop), no install-script (curl|bash) entry point, and no Docker image or version-manager (asdf/mise-style) integration.",
+        "channel_breadth": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Positive signals: automated, CI-gated multi-asset GitHub Releases for every tagged version; a deliberately safety-hardened library package installer (exact-tag resolution, manifest/hash verification, sandboxed asset extraction) documented in packages.md; clear, reproducible source-build instructions. Negative signals: no first-party OS/language package-manager listing found (apt/brew/choco/winget/scoop), no curl-pipe-bash installer, no Docker image, no version-manager plugin, and building from source requires several native library dev headers (libcurl, libpng, libjpeg, libtiff, libwebp) plus a pre-existing Clang 15+ install because the project intentionally does not bundle a backend toolcha",
+        "install_docs": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Positive signals: automated, CI-gated multi-asset GitHub Releases for every tagged version; a deliberately safety-hardened library package installer (exact-tag resolution, manifest/hash verification, sandboxed asset extraction) documented in packages.md; clear, reproducible source-build instructions. Negative signals: no first-party OS/language package-manager listing found (apt/brew/choco/winget/scoop), no curl-pipe-bash installer, no Docker image, no version-manager plugin, and building from source requires several native library dev headers (libcurl, libpng, libjpeg, libtiff, libwebp) plus a pre-existing Clang 15+ install because the project intentionally does not bundle a backend toolcha",
+        "installers": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): quidra install resolves only exact vMAJOR.MINOR.PATCH release tags via git, optionally downloading HTTPS platform assets (asset.<platform>) that are inspected before extraction; asset-backed installs additionally require curl and tar, and official Linux packages declare those runtime dependencies. This is the package manager for Quidra *libraries* (dnn, vision), not for installing the Quidra compiler/toolchain itself.",
+        "package_version_manager": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Positive signals: automated, CI-gated multi-asset GitHub Releases for every tagged version; a deliberately safety-hardened library package installer (exact-tag resolution, manifest/hash verification, sandboxed asset extraction) documented in packages.md; clear, reproducible source-build instructions. Negative signals: no first-party OS/language package-manager listing found (apt/brew/choco/winget/scoop), no curl-pipe-bash installer, no Docker image, no version-manager plugin, and building from source requires several native library dev headers (libcurl, libpng, libjpeg, libtiff, libwebp) plus a pre-existing Clang 15+ install because the project intentionally does not bundle a backend toolcha"
+      },
+      "component_levels": {
+        "artifact_integrity": 2,
+        "channel_breadth": 3,
+        "install_docs": 3,
+        "installers": 3,
+        "package_version_manager": 1
+      },
+      "legacy_score_0_100": 42,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.install-distribution.v1",
+      "runner_score_0_100": 60,
+      "selection_rule": "Evaluate current official/de-facto installation paths on the same major desktop/server platforms and use only documented distribution channels.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-4--quidra",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/quidra/f44517181c217df84bc14efe0717b6231a3347ab36a94b12eb403abdb025a0fa.json",
+        "https://github.com/quidra-lang/quidra",
+        "https://github.com/quidra-lang"
+      ]
+    },
+    "metric.toolchain_stability_release_maturity": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-4--quidra; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "compat_deprecation": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Positive signals: a genuinely mechanized, reproducible, single-source-of-truth release pipeline (project.toml -> sync_metadata.py -> CI-gated, immutable, bot-created tags) with independently versioned ABI/IR/schema compatibility numbers, a documented and enforced SemVer policy, an unusually rigorous pre-release CI/test checklist, verified (GPG-signed) release commits, and real observed history including a patch-level maintenance release (v0.3.1). Negative signals: the language is still pre-1.0, so by its own documented policy 0.X.0 releases may include breaking language/stdlib changes and there is no published LTS/backport support-window commitment beyond 'fix release blockers on develop'; t",
+        "governance_change": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Positive signals: a genuinely mechanized, reproducible, single-source-of-truth release pipeline (project.toml -> sync_metadata.py -> CI-gated, immutable, bot-created tags) with independently versioned ABI/IR/schema compatibility numbers, a documented and enforced SemVer policy, an unusually rigorous pre-release CI/test checklist, verified (GPG-signed) release commits, and real observed history including a patch-level maintenance release (v0.3.1). Negative signals: the language is still pre-1.0, so by its own documented policy 0.X.0 releases may include breaking language/stdlib changes and there is no published LTS/backport support-window commitment beyond 'fix release blockers on develop'; t",
+        "release_cadence": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Positive signals: a genuinely mechanized, reproducible, single-source-of-truth release pipeline (project.toml -> sync_metadata.py -> CI-gated, immutable, bot-created tags) with independently versioned ABI/IR/schema compatibility numbers, a documented and enforced SemVer policy, an unusually rigorous pre-release CI/test checklist, verified (GPG-signed) release commits, and real observed history including a patch-level maintenance release (v0.3.1). Negative signals: the language is still pre-1.0, so by its own documented policy 0.X.0 releases may include breaking language/stdlib changes and there is no published LTS/backport support-window commitment beyond 'fix release blockers on develop'; t",
+        "release_integrity": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Positive signals: a genuinely mechanized, reproducible, single-source-of-truth release pipeline (project.toml -> sync_metadata.py -> CI-gated, immutable, bot-created tags) with independently versioned ABI/IR/schema compatibility numbers, a documented and enforced SemVer policy, an unusually rigorous pre-release CI/test checklist, verified (GPG-signed) release commits, and real observed history including a patch-level maintenance release (v0.3.1). Negative signals: the language is still pre-1.0, so by its own documented policy 0.X.0 releases may include breaking language/stdlib changes and there is no published LTS/backport support-window commitment beyond 'fix release blockers on develop'; t",
+        "support_policy": "Preserved paid evidence (ecosystem-tooling--part-4--quidra): Positive signals: a genuinely mechanized, reproducible, single-source-of-truth release pipeline (project.toml -> sync_metadata.py -> CI-gated, immutable, bot-created tags) with independently versioned ABI/IR/schema compatibility numbers, a documented and enforced SemVer policy, an unusually rigorous pre-release CI/test checklist, verified (GPG-signed) release commits, and real observed history including a patch-level maintenance release (v0.3.1). Negative signals: the language is still pre-1.0, so by its own documented policy 0.X.0 releases may include breaking language/stdlib changes and there is no published LTS/backport support-window commitment beyond 'fix release blockers on develop'; t"
+      },
+      "component_levels": {
+        "compat_deprecation": 2,
+        "governance_change": 2,
+        "release_cadence": 2,
+        "release_integrity": 3,
+        "support_policy": 1
+      },
+      "legacy_score_0_100": 61,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.toolchain-stability.v1",
+      "runner_score_0_100": 50,
+      "selection_rule": "Score current observable release/support practices. Language age and first-release date are context only and never directly score.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-4--quidra",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/quidra/f44517181c217df84bc14efe0717b6231a3347ab36a94b12eb403abdb025a0fa.json",
+        "https://github.com/quidra-lang/quidra",
+        "https://github.com/quidra-lang"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Quidra",
+      "metrics": {
+        "metric.installation_distribution_experience": {
+          "component_levels": {
+            "artifact_integrity": 2,
+            "channel_breadth": 3,
+            "install_docs": 3,
+            "installers": 3,
+            "package_version_manager": 1
+          },
+          "rubric_id": "ecosystem.install-distribution.v1",
+          "score_0_100": 60
+        },
+        "metric.toolchain_stability_release_maturity": {
+          "component_levels": {
+            "compat_deprecation": 2,
+            "governance_change": 2,
+            "release_cadence": 2,
+            "release_integrity": 3,
+            "support_policy": 1
+          },
+          "rubric_id": "ecosystem.toolchain-stability.v1",
+          "score_0_100": 50
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.installation_distribution_experience",
+    "metric.toolchain_stability_release_maturity"
+  ],
+  "requirements": {
+    "metric.installation_distribution_experience": {
+      "Quidra": 60.0
+    },
+    "metric.toolchain_stability_release_maturity": {
+      "Quidra": 50.0
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-4--quidra"
+}

@@ -1,0 +1,155 @@
+{
+  "agent_id": "worker-lq-language-development--part-4--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Quidra",
+      "metrics": {
+        "metric.concurrency": {
+          "component_levels": {
+            "async_structured": 2,
+            "error_cancel_propagation": 1,
+            "parallel_execution": 3,
+            "race_safety": 3,
+            "synchronization_channels": 2
+          },
+          "evidence_refs": [
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.concurrency.v1",
+          "score_0_100": 55
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "abi_calling_control": 3,
+            "bidirectional_callbacks": 3,
+            "foreign_declaration": 3,
+            "ownership_lifetime_boundary": 3,
+            "type_layout_mapping": 2
+          },
+          "evidence_refs": [
+            "repo/docs/spec",
+            "repo/docs/packages.md",
+            "repo/docs/development.md",
+            "repo/tests/benchmark/quidra",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.ffi-design.v1",
+          "score_0_100": 70
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.concurrency": {
+      "component_findings": {
+        "async_structured": "Recertified level 2 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: Recertified level 2 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: No executable Quidra concurrency workload/program was available under the readable template paths to empirically exercise task.all/atomic.Counter; assessment is documentation-only. | The standard-namespace list explicitly reserves `task` and `atomic` as concurrency-related namespaces alongside `ref`, `gpu`, etc. | 'Implementation scope' explicitly states the native core supports 'bounded structured concurrency through task.all for capture-free effect-only operations, ordered int[] / float[] scalar results, and explicit atomic.Counter shared state.' | This documents a narrow, structured-concurrency-only model: task.all is a bounded fork-join primitive over capture-free (no closures capturing mutable outer state) effect-only tasks, producing ordered int[]/float[] aggregated results, plus one atomic counter type for shared mutable state. | 'Cancellation' is explicitly listed as\u2026",
+        "error_cancel_propagation": "Recertified level 1 under the current criterion: Errors, cancellation and task termination propagate predictably across concurrent work instead of being silently detached or lost. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: Recertified level 2 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: No executable Quidra concurrency workload/program was available under the readable template paths to empirically exercise task.all/atomic.Counter; assessment is documentation-only. | The standard-namespace list explicitly reserves `task` and `atomic` as concurrency-related namespaces alongside `ref`, `gpu`, etc. | 'Implementation scope' explicitly states the native core supports 'bounded structured concurrency through task.all for capture-free effect-only operations, ordered int[] / float[] scalar results, and explicit atomic.Counter shared state.' | This documents a narrow, structured-concurrency-only model: task.all is a bounded fork-join primitive over capture-free (no closures capturing mutable outer state) effect-only tasks, producing ordered int[]/float[] aggregated results, plus one atomic counter type for shared mutable state. | 'Cancellation' is explicitly listed as\u2026",
+        "parallel_execution": "Recertified level 3 under the current criterion: The normal language/runtime model supports genuine parallel execution for applicable workloads without a fundamental default bottleneck or undocumented caveat. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: Recertified level 2 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: No executable Quidra concurrency workload/program was available under the readable template paths to empirically exercise task.all/atomic.Counter; assessment is documentation-only. | The standard-namespace list explicitly reserves `task` and `atomic` as concurrency-related namespaces alongside `ref`, `gpu`, etc. | 'Implementation scope' explicitly states the native core supports 'bounded structured concurrency through task.all for capture-free effect-only operations, ordered int[] / float[] scalar results, and explicit atomic.Counter shared state.' | This documents a narrow, structured-concurrency-only model: task.all is a bounded fork-join primitive over capture-free (no closures capturing mutable outer state) effect-only tasks, producing ordered int[]/float[] aggregated results, plus one atomic counter type for shared mutable state. | 'Cancellation' is explicitly listed as\u2026",
+        "race_safety": "Recertified level 3 under the current criterion: The language provides strong static or runtime mechanisms to prevent/detect data races and unsafe concurrent access, with unsafe escape hatches explicit. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: Recertified level 2 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: No executable Quidra concurrency workload/program was available under the readable template paths to empirically exercise task.all/atomic.Counter; assessment is documentation-only. | The standard-namespace list explicitly reserves `task` and `atomic` as concurrency-related namespaces alongside `ref`, `gpu`, etc. | 'Implementation scope' explicitly states the native core supports 'bounded structured concurrency through task.all for capture-free effect-only operations, ordered int[] / float[] scalar results, and explicit atomic.Counter shared state.' | This documents a narrow, structured-concurrency-only model: task.all is a bounded fork-join primitive over capture-free (no closures capturing mutable outer state) effect-only tasks, producing ordered int[]/float[] aggregated results, plus one atomic counter type for shared mutable state. | 'Cancellation' is explicitly listed as\u2026",
+        "synchronization_channels": "Recertified level 2 under the current criterion: Core primitives for synchronization/message passing/shared-state coordination are coherent, documented and practical. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: Recertified level 2 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Current Quidra provides bounded structured task.all execution, ordered scalar result transfer, atomic.Counter shared state and explicit GPU asynchronous execution/synchronization; general cancellation, channels/actors and broad synchronization remain limited. Preserved paid evidence additionally records: No executable Quidra concurrency workload/program was available under the readable template paths to empirically exercise task.all/atomic.Counter; assessment is documentation-only. | The standard-namespace list explicitly reserves `task` and `atomic` as concurrency-related namespaces alongside `ref`, `gpu`, etc. | 'Implementation scope' explicitly states the native core supports 'bounded structured concurrency through task.all for capture-free effect-only operations, ordered int[] / float[] scalar results, and explicit atomic.Counter shared state.' | This documents a narrow, structured-concurrency-only model: task.all is a bounded fork-join primitive over capture-free (no closures capturing mutable outer state) effect-only tasks, producing ordered int[]/float[] aggregated results, plus one atomic counter type for shared mutable state. | 'Cancellation' is explicitly listed as\u2026"
+      },
+      "component_levels": {
+        "async_structured": 2,
+        "error_cancel_propagation": 1,
+        "parallel_execution": 3,
+        "race_safety": 3,
+        "synchronization_channels": 2
+      },
+      "evidence_refs": [
+        "repo/docs/spec",
+        "repo/docs/packages.md",
+        "repo/docs/development.md",
+        "repo/tests/benchmark/quidra",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 55.0,
+        "legacy_score_used_for_component_levels": false,
+        "method": "current-target-reinspection-with-historical-paid-seed",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "47c728e5fe1e810549727ee3280f8f69703a55bb290da33c45c4d7aaff531188",
+        "source_record": "benchmark/cache/v1/language-quality/quidra/dd2b28fc45d206d0c5aee37fb973ba5c59ca1e13992b58ec287be3df92ace5e4.json",
+        "source_record_sha256": "7b20557fa55f4a94a379ac3e091282b57e2752b4f111e761f60919a344368ccf",
+        "source_result_sha256": "2fca6a6f3931a9fb48f229612aa692a348ae8976069be4adc1bee94ab991f6cb",
+        "source_run_id": "cache-recertify-13feb35"
+      },
+      "rubric_id": "language-quality.concurrency.v1",
+      "runner_score_0_100": 55,
+      "selection_rule": "Judge intrinsic concurrency/parallelism semantics and core runtime primitives. External frameworks and debugger/tool maturity are out of scope."
+    },
+    "metric.ffi_interoperability_design": {
+      "component_findings": {
+        "abi_calling_control": "Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: No FFI example program was available under the readable template paths; assessment is documentation-only against the frozen language spec. | No 'extern', 'ffi', 'foreign', 'cdecl', 'dlopen', or C-ABI declaration syntax appears anywhere in the documented surface language. | The 'Implementation scope' section explicitly enumerates what the native core currently supports (fixed-width numerics, casts, bin, arrays, tensors, image I/O, console I/O, namespaces, generics, classes, function values, bounded structured concurrency via task.all, atomic.Counter) and does not list any FFI/foreign-function/native-library-binding capability. | That same section names remaining development areas explicitly ('Cancellation, broader managed result transfer, self-hosting, broader signal-processing APIs, and broader package distribution') without naming general native interoperability as present or planned.\u2026",
+        "bidirectional_callbacks": "Recertified level 3 under the current criterion: Embedding, callbacks/function pointers or equivalent bidirectional interoperation are supported by a coherent language design rather than only bespoke glue. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: No FFI example program was available under the readable template paths; assessment is documentation-only against the frozen language spec. | No 'extern', 'ffi', 'foreign', 'cdecl', 'dlopen', or C-ABI declaration syntax appears anywhere in the documented surface language. | The 'Implementation scope' section explicitly enumerates what the native core currently supports (fixed-width numerics, casts, bin, arrays, tensors, image I/O, console I/O, namespaces, generics, classes, function values, bounded structured concurrency via task.all, atomic.Counter) and does not list any FFI/foreign-function/native-library-binding capability. | That same section names remaining development areas explicitly ('Cancellation, broader managed result transfer, self-hosting, broader signal-processing APIs, and broader package distribution') without naming general native interoperability as present or planned.\u2026",
+        "foreign_declaration": "Recertified level 3 under the current criterion: Foreign symbols/functions/types can be declared or imported with explicit, understandable boundary syntax. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: No FFI example program was available under the readable template paths; assessment is documentation-only against the frozen language spec. | No 'extern', 'ffi', 'foreign', 'cdecl', 'dlopen', or C-ABI declaration syntax appears anywhere in the documented surface language. | The 'Implementation scope' section explicitly enumerates what the native core currently supports (fixed-width numerics, casts, bin, arrays, tensors, image I/O, console I/O, namespaces, generics, classes, function values, bounded structured concurrency via task.all, atomic.Counter) and does not list any FFI/foreign-function/native-library-binding capability. | That same section names remaining development areas explicitly ('Cancellation, broader managed result transfer, self-hosting, broader signal-processing APIs, and broader package distribution') without naming general native interoperability as present or planned.\u2026",
+        "ownership_lifetime_boundary": "Recertified level 3 under the current criterion: Ownership, lifetime, allocation and error responsibilities across the foreign boundary can be expressed explicitly enough to avoid hidden hazards. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: No FFI example program was available under the readable template paths; assessment is documentation-only against the frozen language spec. | No 'extern', 'ffi', 'foreign', 'cdecl', 'dlopen', or C-ABI declaration syntax appears anywhere in the documented surface language. | The 'Implementation scope' section explicitly enumerates what the native core currently supports (fixed-width numerics, casts, bin, arrays, tensors, image I/O, console I/O, namespaces, generics, classes, function values, bounded structured concurrency via task.all, atomic.Counter) and does not list any FFI/foreign-function/native-library-binding capability. | That same section names remaining development areas explicitly ('Cancellation, broader managed result transfer, self-hosting, broader signal-processing APIs, and broader package distribution') without naming general native interoperability as present or planned.\u2026",
+        "type_layout_mapping": "Recertified level 2 under the current criterion: Primitive/aggregate/string/pointer or equivalent boundary representations have clear mapping rules and layout control where needed. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Current Quidra documents explicit extern C declarations, FFI-specific diagnostics, a restricted ABI-safe scalar/string/bin/callback subset, reference restrictions and symbol-conflict checks; aggregate layout coverage and broader ABI/callback surface remain intentionally limited. Preserved paid evidence additionally records: No FFI example program was available under the readable template paths; assessment is documentation-only against the frozen language spec. | No 'extern', 'ffi', 'foreign', 'cdecl', 'dlopen', or C-ABI declaration syntax appears anywhere in the documented surface language. | The 'Implementation scope' section explicitly enumerates what the native core currently supports (fixed-width numerics, casts, bin, arrays, tensors, image I/O, console I/O, namespaces, generics, classes, function values, bounded structured concurrency via task.all, atomic.Counter) and does not list any FFI/foreign-function/native-library-binding capability. | That same section names remaining development areas explicitly ('Cancellation, broader managed result transfer, self-hosting, broader signal-processing APIs, and broader package distribution') without naming general native interoperability as present or planned.\u2026"
+      },
+      "component_levels": {
+        "abi_calling_control": 3,
+        "bidirectional_callbacks": 3,
+        "foreign_declaration": 3,
+        "ownership_lifetime_boundary": 3,
+        "type_layout_mapping": 2
+      },
+      "evidence_refs": [
+        "repo/docs/spec",
+        "repo/docs/packages.md",
+        "repo/docs/development.md",
+        "repo/tests/benchmark/quidra",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Current Quidra judgments are valid only for the exact compiler/runtime plus docs/tests identities frozen in this snapshot; relevant target changes must miss.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 70.0,
+        "legacy_score_used_for_component_levels": false,
+        "method": "current-target-reinspection-with-historical-paid-seed",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "a3709c24f339cdd575dc1b63c8201bf018958a69dda3730672372467aa5c8744",
+        "source_record": "benchmark/cache/v1/language-quality/quidra/dd2b28fc45d206d0c5aee37fb973ba5c59ca1e13992b58ec287be3df92ace5e4.json",
+        "source_record_sha256": "7b20557fa55f4a94a379ac3e091282b57e2752b4f111e761f60919a344368ccf",
+        "source_result_sha256": "2fca6a6f3931a9fb48f229612aa692a348ae8976069be4adc1bee94ab991f6cb",
+        "source_run_id": "cache-recertify-13feb35"
+      },
+      "rubric_id": "language-quality.ffi-design.v1",
+      "runner_score_0_100": 70,
+      "selection_rule": "Judge intrinsic FFI/ABI boundary design, not breadth of existing third-party bindings (Ecosystem)."
+    }
+  },
+  "requirement_ids": [
+    "metric.concurrency",
+    "metric.ffi_interoperability_design"
+  ],
+  "requirements": {
+    "metric.concurrency": {
+      "Quidra": 55.0
+    },
+    "metric.ffi_interoperability_design": {
+      "Quidra": 70.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-4--quidra"
+}

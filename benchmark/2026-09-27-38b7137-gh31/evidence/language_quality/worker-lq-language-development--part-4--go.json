@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-4--go",
+  "assigned_languages": [
+    "Go"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Go",
+      "metrics": {
+        "metric.concurrency": {
+          "component_levels": {
+            "async_structured": 2,
+            "error_cancel_propagation": 3,
+            "parallel_execution": 4,
+            "race_safety": 1,
+            "synchronization_channels": 4
+          },
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.concurrency.v1",
+          "score_0_100": 70
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "abi_calling_control": 3,
+            "bidirectional_callbacks": 3,
+            "foreign_declaration": 3,
+            "ownership_lifetime_boundary": 2,
+            "type_layout_mapping": 2
+          },
+          "evidence_refs": [
+            "template/programs/go/micro",
+            "template/programs/go/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.ffi-design.v1",
+          "score_0_100": 65
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.concurrency": {
+      "component_findings": {
+        "async_structured": "Recertified level 2 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Go | Goroutines are lightweight (small growable initial stack), scheduled M:N onto OS threads by the runtime, enabling hundreds of thousands of concurrent goroutines cheaply. | Channels are a built-in typed primitive with direct syntax (chan, <-, select), implementing CSP-style message passing as a core language construct rather than a library addition. | select gives native multi-way non-blocking channel coordination; the standard-library context package provides pervasive cancellation/timeout propagation conventions. | Data-race detection is built into the toolchain (go run/test -race) via a first-party dynamic detector, giving strong diagnosability though it is dynamic rather than a static guarantee. | Go's type system does not statically prevent data races or enforce cross-goroutine ownership; shared mutable state via pointers/maps/slices can race without a compile error, unlike Rust's Send/Sync static concurrency safety. | sync package (Mutex, RWMutex, WaitGroup, atomic) supplements channels, giving a layered set of primitives (message passing + shared-memory sync) rather than forcing a single paradigm. | Adversarial corpus includes deep-recursion/large-file cases (e.g. ADV-21 variants at depth 1000/10000 and 200KB source) exercising goroutine stack growth and scheduler robustness under adversarial nesting. | No async/await function-coloring problem: goroutines make concur\u2026",
+        "error_cancel_propagation": "Recertified level 3 under the current criterion: Errors, cancellation and task termination propagate predictably across concurrent work instead of being silently detached or lost. Evidence basis: Go | Goroutines are lightweight (small growable initial stack), scheduled M:N onto OS threads by the runtime, enabling hundreds of thousands of concurrent goroutines cheaply. | Channels are a built-in typed primitive with direct syntax (chan, <-, select), implementing CSP-style message passing as a core language construct rather than a library addition. | select gives native multi-way non-blocking channel coordination; the standard-library context package provides pervasive cancellation/timeout propagation conventions. | Data-race detection is built into the toolchain (go run/test -race) via a first-party dynamic detector, giving strong diagnosability though it is dynamic rather than a static guarantee. | Go's type system does not statically prevent data races or enforce cross-goroutine ownership; shared mutable state via pointers/maps/slices can race without a compile error, unlike Rust's Send/Sync static concurrency safety. | sync package (Mutex, RWMutex, WaitGroup, atomic) supplements channels, giving a layered set of primitives (message passing + shared-memory sync) rather than forcing a single paradigm. | Adversarial corpus includes deep-recursion/large-file cases (e.g. ADV-21 variants at depth 1000/10000 and 200KB source) exercising goroutine stack growth and scheduler robustness under adversarial nesting. | No async/await function-coloring problem: goroutines make concur\u2026",
+        "parallel_execution": "Recertified level 4 under the current criterion: The normal language/runtime model supports genuine parallel execution for applicable workloads without a fundamental default bottleneck or undocumented caveat. Evidence basis: Go | Goroutines are lightweight (small growable initial stack), scheduled M:N onto OS threads by the runtime, enabling hundreds of thousands of concurrent goroutines cheaply. | Channels are a built-in typed primitive with direct syntax (chan, <-, select), implementing CSP-style message passing as a core language construct rather than a library addition. | select gives native multi-way non-blocking channel coordination; the standard-library context package provides pervasive cancellation/timeout propagation conventions. | Data-race detection is built into the toolchain (go run/test -race) via a first-party dynamic detector, giving strong diagnosability though it is dynamic rather than a static guarantee. | Go's type system does not statically prevent data races or enforce cross-goroutine ownership; shared mutable state via pointers/maps/slices can race without a compile error, unlike Rust's Send/Sync static concurrency safety. | sync package (Mutex, RWMutex, WaitGroup, atomic) supplements channels, giving a layered set of primitives (message passing + shared-memory sync) rather than forcing a single paradigm. | Adversarial corpus includes deep-recursion/large-file cases (e.g. ADV-21 variants at depth 1000/10000 and 200KB source) exercising goroutine stack growth and scheduler robustness under adversarial nesting. | No async/await function-coloring problem: goroutines make concur\u2026",
+        "race_safety": "Recertified level 1 under the current criterion: The language provides strong static or runtime mechanisms to prevent/detect data races and unsafe concurrent access, with unsafe escape hatches explicit. Evidence basis: Go | Goroutines are lightweight (small growable initial stack), scheduled M:N onto OS threads by the runtime, enabling hundreds of thousands of concurrent goroutines cheaply. | Channels are a built-in typed primitive with direct syntax (chan, <-, select), implementing CSP-style message passing as a core language construct rather than a library addition. | select gives native multi-way non-blocking channel coordination; the standard-library context package provides pervasive cancellation/timeout propagation conventions. | Data-race detection is built into the toolchain (go run/test -race) via a first-party dynamic detector, giving strong diagnosability though it is dynamic rather than a static guarantee. | Go's type system does not statically prevent data races or enforce cross-goroutine ownership; shared mutable state via pointers/maps/slices can race without a compile error, unlike Rust's Send/Sync static concurrency safety. | sync package (Mutex, RWMutex, WaitGroup, atomic) supplements channels, giving a layered set of primitives (message passing + shared-memory sync) rather than forcing a single paradigm. | Adversarial corpus includes deep-recursion/large-file cases (e.g. ADV-21 variants at depth 1000/10000 and 200KB source) exercising goroutine stack growth and scheduler robustness under adversarial nesting. | No async/await function-coloring problem: goroutines make concur\u2026",
+        "synchronization_channels": "Recertified level 4 under the current criterion: Core primitives for synchronization/message passing/shared-state coordination are coherent, documented and practical. Evidence basis: Go | Goroutines are lightweight (small growable initial stack), scheduled M:N onto OS threads by the runtime, enabling hundreds of thousands of concurrent goroutines cheaply. | Channels are a built-in typed primitive with direct syntax (chan, <-, select), implementing CSP-style message passing as a core language construct rather than a library addition. | select gives native multi-way non-blocking channel coordination; the standard-library context package provides pervasive cancellation/timeout propagation conventions. | Data-race detection is built into the toolchain (go run/test -race) via a first-party dynamic detector, giving strong diagnosability though it is dynamic rather than a static guarantee. | Go's type system does not statically prevent data races or enforce cross-goroutine ownership; shared mutable state via pointers/maps/slices can race without a compile error, unlike Rust's Send/Sync static concurrency safety. | sync package (Mutex, RWMutex, WaitGroup, atomic) supplements channels, giving a layered set of primitives (message passing + shared-memory sync) rather than forcing a single paradigm. | Adversarial corpus includes deep-recursion/large-file cases (e.g. ADV-21 variants at depth 1000/10000 and 200KB source) exercising goroutine stack growth and scheduler robustness under adversarial nesting. | No async/await function-coloring problem: goroutines make concur\u2026"
+      },
+      "component_levels": {
+        "async_structured": 2,
+        "error_cancel_propagation": 3,
+        "parallel_execution": 4,
+        "race_safety": 1,
+        "synchronization_channels": 4
+      },
+      "evidence_refs": [
+        "template/programs/go/micro",
+        "template/programs/go/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 88,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "663fb15e089741f5ed913514d67c2a08e3e9dcf97fad2a51a0f548489b7f2ed1",
+        "source_record": "benchmark/cache/v1/language-quality/go/78ebda92a6de0285f37019e17208a873463d9e88b859862d673b7ea9e0a70d96.json",
+        "source_record_sha256": "4c78bd90530e088ddde08404a92246e75ee635922dcef3a389272cf10e3251d5",
+        "source_result_sha256": "74f2cce282fb0d004e7395393d2edbc5ddb45156a0f516543f6d0cf350dc7c54",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.concurrency.v1",
+      "runner_score_0_100": 70,
+      "selection_rule": "Judge intrinsic concurrency/parallelism semantics and core runtime primitives. External frameworks and debugger/tool maturity are out of scope."
+    },
+    "metric.ffi_interoperability_design": {
+      "component_findings": {
+        "abi_calling_control": "Recertified level 3 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Go | Go's primary FFI mechanism is cgo, allowing calling C functions via `import \"C\"` pseudo-package with inline C in comments. | cgo introduces significant per-call overhead (goroutine-to-OS-thread transition, stack switching), roughly tens of ns and up, making tight-loop FFI expensive compared to zero-cost C interop in Rust, Zig, C/C++. | cgo breaks normal Go tooling: cross-compilation needs a C cross-compiler and CGO_ENABLED=1, static analysis coverage is incomplete for embedded C snippets. | No first-party lightweight non-cgo mechanism exists for calling arbitrary shared libraries; third-party pure-Go workarounds exist but signal an underlying language-level gap. | Passing Go pointers to C requires care due to the moving/relocating GC; cgo enforces pointer-passing rules at runtime, adding correctness burden absent in languages with non-relocating GC or manual memory management. | Struct/type marshaling between Go and C is manual (C.struct_X, C.CString/C.GoString, explicit frees) with no automatic ownership/lifetime tracking. | Go supports exporting Go functions to C via //export and building c-shared/c-archive artifacts, giving two-way interoperability -- a genuine positive. | No direct C++ ABI interop; C++ libraries require an extern C shim layer, an added indirection not required in Rust (bindgen), Zig, or C++ itself. | Reviewed programs/go/adversarial and programs/go/mic\u2026",
+        "bidirectional_callbacks": "Recertified level 3 under the current criterion: Embedding, callbacks/function pointers or equivalent bidirectional interoperation are supported by a coherent language design rather than only bespoke glue. Evidence basis: Go | Go's primary FFI mechanism is cgo, allowing calling C functions via `import \"C\"` pseudo-package with inline C in comments. | cgo introduces significant per-call overhead (goroutine-to-OS-thread transition, stack switching), roughly tens of ns and up, making tight-loop FFI expensive compared to zero-cost C interop in Rust, Zig, C/C++. | cgo breaks normal Go tooling: cross-compilation needs a C cross-compiler and CGO_ENABLED=1, static analysis coverage is incomplete for embedded C snippets. | No first-party lightweight non-cgo mechanism exists for calling arbitrary shared libraries; third-party pure-Go workarounds exist but signal an underlying language-level gap. | Passing Go pointers to C requires care due to the moving/relocating GC; cgo enforces pointer-passing rules at runtime, adding correctness burden absent in languages with non-relocating GC or manual memory management. | Struct/type marshaling between Go and C is manual (C.struct_X, C.CString/C.GoString, explicit frees) with no automatic ownership/lifetime tracking. | Go supports exporting Go functions to C via //export and building c-shared/c-archive artifacts, giving two-way interoperability -- a genuine positive. | No direct C++ ABI interop; C++ libraries require an extern C shim layer, an added indirection not required in Rust (bindgen), Zig, or C++ itself. | Reviewed programs/go/adversarial and programs/go/mic\u2026",
+        "foreign_declaration": "Recertified level 3 under the current criterion: Foreign symbols/functions/types can be declared or imported with explicit, understandable boundary syntax. Evidence basis: Go | Go's primary FFI mechanism is cgo, allowing calling C functions via `import \"C\"` pseudo-package with inline C in comments. | cgo introduces significant per-call overhead (goroutine-to-OS-thread transition, stack switching), roughly tens of ns and up, making tight-loop FFI expensive compared to zero-cost C interop in Rust, Zig, C/C++. | cgo breaks normal Go tooling: cross-compilation needs a C cross-compiler and CGO_ENABLED=1, static analysis coverage is incomplete for embedded C snippets. | No first-party lightweight non-cgo mechanism exists for calling arbitrary shared libraries; third-party pure-Go workarounds exist but signal an underlying language-level gap. | Passing Go pointers to C requires care due to the moving/relocating GC; cgo enforces pointer-passing rules at runtime, adding correctness burden absent in languages with non-relocating GC or manual memory management. | Struct/type marshaling between Go and C is manual (C.struct_X, C.CString/C.GoString, explicit frees) with no automatic ownership/lifetime tracking. | Go supports exporting Go functions to C via //export and building c-shared/c-archive artifacts, giving two-way interoperability -- a genuine positive. | No direct C++ ABI interop; C++ libraries require an extern C shim layer, an added indirection not required in Rust (bindgen), Zig, or C++ itself. | Reviewed programs/go/adversarial and programs/go/mic\u2026",
+        "ownership_lifetime_boundary": "Recertified level 2 under the current criterion: Ownership, lifetime, allocation and error responsibilities across the foreign boundary can be expressed explicitly enough to avoid hidden hazards. Evidence basis: Go | Go's primary FFI mechanism is cgo, allowing calling C functions via `import \"C\"` pseudo-package with inline C in comments. | cgo introduces significant per-call overhead (goroutine-to-OS-thread transition, stack switching), roughly tens of ns and up, making tight-loop FFI expensive compared to zero-cost C interop in Rust, Zig, C/C++. | cgo breaks normal Go tooling: cross-compilation needs a C cross-compiler and CGO_ENABLED=1, static analysis coverage is incomplete for embedded C snippets. | No first-party lightweight non-cgo mechanism exists for calling arbitrary shared libraries; third-party pure-Go workarounds exist but signal an underlying language-level gap. | Passing Go pointers to C requires care due to the moving/relocating GC; cgo enforces pointer-passing rules at runtime, adding correctness burden absent in languages with non-relocating GC or manual memory management. | Struct/type marshaling between Go and C is manual (C.struct_X, C.CString/C.GoString, explicit frees) with no automatic ownership/lifetime tracking. | Go supports exporting Go functions to C via //export and building c-shared/c-archive artifacts, giving two-way interoperability -- a genuine positive. | No direct C++ ABI interop; C++ libraries require an extern C shim layer, an added indirection not required in Rust (bindgen), Zig, or C++ itself. | Reviewed programs/go/adversarial and programs/go/mic\u2026",
+        "type_layout_mapping": "Recertified level 2 under the current criterion: Primitive/aggregate/string/pointer or equivalent boundary representations have clear mapping rules and layout control where needed. Evidence basis: Go | Go's primary FFI mechanism is cgo, allowing calling C functions via `import \"C\"` pseudo-package with inline C in comments. | cgo introduces significant per-call overhead (goroutine-to-OS-thread transition, stack switching), roughly tens of ns and up, making tight-loop FFI expensive compared to zero-cost C interop in Rust, Zig, C/C++. | cgo breaks normal Go tooling: cross-compilation needs a C cross-compiler and CGO_ENABLED=1, static analysis coverage is incomplete for embedded C snippets. | No first-party lightweight non-cgo mechanism exists for calling arbitrary shared libraries; third-party pure-Go workarounds exist but signal an underlying language-level gap. | Passing Go pointers to C requires care due to the moving/relocating GC; cgo enforces pointer-passing rules at runtime, adding correctness burden absent in languages with non-relocating GC or manual memory management. | Struct/type marshaling between Go and C is manual (C.struct_X, C.CString/C.GoString, explicit frees) with no automatic ownership/lifetime tracking. | Go supports exporting Go functions to C via //export and building c-shared/c-archive artifacts, giving two-way interoperability -- a genuine positive. | No direct C++ ABI interop; C++ libraries require an extern C shim layer, an added indirection not required in Rust (bindgen), Zig, or C++ itself. | Reviewed programs/go/adversarial and programs/go/mic\u2026"
+      },
+      "component_levels": {
+        "abi_calling_control": 3,
+        "bidirectional_callbacks": 3,
+        "foreign_declaration": 3,
+        "ownership_lifetime_boundary": 2,
+        "type_layout_mapping": 2
+      },
+      "evidence_refs": [
+        "template/programs/go/micro",
+        "template/programs/go/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 58,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "f93796b60d6b04b0a465b04f65cd0c30355919b5df316575b2d7e844fa507d9d",
+        "source_record": "benchmark/cache/v1/language-quality/go/78ebda92a6de0285f37019e17208a873463d9e88b859862d673b7ea9e0a70d96.json",
+        "source_record_sha256": "4c78bd90530e088ddde08404a92246e75ee635922dcef3a389272cf10e3251d5",
+        "source_result_sha256": "74f2cce282fb0d004e7395393d2edbc5ddb45156a0f516543f6d0cf350dc7c54",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.ffi-design.v1",
+      "runner_score_0_100": 65,
+      "selection_rule": "Judge intrinsic FFI/ABI boundary design, not breadth of existing third-party bindings (Ecosystem)."
+    }
+  },
+  "requirement_ids": [
+    "metric.concurrency",
+    "metric.ffi_interoperability_design"
+  ],
+  "requirements": {
+    "metric.concurrency": {
+      "Go": 70.0
+    },
+    "metric.ffi_interoperability_design": {
+      "Go": 65.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-4--go"
+}

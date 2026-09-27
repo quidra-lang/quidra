@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-4--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Rust",
+      "metrics": {
+        "metric.concurrency": {
+          "component_levels": {
+            "async_structured": 3,
+            "error_cancel_propagation": 3,
+            "parallel_execution": 4,
+            "race_safety": 4,
+            "synchronization_channels": 4
+          },
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.concurrency.v1",
+          "score_0_100": 90
+        },
+        "metric.ffi_interoperability_design": {
+          "component_levels": {
+            "abi_calling_control": 4,
+            "bidirectional_callbacks": 4,
+            "foreign_declaration": 4,
+            "ownership_lifetime_boundary": 4,
+            "type_layout_mapping": 4
+          },
+          "evidence_refs": [
+            "template/programs/rust/micro",
+            "template/programs/rust/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.ffi-design.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.concurrency": {
+      "component_findings": {
+        "async_structured": "Recertified level 3 under the current criterion: Asynchronous concurrency has first-class composition and structured lifetime/join/cancellation mechanisms or an equivalent disciplined model. Evidence basis: Rust's ownership and borrowing model statically prevents data races: the `Send`/`Sync` marker traits are woven into the type system so that a type that is not safe to share/move across threads simply fails to compile when misused, without runtime checks. | Native OS threads (`std::thread`) are available with no runtime/scheduler tax, and safe shared-state concurrency primitives (`Arc<Mutex<T>>`, `RwLock`, channels via `std::sync::mpsc`) are part of the standard library with compiler-enforced correct usage (e.g., forgetting to lock a Mutex to access its data is a type error, not a runtime bug). | `async`/`await` is a zero-cost, compiler-desugared state-machine transformation with no mandatory runtime; users choose an executor (tokio, async-std) matching the workload, giving flexibility C++ lacks and without a language-mandated GC or green-thread runtime as in Go. | The borrow checker extends across thread boundaries: closures captured for `thread::spawn` must satisfy `'static` and ownership rules are checked at compile time, meaning many classes of race conditions and use-after-free bugs across threads are caught before running, unlike Go (data races are a documented common pitfall despite goroutines) or Java/Kotlin (races are a runtime hazard, only caught by tools like happens-before reasoning or sanitizers). | Fearless concurrency is a deliberate, well-documented language desi\u2026",
+        "error_cancel_propagation": "Recertified level 3 under the current criterion: Errors, cancellation and task termination propagate predictably across concurrent work instead of being silently detached or lost. Evidence basis: Rust's ownership and borrowing model statically prevents data races: the `Send`/`Sync` marker traits are woven into the type system so that a type that is not safe to share/move across threads simply fails to compile when misused, without runtime checks. | Native OS threads (`std::thread`) are available with no runtime/scheduler tax, and safe shared-state concurrency primitives (`Arc<Mutex<T>>`, `RwLock`, channels via `std::sync::mpsc`) are part of the standard library with compiler-enforced correct usage (e.g., forgetting to lock a Mutex to access its data is a type error, not a runtime bug). | `async`/`await` is a zero-cost, compiler-desugared state-machine transformation with no mandatory runtime; users choose an executor (tokio, async-std) matching the workload, giving flexibility C++ lacks and without a language-mandated GC or green-thread runtime as in Go. | The borrow checker extends across thread boundaries: closures captured for `thread::spawn` must satisfy `'static` and ownership rules are checked at compile time, meaning many classes of race conditions and use-after-free bugs across threads are caught before running, unlike Go (data races are a documented common pitfall despite goroutines) or Java/Kotlin (races are a runtime hazard, only caught by tools like happens-before reasoning or sanitizers). | Fearless concurrency is a deliberate, well-documented language desi\u2026",
+        "parallel_execution": "Recertified level 4 under the current criterion: The normal language/runtime model supports genuine parallel execution for applicable workloads without a fundamental default bottleneck or undocumented caveat. Evidence basis: Rust's ownership and borrowing model statically prevents data races: the `Send`/`Sync` marker traits are woven into the type system so that a type that is not safe to share/move across threads simply fails to compile when misused, without runtime checks. | Native OS threads (`std::thread`) are available with no runtime/scheduler tax, and safe shared-state concurrency primitives (`Arc<Mutex<T>>`, `RwLock`, channels via `std::sync::mpsc`) are part of the standard library with compiler-enforced correct usage (e.g., forgetting to lock a Mutex to access its data is a type error, not a runtime bug). | `async`/`await` is a zero-cost, compiler-desugared state-machine transformation with no mandatory runtime; users choose an executor (tokio, async-std) matching the workload, giving flexibility C++ lacks and without a language-mandated GC or green-thread runtime as in Go. | The borrow checker extends across thread boundaries: closures captured for `thread::spawn` must satisfy `'static` and ownership rules are checked at compile time, meaning many classes of race conditions and use-after-free bugs across threads are caught before running, unlike Go (data races are a documented common pitfall despite goroutines) or Java/Kotlin (races are a runtime hazard, only caught by tools like happens-before reasoning or sanitizers). | Fearless concurrency is a deliberate, well-documented language desi\u2026",
+        "race_safety": "Recertified level 4 under the current criterion: The language provides strong static or runtime mechanisms to prevent/detect data races and unsafe concurrent access, with unsafe escape hatches explicit. Evidence basis: Rust's ownership and borrowing model statically prevents data races: the `Send`/`Sync` marker traits are woven into the type system so that a type that is not safe to share/move across threads simply fails to compile when misused, without runtime checks. | Native OS threads (`std::thread`) are available with no runtime/scheduler tax, and safe shared-state concurrency primitives (`Arc<Mutex<T>>`, `RwLock`, channels via `std::sync::mpsc`) are part of the standard library with compiler-enforced correct usage (e.g., forgetting to lock a Mutex to access its data is a type error, not a runtime bug). | `async`/`await` is a zero-cost, compiler-desugared state-machine transformation with no mandatory runtime; users choose an executor (tokio, async-std) matching the workload, giving flexibility C++ lacks and without a language-mandated GC or green-thread runtime as in Go. | The borrow checker extends across thread boundaries: closures captured for `thread::spawn` must satisfy `'static` and ownership rules are checked at compile time, meaning many classes of race conditions and use-after-free bugs across threads are caught before running, unlike Go (data races are a documented common pitfall despite goroutines) or Java/Kotlin (races are a runtime hazard, only caught by tools like happens-before reasoning or sanitizers). | Fearless concurrency is a deliberate, well-documented language desi\u2026",
+        "synchronization_channels": "Recertified level 4 under the current criterion: Core primitives for synchronization/message passing/shared-state coordination are coherent, documented and practical. Evidence basis: Rust's ownership and borrowing model statically prevents data races: the `Send`/`Sync` marker traits are woven into the type system so that a type that is not safe to share/move across threads simply fails to compile when misused, without runtime checks. | Native OS threads (`std::thread`) are available with no runtime/scheduler tax, and safe shared-state concurrency primitives (`Arc<Mutex<T>>`, `RwLock`, channels via `std::sync::mpsc`) are part of the standard library with compiler-enforced correct usage (e.g., forgetting to lock a Mutex to access its data is a type error, not a runtime bug). | `async`/`await` is a zero-cost, compiler-desugared state-machine transformation with no mandatory runtime; users choose an executor (tokio, async-std) matching the workload, giving flexibility C++ lacks and without a language-mandated GC or green-thread runtime as in Go. | The borrow checker extends across thread boundaries: closures captured for `thread::spawn` must satisfy `'static` and ownership rules are checked at compile time, meaning many classes of race conditions and use-after-free bugs across threads are caught before running, unlike Go (data races are a documented common pitfall despite goroutines) or Java/Kotlin (races are a runtime hazard, only caught by tools like happens-before reasoning or sanitizers). | Fearless concurrency is a deliberate, well-documented language desi\u2026"
+      },
+      "component_levels": {
+        "async_structured": 3,
+        "error_cancel_propagation": 3,
+        "parallel_execution": 4,
+        "race_safety": 4,
+        "synchronization_channels": 4
+      },
+      "evidence_refs": [
+        "template/programs/rust/micro",
+        "template/programs/rust/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 92,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "bbe71d60abfa86ef347819939d057043db3a81a6f8e93ce8b7d6561f88d08a80",
+        "source_record": "benchmark/cache/v1/language-quality/rust/505640d2ab7e7dc0e7434c1ced9393c3ae435b86c1793a285fc7cc06cfd64048.json",
+        "source_record_sha256": "c761398998c50554eccb68d268c1a3cf73e8d5d296880332c4795ac1e100bc7f",
+        "source_result_sha256": "7a1ef2608d8122139f4f885b40c80ad7416afa4434fc9e881fd3c413f45b25a4",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.concurrency.v1",
+      "runner_score_0_100": 90,
+      "selection_rule": "Judge intrinsic concurrency/parallelism semantics and core runtime primitives. External frameworks and debugger/tool maturity are out of scope."
+    },
+    "metric.ffi_interoperability_design": {
+      "component_findings": {
+        "abi_calling_control": "Recertified level 4 under the current criterion: ABI/calling-convention/linkage choices are explicit or safely standardized for common interoperability cases. Evidence basis: Rust provides a stable, zero-cost `extern \"C\"` FFI mechanism directly in the language, with `#[repr(C)]` for controlling struct layout to match C ABI exactly. | `unsafe` blocks explicitly and locally scope the parts of code that cross the safety boundary into foreign code, keeping the rest of the program's soundness guarantees intact and auditable. | Bidirectional FFI is supported: Rust can call into C libraries (via `extern \"C\" { fn ... }` declarations and linking) and can also export Rust functions to C callers (via `#[no_mangle] pub extern \"C\" fn`). | No garbage collector or runtime is required to call/be called from C, unlike managed languages (Java/Kotlin JNI, Go cgo) that must cross a runtime boundary with extra marshalling and GC-interaction concerns. | Ownership/borrowing rules extend conceptually across FFI: raw pointers (`*const T`, `*mut T`) are the FFI currency, and the type system still helps callers reason about aliasing even though the compiler cannot enforce Rust's guarantees across the boundary. | `bindgen` and `cbindgen` (ecosystem tools, not scored here) exist precisely because the language's ABI/layout primitives (`repr(C)`, `extern`) are well-specified and mechanically translatable, evidence the language-level design is sound. | Reviewed programs in /quidra-benchmark/template/programs/rust/adversarial (e.g. ADV-* files) show unsafe-boundary patterns typical\u2026",
+        "bidirectional_callbacks": "Recertified level 4 under the current criterion: Embedding, callbacks/function pointers or equivalent bidirectional interoperation are supported by a coherent language design rather than only bespoke glue. Evidence basis: Rust provides a stable, zero-cost `extern \"C\"` FFI mechanism directly in the language, with `#[repr(C)]` for controlling struct layout to match C ABI exactly. | `unsafe` blocks explicitly and locally scope the parts of code that cross the safety boundary into foreign code, keeping the rest of the program's soundness guarantees intact and auditable. | Bidirectional FFI is supported: Rust can call into C libraries (via `extern \"C\" { fn ... }` declarations and linking) and can also export Rust functions to C callers (via `#[no_mangle] pub extern \"C\" fn`). | No garbage collector or runtime is required to call/be called from C, unlike managed languages (Java/Kotlin JNI, Go cgo) that must cross a runtime boundary with extra marshalling and GC-interaction concerns. | Ownership/borrowing rules extend conceptually across FFI: raw pointers (`*const T`, `*mut T`) are the FFI currency, and the type system still helps callers reason about aliasing even though the compiler cannot enforce Rust's guarantees across the boundary. | `bindgen` and `cbindgen` (ecosystem tools, not scored here) exist precisely because the language's ABI/layout primitives (`repr(C)`, `extern`) are well-specified and mechanically translatable, evidence the language-level design is sound. | Reviewed programs in /quidra-benchmark/template/programs/rust/adversarial (e.g. ADV-* files) show unsafe-boundary patterns typical\u2026",
+        "foreign_declaration": "Recertified level 4 under the current criterion: Foreign symbols/functions/types can be declared or imported with explicit, understandable boundary syntax. Evidence basis: Rust provides a stable, zero-cost `extern \"C\"` FFI mechanism directly in the language, with `#[repr(C)]` for controlling struct layout to match C ABI exactly. | `unsafe` blocks explicitly and locally scope the parts of code that cross the safety boundary into foreign code, keeping the rest of the program's soundness guarantees intact and auditable. | Bidirectional FFI is supported: Rust can call into C libraries (via `extern \"C\" { fn ... }` declarations and linking) and can also export Rust functions to C callers (via `#[no_mangle] pub extern \"C\" fn`). | No garbage collector or runtime is required to call/be called from C, unlike managed languages (Java/Kotlin JNI, Go cgo) that must cross a runtime boundary with extra marshalling and GC-interaction concerns. | Ownership/borrowing rules extend conceptually across FFI: raw pointers (`*const T`, `*mut T`) are the FFI currency, and the type system still helps callers reason about aliasing even though the compiler cannot enforce Rust's guarantees across the boundary. | `bindgen` and `cbindgen` (ecosystem tools, not scored here) exist precisely because the language's ABI/layout primitives (`repr(C)`, `extern`) are well-specified and mechanically translatable, evidence the language-level design is sound. | Reviewed programs in /quidra-benchmark/template/programs/rust/adversarial (e.g. ADV-* files) show unsafe-boundary patterns typical\u2026",
+        "ownership_lifetime_boundary": "Recertified level 4 under the current criterion: Ownership, lifetime, allocation and error responsibilities across the foreign boundary can be expressed explicitly enough to avoid hidden hazards. Evidence basis: Rust provides a stable, zero-cost `extern \"C\"` FFI mechanism directly in the language, with `#[repr(C)]` for controlling struct layout to match C ABI exactly. | `unsafe` blocks explicitly and locally scope the parts of code that cross the safety boundary into foreign code, keeping the rest of the program's soundness guarantees intact and auditable. | Bidirectional FFI is supported: Rust can call into C libraries (via `extern \"C\" { fn ... }` declarations and linking) and can also export Rust functions to C callers (via `#[no_mangle] pub extern \"C\" fn`). | No garbage collector or runtime is required to call/be called from C, unlike managed languages (Java/Kotlin JNI, Go cgo) that must cross a runtime boundary with extra marshalling and GC-interaction concerns. | Ownership/borrowing rules extend conceptually across FFI: raw pointers (`*const T`, `*mut T`) are the FFI currency, and the type system still helps callers reason about aliasing even though the compiler cannot enforce Rust's guarantees across the boundary. | `bindgen` and `cbindgen` (ecosystem tools, not scored here) exist precisely because the language's ABI/layout primitives (`repr(C)`, `extern`) are well-specified and mechanically translatable, evidence the language-level design is sound. | Reviewed programs in /quidra-benchmark/template/programs/rust/adversarial (e.g. ADV-* files) show unsafe-boundary patterns typical\u2026",
+        "type_layout_mapping": "Recertified level 4 under the current criterion: Primitive/aggregate/string/pointer or equivalent boundary representations have clear mapping rules and layout control where needed. Evidence basis: Rust provides a stable, zero-cost `extern \"C\"` FFI mechanism directly in the language, with `#[repr(C)]` for controlling struct layout to match C ABI exactly. | `unsafe` blocks explicitly and locally scope the parts of code that cross the safety boundary into foreign code, keeping the rest of the program's soundness guarantees intact and auditable. | Bidirectional FFI is supported: Rust can call into C libraries (via `extern \"C\" { fn ... }` declarations and linking) and can also export Rust functions to C callers (via `#[no_mangle] pub extern \"C\" fn`). | No garbage collector or runtime is required to call/be called from C, unlike managed languages (Java/Kotlin JNI, Go cgo) that must cross a runtime boundary with extra marshalling and GC-interaction concerns. | Ownership/borrowing rules extend conceptually across FFI: raw pointers (`*const T`, `*mut T`) are the FFI currency, and the type system still helps callers reason about aliasing even though the compiler cannot enforce Rust's guarantees across the boundary. | `bindgen` and `cbindgen` (ecosystem tools, not scored here) exist precisely because the language's ABI/layout primitives (`repr(C)`, `extern`) are well-specified and mechanically translatable, evidence the language-level design is sound. | Reviewed programs in /quidra-benchmark/template/programs/rust/adversarial (e.g. ADV-* files) show unsafe-boundary patterns typical\u2026"
+      },
+      "component_levels": {
+        "abi_calling_control": 4,
+        "bidirectional_callbacks": 4,
+        "foreign_declaration": 4,
+        "ownership_lifetime_boundary": 4,
+        "type_layout_mapping": 4
+      },
+      "evidence_refs": [
+        "template/programs/rust/micro",
+        "template/programs/rust/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 90,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "218d31b0bc0f62c92c32e09183d97aff72baef5b96372cdd3e0b9d00d1c7cba1",
+        "source_record": "benchmark/cache/v1/language-quality/rust/505640d2ab7e7dc0e7434c1ced9393c3ae435b86c1793a285fc7cc06cfd64048.json",
+        "source_record_sha256": "c761398998c50554eccb68d268c1a3cf73e8d5d296880332c4795ac1e100bc7f",
+        "source_result_sha256": "7a1ef2608d8122139f4f885b40c80ad7416afa4434fc9e881fd3c413f45b25a4",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.ffi-design.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Judge intrinsic FFI/ABI boundary design, not breadth of existing third-party bindings (Ecosystem)."
+    }
+  },
+  "requirement_ids": [
+    "metric.concurrency",
+    "metric.ffi_interoperability_design"
+  ],
+  "requirements": {
+    "metric.concurrency": {
+      "Rust": 90.0
+    },
+    "metric.ffi_interoperability_design": {
+      "Rust": 100.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-4--rust"
+}

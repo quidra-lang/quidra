@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-1--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "metric.core_tooling_availability_quality": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--rust; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "build_execute": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Debugging support relies on wrapper scripts around external native debuggers (gdb/lldb via rust-gdb/rust-lldb) rather than a dedicated first-party Rust debugger, and profiling tooling (e.g. cargo-flamegraph, perf integration) is largely third-party; this keeps the score below the top of the band despite an otherwise complete first-party suite.",
+        "diagnostic_quality": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Meets the top band (90-100) criteria: complete first-party toolchain (rustc, cargo, rustup, rustfmt, clippy, rustdoc, rust-analyzer) shipped/managed together with no fragmentation and undisputed single-standard tools; docked a few points for the debugger/profiler gap noted above.",
+        "docs_package": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Rust ships a complete, first-party, tightly-integrated toolchain distributed through a single official installer.",
+        "format_lint": "Preserved paid evidence (ecosystem-tooling--part-1--rust): <cite index=\"4-1,4-2\">When you install Rust with rustup, the toolset includes the rustc compiler, the rustfmt source code formatter, and the clippy Rust linter, along with Cargo, the Rust package manager.</cite>",
+        "test": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Meets the top band (90-100) criteria: complete first-party toolchain (rustc, cargo, rustup, rustfmt, clippy, rustdoc, rust-analyzer) shipped/managed together with no fragmentation and undisputed single-standard tools; docked a few points for the debugger/profiler gap noted above."
+      },
+      "component_levels": {
+        "build_execute": 4,
+        "diagnostic_quality": 4,
+        "docs_package": 4,
+        "format_lint": 4,
+        "test": 4
+      },
+      "legacy_score_0_100": 93,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.core-tooling.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Evaluate the maintained first-party/de-facto core developer toolchain actually available today; score implemented capability, not planned design.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-1--rust",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/rust/eb2160b6b523ab8ff8332c3b66c424aeafb00f3518593de217f6ff794bc0bb99.json"
+      ]
+    },
+    "metric.package_dependency_management_quality": {
+      "candidate_universe": "Preserved candidate universe and findings from certified legacy work unit ecosystem-tooling--part-1--rust; recertification did not select a new language-specific target.",
+      "component_findings": {
+        "manifest_constraints": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Cargo is a first-party, deeply integrated package manager backed by the large, actively used crates.io registry, with lockfiles, semver-based resolution, and workspace support.",
+        "publish_version": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Cargo is a first-party, deeply integrated package manager backed by the large, actively used crates.io registry, with lockfiles, semver-based resolution, and workspace support.",
+        "registry_security": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Meets top-band criteria: fully integrated first-party package manager, Cargo.lock reproducibility, semver resolution with feature unification, native workspace support, and a large-scale, high-traffic central registry (crates.io) with community security-auditing tooling; not a perfect 100 because some auditing/supply-chain tooling (cargo-audit, cargo-deny) remains third-party rather than bundled by default.",
+        "resolver_lock": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Meets top-band criteria: fully integrated first-party package manager, Cargo.lock reproducibility, semver resolution with feature unification, native workspace support, and a large-scale, high-traffic central registry (crates.io) with community security-auditing tooling; not a perfect 100 because some auditing/supply-chain tooling (cargo-audit, cargo-deny) remains third-party rather than bundled by default.",
+        "workspace_multi": "Preserved paid evidence (ecosystem-tooling--part-1--rust): Cargo is a first-party, deeply integrated package manager backed by the large, actively used crates.io registry, with lockfiles, semver-based resolution, and workspace support."
+      },
+      "component_levels": {
+        "manifest_constraints": 4,
+        "publish_version": 4,
+        "registry_security": 4,
+        "resolver_lock": 4,
+        "workspace_multi": 4
+      },
+      "legacy_score_0_100": 96,
+      "limitations": "No new provider call was made for this recertification row. Historical normalized scores are retained only for audit comparison and are not used by the v2 runner arithmetic.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.package-management.v1",
+      "runner_score_0_100": 100,
+      "selection_rule": "Evaluate the standard/de-facto package workflow using official documentation and current registry/tool behavior; ecosystem size is scored elsewhere.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-tooling--part-1--rust",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/rust/eb2160b6b523ab8ff8332c3b66c424aeafb00f3518593de217f6ff794bc0bb99.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Rust",
+      "metrics": {
+        "metric.core_tooling_availability_quality": {
+          "component_levels": {
+            "build_execute": 4,
+            "diagnostic_quality": 4,
+            "docs_package": 4,
+            "format_lint": 4,
+            "test": 4
+          },
+          "rubric_id": "ecosystem.core-tooling.v1",
+          "score_0_100": 100
+        },
+        "metric.package_dependency_management_quality": {
+          "component_levels": {
+            "manifest_constraints": 4,
+            "publish_version": 4,
+            "registry_security": 4,
+            "resolver_lock": 4,
+            "workspace_multi": 4
+          },
+          "rubric_id": "ecosystem.package-management.v1",
+          "score_0_100": 100
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.core_tooling_availability_quality",
+    "metric.package_dependency_management_quality"
+  ],
+  "requirements": {
+    "metric.core_tooling_availability_quality": {
+      "Rust": 100.0
+    },
+    "metric.package_dependency_management_quality": {
+      "Rust": 100.0
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-1--rust"
+}

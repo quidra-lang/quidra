@@ -1,0 +1,111 @@
+{
+  "agent_id": "worker-ecosystem-external--part-2--swift",
+  "assigned_languages": [
+    "Swift"
+  ],
+  "evidence": {
+    "metric.production_adoption_deployment_evidence": {
+      "candidate_universe": "Evidence collected across two predeclared production domains for symmetry with other languages: (1) primary/client application domain evidence (the domain the language was designed for), and (2) a secondary/expansion domain (server-side), each backed by named organizations or an externally observable aggregator, collected via the same retrieval route and depth as other assigned languages.",
+      "component_findings": {
+        "current_continuity": "Preserved paid evidence (ecosystem-external--part-2--swift): Indicates Swift usage is concentrated (Apple-platform specialist niche) rather than broad general-purpose usage, which is a limitation on the breadth (though not depth) of production evidence.",
+        "deployment_depth": "Preserved paid evidence (ecosystem-external--part-2--swift): Swift has overwhelming, unambiguous production deployment evidence as the dominant language for the entire Apple first-party and third-party app ecosystem (iOS/macOS/watchOS/tvOS), including Apple's own products. This is an extremely large-scale, verifiable production footprint. Secondary-domain (server-side) production evidence exists (Vapor/SwiftNIO, documented company migrations) but is comparatively narrower and includes a documented high-profile framework abandonment (IBM Kitura), and overall developer population using Swift day-to-day is a small share of all professional developers. The score reflects very strong depth of production adoption in its core domain offset by narrower breadt",
+        "domain_diversity": "Preserved paid evidence (ecosystem-external--part-2--swift): Swift has overwhelming, unambiguous production deployment evidence as the dominant language for the entire Apple first-party and third-party app ecosystem (iOS/macOS/watchOS/tvOS), including Apple's own products. This is an extremely large-scale, verifiable production footprint. Secondary-domain (server-side) production evidence exists (Vapor/SwiftNIO, documented company migrations) but is comparatively narrower and includes a documented high-profile framework abandonment (IBM Kitura), and overall developer population using Swift day-to-day is a small share of all professional developers. The score reflects very strong depth of production adoption in its core domain offset by narrower breadt",
+        "named_organizations": "Preserved paid evidence (ecosystem-external--part-2--swift): Swift has overwhelming, unambiguous production deployment evidence as the dominant language for the entire Apple first-party and third-party app ecosystem (iOS/macOS/watchOS/tvOS), including Apple's own products. This is an extremely large-scale, verifiable production footprint. Secondary-domain (server-side) production evidence exists (Vapor/SwiftNIO, documented company migrations) but is comparatively narrower and includes a documented high-profile framework abandonment (IBM Kitura), and overall developer population using Swift day-to-day is a small share of all professional developers. The score reflects very strong depth of production adoption in its core domain offset by narrower breadt",
+        "scale_criticality": "Preserved paid evidence (ecosystem-external--part-2--swift): Swift has overwhelming, unambiguous production deployment evidence as the dominant language for the entire Apple first-party and third-party app ecosystem (iOS/macOS/watchOS/tvOS), including Apple's own products. This is an extremely large-scale, verifiable production footprint. Secondary-domain (server-side) production evidence exists (Vapor/SwiftNIO, documented company migrations) but is comparatively narrower and includes a documented high-profile framework abandonment (IBM Kitura), and overall developer population using Swift day-to-day is a small share of all professional developers. The score reflects very strong depth of production adoption in its core domain offset by narrower breadt"
+      },
+      "component_levels": {
+        "current_continuity": 4,
+        "deployment_depth": 4,
+        "domain_diversity": 3,
+        "named_organizations": 4,
+        "scale_criticality": 4
+      },
+      "legacy_score_0_100": 83,
+      "limitations": "Declared as a breadth proxy from a commercial technology-detection aggregator; not verified per-company and used only alongside named case evidence, not standalone.",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.production-adoption.v1",
+      "runner_score_0_100": 95,
+      "selection_rule": "Use public, independently checkable production evidence; named deployments must be documented by the deploying organization or corroborated by credible independent sources. Popularity surveys alone do not prove deployment.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-2--swift",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/swift/4690ba88c6712e396cbea76222a94a71c3bab8d48e54776510a6f09a92274525.json"
+      ]
+    },
+    "metric.third_party_tool_availability": {
+      "candidate_universe": "For each tool category (IDE/editor integration, LSP, formatter, linter, debugger, package manager, version manager, CI/CD packaging), select the tool that is either (a) officially shipped/maintained by Apple/swiftlang, or (b) the de-facto community-standard tool most commonly referenced in official Swift.org documentation and package ecosystem write-ups. Candidate universe considered: Xcode, sourcekit-lsp, swift-format, SwiftFormat, SwiftLint, LLDB, SwiftPM, CocoaPods, Carthage, swiftly, Mint, Swift Package Index, VS Code Swift extension, swift.nvim.",
+      "component_findings": {
+        "build_test_coverage": "Preserved paid evidence (ecosystem-external--part-2--swift): Swift has a complete, largely first-party tool chain (IDE, LSP, formatter, linter, debugger, package manager, version manager) plus a mature, Apple-backed package discovery service and widely-adopted third-party quality tools (SwiftLint, SwiftFormat). This is comparable to top-tier ecosystems, but cross-platform (non-Apple OS) tooling maturity and editor-agnostic experience lag slightly behind languages designed cross-platform from inception, justifying a strong but not maximal score.",
+        "ci_devops": "Preserved paid evidence (ecosystem-external--part-2--swift): Third-party package managers (Mint, Tuist): Mint adds 1.8 s overhead per mint run invocation due to SwiftPM wrapper layering.",
+        "debug_profile": "Preserved paid evidence (ecosystem-external--part-2--swift): First-party Apple IDE with integrated build, debug, profiling (Instruments), and SwiftUI preview tooling; the default and dominant development environment for Swift on Apple platforms.",
+        "editor_ide": "Preserved paid evidence (ecosystem-external--part-2--swift): Swift has a complete, largely first-party tool chain (IDE, LSP, formatter, linter, debugger, package manager, version manager) plus a mature, Apple-backed package discovery service and widely-adopted third-party quality tools (SwiftLint, SwiftFormat). This is comparable to top-tier ecosystems, but cross-platform (non-Apple OS) tooling maturity and editor-agnostic experience lag slightly behind languages designed cross-platform from inception, justifying a strong but not maximal score.",
+        "lint_format_static": "Preserved paid evidence (ecosystem-external--part-2--swift): A comprehensive, modular Neovim plugin for Swift development with LSP, build tools, formatting, linting, and integrated LLDB debugger"
+      },
+      "component_levels": {
+        "build_test_coverage": 4,
+        "ci_devops": 3,
+        "debug_profile": 4,
+        "editor_ide": 3,
+        "lint_format_static": 4
+      },
+      "legacy_score_0_100": 87,
+      "limitations": "Tooling is heavily macOS/Xcode-centric; Linux and other-platform tooling (VS Code + sourcekit-lsp, Docker toolchains) exists but is documented as secondary/rougher, e.g. higher cold-start latency and extra RAM for non-Xcode setups per one technical comparison. | Raw GitHub star counts (e.g. SwiftLint's ~12.9K stars) are used only as a declared, consistently-collected proxy alongside qualitative adoption evidence, not as a standalone score. | SourceKit-LSP itself notes ongoing rough edges: 'SourceKit-LSP is still in early development, so you may run into rough edges with any of the features.'",
+      "retrieval_route": "provider-brokered web search",
+      "rubric_id": "ecosystem.third-party-tools.v1",
+      "runner_score_0_100": 90,
+      "selection_rule": "Inspect the same fixed tool categories for every language and require independently maintained current tools; official first-party tools may be cited only as context, not as third-party availability.",
+      "snapshot_date": "2026-09-23",
+      "source_work_unit_id": "ecosystem-external--part-2--swift",
+      "sources": [
+        "certified-cache-record:benchmark/cache/v1/ecosystem/swift/4690ba88c6712e396cbea76222a94a71c3bab8d48e54776510a6f09a92274525.json"
+      ]
+    },
+    "runner_scoring": {
+      "language": "Swift",
+      "metrics": {
+        "metric.production_adoption_deployment_evidence": {
+          "component_levels": {
+            "current_continuity": 4,
+            "deployment_depth": 4,
+            "domain_diversity": 3,
+            "named_organizations": 4,
+            "scale_criticality": 4
+          },
+          "rubric_id": "ecosystem.production-adoption.v1",
+          "score_0_100": 95
+        },
+        "metric.third_party_tool_availability": {
+          "component_levels": {
+            "build_test_coverage": 4,
+            "ci_devops": 3,
+            "debug_profile": 4,
+            "editor_ide": 3,
+            "lint_format_static": 4
+          },
+          "rubric_id": "ecosystem.third-party-tools.v1",
+          "score_0_100": 90
+        }
+      },
+      "rubric_set_id": "ecosystem-runner-rubric-v2"
+    },
+    "snapshot_recertification": {
+      "policy": "legacy evidence re-adjudicated under current runner-owned rubric",
+      "rubric_set_id": "ecosystem-runner-rubric-v2",
+      "snapshot_id": "ecosystem-runner-rubric-v2-recertified-2026-09-23",
+      "source": "snapshots/ecosystem/2026-09-runner-rubric-v2.json"
+    }
+  },
+  "requirement_ids": [
+    "metric.production_adoption_deployment_evidence",
+    "metric.third_party_tool_availability"
+  ],
+  "requirements": {
+    "metric.production_adoption_deployment_evidence": {
+      "Swift": 95.0
+    },
+    "metric.third_party_tool_availability": {
+      "Swift": 90.0
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-2--swift"
+}

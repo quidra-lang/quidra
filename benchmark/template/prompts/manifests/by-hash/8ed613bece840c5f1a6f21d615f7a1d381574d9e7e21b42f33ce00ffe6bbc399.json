@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "bytes": 5211,
+      "kind": "embedded:worker_core.md",
+      "sha256": "7536c2bff320857ff700a3345df7e62205d6fe47aafb8f0df2e402a08f19a6cb"
+    },
+    {
+      "bytes": 6117,
+      "kind": "embedded:semantic_compression.md",
+      "sha256": "db5818c0f48dca72424541d4926e93244f4d31b5cf2d91e1641eccdb6d4b34f0"
+    },
+    {
+      "bytes": 4632,
+      "kind": "embedded:primary.json",
+      "sha256": "ab4cf7a99f1c3fefaed7c005b04aec915c63c0110704710ea7d98b2f36fe72c6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 41403,
+      "kind": "task-input:work/root/semantic-probes/rust--f13-p1.json",
+      "sha256": "02cbf11c66037994907087406cd41ae3ce521588181e0afcc58bec3a4a04e4bb"
+    },
+    {
+      "bytes": 3858,
+      "kind": "task",
+      "sha256": "73644f31acf3966ed54abc0e8fde3c1f8c19c903bc3cd3b0457c19f10e1b6c5c"
+    },
+    {
+      "bytes": 268,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "907305c4be6959d1ffcea8e1692f70559be8c6f538aa09b0c88430b64308bd6b"
+    }
+  ],
+  "prompt_sha256": "8ed613bece840c5f1a6f21d615f7a1d381574d9e7e21b42f33ce00ffe6bbc399",
+  "rendered_bytes": 62525,
+  "schema_version": 1
+}

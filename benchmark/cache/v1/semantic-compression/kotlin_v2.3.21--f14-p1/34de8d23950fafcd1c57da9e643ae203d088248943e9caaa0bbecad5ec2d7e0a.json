@@ -1,0 +1,110 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "34de8d23950fafcd1c57da9e643ae203d088248943e9caaa0bbecad5ec2d7e0a",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "8d91bad27dbd4a3d93b8ed95b4be55d5f3731c2ca7ff2d3da6eb337472d90b32",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/kotlin--f14-p1.json": "7cd377c9b7599781a87a5d2f3a66986dd8b08c068e963b2f2418caeea4c0df06"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f14-p1"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--kotlin--f14-p1",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Kotlin": {
+      "generation_id": "kotlin_v2.3.21",
+      "id": "kotlin",
+      "language": "Kotlin",
+      "version": "2.3.21",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "8d91bad27dbd4a3d93b8ed95b4be55d5f3731c2ca7ff2d3da6eb337472d90b32",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--kotlin--f14-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F14.P1": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F14.P1",
+          "fragment": "sealed class Shape\nclass Circle(val r: Double) : Shape()\nclass Rect(val w: Double, val h: Double) : Shape()\nval s: Shape = Circle(2.0)",
+          "justification": "sealed class Shape; data class Circle(val r: Double): Shape(); data class Rect(val w: Double, val h: Double): Shape() \u2014 Kotlin sealed classes are compiler-enforced closed to the same module (cannot be subclassed from outside).",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F14.P1": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "f7c1cbdc3c3d086b2e6e773b0f445a29a7bbc56d52a3198fcbd99624a9acecb5",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Kotlin",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F14.P1",
+        "schema_version": 2,
+        "source_record_sha256": "28f271c1c5529261b480c3109d5b07b08c7131955c41e2143e390906e6d75194",
+        "source_result_sha256": "bd39333cd1505b63ec8602aef6337c7e05f1e66d8fb502f9bab345e5b8d422e9"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f14-p1": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "85236a01e332c4040596a764d453dc572c32338c117c38ce28438ccd9db1615b",
+  "schema_version": 1
+}

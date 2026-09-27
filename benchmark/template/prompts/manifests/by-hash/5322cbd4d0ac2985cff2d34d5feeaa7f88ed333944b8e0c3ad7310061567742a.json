@@ -1,0 +1,37 @@
+{
+  "components": [
+    {
+      "bytes": 4244,
+      "kind": "task",
+      "sha256": "c430b808da9e5d218047dc4b40b1ca305bfd5ae73482234c8e8f9a40ff1b1c47"
+    },
+    {
+      "bytes": 5211,
+      "kind": "embedded:worker_core.md",
+      "sha256": "7536c2bff320857ff700a3345df7e62205d6fe47aafb8f0df2e402a08f19a6cb"
+    },
+    {
+      "bytes": 18274,
+      "kind": "embedded:llm_proficiency.md",
+      "sha256": "0f9966c78578036af065109ddabdfdbdd819b6878c9fdfa864c09d7b50c9ceb3"
+    },
+    {
+      "bytes": 5256,
+      "kind": "embedded:primary.json",
+      "sha256": "e1eab43662181d4ae6d4e6d93d8303aa078354002c512435e0a56974902655d6"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 887,
+      "kind": "embedded:assigned_requirements.json",
+      "sha256": "4db12345c2423ee3460493b6b6e5b94c1fa955e5683813ff12c3378b1127b36e"
+    }
+  ],
+  "prompt_sha256": "5322cbd4d0ac2985cff2d34d5feeaa7f88ed333944b8e0c3ad7310061567742a",
+  "rendered_bytes": 34908,
+  "schema_version": 1
+}

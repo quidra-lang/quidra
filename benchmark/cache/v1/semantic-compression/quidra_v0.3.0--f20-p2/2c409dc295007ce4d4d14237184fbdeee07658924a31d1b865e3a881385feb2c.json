@@ -1,0 +1,130 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "compatibility": {
+    "quidra_execution_identity": {
+      "git_objects": {
+        "CMakeLists.txt": "081e7730e2e89159d53751326e2b7f850ffc134b",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a",
+        "include": "563853d9cc14d422f50ba5d56ff7f8802a46a1e0",
+        "project.toml": "bb477b1aeee2236d3efacb614deb748a42901e73",
+        "quidra.manifest.json": "76b9b1e0c57c8d5c90c1cdce191b8633991b290a",
+        "src": "e3895d804d41a29ad1d7edcf5b02f73e14f81176"
+      },
+      "schema_version": 1,
+      "sha256": "bb59b233ed3f4c3b7c4a36746886fb34f879ffe1f83960155881066a59553e4b"
+    }
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "2c409dc295007ce4d4d14237184fbdeee07658924a31d1b865e3a881385feb2c",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "a60f89fc934c6f8d0f3fa70e2eef56c66981bb0168f3f3a59c2779c88200795d",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs/spec": "8574ed09823b1ffd4aa9e7ed5cb2dc29f50ea5008b1957274e8181672e091998",
+      "work/root/semantic-probes/quidra--f20-p2.json": "57e231f40783ce46eeeea93aafa67f5a7351106ee25d635bb82f29f99e120e55"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f20-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--quidra--f20-p2",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Quidra": {
+      "generation_id": "quidra_v0.3.0",
+      "id": "quidra",
+      "language": "Quidra",
+      "version": "0.3.0",
+      "version_source": "project.toml:[project].version"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "a60f89fc934c6f8d0f3fa70e2eef56c66981bb0168f3f3a59c2779c88200795d",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--quidra--f20-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F20.P2": {
+          "citation": "architecture.md 'C FFI boundary' and language.md 'C FFI' document only the inbound direction (declaring/calling external C symbols via `extern`); no mechanism is documented for exporting a Quidra function under a stable unmangled C-ABI symbol name callable from C, so no fragment can be written.",
+          "fragment": null,
+          "justification": "architecture.md 'C FFI boundary' and language.md 'C FFI' document only the inbound direction (declaring/calling external C symbols via `extern`); no mechanism is documented for exporting a Quidra function under a stable unmangled C-ABI symbol name callable from C, so no fragment can be written.",
+          "level": "NONE",
+          "none_reason": "N-1",
+          "partial_reasons": []
+        }
+      },
+      "canonical_none_verification": {
+        "F20.P2": {
+          "citations": [
+            "architecture.md 'C FFI boundary' and language.md 'C FFI' document only the inbound direction (declaring/calling external C symbols via `extern`); no mechanism is documented for exporting a Quidra function under a stable unmangled C-ABI symbol name callable from C, so no fragment can be written."
+          ],
+          "conclusion": "architecture.md 'C FFI boundary' and language.md 'C FFI' document only the inbound direction (declaring/calling external C symbols via `extern`); no mechanism is documented for exporting a Quidra function under a stable unmangled C-ABI symbol name callable from C, so no fragment can be written.",
+          "evidence_kinds": [
+            "retained-current-validator-certified-owner",
+            "evidence-cited-by-current-owner"
+          ],
+          "generation_failures_not_used_as_evidence": true,
+          "none_reason": "N-1"
+        }
+      },
+      "canonical_verification": {},
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Quidra",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F20.P2",
+        "schema_version": 2,
+        "source_record_sha256": "055c1f5636388bd7776877da876c431e9cf00c89c44312dc15269d3b80a4c5f6",
+        "source_result_sha256": "b494906f28f93f7c673650bff034bebab459169cbe24349a9b946e1ec35e3c0e"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f20-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "77de54eafbd35b3627ac129c36a5f83ffe79ab55ef8efd50bddb13703ba344bb",
+  "schema_version": 1
+}

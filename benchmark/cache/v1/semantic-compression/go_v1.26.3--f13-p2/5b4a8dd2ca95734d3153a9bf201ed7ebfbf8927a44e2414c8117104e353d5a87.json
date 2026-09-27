@@ -1,0 +1,108 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "semantic_probe_projection_candidate": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "5b4a8dd2ca95734d3153a9bf201ed7ebfbf8927a44e2414c8117104e353d5a87",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "714465215f380a9ed2bde8192efa7e8b0fd16bfd9604bebdfeb896c598840317",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/root/semantic-probes/go--f13-p2.json": "d75c0f128c60e7e6eaade5871a5542492c2cad15a14d956d5ef646b146b78f7a"
+    },
+    "requirement_ids": [
+      "annotation.canonical_fragment--f13-p2"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "3b8bf208d48aa9a1ee3b707c7848955491a815ffc6c1039761c40f5b5b2b995d",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-canonical-fragment--go--f13-p2",
+    "worker_mode": "packet-only"
+  },
+  "language_generations": {
+    "Go": {
+      "generation_id": "go_v1.26.3",
+      "id": "go",
+      "language": "Go",
+      "version": "1.26.3",
+      "version_source": "benchmark/config.json"
+    }
+  },
+  "provenance": {
+    "prompt_sha256": "714465215f380a9ed2bde8192efa7e8b0fd16bfd9604bebdfeb896c598840317",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-canonical-fragment--go--f13-p2"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_fragments": {
+        "F13.P2": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F13.P2",
+          "fragment": "v, err := strconv.Atoi(s)\nn := 0\nif err == nil { n = v }\nreturn n",
+          "justification": "n, err := strconv.Atoi(s); if err != nil { n = 0 } -- local handling with fallback.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      },
+      "canonical_verification": {
+        "F13.P2": {
+          "baseline_run_id": "2026-09-25-5dc8989-gh25",
+          "canonical_fragment_sha256": "d01f9db3e8171988b68fc3f96bdeede4b4670e4be2ddf0dd16207902a85491be",
+          "mode": "canonical-baseline-probe-projection"
+        }
+      },
+      "probe_recertification": {
+        "baseline_run_id": "2026-09-25-5dc8989-gh25",
+        "language": "Go",
+        "mode": "detached-certified-baseline-projection",
+        "probe_id": "F13.P2",
+        "schema_version": 2,
+        "source_record_sha256": "062a57f5d821c6a23b17a7b67aa5787b34824c7a9b9043b5008c0206cc4c6e3e",
+        "source_result_sha256": "0b7b86c567363edfa4ba4b3b6c2b5c3335e59047d6f7e005797d67987299519d"
+      }
+    },
+    "requirements": {
+      "annotation.canonical_fragment--f13-p2": true
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "12ef3ecf651daa594272e732dae76bf345d52ba7b03ddcefa3a7f5c04c5dd5dd",
+  "schema_version": 1
+}

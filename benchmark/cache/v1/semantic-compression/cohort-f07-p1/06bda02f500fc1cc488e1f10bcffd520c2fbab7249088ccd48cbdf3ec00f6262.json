@@ -1,0 +1,150 @@
+{
+  "assigned_languages": [],
+  "certification": {
+    "canonical_baseline_formal_complete": true,
+    "canonical_baseline_run_id": "2026-09-25-5dc8989-gh25",
+    "current_validator_revalidated": true,
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "06bda02f500fc1cc488e1f10bcffd520c2fbab7249088ccd48cbdf3ec00f6262",
+  "fingerprint_payload": {
+    "assigned_languages": [],
+    "cache_epoch": "2026-09-canonical-fragments-v6-fixed-stdout",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "work/audit/semantic-compression/support_adjudication_f07-p1.json": "2f0e32a2c2533ecbabf76ec63e5ca1b651fc0cf4614ef418578fa7a5d04693a0"
+    },
+    "requirement_ids": [
+      "annotation.support_adjudication--f07-p1"
+    ],
+    "runtime_toolchain_pins": {},
+    "schema_version": 1,
+    "semantic_evidence_contract": "sc-support-adjudication-v1",
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec_sections": "27d9c247f8c9e5c59a5be3cab63ed35f7e7ed8af2292b71729edd54f68ed2e72",
+      "primary_config": "7a5bd4e4f93549b367e78316343f7e77724101205ef962105522ef04a67ca819"
+    },
+    "work_unit_id": "sc-support-adjudication:F07.P1"
+  },
+  "language_generations": {},
+  "provenance": {
+    "prompt_sha256": "3d99dd490731b6c5ae971cb62809c3b2ca4348206d74d27fc1a4db2bda6bac7f",
+    "run_id": "2026-09-27-38b7137-gh31",
+    "work_unit_id": "sc-support-adjudication--f07-p1"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "canonical_baseline": {
+        "evaluated_commit_sha": "5dc8989342d3920ad1a64262696757257958e0aa",
+        "mode": "support-from-canonical-baseline",
+        "probe_id": "F07.P1",
+        "run_id": "2026-09-25-5dc8989-gh25",
+        "schema_version": 1
+      }
+    },
+    "requirements": {
+      "annotation.support_adjudication--f07-p1": {
+        "C++": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "int r = a * b + c;",
+          "justification": "`auto r = a*b+c;` ordinary precedence, no redundant parens.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Go": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "r := a*b + c",
+          "justification": "r := a*b + c, ordinary operator precedence.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Java": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "int r = a * b + c;",
+          "justification": "int r = a * b + c; ordinary precedence and operators.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Kotlin": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "val r = a * b + c",
+          "justification": "val r = a * b + c, ordinary operator precedence.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Python": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "r = a * b + c",
+          "justification": "r = a * b + c uses ordinary operators and precedence; Python ints are unbounded so no overflow trap changes the operator's expressibility.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Quidra": {
+          "citation": "grammar.ebnf term/factor precedence; ordinary arithmetic expression `a*b+c`.",
+          "fragment": "int32 r = a * b + c",
+          "justification": "grammar.ebnf term/factor precedence; ordinary arithmetic expression `a*b+c`.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Rust": {
+          "citation": "Rust Reference operator precedence",
+          "fragment": "let r = a * b + c;",
+          "justification": "Rust Reference operator precedence",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Swift": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "let r = a * b + c",
+          "justification": "let r = a * b + c \u2014 ordinary precedence, checked arithmetic per frozen recipe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "TypeScript": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "const r = a * b + c;",
+          "justification": "const r = a * b + c; ordinary operator precedence.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        },
+        "Zig": {
+          "citation": "canonical-baseline:2026-09-25-5dc8989-gh25#F07.P1",
+          "fragment": "const r = a * b + c;",
+          "justification": "const r = a * b + c; ordinary precedence, checked-overflow semantics under ReleaseSafe.",
+          "level": "FULL",
+          "none_reason": null,
+          "partial_reasons": []
+        }
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "0ba764be3c391f08c964a1b071a3541767d0c1a8750d0b56429e1e0ae00cf3f4",
+  "schema_version": 1
+}

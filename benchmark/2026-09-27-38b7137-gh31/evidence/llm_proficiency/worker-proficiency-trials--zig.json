@@ -1,0 +1,116 @@
+{
+  "agent_id": "worker-proficiency-trials--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "note": "All 18 frozen Primary llm_proficiency cells for Zig (SVM/GMM/LightGrad x specification_to_implementation/reference_to_porting x 3 prompt-variant trials each) were run to their full frozen repair budget (1 initial + 3 repair completions per trial, 4 paid calls each, all preserved under trials/<id>/session.json). Every trial's initial completion failed the compile/public repair gate, and every trial remained failing through repair_03 (the frozen max_repair_turns=3), so no trial ever reached the public compile/repair gate or produced an oracle-comparable output. Representative failures: Zig 0.16 API drift from the model's pretrained knowledge (std.io.getStdIn no longer exists on struct 'std' in this toolchain snapshot; std.ArrayList(u8).init no longer exists, must use .empty / allocator-passed writer pattern; the very first completion for svm--specification-to-implementation--t1 also wrapped the source in a Markdown code fence despite the explicit no-fence instruction, which itself is a compile failure). This pattern (stale ArrayList/io API usage, occasional Markdown fencing) recurred across GMM, LightGrad and SVM trials and both scenarios and all three prompt variants. Toolchain evidence: `zig version` was run directly as a `run` action before any trial_start and exited 0 (see trace), reporting zig 0.16.0. Per section 9.0.1: Repair Success Rate=0 (0/18 reached gate after repair), Repair Efficiency=0 (all unrepaired failures score 0 each, mean 0), Diagnosis Efficiency=0 (0/18 passed on first repair), Silent Bug Resistance=0 (eligible_trials=0 since no first completion compiled/executed, scored 0 per the explicit non-default rule rather than an unearned 100). Correct@1, Correct@N, Test Pass Rate, Specification Compliance and Unseen-case Generalization are all 0 because no trial ever produced a running, oracle-comparable binary. Generation Success Rate is 100 because every trial call produced a non-empty candidate source text (the model always emitted a completion, including the initial completion and every repair attempt); it does not require that text to compile. Prompt Robustness is the minimum first-attempt full-oracle correctness rate across the three frozen prompt variants (canonical/scenario-first/contract-first); with 0 first-attempt full-oracle passes in every variant across all 6 workload/scenario cells, the minimum is 0. Source Token Efficiency and Total Token Efficiency are scored 0 because no successful terminal source exists to credit efficiency against, and the raw Task Completion Token cost recorded per trial (usage.output_tokens/input_tokens/cache tokens summed across all 4 calls, per trials/<id>/session.json) was consumed entirely without a first- or later-verified success, per the frozen TCT accounting rule in section 9. Generated Code Performance, Generated Code Memory Efficiency and Generated Code Compile Performance are scored 0 rather than N/A per worker_core.md rule 5 (a missing capability intentionally tested by the metric, i.e. producing a working, runnable, measurable binary, is not automatically N/A) because no trial produced an executable binary in any workload cell for Zig, so there is no valid runtime/memory/compile-timing sample to normalize; this is a genuine measured zero, not an inapplicability. All raw per-call verification records (compile_parse_ok, public_repair_gate_passed, stderr diagnostics, source_sha256) are preserved verbatim under trials/<trial_id>/session.json and trials/<trial_id>/completion_0N.txt / prompt_0N.txt for all 18 trials, reproducing prompt->generated program->failure->diagnosis->repair->final result for each. Aggregated summary used to derive the requirement values above is written to summary.json in this directory (regenerated from the preserved session.json files via summarize.py, a local read-only aggregation script; no scored inference was invoked by that script).",
+    "reason": "All 18/18 frozen Primary trials for Zig ran their full initial+3-repair budget and never reached the compile/public repair gate; scores reflect genuine measured zeros per the frozen formulas, not missing evidence.",
+    "status": "COMPLETE_ALL_FAIL",
+    "toolchain_check": {
+      "argv": [
+        "zig",
+        "version"
+      ],
+      "exit_code": 0,
+      "stdout": "0.16.0"
+    },
+    "trial_ids": [
+      "svm--specification-to-implementation--t1",
+      "svm--specification-to-implementation--t2",
+      "svm--specification-to-implementation--t3",
+      "svm--reference-to-porting--t1",
+      "svm--reference-to-porting--t2",
+      "svm--reference-to-porting--t3",
+      "gmm--specification-to-implementation--t1",
+      "gmm--specification-to-implementation--t2",
+      "gmm--specification-to-implementation--t3",
+      "gmm--reference-to-porting--t1",
+      "gmm--reference-to-porting--t2",
+      "gmm--reference-to-porting--t3",
+      "lightgrad--specification-to-implementation--t1",
+      "lightgrad--specification-to-implementation--t2",
+      "lightgrad--specification-to-implementation--t3",
+      "lightgrad--reference-to-porting--t1",
+      "lightgrad--reference-to-porting--t2",
+      "lightgrad--reference-to-porting--t3"
+    ]
+  },
+  "requirement_ids": [
+    "metric.compile_parse_success_rate",
+    "metric.correct_at_1",
+    "metric.correct_at_n",
+    "metric.diagnosis_efficiency",
+    "metric.generated_code_compile_performance",
+    "metric.generated_code_memory_efficiency",
+    "metric.generated_code_performance",
+    "metric.generation_success_rate",
+    "metric.prompt_robustness",
+    "metric.repair_efficiency",
+    "metric.repair_success_rate",
+    "metric.silent_bug_resistance",
+    "metric.source_token_efficiency",
+    "metric.specification_compliance",
+    "metric.syntax_hallucination_resistance",
+    "metric.test_pass_rate",
+    "metric.total_token_efficiency",
+    "metric.unseen_case_generalization"
+  ],
+  "requirements": {
+    "metric.compile_parse_success_rate": {
+      "Zig": 0.0
+    },
+    "metric.correct_at_1": {
+      "Zig": 0.0
+    },
+    "metric.correct_at_n": {
+      "Zig": 0.0
+    },
+    "metric.diagnosis_efficiency": {
+      "Zig": 0.0
+    },
+    "metric.generated_code_compile_performance": {
+      "Zig": 0
+    },
+    "metric.generated_code_memory_efficiency": {
+      "Zig": 0
+    },
+    "metric.generated_code_performance": {
+      "Zig": 0
+    },
+    "metric.generation_success_rate": {
+      "Zig": 100.0
+    },
+    "metric.prompt_robustness": {
+      "Zig": 0.0
+    },
+    "metric.repair_efficiency": {
+      "Zig": 0.0
+    },
+    "metric.repair_success_rate": {
+      "Zig": 0.0
+    },
+    "metric.silent_bug_resistance": {
+      "Zig": 0.0
+    },
+    "metric.source_token_efficiency": {
+      "Zig": 0
+    },
+    "metric.specification_compliance": {
+      "Zig": 0
+    },
+    "metric.syntax_hallucination_resistance": {
+      "Zig": 0
+    },
+    "metric.test_pass_rate": {
+      "Zig": 0.0
+    },
+    "metric.total_token_efficiency": {
+      "Zig": 0
+    },
+    "metric.unseen_case_generalization": {
+      "Zig": 0.0
+    }
+  },
+  "work_unit_id": "proficiency-trials--zig"
+}

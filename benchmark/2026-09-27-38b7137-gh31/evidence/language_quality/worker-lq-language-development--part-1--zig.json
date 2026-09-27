@@ -1,0 +1,147 @@
+{
+  "agent_id": "worker-lq-language-development--part-1--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "language_quality_design_runner_scoring": {
+      "language": "Zig",
+      "metrics": {
+        "metric.code_efficiency_conciseness": {
+          "component_levels": {
+            "abstraction_ceremony": 2,
+            "control_data_ceremony": 3,
+            "declaration_ceremony": 3,
+            "error_resource_ceremony": 2,
+            "semantic_work_ratio": 3
+          },
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.conciseness.v1",
+          "score_0_100": 65
+        },
+        "metric.readability": {
+          "component_levels": {
+            "consistency_regular_forms": 3,
+            "control_effect_traceability": 3,
+            "local_intent_visibility": 3,
+            "name_type_signal": 3,
+            "structural_clarity": 3
+          },
+          "evidence_refs": [
+            "template/programs/zig/micro",
+            "template/programs/zig/adversarial",
+            "template/workloads",
+            "template/methodology-assets/language_quality/design_rubrics.json"
+          ],
+          "rubric_id": "language-quality.readability.v1",
+          "score_0_100": 75
+        }
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1"
+    },
+    "language_quality_snapshot_recertification": {
+      "new_paid_benchmark_provider_call": false,
+      "recertifier": {
+        "engine": "GPT-5.6 Sol",
+        "mode": "evidence-reprojection/current-rubric-adjudication",
+        "new_paid_benchmark_provider_call": false,
+        "provider_model_provenance_claim": "No Anthropic/Sonnet call is claimed for these reconstructed judgments."
+      },
+      "rubric_set_id": "language-quality-design-runner-rubric-v1",
+      "snapshot_id": "language-quality-design-rubric-v1-recertified-2026-09-25",
+      "source": "snapshots/language_quality/2026-09-design-rubric-v1.json"
+    },
+    "metric.code_efficiency_conciseness": {
+      "component_findings": {
+        "abstraction_ceremony": "Recertified level 2 under the current criterion: Reusable abstractions such as types, interfaces/traits/generics or equivalent mechanisms can be declared and consumed without excessive scaffolding. Evidence basis: Inspected Zig micro-benchmark programs (mb00-mb11) and adversarial programs under template/programs/zig. | mb03.zig core arithmetic kernel (workload()) is compact (~15 lines), comparable in density to C/Rust equivalents. | Program harness (main()) requires manual buffer allocation and std.fmt.bufPrint for every printed line, adding verbosity versus higher-level languages. | Explicit std.Io.Threaded plumbing and io() handle passing add boilerplate lines versus e.g. Go's fmt.Println or Rust's println!. | No unnecessary copies observed; small structs returned by value; slices/arrays used directly. | Adversarial programs (ADV-*) are short (200-900 bytes) with explicit type annotations required by Zig's strict comptime/type system.",
+        "control_data_ceremony": "Recertified level 3 under the current criterion: Common control flow and collection/data manipulation avoid repetitive structural ceremony unrelated to the algorithm. Evidence basis: Inspected Zig micro-benchmark programs (mb00-mb11) and adversarial programs under template/programs/zig. | mb03.zig core arithmetic kernel (workload()) is compact (~15 lines), comparable in density to C/Rust equivalents. | Program harness (main()) requires manual buffer allocation and std.fmt.bufPrint for every printed line, adding verbosity versus higher-level languages. | Explicit std.Io.Threaded plumbing and io() handle passing add boilerplate lines versus e.g. Go's fmt.Println or Rust's println!. | No unnecessary copies observed; small structs returned by value; slices/arrays used directly. | Adversarial programs (ADV-*) are short (200-900 bytes) with explicit type annotations required by Zig's strict comptime/type system.",
+        "declaration_ceremony": "Recertified level 3 under the current criterion: Routine variables, functions, parameters and returns can be expressed without disproportionate mandatory boilerplate. Evidence basis: Inspected Zig micro-benchmark programs (mb00-mb11) and adversarial programs under template/programs/zig. | mb03.zig core arithmetic kernel (workload()) is compact (~15 lines), comparable in density to C/Rust equivalents. | Program harness (main()) requires manual buffer allocation and std.fmt.bufPrint for every printed line, adding verbosity versus higher-level languages. | Explicit std.Io.Threaded plumbing and io() handle passing add boilerplate lines versus e.g. Go's fmt.Println or Rust's println!. | No unnecessary copies observed; small structs returned by value; slices/arrays used directly. | Adversarial programs (ADV-*) are short (200-900 bytes) with explicit type annotations required by Zig's strict comptime/type system.",
+        "error_resource_ceremony": "Recertified level 2 under the current criterion: Ordinary error/resource handling expresses intent without pervasive mandatory boilerplate while retaining clear semantics. Evidence basis: Inspected Zig micro-benchmark programs (mb00-mb11) and adversarial programs under template/programs/zig. | mb03.zig core arithmetic kernel (workload()) is compact (~15 lines), comparable in density to C/Rust equivalents. | Program harness (main()) requires manual buffer allocation and std.fmt.bufPrint for every printed line, adding verbosity versus higher-level languages. | Explicit std.Io.Threaded plumbing and io() handle passing add boilerplate lines versus e.g. Go's fmt.Println or Rust's println!. | No unnecessary copies observed; small structs returned by value; slices/arrays used directly. | Adversarial programs (ADV-*) are short (200-900 bytes) with explicit type annotations required by Zig's strict comptime/type system.",
+        "semantic_work_ratio": "Recertified level 3 under the current criterion: Idiomatic source spends most syntax on domain/algorithm meaning rather than language-mandated plumbing; this is a qualitative ceremony judgment, not a second source-size measurement. Evidence basis: Inspected Zig micro-benchmark programs (mb00-mb11) and adversarial programs under template/programs/zig. | mb03.zig core arithmetic kernel (workload()) is compact (~15 lines), comparable in density to C/Rust equivalents. | Program harness (main()) requires manual buffer allocation and std.fmt.bufPrint for every printed line, adding verbosity versus higher-level languages. | Explicit std.Io.Threaded plumbing and io() handle passing add boilerplate lines versus e.g. Go's fmt.Println or Rust's println!. | No unnecessary copies observed; small structs returned by value; slices/arrays used directly. | Adversarial programs (ADV-*) are short (200-900 bytes) with explicit type annotations required by Zig's strict comptime/type system."
+      },
+      "component_levels": {
+        "abstraction_ceremony": 2,
+        "control_data_ceremony": 3,
+        "declaration_ceremony": 3,
+        "error_resource_ceremony": 2,
+        "semantic_work_ratio": 3
+      },
+      "evidence_refs": [
+        "template/programs/zig/micro",
+        "template/programs/zig/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 62,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "f853d4fe103ba3789a53d2d8b028d34fc0b1bdd42628d459e8796adc8aa5e8c4",
+        "source_record": "benchmark/cache/v1/language-quality/zig/9da94a05f5fabc74d0f9c5174459787c0538d2e0324cb8e4a0d94cb8edaee58d.json",
+        "source_record_sha256": "154c126409e78c71ce404b38dfc51cfca651c328b17fc61e6359ec1071021bc5",
+        "source_result_sha256": "31ea85b3918c6964cf6ebc26b4681bcfab88934fda8881edc2f9ec64aa01be0c",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.conciseness.v1",
+      "runner_score_0_100": 65,
+      "selection_rule": "Judge intrinsic mandatory ceremony for the same kinds of ordinary programs. Do not reuse raw LOC/bytes/tokens as the score and do not reward external libraries."
+    },
+    "metric.readability": {
+      "component_findings": {
+        "consistency_regular_forms": "Recertified level 3 under the current criterion: Similar concepts use regular forms with few special-case spellings or context-dependent surface rules. Evidence basis: Reviewed naming, structure, comments, and control flow of Zig micro and adversarial benchmark sources. | Code uses clear identifiers (s_add, s_xor, s_mul, s_div, workload, Result) and doc-style comments referencing spec sections, aiding comprehension. | Explicit types on every variable make data flow and semantics unambiguous at the cost of extra text. | Error handling via '!' return types and 'try' is visible and linear, avoiding hidden exception control flow. | while-loop-with-continue-expression syntax is idiomatic Zig but less immediately readable to newcomers than for-range loops in Python/Go/Rust. | Low-level I/O setup intermixes infrastructure concerns with program logic, slightly reducing readability of main(). | Comptime/generic-heavy adversarial cases remain readable due to Zig's explicit style (no operator overloading obscuring behavior).",
+        "control_effect_traceability": "Recertified level 3 under the current criterion: Control flow, mutation and exceptional/effectful behavior can be followed from ordinary idiomatic source with bounded cognitive indirection. Evidence basis: Reviewed naming, structure, comments, and control flow of Zig micro and adversarial benchmark sources. | Code uses clear identifiers (s_add, s_xor, s_mul, s_div, workload, Result) and doc-style comments referencing spec sections, aiding comprehension. | Explicit types on every variable make data flow and semantics unambiguous at the cost of extra text. | Error handling via '!' return types and 'try' is visible and linear, avoiding hidden exception control flow. | while-loop-with-continue-expression syntax is idiomatic Zig but less immediately readable to newcomers than for-range loops in Python/Go/Rust. | Low-level I/O setup intermixes infrastructure concerns with program logic, slightly reducing readability of main(). | Comptime/generic-heavy adversarial cases remain readable due to Zig's explicit style (no operator overloading obscuring behavior).",
+        "local_intent_visibility": "Recertified level 3 under the current criterion: A local expression/statement makes its operation and important effects reasonably apparent without unrelated context. Evidence basis: Reviewed naming, structure, comments, and control flow of Zig micro and adversarial benchmark sources. | Code uses clear identifiers (s_add, s_xor, s_mul, s_div, workload, Result) and doc-style comments referencing spec sections, aiding comprehension. | Explicit types on every variable make data flow and semantics unambiguous at the cost of extra text. | Error handling via '!' return types and 'try' is visible and linear, avoiding hidden exception control flow. | while-loop-with-continue-expression syntax is idiomatic Zig but less immediately readable to newcomers than for-range loops in Python/Go/Rust. | Low-level I/O setup intermixes infrastructure concerns with program logic, slightly reducing readability of main(). | Comptime/generic-heavy adversarial cases remain readable due to Zig's explicit style (no operator overloading obscuring behavior).",
+        "name_type_signal": "Recertified level 3 under the current criterion: The language permits names/types/signatures to communicate intent without forcing distracting noise or hiding essential information. Evidence basis: Reviewed naming, structure, comments, and control flow of Zig micro and adversarial benchmark sources. | Code uses clear identifiers (s_add, s_xor, s_mul, s_div, workload, Result) and doc-style comments referencing spec sections, aiding comprehension. | Explicit types on every variable make data flow and semantics unambiguous at the cost of extra text. | Error handling via '!' return types and 'try' is visible and linear, avoiding hidden exception control flow. | while-loop-with-continue-expression syntax is idiomatic Zig but less immediately readable to newcomers than for-range loops in Python/Go/Rust. | Low-level I/O setup intermixes infrastructure concerns with program logic, slightly reducing readability of main(). | Comptime/generic-heavy adversarial cases remain readable due to Zig's explicit style (no operator overloading obscuring behavior).",
+        "structural_clarity": "Recertified level 3 under the current criterion: Blocks, declarations, calls and data construction have visually and syntactically clear structure. Evidence basis: Reviewed naming, structure, comments, and control flow of Zig micro and adversarial benchmark sources. | Code uses clear identifiers (s_add, s_xor, s_mul, s_div, workload, Result) and doc-style comments referencing spec sections, aiding comprehension. | Explicit types on every variable make data flow and semantics unambiguous at the cost of extra text. | Error handling via '!' return types and 'try' is visible and linear, avoiding hidden exception control flow. | while-loop-with-continue-expression syntax is idiomatic Zig but less immediately readable to newcomers than for-range loops in Python/Go/Rust. | Low-level I/O setup intermixes infrastructure concerns with program logic, slightly reducing readability of main(). | Comptime/generic-heavy adversarial cases remain readable due to Zig's explicit style (no operator overloading obscuring behavior)."
+      },
+      "component_levels": {
+        "consistency_regular_forms": 3,
+        "control_effect_traceability": 3,
+        "local_intent_visibility": 3,
+        "name_type_signal": 3,
+        "structural_clarity": 3
+      },
+      "evidence_refs": [
+        "template/programs/zig/micro",
+        "template/programs/zig/adversarial",
+        "template/workloads",
+        "template/methodology-assets/language_quality/design_rubrics.json"
+      ],
+      "limitations": "Comparison-language reprojection requires the preserved paid source evidence plus the historical program/workload/toolchain inputs to match the current shard; mismatches remain misses.",
+      "recertification_provenance": {
+        "legacy_score_0_100": 65,
+        "legacy_score_used_for_component_levels": false,
+        "method": "legacy-paid-evidence-reprojected-on-current-frozen-inputs",
+        "new_paid_provider_call": false,
+        "source_evidence_sha256": "e49486d18ca8b7e478ad8a3106bcb44bade3039789b433374244f2d2c066b904",
+        "source_record": "benchmark/cache/v1/language-quality/zig/9da94a05f5fabc74d0f9c5174459787c0538d2e0324cb8e4a0d94cb8edaee58d.json",
+        "source_record_sha256": "154c126409e78c71ce404b38dfc51cfca651c328b17fc61e6359ec1071021bc5",
+        "source_result_sha256": "31ea85b3918c6964cf6ebc26b4681bcfab88934fda8881edc2f9ec64aa01be0c",
+        "source_run_id": "2026-09-22-62bb50a-gh2"
+      },
+      "rubric_id": "language-quality.readability.v1",
+      "runner_score_0_100": 75,
+      "selection_rule": "Judge readability of idiomatic code under the frozen corpus and documented syntax/semantics, without inventing human-study results."
+    }
+  },
+  "requirement_ids": [
+    "metric.code_efficiency_conciseness",
+    "metric.readability"
+  ],
+  "requirements": {
+    "metric.code_efficiency_conciseness": {
+      "Zig": 65.0
+    },
+    "metric.readability": {
+      "Zig": 75.0
+    }
+  },
+  "work_unit_id": "lq-language-development--part-1--zig"
+}

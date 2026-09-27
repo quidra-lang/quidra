@@ -836,7 +836,8 @@ def assert_repository_mechanical_cache_uses_current_contract() -> None:
         )
         assert path.stem == record.get("fingerprint"), path
         assert benchmark._cache_record_self_integrity_problem(record) is None, path
-    assert len(records) == 20, len(records)
+    # Ten languages x (raw micro, adversarial) plus the one Quidra audit.
+    assert len(records) == 21, len(records)
 
 def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
     with tempfile.TemporaryDirectory() as td:

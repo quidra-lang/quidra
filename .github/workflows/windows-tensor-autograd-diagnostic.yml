@@ -44,13 +44,13 @@ jobs:
           state.weight = tensor.ones<float32>([1])
           float32 before = state.weight[0].item()
 
-          tensor<float32> tracked_weight = state.weight.track()
-          tensor<float32> loss = (tracked_weight * tracked_weight).mean()
-          loss.backward()
+          state.weight = state.weight.track()
+          tensor<float32> loss = (state.weight * state.weight).mean()
+          loss.backward(&state.weight)
           print(state.weight.has_grad())
           tensor<float32> gradient = state.weight.grad
           state.weight.clear_grad()
-          state.weight = state.weight - gradient * float32(0.1)
+          state.weight = state.weight.untrack() - gradient * float32(0.1)
           print(state.weight[0].item() < before and not state.weight.has_grad())
           '@
           & build/Release/quidra.exe check build/autograd-smoke.qui

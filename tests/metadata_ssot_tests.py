@@ -314,7 +314,7 @@ def check_no_second_version_definition(project: dict) -> None:
     # The only lines in generated files that may carry the version, spelled
     # exactly as the generator writes them.
     generated = {
-        "quidra.manifest.json": f'  "compiler_version": "{version}",',
+        "quidra.manifest.json": f'  "version": "{version}",',
         "README.md": f"{project['project']['name']} {version}",
     }
 

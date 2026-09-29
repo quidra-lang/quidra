@@ -27,13 +27,13 @@ measure_rss() {
 
 version_output="$($QUIDRA --version)"
 [[ "$version_output" == quidra\ * ]]
-compiler_version="${version_output#quidra }"
+quidra_version="${version_output#quidra }"
 $QUIDRA describe > "$TMP/describe.json"
-python3 - "$TMP/describe.json" "$compiler_version" "$ROOT/quidra.manifest.json" <<'PY'
+python3 - "$TMP/describe.json" "$quidra_version" "$ROOT/quidra.manifest.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
 assert x["language"] == "Quidra"
-assert x["compiler_version"] == sys.argv[2]
+assert x["version"] == sys.argv[2]
 with open(sys.argv[3]) as f:
     manifest=json.load(f)
 assert x == manifest
@@ -59,7 +59,7 @@ for name in ["print","write","scan","range","array","len","tensor","error"]:
     assert name in x["current_builtins"], name
 for name in ["input","abs","sqrt","min","max"]:
     assert name not in x["current_builtins"], name
-assert x["standard_modules"] == ["math","io","cli","file","environment","test","time","gpu","task","atomic","ref","random","process","map","set","json","http","stats","linear","signal","image","video","tensor","neural"]
+assert x["standard_modules"] == ["math","io","cli","file","environment","test","time","gpu","task","atomic","autograd","ref","reflect","random","process","map","set","json","http","stats","linear","signal","image","video","tensor"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
 assert "tensor<T><D0, D1, ...>" in x["current_types"]
@@ -89,21 +89,21 @@ tensor<int32><3> d = tensor.ones<int32>([3])
 d[0] = 2
 d[1] = 2
 d[2] = 2
-print(a == b)
-print(a != c)
-print(a < d)
-print(a <= c)
-print(c > a)
-print(c >= a)
+print((a == b).all())
+print((a != c).any())
+print((a < d).all())
+print((a <= c).all())
+print((c > a).any())
+print((c >= a).all())
 QUI
 tensor_compare_output="$("$QUIDRA" run "$TMP/tensor-compare-all.qui")"
-expected_tensor_compare_output="$(printf 'true\nfalse\ntrue\ntrue\nfalse\ntrue')"
+expected_tensor_compare_output="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue')"
 [[ "$tensor_compare_output" == "$expected_tensor_compare_output" ]]
 
 # Shapes erased at a function boundary must still match exactly at runtime.
 cat > "$TMP/tensor-compare-shape-runtime.qui" <<'QUI'
 bool same(tensor<int32> left, tensor<int32> right)
-    return left == right
+    return (left == right).all()
 
 tensor<int32> a = tensor.ones<int32>([2])
 tensor<int32> b = tensor.ones<int32>([3])
@@ -148,7 +148,7 @@ python3 - "$TMP/check-version.json" "$ROOT/quidra.manifest.json" <<'PY'
 import json,sys
 check=json.load(open(sys.argv[1]))
 manifest=json.load(open(sys.argv[2]))
-assert check["compiler_version"] == manifest["compiler_version"], (check, manifest["compiler_version"])
+assert check["version"] == manifest["version"], (check, manifest["version"])
 PY
 cat > "$TMP/format.qui" <<'QUI'
 int  add (int a ,  int b)
@@ -1433,6 +1433,21 @@ set -e
 grep -q 'INDEX_BOUNDS' "$TMP/out-of-bounds.out"
 grep -q 'at 2:7:' "$TMP/out-of-bounds.out"
 grep -q 'index 3 outside length 3' "$TMP/out-of-bounds.out"
+"$QUIDRA" inspect "$TMP/out-of-bounds.qui" > "$TMP/out-of-bounds.inspect.json"
+python3 - "$TMP/out-of-bounds.inspect.json" "$TMP/out-of-bounds.out" <<'PY'
+import json, pathlib, sys
+inspection = json.load(open(sys.argv[1]))
+runtime = pathlib.Path(sys.argv[2]).read_text()
+nodes = [
+    node for node in inspection["nodes"]
+    if node["span"]["start"]["line"] == 2 and node["kind"] == "expression_statement"
+]
+assert len(nodes) == 1, nodes
+node = nodes[0]
+assert f"source_revision={inspection['revision']}" in runtime, runtime
+assert f"node_id={node['node_id']}" in runtime, runtime
+assert f"node_kind={node['kind']}" in runtime, runtime
+PY
 
 cat > "$TMP/full-array-proof.qui" <<'QUI'
 int[] values = array(4, fill = 1)
@@ -1956,12 +1971,13 @@ class Point
     int x
     int y
 
-    construct(int x_value)
+    construct(int x_value, int | none y_value = none)
         x = x_value
-
-    construct(int x_value, int y_value)
-        x = x_value
-        y = y_value
+        match y_value
+            int value
+                y = value
+            none
+                void
 
 class Counter
     int value
@@ -2210,6 +2226,31 @@ PY
 (cd "$TMP/project" && "$QUIDRA" patch src/module-patch.qui "$TMP/module-patch-change.json" --write) >/dev/null
 [[ "$(cd "$TMP/project" && "$QUIDRA" run src/module-patch.qui)" == "16" ]]
 
+cat > "$TMP/project/src/qualified-class.qui" <<'QUI'
+class model.Box
+    int stored
+
+    model.Box | error construct(int value)
+        if value < 0
+            return error("negative")
+        stored = value
+
+class model.Wrapper
+    model.Box box
+
+    model.Wrapper | error construct(int value)
+        box = try model.Box(value)
+QUI
+cat > "$TMP/project/src/qualified-class-root.qui" <<'QUI'
+import library = "./qualified-class.qui"
+
+library.model.Box box = library.model.Box(7)
+library.model.Wrapper wrapper = library.model.Wrapper(9)
+print(box.stored)
+print(wrapper.box.stored)
+QUI
+[[ "$(cd "$TMP/project" && "$QUIDRA" run src/qualified-class-root.qui)" == "$(printf '7\n9')" ]]
+
 cat > "$TMP/project/src/bad-module.qui" <<'QUI'
 print("side effect")
 QUI
@@ -2333,6 +2374,156 @@ json.dump({'schema_version':1,'base_revision':x['revision'],'operations':[{'op':
 PY
 $QUIDRA patch "$TMP/patch-target.qui" "$TMP/change.json" --write >/dev/null
 [[ "$($QUIDRA run "$TMP/patch-target.qui")" == "42" ]]
+
+# Patch v3 keeps source-fragment compatibility while adding one public
+# structural-node payload. Re-inspection is mandatory because node IDs are
+# revision-local capabilities.
+$QUIDRA inspect "$TMP/patch-target.qui" > "$TMP/patch-v3-inspect.json"
+python3 - "$TMP/patch-v3-inspect.json" "$TMP/change-v3.json" "$TMP/role-mismatch-v3.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+node=next(n for n in x["nodes"] if n["kind"]=="integer")
+base={
+    "schema_version":3,
+    "base_revision":x["revision"],
+    "operations":[{
+        "op":"replace_node",
+        "node_id":node["node_id"],
+        "expected_hash":node["source_hash"],
+        "expected_kind":node["kind"],
+    }],
+}
+ok=json.loads(json.dumps(base))
+ok["operations"][0]["replacement_node"]={"kind":"integer","source":"43"}
+json.dump(ok,open(sys.argv[2],"w"))
+bad=json.loads(json.dumps(base))
+bad["operations"][0]["replacement_node"]={"kind":"bool","source":"true"}
+json.dump(bad,open(sys.argv[3],"w"))
+PY
+$QUIDRA patch "$TMP/patch-target.qui" "$TMP/change-v3.json" --write >/dev/null
+[[ "$($QUIDRA run "$TMP/patch-target.qui")" == "43" ]]
+
+# A stale v3 patch from the preceding revision must fail closed.
+set +e
+$QUIDRA patch "$TMP/patch-target.qui" "$TMP/change-v3.json" >"$TMP/stale-v3.out" 2>&1
+stale_v3_rc=$?
+set -e
+[[ "$stale_v3_rc" -eq 1 ]]
+grep -q 'STALE_REVISION' "$TMP/stale-v3.out"
+
+# Role mismatch is rejected before the replacement can be written.
+$QUIDRA inspect "$TMP/patch-target.qui" > "$TMP/patch-v3-current.json"
+python3 - "$TMP/patch-v3-current.json" "$TMP/role-mismatch-current.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+node=next(n for n in x["nodes"] if n["kind"]=="integer")
+json.dump({
+    "schema_version":3,
+    "base_revision":x["revision"],
+    "operations":[{
+        "op":"replace_node",
+        "node_id":node["node_id"],
+        "expected_hash":node["source_hash"],
+        "expected_kind":node["kind"],
+        "replacement_node":{"kind":"bool","source":"true"},
+    }],
+},open(sys.argv[2],"w"))
+PY
+set +e
+$QUIDRA patch "$TMP/patch-target.qui" "$TMP/role-mismatch-current.json" >"$TMP/role-mismatch-v3.out" 2>&1
+role_v3_rc=$?
+set -e
+[[ "$role_v3_rc" -eq 1 ]]
+grep -q 'PATCH_ROLE_MISMATCH' "$TMP/role-mismatch-v3.out"
+
+cat > "$TMP/patch-comment.qui" <<'QUI'
+int kept()
+    // preserve this explanation
+    return 1
+
+print(kept())
+QUI
+$QUIDRA inspect "$TMP/patch-comment.qui" > "$TMP/patch-comment-inspect.json"
+python3 - "$TMP/patch-comment-inspect.json" "$TMP/patch-comment.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+node=next(n for n in x["nodes"] if n["kind"]=="function")
+json.dump({
+    "schema_version":3,
+    "base_revision":x["revision"],
+    "operations":[{
+        "op":"replace_node",
+        "node_id":node["node_id"],
+        "expected_hash":node["source_hash"],
+        "expected_kind":node["kind"],
+        "replacement_node":{"kind":node["kind"],"source":node["source"]},
+    }],
+},open(sys.argv[2],"w"))
+PY
+set +e
+$QUIDRA patch "$TMP/patch-comment.qui" "$TMP/patch-comment.json" >"$TMP/patch-comment.out" 2>&1
+comment_v3_rc=$?
+set -e
+[[ "$comment_v3_rc" -eq 1 ]]
+grep -q 'PATCH_TRIVIA_CONFLICT' "$TMP/patch-comment.out"
+
+# // inside a string is source data, not comment trivia.
+cat > "$TMP/patch-string-slashes.qui" <<'QUI'
+string site()
+    return "https://quidra-lang.com"
+
+print(site())
+QUI
+$QUIDRA inspect "$TMP/patch-string-slashes.qui" > "$TMP/patch-string-slashes-inspect.json"
+python3 - "$TMP/patch-string-slashes-inspect.json" "$TMP/patch-string-slashes.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+node=next(n for n in x["nodes"] if n["kind"]=="function")
+json.dump({
+    "schema_version":3,
+    "base_revision":x["revision"],
+    "operations":[{
+        "op":"replace_node",
+        "node_id":node["node_id"],
+        "expected_hash":node["source_hash"],
+        "expected_kind":node["kind"],
+        "replacement_node":{"kind":node["kind"],"source":node["source"]},
+    }],
+},open(sys.argv[2],"w"))
+PY
+$QUIDRA patch "$TMP/patch-string-slashes.qui" "$TMP/patch-string-slashes.json" >/dev/null
+
+# Structural payloads round-trip through canonical Quidra source. Source-only
+# patches retain their historical byte-preserving behavior.
+cat > "$TMP/patch-roundtrip.qui" <<'QUI'
+int roundtrip=1
+print(roundtrip)
+QUI
+$QUIDRA inspect "$TMP/patch-roundtrip.qui" > "$TMP/patch-roundtrip-inspect.json"
+python3 - "$TMP/patch-roundtrip-inspect.json" "$TMP/patch-roundtrip.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+node=next(n for n in x["nodes"] if n["kind"]=="integer")
+json.dump({
+    "schema_version":3,
+    "base_revision":x["revision"],
+    "operations":[{
+        "op":"replace_node",
+        "node_id":node["node_id"],
+        "expected_hash":node["source_hash"],
+        "expected_kind":node["kind"],
+        "replacement_node":{"kind":node["kind"],"source":node["source"]},
+    }],
+},open(sys.argv[2],"w"))
+PY
+$QUIDRA patch "$TMP/patch-roundtrip.qui" "$TMP/patch-roundtrip.json" --write >/dev/null
+$QUIDRA fmt "$TMP/patch-roundtrip.qui" --check
+python3 - "$TMP/patch-roundtrip.qui" <<'PY'
+import pathlib,sys
+text=pathlib.Path(sys.argv[1]).read_text()
+assert text == "int roundtrip = 1\nprint(roundtrip)\n", repr(text)
+PY
+[[ "$($QUIDRA run "$TMP/patch-roundtrip.qui")" == "1" ]]
 
 cat > "$TMP/regressions.qui" <<'QUI'
 // Branch-local bindings may reuse a source name with different types.
@@ -2516,7 +2707,43 @@ $QUIDRA run "$TMP/numeric-cast-failure.qui" > "$TMP/numeric-cast-failure.out" 2>
 rc=$?
 set -e
 [[ "$rc" -eq 101 ]]
-grep -Eq 'Quidra runtime error\[NUMERIC_CAST_RANGE\] at [0-9]+:[0-9]+: numeric cast outside destination range' "$TMP/numeric-cast-failure.out"
+grep -Eq 'Quidra runtime error\[UNHANDLED_ERROR\].*numeric cast outside destination range' "$TMP/numeric-cast-failure.out"
+
+cat > "$TMP/exact-cast-errors.qui" <<'QUI'
+bigint wide = 300
+auto | error narrowed = int8(wide)
+match narrowed
+    int8 value
+        print(value)
+    error problem
+        print(problem)
+
+bigreal fraction = 1.5
+auto | error exact = bigint(fraction)
+match exact
+    bigint value
+        print(value)
+    error problem
+        print(problem)
+
+bigint huge = 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+auto | error rounded = float(huge)
+match rounded
+    float value
+        print(value)
+    error problem
+        print(problem)
+
+bigreal huge_real = bigreal(huge)
+auto | error rounded32 = float32(huge_real)
+match rounded32
+    float32 value
+        print(value)
+    error problem
+        print(problem)
+QUI
+exact_cast_output="$("$QUIDRA" run "$TMP/exact-cast-errors.qui")"
+[[ "$exact_cast_output" == "$(printf 'numeric cast outside destination range\nnumeric cast outside destination range\nnumeric cast outside destination range\nnumeric cast outside destination range')" ]]
 
 cat > "$TMP/parse.qui" <<'QUI'
 int | error parsed = int.parse("123")
@@ -2720,7 +2947,7 @@ python3 - "$TMP/interpolation-span.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
 d=x["diagnostics"][0]
-assert d["span"]["start"] == {"line": 2, "column": 23}, d
+assert d["span"]["start"]["line"] == 2 and d["span"]["start"]["column"] == 23, d
 PY
 
 cat > "$TMP/interpolation-parse-span.qui" <<'QUI'
@@ -2737,7 +2964,7 @@ import json,sys
 x=json.load(open(sys.argv[1]))
 d=x["diagnostics"][0]
 assert d["code"] == "PARSE_ERROR", d
-assert d["span"]["start"] == {"line": 2, "column": 29}, d
+assert d["span"]["start"]["line"] == 2 and d["span"]["start"]["column"] == 29, d
 PY
 
 cat > "$TMP/multi-errors.qui" <<'QUI'
@@ -2755,8 +2982,15 @@ python3 - "$TMP/multi-errors.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
 assert x["ok"] is False
+assert x["diagnostic_schema_version"] == 2
 assert x["truncated"] is True
 assert len(x["diagnostics"]) == 3
+revisions={d["source_revision"] for d in x["diagnostics"]}
+assert len(revisions) == 1
+revision=next(iter(revisions))
+assert isinstance(revision,str) and len(revision) == 64
+assert all(d["node_id"] and d["node_kind"] for d in x["diagnostics"])
+assert all("offset" in d["span"]["start"] and "offset" in d["span"]["end"] for d in x["diagnostics"])
 PY
 
 set +e
@@ -2784,9 +3018,12 @@ set -e
 python3 - "$TMP/parser-errors.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
+assert x["diagnostic_schema_version"] == 2
 assert x["truncated"] is False
 assert len(x["diagnostics"]) == 3
 assert all(d["code"] == "PARSE_ERROR" for d in x["diagnostics"])
+assert all(isinstance(d["source_revision"],str) and len(d["source_revision"]) == 64 for d in x["diagnostics"])
+assert all(d["node_id"] is None and d["node_kind"] is None for d in x["diagnostics"])
 PY
 
 
@@ -2876,7 +3113,7 @@ int doubled_after_blank(int n)
 if args.mode == "steady"
     time.Instant unused = time.now()
 
-auto saved = file.write("effect.txt", "A")
+file.write("effect.txt", "A")
 print(doubled_after_blank(3))
 QUI
 (
@@ -2921,12 +3158,12 @@ grep -q '3' "$TMP/repl-dead-effect/output.txt"
 mkdir -p "$TMP/repl-blank"
 cat > "$TMP/repl-blank/input.txt" <<'QUI'
 void emit(string path)
-    auto prev = file.read(path)
+    auto | error prev = file.read(path)
     match prev
         string
-            auto saved = file.write(path, prev + "X")
+            auto | error saved = file.write(path, prev + "X")
         error
-            auto saved = file.write(path, "X")
+            auto | error saved = file.write(path, "X")
     print("MARK")
 
 emit("marks.txt")
@@ -2941,7 +3178,7 @@ grep -q MARK "$TMP/repl-blank/output.txt"
 
 mkdir -p "$TMP/repl-replay-barrier"
 cat > "$TMP/repl-replay-barrier/input.txt" <<'QUI'
-auto saved = file.write("effect.txt", "A")
+auto | error saved = file.write("effect.txt", "A")
 int plus_one(int value)
     return value + 1
 
@@ -2964,10 +3201,10 @@ grep -q '3' "$TMP/repl-replay-barrier/output.txt"
 mkdir -p "$TMP/repl-handle-barrier"
 cat > "$TMP/repl-handle-barrier/input.txt" <<'QUI'
 void create_effect(string path)
-    auto created = file.create(path)
+    auto | error created = file.create(path)
     match created
         file.Handle handle
-            auto written = handle.write("A")
+            auto | error written = handle.write("A")
         error problem
             print(problem)
 
@@ -2985,12 +3222,12 @@ grep -q 'REPL_REPLAY_UNSAFE' "$TMP/repl-handle-barrier/error.txt"
 mkdir -p "$TMP/repl-failed-effect"
 cat > "$TMP/repl-failed-effect/input.txt" <<'QUI'
 void effect_then_fail(string path)
-    auto previous = file.read(path)
+    auto | error previous = file.read(path)
     match previous
         string text
-            auto saved = file.write(path, text + "X")
+            auto | error saved = file.write(path, text + "X")
         error
-            auto saved = file.write(path, "X")
+            auto | error saved = file.write(path, "X")
     int zero = 0
     print(1 / zero)
 
@@ -3007,7 +3244,7 @@ QUI
 # The first call performs the write before its runtime failure. The second call
 # must be blocked even though the failing candidate was never accepted.
 [[ "$(cat "$TMP/repl-failed-effect/effect.txt")" == "X" ]]
-grep -q 'DIVISION_BY_ZERO' "$TMP/repl-failed-effect/output.txt"
+grep -q 'DIVISION_BY_ZERO' "$TMP/repl-failed-effect/error.txt"
 grep -q 'REPL_REPLAY_UNSAFE' "$TMP/repl-failed-effect/error.txt"
 grep -q 'REPL state reset.' "$TMP/repl-failed-effect/output.txt"
 grep -q '3' "$TMP/repl-failed-effect/output.txt"
@@ -3176,11 +3413,12 @@ cat > "$TMP/receiver-alias-postcondition.qui" <<'QUI'
 class State
     int value
 
-    construct(int value_value)
-        value = value_value
-
-    construct()
-        return
+    construct(int | none value_value = none)
+        match value_value
+            int present
+                value = present
+            none
+                void
 
     void initialize_then_replace(State &other)
         value = 1

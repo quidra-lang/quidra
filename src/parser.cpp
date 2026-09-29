@@ -148,21 +148,6 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
             if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) return false;
             if (index < tokens.size() && tokens[index].kind == TokenKind::Less &&
                 !scan_shape()) return false;
-        } else if (!qualified && root_name == "neural" && index + 1 < tokens.size() &&
-                   (tokens[index + 1].kind == TokenKind::Integer ||
-                    tokens[index + 1].kind == TokenKind::Plus ||
-                    tokens[index + 1].kind == TokenKind::Minus ||
-                    tokens[index + 1].kind == TokenKind::LParen ||
-                    (tokens[index + 1].kind == TokenKind::Identifier &&
-                     (tokens[index + 1].text == "_" ||
-                      (tokens[index + 1].text != "float" &&
-                       tokens[index + 1].text != "float32" &&
-                        tokens[index + 1].text != "bigint" &&
-                        tokens[index + 1].text != "bigreal" &&
-                       (!tokens[index + 1].text.empty() &&
-                        std::islower(static_cast<unsigned char>(
-                            tokens[index + 1].text.front())))))))) {
-            if (!scan_shape()) return false;
         } else {
             ++index;
             if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
@@ -171,9 +156,6 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
                 if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
             }
             if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) return false;
-            if (!qualified && root_name == "neural" &&
-                index < tokens.size() && tokens[index].kind == TokenKind::Less &&
-                !scan_shape()) return false;
         }
     }
     while (index < tokens.size() && tokens[index].kind == TokenKind::LBracket) {
@@ -362,6 +344,9 @@ Program Parser::parse() {
             else if (at(TokenKind::KwEnum)) p.enums.push_back(enum_decl());
             else if (at(TokenKind::KwClass)) p.classes.push_back(class_decl());
             else if (looks_like_declaration(true)) p.functions.push_back(function_decl());
+            else if (at(TokenKind::KwIf) && peek(1).kind == TokenKind::Identifier &&
+                     peek(1).text == "main" && peek(2).kind == TokenKind::Newline)
+                p.statements.push_back(main_guard_stmt());
             else p.statements.push_back(statement());
         } catch (const CompileError& error) {
             record(error);
@@ -436,25 +421,9 @@ TypeName Parser::type_name() {
             consume(TokenKind::Greater, "Expected '>' after tensor element type.");
             t.span.end = previous().span.end;
             if (at(TokenKind::Less)) parse_shape_pattern();
-        } else if (t.name == "neural" &&
-                   (peek(1).kind == TokenKind::Integer ||
-                    peek(1).kind == TokenKind::Plus ||
-                    peek(1).kind == TokenKind::Minus ||
-                    peek(1).kind == TokenKind::LParen ||
-                    (peek(1).kind == TokenKind::Identifier &&
-                     (peek(1).text == "_" ||
-                      (peek(1).text != "float" &&
-                       peek(1).text != "float32" &&
-                        peek(1).text != "bigint" &&
-                        peek(1).text != "bigreal" &&
-                       !peek(1).text.empty() &&
-                       std::islower(static_cast<unsigned char>(
-                           peek(1).text.front()))))))) {
-            parse_shape_pattern();
         } else {
             t.arguments = type_argument_list();
             t.span.end = previous().span.end;
-            if (t.name == "neural" && at(TokenKind::Less)) parse_shape_pattern();
         }
     }
     while (match(TokenKind::LBracket)) {
@@ -520,7 +489,7 @@ ExprPtr Parser::type_integer_factor() {
     if (match(TokenKind::Identifier)) {
         const auto token = previous();
         if (token.text == "_") {
-            error(token, "'_' is only valid as a tensor/neural wildcard axis.");
+            error(token, "'_' is only valid as a tensor wildcard axis.");
         }
         auto result = std::make_unique<Expr>();
         result->span = token.span;
@@ -755,9 +724,23 @@ EnumDecl Parser::enum_decl() {
 
 ClassDecl Parser::class_decl() {
     const auto start = consume(TokenKind::KwClass, "Expected class.").span.start;
-    const auto name = consume(TokenKind::Identifier, "Expected class name.");
+    const auto first_name = consume(TokenKind::Identifier, "Expected class name.");
+    std::string name = first_name.text;
+    while (match(TokenKind::Dot)) {
+        const auto part = consume(TokenKind::Identifier, "Expected class name after '.'.");
+        name += "." + part.text;
+    }
     std::vector<std::string> type_constraints;
     auto type_parameters = type_parameter_list(&type_constraints);
+
+    if (match(TokenKind::Semicolon)) {
+        const auto end = previous().span.end;
+        end_statement("class prototype");
+        ClassDecl declaration{name, {}, {}, {}, {start, end},
+                              std::move(type_parameters), std::move(type_constraints)};
+        declaration.is_prototype = true;
+        return declaration;
+    }
 
     end_statement("class signature");
     consume(TokenKind::Indent, "Expected class body indented by four spaces.");
@@ -772,7 +755,7 @@ ClassDecl Parser::class_decl() {
         const bool is_private = match(TokenKind::KwPrivate);
         if (at(TokenKind::Identifier) && peek().text == "construct" &&
             peek(1).kind == TokenKind::LParen) {
-            auto constructor = constructor_decl(name.text, type_parameters);
+            auto constructor = constructor_decl(name, type_parameters);
             constructor.is_private = is_private;
             methods.push_back(std::move(constructor));
         } else if (looks_like_declaration(true)) {
@@ -800,7 +783,7 @@ ClassDecl Parser::class_decl() {
         consume_newlines();
     }
     const auto end = consume(TokenKind::Dedent, "Expected end of class body.").span.end;
-    return ClassDecl{name.text, {}, std::move(fields), std::move(methods),
+    return ClassDecl{name, {}, std::move(fields), std::move(methods),
                      {start, end}, std::move(type_parameters), std::move(type_constraints)};
 }
 
@@ -818,7 +801,17 @@ FunctionDecl Parser::function_decl() {
         params.push_back(Parameter{p.text,std::move(type),write,p.span,std::move(value),is_const});
         if(!match(TokenKind::Comma)) break;
     }
-    consume(TokenKind::RParen,"Expected ')'.");end_statement("function signature");auto body=block_until(false);
+    consume(TokenKind::RParen,"Expected ')'.");
+    if (match(TokenKind::Semicolon)) {
+        auto end=previous().span.end;
+        end_statement("function prototype");
+        FunctionDecl declaration{name.text, {}, std::move(params), std::move(result), {},
+                                 {start, end}, false, std::move(type_parameters), std::nullopt,
+                                 std::move(type_constraints)};
+        declaration.is_prototype = true;
+        return declaration;
+    }
+    end_statement("function signature");auto body=block_until(false);
     auto end=previous().span.end;
     return FunctionDecl{name.text, {}, std::move(params), std::move(result), std::move(body),
                         {start, end}, false, std::move(type_parameters), std::nullopt,
@@ -997,6 +990,21 @@ StmtPtr Parser::if_stmt() {
         return statement;
     };
     return parse_branch(TokenKind::KwIf);
+}
+
+StmtPtr Parser::main_guard_stmt() {
+    const auto start = consume(TokenKind::KwIf, "Expected if.").span.start;
+    const auto main_name = consume(TokenKind::Identifier, "Expected main.");
+    if (main_name.text != "main") error(main_name, "Direct-execution guard must be exactly 'if main'.");
+    end_statement("main guard");
+    auto body = block_until(false);
+    if (at(TokenKind::KwElif) || at(TokenKind::KwElse)) {
+        error(peek(), "'if main' does not have elif/else; imported modules never execute an import-only branch.");
+    }
+    auto statement = std::make_unique<Stmt>();
+    statement->span = {start, previous().span.end};
+    statement->data = MainGuardStmt{std::move(body), true, {}};
+    return statement;
 }
 StmtPtr Parser::while_stmt() {
     auto start=consume(TokenKind::KwWhile,"Expected while.").span.start;auto cond=expression();end_statement("condition");auto body=block_until(false);auto s=std::make_unique<Stmt>();s->span={start,previous().span.end};s->data=WhileStmt{std::move(cond),std::move(body)};return s;

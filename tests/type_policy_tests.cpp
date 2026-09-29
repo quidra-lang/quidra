@@ -25,8 +25,6 @@ int main() {
     require(builtin_scalar_type("float") == builtin_scalar_type("float64"),
             "float must alias float64");
     require(type_name(t(TypeKind::Bin)) == "bin", "bin name");
-    require(type_name(Type::neural()) == "neural", "neural defaults to float32");
-    require(type_name(Type::neural(t(TypeKind::Float))) == "neural<float>", "explicit neural float64 name");
     require(is_pointer_runtime_type(t(TypeKind::Bin)), "bin uses managed runtime storage");
 
     const auto tensor_plain = Type::tensor(t(TypeKind::Float32));
@@ -54,12 +52,6 @@ int main() {
             "unknown tensor shape may defer a constrained axis check to runtime");
     require(runtime_storage_bytes(tensor_first3) == runtime_storage_bytes(tensor_plain),
             "tensor shape patterns must not change runtime ABI size");
-    require(type_name(Type::neural(t(TypeKind::Float32), 3, {3, -1, -1})) ==
-                "neural<3, _, _>",
-            "default-float neural shape shorthand");
-    require(type_name(Type::neural(t(TypeKind::Float), 2, {-1, 768})) ==
-                "neural<float><_, 768>",
-            "explicit neural dtype plus shape pattern");
 
     const auto tensor_or_error = Type::union_of({tensor_plain, t(TypeKind::Error)});
     const auto constrained_or_error =

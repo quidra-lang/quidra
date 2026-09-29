@@ -52,8 +52,8 @@ int compare(const SemanticVersion& left, const SemanticVersion& right) {
     return 0;
 }
 
-bool clause_matches(const VersionClause& clause, const SemanticVersion& version) {
-    const int order = compare(version, clause.version);
+bool clause_matches(const VersionClause& clause, const SemanticVersion& candidate_version) {
+    const int order = compare(candidate_version, clause.version);
     switch (clause.op) {
         case VersionOperator::Equal: return order == 0;
         case VersionOperator::Less: return order < 0;
@@ -97,10 +97,10 @@ std::optional<PackageProject> read_package_project(
             "' does not match quidra.package name '" + manifest.name +
             "': " + path.string());
     }
-    const auto version = parse_semantic_version(required("version"));
-    if (compare(version, manifest.version) != 0) {
+    const auto project_version = parse_semantic_version(required("version"));
+    if (compare(project_version, manifest.version) != 0) {
         throw std::runtime_error(
-            "project.toml package.version " + version.str() +
+            "project.toml package.version " + project_version.str() +
             " does not match quidra.package version " + manifest.version.str() +
             ": " + path.string());
     }
@@ -185,29 +185,29 @@ VersionRequirement parse_version_requirement(std::string_view raw) {
     std::string token;
     while (input >> token) {
         VersionOperator op = VersionOperator::Equal;
-        std::string_view version = token;
-        if (version.starts_with(">=")) {
+        std::string_view version_text = token;
+        if (version_text.starts_with(">=")) {
             op = VersionOperator::GreaterEqual;
-            version.remove_prefix(2);
-        } else if (version.starts_with("<=")) {
+            version_text.remove_prefix(2);
+        } else if (version_text.starts_with("<=")) {
             op = VersionOperator::LessEqual;
-            version.remove_prefix(2);
-        } else if (version.starts_with(">")) {
+            version_text.remove_prefix(2);
+        } else if (version_text.starts_with(">")) {
             op = VersionOperator::Greater;
-            version.remove_prefix(1);
-        } else if (version.starts_with("<")) {
+            version_text.remove_prefix(1);
+        } else if (version_text.starts_with("<")) {
             op = VersionOperator::Less;
-            version.remove_prefix(1);
-        } else if (version.starts_with("=")) {
+            version_text.remove_prefix(1);
+        } else if (version_text.starts_with("=")) {
             op = VersionOperator::Equal;
-            version.remove_prefix(1);
+            version_text.remove_prefix(1);
         }
-        if (version.empty()) {
+        if (version_text.empty()) {
             throw std::runtime_error(
                 "version requirement is missing a version after its operator");
         }
         requirement.clauses.push_back(
-            VersionClause{op, parse_semantic_version(version)});
+            VersionClause{op, parse_semantic_version(version_text)});
     }
     if (requirement.clauses.empty()) {
         throw std::runtime_error("version requirement cannot be empty");
@@ -215,9 +215,9 @@ VersionRequirement parse_version_requirement(std::string_view raw) {
     return requirement;
 }
 
-bool VersionRequirement::matches(const SemanticVersion& version) const {
+bool VersionRequirement::matches(const SemanticVersion& candidate_version) const {
     for (const auto& clause : clauses) {
-        if (!clause_matches(clause, version)) return false;
+        if (!clause_matches(clause, candidate_version)) return false;
     }
     return true;
 }
@@ -257,17 +257,17 @@ PackageManifest read_package_manifest(const fs::path& package_root) {
     }
 
     const auto name = fields.find("name");
-    const auto version = fields.find("version");
+    const auto version_field = fields.find("version");
     if (name == fields.end()) {
         throw std::runtime_error("quidra.package requires 'name'");
     }
-    if (version == fields.end()) {
+    if (version_field == fields.end()) {
         throw std::runtime_error("quidra.package requires 'version'");
     }
 
     PackageManifest manifest;
     manifest.name = name->second;
-    manifest.version = parse_semantic_version(version->second);
+    manifest.version = parse_semantic_version(version_field->second);
     if (const auto repository = fields.find("repository");
         repository != fields.end()) {
         manifest.repository = repository->second;

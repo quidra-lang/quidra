@@ -552,9 +552,7 @@ bool replay_barrier_instruction(const ir::Instruction& instruction) {
             std::is_same_v<T, ir::VideoRead> ||
             std::is_same_v<T, ir::VideoSeek> ||
             std::is_same_v<T, ir::ImageRead> ||
-            std::is_same_v<T, ir::ImageWrite> ||
-            std::is_same_v<T, ir::NeuralSave> ||
-            std::is_same_v<T, ir::NeuralLoad>;
+            std::is_same_v<T, ir::ImageWrite>;
     }, instruction);
 }
 
@@ -822,7 +820,7 @@ int run_repl() {
 #endif
     };
 
-    std::cout << language_name << " " << compiler_version << "\n";
+    std::cout << language_name << " " << version << "\n";
     ReplSession session;
 
 #ifdef _WIN32

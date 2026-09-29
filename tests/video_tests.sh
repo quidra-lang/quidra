@@ -15,7 +15,7 @@ ffmpeg -loglevel error -y \
   -frames:v 3 -c:v mpeg4 -pix_fmt yuv420p "$video"
 
 cat > "$tmp/video.qui" <<QUI
-auto opened = video.open("$video")
+auto | error opened = video.open("$video")
 match opened
     video.Reader reader
         print(reader.width())
@@ -35,7 +35,7 @@ match opened
                 print(problem)
         print(reader.position())
 
-        auto sought = reader.seek(0)
+        auto | error sought = reader.seek(0)
         match sought
             void
                 print(reader.position())
@@ -91,13 +91,13 @@ ffmpeg -loglevel error -y   -f lavfi -i "color=c=red:s=8x6:r=2:d=1.5"   -frames:
 ffmpeg -loglevel error -y   -f lavfi -i "color=c=blue:s=10x4:r=2:d=1.5"   -frames:v 3 -c:v mpeg4 -pix_fmt yuv420p "$replacement"
 
 cat > "$tmp/resource-identity.qui" <<QUI
-auto opened = video.open("$original")
+auto | error opened = video.open("$original")
 match opened
     video.Reader reader
-        auto moved = file.move("$original", "$tmp/original-open.mp4")
+        auto | error moved = file.move("$original", "$tmp/original-open.mp4")
         match moved
             void
-                auto installed = file.move("$replacement", "$original")
+                auto | error installed = file.move("$replacement", "$original")
                 match installed
                     void
                         video.Reader copied = reader
@@ -124,10 +124,10 @@ ffmpeg -loglevel error -y \
   -frames:v 3 -c:v mpeg4 -pix_fmt yuv420p "$damaged"
 
 cat > "$tmp/damaged.qui" <<QUI
-auto opened = video.open("$damaged")
+auto | error opened = video.open("$damaged")
 match opened
     video.Reader reader
-        auto overwritten = file.write("$damaged", "broken")
+        auto | error overwritten = file.write("$damaged", "broken")
         match overwritten
             void
                 video.Reader copy = reader

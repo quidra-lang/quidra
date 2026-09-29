@@ -1,39 +1,29 @@
 # Quidra
 
-**Quidra — Maximum Meaning Per Token**
+**Maximum Meaning Per Token**
 
-Quidra is a statically typed, native general-purpose programming language designed for both humans and language models.
+Quidra is a statically typed, native general-purpose programming language built
+around **semantic compression**: express as much reliable intent as possible
+with as little ceremony as possible, without hiding distinctions that affect
+correctness.
 
-Try Quidra Playground, which runs the real compiler frontend rather than an imitation of it:
-
-- **Hosted** — <https://quidra-lang.github.io/playground/> (nothing to install)
-- **Local** — after a [local build](#playground), <http://127.0.0.1:8787> (adds Run and LLVM IR)
-
-Its primary optimization target is **semantic density**: how much reliable intent can be recovered from each token without hidden conventions, guesswork, or repeated ceremony. Fewer characters are not automatically better. Fewer tokens are better only when the same meaning remains explicit, stable, and mechanically checkable.
-
-The name **Quidra** is inspired by the Latin *quidditas* — the “whatness” or essence of a thing.
-
-## The design thesis
-
-Programming languages communicate intent through tokens, but not every token contributes equally. Ceremony, duplicated declarations, context-sensitive syntax, implicit conversions, hidden mutation, hidden failure, and unstable name resolution all consume attention and context without necessarily adding reliable meaning.
-
-Quidra treats that as a language-design problem.
-
-The goal is to make each important token carry a stable semantic role, while allowing the compiler to infer facts that can be proven safely. Humans should spend less effort reconstructing hidden behavior. Language models should need fewer tokens and less surrounding context to determine what a program means, what it may do, and what may legally change.
+That is the primary design target. Syntax is kept when it carries meaning about
+value, storage, authority, representation, failure, state, shape, device
+placement, or effects. Syntax is removed when the compiler can recover the same
+fact unambiguously.
 
 > **Fewer meaningless tokens, not fewer meaningful distinctions.**
 
-Quidra is therefore not designed around shortest source code, familiar syntax at any cost, or compiler cleverness hidden behind the program. It is designed around **semantic compression**.
+- Website: <https://quidra-lang.com>
+- Playground: <https://quidra-lang.github.io/playground/>
+- Playground source: <https://github.com/quidra-lang/playground>
+
+The name **Quidra** is inspired by the Latin *quidditas* — the “whatness” or
+essence of a thing.
 
 ## Maximum Meaning Per Token
 
-Semantic compression means expressing a large amount of reliable intent with a small amount of syntax.
-
-It is not code golf.
-
-A shorter spelling is worse when it removes a distinction the reader or compiler needs. A longer spelling is waste when it merely repeats information that is already unambiguous and mechanically provable.
-
-Quidra aims to maximize the useful semantic information carried by source tokens:
+Quidra optimizes for semantic density rather than character count:
 
 ```text
 semantic information
@@ -41,60 +31,45 @@ semantic information
        tokens
 ```
 
-This is a design target rather than a claim that every semantic property can be reduced to one numeric metric.
+Shorter is better only when meaning stays explicit, stable, and mechanically
+checkable. The compiler should infer facts it can prove; source code should state
+facts that cannot be inferred without changing meaning.
 
-A Quidra program should make the facts that affect correctness visible:
-
-- what is a value and what is storage,
-- who is allowed to write,
-- what may be uninitialized,
-- which operations can fail,
-- when a conversion changes representation,
-- which alternatives a value may contain,
-- which axis and extent constraints a tensor must satisfy,
-- and which effects a call can have on existing state.
-
-The compiler should infer what is safely provable. Source syntax should state what cannot be inferred without changing meaning.
-
-This gives Quidra two complementary rules:
+That gives Quidra two rules:
 
 1. **Remove ceremony that carries little semantic information.**
-2. **Keep syntax that distinguishes behavior, authority, failure, state, or representation.**
+2. **Keep syntax that distinguishes behavior, authority, failure, state,
+   representation, shape, or placement.**
 
-## Meaning per token, concretely
-
-Quidra tries to give common forms one stable job:
+Common forms therefore have deliberately narrow jobs:
 
 | Form | Meaning carried |
 | --- | --- |
 | `=` | independent value-oriented assignment |
-| `&x` | explicit observable access to storage |
+| `&x` | explicit access to existing storage |
 | `T &` | writable path to caller-visible storage |
 | `const T &` | live read-only path to storage |
 | `T \| none` | normal absence is part of the type |
 | `T \| error` | failure is part of the type |
-| `try` | propagate `error`, not every non-value state |
+| `auto \| error` | retain an otherwise fail-fast failure channel |
+| `try` | propagate `error` |
 | `T(value)` | explicit representation conversion |
-| `tensor<T><3, _, _>` | element type plus three axis slots: first extent is 3, the other extents are unrestricted, and three slots require rank 3 |
-| `and / or / not` | boolean logic only |
-| `AND / OR / XOR / NOT / << / >>` | fixed-width integer bit operations, without reusing `&` or `\|` |
-| `match` | alternatives must be handled explicitly and exhaustively |
+| `tensor<T><3, _, _>` | element type plus exact rank/shape constraints |
+| `and / or / not` | boolean logic |
+| `AND / OR / XOR / NOT / << / >>` | fixed-width integer bit operations |
+| `match` | exhaustive handling of alternatives |
 
-The same principle applies beyond individual tokens. Visible names cannot be shadowed, so adding nearby code cannot silently redirect an earlier reference. Numeric values do not change representation merely because a destination type would accept them. Mutable storage is not created implicitly from ordinary value assignment. CPU/GPU movement is explicit rather than inferred from later operations.
-
-These choices deliberately spend syntax where the syntax carries important meaning, and remove syntax where the compiler can recover the same fact unambiguously.
+The same rule applies beyond individual tokens: visible names cannot be
+shadowed, numeric values do not silently change representation, ordinary
+assignment does not create observable aliasing, and CPU/GPU movement is never
+inferred from a later operation.
 
 ## A program as compressed semantics
 
-A Quidra example is most useful when it shows how much meaning can be recovered directly from the source, not merely how the syntax looks. The goal is not to minimize characters; it is to make every surviving token pay for itself by carrying a stable semantic fact.
+A small Quidra program can state several important facts without surrounding
+ceremony:
 
 ```quidra
-int | none | error read_count(string path)
-    auto text = try file.read(path)
-    if text == ""
-        return none
-    return int.parse(text)
-
 void increment(int &value)
     value += 1
 
@@ -104,305 +79,110 @@ float32 first_sample(const tensor<float32><3, _, _> &pixels)
 int count = 7
 increment(&count)
 
+tensor<float32><3, _, _> pixels = tensor.zeros([3, 224, 224])
+float32 sample = first_sample(&pixels)
+
 uint8 flags = 240
 uint8 selected = flags AND 15
 ```
 
-The point is not that every line is as short as possible. The point is that the tokens that remain carry stable semantic information:
+The surviving tokens carry concrete semantics:
 
-- `int | none | error` distinguishes a value, normal absence, and failure without a sentinel or hidden exception convention.
-- `try` has one job: propagate `error`. It does not also mean absence, early return for arbitrary values, or exception catching.
-- `int &value` states that the function may write caller-visible storage, and `&count` makes that authority explicit at the call site.
-- `const tensor<float32><3, _, _> &pixels` says that the function observes existing tensor storage without write authority. `float32` fixes the element representation; the three written axis slots require rank 3; the first extent is exactly 3; each `_` leaves that existing axis extent unrestricted.
-- `AND` is fixed-width integer bitwise AND. Lowercase `and` remains boolean logic, `&` remains storage access, and `|` remains union syntax.
+- `int &value` says the function may write caller-visible storage, while
+  `&count` makes that authority visible at the call site.
+- `const tensor<float32><3, _, _> &pixels` says the function observes existing
+  storage without write authority, with `float32`, rank 3, and first extent 3
+  fixed in the type.
+- `AND` cannot be confused with boolean `and`, storage `&`, or union `|`.
+- Ordinary `=` still means value semantics; none of these forms invents hidden
+  aliasing or implicit conversion.
 
-This is what Quidra means by **semantic compression**: do not spend tokens repeating facts the compiler can prove, and do spend tokens where removing them would blur authority, representation, failure, state, shape, or behavior.
+This is semantic compression: remove repetition, not distinctions.
 
-Nothing in this example relies on an invisible default representation, hidden alias, implicit exception channel, or inferred permission to mutate. The source is compact because the language removes repetition, not because it removes distinctions.
+## Design laws
 
-## Design laws derived from semantic compression
+### Values first; storage and authority are explicit
 
-### 1. Values are the default; storage is explicit
-
-Ordinary `=` means independent value semantics.
-
-```quidra
-int[] a = [1, 2, 3]
-int[] b = a
-
-b[0] = 9
-
-print(a[0]) // 1
-print(b[0]) // 9
-```
-
-The implementation may avoid unnecessary physical copies through immutable sharing, copy-on-write, moves, reference counting, or copy elision, but only when the difference is not observable.
-
-Observable aliasing is explicit:
+Ordinary assignment creates an independent value. Observable access to existing
+storage is written with `&`, and writable authority is visible in both the
+parameter and the call.
 
 ```quidra
-int x = 1
-int &writer = &x
-const int &view = &x
+int[] original = [1, 2, 3]
+int[] copy = original
+copy[0] = 9
 
-writer = 5
-print(view) // 5
+void reset(int &value)
+    value = 0
+
+int count = 5
+reset(&count)
 ```
 
-`&x` is a safe storage address expression. `T &` is a read/write path to that storage; `const T &` is a live read-only path. `const T` is an immutable value binding. A const reference can observe changes performed through another writable path, but it cannot write, rebind, or recover write authority. `print(&x)` / `write(&x)` may expose the current raw machine address for diagnostics, and `&x == &y` / `&x != &y` compare storage identity. Address expressions are not storable values and Quidra still does not expose pointer arithmetic, address-to-integer conversion, ordering, an explicit `*` dereference operator, or a general object-identity operator. Printed addresses are implementation/runtime observations and are not stable across runs.
+The implementation may use moves, copy-on-write, reference counting, or copy
+elision only when the optimization cannot change those source semantics.
 
-This same model applies to bindings, class fields, array elements, and bin bits.
+### The compiler proves state; source states intent
 
-### 2. Authority is part of the call
+Uninitialized storage is not secretly zero, `none`, or another default. The
+checker tracks initialization through branches, calls, fields, arrays, tensors,
+and references. Shape constraints, receiver effects, and reference effects are
+likewise checked rather than guessed.
 
-A reference parameter makes caller-owned storage access explicit. The parameter determines whether that path is writable.
+The source does not repeat proofs the compiler already has. It does state the
+intent that cannot be inferred safely.
 
-```quidra
-void inspect(const int &value)
-    print(value)
+### Representation changes are explicit
 
-void initialize(int &value)
-    value = 7
+A typed numeric value never changes representation merely because a destination
+could hold it. Conversions use the destination type, such as `float32(value)`
+or `int8(value)`. Float-to-integer conversion requires the rounding choice to
+be named with `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
 
-int value = 1
-inspect(&value)
-initialize(&value)
-```
+A required result type is a constraint, not permission to convert.
 
-`&` means explicit storage access. `const` removes write authority from that access path. The same storage may be passed through multiple reference parameters, including a mixture of readonly and writable paths; readonly paths may observe writes made through another path.
+### Failure is lightweight by default, explicit when retained
 
-The checker tracks initialization requirements and guarantees of reference parameters. A writable parameter may safely initialize previously uninitialized storage. A readonly reference always requires initialized storage. Authority can be reduced (`T &` to `const T &`) but cannot be recovered through the weaker reference.
+Fallible operations can flow directly into a success-only context; an actual
+`error` then fails fast at that boundary. Explicit `T | error`,
+`auto | error`, `try`, and `match` are for code that deliberately keeps,
+propagates, or handles the failure channel.
 
-### 3. State facts are tracked, not guessed
+This keeps ordinary examples and ordinary application code focused on the main
+flow without removing typed failure from the language.
 
-Uninitialized does not mean zero, `none`, or a hidden default.
+### Names are monotonic
 
-```quidra
-int x
-print(x) // compile-time error
-```
+Reserved names are never reusable, and a visible user-defined name cannot be
+shadowed. Adding nearby code therefore cannot silently redirect an earlier bare
+reference. Standard-library growth normally happens behind namespaces or value
+methods instead of consuming new global names.
 
-The checker follows initialization through branches, loops, references, classes, nested fields, calls, and returns.
+### Movement and differentiation are visible
 
-Classes can be intentionally partial:
+Tensor device placement is explicit. A later GPU use is not permission to move
+earlier work. Floating tensors are untracked by default; `.track()`,
+`.untrack()`, and `.retrack()` visibly control autograd provenance.
 
-```quidra
-class Point
-    int x
-    int y
+The same principle applies to mutation in DNN code: the model being changed is
+named at the gradient and optimizer operations.
 
-Point point
-point.x = 10
-// point.y is still uninitialized
-```
+### Machine-readable by design
 
-Methods are summarized by their observable receiver effects. The checker records facts such as:
-
-- fields required before a call,
-- fields definitely initialized after a call,
-- fields written by the method,
-- fields whose previous initialization state may be invalidated,
-- initialization guarantees of returned class values,
-- initialization requirements and guarantees of reference parameters, including read-only `const T &` paths.
-
-Those summaries compose across method calls and control flow. The goal is to make mutation analyzable without forcing programmers to manually annotate every effect.
-
-### 4. Representation changes are explicit
-
-Quidra distinguishes **type compatibility** from **conversion intent**.
-
-An already-typed numeric value never changes representation implicitly, even when the conversion would be lossless. Numeric literals may take a contextual numeric type when the literal itself is representable.
-
-Explicit casts use the destination type:
-
-```quidra
-int value = 100
-int8 small = int8(value)
-```
-
-Integer narrowing is range checked and never wraps. Integer-to-floating-point and floating-point-to-floating-point casts use deterministic destination IEEE-754 rounding, so precision may be reduced when the programmer explicitly requests that representation.
-
-Floating-point to integer is intentionally not a generic cast because the rounding meaning is ambiguous. Use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` to state that intent explicitly. Casts never request wrapping or clamping.
-
-The general rule is:
-
-> **A required result type is a constraint, not permission to convert. Representation or semantic conversion happens only when the source explicitly requests it.**
-
-### 5. Absence, failure, completion, and termination are different
-
-Quidra keeps several concepts separate:
-
-- `void` — successful completion with no data,
-- `none` — normal absence,
-- `error` — a failed operation represented as data,
-- process termination — control flow, not a source-visible value type.
-
-```quidra
-int | none | error lookup(int id)
-    if id < 0
-        return error("invalid id")
-    if id == 0
-        return none
-    return id
-```
-
-A fallible result stays explicit when its union is preserved:
-
-```quidra
-auto result = lookup(1) // int | none | error
-```
-
-When an expected type accepts every non-`error` alternative but excludes
-`error`, that consumption site is fail-fast. An actual `error` is reported
-there and the program terminates; ordinary union alternatives are never
-implicitly discarded.
-
-```quidra
-int | error load_count()
-    return 7
-
-int count = load_count() // error would fail-fast here
-```
-
-`try` has a different meaning: it propagates `error` from the current
-function while preserving the other alternatives.
-
-```quidra
-int | none | error doubled(int id)
-    auto value = try lookup(id)
-
-    match value
-        int
-            return value * 2
-        none
-            return none
-```
-
-`process.exit(status)` is a compiler-known non-continuing operation. The
-compiler can propagate that control-flow fact through user functions when it
-can prove they do not return normally. There is no source `never` type, and a
-loop is not assumed to be infinite merely from its syntax.
-
-A `match` must cover every alternative exactly once.
-
-### 6. Alternatives are explicit; identity is not invented
-
-Unions describe alternatives directly:
-
-```quidra
-int | string value
-```
-
-Named semantic alternatives use exhaustive enums:
-
-```quidra
-enum Token
-    Number(float)
-    Plus
-    End
-
-Token token = Token.Number(3.0)
-```
-
-Variants are always qualified (`Token.Number`, `Token.Plus`), and payload-free variants are values rather than implicit integers.
-
-
-Classes use explicit composition for reuse. A class contains only the fields and methods it declares; there is no hidden parent-member lookup or dynamic dispatch.
-
-```quidra
-class Position
-    int x
-    int y
-
-class Player
-    Position position
-    int hp
-```
-
-When a value may be one of several concrete types, write an explicit union and handle it with `match`.
-
-Generics follow the same preference for explicit structure: generic classes keep explicit type arguments, while generic functions and methods infer them only when every generic parameter is uniquely determined by the call arguments. A parameter may use one small built-in compile-time constraint such as `T: numeric`, `T: integer`, `T: floating`, `T: ordered`, or `T: equatable`; this is not a runtime trait/interface system. Concrete instances are monomorphized before ordinary checking and native lowering.
-
-Functions can also cross a call boundary as explicit capture-free values. `fn<int>(int) operation = twice` states the complete signature; `auto operation = twice` is intentionally rejected. The value is only the code target: there is no hidden closure environment, bound receiver, or implicit lifetime. Signature mismatches, reference-parameter functions, and `extern` functions are rejected before lowering.
-
-```quidra
-int twice(int value)
-    return value * 2
-
-int apply(fn<int>(int) operation, int value)
-    return operation(value)
-
-print(apply(twice, 21)) // 42
-```
-
-### 7. Syntax should expose semantic roles
-
-Quidra prefers familiar words and punctuation when they carry a stable meaning.
-
-Examples:
-
-```quidra
-int x = 5
-int &alias = &x
-
-print(x)
-int number = 10
-string text = number.string()
-
-int[] values = [1, 2, 3]
-for &item in values
-    item = item + 1
-```
-
-The language avoids syntax whose main purpose is ceremony. At the same time, it does not remove tokens that distinguish important semantics.
-
-This is what **Maximum meaning per token** means in practice: fewer meaningless tokens, not fewer meaningful distinctions.
-
-### 8. Name resolution is monotonic
-
-Reserved identifiers are absolute: user code cannot redefine a reserved name as a binding, parameter, function, class, field, method, generic parameter, loop/match binder, CLI field, or import alias. Qualification does not create an exception; for example, because `math` and `array` are reserved, user-defined `object.math` and `object.array()` are invalid as well.
-
-For ordinary user-defined names, shadowing is prohibited only while the earlier name is visible. The same spelling may be reused in genuinely disjoint scopes:
-
-```quidra
-int local_value()
-    int x = 5
-    return x
-
-int x = 7
-```
-
-This yields one simple rule: **reserved names are never reusable; visible names are never shadowable; otherwise names may be reused.** Standard-library member names such as `zeros`, `mean`, or `matmul` are not automatically global reserved identifiers; `tensor.zeros(...)` works because `tensor` is a language-owned reserved namespace and `zeros` is selected inside that namespace.
-
-The rule makes local edits safer for both humans and language models: adding code cannot make an earlier reference start resolving to a different declaration. Adding a new reserved global name is therefore compatibility-sensitive, so standard-library growth should normally happen behind existing namespaces or value methods rather than by adding bare built-ins.
-
-### 9. The compiler should be useful to machines as well as humans
-
-LLM-friendliness is not only surface syntax.
-
-Quidra exposes compiler operations intended for structured tooling:
+LLM-friendliness is not only syntax. The compiler exposes structured checking,
+formatting, inspection, and revision-validated patching:
 
 ```bash
 quidra check program.qui --json
 quidra fmt program.qui
-quidra fmt program.qui --check
-quidra lsp
-quidra inspect program.qui
 quidra inspect program.qui --no-source --no-effects --kind call --depth 3
 quidra patch program.qui change.json --write
 ```
 
-`fmt` canonicalizes unambiguous token spacing while preserving literal contents, comments, and syntax whose token role is context-dependent; `quidra lsp` provides compiler-backed diagnostics and formatting over standard LSP stdio framing; `--check` performs a non-writing canonical-form check. `inspect` exposes source structure with spans, node identifiers, source hashes, inferred semantic information, and deterministic storage-effect summaries for method receivers and reference parameters. For token-efficient tooling, `--no-source` omits repeated source fragments, `--no-effects` omits effect summaries, `--kind KIND` keeps only one node kind, and `--depth N` bounds structural depth. Every inspected node includes an explicit `parent_id` and `depth`.
+Source modification can therefore be checked against compiler-known structure
+instead of relying on blind text replacement.
 
-A patch identifies the source revision and the exact node/hash it expects to replace. Stale revisions, unknown nodes, hash mismatches, and overlapping edits are rejected. The resulting source is accepted only after it passes the compiler validation path.
-
-This makes source modification closer to a checked transaction than blind text replacement.
-
-The same principle appears throughout the language:
-
-> **Make intent machine-readable, then validate it before execution.**
-
-## Semantics carried by the surface
+## Language tour: semantics carried by the surface
 
 The following syntax is not intended as an inventory of unrelated features. Each form exists to expose a semantic distinction that matters to humans, language models, or static checking while leaving mechanically provable facts to the compiler.
 
@@ -475,7 +255,7 @@ There is no `char` type:
 Numeric parsing and standard text conversion use methods:
 
 ```quidra
-int | error value = int.parse("123")
+int value = int.parse("123")
 
 int number = 123
 string text = number.string()
@@ -484,19 +264,34 @@ string text = number.string()
 ### Arrays and bin
 
 ```quidra
-int[] dynamic = [1, 2, 3]
+int[] values = [1, 2, 3]
 int[3] fixed = [4, 5, 6]
-int[] zeros = array(5, fill = 0)
 
+int[] pending = array(100)
+pending[0] = 7
+
+int[] zeros = array(100, fill = 0)
+values = values.append(4)
+```
+
+Fixed array lengths are part of the type. Runtime-sized arrays may be created
+uninitialized with `array(n)` or fully initialized with
+`array(n, fill = value)`; initialization is tracked per element. Arrays have
+value semantics, including nested arrays. `append`, `concat`, and `sorted`
+return new array values rather than hiding mutation of another value.
+
+`bin` is mutable packed raw binary data:
+
+```quidra
 bin data = bin.fill(8, 0)
 data[0] = bin.fill(1, 1)
 bin first = data[0]
-bin | error parsed = bin.parse("0101")
+bin parsed = bin.parse("0101")
 ```
 
-Fixed array lengths are part of the type. Arrays have value semantics, including nested arrays.
-
-`bin` is mutable packed raw binary data. `len(data)` is the number of bits, `data[i]` returns a one-bit `bin`, and `data[start:end]` returns a `bin` slice. `bin.fill(n, bit)` allocates exactly `n` bits and requires `bit` to be `0` or `1`; `bin.parse("0101")` parses a written bit pattern and always has static type `bin | error`. A valid literal may be optimized as success-proven internally, but its source-visible type does not narrow. Binary-to-numeric interpretation is always explicit, for example `uint8(bits)`, and the bit length must match the destination width exactly.
+`len(data)` is the number of bits, indexing returns one-bit `bin`, and slicing
+returns another `bin`. Binary-to-numeric interpretation is explicit, for
+example `uint8(bits)`, and the bit length must match the destination width.
 
 ### Strings
 
@@ -513,6 +308,8 @@ Backslash is literal rather than an escape introducer. Named immutable values su
 
 Immutable backing storage may be shared internally because that sharing cannot change observable value semantics. For the same reason, `text = text + piece` in a loop is linear overall rather than quadratic: when the target is the sole owner of its storage, the append reuses it with geometric growth instead of copying the accumulated prefix each time.
 
+Strings are immutable UTF-8 text. `len(text)` counts Unicode code points, `text[index]` returns a one-code-point string, and text supports `contains`, `starts_with`, `ends_with`, `find`, `slice`, `trim`, and `split`. `text.utf8()` explicitly exposes the UTF-8 encoding as `bin`; `string.from_utf8(data)` explicitly validates byte-aligned binary data and returns `string | error`; `text.codepoints()` explicitly exposes Unicode scalar values; and `string[]` uses `join(separator)` for efficient assembly.
+
 ### Functions and calls
 
 ```quidra
@@ -523,7 +320,7 @@ print(add(41)) // output: 42
 print(add(a = 40, b = 2)) // output: 42
 ```
 
-Positional arguments come before named arguments. Parameters can have defaults; defaults are evaluated afresh when omitted.
+Positional arguments come before named arguments. Parameters can have defaults; defaults are evaluated afresh when omitted. Ordinary function overloading is not supported: one function name has one ordinary definition, including argument-count and return-type variants. Optional call forms use default parameters.
 
 ### Classes
 
@@ -546,7 +343,7 @@ Point origin
 origin.x = 0.0
 ```
 
-Fields and methods use one `class` construct. Methods access fields directly; there is no `self` or `this` syntax. A class may declare several `construct` members, distinguished by their parameters; `T(...)` always runs one of them, and a call that fits none or more than one is rejected. A declaration without an initializer creates the value with its field defaults so fields can be assigned one at a time. A constructor that can fail is spelled `Point | error construct(...)`; `Point p = Point(...)` then fails fast on error and `try Point(...)` propagates it. Members are public by default; prefix a field, method, or constructor with `private` to restrict access to methods of that class.
+Fields and methods use one `class` construct. Methods access fields directly; there is no `self` or `this` syntax. A class may declare at most one `construct` member. Constructor call variants use default parameters rather than constructor overloads; `T(...)` runs that single constructor. A declaration without an initializer creates the value with its field defaults so fields can be assigned one at a time. A constructor that can fail is spelled `Point | error construct(...)`; `Point p = Point(...)` then fails fast on error and `try Point(...)` propagates it. Members are public by default; prefix a field, method, or constructor with `private` to restrict access to methods of that class.
 
 ```quidra
 class Counter
@@ -609,6 +406,8 @@ print(first<int>([4, 5]))
 
 Generic class type arguments are explicit. Generic function and method type arguments are inferred when every generic parameter is uniquely determined by the call arguments; otherwise they must be written explicitly. Concrete instances are deterministically monomorphized before static checking and native code generation.
 
+Repeated function or method names are permitted only for a generic specialization family. Family members keep the same call shape: the same argument count, names, reference/const forms, default-argument positions, and generic type pattern. A concrete exact-type member may specialize that family. Generic members may differ by constraints such as `numeric` and the narrower `floating`; any number of generic parameters such as `<T1, T2>` is allowed. Exact concrete matches win over generic matches, narrower statically ordered constraints win over broader ones, and an overlap with no unique most-specific member is a compile error.
+
 ### Control flow
 
 ```quidra
@@ -631,6 +430,18 @@ while condition
 
 Blocks use four-space indentation. Conditions are `bool`; numeric truthiness is not implicit.
 
+Use `elif` for flat conditional chains:
+
+```quidra
+int score = 85
+if score >= 90
+    print("A")
+elif score >= 80
+    print("B")
+else
+    print("C")
+```
+
 ### Basic I/O
 
 ```quidra
@@ -647,135 +458,111 @@ scan("{&n} {&m}")
 
 `print` appends a newline. `write` does not. Both return `void | error`, so an output failure fails fast when the call is a statement. `scan` reads one line: `scan(&x)` reads a single value into `x`, and a format such as `"{&name},{&age}"` splits the line at its literal text and parses each `{&target}` by the target's type; a `string` target takes the text as it is. End of input, invalid text, and leftover input are `error`, which fails fast for a statement and can be handled through `void | error read = scan(...)`.
 
-## Text, arrays, and conditional chains
+## Tensors and explicit devices
 
-Strings are immutable UTF-8 text. `len(text)` counts Unicode code points, `text[index]` returns a one-code-point string, and text supports `contains`, `starts_with`, `ends_with`, `find`, `slice`, `trim`, and `split`. `text.utf8()` explicitly exposes the UTF-8 encoding as `bin`; `string.from_utf8(data)` explicitly validates byte-aligned binary data and returns `string | error`; `text.codepoints()` explicitly exposes Unicode scalar values; and `string[]` uses `join(separator)` for efficient assembly.
-
-Runtime-sized arrays can be fully initialized or explicitly created with uninitialized elements:
-
-```quidra
-int[] pending = array(100)
-pending[0] = 7
-
-int[] zeros = array(100, fill = 0)
-
-int[] values = [1, 2]
-values = values.append(3)
-values = values.concat([4, 5])
-int[] ordered = values.sorted()
-```
-
-`array(n)` requires an array type context and tracks initialization per element. Reading an uninitialized element fails deterministically rather than exposing arbitrary memory. `array(n, fill = value)` is fully initialized, may infer the element type, evaluates `value` once, and gives each element independent value semantics.
-
-`append`, `concat`, and `sorted` return new array values. `sorted()` is available for numeric, `bool`, and `string` arrays of either fixed or runtime size and returns a runtime-sized sorted copy; it is deterministic and non-mutating. The implementation may use copy-on-write or spare capacity only when that optimization is unobservable, so source-level value semantics remain unchanged. For fully initialized local arrays, typed IR can carry that proof into LLVM and omit redundant per-element initialization checks. Forming a read/write whole-array reference restores the check automatically; forming a `const T &` read-only reference preserves the proof. Control-flow joins that cannot preserve the proof also restore the check, and bounds safety is unaffected.
-
-Dense numeric tensors use the dedicated `tensor<T>` type. The element type is always static. An optional second angle group is an exact-rank shape pattern: each entry is either `_`, meaning that axis exists but its extent is unrestricted, or an integer expression. The number of entries is the exact required rank. A non-constant extent expression is evaluated once when the binding is created and its value is captured; later mutations of variables used by that expression do not change the binding's shape contract.
+Dense numeric tensors use `tensor<T>`. The element type is static; an optional
+second angle group states an exact-rank shape pattern. Each written axis exists,
+`_` leaves its extent unrestricted, and an integer expression constrains that
+extent.
 
 ```quidra
 int batch = 3
 tensor<float32><batch * 2, 224> contextual = tensor.zeros()
-batch = 8 // contextual keeps the extent captured above
+batch = 8 // the captured extent remains 6
 
 tensor<float32> matrix = tensor.zeros([2, 3])
-tensor<float32><3, _, _> pixels = tensor.zeros<float32>([3, 224, 224])
-tensor<float32><1, _, _> bias = tensor.ones<float32>([1, 224, 224])
+tensor<float32><3, _, _> pixels = tensor.zeros([3, 224, 224])
+tensor<float32><1, _, _> bias = tensor.ones([1, 224, 224])
 tensor<float32><3, _, _> result = pixels + bias
-
-tensor<float32> manual = tensor<float32>([2, 2])
-manual[0, 0] = 1.0
-manual[0, 1] = 2.0
-manual[1, 0] = 3.0
-manual[1, 1] = 4.0
 
 auto crop = result[:, 10:20, 30:40]
 float32 value = result[0, 10, 20].item()
 ```
 
-`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. When an explicit shape is present, the expected tensor type may supply the element type, so `tensor<float32> x = tensor.zeros([2, 3])` is valid while `auto x = tensor.zeros([2, 3])` is not. When every extent is supplied by the expected exact shape, `tensor.zeros()` / `tensor.ones()` may omit both element type and shape arguments; an expected `_` axis or an unconstrained `tensor<T>` is insufficient for allocation, so an explicit shape array is required. Reading an element that is not definitely initialized remains a deterministic safety failure.
+`tensor<T>(shape)` creates uninitialized tensor storage; `tensor.zeros` and
+`tensor.ones` create initialized storage. Expected tensor types may supply an
+otherwise unambiguous element type or exact shape, so the source need not repeat
+facts the compiler already knows.
 
-CPU is the default tensor device. GPU placement and transfer are explicit and do not change the nominal tensor type:
-
-```quidra
-tensor<float32> cpu = tensor.zeros<float32>([1024])
-tensor<float32> direct = tensor.zeros<float32>([1024], gpu = 0)
-
-tensor<float32> copied_to_gpu = cpu.gpu(0)
-tensor<float32> copied_back = copied_to_gpu.cpu()
-```
-
-`gpu = n` must be a named, non-negative integer argument; there is no public negative CPU sentinel. `.gpu(n)` requires an index and `.gpu()` is invalid. Quidra never inserts CPU↔GPU or GPU↔GPU transfers and never falls back to CPU when a requested GPU/backend is unavailable. A later transfer is not permission to move preceding computation: `tensor.zeros<float32>([1]).gpu(0)` remains CPU creation followed by an explicit copy.
-
-GPU execution is host-asynchronous by default. Kernel launches, same-device copies, uploads, cuDNN/cuBLAS work, and supported multi-GPU collectives are queued without an implicit host wait; backend stream/queue ordering preserves dependencies. CPU observation is a synchronization boundary: `.cpu()`, `.item()`, and other operations that must expose completed GPU data wait as required. `gpu.sync(index)` is the explicit escape hatch for a specific GPU. Time sampling is non-synchronizing by default: `time.now()` and `time.since(start)` do not wait for queued GPU work, so progress bars, logging, and ordinary timing keep GPU execution asynchronous. For GPU latency or benchmark timing, use `time.now(sync = true)` and `time.since(start, sync = true)`; the start call waits before sampling, while the end call waits before its sample so measured GPU completion time is included. Quidra synchronizes only GPUs it has actually used.
-
-Tensor operations require tensor operands on the same device. Scalar operands are allowed as kernel arguments/constants. A GPU operation that the active backend does not yet implement fails explicitly instead of secretly executing over CPU memory. Use `quidra gpu` to inspect the zero-based device index space and active backend. There are three device backends, written as a canonical id in machine-readable output and as a display name for humans: `cuda` (NVIDIA), `hip` (AMD), and `metal` (Metal). CPU execution is ordinary native LLVM code rather than a device backend, so there is no `cpu` placement target. NVIDIA placement uses the OS NVIDIA Driver API without depending on a user CUDA Toolkit, `nvcc`, `CUDA_HOME`, or `/usr/local/cuda`; Apple Silicon uses Metal; AMD uses the HIP runtime and runtime-compiled HIP kernels when a compatible ROCm/HIP runtime is present. NVIDIA and AMD compute support Quidra `float32`, `float`/`float64`, and checked integer tensor kernels where the operation is implemented. Metal compute supports `float32` and the built-in integer tensor element types; because Apple GPU Metal kernels do not provide the required binary64 compute semantics, `float`/`float64` device computation fails explicitly on Metal instead of narrowing precision or using CPU fallback.
-
-Array dimensions accept the same integer-expression form. `float[n * m]` captures `n * m` when that array binding is created, while `float[][n * m]` keeps the outer dimension runtime-sized and captures the inner extent. Captured array and tensor constraints remain fixed across later reassignment.
-
-Tensor-to-tensor broadcasting is intentionally strict: ranks must match and each axis must match or be singleton on one side. Scalars broadcast to tensors. Slices may use internal views, but mutation preserves value semantics through copy-on-write. `.transpose(axis0, axis1)` swaps two axes as a metadata-only view and preserves the tensor's device placement. `.reshape(shape)` never hides a copy; call `.contiguous()` explicitly first when needed.
-
-Numeric representation changes use the same `T(value)` syntax for scalars, arrays, and tensors. For arrays, every dimension is preserved and numeric leaves are converted recursively; for tensors, rank and shape facts are preserved while only the element type changes. For example, `float(values)` maps `int[][]` to `float[][]`, and `float32(pixels)` maps a numeric tensor to the same-shaped `tensor<float32>`. Integer narrowing is range-checked; integer-to-float and float-to-float may deterministically reduce precision; float-to-integer still requires an explicit rounding operation. There is no separate container-specific cast method.
-
-Compound assignment supports `+=`, `-=`, `*=`, `/=`, and `%=`. Its target is evaluated exactly once, avoiding duplicated side effects in indexed or member targets.
-
-Use `elif` for flat conditional chains:
+Device movement is always visible:
 
 ```quidra
-int score = 85
-if score >= 90
-    print("A")
-elif score >= 80
-    print("B")
-else
-    print("C")
+tensor<float32> cpu = tensor.zeros([1024])
+tensor<float32> gpu0 = tensor.zeros([1024], gpu = 0)
+
+tensor<float32> copied = cpu.gpu(0)
+tensor<float32> host = copied.cpu()
 ```
 
-## Neural computation
+CPU is the default. Quidra never inserts CPU↔GPU or GPU↔GPU transfers and never
+falls back to CPU when a requested device operation is unavailable. A later
+`.gpu(0)` therefore means an explicit copy, not permission to relocate earlier
+computation.
 
-The `neural` namespace is the Define-by-Run/autograd foundation. A model is an
-ordinary Quidra class containing `neural.Parameter<T>` and `neural.State<T>`
-fields.
+GPU work is host-asynchronous where supported. Host-visible reads such as
+`.cpu()` and `.item()` synchronize as needed; `gpu.sync(index)` is the
+explicit synchronization boundary. `time.now(sync = true)` and
+`time.since(start, sync = true)` make synchronization explicit when measuring
+GPU completion time.
 
-```quidra
-class Scale
-    neural.Parameter<float32> value
+Tensor operands must use compatible devices. Broadcasting is deliberately
+strict: ranks match, and each axis must either match or be singleton on one
+side. `.transpose()` is a metadata view; `.reshape()` never hides a copy, so
+call `.contiguous()` explicitly when a contiguous representation is required.
 
-Scale model
-model.value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
-neural<float32> prediction = model.value.track() * float32(2)
-neural<float32> loss = neural.mean(prediction * prediction)
-neural.Gradients gradients = neural.grad(loss)
-neural.update(&model, gradients, rate = 0.01)
-```
+Numeric representation changes use the same `T(value)` spelling as scalars and
+arrays. A tracked tensor must be explicitly disconnected before changing dtype,
+for example `float(x.untrack())`; representation change never silently cuts an
+autograd graph.
 
-`neural` means `neural<float32>`. Neural values use the same exact-rank shape
-pattern syntax as tensors: `neural<3, _, _>` means
-`neural<float32><3, _, _>`, while `neural<float><_, 768>` explicitly selects
-float64 plus a rank-2 pattern. `neural.track(tensor)` preserves known shape facts
-when entering the dynamic graph, `.untrack()` restores them to ordinary tensor
-storage, and `neural.grad(loss)`
-returns an explicit `neural.Gradients` value. There is no hidden gradient
-accumulation or parameter registry. Operand-level primitives such as `affine`,
-`convolve2d`, `normalize`, reductions, and safe update operations allow ordinary
-packages to build differentiable libraries.
+## Tensor autograd
 
-The official `dnn` package provides layers, activations, losses, and optimizers
-through a normal package import:
+Autograd is part of the ordinary `tensor<T>` type. Core does not define a
+Parameter, model, layer, optimizer, or optimizer state abstraction. Floating
+tensors are untracked by default; `.track()` starts a dynamic graph,
+`.untrack()` disconnects it, and `.retrack()` cuts prior provenance and starts
+a new tracked root. Tracking is runtime metadata and never changes the source
+type.
+
+`loss.backward(&target, ...)` performs reverse-mode autodiff and writes only to
+the explicitly listed gradient destinations. Repeated calls accumulate by
+default; clear a destination explicitly before starting a new accumulation
+window. Within one backward call, naming the same underlying gradient
+destination more than once still writes it once. A tensor can be a destination directly and exposes its local gradient
+through `.grad`, `.has_grad()`, and `.clear_grad()`. Ordinary tensor copies
+have independent gradient state even when their immutable/COW value storage is
+shared internally. `autograd.Target` is Core's generic explicit destination
+handle for abstractions that need a stable gradient identity without turning the
+tensor value itself into shared mutable state. Optional static shape contracts
+remain ordinary tensor contracts such as `tensor<float32><3, _, _>`.
+
+The official `dnn` package owns learnable parameters, layers, losses, and
+optimizers as ordinary Quidra source classes:
 
 ```quidra
 import dnn
 
-dnn.Linear layer = dnn.Linear(2, 1)
+class Scale
+    dnn.Parameter<float32> value
+
+Scale model
+model.value = dnn.Parameter<float32>(value = tensor.ones([1]))
 dnn.Adam optimizer = dnn.Adam()
-dnn.mode.deterministic()
+tensor<float32> prediction = model.value.track() * float32(2)
+tensor<float32> loss = (prediction * prediction).mean()
+
+optimizer.zero_grad(&model)
+loss.backward(&model)
+optimizer.step(&model)
 ```
 
-Layers and optimizers are classes with constructors that can fail, so `dnn.Linear(2, 1)` fails fast on an invalid shape and `try dnn.Linear(2, 1)` propagates the error. `dnn.mode.fast()` and `dnn.mode.deterministic()` select the execution mode.
+`dnn.Parameter<T>` is implemented by the package with ordinary tensor values
+plus a private Core `autograd.Target`; its gradient state is therefore DNN-owned
+rather than hidden in the Parameter value tensor. `dnn.State<T>` has no gradient
+destination. Neither abstraction is a compiler-special type. DNN optimizer state
+and update equations likewise live in the package. `dnn.mode.fast()` and
+`dnn.mode.deterministic()` select the DNN execution mode.
 
-Model and training state use one typed, non-executable `.quistate` format through
-`neural.save(...)` and `neural.load(...)`. Saving uses atomic replacement. Loading requires exact nominal root types,
-structural schema, tensor element type/shape, version, and checksum, validates the
-complete payload before replaying writes, and rejects mismatches without
-partially restoring earlier fields.
 
 ## Safety model
 
@@ -791,16 +578,15 @@ The static checker rejects, among other things:
 - import cycles and namespace collisions,
 - invalid concrete generic instantiations.
 
-The native runtime checks cases that depend on runtime values, including:
+The native runtime checks invariant and safety failures that depend on runtime values, including:
 
 - integer overflow at each supported integer width,
 - integer division and remainder by zero,
 - array and bin bounds,
 - invalid allocation sizes,
-- zero range steps,
-- out-of-range explicit integer casts.
+- zero range steps.
 
-Runtime safety failures terminate deterministically with status `101`.
+These runtime safety failures terminate deterministically with status `101`. A scalar range-checked numeric cast is different: an out-of-range value produces the cast's typed `error` alternative. It terminates only when a success-only context deliberately consumes that alternative via the ordinary fail-fast rule.
 
 Floating-point arithmetic follows IEEE-754 behavior for its width.
 
@@ -870,23 +656,30 @@ The playground opens on `http://127.0.0.1:8787/` and provides **Run**, **Check**
 The included server is deliberately loopback-only and intended for local development. Each execution uses a fresh temporary working directory, a wall-clock timeout, a small concurrency limit, a reduced child-process environment, and a per-session request token. A public multi-user deployment must execute user programs inside a separately hardened sandbox; this local server is not a multi-tenant security boundary.
 
 
-### Public Playground (WebAssembly)
+### Public Playground (WebAssembly + native runner)
 
 The local server above is the developer-facing playground: it shells out to the
 real `quidra` binary, so it can offer **Run** and **LLVM IR**.
 
 The public playground at **<https://quidra-lang.github.io/playground/>**
-([source](https://github.com/quidra-lang/playground)) is a different thing: a
-fully static site that runs the compiler frontend in the browser. It loads `quidra_core` compiled to WebAssembly, so **Check**, **Format**,
-**Quidra IR**, **Inspect** and **Patch** all run on the visitor's machine with no
-server, and the source never leaves the tab. It deliberately has no Run button --
-execution needs LLVM, the native runtime and OS process facilities, none of which
-the frontend carries.
+([source](https://github.com/quidra-lang/playground)) keeps frontend tooling in
+the browser. It loads `quidra_core` compiled to WebAssembly, so **Check**,
+**Format**, **Quidra IR**, **Inspect** and **Patch** run locally in the visitor's
+tab.
 
-It is not a reimplementation. The playground has no parser, checker, formatter or
-IR of its own; it calls the same `quidra::check`, `quidra::format_source`,
-`quidra::ir::lower`, `quidra::inspect_source_json` and `quidra::apply_source_patch`
-entry points this repository already exposes.
+**Build** and **Run** use a separate native sandbox runner because LLVM linking,
+the native runtime and OS process facilities are not part of the WebAssembly
+frontend. Source is sent to that runner only when Build or Run is requested, and
+the page enables those operations only when the runner reports the same
+language version and exact same Core commit as the loaded WebAssembly frontend. The runner invokes the real
+`quidra build` / `quidra run` commands rather than implementing a second
+interpreter.
+
+The playground is not a reimplementation. Its browser frontend has no parser,
+checker, formatter or IR of its own; it calls the same `quidra::check`,
+`quidra::format_source`, `quidra::ir::lower`,
+`quidra::inspect_source_json` and `quidra::apply_source_patch` entry points
+this repository already exposes.
 
 Build the frontend bridge with the Emscripten toolchain:
 
@@ -952,7 +745,7 @@ Run `quidra` with no arguments from a terminal to start the native REPL. REPL su
 
 ```text
 $ quidra
-Quidra 0.3.0
+Quidra 0.4.0
 >>> int(1) + 2
 3
 >>> int x = 5
@@ -973,7 +766,7 @@ Quidra 0.3.0
 
 Accepted declarations, bindings, functions, classes, generic declarations, and imports remain available for later submissions. Each candidate submission is parsed, specialized, checked, lowered to typed Quidra IR and LLVM IR, compiled natively, and executed. A compile error rejects only that candidate; the previously accepted session remains intact. A standalone expression uses a dedicated typed REPL-display IR operation rather than a source rewrite to `print(...)`.
 
-The current REPL still recompiles accumulated accepted source, but the growing root source is compiled from an in-memory overlay instead of being written and read back through a temporary source file on every submission. Its stable virtual source path still drives relative imports, lock checking, and diagnostics. It does not silently replay observable effects. During reconstruction, prior `print` / `write` operations are suppressed, including output reached through user-function calls. If a submission may execute external or nondeterministic operations such as file/environment access, input, time, random, process, HTTP/image I/O, CLI reads, or neural state save/load, the session arms a conservative replay barrier before native execution. Further submissions are rejected with `REPL_REPLAY_UNSAFE` until `:reset`, even when the effectful submission later fails at runtime, because the external effect may already have happened.
+The current REPL still recompiles accumulated accepted source, but the growing root source is compiled from an in-memory overlay instead of being written and read back through a temporary source file on every submission. Its stable virtual source path still drives relative imports, lock checking, and diagnostics. It does not silently replay observable effects. During reconstruction, prior `print` / `write` operations are suppressed, including output reached through user-function calls. If a submission may execute external or nondeterministic operations such as file/environment access, input, time, random, process, HTTP/image I/O, CLI reads, the session arms a conservative replay barrier before native execution. Further submissions are rejected with `REPL_REPLAY_UNSAFE` until `:reset`, even when the effectful submission later fails at runtime, because the external effect may already have happened.
 
 `:help` lists REPL commands, `:type expression` prints the statically checked type, `:reset` clears accepted session state and the replay barrier, and `:quit` or `:exit` exits. Ctrl-D exits normally; Ctrl-C cancels the current input and keeps the session.
 
@@ -1057,229 +850,50 @@ compatibility alias.
 
 ## Standard namespaces
 
-Standard namespaces are reserved and always visible. They are not imported. Source-file imports are always quoted, and unquoted non-standard imports name installed packages, so module resolution cannot silently change with files in the working directory.
+Standard namespaces keep common capabilities discoverable without consuming
+unstable global names. They are reserved, always visible, and are not imported.
+Source-file imports stay explicit: quoted targets are source modules and
+unquoted non-standard targets are installed packages.
 
-```quidra
-print(math.sqrt(float(16.0)))
-tensor<float32> x = tensor.zeros<float32>([2, 3])
+The reserved standard namespaces are `math`, `io`, `cli`, `file`, `environment`, `test`, `time`, `gpu`, `task`, `atomic`, `autograd`, `ref`, `reflect`, `random`, `process`, `map`, `set`, `json`, `http`, `stats`, `linear`, `signal`, `image`, `video`, `tensor`.
 
-import local = "./local.qui"
-import shared = "@/shared.qui"
-import plot = plotting
-```
+Only referenced standard implementations are linked into a program. The
+namespaces are grouped by semantic role rather than exposed as unrelated global
+functions:
 
-The reserved standard namespaces are `math`, `io`, `cli`, `file`, `environment`, `test`, `time`, `gpu`, `task`, `atomic`, `ref`, `random`, `process`, `map`, `set`, `json`, `http`, `stats`, `linear`, `signal`, `image`, `video`, `tensor`, and `neural`. Only referenced standard implementations are linked into a program. Boolean logic is spelled `and`, `or`, and `not`.
+| Area | Namespaces |
+| --- | --- |
+| Numeric foundations | `math`, `stats`, `linear`, `signal` |
+| Tensor execution | `tensor`, `autograd`, `gpu` |
+| Structured data | `map`, `set`, `json`, `ref` |
+| I/O and host interaction | `io`, `file`, `environment`, `process`, `http` |
+| Media | `image`, `video` |
+| Explicit state and coordination | `random`, `time`, `task`, `atomic` |
+| Tooling and program structure | `cli`, `test`, `reflect` |
 
-`math` provides `pi`, `e`, `abs`, `sqrt`, `min`, `max`, `sin`, `cos`, `tan`, `log`, `exp`, `pow`, `trunc`, `round`, `floor`, `ceil`, and `is_finite`; these functions have no bare spellings. `io.flush()` explicitly flushes standard output and returns `void | error`. `atomic.counter(initial)` creates an explicit shared `atomic.Counter` with checked atomic `add` and `load` operations for structured task sharing. `ref.Cell<T>` is the explicit opt-in reference-semantic container: copies retain one managed allocation, `.value` is shared, and `.same()` compares allocation identity.
+The same semantic-compression rule applies here: stateful or effectful behavior
+is named by its owning namespace, representation changes stay explicit, and
+fallible calls can use the ordinary fail-fast success context unless the program
+deliberately retains the `error` channel.
 
-`task.all(operations)` runs capture-free task functions with bounded workers and waits for all of them to finish. Integer- and floating-result task arrays return results in operation order; the counter overload is the explicit shared-state form.
-
-Command-line interfaces are declarative and expose their values through one binding:
-
-```quidra
-cli args
-    string source = argument()
-    int count = option(default = 1)
-    bool verbose = flag()
-
-print(args.source)
-print(args.count)
-```
-
-The field name is also the CLI name: `count` becomes `--count`, without repeating `"count"`. The CLI binding is a root top-level value and is not implicitly captured by functions; pass CLI-derived values explicitly when reusable code needs them. Direct execution accepts program arguments after the source path; `quidra run FILE.qui -- ARGS...` uses `--` as the compiler/program boundary.
-
-`file` provides whole-file text `read` / `write`, binary `read_bin` / `write_bin`, `exists`, `is_directory`, `remove`, `copy`, `move`, `mkdir`, and deterministic `list`. Incremental I/O uses value-semantic `file.Handle`: `file.open` is read-only, `file.create` truncates/creates a writable file, and `file.append` opens at the current end. Handles provide `read`, `read_line`, `read_bin`, `write`, `write_line`, `flush`, `seek`, and `close` as applicable; `read_line()` returns `string | none | error`. `file.is_directory(path)` returns `bool | error` (a missing path is `false`). `file.list(path)` returns sorted direct child paths as `string[] | error`; `file.list(path, recursive = true)` returns the full sorted descendant list. Filesystem failures are represented with `error` unions rather than silent fallback.
-
-`environment` treats an unset host variable as absence rather than failure:
-
-```quidra
-string | none home_path = environment.get("HOME")
-bool configured = environment.has("HOME")
-```
-
-`test` reuses normal Quidra semantics:
-
-```quidra
-test.check(int(2) + 2 == 4)
-test.equal("Quidra", "Quidra")
-```
-
-`test.equal` accepts exactly the types for which ordinary `==` is defined. A failed assertion exits with status 1.
-
-`time` keeps units explicit through opaque values:
-
-```quidra
-time.Instant start = time.now()
-time.sleep(time.seconds(0.01))
-time.Duration elapsed = time.since(start)
-print(elapsed.seconds())
-```
-
-`time.now()` uses a monotonic clock, so elapsed-time measurement is not affected by wall-clock adjustments. By default neither `time.now()` nor `time.since(start)` synchronizes GPU work. When completed GPU execution must be included, `time.now(sync = true)` waits for earlier GPU work before taking the start sample and `time.since(start, sync = true)` waits before taking the end sample.
-
-`random` uses explicit generator state rather than hidden global randomness:
-
-```quidra
-random.Generator rng = random.generator(seed = 42)
-int value = rng.int(1, 10)
-float sample = rng.float()
-bool bit = rng.bool()
-```
-
-The same seed produces the same sequence. Generator assignment follows ordinary Quidra value semantics, so a copied generator receives independent state. `Generator.int(start, end)` uses the half-open range `[start, end)`.
-
-`process.run` executes programs without implicit shell parsing:
-
-```quidra
-process.Result result = process.run("git", ["status", "--short"])
-print(result.started)
-print(result.status)
-print(result.output)
-print(result.error)
-```
-
-`process.run(program, args)` keeps the executable and argument array separate. When shell syntax is intentionally required, `process.shell(command)` runs the command through the platform shell (`/bin/sh -c` on POSIX systems and `cmd.exe /S /C` on Windows) and returns the same `process.Result`. Because the command is interpreted by a shell, untrusted text should remain structured arguments to `process.run` instead of being concatenated into a shell command. Quidra string interpolation still applies before the shell sees the command, so literal braces use `{{` and `}}`. `started` distinguishes launch failure from a program that started and returned a nonzero status. Standard output and standard error are captured separately. `process.exit(status)` terminates the current Quidra program with the given integer status; process termination is namespaced rather than consuming the global name `exit`.
-
-`map` and `set` are deterministic value containers:
-
-```quidra
-map.Map<string, int> counts = map.Map<string, int>()
-counts.set("apple", 2)
-counts.set("banana", 1)
-counts.remove("banana")
-auto apple = counts.get("apple")
-match apple
-    int value
-        print(value)
-    none
-        print("missing")
-string[] keys = counts.keys()
-for key in keys
-    print(key)
-
-set.Set<string> tags = set.Set<string>()
-tags.add("compiler")
-tags.add("ai")
-tags.remove("ai")
-print(tags.has("compiler"))
-```
-
-Keys/elements are currently fixed-width integer types, `bigint`, `bool`, or `string` values. Floating-point and `bigreal` keys/elements are not supported. Insertion order is stable; successful removal preserves the relative order of survivors, and reinsertion appends at the end. Ordinary assignment copies container state independently, following the same value semantics as arrays and classes.
-
-`json` exposes immutable parsed values without collapsing JSON `null` into Quidra `none`:
-
-```quidra
-string source = "{{" + QUOTE + "name" + QUOTE + ":" + QUOTE + "Quidra" + QUOTE + "," + QUOTE + "items" + QUOTE + ":[1,2]}}"
-auto parsed = json.parse(source)
-match parsed
-    json.Value root
-        auto name = root.get("name")
-        match name
-            json.Value value
-                auto text = value.text()
-                match text
-                    string content
-                        print(content)
-                    error problem
-                        print(problem)
-            none
-                print("missing")
-            error problem
-                print(problem)
-        print(root.encode())
-    error problem
-        print(problem)
-```
-
-`none` means a missing object key or out-of-range array index. A JSON `null` remains a real `json.Value` whose `kind()` is `"null"`. Typed accessors return `error` on kind mismatch. Values are immutable; structural comparison is explicit with `equal`.
-
-
-### HTTP
-
-```quidra
-auto result = http.get("https://example.com")
-match result
-    http.Response response
-        print(response.status)
-        print(len(response.body))
-        auto content_type = response.header("content-type")
-        match content_type
-            string value
-                print(value)
-            none
-                print("missing")
-    error problem
-        print(problem)
-```
-
-`http.Response.body` is `bin`, not `string`, because an HTTP body is not necessarily text. Header lookup is ASCII case-insensitive and a missing header is `none`. HTTP status codes such as 404 and 500 still produce a `Response`; DNS, TLS, connection, redirect, timeout, and protocol failures produce `error`. The runtime supports only `http://` and `https://`, follows at most 10 redirects, keeps TLS certificate verification enabled, and captures the complete response body in memory.
-
-### Tensor numerics and image I/O
-
-`stats.sum(value)`, `stats.min(value)`, and `stats.max(value)` reduce a numeric tensor to a scalar with the same element type; integer `sum` remains overflow-checked. `stats.mean(value)` returns `float`. Empty `min`/`max`/`mean` and partially uninitialized inputs fail deterministically rather than inventing missing values. GPU reductions execute on the selected device and transfer only the explicit scalar result to the host.
-
-`linear.dot(a, b)` computes a scalar dot product for same-length rank-1 numeric tensors. `linear.matmul(a, b)` supports `[k] × [k,n] -> [n]`, `[m,k] × [k] -> [m]`, and `[m,k] × [k,n] -> [m,n]`. All forms require identical element types, preserve that numeric type and tensor device placement, and keep integer multiplication and accumulation overflow-checked.
-
-Image I/O is explicit and tensor-native:
-
-```quidra
-tensor<uint16> | error loaded = image.read("input.png")
-match loaded
-    tensor<uint16> pixels
-        auto written = image.write("output.png", pixels)
-        match written
-            void
-                print("saved")
-            error problem
-                print(problem)
-    error problem
-        print(problem)
-```
-
-Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample type and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channel = value` (which must evaluate to 1, 3, or 4) to request channel conversion and `type = float32` (or another numeric built-in type) to request element-type conversion. These option values can drive diagnostics and conversion behavior but do not narrow an `auto` result type; write the expected union type explicitly when the result type must be fixed. Type conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor element type exactly; alpha is removed only when an explicit channel conversion requests that result.
-
-Video decoding is streaming and tensor-native:
-
-```quidra
-auto opened = video.open("clip.mp4")
-match opened
-    video.Reader reader
-        print(reader.width())
-        print(reader.height())
-        tensor<uint8><3, _, _> | none | error next = reader.read()
-        match next
-            tensor<uint8><3, _, _> frame
-                int[] shape = frame.shape()
-                print(shape[0])
-                print(shape[1])
-                print(shape[2])
-            none
-                print("eof")
-            error problem
-                print(problem)
-    error problem
-        print(problem)
-```
-
-`video.open(path)` returns `video.Reader | error`. `Reader.read()` returns one CPU CHW frame, `none` at clean end-of-stream, or `error` on failure. The default layout is RGB; `channel = 1|3|4` explicitly requests gray/RGB/RGBA, and `type = T` explicitly requests numeric representation conversion. Decode precision is kept as `uint8` or `uint16` before explicit conversion, so high-bit-depth video is not silently narrowed. `width()`, `height()`, `fps()`, `frames()`, `duration()`, `position()`, and `seek(frame)` expose metadata and explicit logical frame positioning. Optional metadata is represented with `none`. Reader copies have independent positions, and frames move to a GPU only through an explicit `.gpu(n)`.
-
-
-The library boundary is intentionally small:
+Core intentionally stops below domain frameworks:
 
 ```text
-standard foundations
-tensor
-├── image       type-preserving tensor image I/O
-├── video       streaming tensor video decode
-└── neural      autodiff, gradients, parameters, and training state
+Quidra Core
+├── tensor / autograd    numeric storage, devices, primitives, gradients
+├── image / video        tensor-native media I/O
+└── standard foundations
 
-official source packages
-├── dnn         layers, activations, losses, and optimizers
-└── vision      tensor image processing and computer vision
+Official source packages
+├── dnn                  Parameter/State, layers, losses, optimizers
+└── vision               differentiable image processing and computer vision
 ```
 
-`dnn` and `vision` are installed and imported through the ordinary package
-system; neither package receives compiler-specific name handling.
+`dnn` and `vision` use the ordinary package system and receive no
+compiler-specific name handling.
+
+For the complete standard-library contracts and examples, see
+[Language semantics](docs/spec/language.md).
 
 ## License
 

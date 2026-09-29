@@ -51,7 +51,7 @@ ordinary version number, not a decorated one.
 
 `project.toml` at the repository root is the single source of truth for project
 metadata. It owns the project name, CLI name, source extension, tagline and
-version; the language version; the ABI, IR and package-schema numbers; the
+version; the ABI, IR and package-schema numbers; the
 repository URLs; the backend id/display/kind table; the supported operating
 systems and targets; and the toolchain minimums. Nothing else in this
 repository may declare one of those values independently.
@@ -59,7 +59,7 @@ repository may declare one of those values independently.
 Everything else is derived from it:
 
 - `python3 scripts/sync_metadata.py` regenerates `quidra.manifest.json` and the
-  compiler version printed in the README REPL transcript.
+  Quidra version printed in the README REPL transcript.
 - CMake reads the version out of `project.toml` before `project()` and
   generates `include/quidra/project.hpp` at configure time.
 

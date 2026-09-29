@@ -101,6 +101,49 @@ if [[ "$transfer_output" != "$transfer_expected" ]]; then
     exit 1
 fi
 
+cat > "$TMP/gpu-extrema.qui" <<'QUI'
+tensor<int> values = tensor.zeros<int>([2, 3], gpu = 0)
+values[0, 0] = 5
+values[0, 1] = -2
+values[0, 2] = 4
+values[1, 0] = 9
+values[1, 1] = 3
+values[1, 2] = 7
+tensor<int> maxima = values.max_last().cpu()
+tensor<int> minima = values.min_last().cpu()
+print(maxima[0, 0].item() == 5)
+print(maxima[1, 2].item() == 9)
+print(minima[0, 1].item() == -2)
+print(minima[1, 0].item() == 3)
+QUI
+gpu_extrema_output="$("$QUIDRA" run "$TMP/gpu-extrema.qui")"
+gpu_extrema_expected="$(printf 'true\ntrue\ntrue\ntrue')"
+if [[ "$gpu_extrema_output" != "$gpu_extrema_expected" ]]; then
+    echo "unexpected fake-GPU extrema output:" >&2
+    printf '%s\n' "$gpu_extrema_output" >&2
+    exit 1
+fi
+
+cat > "$TMP/gpu-min-last-autograd.qui" <<'QUI'
+tensor<float32> values = tensor.zeros<float32>([1, 3], gpu = 0)
+values[0, 0] = float32(2)
+values[0, 1] = float32(1)
+values[0, 2] = float32(3)
+tensor<float32> tracked = values.track()
+tracked.min_last().mean().backward(&tracked)
+tensor<float32> gradient = tracked.grad.cpu()
+print(gradient[0, 0].item() == float32(0))
+print(gradient[0, 1].item() == float32(1))
+print(gradient[0, 2].item() == float32(0))
+QUI
+gpu_min_last_autograd_output="$("$QUIDRA" run "$TMP/gpu-min-last-autograd.qui")"
+gpu_min_last_autograd_expected="$(printf 'true\ntrue\ntrue')"
+if [[ "$gpu_min_last_autograd_output" != "$gpu_min_last_autograd_expected" ]]; then
+    echo "unexpected fake-GPU min_last autograd output:" >&2
+    printf '%s\n' "$gpu_min_last_autograd_output" >&2
+    exit 1
+fi
+
 cat > "$TMP/gpu-copy-on-write.qui" <<'QUI'
 tensor<int> original = tensor.ones<int>([2], gpu = 0)
 tensor<int> copied = original
@@ -247,20 +290,20 @@ print(divided[0].item())
 print(negated[0].item())
 
 tensor<float32> compare_high = tensor.ones<float32>([2], gpu = 0) * 2.0
-print(left == right)
-print(left != compare_high)
-print(left < compare_high)
-print(left <= compare_high)
-print(left > compare_high)
-print(compare_high >= left)
+print((left == right).all())
+print((left != compare_high).any())
+print((left < compare_high).all())
+print((left <= compare_high).all())
+print((left > compare_high).any())
+print((compare_high >= left).all())
 tensor<float32> compare_mixed = tensor.ones<float32>([2], gpu = 0)
 compare_mixed[1] = 2.0
-print(left != compare_mixed)
+print((left != compare_mixed).any())
 
 tensor<float32> compare_matrix = tensor.ones<float32>([2, 3], gpu = 0)
 tensor<float32> compare_view_a = compare_matrix[0:2, 1:3]
 tensor<float32> compare_view_b = compare_matrix[0:2, 1:3]
-print(compare_view_a == compare_view_b)
+print((compare_view_a == compare_view_b).all())
 
 tensor<int> values = tensor.zeros<int>([3], gpu = 0)
 values[0] = 1
@@ -318,28 +361,110 @@ print(direct[1].item())
 QUI
 
 gpu_compute_output="$("$QUIDRA" run "$TMP/gpu-compute.qui")"
-gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\ntrue\ntrue\ntrue\ntrue\nfalse\ntrue\nfalse\ntrue\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n2\n3.0\n2\n3.0\n3.0\n3.0\n6.0\n6.0\n2.0\n6.0\n8.0\n8.0\n2.0\n2.0\n5')"
+gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\ntrue\ntrue\ntrue\ntrue\nfalse\ntrue\ntrue\ntrue\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n2\n3.0\n2\n3.0\n3.0\n3.0\n6.0\n6.0\n2.0\n6.0\n8.0\n8.0\n2.0\n2.0\n5')"
 if [[ "$gpu_compute_output" != "$gpu_compute_expected" ]]; then
     echo "unexpected fake-GPU compute output:" >&2
     printf '%s\n' "$gpu_compute_output" >&2
     exit 1
 fi
 
-cat > "$TMP/gpu-neural-unary.qui" <<'QUI'
+cat > "$TMP/gpu-scatter.qui" <<'QUI'
+tensor<float32> values = tensor.ones<float32>([3], gpu = 0).track()
+tensor<float32> scattered = values.scatter([0, 0, 2], [4])
+tensor<float32> host = scattered.untrack().cpu()
+print(host[0].item() == float32(2))
+print(host[1].item() == float32(0))
+print(host[2].item() == float32(1))
+print(host[3].item() == float32(0))
+scattered.mean().backward(&values)
+tensor<float32> gradient = values.grad.cpu()
+print(gradient[0].item() == float32(0.25))
+print(gradient[1].item() == float32(0.25))
+print(gradient[2].item() == float32(0.25))
+
+tensor<int> integer_values = tensor.zeros<int>([3], gpu = 0)
+integer_values[0] = 1
+integer_values[1] = 2
+integer_values[2] = 3
+tensor<int> integer_scattered = integer_values.scatter([0, 0, 2], [4]).cpu()
+print(integer_scattered[0].item() == 3)
+print(integer_scattered[1].item() == 0)
+print(integer_scattered[2].item() == 3)
+print(integer_scattered[3].item() == 0)
+QUI
+gpu_scatter_output="$("$QUIDRA" run "$TMP/gpu-scatter.qui")"
+gpu_scatter_expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+if [[ "$gpu_scatter_output" != "$gpu_scatter_expected" ]]; then
+    echo "unexpected fake-GPU tensor scatter output:" >&2
+    printf '%s\n' "$gpu_scatter_output" >&2
+    exit 1
+fi
+
+cat > "$TMP/gpu-convolve.qui" <<'QUI'
+tensor<float32> source_signal = tensor.zeros<float32>([4], gpu = 0)
+source_signal[0] = float32(1)
+source_signal[1] = float32(2)
+source_signal[2] = float32(3)
+source_signal[3] = float32(4)
+tensor<float32> kernel = tensor.zeros<float32>([2], gpu = 0)
+kernel[0] = float32(10)
+kernel[1] = float32(1)
+tensor<float32> convolved = source_signal.convolve(kernel)
+tensor<float32> host = convolved.cpu()
+print(host.shape()[0] == 3)
+print(host[0].item() == float32(21))
+print(host[2].item() == float32(43))
+
+tensor<float32> tracked_source = tensor.ones<float32>([3], gpu = 0).track()
+tensor<float32> tracked_kernel = tensor.ones<float32>([2], gpu = 0).track()
+tracked_source.convolve(tracked_kernel).mean().backward(&tracked_source, &tracked_kernel)
+tensor<float32> source_grad = tracked_source.grad.cpu()
+tensor<float32> kernel_grad = tracked_kernel.grad.cpu()
+print(source_grad[0].item() == float32(0.5))
+print(source_grad[1].item() == float32(1))
+print(source_grad[2].item() == float32(0.5))
+print(kernel_grad[0].item() == float32(1))
+print(kernel_grad[1].item() == float32(1))
+
+tensor<int> integer_signal = tensor.zeros<int>([4], gpu = 0)
+integer_signal[0] = 1
+integer_signal[1] = 2
+integer_signal[2] = 3
+integer_signal[3] = 4
+tensor<int> integer_kernel = tensor.zeros<int>([2], gpu = 0)
+integer_kernel[0] = 10
+integer_kernel[1] = 1
+tensor<int> integer_convolved = integer_signal.convolve(
+    integer_kernel, padding = 1
+).cpu()
+print(integer_convolved.shape()[0] == 5)
+print(integer_convolved[0].item() == 10)
+print(integer_convolved[1].item() == 21)
+print(integer_convolved[4].item() == 4)
+QUI
+gpu_convolve_output="$("$QUIDRA" run "$TMP/gpu-convolve.qui")"
+gpu_convolve_expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+if [[ "$gpu_convolve_output" != "$gpu_convolve_expected" ]]; then
+    echo "unexpected fake-GPU tensor convolve output:" >&2
+    printf '%s\n' "$gpu_convolve_output" >&2
+    exit 1
+fi
+
+cat > "$TMP/gpu-autograd-unary.qui" <<'QUI'
 tensor<float> value = tensor.ones<float>([1], gpu = 0)
-neural<float> exponential = neural.exponential(neural.track(value))
-neural<float> restored = neural.logarithm(exponential)
+tensor<float> exponential = value.track().exp()
+tensor<float> restored = exponential.log()
 float result = restored.untrack().reshape([]).item()
 print(result > 0.999999999 and result < 1.000000001)
 QUI
-if [[ "$("$QUIDRA" run "$TMP/gpu-neural-unary.qui")" != "true" ]]; then
-    echo "unexpected fake-GPU float64 neural exp/log result" >&2
+if [[ "$("$QUIDRA" run "$TMP/gpu-autograd-unary.qui")" != "true" ]]; then
+    echo "unexpected fake-GPU float64 autograd exp/log result" >&2
     exit 1
 fi
 
 cat > "$TMP/gpu-log-domain.qui" <<'QUI'
 tensor<float32> value = tensor.zeros<float32>([1], gpu = 0)
-neural<float32> invalid = neural.logarithm(neural.track(value))
+tensor<float32> invalid = value.track().log()
 print(invalid.untrack().reshape([]).item())
 QUI
 expect_runtime_error "$TMP/gpu-log-domain.qui" "logarithm requires finite positive values"
@@ -486,24 +611,10 @@ print(invalid[0].item())
 QUI
 expect_runtime_error "$TMP/integer-cast-range.qui" "tensor cast is unsupported or a value is outside the target range"
 
-cat > "$TMP/neural-all-reduce-sum.qui" <<'QUI'
-tensor<float32> first = tensor.ones<float32>([2], gpu = 0)
-tensor<float32> second = tensor.ones<float32>([2], gpu = 1) * float32(2)
-tensor<float32>[] values = [first, second]
-neural.all_reduce_sum(&values)
-print(values[0].cpu()[0].item())
-print(values[1].cpu()[1].item())
-QUI
-all_reduce_output="$("$QUIDRA" run "$TMP/neural-all-reduce-sum.qui")"
-if [[ "$all_reduce_output" != "$(printf '3.0\n3.0')" ]]; then
-    echo "unexpected fake-GPU neural.all_reduce_sum output:" >&2
-    printf '%s\n' "$all_reduce_output" >&2
-    exit 1
-fi
 
 cat > "$TMP/image-write-no-fallback.qui" <<'QUI'
 tensor<uint8> value = tensor.ones<uint8>([1, 1, 1], gpu = 0)
-auto written = image.write("should-not-exist.png", value)
+auto | error written = image.write("should-not-exist.png", value)
 match written
     void
         print("unexpected success")
@@ -520,21 +631,30 @@ if [[ -e "$TMP/should-not-exist.png" ]]; then
     exit 1
 fi
 
-cat > "$TMP/gpu-autograd-fanin.qui" <<'QUI'
-class Model
-    neural.Parameter<float32> value
+cat > "$TMP/tracked-transfer-guard.qui" <<'QUI'
+tensor<float32> cpu_value = tensor.ones<float32>([1]).track()
+tensor<float32> invalid_gpu = cpu_value.gpu(0)
+print(invalid_gpu.shape()[0])
+QUI
+expect_runtime_error "$TMP/tracked-transfer-guard.qui" "gpu() on a tracked tensor requires explicit untrack() first"
 
-Model model
-model.value = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) )
-neural<float32> first_track = model.value.track()
-neural<float32> second_track = model.value.track()
-neural<float32> first = first_track * first_track
-neural<float32> second = second_track * second_track
-neural<float32> loss = neural.mean(first + second)
-neural.Gradients gradients = neural.grad(loss)
-neural.update(&model, gradients, rate = 0.1)
-float32 updated = model.value.raw().cpu()[0].item()
-print(updated > float32(0.5999) and updated < float32(0.6001))
+cat > "$TMP/tracked-cpu-transfer-guard.qui" <<'QUI'
+tensor<float32> gpu_value = tensor.ones<float32>([1], gpu = 0).track()
+tensor<float32> invalid_cpu = gpu_value.cpu()
+print(invalid_cpu.shape()[0])
+QUI
+expect_runtime_error "$TMP/tracked-cpu-transfer-guard.qui" "cpu() on a tracked tensor requires explicit untrack() first"
+
+cat > "$TMP/gpu-autograd-fanin.qui" <<'QUI'
+tensor<float32> source = tensor.ones<float32>([1], gpu = 0)
+tensor<float32> first_track = source.track()
+tensor<float32> second_track = source.track()
+tensor<float32> first = first_track * first_track
+tensor<float32> second = second_track * second_track
+tensor<float32> loss = (first + second).mean()
+loss.backward(&source)
+float32 gradient = source.grad.cpu()[0].item()
+print(gradient > float32(3.9999) and gradient < float32(4.0001))
 QUI
 if [[ "$("$QUIDRA" run "$TMP/gpu-autograd-fanin.qui")" != "true" ]]; then
     echo "unexpected fake-GPU autograd fan-in result" >&2
@@ -542,21 +662,16 @@ if [[ "$("$QUIDRA" run "$TMP/gpu-autograd-fanin.qui")" != "true" ]]; then
 fi
 
 cat > "$TMP/gpu-autograd-div.qui" <<'QUI'
-class DivModel
-    neural.Parameter<float32> left
-    neural.Parameter<float32> right
-
-DivModel model
-model.left = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(2) )
-model.right = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(4) )
-neural<float32> quotient = model.left.track() / model.right.track()
-neural<float32> loss = neural.mean(quotient)
-neural.Gradients gradients = neural.grad(loss)
-neural.update(&model, gradients, rate = 0.1)
-float32 left_value = model.left.raw().cpu()[0].item()
-float32 right_value = model.right.raw().cpu()[0].item()
-print(left_value > float32(1.9749) and left_value < float32(1.9751))
-print(right_value > float32(4.0124) and right_value < float32(4.0126))
+tensor<float32> left = tensor.ones<float32>([1], gpu = 0) * float32(2)
+tensor<float32> right = tensor.ones<float32>([1], gpu = 0) * float32(4)
+tensor<float32> left_tracked = left.track()
+tensor<float32> right_tracked = right.track()
+tensor<float32> quotient = left_tracked / right_tracked
+quotient.mean().backward(&left, &right)
+float32 left_grad = left.grad.cpu()[0].item()
+float32 right_grad = right.grad.cpu()[0].item()
+print(left_grad > float32(0.2499) and left_grad < float32(0.2501))
+print(right_grad > float32(-0.1251) and right_grad < float32(-0.1249))
 QUI
 div_output="$("$QUIDRA" run "$TMP/gpu-autograd-div.qui")"
 if [[ "$div_output" != "$(printf 'true\ntrue')" ]]; then
@@ -565,21 +680,36 @@ if [[ "$div_output" != "$(printf 'true\ntrue')" ]]; then
     exit 1
 fi
 
+cat > "$TMP/gpu-autograd-broadcast.qui" <<'QUI'
+tensor<float32> left = (
+    tensor.ones<float32>([2, 1], gpu = 0) * float32(2)
+).track()
+tensor<float32> right = tensor.ones<float32>([2, 3], gpu = 0).track()
+tensor<float32> output = left * right
+output.mean().backward(&left, &right)
+tensor<float32> left_grad = left.grad.cpu()
+tensor<float32> right_grad = right.grad.cpu()
+print(left_grad[0, 0].item() == float32(0.5))
+print(left_grad[1, 0].item() == float32(0.5))
+print(right_grad[0, 0].item() > float32(0.3333) and right_grad[0, 0].item() < float32(0.3334))
+print(right_grad[1, 2].item() > float32(0.3333) and right_grad[1, 2].item() < float32(0.3334))
+QUI
+broadcast_output="$("$QUIDRA" run "$TMP/gpu-autograd-broadcast.qui")"
+if [[ "$broadcast_output" != "$(printf 'true\ntrue\ntrue\ntrue')" ]]; then
+    echo "unexpected fake-GPU broadcast autograd result:" >&2
+    printf '%s\n' "$broadcast_output" >&2
+    exit 1
+fi
 
 cat > "$TMP/gpu-autograd-scalar.qui" <<'QUI'
-class ScalarModel
-    neural.Parameter<float32> value
-
-ScalarModel model
-model.value = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(2) )
-neural<float32> x = model.value.track()
-neural<float32> transformed = (float32(5) - x * float32(3)) / float32(2)
-neural<float32> reciprocal = float32(8) / x
-neural<float32> loss = neural.mean(transformed + reciprocal)
-neural.Gradients gradients = neural.grad(loss)
-neural.update(&model, gradients, rate = 0.1)
-float32 updated = model.value.raw().cpu()[0].item()
-print(updated > float32(2.3499) and updated < float32(2.3501))
+tensor<float32> source = tensor.ones<float32>([1], gpu = 0) * float32(2)
+tensor<float32> x = source.track()
+tensor<float32> transformed = (float32(5) - x * float32(3)) / float32(2)
+tensor<float32> reciprocal = float32(8) / x
+tensor<float32> loss = (transformed + reciprocal).mean()
+loss.backward(&source)
+float32 gradient = source.grad.cpu()[0].item()
+print(gradient > float32(-3.5001) and gradient < float32(-3.4999))
 QUI
 if [[ "$("$QUIDRA" run "$TMP/gpu-autograd-scalar.qui")" != "true" ]]; then
     echo "unexpected fake-GPU scalar autograd result" >&2

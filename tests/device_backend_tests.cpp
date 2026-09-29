@@ -113,53 +113,6 @@ int main() {
             std::vector<float>({1.0F, 2.0F, 3.0F, 4.0F}),
         "matmul kernel result mismatch");
 
-    auto affine_input = buffer(gpu0, 2 * sizeof(float), error);
-    auto affine_weight = buffer(gpu0, 2 * sizeof(float), error);
-    auto affine_bias = buffer(gpu0, sizeof(float), error);
-    auto affine_output = buffer(gpu0, sizeof(float), error);
-    require(affine_input && affine_weight && affine_bias && affine_output, error);
-    upload<float>(affine_input.get(), {1.0F, 1.0F}, error);
-    upload<float>(affine_weight.get(), {2.0F, 3.0F}, error);
-    upload<float>(affine_bias.get(), {4.0F}, error);
-    require(
-        quidra::device::compute_affine(
-            affine_output.get(), affine_input.get(), affine_weight.get(),
-            affine_bias.get(), 10, 1, 2, 1, error),
-        error);
-    require(download<float>(affine_output.get(), 1, error)[0] == 9.0F,
-            "affine kernel result mismatch");
-
-    auto image_input = buffer(gpu0, 4, error);
-    auto image_output = buffer(gpu0, 4, error);
-    require(image_input && image_output, error);
-    upload<std::uint8_t>(image_input.get(), {0, 7, 8, 255}, error);
-    require(
-        quidra::device::compute_image_threshold(
-            image_output.get(), image_input.get(), 4, 8, 1, 9, error),
-        error);
-    require(
-        download<std::uint8_t>(image_output.get(), 4, error) ==
-            std::vector<std::uint8_t>({1, 1, 9, 9}),
-        "image threshold kernel result mismatch");
-
-    auto parameter = buffer(gpu0, sizeof(float), error);
-    auto gradient = buffer(gpu0, sizeof(float), error);
-    auto first = buffer(gpu0, sizeof(float), error);
-    auto second = buffer(gpu0, sizeof(float), error);
-    require(parameter && gradient && first && second, error);
-    upload<float>(parameter.get(), {1.0F}, error);
-    upload<float>(gradient.get(), {2.0F}, error);
-    upload<float>(first.get(), {0.0F}, error);
-    upload<float>(second.get(), {0.0F}, error);
-    require(
-        quidra::device::compute_moment_update(
-            parameter.get(), gradient.get(), first.get(), second.get(),
-            10, 1, 0.1, 0.9, 0.999, 1.0e-8, 0.1, 0.001, error),
-        error);
-    const float updated = download<float>(parameter.get(), 1, error)[0];
-    require(updated > 0.899F && updated < 0.901F,
-            "moment-update kernel result mismatch");
-
     auto int_left = buffer(gpu0, sizeof(std::int8_t), error);
     auto int_output = buffer(gpu0, sizeof(std::int8_t), error);
     require(int_left && int_output, error);
@@ -195,21 +148,6 @@ int main() {
     const float rounded = download<float>(narrow_float.get(), 1, error)[0];
     require(rounded > 0.099F && rounded < 0.101F,
             "float narrowing should allow deterministic precision loss");
-
-    auto reduce0 = buffer(gpu0, 4 * sizeof(float), error);
-    auto reduce1 = buffer(gpu1, 4 * sizeof(float), error);
-    require(reduce0 && reduce1, error);
-    upload<float>(reduce0.get(), {1.0F, 2.0F, 3.0F, 4.0F}, error);
-    upload<float>(reduce1.get(), {10.0F, 20.0F, 30.0F, 40.0F}, error);
-    require(
-        quidra::device::compute_all_reduce_sum(
-            {reduce0.get(), reduce1.get()}, 10, 4, error),
-        error);
-    const std::vector<float> reduce_expected{11.0F, 22.0F, 33.0F, 44.0F};
-    require(download<float>(reduce0.get(), 4, error) == reduce_expected,
-            "all-reduce sum mismatch on first device");
-    require(download<float>(reduce1.get(), 4, error) == reduce_expected,
-            "all-reduce sum mismatch on second device");
 
     auto other_device = buffer(gpu1, 4 * sizeof(float), error);
     require(static_cast<bool>(other_device), error);

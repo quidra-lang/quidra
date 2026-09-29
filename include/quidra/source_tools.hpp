@@ -33,6 +33,7 @@ struct InspectOptions {
 };
 
 std::string sha256_hex(std::string_view text);
+SourceInspection inspect_syntax_source(std::string_view source);
 SourceInspection inspect_source(std::string_view source, const CheckedProgram& checked);
 std::string inspect_source_json(std::string_view source,
                                 const CheckedProgram& checked,

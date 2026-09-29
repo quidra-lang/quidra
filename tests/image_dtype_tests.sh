@@ -5,24 +5,6 @@ QUIDRA="$1"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Keep every source-visible image intrinsic wired through the standard namespace.
-# rotate180 was once present in the intrinsic registry but omitted from
-# frontend standard_exports(), so package code saw UNKNOWN_MODULE_MEMBER.
-cat > "$TMP/rotate180-intrinsic.qui" <<'QUI'
-tensor<uint8> pixels = tensor.zeros<uint8>([1, 2, 2])
-pixels[0, 0, 0] = uint8(1)
-pixels[0, 0, 1] = uint8(2)
-pixels[0, 1, 0] = uint8(3)
-pixels[0, 1, 1] = uint8(4)
-tensor<uint8> rotated = image.tensor_rotate180(pixels)
-print(rotated[0, 0, 0].item())
-print(rotated[0, 0, 1].item())
-print(rotated[0, 1, 0].item())
-print(rotated[0, 1, 1].item())
-QUI
-rotate180_output="$("$QUIDRA" "$TMP/rotate180-intrinsic.qui")"
-[[ "$rotate180_output" == "$(printf '4\n3\n2\n1')" ]]
-
 python3 - "$TMP/u16.png" <<'PY'
 import binascii
 import struct
@@ -65,7 +47,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/narrow-mismatch.qui")" == "dtype-error" ]]
 
 cat > "$TMP/auto-u16.qui" <<QUI
-auto loaded = image.read("$TMP/u16.png")
+auto | error loaded = image.read("$TMP/u16.png")
 match loaded
     tensor<int8> pixels
         print("int8")
@@ -99,7 +81,7 @@ tensor<uint16> | error load_u16(string path)
     tensor<uint16> pixels = try image.read(path)
     return pixels
 
-auto loaded = load_u16("$TMP/u16.png")
+auto | error loaded = load_u16("$TMP/u16.png")
 match loaded
     tensor<uint16> pixels
         print(pixels[0, 0, 0].item())
@@ -122,7 +104,7 @@ grep -q 'TYPE_MISMATCH' "$TMP/no-implicit-error-drop.json"
 cat > "$TMP/tiff-dtypes.qui" <<QUI
 tensor<int8> i8 = tensor.zeros<int8>([1, 1, 1])
 i8[0, 0, 0] = int8(-8)
-auto i8_written = image.write("$TMP/i8.tiff", i8)
+auto | error i8_written = image.write("$TMP/i8.tiff", i8)
 match i8_written
     void
         tensor<int8> | error loaded = image.read("$TMP/i8.tiff")
@@ -136,7 +118,7 @@ match i8_written
 
 tensor<int16> i16 = tensor.zeros<int16>([1, 1, 1])
 i16[0, 0, 0] = int16(-1600)
-auto i16_written = image.write("$TMP/i16.tiff", i16)
+auto | error i16_written = image.write("$TMP/i16.tiff", i16)
 match i16_written
     void
         tensor<int16> | error loaded = image.read("$TMP/i16.tiff")
@@ -150,7 +132,7 @@ match i16_written
 
 tensor<int32> i32 = tensor.zeros<int32>([1, 1, 1])
 i32[0, 0, 0] = int32(-320000)
-auto i32_written = image.write("$TMP/i32.tiff", i32)
+auto | error i32_written = image.write("$TMP/i32.tiff", i32)
 match i32_written
     void
         tensor<int32> | error loaded = image.read("$TMP/i32.tiff")
@@ -164,7 +146,7 @@ match i32_written
 
 tensor<int> i64 = tensor.zeros<int>([1, 1, 1])
 i64[0, 0, 0] = -640000
-auto i64_written = image.write("$TMP/i64.tiff", i64)
+auto | error i64_written = image.write("$TMP/i64.tiff", i64)
 match i64_written
     void
         tensor<int> | error loaded = image.read("$TMP/i64.tiff")
@@ -178,7 +160,7 @@ match i64_written
 
 tensor<uint8> u8 = tensor.zeros<uint8>([1, 1, 1])
 u8[0, 0, 0] = uint8(8)
-auto u8_written = image.write("$TMP/u8.tiff", u8)
+auto | error u8_written = image.write("$TMP/u8.tiff", u8)
 match u8_written
     void
         tensor<uint8> | error loaded = image.read("$TMP/u8.tiff")
@@ -192,7 +174,7 @@ match u8_written
 
 tensor<uint16> u16 = tensor.zeros<uint16>([1, 1, 1])
 u16[0, 0, 0] = uint16(1600)
-auto u16_written = image.write("$TMP/u16.tiff", u16)
+auto | error u16_written = image.write("$TMP/u16.tiff", u16)
 match u16_written
     void
         tensor<uint16> | error loaded = image.read("$TMP/u16.tiff")
@@ -206,7 +188,7 @@ match u16_written
 
 tensor<uint32> u32 = tensor.zeros<uint32>([1, 1, 1])
 u32[0, 0, 0] = uint32(320000)
-auto u32_written = image.write("$TMP/u32.tiff", u32)
+auto | error u32_written = image.write("$TMP/u32.tiff", u32)
 match u32_written
     void
         tensor<uint32> | error loaded = image.read("$TMP/u32.tiff")
@@ -220,7 +202,7 @@ match u32_written
 
 tensor<uint64> u64 = tensor.zeros<uint64>([1, 1, 1])
 u64[0, 0, 0] = uint64(640000)
-auto u64_written = image.write("$TMP/u64.tiff", u64)
+auto | error u64_written = image.write("$TMP/u64.tiff", u64)
 match u64_written
     void
         tensor<uint64> | error loaded = image.read("$TMP/u64.tiff")
@@ -234,7 +216,7 @@ match u64_written
 
 tensor<float32> f32 = tensor.zeros<float32>([1, 1, 1])
 f32[0, 0, 0] = float32(1.5)
-auto f32_written = image.write("$TMP/f32.tiff", f32)
+auto | error f32_written = image.write("$TMP/f32.tiff", f32)
 match f32_written
     void
         tensor<float32> | error loaded = image.read("$TMP/f32.tiff")
@@ -248,7 +230,7 @@ match f32_written
 
 tensor<float> f64 = tensor.zeros<float>([1, 1, 1])
 f64[0, 0, 0] = 2.5
-auto f64_written = image.write("$TMP/f64.tiff", f64)
+auto | error f64_written = image.write("$TMP/f64.tiff", f64)
 match f64_written
     void
         tensor<float> | error loaded = image.read("$TMP/f64.tiff")
@@ -263,7 +245,7 @@ match f64_written
 // uint16 PNG writing must preserve the exact 16-bit sample.
 tensor<uint16> png16 = tensor.zeros<uint16>([1, 1, 1])
 png16[0, 0, 0] = uint16(4660)
-auto png16_written = image.write("$TMP/written-u16.png", png16)
+auto | error png16_written = image.write("$TMP/written-u16.png", png16)
 match png16_written
     void
         tensor<uint16> | error loaded = image.read("$TMP/written-u16.png")
@@ -280,7 +262,7 @@ tensor<uint8> rgb = tensor.zeros<uint8>([3, 1, 1])
 rgb[0, 0, 0] = uint8(255)
 rgb[1, 0, 0] = uint8(0)
 rgb[2, 0, 0] = uint8(0)
-auto rgb_written = image.write("$TMP/rgb.png", rgb)
+auto | error rgb_written = image.write("$TMP/rgb.png", rgb)
 match rgb_written
     void
         tensor<uint8><3, _, _> | error exact_rgb = image.read("$TMP/rgb.png")
@@ -314,7 +296,7 @@ match rgb_written
         print(problem)
 
 // A target format must reject an element type it cannot represent instead of narrowing.
-auto bad_jpeg = image.write("$TMP/u16.jpg", png16)
+auto | error bad_jpeg = image.write("$TMP/u16.jpg", png16)
 match bad_jpeg
     void
         print("converted")

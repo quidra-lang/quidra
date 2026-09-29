@@ -60,6 +60,7 @@ private:
     StmtPtr return_stmt();
     StmtPtr loop_control_stmt();
     StmtPtr if_stmt();
+    StmtPtr main_guard_stmt();
     StmtPtr while_stmt();
     StmtPtr for_stmt();
     StmtPtr match_stmt();

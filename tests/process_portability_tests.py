@@ -41,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix="quidra process ") as temporary:
 process.Result result = process.shell(command)
 print(result.started)
 print(result.status == 0)
-auto loaded = file.read(output_path)
+auto | error loaded = file.read(output_path)
 match loaded
     string value
         print(value == "shell-ok")

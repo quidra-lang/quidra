@@ -59,7 +59,7 @@ def prelude(path: Path, code: str) -> str:
     if rel == "README.md":
         if code.lstrip().startswith("int | none | error doubled("):
             return LOOKUP
-        if code.strip().startswith("auto result = lookup(1)"):
+        if code.strip().startswith("auto result = lookup(1)") or code.strip().startswith("auto | error result = lookup(1)"):
             return LOOKUP
     if rel == "docs/spec/language.md":
         stripped = code.lstrip()
@@ -101,10 +101,21 @@ def fixtures(directory: Path) -> None:
     (dnn / "main.qui").write_text(
         """public import mode = "./mode.qui"
 
-class Linear
+class Parameter<T: floating>
+    tensor<T> stored
+    private autograd.Target gradient_state
+
+    construct(tensor<T> value)
+        stored = value
+        gradient_state = autograd.target()
+
+    tensor<T> track()
+        return stored.track(&gradient_state)
+
+class FC
     int marker = 0
 
-    Linear | error construct(int features_in, int features_out)
+    FC | error construct(int features_in, int features_out)
         marker = features_in + features_out
 
 class Adam
@@ -112,6 +123,12 @@ class Adam
 
     Adam | error construct()
         marker = 1
+
+    void zero_grad<M>(M &model)
+        return
+
+    void step<M>(M &model)
+        return
 """,
         encoding="utf-8",
     )
@@ -153,8 +170,8 @@ def verify_machine_tooling(tmp: Path, failures: list[str]) -> None:
         schema = json.loads(patch_schema.stdout)
         assert patch_schema.returncode == 0
         assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-        assert schema["x-quidra-supported-versions"] == [1, 2]
-        assert schema["x-quidra-preferred-version"] == 2
+        assert schema["x-quidra-supported-versions"] == [1, 2, 3]
+        assert schema["x-quidra-preferred-version"] == 3
     except (AssertionError, KeyError, json.JSONDecodeError) as exc:
         failures.append(
             "describe patch-schema must emit the supported machine-readable patch schema; "
@@ -165,12 +182,20 @@ def verify_machine_tooling(tmp: Path, failures: list[str]) -> None:
     try:
         interface = json.loads(llm.stdout)
         assert llm.returncode == 0
-        assert interface["schema_version"] == 1
+        assert interface["schema_version"] == 2
         assert interface["language"] == "Quidra"
         assert interface["generation"]["grammar_command"] == "quidra describe grammar"
         assert interface["repair"]["schema_command"] == "quidra describe patch-schema"
-        assert interface["repair"]["preferred_schema_version"] == 2
+        assert interface["repair"]["supported_schema_versions"] == [1, 2, 3]
+        assert interface["repair"]["preferred_schema_version"] == 3
         assert interface["repair"]["apply_command"] == "quidra patch FILE.qui PATCH.json --write"
+        assert interface["grammar"]["fingerprint"].startswith("sha256:")
+        assert interface["inspection"]["schema_version"] == 1
+        assert interface["diagnostics"]["runtime_provenance"]["schema_version"] == 1
+        assert interface["diagnostics"]["runtime_provenance"]["fields"] == [
+            "source_revision", "node_id", "node_kind", "source_file"
+        ]
+        assert interface["repair"]["replacement_forms"] == ["source", "structured_node"]
         assert interface["validation_sequence"] == [
             "quidra fmt FILE.qui --check",
             "quidra check FILE.qui --json",
@@ -338,6 +363,26 @@ def verify_standard_namespace_lists(failures: list[str]) -> None:
                 f"{documented!r} != {canonical!r}"
             )
 
+def verify_first_party_surface_docs(failures: list[str]) -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    required = [
+        r"### Public Playground \(WebAssembly \+ native runner\)",
+        r"\*\*Build\*\* and \*\*Run\*\* use a separate native sandbox runner",
+        r"runner reports the same\s+language version and exact same Core commit",
+    ]
+    for pattern in required:
+        if not re.search(pattern, readme, re.S):
+            failures.append(
+                "README.md public Playground description is not aligned with "
+                f"the browser-tooling/native-runner contract: missing {pattern!r}"
+            )
+    for stale in ("fully static site", "no Run button", "source never leaves the tab"):
+        if stale in readme:
+            failures.append(
+                f"README.md still describes the obsolete public Playground contract: {stale!r}"
+            )
+
+
 def main() -> int:
     total = 0
     failures: list[str] = []
@@ -397,6 +442,7 @@ def main() -> int:
 
         verify_markdown_structure(failures)
         verify_standard_namespace_lists(failures)
+        verify_first_party_surface_docs(failures)
         verify_machine_tooling(tmp, failures)
 
     if failures:

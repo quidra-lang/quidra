@@ -7,7 +7,7 @@ int | error doubled(bool valid)
     auto x = try value(valid)
     return x * 2
 
-auto r = doubled(true)
+auto | error r = doubled(true)
 match r
     int
         print(r)

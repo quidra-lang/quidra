@@ -565,12 +565,11 @@ jobs:
               "cache_epoch": "stable",
               "exact_task_packet_sha256": "old",
               "readable_input_content_hashes": {"repo/docs": "old"},
-              "quidra_target": {"version": current_version, "language_version": "0.2"},
+              "quidra_target": {"version": current_version},
           }
           changed_implementation = json.loads(json.dumps(payload))
           changed_implementation["exact_task_packet_sha256"] = "new"
           changed_implementation["readable_input_content_hashes"] = {"repo/docs": "new"}
-          changed_implementation["quidra_target"]["language_version"] = "999"
           assert module.same_version_cache_payload_compatible(
               changed_implementation, payload
           ), "same project version must reuse/skip Quidra"

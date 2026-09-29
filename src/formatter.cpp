@@ -106,6 +106,8 @@ std::optional<std::string> canonical_gap(
     const auto current=tokens[index]->kind;
 
     if(previous==TokenKind::Dot||current==TokenKind::Dot) return "";
+    if(current==TokenKind::Semicolon) return "";
+    if(previous==TokenKind::Semicolon) return " ";
     if(previous==TokenKind::LParen||previous==TokenKind::LBracket) return "";
     if(current==TokenKind::RParen||current==TokenKind::RBracket||
        current==TokenKind::Comma) return "";

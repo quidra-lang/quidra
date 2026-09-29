@@ -71,6 +71,37 @@ struct Exports {
     std::unordered_map<std::string, std::shared_ptr<Exports>> namespaces;
 };
 
+void insert_class_export(
+    Exports& exports,
+    const std::string& name,
+    const std::string& target,
+    SourceSpan span) {
+    const auto dot = name.find('.');
+    if (dot == std::string::npos) {
+        if (exports.namespaces.contains(name) ||
+            !exports.classes.emplace(name, target).second) {
+            frontend_error(
+                "DUPLICATE_NAME",
+                "Class export '" + name + "' conflicts with another exported declaration.",
+                span);
+        }
+        return;
+    }
+
+    const auto head = name.substr(0, dot);
+    const auto tail = name.substr(dot + 1);
+    if (exports.classes.contains(head) || exports.enums.contains(head) ||
+        exports.functions.contains(head) || exports.values.contains(head)) {
+        frontend_error(
+            "DUPLICATE_NAME",
+            "Namespace '" + head + "' conflicts with another exported declaration.",
+            span);
+    }
+    auto& nested = exports.namespaces[head];
+    if (!nested) nested = std::make_shared<Exports>();
+    insert_class_export(*nested, tail, target, span);
+}
+
 // Follows `a.b.c` through re-exported namespaces. Returns the innermost
 // namespace and leaves the unresolved tail (a declaration name, possibly with
 // an enum variant) in `rest`.
@@ -132,8 +163,13 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
     } else if (module == "atomic") {
         exports.classes.emplace("Counter", "$std.atomic.Counter");
         exports.functions.emplace("counter", std::string(*standard_function_target(module, "counter")));
+    } else if (module == "autograd") {
+        exports.classes.emplace("Target", "$std.autograd.Target");
+        exports.functions.emplace("target", std::string(*standard_function_target(module, "target")));
     } else if (module == "ref") {
         exports.classes.emplace("Cell", "$std.ref.Cell");
+    } else if (module == "reflect") {
+        exports.functions.emplace("collect", std::string(*standard_function_target(module, "collect")));
     } else if (module == "random") {
         exports.classes.emplace("Generator", "$std.random.Generator");
         exports.functions.emplace("generator", std::string(*standard_function_target(module, "generator")));
@@ -166,21 +202,7 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
         exports.functions.emplace("dot", std::string(*standard_function_target(module, "dot")));
         exports.functions.emplace("matmul", std::string(*standard_function_target(module, "matmul")));
     } else if (module == "image") {
-        for (const char* name : {
-                 "read", "write", "tensor_crop", "tensor_resize",
-                 "tensor_flip_horizontal", "tensor_flip_vertical",
-                 "tensor_rotate90", "tensor_rotate180", "tensor_rotate270", "tensor_grayscale",
-                 "tensor_threshold", "tensor_blur", "tensor_filter",
-                 "tensor_dilate", "tensor_erode"}) {
-            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
-        }
-    } else if (module == "neural") {
-        exports.classes.emplace("Gradients", "$std.neural.Gradients");
-        exports.classes.emplace("Parameter", "$std.neural.Parameter");
-        exports.classes.emplace("State", "$std.neural.State");
-        for (const char* name : {"track", "affine", "convolve2d", "absolute", "exponential",
-                                 "logarithm", "mean", "sum_last", "max_last", "update", "all_reduce_sum",
-                                 "normalize", "normalize_inference", "random_mask", "moment_update", "grad", "save", "load"}) {
+        for (const char* name : {"read", "write"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
         }
     }
@@ -297,6 +319,12 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         counter.span = standard_span();
         counter.fields.push_back(standard_field("$handle", "uint64"));
         declarations.push_back(std::move(counter));
+    } else if (module == "autograd") {
+        ClassDecl target;
+        target.name = "$std.autograd.Target";
+        target.span = standard_span();
+        target.fields.push_back(standard_field("$handle", "uint64"));
+        declarations.push_back(std::move(target));
     } else if (module == "ref") {
         TypeName generic_t = standard_type("T");
         TypeName cell_t = standard_type("$std.ref.Cell");
@@ -368,44 +396,6 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         generator.methods.push_back(standard_method(
             "bool", std::vector<Parameter>{}, "bool", standard_call("$std.random.bool")));
         declarations.push_back(std::move(generator));
-    } else if (module == "neural") {
-        TypeName generic_t = standard_type("T");
-        TypeName tensor_t = standard_type("tensor");
-        tensor_t.arguments.push_back(generic_t);
-        TypeName neural_t = standard_type("neural");
-        neural_t.arguments.push_back(generic_t);
-
-        ClassDecl parameter;
-        parameter.name = "$std.neural.Parameter";
-        parameter.span = standard_span();
-        parameter.type_parameters.push_back("T");
-        FieldDecl parameter_value;
-        parameter_value.name = "value";
-        parameter_value.type = tensor_t;
-        parameter_value.span = standard_span();
-        parameter.fields.push_back(std::move(parameter_value));
-        std::vector<CallArg> parameter_track_args;
-        parameter_track_args.push_back(standard_arg(standard_name("value")));
-        parameter.methods.push_back(standard_method(
-            "track", std::vector<Parameter>{}, neural_t,
-            standard_call(
-                "$std.neural.parameter_track",
-                std::move(parameter_track_args))));
-        parameter.methods.push_back(standard_method(
-            "raw", std::vector<Parameter>{}, tensor_t, standard_name("value")));
-        declarations.push_back(std::move(parameter));
-
-        ClassDecl state;
-        state.name = "$std.neural.State";
-        state.span = standard_span();
-        state.type_parameters.push_back("T");
-        FieldDecl state_value;
-        state_value.name = "value";
-        state_value.type = generic_t;
-        state_value.span = standard_span();
-        state.fields.push_back(std::move(state_value));
-        declarations.push_back(std::move(state));
-
     } else if (module == "process") {
         ClassDecl result;
         result.name = "$std.process.Result";
@@ -860,6 +850,10 @@ void rename_type(
     if (is_language_type_name(type.name) || type_parameters.contains(type.name)) return;
 
     if (type.name.find('.') != std::string::npos) {
+        if (local_classes.contains(type.name)) {
+            type.name = qualify(ns, type.name);
+            return;
+        }
         const auto head = first_segment(type.name);
         if (const auto it = imports.find(head); it != imports.end()) {
             const auto full_suffix = suffix_after_first(type.name);
@@ -904,6 +898,18 @@ void rename_type(
 
 // The namespace an expression such as `dnn` or `dnn.mode` names, if any:
 // an import alias followed by re-exported aliases.
+std::optional<std::string> expression_qualified_name(const Expr& expression) {
+    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        return name->name;
+    }
+    if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+        auto base = expression_qualified_name(*member->base);
+        if (!base) return std::nullopt;
+        return *base + "." + member->name;
+    }
+    return std::nullopt;
+}
+
 const Exports* expression_namespace(
     const Expr& expression,
     const std::unordered_map<std::string, ImportBinding>& imports,
@@ -1030,6 +1036,25 @@ void rename_expr(
     }
     if (auto* node = std::get_if<MethodCallExpr>(&expression.data)) {
         auto* receiver_name = std::get_if<NameExpr>(&node->receiver->data);
+
+        if (auto local_namespace = expression_qualified_name(*node->receiver)) {
+            const std::string local_callee = *local_namespace + "." + node->method;
+            if (local_classes.contains(local_callee)) {
+                for (auto& type_argument : node->type_arguments) {
+                    rename_type(type_argument, ns, local_classes, imports, type_parameters);
+                }
+                rename_call_args(
+                    node->args, ns, local_classes, local_functions, imports, type_parameters);
+
+                CallExpr call;
+                call.callee = qualify(ns, local_callee);
+                call.args = std::move(node->args);
+                call.type_arguments = std::move(node->type_arguments);
+                expression.data = std::move(call);
+                return;
+            }
+        }
+
         std::string module_spelling;
         if (const auto* module = expression_namespace(*node->receiver, imports, module_spelling)) {
             {
@@ -1084,6 +1109,10 @@ void reject_import_alias_shadow_stmt(
     if (const auto* node = std::get_if<IfStmt>(&statement.data)) {
         for (const auto& child : node->then_body) reject_import_alias_shadow_stmt(*child, aliases);
         for (const auto& child : node->else_body) reject_import_alias_shadow_stmt(*child, aliases);
+        return;
+    }
+    if (const auto* node = std::get_if<MainGuardStmt>(&statement.data)) {
+        for (const auto& child : node->body) reject_import_alias_shadow_stmt(*child, aliases);
         return;
     }
     if (const auto* node = std::get_if<WhileStmt>(&statement.data)) {
@@ -1192,6 +1221,11 @@ void rename_stmt(
         }
         return;
     }
+    if (auto* node = std::get_if<MainGuardStmt>(&statement.data)) {
+        for (auto& child : node->body)
+            rename_stmt(*child, ns, local_classes, local_functions, imports, type_parameters);
+        return;
+    }
     if (auto* node = std::get_if<WhileStmt>(&statement.data)) {
         rename_expr(*node->condition, ns, local_classes, local_functions, imports, type_parameters);
         for (auto& child : node->body) {
@@ -1237,6 +1271,366 @@ void rename_function(
         rename_stmt(*statement, ns, local_classes, local_functions, imports, type_parameters);
     }
 }
+
+
+std::string compact_type_spelling(const TypeName& type, std::string_view source) {
+    const auto start = std::min(type.span.start.offset, source.size());
+    const auto end = std::min(type.span.end.offset, source.size());
+    std::string out;
+    if (end > start) {
+        for (const char c : source.substr(start, end - start)) {
+            if (!std::isspace(static_cast<unsigned char>(c))) out.push_back(c);
+        }
+    }
+    return out.empty() ? type.name : out;
+}
+
+bool same_parameter_contract(const Parameter& a, const Parameter& b, std::string_view source) {
+    return a.name == b.name && a.writable == b.writable && a.is_const == b.is_const &&
+           compact_type_spelling(a.type, source) == compact_type_spelling(b.type, source);
+}
+
+std::string function_prototype_key(const FunctionDecl& function, std::string_view source) {
+    std::string key = function.name + "<";
+    for (std::size_t i = 0; i < function.type_parameters.size(); ++i) {
+        if (i) key += ",";
+        key += function.type_parameters[i];
+        if (i < function.type_constraints.size() &&
+            !function.type_constraints[i].empty()) {
+            key += ":";
+            key += function.type_constraints[i];
+        }
+    }
+    key += ">->";
+    key += compact_type_spelling(function.return_type, source);
+    key += "(";
+    for (std::size_t i = 0; i < function.parameters.size(); ++i) {
+        if (i) key += ",";
+        const auto& parameter = function.parameters[i];
+        if (parameter.is_const) key += "const ";
+        key += compact_type_spelling(parameter.type, source);
+        if (parameter.writable) key += "&";
+        key += " ";
+        key += parameter.name;
+    }
+    key += ")";
+    return key;
+}
+
+void resolve_local_prototypes(Program& program, std::string_view source) {
+    std::unordered_map<std::string, std::vector<std::size_t>> functions;
+    for (std::size_t i = 0; i < program.functions.size(); ++i) {
+        if (!program.functions[i].external_symbol) {
+            functions[function_prototype_key(program.functions[i], source)].push_back(i);
+        }
+    }
+    std::vector<bool> remove_functions(program.functions.size());
+    for (const auto& [signature, indices] : functions) {
+        (void)signature;
+        std::vector<std::size_t> prototypes, definitions;
+        for (const auto index : indices)
+            (program.functions[index].is_prototype ? prototypes : definitions).push_back(index);
+        if (prototypes.empty()) continue;
+        const auto& name = program.functions[prototypes.front()].name;
+        if (prototypes.size() != 1 || definitions.size() != 1) {
+            frontend_error("PROTOTYPE_MISMATCH",
+                           "Function prototype '" + name + "' requires exactly one later definition with the same complete signature in the same source file.",
+                           program.functions[prototypes.front()].span);
+        }
+        auto& prototype = program.functions[prototypes.front()];
+        auto& definition = program.functions[definitions.front()];
+        if (prototype.span.start.offset >= definition.span.start.offset) {
+            frontend_error("PROTOTYPE_MISMATCH",
+                           "Function prototype '" + name + "' must precede its definition.", prototype.span);
+        }
+        if (prototype.type_parameters != definition.type_parameters ||
+            prototype.type_constraints != definition.type_constraints ||
+            compact_type_spelling(prototype.return_type, source) != compact_type_spelling(definition.return_type, source) ||
+            prototype.parameters.size() != definition.parameters.size()) {
+            frontend_error("PROTOTYPE_MISMATCH",
+                           "Function prototype and definition must have the same complete signature.",
+                           definition.span);
+        }
+        for (std::size_t i = 0; i < prototype.parameters.size(); ++i) {
+            if (!same_parameter_contract(prototype.parameters[i], definition.parameters[i], source)) {
+                frontend_error("PROTOTYPE_MISMATCH",
+                               "Function prototype and definition parameter contracts differ.",
+                               definition.parameters[i].span);
+            }
+            if (definition.parameters[i].default_value) {
+                frontend_error("PROTOTYPE_MISMATCH",
+                               "Defaults belong on the prototype only when a prototype exists.",
+                               definition.parameters[i].default_value->span);
+            }
+            definition.parameters[i].default_value = std::move(prototype.parameters[i].default_value);
+        }
+        definition.prototype_span = prototype.span;
+        remove_functions[prototypes.front()] = true;
+    }
+    std::vector<FunctionDecl> kept_functions;
+    kept_functions.reserve(program.functions.size());
+    for (std::size_t i = 0; i < program.functions.size(); ++i)
+        if (!remove_functions[i]) kept_functions.push_back(std::move(program.functions[i]));
+    program.functions = std::move(kept_functions);
+
+    std::unordered_map<std::string, std::vector<std::size_t>> classes;
+    for (std::size_t i = 0; i < program.classes.size(); ++i) classes[program.classes[i].name].push_back(i);
+    std::vector<bool> remove_classes(program.classes.size());
+    for (const auto& [name, indices] : classes) {
+        std::vector<std::size_t> prototypes, definitions;
+        for (const auto index : indices)
+            (program.classes[index].is_prototype ? prototypes : definitions).push_back(index);
+        if (prototypes.empty()) continue;
+        if (prototypes.size() != 1 || definitions.size() != 1) {
+            frontend_error("PROTOTYPE_MISMATCH",
+                           "Class prototype '" + name + "' requires exactly one later definition in the same source file.",
+                           program.classes[prototypes.front()].span);
+        }
+        auto& prototype = program.classes[prototypes.front()];
+        auto& definition = program.classes[definitions.front()];
+        if (prototype.span.start.offset >= definition.span.start.offset ||
+            prototype.type_parameters != definition.type_parameters ||
+            prototype.type_constraints != definition.type_constraints) {
+            frontend_error("PROTOTYPE_MISMATCH",
+                           "Class prototype and definition must have the same generic contract and appear in that order.",
+                           definition.span);
+        }
+        definition.prototype_span = prototype.span;
+        remove_classes[prototypes.front()] = true;
+    }
+    std::vector<ClassDecl> kept_classes;
+    kept_classes.reserve(program.classes.size());
+    for (std::size_t i = 0; i < program.classes.size(); ++i)
+        if (!remove_classes[i]) kept_classes.push_back(std::move(program.classes[i]));
+    program.classes = std::move(kept_classes);
+}
+
+
+class SourceOrderValidator {
+public:
+    explicit SourceOrderValidator(const Program& program) : program_(program) {
+        for (const auto& function : program_.functions) {
+            const auto exposure = function.prototype_span
+                ? function.prototype_span->start.offset
+                : function.span.start.offset;
+            const auto existing = function_exposure_.find(function.name);
+            if (existing == function_exposure_.end()) {
+                function_exposure_[function.name] = exposure;
+            } else {
+                existing->second = std::min(existing->second, exposure);
+            }
+        }
+        for (const auto& declaration : program_.classes) {
+            if (declaration.name.rfind("$cli.", 0) == 0) {
+                class_exposure_[declaration.name] = 0;
+                class_completion_[declaration.name] = 0;
+                continue;
+            }
+            class_exposure_[declaration.name] =
+                declaration.prototype_span ? declaration.prototype_span->start.offset
+                                           : declaration.span.start.offset;
+            class_completion_[declaration.name] = declaration.span.start.offset;
+        }
+    }
+
+    void run() const {
+        for (const auto& declaration : program_.enums) {
+            for (const auto& variant : declaration.variants) {
+                if (variant.payload)
+                    check_type(*variant.payload, variant.span.start.offset, true);
+            }
+        }
+        for (const auto& declaration : program_.classes) {
+            for (const auto& field : declaration.fields) {
+                check_type(field.type, field.span.start.offset, true);
+                if (field.default_value) check_expr(*field.default_value, {});
+            }
+            for (const auto& method : declaration.methods) {
+                for (const auto& parameter : method.parameters)
+                    check_type(parameter.type, method.span.start.offset, false);
+                check_type(method.return_type, method.span.start.offset, false);
+                for (const auto& parameter : method.parameters)
+                    if (parameter.default_value) check_expr(*parameter.default_value, {});
+                for (const auto& statement : method.body)
+                    check_stmt(*statement, {});
+            }
+        }
+        for (const auto& function : program_.functions) {
+            const auto interface_offset = function.prototype_span
+                ? function.prototype_span->start.offset
+                : function.span.start.offset;
+            for (const auto& parameter : function.parameters)
+                check_type(parameter.type, interface_offset, false);
+            check_type(function.return_type, interface_offset, false);
+            for (const auto& parameter : function.parameters)
+                if (parameter.default_value) check_expr(*parameter.default_value, function.name);
+            for (const auto& statement : function.body)
+                check_stmt(*statement, function.name);
+        }
+        for (const auto& statement : program_.statements) check_stmt(*statement, {});
+    }
+
+private:
+    const Program& program_;
+    std::unordered_map<std::string, std::size_t> function_exposure_;
+    std::unordered_map<std::string, std::size_t> class_exposure_;
+    std::unordered_map<std::string, std::size_t> class_completion_;
+
+    void check_type(const TypeName& type, std::size_t offset, bool complete) const {
+        if (const auto found = class_exposure_.find(type.name); found != class_exposure_.end()) {
+            const auto required = complete ? class_completion_.at(type.name) : found->second;
+            if (offset < required) {
+                frontend_error(
+                    "SOURCE_ORDER",
+                    complete
+                        ? "Class '" + type.name + "' is not complete at this source position."
+                        : "Class '" + type.name + "' is not visible yet; add a class prototype above this use.",
+                    type.span);
+            }
+        }
+        for (const auto& argument : type.arguments) check_type(argument, offset, complete);
+        for (const auto& parameter : type.function_parameters) check_type(parameter, offset, complete);
+    }
+
+    void check_call_name(std::string_view name, SourceSpan span,
+                         std::string_view current_function) const {
+        if (const auto found = function_exposure_.find(std::string(name));
+            found != function_exposure_.end() && name != current_function &&
+            span.start.offset < found->second) {
+            frontend_error(
+                "SOURCE_ORDER",
+                "Function '" + std::string(name) +
+                    "' is not visible yet; add its prototype above this use.",
+                span);
+        }
+        if (const auto found = class_completion_.find(std::string(name));
+            found != class_completion_.end() && span.start.offset < found->second) {
+            frontend_error(
+                "SOURCE_ORDER",
+                "Class '" + std::string(name) +
+                    "' is incomplete here; construction requires its full definition.",
+                span);
+        }
+    }
+
+    void check_expr(const Expr& expression, std::string_view current_function) const {
+        if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+            if (const auto found = function_exposure_.find(name->name);
+                found != function_exposure_.end() && name->name != current_function &&
+                expression.span.start.offset < found->second) {
+                frontend_error(
+                    "SOURCE_ORDER",
+                    "Function '" + name->name +
+                        "' is not visible yet; add its prototype above this use.",
+                    expression.span);
+            }
+            return;
+        }
+        if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
+            check_call_name(call->callee, expression.span, current_function);
+            for (const auto& type : call->type_arguments)
+                check_type(type, expression.span.start.offset, false);
+            for (const auto& argument : call->args)
+                if (argument.value) check_expr(*argument.value, current_function);
+            return;
+        }
+        if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
+            check_expr(*call->receiver, current_function);
+            for (const auto& type : call->type_arguments)
+                check_type(type, expression.span.start.offset, false);
+            for (const auto& argument : call->args)
+                if (argument.value) check_expr(*argument.value, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<ArrayExpr>(&expression.data)) {
+            for (const auto& item : node->elements) check_expr(*item, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<IndexExpr>(&expression.data)) {
+            check_expr(*node->base, current_function);
+            for (const auto& item : node->items) {
+                if (item.index) check_expr(*item.index, current_function);
+                if (item.start) check_expr(*item.start, current_function);
+                if (item.stop) check_expr(*item.stop, current_function);
+                if (item.step) check_expr(*item.step, current_function);
+            }
+            return;
+        }
+        if (const auto* node = std::get_if<MemberExpr>(&expression.data)) {
+            check_expr(*node->base, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<UnaryExpr>(&expression.data)) {
+            check_expr(*node->operand, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<BinaryExpr>(&expression.data)) {
+            check_expr(*node->left, current_function);
+            check_expr(*node->right, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<TryExpr>(&expression.data)) {
+            check_expr(*node->value, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<StringTemplateExpr>(&expression.data)) {
+            for (const auto& item : node->expressions) check_expr(*item, current_function);
+        }
+    }
+
+    void check_stmt(const Stmt& statement, std::string_view current_function) const {
+        if (const auto* node = std::get_if<BindingStmt>(&statement.data)) {
+            if (node->declared_type.name != "auto")
+                check_type(node->declared_type, statement.span.start.offset, true);
+            if (node->value) check_expr(*node->value, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<AssignStmt>(&statement.data)) {
+            check_expr(*node->target, current_function);
+            check_expr(*node->value, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<RebindStmt>(&statement.data)) {
+            check_expr(*node->target, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<ReturnStmt>(&statement.data)) {
+            if (node->value) check_expr(*node->value, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<ExprStmt>(&statement.data)) {
+            if (node->value) check_expr(*node->value, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<IfStmt>(&statement.data)) {
+            check_expr(*node->condition, current_function);
+            for (const auto& child : node->then_body) check_stmt(*child, current_function);
+            for (const auto& child : node->else_body) check_stmt(*child, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<MainGuardStmt>(&statement.data)) {
+            for (const auto& child : node->body) check_stmt(*child, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<WhileStmt>(&statement.data)) {
+            check_expr(*node->condition, current_function);
+            for (const auto& child : node->body) check_stmt(*child, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<ForStmt>(&statement.data)) {
+            check_expr(*node->iterable, current_function);
+            for (const auto& child : node->body) check_stmt(*child, current_function);
+            return;
+        }
+        if (const auto* node = std::get_if<MatchStmt>(&statement.data)) {
+            check_expr(*node->value, current_function);
+            for (const auto& match_case : node->cases) {
+                check_type(match_case.type, match_case.span.start.offset, false);
+                for (const auto& child : match_case.body) check_stmt(*child, current_function);
+            }
+        }
+    }
+};
 
 class ModuleLoader {
 public:
@@ -1326,13 +1720,13 @@ private:
                         manifest->requirements.find("quidra");
                     requirement != manifest->requirements.end() &&
                     !requirement->second.matches(
-                        parse_semantic_version(compiler_version))) {
+                        parse_semantic_version(version))) {
                     frontend_error(
                         "PACKAGE_COMPATIBILITY",
                         "Package '" + name + "' " + manifest->version.str() +
                             " requires Quidra " + requirement->second.text +
-                            "; current compiler is " +
-                            std::string(compiler_version) + ".",
+                            "; current Quidra is " +
+                            std::string(version) + ".",
                         span);
                 }
 
@@ -1433,6 +1827,23 @@ private:
                 span);
         }
 
+        if (expected->second.distribution_name_explicit) {
+            const std::string actual_distribution_name = manifest
+                ? std::string(package_distribution_name(*manifest))
+                : name;
+            if (actual_distribution_name !=
+                expected->second.distribution_name) {
+                frontend_error(
+                    "PACKAGE_LOCK_IDENTITY",
+                    "Installed package '" + name +
+                        "' has distribution identity '" +
+                        actual_distribution_name +
+                        "', but quidra.lock records '" +
+                        expected->second.distribution_name + "'.",
+                    span);
+            }
+        }
+
         if (expected->second.version != "-") {
             if (!manifest ||
                 manifest->version.str() != expected->second.version) {
@@ -1503,6 +1914,9 @@ private:
             }
         }
 
+        const auto source_file = absolute.string();
+        merged.source_texts[source_file] = source;
+
         auto tokens = Lexer(source).scan();
         std::unordered_set<std::string> referenced_standard_modules;
         for (std::size_t i = 0; i + 1 < tokens.size(); ++i) {
@@ -1514,7 +1928,8 @@ private:
         }
         Parser parser(std::move(tokens), max_errors_);
         Program program = parser.parse();
-        const auto source_file = absolute.string();
+        resolve_local_prototypes(program, source);
+        SourceOrderValidator(program).run();
         for (auto& function : program.functions) function.source_file = source_file;
         for (auto& declaration : program.enums) declaration.source_file = source_file;
         for (auto& declaration : program.classes) {
@@ -1544,10 +1959,20 @@ private:
             }
         }
 
-        if (!root && !program.statements.empty()) {
-            frontend_error("IMPORT_TOP_LEVEL",
-                           "Imported modules may contain declarations only; top-level executable statements belong in the root file.",
-                           program.statements.front()->span);
+        if (!root) {
+            for (const auto& statement : program.statements) {
+                if (!std::holds_alternative<MainGuardStmt>(statement->data)) {
+                    frontend_error("IMPORT_TOP_LEVEL",
+                                   "Imported modules may contain declarations and 'if main' guards only; other top-level executable statements belong in the root file.",
+                                   statement->span);
+                }
+            }
+        }
+        for (auto& statement : program.statements) {
+            if (auto* guard = std::get_if<MainGuardStmt>(&statement->data)) {
+                guard->active = root;
+                guard->source_file = source_file;
+            }
         }
 
         std::unordered_set<std::string> local_classes;
@@ -1558,7 +1983,8 @@ private:
 
         Exports exports;
         for (const auto& class_decl : program.classes)
-            exports.classes[class_decl.name] = qualify(ns, class_decl.name);
+            insert_class_export(
+                exports, class_decl.name, qualify(ns, class_decl.name), class_decl.span);
         for (const auto& enum_decl : program.enums)
             exports.enums[enum_decl.name] = qualify(ns, enum_decl.name);
         for (const auto& name : local_functions) exports.functions[name] = qualify(ns, name);
@@ -1681,11 +2107,11 @@ private:
             function.name = qualify(ns, function.name);
         }
 
-        if (root) {
-            for (auto& statement : program.statements) {
+        for (auto& statement : program.statements) {
+            if (root || std::holds_alternative<MainGuardStmt>(statement->data))
                 rename_stmt(*statement, ns, local_classes, local_functions, imports, {});
-            }
-        } else {
+        }
+        if (!root) {
             // Keep imported declarations in the semantic program while marking their top-level
             // spans as non-root. Source inspection/patching can then remain root-file scoped.
             const auto imported_offset = std::numeric_limits<std::size_t>::max();
@@ -1706,8 +2132,9 @@ private:
         for (auto& enum_decl : program.enums) merged.enums.push_back(std::move(enum_decl));
         for (auto& class_decl : program.classes) merged.classes.push_back(std::move(class_decl));
         for (auto& function : program.functions) merged.functions.push_back(std::move(function));
-        if (root) {
-            for (auto& statement : program.statements) merged.statements.push_back(std::move(statement));
+        for (auto& statement : program.statements) {
+            if (root || std::holds_alternative<MainGuardStmt>(statement->data))
+                merged.statements.push_back(std::move(statement));
         }
 
         return exports;
@@ -1916,6 +2343,7 @@ class GenericExpander {
 public:
     explicit GenericExpander(Program source) : source_(std::move(source)) {
         output_.root_source_file = source_.root_source_file;
+        output_.source_texts = source_.source_texts;
         validate_declarations();
 
         for (auto& class_decl : source_.classes) {
@@ -1926,10 +2354,17 @@ public:
             }
         }
         for (auto& function : source_.functions) {
-            if (function.type_parameters.empty()) {
-                concrete_functions_[function.name] = &function;
+            function_families_[function.name].push_back(&function);
+        }
+        for (auto& [name, family] : function_families_) {
+            if (family.size() == 1) {
+                if (family.front()->type_parameters.empty()) {
+                    concrete_functions_[name] = family.front();
+                } else {
+                    function_templates_[name] = family.front();
+                }
             } else {
-                function_templates_[function.name] = &function;
+                specialization_families_[name] = family;
             }
         }
     }
@@ -1970,6 +2405,28 @@ public:
     }
 
 private:
+    struct MethodSpecializationMember {
+        FunctionDecl signature;
+        const FunctionDecl* source{};
+        Substitution class_substitution;
+
+        MethodSpecializationMember() = default;
+        MethodSpecializationMember(const MethodSpecializationMember&) = delete;
+        MethodSpecializationMember& operator=(const MethodSpecializationMember&) = delete;
+        MethodSpecializationMember(MethodSpecializationMember&& other) noexcept
+            : signature(std::move(other.signature)),
+              source(other.source),
+              class_substitution(std::move(other.class_substitution)) {}
+        MethodSpecializationMember& operator=(MethodSpecializationMember&& other) noexcept {
+            if (this != &other) {
+                signature = std::move(other.signature);
+                source = other.source;
+                class_substitution = std::move(other.class_substitution);
+            }
+            return *this;
+        }
+    };
+
     // Shared by clone_expr and clone_stmt: they interleave over one AST, and
     // this walk runs before the checker, so no checker budget can protect it.
     std::size_t clone_depth_{};
@@ -2014,7 +2471,7 @@ private:
             return equatable_constraint_type(std::move(type), true, visiting);
         }
         if (!type.arguments.empty() || !type.function_parameters.empty() ||
-            type.name == "tensor" || type.name == "neural" || type.name == "fn" ||
+            type.name == "tensor" || type.name == "fn" ||
             type.name == "union") {
             return false;
         }
@@ -2117,13 +2574,12 @@ private:
         }
     }
 
-    // `construct(...)` members. The bare spelling names no type, because the
-    // constructor produces the enclosing class; `T | error construct(...)` is
-    // the one spelled form, for a constructor that can fail. Overloads must
-    // differ in their parameter types, so a call can always name one of them.
+    // `construct(...)` names the one constructor a class may declare. The
+    // bare spelling produces the enclosing class; `T | error construct(...)`
+    // is the one spelled form for a constructor that can fail. Optional call
+    // shapes belong in default parameters rather than constructor overloads.
     void validate_constructor(
-        const ClassDecl& class_decl, const FunctionDecl& method,
-        std::vector<std::string>& signatures) const {
+        const ClassDecl& class_decl, const FunctionDecl& method) const {
         TypeName self;
         self.name = class_decl.name;
         for (const auto& parameter : class_decl.type_parameters) {
@@ -2157,20 +2613,221 @@ private:
                            "Constructors take the class's type parameters and cannot declare their own.",
                            method.span);
         }
-        std::string signature;
-        for (const auto& parameter : method.parameters) {
-            if (!signature.empty()) signature += ", ";
-            if (parameter.is_const) signature += "const ";
-            signature += canonical_type(parameter.type);
-            if (parameter.writable) signature += " &";
+    }
+
+    std::string generic_parameter_shape(
+        const TypeName& source,
+        const std::vector<std::string>& parameters) const {
+        auto type = clone_type(source);
+        const auto rewrite = [&](auto&& self, TypeName& current) -> void {
+            for (std::size_t i = 0; i < parameters.size(); ++i) {
+                if (current.name == parameters[i] && current.arguments.empty()) {
+                    current.name = "$" + std::to_string(i);
+                    break;
+                }
+            }
+            for (auto& argument : current.arguments) self(self, argument);
+            for (auto& parameter : current.function_parameters) self(self, parameter);
+        };
+        rewrite(rewrite, type);
+        return canonical_type(type);
+    }
+
+    std::string generic_call_shape(const FunctionDecl& function) const {
+        std::string key;
+        for (const auto& parameter : function.parameters) {
+            if (!key.empty()) key += ";";
+            if (parameter.is_const) key += "const ";
+            key += generic_parameter_shape(parameter.type, function.type_parameters);
+            if (parameter.writable) key += "&";
+            key += " " + parameter.name;
         }
-        if (std::find(signatures.begin(), signatures.end(), signature) != signatures.end()) {
-            frontend_error("DUPLICATE_NAME",
-                           "Class '" + class_decl.name + "' already declares construct(" + signature +
-                               "); overloads must differ in their parameter types.",
-                           method.span);
+        return key;
+    }
+
+    bool concrete_matches_generic_pattern(
+        const FunctionDecl& generic,
+        const FunctionDecl& concrete) const {
+        if (generic.parameters.size() != concrete.parameters.size()) return false;
+        const std::unordered_set<std::string> parameters{
+            generic.type_parameters.begin(), generic.type_parameters.end()};
+        Substitution inferred;
+        for (std::size_t i = 0; i < generic.parameters.size(); ++i) {
+            const auto& pattern = generic.parameters[i].type;
+            const auto& actual = concrete.parameters[i].type;
+            if (!infer_generic_pattern(pattern, actual, parameters, inferred)) {
+                return false;
+            }
+            if (canonical_type(substitute_raw(pattern, inferred)) !=
+                canonical_type(actual)) {
+                return false;
+            }
         }
-        signatures.push_back(std::move(signature));
+        return true;
+    }
+
+    static std::string_view function_constraint(
+        const FunctionDecl& function, std::size_t index) {
+        return function.type_constraints.empty()
+            ? std::string_view{}
+            : std::string_view(function.type_constraints[index]);
+    }
+
+    static bool constraint_strictly_narrower(
+        std::string_view narrow, std::string_view broad) {
+        if (narrow == broad) return false;
+        if (broad.empty()) return !narrow.empty();
+        if ((narrow == "floating" || narrow == "integer") &&
+            (broad == "numeric" || broad == "ordered")) {
+            return true;
+        }
+        return false;
+    }
+
+    static bool constraints_disjoint(
+        std::string_view left, std::string_view right) {
+        return (left == "floating" && right == "integer") ||
+               (left == "integer" && right == "floating");
+    }
+
+    bool generic_more_specific(
+        const FunctionDecl& left, const FunctionDecl& right) const {
+        if (left.type_parameters.size() != right.type_parameters.size()) return false;
+        bool strict = false;
+        for (std::size_t i = 0; i < left.type_parameters.size(); ++i) {
+            const auto a = function_constraint(left, i);
+            const auto b = function_constraint(right, i);
+            if (a == b) continue;
+            if (!constraint_strictly_narrower(a, b)) return false;
+            strict = true;
+        }
+        return strict;
+    }
+
+    bool generic_domains_disjoint(
+        const FunctionDecl& left, const FunctionDecl& right) const {
+        if (left.type_parameters.size() != right.type_parameters.size()) return false;
+        for (std::size_t i = 0; i < left.type_parameters.size(); ++i) {
+            if (constraints_disjoint(
+                    function_constraint(left, i), function_constraint(right, i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::string concrete_signature_key(const FunctionDecl& function) const {
+        std::string key;
+        for (const auto& parameter : function.parameters) {
+            if (!key.empty()) key += ";";
+            if (parameter.is_const) key += "const ";
+            key += canonical_type(parameter.type);
+            if (parameter.writable) key += "&";
+            key += " " + parameter.name;
+        }
+        return key;
+    }
+
+    std::string function_declaration_key(const FunctionDecl& function) const {
+        std::string key = function.name + "(" + generic_call_shape(function) + ")";
+        key += "<";
+        for (std::size_t i = 0; i < function.type_parameters.size(); ++i) {
+            if (i) key += ",";
+            key += std::string(function_constraint(function, i));
+        }
+        key += ">->" + generic_parameter_shape(
+            function.return_type, function.type_parameters);
+        return key;
+    }
+
+    void validate_function_family(
+        const std::string& name,
+        const std::vector<const FunctionDecl*>& family) const {
+        const auto arity = family.front()->parameters.size();
+        const auto& reference = *family.front();
+        std::vector<const FunctionDecl*> generics;
+        std::vector<const FunctionDecl*> concretes;
+
+        for (const auto* function : family) {
+            if (function->parameters.size() != arity) {
+                frontend_error(
+                    "DUPLICATE_NAME",
+                    "Function '" + name +
+                        "' cannot be overloaded by argument count; use default parameters on one definition.",
+                    function->span);
+            }
+            for (std::size_t i = 0; i < arity; ++i) {
+                if (function->parameters[i].name != reference.parameters[i].name ||
+                    function->parameters[i].writable != reference.parameters[i].writable ||
+                    function->parameters[i].is_const != reference.parameters[i].is_const ||
+                    static_cast<bool>(function->parameters[i].default_value) !=
+                        static_cast<bool>(reference.parameters[i].default_value) ||
+                    function->is_private != reference.is_private) {
+                    frontend_error(
+                        "DUPLICATE_NAME",
+                        "Repeated function name '" + name +
+                            "' is only allowed for one generic specialization family with the same call shape.",
+                        function->span);
+                }
+            }
+            if (function->type_parameters.empty()) concretes.push_back(function);
+            else generics.push_back(function);
+        }
+
+        if (generics.empty()) {
+            frontend_error(
+                "DUPLICATE_NAME",
+                "Function name '" + name +
+                    "' is duplicated; ordinary function overloading is not supported.",
+                family[1]->span);
+        }
+
+        const auto generic_shape = generic_call_shape(*generics.front());
+        for (const auto* function : generics) {
+            if (generic_call_shape(*function) != generic_shape ||
+                function->type_parameters.size() != generics.front()->type_parameters.size()) {
+                frontend_error(
+                    "DUPLICATE_NAME",
+                    "Generic specializations of '" + name +
+                        "' must keep one generic call shape; ordinary overloads are not supported.",
+                    function->span);
+            }
+        }
+
+        for (const auto* function : concretes) {
+            if (!concrete_matches_generic_pattern(*generics.front(), *function)) {
+                frontend_error(
+                    "DUPLICATE_NAME",
+                    "Concrete specialization of '" + name +
+                        "' must instantiate the generic family's parameter type pattern.",
+                    function->span);
+            }
+        }
+
+        std::unordered_set<std::string> concrete_signatures;
+        for (const auto* function : concretes) {
+            if (!concrete_signatures.insert(concrete_signature_key(*function)).second) {
+                frontend_error(
+                    "DUPLICATE_NAME",
+                    "Concrete specialization of '" + name + "' is duplicated.",
+                    function->span);
+            }
+        }
+
+        for (std::size_t i = 0; i < generics.size(); ++i) {
+            for (std::size_t j = i + 1; j < generics.size(); ++j) {
+                if (generic_more_specific(*generics[i], *generics[j]) ||
+                    generic_more_specific(*generics[j], *generics[i]) ||
+                    generic_domains_disjoint(*generics[i], *generics[j])) {
+                    continue;
+                }
+                frontend_error(
+                    "AMBIGUOUS_SPECIALIZATION",
+                    "Generic specializations of '" + name +
+                        "' have overlapping type domains with no unique priority.",
+                    generics[j]->span);
+            }
+        }
     }
 
     void validate_declarations() const {
@@ -2204,18 +2861,27 @@ private:
                                class_decl.span);
             }
         }
+        std::unordered_map<std::string, std::vector<const FunctionDecl*>> function_families;
+        std::unordered_set<std::string> function_names;
         for (const auto& function : source_.functions) {
             if (function.name == "main") {
                 frontend_error("RESERVED_MAIN",
                                "'main' is reserved for the compiler-generated native entrypoint.",
                                function.span);
             }
-            if (is_language_type_name(function.name) || is_reserved_value_name(function.name) ||
-                !declaration_names.insert(function.name).second) {
+            if (is_language_type_name(function.name) || is_reserved_value_name(function.name)) {
                 frontend_error("DUPLICATE_NAME",
                                "Function name '" + function.name + "' is reserved or duplicated.",
                                function.span);
             }
+            if (function_names.insert(function.name).second &&
+                !declaration_names.insert(function.name).second) {
+                frontend_error("DUPLICATE_NAME",
+                               "Function name '" + function.name +
+                                   "' conflicts with another top-level declaration.",
+                               function.span);
+            }
+            function_families[function.name].push_back(&function);
         }
 
         for (const auto& class_decl : source_.classes) {
@@ -2240,10 +2906,20 @@ private:
                                    field.span);
                 }
             }
-            std::vector<std::string> constructor_signatures;
+            std::unordered_map<std::string, std::vector<const FunctionDecl*>>
+                method_families;
+            bool constructor_seen = false;
             for (const auto& method : class_decl.methods) {
                 if (method.is_constructor) {
-                    validate_constructor(class_decl, method, constructor_signatures);
+                    if (constructor_seen) {
+                        frontend_error(
+                            "DUPLICATE_NAME",
+                            "Class '" + class_decl.name +
+                                "' declares more than one construct(...); use default parameters on a single constructor.",
+                            method.span);
+                    }
+                    constructor_seen = true;
+                    validate_constructor(class_decl, method);
                     continue;
                 }
                 if (!standard_generated && is_reserved_value_name(method.name)) {
@@ -2251,14 +2927,22 @@ private:
                                    "Class method name '" + method.name + "' is reserved.",
                                    method.span);
                 }
-                if (!member_names.insert(method.name).second) {
-                    frontend_error("DUPLICATE_NAME",
-                                   "Duplicate class member '" + method.name + "'.",
-                                   method.span);
+                if (member_names.contains(method.name) &&
+                    !method_families.contains(method.name)) {
+                    frontend_error(
+                        "DUPLICATE_NAME",
+                        "Class method '" + method.name +
+                            "' conflicts with another class member.",
+                        method.span);
                 }
+                member_names.insert(method.name);
+                method_families[method.name].push_back(&method);
                 validate_type_parameters(
                     method.type_parameters, method.type_constraints,
                     class_parameters, method.span);
+            }
+            for (const auto& [name, family] : method_families) {
+                if (family.size() > 1) validate_function_family(name, family);
             }
         }
 
@@ -2267,20 +2951,34 @@ private:
                 function.type_parameters, function.type_constraints,
                 declaration_names, function.span);
         }
+        for (const auto& [name, family] : function_families) {
+            if (family.size() > 1) validate_function_family(name, family);
+        }
     }
 
     Program source_;
     Program output_;
     std::unordered_map<std::string, ClassDecl*> class_templates_;
     std::unordered_map<std::string, ClassDecl*> concrete_classes_;
+    std::unordered_map<std::string, std::vector<FunctionDecl*>> function_families_;
+    std::unordered_map<std::string, std::vector<FunctionDecl*>> specialization_families_;
     std::unordered_map<std::string, FunctionDecl*> function_templates_;
     std::unordered_map<std::string, FunctionDecl*> concrete_functions_;
 
     std::unordered_map<std::string, std::string> class_instances_;
     std::unordered_map<std::string, std::string> function_instances_;
+    std::unordered_map<std::string, std::string> concrete_specialization_instances_;
     std::unordered_map<std::string, std::size_t> class_index_;
 
     std::unordered_map<std::string, std::unordered_map<std::string, FunctionDecl>> generic_methods_;
+    std::unordered_map<
+        std::string,
+        std::unordered_map<std::string, std::vector<MethodSpecializationMember>>>
+        method_specialization_families_;
+    std::unordered_map<
+        std::string,
+        std::unordered_map<std::string, std::string>>
+        method_specialization_instances_;
     std::unordered_map<std::string, std::unordered_set<std::string>> instantiated_methods_;
     std::unordered_map<std::string, TypeName> function_return_types_;
     std::unordered_map<std::string, std::unordered_map<std::string, TypeName>> method_return_types_;
@@ -2314,6 +3012,55 @@ private:
         return class_has_generic_method(class_name, method)
             ? std::optional<std::string>{class_name}
             : std::nullopt;
+    }
+
+    bool class_has_method_specialization_family(
+        const std::string& class_name,
+        const std::string& method) const {
+        const auto classes = method_specialization_families_.find(class_name);
+        return classes != method_specialization_families_.end() &&
+            classes->second.contains(method);
+    }
+
+    Substitution clone_substitution(const Substitution& source) const {
+        Substitution result;
+        for (const auto& [name, type] : source) {
+            result.emplace(name, clone_type(type));
+        }
+        return result;
+    }
+
+    MethodSpecializationMember make_method_specialization_member(
+        const FunctionDecl& source,
+        const Substitution& class_substitution) {
+        MethodSpecializationMember member;
+        member.source = &source;
+        member.class_substitution = clone_substitution(class_substitution);
+
+        auto& signature = member.signature;
+        signature.name = source.name;
+        signature.source_file = source.source_file;
+        signature.span = source.span;
+        signature.is_private = source.is_private;
+        signature.type_parameters = source.type_parameters;
+        signature.type_constraints = source.type_constraints;
+        const auto deferred = set_of(source.type_parameters);
+        signature.return_type =
+            materialize_type(source.return_type, class_substitution, deferred);
+        for (const auto& parameter : source.parameters) {
+            Parameter copy;
+            copy.name = parameter.name;
+            copy.type =
+                materialize_type(parameter.type, class_substitution, deferred);
+            copy.writable = parameter.writable;
+            copy.span = parameter.span;
+            copy.is_const = parameter.is_const;
+            if (parameter.default_value) {
+                copy.default_value = standard_name("$method_family_default");
+            }
+            signature.parameters.push_back(std::move(copy));
+        }
+        return member;
     }
 
     const ClassDecl* output_class(const std::string& name) const {
@@ -2421,36 +3168,6 @@ private:
                 result.span = expression.span;
                 return result;
             }
-            if (call->callee == "$std.neural.track" && call->args.size() == 1) {
-                const auto source = infer_expression_type(*call->args[0].value, current_class);
-                if (source && source->name == "tensor" && source->arguments.size() == 1) {
-                    TypeName result;
-                    result.name = "neural";
-                    result.arguments.push_back(clone_type(source->arguments.front()));
-                    result.tensor_rank = source->tensor_rank;
-                    result.tensor_shape_prefix = source->tensor_shape_prefix;
-                    result.tensor_known_shape_prefix = source->tensor_known_shape_prefix;
-                    result.span = expression.span;
-                    return result;
-                }
-            }
-            if ((call->callee == "$std.neural.absolute" ||
-                 call->callee == "$std.neural.exponential" ||
-                 call->callee == "$std.neural.logarithm" ||
-                 call->callee == "$std.neural.mean" ||
-                 call->callee == "$std.neural.sum_last" ||
-                 call->callee == "$std.neural.max_last" ||
-                 call->callee == "$std.neural.affine" ||
-                 call->callee == "$std.neural.convolve2d" ||
-                 call->callee == "$std.neural.normalize" ||
-                 call->callee == "$std.neural.random_mask") &&
-                !call->args.empty()) {
-                const auto source = infer_expression_type(*call->args[0].value, current_class);
-                if (source && source->name == "neural") return source;
-            }
-            if (call->callee == "$std.neural.grad") {
-                return simple_type("$std.neural.Gradients");
-            }
             static const std::unordered_map<std::string, std::string>
                 numeric_cast_result_types{
                     {"int8", "int8"}, {"int16", "int16"}, {"int32", "int32"},
@@ -2528,7 +3245,26 @@ private:
             const auto receiver = infer_expression_type(*call->receiver, current_class);
             if (!receiver || !receiver->dimensions.empty()) return std::nullopt;
             if (receiver->name == "tensor") {
-                if (call->method == "contiguous" && call->args.empty()) return receiver;
+                if ((call->method == "cpu" && call->args.empty()) ||
+                    (call->method == "gpu" && call->args.size() == 1)) {
+                    return receiver;
+                }
+                if ((call->method == "contiguous" || call->method == "track" ||
+                     call->method == "untrack" || call->method == "retrack" ||
+                     call->method == "abs" || call->method == "exp" ||
+                     call->method == "log" || call->method == "sum_last" ||
+                     call->method == "max_last" || call->method == "min_last") &&
+                    call->args.empty()) {
+                    return receiver;
+                }
+                if (call->method == "mean" && call->args.empty()) {
+                    auto result = clone_type(*receiver);
+                    result.tensor_rank = 0;
+                    result.tensor_shape_prefix.clear();
+                    result.tensor_known_shape_prefix.clear();
+                    result.span = expression.span;
+                    return result;
+                }
                 if (call->method == "shape" && call->args.empty()) {
                     TypeName result;
                     result.name = "int";
@@ -2552,21 +3288,80 @@ private:
                     result.span = expression.span;
                     return result;
                 }
+                if (call->method == "matmul" && call->args.size() == 1) {
+                    auto result = clone_type(*receiver);
+                    result.tensor_shape_prefix.clear();
+                    result.tensor_known_shape_prefix.clear();
+                    const auto right =
+                        infer_expression_type(*call->args[0].value, current_class);
+                    if (receiver->tensor_rank && right && right->name == "tensor" &&
+                        right->tensor_rank &&
+                        (*right->tensor_rank == 1 || *right->tensor_rank == 2) &&
+                        *receiver->tensor_rank >= 1) {
+                        result.tensor_rank = *right->tensor_rank == 1
+                            ? *receiver->tensor_rank - 1
+                            : *receiver->tensor_rank;
+                    } else {
+                        result.tensor_rank.reset();
+                    }
+                    result.span = expression.span;
+                    return result;
+                }
+                if (call->method == "gather" && call->args.size() == 2) {
+                    auto result = clone_type(*receiver);
+                    result.tensor_shape_prefix.clear();
+                    result.tensor_rank.reset();
+                    result.tensor_known_shape_prefix.clear();
+                    const auto shape =
+                        infer_expression_type(*call->args[1].value, current_class);
+                    if (shape && shape->name == "int" &&
+                        shape->dimensions.size() == 1 &&
+                        shape->dimensions.front() >= 0) {
+                        result.tensor_rank = shape->dimensions.front();
+                    }
+                    result.span = expression.span;
+                    return result;
+                }
+                if (call->method == "scatter" && call->args.size() == 2) {
+                    auto result = clone_type(*receiver);
+                    result.tensor_shape_prefix.clear();
+                    result.tensor_rank.reset();
+                    result.tensor_known_shape_prefix.clear();
+                    const auto shape =
+                        infer_expression_type(*call->args[1].value, current_class);
+                    if (shape && shape->name == "int" &&
+                        shape->dimensions.size() == 1 &&
+                        shape->dimensions.front() >= 0) {
+                        result.tensor_rank = shape->dimensions.front();
+                    }
+                    result.span = expression.span;
+                    return result;
+                }
+                if (call->method == "convolve" &&
+                    !call->args.empty() && call->args.size() <= 4) {
+                    auto result = clone_type(*receiver);
+                    result.tensor_shape_prefix.clear();
+                    result.tensor_known_shape_prefix.clear();
+                    result.span = expression.span;
+                    return result;
+                }
+                if ((call->method == "is_tracked" || call->method == "has_grad") &&
+                    call->args.empty()) {
+                    TypeName result;
+                    result.name = "bool";
+                    result.span = expression.span;
+                    return result;
+                }
+                if (call->method == "clear_grad" && call->args.empty()) {
+                    TypeName result;
+                    result.name = "void";
+                    result.span = expression.span;
+                    return result;
+                }
                 if (call->method == "item" && call->args.empty() &&
                     receiver->arguments.size() == 1) {
                     return clone_type(receiver->arguments.front());
                 }
-            }
-            if (receiver->name == "neural" && call->method == "untrack" &&
-                receiver->arguments.size() == 1) {
-                TypeName result;
-                result.name = "tensor";
-                result.arguments.push_back(clone_type(receiver->arguments.front()));
-                result.tensor_rank = receiver->tensor_rank;
-                result.tensor_shape_prefix = receiver->tensor_shape_prefix;
-                result.tensor_known_shape_prefix = receiver->tensor_known_shape_prefix;
-                result.span = expression.span;
-                return result;
             }
             if (const auto result = method_return_type(receiver->name, call->method)) return result;
             return std::nullopt;
@@ -2613,7 +3408,7 @@ private:
             pattern.dimensions.size() != actual.dimensions.size()) {
             return false;
         }
-        if ((pattern.name == "tensor" || pattern.name == "neural") &&
+        if (pattern.name == "tensor" &&
             !pattern.tensor_shape_prefix.empty()) {
             const auto rank = pattern.tensor_shape_prefix.size();
             if (actual.tensor_rank &&
@@ -2683,7 +3478,7 @@ private:
             if (!actual) continue;
             if (!infer_generic_pattern(
                     templ.parameters[index].type, *actual, parameters, inferred)) {
-                continue;
+                return std::nullopt;
             }
         }
 
@@ -2695,6 +3490,226 @@ private:
             result.push_back(clone_type(found->second));
         }
         return result;
+    }
+
+    std::optional<std::vector<std::size_t>> bind_family_arguments(
+        const FunctionDecl& function, const std::vector<CallArg>& args) const {
+        std::vector<std::size_t> targets;
+        std::vector<bool> filled(function.parameters.size());
+        std::size_t positional = 0;
+        for (const auto& argument : args) {
+            std::size_t target = function.parameters.size();
+            if (argument.name) {
+                for (std::size_t i = 0; i < function.parameters.size(); ++i) {
+                    if (function.parameters[i].name == *argument.name) {
+                        target = i;
+                        break;
+                    }
+                }
+            } else if (positional < function.parameters.size()) {
+                target = positional++;
+            }
+            if (target >= function.parameters.size() || filled[target]) return std::nullopt;
+            if (argument.writable != function.parameters[target].writable) return std::nullopt;
+            filled[target] = true;
+            targets.push_back(target);
+        }
+        for (std::size_t i = 0; i < filled.size(); ++i) {
+            if (!filled[i] && !function.parameters[i].default_value) return std::nullopt;
+        }
+        return targets;
+    }
+
+    bool generic_arguments_satisfy(
+        const FunctionDecl& function,
+        const std::vector<TypeName>& arguments) const {
+        if (arguments.size() != function.type_parameters.size()) return false;
+        for (std::size_t i = 0; i < arguments.size(); ++i) {
+            const auto constraint = function_constraint(function, i);
+            if (!constraint.empty() &&
+                !satisfies_generic_constraint(clone_type(arguments[i]), constraint)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool concrete_family_match(
+        const FunctionDecl& function,
+        const std::vector<CallArg>& args,
+        const std::string& current_class) const {
+        const auto targets = bind_family_arguments(function, args);
+        if (!targets) return false;
+        for (std::size_t i = 0; i < args.size(); ++i) {
+            const auto& expected = function.parameters[(*targets)[i]].type;
+            const auto actual = infer_expression_type(*args[i].value, current_class);
+            if (!actual) {
+                const auto contextual_numeric_literal =
+                    [&](const auto& self, const Expr& value) -> bool {
+                        if (std::holds_alternative<IntegerExpr>(value.data) ||
+                            std::holds_alternative<FloatExpr>(value.data)) {
+                            return true;
+                        }
+                        if (const auto* unary =
+                                std::get_if<UnaryExpr>(&value.data)) {
+                            return (unary->op == "-" || unary->op == "+") &&
+                                self(self, *unary->operand);
+                        }
+                        return false;
+                    };
+                const bool numeric_literal =
+                    contextual_numeric_literal(
+                        contextual_numeric_literal, *args[i].value);
+                if (!numeric_literal || !expected.dimensions.empty() ||
+                    !expected.arguments.empty() || !expected.function_parameters.empty() ||
+                    !scalar_numeric_constraint_type(expected.name)) {
+                    return false;
+                }
+                continue;
+            }
+            const std::unordered_set<std::string> no_parameters;
+            Substitution ignored;
+            if (!infer_generic_pattern(
+                    expected, *actual, no_parameters, ignored)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    std::optional<std::vector<TypeName>> generic_family_match(
+        const FunctionDecl& function,
+        const std::vector<CallArg>& args,
+        const std::string& current_class) const {
+        if (!bind_family_arguments(function, args)) return std::nullopt;
+        const auto inferred = infer_generic_arguments(function, args, current_class);
+        if (!inferred || !generic_arguments_satisfy(function, *inferred)) {
+            return std::nullopt;
+        }
+        return inferred;
+    }
+
+    const FunctionDecl* most_specific_generic(
+        const std::vector<const FunctionDecl*>& candidates,
+        SourceSpan span, const std::string& name) const {
+        if (candidates.empty()) return nullptr;
+        if (candidates.size() == 1) return candidates.front();
+        for (const auto* candidate : candidates) {
+            bool dominates = true;
+            for (const auto* other : candidates) {
+                if (candidate == other) continue;
+                if (!generic_more_specific(*candidate, *other)) {
+                    dominates = false;
+                    break;
+                }
+            }
+            if (dominates) return candidate;
+        }
+        frontend_error(
+            "AMBIGUOUS_SPECIALIZATION",
+            "Call to '" + name +
+                "' matches multiple generic specializations with no unique priority.",
+            span);
+    }
+
+    std::string materialize_concrete_specialization(const FunctionDecl& function) {
+        const auto key = function_declaration_key(function);
+        if (const auto existing = concrete_specialization_instances_.find(key);
+            existing != concrete_specialization_instances_.end()) {
+            return existing->second;
+        }
+        const auto concrete_name = mangle("fs", function.name, key);
+        concrete_specialization_instances_[key] = concrete_name;
+        function_return_types_[concrete_name] =
+            materialize_type(function.return_type, {}, {});
+        auto concrete = clone_function(function, {}, {}, "");
+        concrete.name = concrete_name;
+        output_.functions.push_back(std::move(concrete));
+        return concrete_name;
+    }
+
+    std::string resolve_function_family(
+        const std::string& name,
+        const std::vector<CallArg>& args,
+        const std::string& current_class,
+        SourceSpan span) {
+        const auto family = specialization_families_.find(name);
+        if (family == specialization_families_.end()) {
+            frontend_error("UNKNOWN_GENERIC", "Unknown specialization family '" + name + "'.", span);
+        }
+
+        std::vector<const FunctionDecl*> concrete_matches;
+        struct GenericMatch {
+            const FunctionDecl* function{};
+            std::vector<TypeName> arguments;
+        };
+        std::vector<GenericMatch> generic_matches;
+
+        for (const auto* function : family->second) {
+            if (function->type_parameters.empty()) {
+                if (concrete_family_match(*function, args, current_class)) {
+                    concrete_matches.push_back(function);
+                }
+            } else if (const auto inferred =
+                           generic_family_match(*function, args, current_class)) {
+                generic_matches.push_back(
+                    GenericMatch{function, *inferred});
+            }
+        }
+
+        if (concrete_matches.size() > 1) {
+            frontend_error(
+                "AMBIGUOUS_SPECIALIZATION",
+                "Call to '" + name + "' matches more than one concrete specialization.",
+                span);
+        }
+        if (concrete_matches.size() == 1) {
+            return materialize_concrete_specialization(*concrete_matches.front());
+        }
+        if (generic_matches.empty()) {
+            frontend_error(
+                "SPECIALIZATION_NO_MATCH",
+                "No specialization of '" + name +
+                    "' matches the statically known argument types.",
+                span);
+        }
+
+        std::vector<const FunctionDecl*> candidates;
+        for (const auto& match : generic_matches) candidates.push_back(match.function);
+        const auto* chosen = most_specific_generic(candidates, span, name);
+        for (const auto& match : generic_matches) {
+            if (match.function == chosen) {
+                return instantiate_function(*chosen, match.arguments);
+            }
+        }
+        throw std::logic_error("Generic specialization selection lost its candidate.");
+    }
+
+    std::string resolve_function_family_explicit(
+        const std::string& name,
+        const std::vector<TypeName>& source_arguments,
+        SourceSpan span) {
+        std::vector<TypeName> arguments;
+        for (const auto& argument : source_arguments) {
+            arguments.push_back(materialize_type(argument, {}, {}));
+        }
+        std::vector<const FunctionDecl*> candidates;
+        for (const auto* function : specialization_families_.at(name)) {
+            if (function->type_parameters.empty()) continue;
+            if (function->type_parameters.size() != arguments.size()) continue;
+            if (generic_arguments_satisfy(*function, arguments)) {
+                candidates.push_back(function);
+            }
+        }
+        if (candidates.empty()) {
+            frontend_error(
+                "GENERIC_CONSTRAINT",
+                "Explicit type arguments do not match any generic specialization of '" +
+                    name + "'.",
+                span);
+        }
+        const auto* chosen = most_specific_generic(candidates, span, name);
+        return instantiate_function(*chosen, arguments);
     }
 
     TypeName materialize_type(
@@ -2727,12 +3742,6 @@ private:
                 }
                 return type;
             }
-            if (type.name == "neural") {
-                if (type.arguments.size() != 1) {
-                    frontend_error("GENERIC_ARITY", "neural accepts zero or one element type.", type.span);
-                }
-                return type;
-            }
             if (type.name == "fn") {
                 if (type.arguments.size() != 1) {
                     frontend_error("GENERIC_ARITY", "fn requires exactly one result type.", type.span);
@@ -2759,18 +3768,6 @@ private:
         }
 
         if (class_templates_.contains(type.name)) {
-            if (type.name == "$std.neural.Parameter") {
-                TypeName float32 = standard_type("float32");
-                const auto dimensions = type.dimensions;
-                const auto span = type.span;
-                const auto concrete = instantiate_class(type.name, {float32});
-                TypeName result;
-                result.name = concrete;
-                result.dimensions = dimensions;
-                result.array_depth = dimensions.size();
-                result.span = span;
-                return result;
-            }
             frontend_error("GENERIC_ARGUMENTS_REQUIRED",
                            "Generic class '" + type.name + "' requires explicit type arguments.",
                            type.span);
@@ -2877,13 +3874,22 @@ private:
 
             if (!type_arguments.empty() && !deferred_call) {
                 if (copy.callee == "tensor" || copy.callee == "$std.tensor.zeros" ||
-                    copy.callee == "$std.tensor.ones") {
+                    copy.callee == "$std.tensor.ones" ||
+                    copy.callee == "$std.reflect.collect") {
                     copy.type_arguments = std::move(type_arguments);
                 } else if (class_templates_.contains(copy.callee)) {
                     copy.callee = instantiate_class(copy.callee, type_arguments);
+                } else if (current_class.size() &&
+                           class_has_method_specialization_family(
+                               current_class, copy.callee)) {
+                    copy.callee = resolve_method_family_explicit(
+                        current_class, copy.callee, type_arguments, source.span);
                 } else if (current_class.size() && class_has_generic_method(current_class, copy.callee)) {
                     request_method_for_class(current_class, copy.callee, type_arguments, source.span);
                     copy.callee = method_name(copy.callee, type_arguments);
+                } else if (specialization_families_.contains(copy.callee)) {
+                    copy.callee = resolve_function_family_explicit(
+                        copy.callee, type_arguments, source.span);
                 } else if (function_templates_.contains(copy.callee)) {
                     copy.callee = instantiate_function(copy.callee, type_arguments);
                 } else {
@@ -2894,8 +3900,17 @@ private:
             } else if (!type_arguments.empty()) {
                 copy.type_arguments = std::move(type_arguments);
             } else {
-                if (const auto function = function_templates_.find(copy.callee);
-                    function != function_templates_.end()) {
+                if (current_class.size() &&
+                    class_has_method_specialization_family(
+                        current_class, copy.callee)) {
+                    copy.callee = resolve_method_family(
+                        current_class, copy.callee, copy.args,
+                        current_class, source.span);
+                } else if (specialization_families_.contains(copy.callee)) {
+                    copy.callee = resolve_function_family(
+                        copy.callee, copy.args, current_class, source.span);
+                } else if (const auto function = function_templates_.find(copy.callee);
+                           function != function_templates_.end()) {
                     const auto inferred =
                         infer_generic_arguments(*function->second, copy.args, current_class);
                     if (!inferred) {
@@ -2937,16 +3952,11 @@ private:
                         copy.callee = method_name(copy.callee, *inferred);
                     }
                 } else if (class_templates_.contains(copy.callee)) {
-                    if (copy.callee == "$std.neural.Parameter") {
-                        TypeName float32 = standard_type("float32");
-                        copy.callee = instantiate_class(copy.callee, {float32});
-                    } else {
-                        frontend_error(
-                            "GENERIC_ARGUMENTS_REQUIRED",
-                            "Generic class '" + copy.callee +
-                                "' requires explicit type arguments.",
-                            source.span);
-                    }
+                    frontend_error(
+                        "GENERIC_ARGUMENTS_REQUIRED",
+                        "Generic class '" + copy.callee +
+                            "' requires explicit type arguments.",
+                        source.span);
                 }
             }
             out->data = std::move(copy);
@@ -2982,8 +3992,23 @@ private:
                         "Generic method receiver must resolve to a concrete class.",
                         source.span);
                 }
-                request_method_for_class(receiver_type->name, copy.method, type_arguments, source.span);
-                copy.method = method_name(copy.method, type_arguments);
+                if (receiver_type->name == "$std.autograd.Target" &&
+                    copy.method == "gradient") {
+                    // autograd.Target.gradient<T>() is a built-in method. Keep its
+                    // explicit type argument for the checker instead of trying to
+                    // monomorphize a source-declared generic method.
+                    copy.type_arguments = std::move(type_arguments);
+                } else if (class_has_method_specialization_family(
+                        receiver_type->name, copy.method)) {
+                    copy.method = resolve_method_family_explicit(
+                        receiver_type->name, copy.method,
+                        type_arguments, source.span);
+                } else {
+                    request_method_for_class(
+                        receiver_type->name, copy.method,
+                        type_arguments, source.span);
+                    copy.method = method_name(copy.method, type_arguments);
+                }
             } else if (!type_arguments.empty()) {
                 copy.type_arguments = std::move(type_arguments);
             } else {
@@ -2997,7 +4022,13 @@ private:
                         }
                     }
                     if (class_index_.contains(receiver_type->name) &&
-                        class_has_generic_method(receiver_type->name, copy.method)) {
+                        class_has_method_specialization_family(
+                            receiver_type->name, copy.method)) {
+                        copy.method = resolve_method_family(
+                            receiver_type->name, copy.method, copy.args,
+                            current_class, source.span);
+                    } else if (class_index_.contains(receiver_type->name) &&
+                               class_has_generic_method(receiver_type->name, copy.method)) {
                         const auto owner =
                             generic_method_owner(receiver_type->name, copy.method);
                         const auto& templ =
@@ -3082,6 +4113,15 @@ private:
             for (const auto& child : node->else_body) {
                 copy.else_body.push_back(clone_stmt(*child, substitution, deferred, current_class));
             }
+            type_environment_ = before;
+            out->data = std::move(copy);
+        } else if (const auto* node = std::get_if<MainGuardStmt>(&source.data)) {
+            MainGuardStmt copy;
+            copy.active = node->active;
+            copy.source_file = node->source_file;
+            const auto before = type_environment_;
+            for (const auto& child : node->body)
+                copy.body.push_back(clone_stmt(*child, substitution, deferred, current_class));
             type_environment_ = before;
             out->data = std::move(copy);
         } else if (const auto* node = std::get_if<WhileStmt>(&source.data)) {
@@ -3210,22 +4250,6 @@ private:
             templ->second->type_parameters, templ->second->type_constraints,
             arguments, "class", name, templ->second->span);
 
-        const bool neural_float_class = name == "$std.neural.Parameter";
-        if (neural_float_class && !arguments.empty()) {
-            const auto& element = arguments.front();
-            const bool supported =
-                element.arguments.empty() && element.dimensions.empty() &&
-                (element.name == "float32" ||
-                 element.name == "float" ||
-                 element.name == "float64");
-            if (!supported) {
-                frontend_error(
-                    "INVALID_TYPE",
-                    "neural.Parameter supports only float32 or float element types.",
-                    source_arguments.front().span);
-            }
-        }
-
         if (name == "$std.map.Map" && !arguments.empty() &&
             !standard_collection_key_type(arguments[0])) {
             frontend_error("STANDARD_KEY_TYPE",
@@ -3283,22 +4307,45 @@ private:
         output_.classes.push_back(std::move(out));
         class_index_[concrete_name] = output_.classes.size() - 1;
 
+        std::unordered_map<std::string, std::vector<const FunctionDecl*>>
+            source_method_families;
         for (const auto& method : source.methods) {
-            if (method.type_parameters.empty()) {
-                method_return_types_[concrete_name][method.name] =
-                    materialize_type(method.return_type, class_substitution, {});
+            if (!method.is_constructor) {
+                source_method_families[method.name].push_back(&method);
+            }
+        }
+
+        for (const auto& [name, family] : source_method_families) {
+            if (family.size() <= 1) continue;
+            auto& target = method_specialization_families_[concrete_name][name];
+            for (const auto* method : family) {
+                target.push_back(make_method_specialization_member(
+                    *method, class_substitution));
             }
         }
 
         for (const auto& method : source.methods) {
-            if (method.type_parameters.empty()) continue;
-            const auto deferred = set_of(method.type_parameters);
-            auto method_template = clone_function(method, class_substitution, deferred, concrete_name);
-            generic_methods_[concrete_name][method.name] = std::move(method_template);
+            const bool specialized_family =
+                !method.is_constructor &&
+                source_method_families.at(method.name).size() > 1;
+            if (specialized_family) continue;
+            if (method.type_parameters.empty()) {
+                method_return_types_[concrete_name][method.name] =
+                    materialize_type(method.return_type, class_substitution, {});
+            } else {
+                const auto deferred = set_of(method.type_parameters);
+                auto method_template =
+                    clone_function(method, class_substitution, deferred, concrete_name);
+                generic_methods_[concrete_name][method.name] =
+                    std::move(method_template);
+            }
         }
 
         for (const auto& method : source.methods) {
-            if (!method.type_parameters.empty()) continue;
+            const bool specialized_family =
+                !method.is_constructor &&
+                source_method_families.at(method.name).size() > 1;
+            if (specialized_family || !method.type_parameters.empty()) continue;
             auto copy = clone_function(method, class_substitution, {}, concrete_name);
             if ((source.name == "$std.map.Map" || source.name == "$std.set.Set") &&
                 method.name == "__hash") {
@@ -3316,28 +4363,29 @@ private:
         }
     }
 
-    std::string instantiate_function(const std::string& name, const std::vector<TypeName>& source_arguments) {
-        const auto templ = function_templates_.find(name);
-        if (templ == function_templates_.end()) {
-            frontend_error("UNKNOWN_GENERIC", "Unknown generic function '" + name + "'.");
-        }
+    std::string instantiate_function(
+        const FunctionDecl& function,
+        const std::vector<TypeName>& source_arguments) {
+        const auto& name = function.name;
 
         std::vector<TypeName> arguments;
-        for (const auto& argument : source_arguments) arguments.push_back(materialize_type(argument, {}, {}));
+        for (const auto& argument : source_arguments)
+            arguments.push_back(materialize_type(argument, {}, {}));
 
-        if (arguments.size() != templ->second->type_parameters.size()) {
+        if (arguments.size() != function.type_parameters.size()) {
             frontend_error("GENERIC_ARITY",
                            "Generic function '" + name + "' expects " +
-                               std::to_string(templ->second->type_parameters.size()) +
+                               std::to_string(function.type_parameters.size()) +
                                " type argument(s), got " + std::to_string(arguments.size()) + ".",
-                           templ->second->span);
+                           function.span);
         }
         validate_generic_arguments(
-            templ->second->type_parameters, templ->second->type_constraints,
-            arguments, "function", name, templ->second->span);
+            function.type_parameters, function.type_constraints,
+            arguments, "function", name, function.span);
 
-        const auto key = instance_key(name, arguments);
-        if (const auto existing = function_instances_.find(key); existing != function_instances_.end()) {
+        const auto key = function_declaration_key(function) + instance_key(name, arguments);
+        if (const auto existing = function_instances_.find(key);
+            existing != function_instances_.end()) {
             return existing->second;
         }
 
@@ -3346,17 +4394,215 @@ private:
 
         Substitution substitution;
         for (std::size_t i = 0; i < arguments.size(); ++i) {
-            substitution[templ->second->type_parameters[i]] = clone_type(arguments[i]);
+            substitution[function.type_parameters[i]] = clone_type(arguments[i]);
         }
 
         function_return_types_[concrete_name] =
-            materialize_type(templ->second->return_type, substitution, {});
-        auto concrete = clone_function(*templ->second, substitution, {}, "");
+            materialize_type(function.return_type, substitution, {});
+        auto concrete = clone_function(function, substitution, {}, "");
         concrete.name = concrete_name;
         concrete.type_parameters.clear();
         concrete.type_constraints.clear();
         output_.functions.push_back(std::move(concrete));
         return concrete_name;
+    }
+
+    std::string instantiate_function(
+        const std::string& name,
+        const std::vector<TypeName>& source_arguments) {
+        const auto templ = function_templates_.find(name);
+        if (templ == function_templates_.end()) {
+            frontend_error("UNKNOWN_GENERIC", "Unknown generic function '" + name + "'.");
+        }
+        return instantiate_function(*templ->second, source_arguments);
+    }
+
+
+    std::string materialize_concrete_method_specialization(
+        const std::string& class_name,
+        MethodSpecializationMember& member) {
+        const auto key =
+            class_name + "::" + function_declaration_key(member.signature);
+        auto& instances = method_specialization_instances_[class_name];
+        if (const auto existing = instances.find(key);
+            existing != instances.end()) {
+            return existing->second;
+        }
+
+        const auto concrete_name =
+            mangle("ms", member.signature.name, key);
+        instances[key] = concrete_name;
+        method_return_types_[class_name][concrete_name] =
+            materialize_type(
+                member.source->return_type,
+                member.class_substitution,
+                {});
+        auto concrete = clone_function(
+            *member.source, member.class_substitution, {}, class_name);
+        concrete.name = concrete_name;
+        concrete.type_parameters.clear();
+        concrete.type_constraints.clear();
+        output_.classes[class_index_.at(class_name)].methods.push_back(
+            std::move(concrete));
+        return concrete_name;
+    }
+
+    std::string instantiate_method_specialization(
+        const std::string& class_name,
+        MethodSpecializationMember& member,
+        const std::vector<TypeName>& source_arguments) {
+        std::vector<TypeName> arguments;
+        for (const auto& argument : source_arguments) {
+            arguments.push_back(materialize_type(argument, {}, {}));
+        }
+        if (arguments.size() != member.signature.type_parameters.size()) {
+            frontend_error(
+                "GENERIC_ARITY",
+                "Generic method '" + member.signature.name + "' expects " +
+                    std::to_string(member.signature.type_parameters.size()) +
+                    " type argument(s), got " +
+                    std::to_string(arguments.size()) + ".",
+                member.signature.span);
+        }
+        validate_generic_arguments(
+            member.signature.type_parameters,
+            member.signature.type_constraints,
+            arguments,
+            "method",
+            member.signature.name,
+            member.signature.span);
+
+        const auto key =
+            class_name + "::" + function_declaration_key(member.signature) +
+            instance_key(member.signature.name, arguments);
+        auto& instances = method_specialization_instances_[class_name];
+        if (const auto existing = instances.find(key);
+            existing != instances.end()) {
+            return existing->second;
+        }
+
+        Substitution combined = clone_substitution(member.class_substitution);
+        for (std::size_t i = 0; i < arguments.size(); ++i) {
+            combined[member.signature.type_parameters[i]] =
+                clone_type(arguments[i]);
+        }
+
+        const auto concrete_name =
+            mangle("ms", member.signature.name, key);
+        instances[key] = concrete_name;
+        method_return_types_[class_name][concrete_name] =
+            materialize_type(member.source->return_type, combined, {});
+        auto concrete =
+            clone_function(*member.source, combined, {}, class_name);
+        concrete.name = concrete_name;
+        concrete.type_parameters.clear();
+        concrete.type_constraints.clear();
+        output_.classes[class_index_.at(class_name)].methods.push_back(
+            std::move(concrete));
+        return concrete_name;
+    }
+
+    std::string resolve_method_family(
+        const std::string& class_name,
+        const std::string& name,
+        const std::vector<CallArg>& args,
+        const std::string& current_class,
+        SourceSpan span) {
+        auto& family =
+            method_specialization_families_.at(class_name).at(name);
+
+        std::vector<MethodSpecializationMember*> concrete_matches;
+        struct GenericMethodMatch {
+            MethodSpecializationMember* member{};
+            std::vector<TypeName> arguments;
+        };
+        std::vector<GenericMethodMatch> generic_matches;
+
+        for (auto& member : family) {
+            if (member.signature.type_parameters.empty()) {
+                if (concrete_family_match(
+                        member.signature, args, current_class)) {
+                    concrete_matches.push_back(&member);
+                }
+            } else if (const auto inferred =
+                           generic_family_match(
+                               member.signature, args, current_class)) {
+                generic_matches.push_back(
+                    GenericMethodMatch{&member, *inferred});
+            }
+        }
+
+        if (concrete_matches.size() > 1) {
+            frontend_error(
+                "AMBIGUOUS_SPECIALIZATION",
+                "Call to method '" + name +
+                    "' matches more than one concrete specialization.",
+                span);
+        }
+        if (concrete_matches.size() == 1) {
+            return materialize_concrete_method_specialization(
+                class_name, *concrete_matches.front());
+        }
+        if (generic_matches.empty()) {
+            frontend_error(
+                "SPECIALIZATION_NO_MATCH",
+                "No specialization of method '" + name +
+                    "' matches the statically known argument types.",
+                span);
+        }
+
+        std::vector<const FunctionDecl*> candidates;
+        for (const auto& match : generic_matches) {
+            candidates.push_back(&match.member->signature);
+        }
+        const auto* chosen = most_specific_generic(candidates, span, name);
+        for (auto& match : generic_matches) {
+            if (&match.member->signature == chosen) {
+                return instantiate_method_specialization(
+                    class_name, *match.member, match.arguments);
+            }
+        }
+        throw std::logic_error(
+            "Generic method specialization selection lost its candidate.");
+    }
+
+    std::string resolve_method_family_explicit(
+        const std::string& class_name,
+        const std::string& name,
+        const std::vector<TypeName>& source_arguments,
+        SourceSpan span) {
+        std::vector<TypeName> arguments;
+        for (const auto& argument : source_arguments) {
+            arguments.push_back(materialize_type(argument, {}, {}));
+        }
+
+        auto& family =
+            method_specialization_families_.at(class_name).at(name);
+        std::vector<const FunctionDecl*> candidates;
+        for (auto& member : family) {
+            if (member.signature.type_parameters.empty()) continue;
+            if (member.signature.type_parameters.size() != arguments.size()) continue;
+            if (generic_arguments_satisfy(member.signature, arguments)) {
+                candidates.push_back(&member.signature);
+            }
+        }
+        if (candidates.empty()) {
+            frontend_error(
+                "GENERIC_CONSTRAINT",
+                "Explicit type arguments do not match any generic specialization of method '" +
+                    name + "'.",
+                span);
+        }
+
+        const auto* chosen = most_specific_generic(candidates, span, name);
+        for (auto& member : family) {
+            if (&member.signature == chosen) {
+                return instantiate_method_specialization(
+                    class_name, member, arguments);
+            }
+        }
+        throw std::logic_error(
+            "Explicit generic method specialization selection lost its candidate.");
     }
 
     std::string method_name(const std::string& name, const std::vector<TypeName>& arguments) const {

@@ -34,6 +34,7 @@ quidra_project_value(official_repository_base QUIDRA_OFFICIAL_REPOSITORY_BASE)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json" QUIDRA_MANIFEST_JSON)
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf" QUIDRA_GRAMMAR_EBNF)
+file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf" QUIDRA_GRAMMAR_SHA256)
 project(${QUIDRA_PROJECT_CLI} VERSION ${QUIDRA_PROJECT_VERSION} LANGUAGES CXX)
 
 if(APPLE)
@@ -426,7 +427,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_package_identity COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_identity_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_package_releases COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_release_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
-    add_test(NAME quidra_neural_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/neural_foundation_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_tensor_autograd_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/tensor_autograd_foundation_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_image_dtype COMMAND bash ${CMAKE_SOURCE_DIR}/tests/image_dtype_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_video COMMAND bash ${CMAKE_SOURCE_DIR}/tests/video_tests.sh $<TARGET_FILE:quidra>)
     if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
@@ -487,7 +488,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       quidra_package_identity
       quidra_package_releases
       quidra_stdlib
-      quidra_neural_foundation
+      quidra_tensor_autograd_foundation
       quidra_image_dtype
       quidra_video
       quidra_native_smoke

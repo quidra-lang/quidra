@@ -1,6 +1,7 @@
 #pragma once
 #include "quidra/diagnostic.hpp"
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -25,7 +26,7 @@ struct TypeName {
     std::vector<std::shared_ptr<Expr>> dimension_expressions;
     SourceSpan span{};
     // tensor_shape_prefix stores a source-visible exact shape pattern for
-    // tensor/neural values. Nonnegative entries are fixed extents and -1 is
+    // tensor values. Nonnegative entries are fixed extents and -1 is
     // the '_' wildcard. tensor_rank and tensor_known_shape_prefix also carry
     // compiler-internal flow refinements.
     std::vector<long long> tensor_shape_prefix;
@@ -114,6 +115,11 @@ struct ReturnStmt { ExprPtr value; };
 struct LoopControlStmt { bool is_continue{}; };
 struct ExprStmt { ExprPtr value; };
 struct IfStmt { ExprPtr condition; std::vector<StmtPtr> then_body; std::vector<StmtPtr> else_body; };
+struct MainGuardStmt {
+    std::vector<StmtPtr> body;
+    bool active{true};
+    std::string source_file;
+};
 struct WhileStmt { ExprPtr condition; std::vector<StmtPtr> body; };
 struct ForStmt { std::string name; bool writable{}; ExprPtr iterable; std::vector<StmtPtr> body; };
 struct MatchCase { TypeName type; std::string tag; std::optional<std::string> binder; std::vector<StmtPtr> body; SourceSpan span{}; };
@@ -121,7 +127,7 @@ struct MatchStmt { ExprPtr value; std::vector<MatchCase> cases; };
 
 struct Stmt {
     using Data = std::variant<BindingStmt, AssignStmt, RebindStmt, ReturnStmt, LoopControlStmt,
-                              ExprStmt, IfStmt, WhileStmt, ForStmt, MatchStmt>;
+                              ExprStmt, IfStmt, MainGuardStmt, WhileStmt, ForStmt, MatchStmt>;
     Data data;
     SourceSpan span{};
 };
@@ -145,6 +151,8 @@ struct FunctionDecl {
     bool is_constructor{};
     // True when the writer spelled a return type before `construct`.
     bool constructor_typed{};
+    bool is_prototype{};
+    std::optional<SourceSpan> prototype_span{};
 };
 
 struct FieldDecl {
@@ -165,6 +173,8 @@ struct ClassDecl {
     std::vector<std::string> type_parameters;
     // Empty string means unconstrained. Entries align with type_parameters.
     std::vector<std::string> type_constraints;
+    bool is_prototype{};
+    std::optional<SourceSpan> prototype_span{};
 };
 
 struct EnumVariantDecl {
@@ -192,6 +202,9 @@ struct ImportDecl {
 
 struct Program {
     std::string root_source_file;
+    // Keep the exact source snapshot through lowering so runtime provenance can
+    // use the same revision/node identifiers as the public inspect protocol.
+    std::map<std::string, std::string> source_texts;
     std::vector<ClassDecl> classes;
     std::vector<EnumDecl> enums;
     std::vector<FunctionDecl> functions;

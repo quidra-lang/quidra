@@ -20,6 +20,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -221,7 +223,7 @@ std::string description_json() {
 void usage(std::ostream& out) {
     const std::string cli(quidra::cli_name);
     const std::string source = "FILE" + std::string(quidra::source_extension);
-    out << quidra::language_name << " " << quidra::compiler_version << "\n"
+    out << quidra::language_name << " " << quidra::version << "\n"
         << "usage:\n"
         << "  " << cli << "                            start REPL when stdin is a TTY\n"
         << "  " << cli << " repl                       start REPL explicitly\n"
@@ -253,23 +255,70 @@ void usage(std::ostream& out) {
         << "                                      validate/apply a revision-safe structural patch\n"
         << "  " << cli << " describe [grammar|patch-schema|llm]\n"
         << "                                      print machine-readable language/tooling contracts\n"
-        << "  " << cli << " --version                   print compiler version\n";
+        << "  " << cli << " --version                   print Quidra version\n";
 }
 
 void print_diagnostics(const fs::path& input, const std::vector<quidra::Diagnostic>& diagnostics,
                        bool truncated, bool json) {
+    std::optional<std::string> source;
+    std::optional<quidra::SourceInspection> structure;
     if (json) {
-        std::cout << "{\"ok\":false,\"truncated\":" << (truncated ? "true" : "false")
+        try {
+            source = read_file(input);
+            try {
+                structure = quidra::inspect_syntax_source(*source);
+            } catch (const quidra::CompileError&) {
+            } catch (const quidra::CompileErrors&) {
+            }
+        } catch (...) {
+        }
+
+        const auto node_for = [&](const quidra::Diagnostic& diagnostic)
+            -> const quidra::SourceNode* {
+            if (!structure) return nullptr;
+            const quidra::SourceNode* best = nullptr;
+            std::size_t best_width = std::numeric_limits<std::size_t>::max();
+            for (const auto& node : structure->nodes) {
+                const bool contains =
+                    node.span.start.offset <= diagnostic.span.start.offset &&
+                    node.span.end.offset >= diagnostic.span.end.offset;
+                if (!contains) continue;
+                const auto width = node.span.end.offset >= node.span.start.offset
+                    ? node.span.end.offset - node.span.start.offset
+                    : std::numeric_limits<std::size_t>::max();
+                if (!best || width < best_width ||
+                    (width == best_width && node.depth > best->depth)) {
+                    best = &node;
+                    best_width = width;
+                }
+            }
+            return best;
+        };
+
+        std::cout << "{\"ok\":false,\"diagnostic_schema_version\":2,\"truncated\":"
+                  << (truncated ? "true" : "false")
                   << ",\"diagnostics\":[";
         for (std::size_t i = 0; i < diagnostics.size(); ++i) {
             if (i) std::cout << ",";
             const auto& d = diagnostics[i];
+            const auto* node = node_for(d);
             std::cout << "{\"code\":\"" << json_escape(d.code)
                       << "\",\"message\":\"" << json_escape(d.message)
                       << "\",\"file\":\"" << json_escape(input.string())
-                      << "\",\"span\":{\"start\":{\"line\":" << d.span.start.line
+                      << "\",\"source_revision\":";
+            if (source) std::cout << "\"" << quidra::sha256_hex(*source) << "\"";
+            else std::cout << "null";
+            std::cout << ",\"node_id\":";
+            if (node) std::cout << "\"" << json_escape(node->node_id) << "\"";
+            else std::cout << "null";
+            std::cout << ",\"node_kind\":";
+            if (node) std::cout << "\"" << json_escape(node->kind) << "\"";
+            else std::cout << "null";
+            std::cout << ",\"span\":{\"start\":{\"offset\":" << d.span.start.offset
+                      << ",\"line\":" << d.span.start.line
                       << ",\"column\":" << d.span.start.column
-                      << "},\"end\":{\"line\":" << d.span.end.line
+                      << "},\"end\":{\"offset\":" << d.span.end.offset
+                      << ",\"line\":" << d.span.end.line
                       << ",\"column\":" << d.span.end.column << "}}}";
         }
         std::cout << "]}\n";
@@ -403,7 +452,7 @@ int main(int argc, char** argv) {
     if (argc == 2) {
         const std::string arg = argv[1];
         if (arg == "--version" || arg == "-V") {
-            std::cout << "quidra " << quidra::compiler_version << "\n";
+            std::cout << "quidra " << quidra::version << "\n";
             return 0;
         }
         if (arg == "--help" || arg == "-h") {
@@ -450,7 +499,7 @@ int main(int argc, char** argv) {
             }
             (void)quidra::check_file(input, quidra::CompileOptions{max_errors}, fs::current_path());
             if (json) {
-                std::cout << "{\"ok\":true,\"compiler_version\":\"" << quidra::compiler_version
+                std::cout << "{\"ok\":true,\"version\":\"" << quidra::version
                           << "\",\"truncated\":false,\"diagnostics\":[]}\n";
             } else {
                 std::cout << input.string() << ": ok\n";

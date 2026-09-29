@@ -1944,8 +1944,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         "run_id": run_id,
         "evaluated": {
             **meta,
-            "compiler_version": project_version(root / "repo"),
-            "project_version": project_version(root / "repo"),
+            "version": project_version(root / "repo"),
             "quidra_result_id": quidra_version_id(project_version(root / "repo") or ""),
             "quidra_execution_identity": target_execution_identity,
             "language_quality_design_identity": target_lq_design_identity,
@@ -18662,7 +18661,7 @@ def compact_run_files(
         "run_id": run.get("run_id"),
         "evaluated": {
             "commit_sha": (run.get("evaluated") or {}).get("commit_sha"),
-            "compiler_version": (run.get("evaluated") or {}).get("compiler_version"),
+            "version": (run.get("evaluated") or {}).get("version"),
         },
         "primary_evaluations": {
             name: {
@@ -18727,7 +18726,7 @@ def compact_run_files(
         "quidra_execution_identity": (
             (run.get("evaluated") or {}).get("quidra_execution_identity")
         ),
-        "quidra_project_version": (run.get("evaluated") or {}).get("project_version"),
+        "version": (run.get("evaluated") or {}).get("version"),
         "quidra_result_id": (run.get("evaluated") or {}).get("quidra_result_id"),
         "toolchains": {
             language: row.get("canonical")

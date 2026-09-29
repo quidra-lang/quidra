@@ -103,7 +103,6 @@ struct InitializationTracker {
 struct ManagedAllocation {
     void* base{};
     std::size_t size{};
-    std::uint64_t identity{};
     unsigned char small_pool_class{};
     std::size_t owners{1};
     std::size_t pins{};
@@ -141,7 +140,6 @@ struct ManagedFinalization {
 
 using ManagedAllocations = std::unordered_map<std::uintptr_t, ManagedAllocation>;
 thread_local ManagedAllocations managed_allocations;
-thread_local std::uint64_t next_managed_identity = 1;
 
 constexpr std::array<std::size_t, 5> small_managed_pool_sizes{
     16, 32, 64, 128, 256
@@ -257,7 +255,6 @@ void invalidate_shared_string_cache(const ManagedAllocation* allocation = nullpt
     cached_shared_string_allocation = nullptr;
 }
 
-void neural_moment_cache_release(void* value);
 // Interior references need an ordered range index, but exact owner operations do not.
 // Generated element accesses cluster in a small working set of allocations, so cache
 // those ranges and avoid a tree lookup on every initialization check. The set holds
@@ -321,14 +318,9 @@ void* managed_allocate_impl(std::size_t bytes, bool track_interior_range) {
     std::size_t actual_bytes = 0;
     auto* memory = acquire_managed_memory(bytes, pool_class, actual_bytes);
     const auto key = reinterpret_cast<std::uintptr_t>(memory);
-    if (next_managed_identity == std::numeric_limits<std::uint64_t>::max()) {
-        recycle_managed_memory(memory, pool_class);
-        runtime_allocation_failure();
-    }
     ManagedAllocation allocation;
     allocation.base = memory;
     allocation.size = actual_bytes;
-    allocation.identity = next_managed_identity++;
     allocation.small_pool_class = pool_class;
     allocation.interior_range_tracked = track_interior_range;
     managed_allocations.emplace(key, std::move(allocation));
@@ -350,13 +342,6 @@ void* managed_allocate(std::size_t bytes) {
 
 void* managed_allocate_string(std::size_t bytes) {
     return managed_allocate_impl(bytes, false);
-}
-
-std::uint64_t managed_identity(const void* value) {
-    if (!value) return 0;
-    const auto it =
-        managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
-    return it == managed_allocations.end() ? 0 : it->second.identity;
 }
 
 bool tracker_bit(const InitializationTracker& tracker, std::size_t index) {
@@ -1016,7 +1001,6 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
         invalidate_managed_string_cache(allocation);
         invalidate_shared_string_cache(allocation);
         invalidate_array_append_cache(allocation);
-        neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {
             clear_managed_range_cache(allocation);
             managed_ranges.erase(key);
@@ -1056,7 +1040,6 @@ extern "C" void quidra_managed_unpin(void* address) {
             allocation->base, allocation->drop, allocation->small_pool_class};
         invalidate_managed_string_cache(allocation);
         invalidate_array_append_cache(allocation);
-        neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {
             clear_managed_range_cache(allocation);
             managed_ranges.erase(key);
@@ -1773,6 +1756,18 @@ extern "C" bool quidra_math_is_finite(double value) { return std::isfinite(value
 
 namespace {
 
+struct AutogradNode;
+struct AutogradSlot;
+struct AutogradIdentity;
+std::shared_ptr<AutogradSlot> clone_autograd_slot(
+    const std::shared_ptr<AutogradSlot>& source);
+
+enum class AutogradOp {
+    Leaf, Add, Sub, Mul, Div, ScalarBinary,
+    Absolute, Exponential, Logarithm, Mean, SumLast, MaxLast, MinLast,
+    Reshape, Transpose, Matmul, Gather, GatherBackward, MeanBackward, SumLastBackward
+};
+
 struct TensorStorage {
     std::size_t owners{1};
     int dtype{};
@@ -1788,6 +1783,8 @@ struct TensorValue {
     std::vector<long long> shape;
     std::vector<long long> strides;
     std::size_t offset{};
+    std::shared_ptr<AutogradNode> graph;
+    std::shared_ptr<AutogradSlot> grad_slot;
 };
 
 [[noreturn]] void tensor_fail(const char* message, unsigned long long line,
@@ -1800,30 +1797,42 @@ struct TensorValue {
 std::size_t tensor_dtype_bytes(int dtype) {
     switch (dtype) {
         case 1: case 8: case 9: return 8;
-        case 2: case 5: return 1;
+        case 2: case 5: case 11: return 1;
         case 3: case 6: return 2;
         case 4: case 7: case 10: return 4;
         default: runtime_text_failure("invalid tensor dtype");
     }
 }
 
+std::vector<long long> tensor_int_array_from_array(
+    void* raw, unsigned long long line, unsigned long long column) {
+    if (!raw) tensor_fail("integer array is null", line, column);
+    long long count = 0;
+    std::memcpy(&count, raw, sizeof(count));
+    if (count < 0) tensor_fail("integer array length cannot be negative", line, column);
+    const auto size = static_cast<unsigned long long>(count);
+    if (size > std::numeric_limits<unsigned long long>::max() / sizeof(long long))
+        tensor_fail("integer array is too large", line, column);
+    auto* data = static_cast<unsigned char*>(raw) + 8;
+    quidra_init_require_range(data, size * sizeof(long long), line, column);
+    std::vector<long long> values(static_cast<std::size_t>(count));
+    for (long long i = 0; i < count; ++i) {
+        std::memcpy(&values[static_cast<std::size_t>(i)],
+                    data + static_cast<std::size_t>(i) * sizeof(long long),
+                    sizeof(long long));
+    }
+    return values;
+}
+
 std::vector<long long> tensor_shape_from_array(
     void* raw, unsigned long long line, unsigned long long column) {
     if (!raw) tensor_fail("shape array is null", line, column);
-    long long rank = 0;
-    std::memcpy(&rank, raw, sizeof(rank));
-    if (rank < 0 || rank > 64) tensor_fail("tensor rank must be between 0 and 64", line, column);
-    auto* data = static_cast<unsigned char*>(raw) + 8;
-    quidra_init_require_range(
-        data, static_cast<unsigned long long>(rank) * sizeof(long long), line, column);
-    std::vector<long long> shape(static_cast<std::size_t>(rank));
-    for (long long i = 0; i < rank; ++i) {
-        std::memcpy(&shape[static_cast<std::size_t>(i)],
-                    data + static_cast<std::size_t>(i) * sizeof(long long),
-                    sizeof(long long));
-        if (shape[static_cast<std::size_t>(i)] < 0) {
+    auto shape = tensor_int_array_from_array(raw, line, column);
+    if (shape.size() > 64)
+        tensor_fail("tensor rank must be between 0 and 64", line, column);
+    for (const auto dimension : shape) {
+        if (dimension < 0)
             tensor_fail("tensor dimensions cannot be negative", line, column);
-        }
     }
     return shape;
 }
@@ -1880,7 +1889,7 @@ TensorValue* tensor_descriptor(TensorStorage* storage, std::vector<long long> sh
                                std::vector<long long> strides, std::size_t offset) {
     auto* memory = managed_allocate(sizeof(TensorValue));
     return new (memory) TensorValue{
-        storage, std::move(shape), std::move(strides), offset};
+        storage, std::move(shape), std::move(strides), offset, {}, {}};
 }
 
 void tensor_storage_release(TensorStorage* storage) {
@@ -1896,6 +1905,15 @@ void tensor_storage_release(TensorStorage* storage) {
 
 bool tensor_on_cpu(const TensorStorage& storage) {
     return storage.device < 0;
+}
+
+void tensor_require_untracked_transform(
+    const TensorValue& tensor,const char* operation,
+    unsigned long long line,unsigned long long column) {
+    if(!tensor.graph) return;
+    const auto message=std::string(operation)+
+        " on a tracked tensor requires explicit untrack() first";
+    tensor_fail(message.c_str(),line,column);
 }
 
 [[noreturn]] void tensor_gpu_unsupported(
@@ -1963,6 +1981,7 @@ TensorStorage* tensor_storage_create(
                 case 8: { std::uint64_t v=1; std::memcpy(slot,&v,8); break; }
                 case 9: { double v=1.0; std::memcpy(slot,&v,8); break; }
                 case 10:{ float v=1.0F; std::memcpy(slot,&v,4); break; }
+                case 11:{ std::uint8_t v=1; std::memcpy(slot,&v,1); break; }
                 default: tensor_fail("invalid tensor dtype", line, column);
             }
         }
@@ -2390,6 +2409,7 @@ extern "C" void* quidra_tensor_to_gpu(
         tensor_fail("gpu index must be a non-negative supported index", line, column);
     }
     auto* source = static_cast<TensorValue*>(raw);
+    tensor_require_untracked_transform(*source,"gpu()",line,column);
     auto* storage = tensor_transfer_storage(
         *source, static_cast<int>(gpu), line, column);
     return tensor_descriptor(
@@ -2400,6 +2420,7 @@ extern "C" void* quidra_tensor_to_cpu(
     void* raw, unsigned long long line, unsigned long long column) {
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
+    tensor_require_untracked_transform(*source,"cpu()",line,column);
     auto* storage = tensor_transfer_storage(*source, -1, line, column);
     return tensor_descriptor(
         storage, source->shape, tensor_contiguous_strides(source->shape), 0);
@@ -2413,8 +2434,11 @@ extern "C" void* quidra_tensor_clone(void* raw) {
         runtime_text_failure("invalid tensor storage");
     }
     ++source->storage->owners;
-    return tensor_descriptor(
+    auto* result=tensor_descriptor(
         source->storage, source->shape, source->strides, source->offset);
+    result->grad_slot=clone_autograd_slot(source->grad_slot);
+    if(source->graph) result->graph=source->graph;
+    return result;
 }
 
 extern "C" void quidra_tensor_drop(void* raw) {
@@ -2424,6 +2448,14 @@ extern "C" void quidra_tensor_drop(void* raw) {
     tensor->~TensorValue();
     tensor_storage_release(storage);
 }
+
+namespace {
+void release_managed_tensor(void* raw) {
+    if(!raw) return;
+    quidra_managed_release(
+        raw,reinterpret_cast<void*>(&quidra_tensor_drop));
+}
+} // namespace
 
 extern "C" bool quidra_tensor_is_contiguous(void* raw) {
     if (!raw) runtime_text_failure("null tensor");
@@ -2479,6 +2511,15 @@ extern "C" void* quidra_tensor_shape_fixed(void* raw, unsigned long long expecte
     return result;
 }
 
+
+namespace {
+void tensor_attach_view_graph(
+    TensorValue* result,const TensorValue& source,AutogradOp operation,
+    std::vector<std::size_t> aux,
+    unsigned long long line,unsigned long long column);
+
+} // namespace
+
 extern "C" void* quidra_tensor_reshape(void* raw, void* shape_array,
                                          unsigned long long line,
                                          unsigned long long column) {
@@ -2496,7 +2537,11 @@ extern "C" void* quidra_tensor_reshape(void* raw, void* shape_array,
     }
     ++source->storage->owners;
     auto strides = tensor_contiguous_strides(shape);
-    return tensor_descriptor(source->storage, std::move(shape), std::move(strides), source->offset);
+    auto* result=tensor_descriptor(
+        source->storage, std::move(shape), std::move(strides), source->offset);
+    tensor_attach_view_graph(
+        result,*source,AutogradOp::Reshape,{},line,column);
+    return result;
 }
 
 extern "C" void* quidra_tensor_transpose(
@@ -2519,13 +2564,18 @@ extern "C" void* quidra_tensor_transpose(
     const auto a1 = static_cast<std::size_t>(axis1);
     std::swap(shape[a0], shape[a1]);
     std::swap(strides[a0], strides[a1]);
-    return tensor_descriptor(
+    auto* result=tensor_descriptor(
         source->storage, std::move(shape), std::move(strides), source->offset);
+    tensor_attach_view_graph(
+        result,*source,AutogradOp::Transpose,{a0,a1},line,column);
+    return result;
 }
 
-extern "C" void* quidra_tensor_contiguous(void* raw) {
-    if (!raw) runtime_text_failure("null tensor");
+extern "C" void* quidra_tensor_contiguous(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if (!raw) tensor_fail("null tensor",line,column);
     auto* source = static_cast<TensorValue*>(raw);
+    tensor_require_untracked_transform(*source,"contiguous()",line,column);
     if (tensor_is_contiguous_value(*source)) return quidra_tensor_clone(raw);
     const auto count = tensor_logical_count(*source);
     TensorStorage* storage = nullptr;
@@ -2578,6 +2628,11 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
     tensor_require_initialized(*source, line, column);
+    if (source->graph) {
+        tensor_fail(
+            "tracked tensor cannot be cast; call untrack() explicitly before changing dtype",
+            line, column);
+    }
     const auto count = tensor_logical_count(*source);
     if (!tensor_on_cpu(*source->storage)) {
         TensorStorage* materialized = nullptr;
@@ -2599,8 +2654,9 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
             tensor_storage_release(output);
             tensor_fail(backend_error.c_str(), line, column);
         }
-        return tensor_descriptor(output, source->shape,
-                                 tensor_contiguous_strides(source->shape), 0);
+        auto* result=tensor_descriptor(
+            output,source->shape,tensor_contiguous_strides(source->shape),0);
+        return result;
     }
     auto* output = tensor_storage_create(target_dtype, count, 1);
     bool exact = false;
@@ -2621,8 +2677,9 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
         tensor_storage_release(output);
         tensor_fail("tensor cast is unsupported or a value is outside the target range", line, column);
     }
-    return tensor_descriptor(output, source->shape,
-                             tensor_contiguous_strides(source->shape), 0);
+    auto* result=tensor_descriptor(
+        output,source->shape,tensor_contiguous_strides(source->shape),0);
+    return result;
 }
 
 extern "C" void quidra_tensor_rank_check(
@@ -2657,12 +2714,7 @@ TensorStorage* tensor_gpu_materialize_storage(
     unsigned long long line,
     unsigned long long column);
 
-enum class NeuralOp {
-    Leaf, Add, Sub, Mul, Div, ScalarBinary, Affine, Convolution, Normalize, RandomMask,
-    Absolute, Exponential, Logarithm, Mean, SumLast, MaxLast
-};
-
-extern "C" void* quidra_neural_tensor_unary(
+extern "C" void* quidra_tensor_autograd_unary(
     void* raw,int op,unsigned long long line,unsigned long long column);
 extern "C" void* quidra_tensor_unary(
     void* raw,int operation,unsigned long long line,unsigned long long column);
@@ -2670,12 +2722,16 @@ extern "C" void* quidra_tensor_binary(
     void* primary_raw,void* other_raw,void* scalar,int scalar_side,
     int operation,unsigned long long line,unsigned long long column);
 
+extern "C" void* quidra_linear_matmul(
+    void* left_raw,void* right_raw,
+    unsigned long long line,unsigned long long column);
 
-class NeuralBuffer {
+
+class AutogradBuffer {
 public:
-    explicit NeuralBuffer(int dtype=10) { set_dtype(dtype); }
-    explicit NeuralBuffer(std::vector<float> values) : values_(std::move(values)) {}
-    explicit NeuralBuffer(std::vector<double> values) : values_(std::move(values)) {}
+    explicit AutogradBuffer(int dtype=10) { set_dtype(dtype); }
+    explicit AutogradBuffer(std::vector<float> values) : values_(std::move(values)) {}
+    explicit AutogradBuffer(std::vector<double> values) : values_(std::move(values)) {}
 
     int dtype() const {
         return std::holds_alternative<std::vector<float>>(values_) ? 10 : 9;
@@ -2689,7 +2745,7 @@ public:
             if (!std::holds_alternative<std::vector<double>>(values_))
                 values_.emplace<std::vector<double>>();
         } else {
-            runtime_text_failure("invalid neural floating dtype");
+            runtime_text_failure("invalid autograd floating dtype");
         }
     }
 
@@ -2730,33 +2786,33 @@ private:
     std::variant<std::vector<float>,std::vector<double>> values_;
 };
 
-struct NeuralNode {
-    explicit NeuralNode(int element_dtype=10)
+struct AutogradNode {
+    explicit AutogradNode(int element_dtype=10)
         : dtype(element_dtype), data(element_dtype), aux(element_dtype) {}
 
     int dtype{10};
     std::vector<long long> shape;
-    NeuralBuffer data;
-    NeuralOp op{NeuralOp::Leaf};
-    std::vector<std::shared_ptr<NeuralNode>> parents;
-    NeuralBuffer aux;
+    AutogradBuffer data;
+    AutogradOp op{AutogradOp::Leaf};
+    std::vector<std::shared_ptr<AutogradNode>> parents;
+    AutogradBuffer aux;
     std::vector<std::size_t> aux_index;
-    unsigned long long parameter_id{};
+    std::shared_ptr<AutogradIdentity> target_identity;
     TensorValue* device_tensor{};
     TensorValue* device_aux{};
 
-    ~NeuralNode() noexcept {
+    ~AutogradNode() noexcept {
         if(device_tensor){
-            quidra_tensor_drop(device_tensor);
+            release_managed_tensor(device_tensor);
             device_tensor=nullptr;
         }
         if(device_aux){
-            quidra_tensor_drop(device_aux);
+            release_managed_tensor(device_aux);
             device_aux=nullptr;
         }
         // shared_ptr parent chains can otherwise recurse through destructors and
         // exhaust the native stack even though graph traversal itself is iterative.
-        std::vector<std::shared_ptr<NeuralNode>> pending;
+        std::vector<std::shared_ptr<AutogradNode>> pending;
         pending.swap(parents);
         while(!pending.empty()){
             auto current=std::move(pending.back());
@@ -2769,66 +2825,156 @@ struct NeuralNode {
     }
 };
 
-struct NeuralValue {
-    std::shared_ptr<NeuralNode> node;
+struct AutogradValue {
+    std::shared_ptr<AutogradNode> node;
 };
 
-struct NeuralGradient {
-    explicit NeuralGradient(int element_dtype=10) : dtype(element_dtype), data(element_dtype) {}
-    NeuralGradient(const NeuralGradient&)=delete;
-    NeuralGradient& operator=(const NeuralGradient&)=delete;
-    NeuralGradient(NeuralGradient&& other) noexcept
+struct AutogradIdentity {};
+
+struct AutogradSlot {
+    TensorValue* gradient{};
+    int dtype{};
+    std::shared_ptr<AutogradIdentity> identity;
+    ~AutogradSlot() {
+        if(gradient) release_managed_tensor(gradient);
+    }
+};
+
+std::shared_ptr<AutogradSlot> new_autograd_slot(
+    int dtype=0,std::shared_ptr<AutogradIdentity> identity={}) {
+    try{
+        auto slot=std::make_shared<AutogradSlot>();
+        slot->dtype=dtype;
+        slot->identity=identity?std::move(identity):std::make_shared<AutogradIdentity>();
+        return slot;
+    }catch(...){
+        runtime_allocation_failure();
+    }
+}
+
+std::shared_ptr<AutogradSlot> clone_autograd_slot(
+    const std::shared_ptr<AutogradSlot>& source) {
+    if(!source) return {};
+    // Gradient storage is value-local, but a copy of an already tracked leaf
+    // still denotes the same logical leaf in the preserved computation graph.
+    return new_autograd_slot(source->dtype,source->identity);
+}
+
+struct AutogradTargetHandle {
+    std::shared_ptr<AutogradSlot> slot;
+};
+
+[[noreturn]] void autograd_fail(
+    const char* message,unsigned long long line,unsigned long long column);
+
+AutogradTargetHandle* autograd_target_from_value(void* value) {
+    if(!value) return nullptr;
+    std::uintptr_t bits{};
+    std::memcpy(&bits,value,sizeof(bits));
+    return reinterpret_cast<AutogradTargetHandle*>(bits);
+}
+
+void* make_autograd_target_value(AutogradTargetHandle* handle) {
+    auto* value=managed_allocate(sizeof(std::uintptr_t));
+    const auto bits=reinterpret_cast<std::uintptr_t>(handle);
+    std::memcpy(value,&bits,sizeof(bits));
+    return value;
+}
+
+extern "C" void* quidra_autograd_target_create() {
+    try{
+        auto slot=new_autograd_slot();
+        return make_autograd_target_value(new AutogradTargetHandle{std::move(slot)});
+    }catch(...){
+        runtime_allocation_failure();
+    }
+}
+
+extern "C" void* quidra_autograd_target_clone(void* value) {
+    try{
+        auto* source=autograd_target_from_value(value);
+        if(!source||!source->slot) autograd_fail("invalid autograd target copy",0,0);
+        return make_autograd_target_value(new AutogradTargetHandle{source->slot});
+    }catch(...){
+        runtime_allocation_failure();
+    }
+}
+
+extern "C" void quidra_autograd_target_drop(void* value) {
+    if(!value) return;
+    auto* handle=autograd_target_from_value(value);
+    std::uintptr_t zero{};
+    std::memcpy(value,&zero,sizeof(zero));
+    delete handle;
+}
+
+extern "C" bool quidra_autograd_target_has_grad(void* value) {
+    auto* handle=autograd_target_from_value(value);
+    return handle&&handle->slot&&handle->slot->gradient;
+}
+
+extern "C" void quidra_autograd_target_clear_grad(
+    void* value,unsigned long long line,unsigned long long column) {
+    auto* handle=autograd_target_from_value(value);
+    if(!handle||!handle->slot) autograd_fail("invalid autograd target",line,column);
+    if(!handle->slot->gradient) return;
+    release_managed_tensor(handle->slot->gradient);
+    handle->slot->gradient=nullptr;
+}
+
+extern "C" void* quidra_autograd_target_gradient(
+    void* value,int dtype,unsigned long long line,unsigned long long column) {
+    auto* handle=autograd_target_from_value(value);
+    if(!handle||!handle->slot) autograd_fail("invalid autograd target",line,column);
+    if(!handle->slot->gradient)
+        autograd_fail("autograd target gradient is not available",line,column);
+    if(handle->slot->dtype!=dtype)
+        autograd_fail("autograd target gradient dtype does not match requested type",line,column);
+    return quidra_tensor_clone(handle->slot->gradient);
+}
+
+struct AutogradGradient {
+    explicit AutogradGradient(int element_dtype=10) : dtype(element_dtype), data(element_dtype) {}
+    AutogradGradient(const AutogradGradient&)=delete;
+    AutogradGradient& operator=(const AutogradGradient&)=delete;
+    AutogradGradient(AutogradGradient&& other) noexcept
         : dtype(other.dtype),
           shape(std::move(other.shape)),
           data(std::move(other.data)),
           device_tensor(std::exchange(other.device_tensor,nullptr)) {}
-    NeuralGradient& operator=(NeuralGradient&& other) noexcept {
+    AutogradGradient& operator=(AutogradGradient&& other) noexcept {
         if(this==&other) return *this;
-        if(device_tensor) quidra_tensor_drop(device_tensor);
+        if(device_tensor) release_managed_tensor(device_tensor);
         dtype=other.dtype;
         shape=std::move(other.shape);
         data=std::move(other.data);
         device_tensor=std::exchange(other.device_tensor,nullptr);
         return *this;
     }
-    ~NeuralGradient() {
-        if(device_tensor) quidra_tensor_drop(device_tensor);
+    ~AutogradGradient() {
+        if(device_tensor) release_managed_tensor(device_tensor);
     }
 
     int dtype{10};
     std::vector<long long> shape;
-    NeuralBuffer data;
+    AutogradBuffer data;
     TensorValue* device_tensor{};
 };
 
-std::size_t neural_gradient_count(const NeuralGradient& gradient) {
-    return gradient.device_tensor
-        ? tensor_logical_count(*gradient.device_tensor)
-        : gradient.data.size();
-}
-
-struct NeuralGradientData {
-    std::unordered_map<unsigned long long, NeuralGradient> values;
-};
-
-struct NeuralGradients {
-    std::shared_ptr<NeuralGradientData> data;
-};
-
-[[noreturn]] void neural_fail(const char* message, unsigned long long line, unsigned long long column) {
-    std::fprintf(stderr, "Quidra runtime error[NEURAL] at %llu:%llu: %s\n", line, column, message);
+[[noreturn]] void autograd_fail(const char* message, unsigned long long line, unsigned long long column) {
+    std::fprintf(stderr, "Quidra runtime error[AUTOGRAD] at %llu:%llu: %s\n", line, column, message);
     std::exit(101);
 }
 
-NeuralBuffer tensor_float_values(const TensorValue& tensor,
+AutogradBuffer tensor_float_values(const TensorValue& tensor,
                                  unsigned long long line,
                                  unsigned long long column) {
-    tensor_require_cpu(*tensor.storage, "neural tensor conversion", line, column);
+    tensor_require_cpu(*tensor.storage, "autograd tensor conversion", line, column);
     tensor_require_initialized(tensor,line,column);
     if(tensor.storage->dtype!=9&&tensor.storage->dtype!=10)
-        neural_fail("neural values require float32 or float tensors",line,column);
+        autograd_fail("autograd values require float32 or float tensors",line,column);
     const auto count=tensor_logical_count(tensor);
-    NeuralBuffer result(tensor.storage->dtype);
+    AutogradBuffer result(tensor.storage->dtype);
     if(tensor.storage->dtype==10){
         auto& values=result.typed<float>();
         values.resize(count);
@@ -2847,13 +2993,13 @@ NeuralBuffer tensor_float_values(const TensorValue& tensor,
     return result;
 }
 
-std::shared_ptr<NeuralNode> neural_constant_node(const TensorValue& tensor,
+std::shared_ptr<AutogradNode> autograd_constant_node(const TensorValue& tensor,
                                                  unsigned long long line,
                                                  unsigned long long column) {
     tensor_require_initialized(tensor,line,column);
     if(tensor.storage->dtype!=9&&tensor.storage->dtype!=10)
-        neural_fail("neural values require float32 or float tensors",line,column);
-    auto node=std::make_shared<NeuralNode>(tensor.storage->dtype);
+        autograd_fail("autograd values require float32 or float tensors",line,column);
+    auto node=std::make_shared<AutogradNode>(tensor.storage->dtype);
     node->shape=tensor.shape;
     if(tensor_on_cpu(*tensor.storage)){
         node->data=tensor_float_values(tensor,line,column);
@@ -2861,24 +3007,33 @@ std::shared_ptr<NeuralNode> neural_constant_node(const TensorValue& tensor,
         node->device_tensor=static_cast<TensorValue*>(
             quidra_tensor_clone(const_cast<TensorValue*>(&tensor)));
         if(!node->device_tensor)
-            neural_fail("failed to retain GPU tensor for neural graph",line,column);
+            autograd_fail("failed to retain GPU tensor for autograd graph",line,column);
     }
     return node;
 }
 
-NeuralValue* neural_descriptor(std::shared_ptr<NeuralNode> node) {
-    auto* memory=managed_allocate(sizeof(NeuralValue));
-    return new(memory) NeuralValue{std::move(node)};
+void tensor_attach_view_graph(
+    TensorValue* result,const TensorValue& source,AutogradOp operation,
+    std::vector<std::size_t> aux,
+    unsigned long long line,unsigned long long column) {
+    if(!result||!source.graph) return;
+    if(source.storage->dtype!=9&&source.storage->dtype!=10)
+        autograd_fail("tracked tensor view requires a floating dtype",line,column);
+    auto node=std::make_shared<AutogradNode>(source.storage->dtype);
+    node->shape=result->shape;
+    node->parents={source.graph};
+    node->op=operation;
+    node->aux_index=std::move(aux);
+    if(tensor_on_cpu(*result->storage))
+        node->data=tensor_float_values(*result,line,column);
+    else
+        node->device_tensor=static_cast<TensorValue*>(quidra_tensor_clone(result));
+    result->graph=std::move(node);
 }
 
-NeuralGradients* neural_gradients_descriptor(std::shared_ptr<NeuralGradientData> data) {
-    auto* memory=managed_allocate(sizeof(NeuralGradients));
-    return new(memory) NeuralGradients{std::move(data)};
-}
-
-TensorValue* neural_tensor_from_values(
-    int dtype,const std::vector<long long>& shape,const NeuralBuffer& data) {
-    if(data.dtype()!=dtype) runtime_text_failure("neural buffer dtype mismatch");
+TensorValue* autograd_tensor_from_values(
+    int dtype,const std::vector<long long>& shape,const AutogradBuffer& data) {
+    if(data.dtype()!=dtype) runtime_text_failure("autograd buffer dtype mismatch");
     auto* storage=tensor_storage_create(dtype,data.size(),1);
     if(dtype==10){
         const auto& values=data.typed<float>();
@@ -2890,196 +3045,93 @@ TensorValue* neural_tensor_from_values(
             std::memcpy(storage->data.data(),values.data(),values.size()*sizeof(double));
     }else{
         delete storage;
-        runtime_text_failure("invalid neural floating dtype");
+        runtime_text_failure("invalid autograd floating dtype");
     }
     return tensor_descriptor(storage,shape,tensor_contiguous_strides(shape),0);
 }
 
-TensorValue* neural_tensor_from_node(const NeuralNode& node) {
+TensorValue* autograd_tensor_from_node(const AutogradNode& node) {
     if(node.device_tensor)
         return static_cast<TensorValue*>(quidra_tensor_clone(node.device_tensor));
-    return neural_tensor_from_values(node.dtype,node.shape,node.data);
+    return autograd_tensor_from_values(node.dtype,node.shape,node.data);
 }
 
-std::size_t neural_node_count(const NeuralNode& node) {
+void autograd_accumulate_slot(
+    const std::shared_ptr<AutogradSlot>& slot,TensorValue* gradient,
+    unsigned long long line,unsigned long long column,
+    bool preserve_graph=false) {
+    if(!slot||!gradient) autograd_fail("invalid autograd gradient slot",line,column);
+    if(slot->dtype!=9&&slot->dtype!=10)
+        autograd_fail("invalid autograd gradient slot dtype",line,column);
+    if(gradient->storage->dtype!=slot->dtype){
+        auto* converted=static_cast<TensorValue*>(
+            quidra_tensor_cast(gradient,slot->dtype,line,column));
+        release_managed_tensor(gradient);
+        gradient=converted;
+    }
+    if(!preserve_graph) gradient->graph.reset();
+    gradient->grad_slot.reset();
+    if(!slot->gradient){
+        slot->gradient=gradient;
+        return;
+    }
+    auto* combined=static_cast<TensorValue*>(
+        quidra_tensor_binary(slot->gradient,gradient,nullptr,0,1,line,column));
+    release_managed_tensor(slot->gradient);
+    release_managed_tensor(gradient);
+    if(!preserve_graph) combined->graph.reset();
+    combined->grad_slot.reset();
+    slot->gradient=combined;
+}
+
+std::size_t autograd_node_count(const AutogradNode& node) {
     return node.device_tensor
         ? tensor_logical_count(*node.device_tensor)
         : node.data.size();
 }
 
-void neural_require_same_node_device(
-    const char* operation,const NeuralNode& left,const NeuralNode& right,
+void autograd_require_same_node_device(
+    const char* operation,const AutogradNode& left,const AutogradNode& right,
     unsigned long long line,unsigned long long column) {
     const bool left_gpu=left.device_tensor!=nullptr;
     const bool right_gpu=right.device_tensor!=nullptr;
     if(left_gpu!=right_gpu){
         const auto message=std::string(operation)+
-            " operands must be on the same device; transfer them explicitly before neural.track";
-        neural_fail(message.c_str(),line,column);
+            " operands must be on the same device; transfer them explicitly before track()";
+        autograd_fail(message.c_str(),line,column);
     }
     if(left_gpu &&
        left.device_tensor->storage->device!=right.device_tensor->storage->device){
         const auto message=std::string(operation)+
             " operands must use the same gpu(n)";
-        neural_fail(message.c_str(),line,column);
+        autograd_fail(message.c_str(),line,column);
     }
 }
 
-TensorValue* neural_parameter_tensor(void* parameter_raw) {
-    if (!parameter_raw) return nullptr;
-    void* tensor_raw=nullptr;
-    std::memcpy(&tensor_raw,parameter_raw,sizeof(tensor_raw));
-    return static_cast<TensorValue*>(tensor_raw);
-}
-
-void neural_require_same_tensor_device(
-    const char* operation, const TensorValue& input,
-    std::initializer_list<const TensorValue*> others,
-    unsigned long long line, unsigned long long column) {
-    const int device = input.storage->device;
-    for (const auto* tensor : others) {
-        if (!tensor) neural_fail("null neural tensor", line, column);
-        if (tensor->storage->device != device) {
-            const auto message = std::string(operation) +
-                " input and Parameter/state tensors must be on the same device; transfer them explicitly";
-            neural_fail(message.c_str(), line, column);
-        }
-    }
-    (void)operation;
-}
-
-double neural_tensor_value(const TensorValue& tensor,std::size_t logical,
-                           unsigned long long line,unsigned long long column) {
-    tensor_require_cpu(*tensor.storage, "neural parameter access", line, column);
-    const auto index=tensor_storage_index(tensor,logical);
-    if(index>=tensor.storage->count ||
-       !tracker_bit(tensor.storage->initialization,index)) {
-        runtime_uninitialized_failure(line,column);
-    }
-    const auto* slot=tensor.storage->data.data()+index*tensor_dtype_bytes(tensor.storage->dtype);
-    if(tensor.storage->dtype==9){double v{};std::memcpy(&v,slot,8);return v;}
-    if(tensor.storage->dtype==10){float v{};std::memcpy(&v,slot,4);return static_cast<double>(v);}
-    neural_fail("neural parameter requires float32 or float storage",line,column);
-}
-
-void neural_store_float(TensorStorage& storage,std::size_t logical,double value) {
-    auto* slot=storage.data.data()+logical*tensor_dtype_bytes(storage.dtype);
-    if(storage.dtype==9){const double v=value;std::memcpy(slot,&v,8);}
-    else if(storage.dtype==10){const float v=static_cast<float>(value);std::memcpy(slot,&v,4);}
-    else runtime_text_failure("invalid neural floating dtype");
-}
-
-std::uint64_t neural_splitmix64(std::uint64_t& state) {
-    state += 0x9e3779b97f4a7c15ULL;
-    auto z=state;
-    z=(z^(z>>30U))*0xbf58476d1ce4e5b9ULL;
-    z=(z^(z>>27U))*0x94d049bb133111ebULL;
-    return z^(z>>31U);
-}
-
-unsigned long long neural_parameter_identity(
-    void* tensor_raw,unsigned long long line,unsigned long long column) {
-    const auto identity=managed_identity(tensor_raw);
-    if(identity==0) neural_fail("invalid neural Parameter identity",line,column);
-    return static_cast<unsigned long long>(identity);
-}
-
-std::shared_ptr<NeuralNode> neural_parameter_node(
-    void* parameter_raw,unsigned long long line,unsigned long long column) {
-    auto* tensor=neural_parameter_tensor(parameter_raw);
-    if(!tensor)neural_fail("null neural Parameter",line,column);
-    auto node=neural_constant_node(*tensor,line,column);
-    node->parameter_id=neural_parameter_identity(tensor,line,column);
-    return node;
-}
-
-template <typename T>
-std::vector<T> neural_affine_values_t(
-    const std::vector<T>& input,const std::vector<long long>& input_shape,
-    const std::vector<T>& weight,const std::vector<long long>& weight_shape,
-    const std::vector<T>& bias,
-    unsigned long long line,unsigned long long column) {
-    if(input_shape.empty()||weight_shape.size()!=2)
-        neural_fail("affine requires input rank >= 1 and rank-2 weight",line,column);
-    const auto in=static_cast<std::size_t>(weight_shape[1]);
-    const auto out=static_cast<std::size_t>(weight_shape[0]);
-    if(static_cast<std::size_t>(input_shape.back())!=in||bias.size()!=out)
-        neural_fail("affine dimensions do not match",line,column);
-    const auto batches=in==0?0:input.size()/in;
-    std::vector<T> result(batches*out,T{0});
-    for(std::size_t batch=0;batch<batches;++batch){
-        for(std::size_t o=0;o<out;++o){
-            T total=bias[o];
-            for(std::size_t i=0;i<in;++i)
-                total=static_cast<T>(total+static_cast<T>(
-                    input[batch*in+i]*weight[o*in+i]));
-            result[batch*out+o]=total;
-        }
-    }
-    return result;
-}
-
-NeuralBuffer neural_affine_values(
-    const NeuralBuffer& input,const std::vector<long long>& input_shape,
-    const NeuralBuffer& weight,const std::vector<long long>& weight_shape,
-    const NeuralBuffer& bias,
-    unsigned long long line,unsigned long long column) {
-    if(input.dtype()!=weight.dtype()||input.dtype()!=bias.dtype())
-        neural_fail("affine input and Parameter dtypes must match",line,column);
-    if(input.dtype()==10)
-        return NeuralBuffer(neural_affine_values_t<float>(
-            input.typed<float>(),input_shape,weight.typed<float>(),weight_shape,
-            bias.typed<float>(),line,column));
-    if(input.dtype()==9)
-        return NeuralBuffer(neural_affine_values_t<double>(
-            input.typed<double>(),input_shape,weight.typed<double>(),weight_shape,
-            bias.typed<double>(),line,column));
-    neural_fail("invalid affine dtype",line,column);
-}
-
-void* neural_object_pointer_field(void* object,std::size_t offset) {
-    void* value=nullptr;
-    std::memcpy(&value,static_cast<unsigned char*>(object)+offset,sizeof(value));
-    return value;
-}
-double neural_object_double_field(void* object,std::size_t offset) {
-    double value{};
-    std::memcpy(&value,static_cast<unsigned char*>(object)+offset,sizeof(value));
-    return value;
-}
-std::uint64_t neural_state_u64(void* state) {
-    std::uint64_t value{};
-    std::memcpy(&value,state,sizeof(value));
-    return value;
-}
-void neural_set_state_u64(void* state,std::uint64_t value) {
-    std::memcpy(state,&value,sizeof(value));
-}
-
-void neural_require_same_shape(const NeuralNode& a,const NeuralNode& b,
+void autograd_require_same_shape(const AutogradNode& a,const AutogradNode& b,
                                unsigned long long line,unsigned long long column) {
-    if(a.shape!=b.shape || neural_node_count(a)!=neural_node_count(b))
-        neural_fail("neural operand shapes must match",line,column);
+    if(a.shape!=b.shape || autograd_node_count(a)!=autograd_node_count(b))
+        autograd_fail("autograd operand shapes must match",line,column);
     if(a.dtype!=b.dtype)
-        neural_fail("neural operand element types must match",line,column);
-    neural_require_same_node_device("neural operation",a,b,line,column);
+        autograd_fail("autograd operand element types must match",line,column);
+    autograd_require_same_node_device("autograd operation",a,b,line,column);
 }
 
 template <typename T>
-void neural_apply_unary_t(std::vector<T>& values,int op,const std::vector<long long>& shape,
+void autograd_apply_unary_t(std::vector<T>& values,int op,const std::vector<long long>& shape,
                           unsigned long long line,unsigned long long column) {
     if(op==1){for(auto&v:values)v=std::abs(v);return;}
     if(op==2){for(auto&v:values)v=std::exp(v);return;}
     if(op==3){
         for(auto&v:values){
             if(!(v>T{0})||!std::isfinite(v))
-                neural_fail("logarithm requires finite positive values",line,column);
+                autograd_fail("logarithm requires finite positive values",line,column);
             v=std::log(v);
         }
         return;
     }
     if(op==4){
-        if(values.empty()) neural_fail("mean requires at least one element",line,column);
+        if(values.empty()) autograd_fail("mean requires at least one element",line,column);
         T total=T{0};
         for(const auto value:values) total=static_cast<T>(total+value);
         const T average=static_cast<T>(total/static_cast<T>(values.size()));
@@ -3087,73 +3139,798 @@ void neural_apply_unary_t(std::vector<T>& values,int op,const std::vector<long l
         values.push_back(average);
         return;
     }
-    if(op==5||op==6){
-        if(shape.empty()) neural_fail("last-axis reduction requires rank >= 1",line,column);
-        if(shape.back()<=0) neural_fail("last-axis reduction requires a non-empty last axis",line,column);
+    if(op==5||op==6||op==7){
+        if(shape.empty()) autograd_fail("last-axis reduction requires rank >= 1",line,column);
+        if(shape.back()<=0) autograd_fail("last-axis reduction requires a non-empty last axis",line,column);
         const auto width=static_cast<std::size_t>(shape.back());
         for(std::size_t base=0;base<values.size();base+=width){
             T reduced=op==5?T{0}:values[base];
             for(std::size_t j=0;j<width;++j){
                 if(op==5) reduced=static_cast<T>(reduced+values[base+j]);
-                else reduced=std::max(reduced,values[base+j]);
+                else if(op==6) reduced=std::max(reduced,values[base+j]);
+                else reduced=std::min(reduced,values[base+j]);
             }
             for(std::size_t j=0;j<width;++j) values[base+j]=reduced;
         }
         return;
     }
-    neural_fail("unknown neural unary operation",line,column);
+    autograd_fail("unknown autograd unary operation",line,column);
 }
 
 
 
-void neural_apply_unary(NeuralBuffer& values,int dtype,int op,const std::vector<long long>& shape,
+void autograd_apply_unary(AutogradBuffer& values,int dtype,int op,const std::vector<long long>& shape,
                         unsigned long long line,unsigned long long column) {
-    if(dtype==10) neural_apply_unary_t(values.typed<float>(),op,shape,line,column);
-    else if(dtype==9) neural_apply_unary_t(values.typed<double>(),op,shape,line,column);
-    else neural_fail("invalid neural dtype",line,column);
+    if(dtype==10) autograd_apply_unary_t(values.typed<float>(),op,shape,line,column);
+    else if(dtype==9) autograd_apply_unary_t(values.typed<double>(),op,shape,line,column);
+    else autograd_fail("invalid autograd dtype",line,column);
 }
-std::shared_ptr<NeuralNode> neural_unary_node(const std::shared_ptr<NeuralNode>& input,int op,
+TensorValue* autograd_tensor_unary_raw_gpu(
+    TensorValue& input,int op,unsigned long long line,unsigned long long column) {
+    tensor_require_initialized(input,line,column);
+    if(input.storage->dtype!=9&&input.storage->dtype!=10&&op!=6&&op!=7)
+        autograd_fail("autograd tensor unary operation requires a floating dtype",line,column);
+    if(tensor_on_cpu(*input.storage))
+        autograd_fail("internal GPU unary path received a CPU tensor",line,column);
+
+    TensorStorage* materialized=nullptr;
+    const TensorStorage* source=input.storage;
+    std::size_t source_offset=input.offset*tensor_dtype_bytes(input.storage->dtype);
+    if(!tensor_is_contiguous_value(input)){
+        materialized=tensor_gpu_materialize_storage(input,line,column);
+        source=materialized;
+        source_offset=0;
+    }
+    std::vector<long long> output_shape=input.shape;
+    std::size_t output_count=tensor_logical_count(input);
+    if(op==4){ output_shape.clear(); output_count=1; }
+    auto* output=tensor_storage_create(
+        input.storage->dtype,output_count,1,input.storage->device,line,column);
+    std::string backend_error;
+    bool ok=false;
+    if(op>=1&&op<=3){
+        const int compute_op=op==1?2:op==2?3:4;
+        ok=quidra::device::compute_unary(
+            output->gpu_buffer,source->gpu_buffer,source_offset,
+            input.storage->dtype,compute_op,tensor_logical_count(input),backend_error);
+    }else if(op==4){
+        ok=quidra::device::compute_mean_to(
+            output->gpu_buffer,source->gpu_buffer,input.storage->dtype,
+            tensor_logical_count(input),backend_error);
+    }else if(op==5||op==6||op==7){
+        if(input.shape.empty()||input.shape.back()<=0){
+            if(materialized)tensor_storage_release(materialized);
+            tensor_storage_release(output);
+            autograd_fail("last-axis reduction requires a non-empty last axis",line,column);
+        }
+        ok=quidra::device::compute_last_reduce_broadcast(
+            output->gpu_buffer,source->gpu_buffer,input.storage->dtype,
+            tensor_logical_count(input),static_cast<std::size_t>(input.shape.back()),
+            op==5?1:op==6?2:3,backend_error);
+    }else{
+        if(materialized)tensor_storage_release(materialized);
+        tensor_storage_release(output);
+        autograd_fail("unknown autograd tensor unary operation",line,column);
+    }
+    if(materialized)tensor_storage_release(materialized);
+    if(!ok){
+        tensor_storage_release(output);
+        autograd_fail(backend_error.c_str(),line,column);
+    }
+    auto output_strides=tensor_contiguous_strides(output_shape);
+    return tensor_descriptor(
+        output,std::move(output_shape),std::move(output_strides),0);
+}
+
+std::shared_ptr<AutogradNode> autograd_unary_node(const std::shared_ptr<AutogradNode>& input,int op,
                                               unsigned long long line,unsigned long long column) {
-    auto node=std::make_shared<NeuralNode>(input->dtype);
+    auto node=std::make_shared<AutogradNode>(input->dtype);
     node->dtype=input->dtype;
     node->shape=input->shape;
     node->parents={input};
-    node->op=op==1?NeuralOp::Absolute:
-        op==2?NeuralOp::Exponential:
-        op==3?NeuralOp::Logarithm:
-        op==4?NeuralOp::Mean:
-        op==5?NeuralOp::SumLast:NeuralOp::MaxLast;
+    node->op=op==1?AutogradOp::Absolute:
+        op==2?AutogradOp::Exponential:
+        op==3?AutogradOp::Logarithm:
+        op==4?AutogradOp::Mean:
+        op==5?AutogradOp::SumLast:
+        op==6?AutogradOp::MaxLast:AutogradOp::MinLast;
     if(input->device_tensor){
-        node->device_tensor=static_cast<TensorValue*>(
-            quidra_neural_tensor_unary(input->device_tensor,op,line,column));
+        node->device_tensor=autograd_tensor_unary_raw_gpu(
+            *input->device_tensor,op,line,column);
         if(!node->device_tensor)
-            neural_fail("GPU neural unary operation returned null",line,column);
+            autograd_fail("GPU autograd unary operation returned null",line,column);
     }else{
         node->data=input->data;
-        neural_apply_unary(node->data,node->dtype,op,node->shape,line,column);
+        autograd_apply_unary(node->data,node->dtype,op,node->shape,line,column);
     }
     if(op==4) node->shape={};
     return node;
 }
 
 template <typename T>
-void neural_add_gradient(std::unordered_map<const NeuralNode*,std::vector<T>>& gradients,
-                         const std::shared_ptr<NeuralNode>& node,std::vector<T> value) {
+std::shared_ptr<AutogradNode> autograd_symbolic_binary_t(
+    const std::shared_ptr<AutogradNode>& left,
+    const std::shared_ptr<AutogradNode>& right,
+    int operation,
+    unsigned long long line,unsigned long long column) {
+    const auto& a=left->data.typed<T>();
+    const auto& b=right->data.typed<T>();
+    if(a.size()!=b.size()) autograd_fail("higher-order gradient shape mismatch",line,column);
+    std::vector<T> values(a.size(),T{0});
+    for(std::size_t i=0;i<values.size();++i){
+        if(operation==1) values[i]=static_cast<T>(a[i]+b[i]);
+        else if(operation==2) values[i]=static_cast<T>(a[i]-b[i]);
+        else if(operation==3) values[i]=static_cast<T>(a[i]*b[i]);
+        else {
+            if(b[i]==T{0}) autograd_fail("division by zero",line,column);
+            values[i]=static_cast<T>(a[i]/b[i]);
+        }
+    }
+    auto node=std::make_shared<AutogradNode>(left->dtype);
+    node->shape=left->shape;
+    node->parents={left,right};
+    node->op=operation==1?AutogradOp::Add:
+        operation==2?AutogradOp::Sub:
+        operation==3?AutogradOp::Mul:AutogradOp::Div;
+    node->data=AutogradBuffer(std::move(values));
+    return node;
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_binary(
+    const std::shared_ptr<AutogradNode>& left,
+    const std::shared_ptr<AutogradNode>& right,
+    int operation,
+    unsigned long long line,unsigned long long column) {
+    if(!left||!right) autograd_fail("null higher-order gradient operand",line,column);
+    if(left->device_tensor||right->device_tensor)
+        autograd_fail("backward(track = true) currently requires CPU tensors",line,column);
+    autograd_require_same_shape(*left,*right,line,column);
+    if(left->dtype==10) return autograd_symbolic_binary_t<float>(
+        left,right,operation,line,column);
+    if(left->dtype==9) return autograd_symbolic_binary_t<double>(
+        left,right,operation,line,column);
+    autograd_fail("invalid higher-order gradient dtype",line,column);
+}
+
+template <typename T>
+std::shared_ptr<AutogradNode> autograd_symbolic_scalar_t(
+    const std::shared_ptr<AutogradNode>& input,double scalar,
+    int operation,bool scalar_left,
+    unsigned long long line,unsigned long long column) {
+    const auto& source=input->data.typed<T>();
+    const T scalar_value=static_cast<T>(scalar);
+    std::vector<T> values(source.size(),T{0});
+    for(std::size_t i=0;i<values.size();++i){
+        const T left=scalar_left?scalar_value:source[i];
+        const T right=scalar_left?source[i]:scalar_value;
+        if(operation==1) values[i]=static_cast<T>(left+right);
+        else if(operation==2) values[i]=static_cast<T>(left-right);
+        else if(operation==3) values[i]=static_cast<T>(left*right);
+        else {
+            if(right==T{0}) autograd_fail("division by zero",line,column);
+            values[i]=static_cast<T>(left/right);
+        }
+    }
+    auto node=std::make_shared<AutogradNode>(input->dtype);
+    node->shape=input->shape;
+    node->parents={input};
+    node->op=AutogradOp::ScalarBinary;
+    node->aux.assign(1,scalar);
+    node->aux_index={
+        static_cast<std::size_t>(operation),
+        scalar_left?std::size_t{1}:std::size_t{0}};
+    node->data=AutogradBuffer(std::move(values));
+    return node;
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_scalar(
+    const std::shared_ptr<AutogradNode>& input,double scalar,
+    int operation,bool scalar_left,
+    unsigned long long line,unsigned long long column) {
+    if(!input) autograd_fail("null higher-order gradient operand",line,column);
+    if(input->device_tensor)
+        autograd_fail("backward(track = true) currently requires CPU tensors",line,column);
+    if(input->dtype==10) return autograd_symbolic_scalar_t<float>(
+        input,scalar,operation,scalar_left,line,column);
+    if(input->dtype==9) return autograd_symbolic_scalar_t<double>(
+        input,scalar,operation,scalar_left,line,column);
+    autograd_fail("invalid higher-order gradient dtype",line,column);
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_sign(
+    const std::shared_ptr<AutogradNode>& input) {
+    auto node=std::make_shared<AutogradNode>(input->dtype);
+    node->shape=input->shape;
+    node->op=AutogradOp::Leaf;
+    node->data=input->data;
+    if(input->dtype==10){
+        auto& values=node->data.typed<float>();
+        for(auto& value:values) value=value>0.0f?1.0f:value<0.0f?-1.0f:0.0f;
+    }else{
+        auto& values=node->data.typed<double>();
+        for(auto& value:values) value=value>0.0?1.0:value<0.0?-1.0:0.0;
+    }
+    return node;
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_mean_backward(
+    const std::shared_ptr<AutogradNode>& gradient,
+    const std::vector<long long>& target_shape,
+    unsigned long long line,unsigned long long column) {
+    if(gradient->data.size()!=1)
+        autograd_fail("mean higher-order gradient requires scalar input",line,column);
+    const auto count=tensor_element_count(target_shape,line,column);
+    if(count==0) autograd_fail("mean gradient requires at least one element",line,column);
+    auto node=std::make_shared<AutogradNode>(gradient->dtype);
+    node->shape=target_shape;
+    node->parents={gradient};
+    node->op=AutogradOp::MeanBackward;
+    node->data.assign(
+        count,gradient->data.scalar_as_double(0)/static_cast<double>(count));
+    return node;
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_sum_last_backward(
+    const std::shared_ptr<AutogradNode>& gradient,
+    const std::vector<long long>& target_shape,
+    unsigned long long line,unsigned long long column) {
+    if(target_shape.empty()||target_shape.back()<=0)
+        autograd_fail("sum_last higher-order gradient requires a non-empty last axis",line,column);
+    auto node=std::make_shared<AutogradNode>(gradient->dtype);
+    node->shape=target_shape;
+    node->parents={gradient};
+    node->op=AutogradOp::SumLastBackward;
+    node->data=gradient->data;
+    autograd_apply_unary(node->data,node->dtype,5,target_shape,line,column);
+    return node;
+}
+
+template <typename T>
+std::shared_ptr<AutogradNode> autograd_symbolic_extrema_backward_t(
+    const std::shared_ptr<AutogradNode>& gradient,
+    const std::shared_ptr<AutogradNode>& input,
+    bool maximum,
+    unsigned long long line,unsigned long long column) {
+    if(input->shape.empty()||input->shape.back()<=0)
+        autograd_fail("extrema higher-order gradient requires a non-empty last axis",line,column);
+    if(gradient->shape!=input->shape)
+        autograd_fail("extrema higher-order gradient shape mismatch",line,column);
+    const auto width=static_cast<std::size_t>(input->shape.back());
+    const auto& source=input->data.typed<T>();
+    if(source.size()!=gradient->data.size()||source.size()%width!=0)
+        autograd_fail("extrema higher-order gradient size mismatch",line,column);
+
+    std::vector<T> mask_values(source.size(),T{0});
+    for(std::size_t base=0;base<source.size();base+=width){
+        std::size_t selected=0;
+        for(std::size_t j=1;j<width;++j){
+            const bool better=maximum
+                ? source[base+j]>source[base+selected]
+                : source[base+j]<source[base+selected];
+            if(better) selected=j;
+        }
+        mask_values[base+selected]=T{1};
+    }
+
+    auto mask=std::make_shared<AutogradNode>(input->dtype);
+    mask->shape=input->shape;
+    mask->op=AutogradOp::Leaf;
+    mask->data=AutogradBuffer(std::move(mask_values));
+
+    auto summed=autograd_symbolic_sum_last_backward(
+        gradient,input->shape,line,column);
+    return autograd_symbolic_binary(summed,mask,3,line,column);
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_extrema_backward(
+    const std::shared_ptr<AutogradNode>& gradient,
+    const std::shared_ptr<AutogradNode>& input,
+    bool maximum,
+    unsigned long long line,unsigned long long column) {
+    if(!gradient||!input)
+        autograd_fail("null extrema higher-order gradient operand",line,column);
+    if(gradient->device_tensor||input->device_tensor)
+        autograd_fail("backward(track = true) currently requires CPU tensors",line,column);
+    if(gradient->dtype!=input->dtype)
+        autograd_fail("extrema higher-order gradient dtype mismatch",line,column);
+    if(input->dtype==10)
+        return autograd_symbolic_extrema_backward_t<float>(
+            gradient,input,maximum,line,column);
+    if(input->dtype==9)
+        return autograd_symbolic_extrema_backward_t<double>(
+            gradient,input,maximum,line,column);
+    autograd_fail("invalid extrema higher-order gradient dtype",line,column);
+}
+
+
+template <typename T>
+std::vector<T> autograd_gather_values(
+    const std::vector<T>& input,const std::vector<std::size_t>& indices,
+    unsigned long long line,unsigned long long column) {
+    std::vector<T> output(indices.size());
+    for(std::size_t i=0;i<indices.size();++i){
+        if(indices[i]>=input.size())
+            autograd_fail("tensor gather index is outside input",line,column);
+        output[i]=input[indices[i]];
+    }
+    return output;
+}
+
+template <typename T>
+std::vector<T> autograd_gather_backward_values(
+    const std::vector<T>& gradient,std::size_t source_count,
+    const std::vector<std::size_t>& indices,
+    unsigned long long line,unsigned long long column) {
+    if(gradient.size()!=indices.size())
+        autograd_fail("tensor gather backward size mismatch",line,column);
+    std::vector<T> output(source_count,T{0});
+    for(std::size_t i=0;i<indices.size();++i){
+        if(indices[i]>=source_count)
+            autograd_fail("tensor gather backward index is outside input",line,column);
+        output[indices[i]]=static_cast<T>(output[indices[i]]+gradient[i]);
+    }
+    return output;
+}
+
+
+
+std::shared_ptr<AutogradNode> autograd_symbolic_reshape(
+    const std::shared_ptr<AutogradNode>& input,
+    const std::vector<long long>& output_shape,
+    unsigned long long line,unsigned long long column);
+std::shared_ptr<AutogradNode> autograd_symbolic_transpose(
+    const std::shared_ptr<AutogradNode>& input,
+    std::size_t axis0,std::size_t axis1,
+    unsigned long long line,unsigned long long column);
+
+template <typename T>
+AutogradBuffer autograd_matmul_values(
+    const AutogradBuffer& left,const std::vector<long long>& left_shape,
+    const AutogradBuffer& right,const std::vector<long long>& right_shape,
+    std::vector<long long>& output_shape,
+    unsigned long long line,unsigned long long column) {
+    if(left_shape.empty()||(right_shape.size()!=1&&right_shape.size()!=2))
+        autograd_fail("matmul autograd requires left rank >= 1 and right rank 1 or 2",line,column);
+    std::vector<long long> leading(left_shape.begin(),left_shape.end()-1);
+    const auto rows=tensor_element_count(leading,line,column);
+    const auto inner=static_cast<std::size_t>(left_shape.back());
+    const auto right_inner=static_cast<std::size_t>(right_shape[0]);
+    const bool right_vector=right_shape.size()==1;
+    const auto columns=right_vector?std::size_t{1}:static_cast<std::size_t>(right_shape[1]);
+    if(inner!=right_inner) autograd_fail("matmul autograd inner dimensions do not match",line,column);
+    output_shape=leading;
+    if(!right_vector) output_shape.push_back(static_cast<long long>(columns));
+    const auto& a=left.typed<T>();
+    const auto& b=right.typed<T>();
+    if(a.size()!=rows*inner||b.size()!=inner*columns)
+        autograd_fail("matmul autograd storage size mismatch",line,column);
+    std::vector<T> out(rows*columns,T{0});
+    for(std::size_t i=0;i<rows;++i)
+        for(std::size_t j=0;j<columns;++j){
+            T total=T{0};
+            for(std::size_t k=0;k<inner;++k)
+                total=static_cast<T>(total+static_cast<T>(a[i*inner+k]*b[k*columns+j]));
+            out[i*columns+j]=total;
+        }
+    return AutogradBuffer(std::move(out));
+}
+
+
+std::shared_ptr<AutogradNode> autograd_symbolic_matmul(
+    const std::shared_ptr<AutogradNode>& left,
+    const std::shared_ptr<AutogradNode>& right,
+    unsigned long long line,unsigned long long column) {
+    if(!left||!right) autograd_fail("null higher-order matmul operand",line,column);
+    autograd_require_same_node_device("matmul",*left,*right,line,column);
+    if(left->dtype!=right->dtype)
+        autograd_fail("higher-order matmul requires identical dtypes",line,column);
+    auto node=std::make_shared<AutogradNode>(left->dtype);
+    node->parents={left,right};
+    node->op=AutogradOp::Matmul;
+    if(left->device_tensor){
+        node->device_tensor=static_cast<TensorValue*>(quidra_linear_matmul(
+            left->device_tensor,right->device_tensor,line,column));
+        node->shape=node->device_tensor->shape;
+    }else if(left->dtype==10){
+        node->data=autograd_matmul_values<float>(
+            left->data,left->shape,right->data,right->shape,node->shape,line,column);
+    }else if(left->dtype==9){
+        node->data=autograd_matmul_values<double>(
+            left->data,left->shape,right->data,right->shape,node->shape,line,column);
+    }else{
+        autograd_fail("higher-order matmul requires a floating dtype",line,column);
+    }
+    return node;
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_matmul_left_gradient(
+    const std::shared_ptr<AutogradNode>& gradient,
+    const std::shared_ptr<AutogradNode>& left,
+    const std::shared_ptr<AutogradNode>& right,
+    unsigned long long line,unsigned long long column) {
+    if(left->shape.empty()||(right->shape.size()!=1&&right->shape.size()!=2))
+        autograd_fail("invalid matmul gradient shape",line,column);
+    std::vector<long long> leading(left->shape.begin(),left->shape.end()-1);
+    const auto rows=tensor_element_count(leading,line,column);
+    const auto inner=left->shape.back();
+    const auto columns=right->shape.size()==1?1:right->shape[1];
+    auto l2=autograd_symbolic_reshape(left,{static_cast<long long>(rows),inner},line,column);
+    auto r2=right->shape.size()==1
+        ? autograd_symbolic_reshape(right,{inner,1},line,column) : right;
+    auto g2=autograd_symbolic_reshape(
+        gradient,{static_cast<long long>(rows),columns},line,column);
+    auto rt=autograd_symbolic_transpose(r2,0,1,line,column);
+    auto da2=autograd_symbolic_matmul(g2,rt,line,column);
+    return autograd_symbolic_reshape(da2,left->shape,line,column);
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_matmul_right_gradient(
+    const std::shared_ptr<AutogradNode>& gradient,
+    const std::shared_ptr<AutogradNode>& left,
+    const std::shared_ptr<AutogradNode>& right,
+    unsigned long long line,unsigned long long column) {
+    if(left->shape.empty()||(right->shape.size()!=1&&right->shape.size()!=2))
+        autograd_fail("invalid matmul gradient shape",line,column);
+    std::vector<long long> leading(left->shape.begin(),left->shape.end()-1);
+    const auto rows=tensor_element_count(leading,line,column);
+    const auto inner=left->shape.back();
+    const auto columns=right->shape.size()==1?1:right->shape[1];
+    auto l2=autograd_symbolic_reshape(left,{static_cast<long long>(rows),inner},line,column);
+    auto g2=autograd_symbolic_reshape(
+        gradient,{static_cast<long long>(rows),columns},line,column);
+    auto lt=autograd_symbolic_transpose(l2,0,1,line,column);
+    auto db2=autograd_symbolic_matmul(lt,g2,line,column);
+    return autograd_symbolic_reshape(db2,right->shape,line,column);
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_reshape(
+    const std::shared_ptr<AutogradNode>& input,
+    const std::vector<long long>& output_shape,
+    unsigned long long line,unsigned long long column) {
+    if(!input) autograd_fail("null higher-order reshape operand",line,column);
+    if(tensor_element_count(input->shape,line,column)!=
+       tensor_element_count(output_shape,line,column))
+        autograd_fail("higher-order reshape cannot change element count",line,column);
+    auto node=std::make_shared<AutogradNode>(input->dtype);
+    node->shape=output_shape;
+    node->parents={input};
+    node->op=AutogradOp::Reshape;
+    if(input->device_tensor){
+        auto* source=input->device_tensor;
+        if(!tensor_is_contiguous_value(*source))
+            autograd_fail("higher-order reshape requires contiguous storage",line,column);
+        if(source->storage->owners==std::numeric_limits<std::size_t>::max())
+            runtime_text_failure("tensor storage owner overflow");
+        ++source->storage->owners;
+        node->device_tensor=tensor_descriptor(
+            source->storage,output_shape,tensor_contiguous_strides(output_shape),source->offset);
+    }else{
+        node->data=input->data;
+    }
+    return node;
+}
+
+template <typename T>
+AutogradBuffer autograd_transpose_values(
+    const AutogradBuffer& input,const std::vector<long long>& input_shape,
+    std::size_t axis0,std::size_t axis1,
+    unsigned long long line,unsigned long long column) {
+    const auto count=tensor_element_count(input_shape,line,column);
+    const auto& values=input.typed<T>();
+    if(values.size()!=count) autograd_fail("transpose graph size mismatch",line,column);
+    std::vector<long long> output_shape=input_shape;
+    std::swap(output_shape[axis0],output_shape[axis1]);
+    std::vector<T> output(count);
+    auto input_strides=tensor_contiguous_strides(input_shape);
+    auto output_strides=tensor_contiguous_strides(output_shape);
+    for(std::size_t linear=0;linear<count;++linear){
+        std::size_t rest=linear;
+        std::vector<std::size_t> coordinates(output_shape.size());
+        for(std::size_t axis=output_shape.size();axis-- >0;){
+            const auto dim=static_cast<std::size_t>(output_shape[axis]);
+            coordinates[axis]=dim==0?0:rest%dim;
+            if(dim!=0) rest/=dim;
+        }
+        std::swap(coordinates[axis0],coordinates[axis1]);
+        std::size_t source=0;
+        for(std::size_t axis=0;axis<input_shape.size();++axis)
+            source+=coordinates[axis]*static_cast<std::size_t>(input_strides[axis]);
+        output[linear]=values[source];
+    }
+    return AutogradBuffer(std::move(output));
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_transpose(
+    const std::shared_ptr<AutogradNode>& input,
+    std::size_t axis0,std::size_t axis1,
+    unsigned long long line,unsigned long long column) {
+    if(!input) autograd_fail("null higher-order transpose operand",line,column);
+    if(axis0>=input->shape.size()||axis1>=input->shape.size())
+        autograd_fail("higher-order transpose axis is outside rank",line,column);
+    auto node=std::make_shared<AutogradNode>(input->dtype);
+    node->shape=input->shape;
+    std::swap(node->shape[axis0],node->shape[axis1]);
+    node->parents={input};
+    node->op=AutogradOp::Transpose;
+    node->aux_index={axis0,axis1};
+    if(input->device_tensor){
+        auto* source=input->device_tensor;
+        if(source->storage->owners==std::numeric_limits<std::size_t>::max())
+            runtime_text_failure("tensor storage owner overflow");
+        ++source->storage->owners;
+        auto strides=source->strides;
+        std::swap(strides[axis0],strides[axis1]);
+        node->device_tensor=tensor_descriptor(
+            source->storage,node->shape,std::move(strides),source->offset);
+    }else if(input->dtype==10){
+        node->data=autograd_transpose_values<float>(
+            input->data,input->shape,axis0,axis1,line,column);
+    }else{
+        node->data=autograd_transpose_values<double>(
+            input->data,input->shape,axis0,axis1,line,column);
+    }
+    return node;
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_gather(
+    const std::shared_ptr<AutogradNode>& input,
+    const std::vector<long long>& output_shape,
+    const std::vector<std::size_t>& indices,
+    unsigned long long line,unsigned long long column) {
+    if(!input||input->device_tensor)
+        autograd_fail("higher-order tensor gather requires CPU tensors",line,column);
+    if(tensor_element_count(output_shape,line,column)!=indices.size())
+        autograd_fail("tensor gather output shape does not match index count",line,column);
+    auto node=std::make_shared<AutogradNode>(input->dtype);
+    node->shape=output_shape;
+    node->parents={input};
+    node->op=AutogradOp::Gather;
+    node->aux_index=indices;
+    if(input->dtype==10)
+        node->data=AutogradBuffer(autograd_gather_values<float>(
+            input->data.typed<float>(),indices,line,column));
+    else if(input->dtype==9)
+        node->data=AutogradBuffer(autograd_gather_values<double>(
+            input->data.typed<double>(),indices,line,column));
+    else
+        autograd_fail("tensor gather autograd requires a floating dtype",line,column);
+    return node;
+}
+
+std::shared_ptr<AutogradNode> autograd_symbolic_gather_backward(
+    const std::shared_ptr<AutogradNode>& gradient,
+    const std::vector<long long>& input_shape,
+    const std::vector<std::size_t>& indices,
+    unsigned long long line,unsigned long long column) {
+    if(!gradient||gradient->device_tensor)
+        autograd_fail("higher-order tensor gather requires CPU tensors",line,column);
+    const auto source_count=tensor_element_count(input_shape,line,column);
+    auto node=std::make_shared<AutogradNode>(gradient->dtype);
+    node->shape=input_shape;
+    node->parents={gradient};
+    node->op=AutogradOp::GatherBackward;
+    node->aux_index=indices;
+    if(gradient->dtype==10)
+        node->data=AutogradBuffer(autograd_gather_backward_values<float>(
+            gradient->data.typed<float>(),source_count,indices,line,column));
+    else if(gradient->dtype==9)
+        node->data=AutogradBuffer(autograd_gather_backward_values<double>(
+            gradient->data.typed<double>(),source_count,indices,line,column));
+    else
+        autograd_fail("tensor gather autograd requires a floating dtype",line,column);
+    return node;
+}
+
+void autograd_topological(const std::shared_ptr<AutogradNode>& node,
+                        std::unordered_set<const AutogradNode*>& seen,
+                        std::vector<std::shared_ptr<AutogradNode>>& order);
+
+void autograd_add_symbolic_gradient(
+    std::unordered_map<const AutogradNode*,std::shared_ptr<AutogradNode>>& gradients,
+    const std::shared_ptr<AutogradNode>& target,
+    std::shared_ptr<AutogradNode> value,
+    unsigned long long line,unsigned long long column) {
+    auto& current=gradients[target.get()];
+    if(!current) current=std::move(value);
+    else current=autograd_symbolic_binary(current,value,1,line,column);
+}
+
+void autograd_backward_tracked(
+    const std::shared_ptr<AutogradNode>& loss,
+    const std::vector<std::shared_ptr<AutogradSlot>>& selected,
+    unsigned long long line,unsigned long long column) {
+    std::unordered_set<const AutogradNode*> seen;
+    std::vector<std::shared_ptr<AutogradNode>> order;
+    autograd_topological(loss,seen,order);
+
+    for(const auto& node:order){
+        if(node->device_tensor)
+            autograd_fail("backward(track = true) currently requires CPU tensors",line,column);
+    }
+
+    std::unordered_map<const AutogradNode*,std::shared_ptr<AutogradNode>> gradients;
+    gradients.reserve(order.size());
+    auto seed=autograd_symbolic_scalar(loss,0.0,3,false,line,column);
+    seed=autograd_symbolic_scalar(seed,1.0,1,false,line,column);
+    gradients.emplace(loss.get(),seed);
+
+    for(auto it=order.rbegin();it!=order.rend();++it){
+        const auto& node=*it;
+        const auto found=gradients.find(node.get());
+        if(found==gradients.end()) continue;
+        const auto& g=found->second;
+
+        if(node->target_identity){
+            for(const auto& slot:selected){
+                if(!slot || slot->identity!=node->target_identity) continue;
+                auto* value=autograd_tensor_from_node(*g);
+                value->graph=g;
+                autograd_accumulate_slot(slot,value,line,column,true);
+            }
+        }
+        if(node->parents.empty()) continue;
+
+        if(node->op==AutogradOp::Add){
+            autograd_add_symbolic_gradient(gradients,node->parents[0],g,line,column);
+            autograd_add_symbolic_gradient(gradients,node->parents[1],g,line,column);
+        }else if(node->op==AutogradOp::Sub){
+            autograd_add_symbolic_gradient(gradients,node->parents[0],g,line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[1],
+                autograd_symbolic_scalar(g,-1.0,3,false,line,column),
+                line,column);
+        }else if(node->op==AutogradOp::Mul){
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_binary(g,node->parents[1],3,line,column),
+                line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[1],
+                autograd_symbolic_binary(g,node->parents[0],3,line,column),
+                line,column);
+        }else if(node->op==AutogradOp::Div){
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_binary(g,node->parents[1],4,line,column),
+                line,column);
+            auto numerator=autograd_symbolic_binary(g,node->parents[0],3,line,column);
+            auto denominator=autograd_symbolic_binary(
+                node->parents[1],node->parents[1],3,line,column);
+            auto right=autograd_symbolic_binary(numerator,denominator,4,line,column);
+            right=autograd_symbolic_scalar(right,-1.0,3,false,line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[1],std::move(right),line,column);
+        }else if(node->op==AutogradOp::ScalarBinary){
+            const auto operation=static_cast<int>(node->aux_index[0]);
+            const bool scalar_left=node->aux_index[1]!=0;
+            const double scalar=node->aux.scalar_as_double(0);
+            std::shared_ptr<AutogradNode> result;
+            if(operation==1 || (operation==2&&!scalar_left)) result=g;
+            else if(operation==2) result=autograd_symbolic_scalar(
+                g,-1.0,3,false,line,column);
+            else if(operation==3) result=autograd_symbolic_scalar(
+                g,scalar,3,false,line,column);
+            else if(!scalar_left) result=autograd_symbolic_scalar(
+                g,scalar,4,false,line,column);
+            else{
+                auto numerator=autograd_symbolic_scalar(g,-scalar,3,false,line,column);
+                auto square=autograd_symbolic_binary(
+                    node->parents[0],node->parents[0],3,line,column);
+                result=autograd_symbolic_binary(numerator,square,4,line,column);
+            }
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],std::move(result),line,column);
+        }else if(node->op==AutogradOp::Absolute){
+            auto sign=autograd_symbolic_sign(node->parents[0]);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_binary(g,sign,3,line,column),line,column);
+        }else if(node->op==AutogradOp::Exponential){
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_binary(g,node,3,line,column),line,column);
+        }else if(node->op==AutogradOp::Logarithm){
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_binary(g,node->parents[0],4,line,column),line,column);
+        }else if(node->op==AutogradOp::Mean){
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_mean_backward(
+                    g,node->parents[0]->shape,line,column),
+                line,column);
+        }else if(node->op==AutogradOp::SumLast){
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_sum_last_backward(
+                    g,node->parents[0]->shape,line,column),
+                line,column);
+        }else if(node->op==AutogradOp::MaxLast ||
+                 node->op==AutogradOp::MinLast){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor extrema graph",line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_extrema_backward(
+                    g,node->parents[0],
+                    node->op==AutogradOp::MaxLast,line,column),
+                line,column);
+        }else if(node->op==AutogradOp::Matmul){
+            if(node->parents.size()!=2)
+                autograd_fail("invalid matmul graph",line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_matmul_left_gradient(
+                    g,node->parents[0],node->parents[1],line,column),
+                line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[1],
+                autograd_symbolic_matmul_right_gradient(
+                    g,node->parents[0],node->parents[1],line,column),
+                line,column);
+        }else if(node->op==AutogradOp::Reshape){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor reshape graph",line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_reshape(g,node->parents[0]->shape,line,column),
+                line,column);
+        }else if(node->op==AutogradOp::Transpose){
+            if(node->parents.size()!=1||node->aux_index.size()!=2)
+                autograd_fail("invalid tensor transpose graph",line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_transpose(
+                    g,node->aux_index[0],node->aux_index[1],line,column),
+                line,column);
+        }else if(node->op==AutogradOp::Gather){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor gather graph",line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_gather_backward(
+                    g,node->parents[0]->shape,node->aux_index,line,column),
+                line,column);
+        }else if(node->op==AutogradOp::GatherBackward){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor gather backward graph",line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_gather(
+                    g,node->parents[0]->shape,node->aux_index,line,column),
+                line,column);
+        }else if(node->op==AutogradOp::MeanBackward){
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_unary_node(g,4,line,column),line,column);
+        }else if(node->op==AutogradOp::SumLastBackward){
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_unary_node(g,5,line,column),line,column);
+        }else{
+            autograd_fail("unsupported higher-order autograd node",line,column);
+        }
+    }
+}
+
+template <typename T>
+void autograd_add_gradient(std::unordered_map<const AutogradNode*,std::vector<T>>& gradients,
+                         const std::shared_ptr<AutogradNode>& node,std::vector<T> value) {
     auto& current=gradients[node.get()];
     if(current.empty()) current=std::move(value);
     else{
-        if(current.size()!=value.size()) runtime_text_failure("neural gradient size mismatch");
+        if(current.size()!=value.size()) runtime_text_failure("autograd gradient size mismatch");
         for(std::size_t i=0;i<current.size();++i)
             current[i]=static_cast<T>(current[i]+value[i]);
     }
 }
 
-void neural_topological(const std::shared_ptr<NeuralNode>& node,
-                        std::unordered_set<const NeuralNode*>& seen,
-                        std::vector<std::shared_ptr<NeuralNode>>& order) {
+void autograd_topological(const std::shared_ptr<AutogradNode>& node,
+                        std::unordered_set<const AutogradNode*>& seen,
+                        std::vector<std::shared_ptr<AutogradNode>>& order) {
     if(!node || !seen.insert(node.get()).second) return;
     struct Frame {
-        std::shared_ptr<NeuralNode> node;
+        std::shared_ptr<AutogradNode> node;
         std::size_t next_parent{};
     };
     std::vector<Frame> stack;
@@ -3171,2600 +3948,726 @@ void neural_topological(const std::shared_ptr<NeuralNode>& node,
     }
 }
 
-NeuralBuffer neural_cast_buffer(const NeuralBuffer& source,int target_dtype) {
-    if(target_dtype!=9&&target_dtype!=10)
-        runtime_text_failure("invalid neural cast dtype");
-    NeuralBuffer result(target_dtype);
-    result.resize(source.size());
-    if(target_dtype==10){
-        auto& values=result.typed<float>();
-        for(std::size_t i=0;i<values.size();++i){
-            const auto original=source.scalar_as_double(i);
-            const auto narrowed=static_cast<float>(original);
-            if(std::isfinite(original)&&!std::isfinite(narrowed))
-                runtime_text_failure("neural cast value is outside the destination range");
-            values[i]=narrowed;
-        }
-    }else{
-        auto& values=result.typed<double>();
-        for(std::size_t i=0;i<values.size();++i)
-            values[i]=source.scalar_as_double(i);
-    }
-    return result;
-}
-
-std::shared_ptr<NeuralNode> neural_cast_graph(
-    const std::shared_ptr<NeuralNode>& root,int target_dtype) {
-    if(!root) runtime_text_failure("null neural cast root");
-    if(root->dtype==target_dtype) return root;
-    std::unordered_set<const NeuralNode*> seen;
-    std::vector<std::shared_ptr<NeuralNode>> order;
-    neural_topological(root,seen,order);
-    std::unordered_map<const NeuralNode*,std::shared_ptr<NeuralNode>> converted;
-    converted.reserve(order.size());
-    for(const auto& source:order){
-        auto node=std::make_shared<NeuralNode>(target_dtype);
-        node->dtype=target_dtype;
-        node->shape=source->shape;
-        node->data=neural_cast_buffer(source->data,target_dtype);
-        node->op=source->op;
-        node->aux=neural_cast_buffer(source->aux,target_dtype);
-        node->aux_index=source->aux_index;
-        node->parameter_id=source->parameter_id;
-        node->parents.reserve(source->parents.size());
-        for(const auto& parent:source->parents){
-            const auto found=converted.find(parent.get());
-            if(found==converted.end())
-                runtime_text_failure("neural cast graph order is invalid");
-            node->parents.push_back(found->second);
-        }
-        converted.emplace(source.get(),std::move(node));
-    }
-    return converted.at(root.get());
-}
-
-struct NeuralMomentRecord {
-    std::string path;
-    int dtype{10};
-    std::uint64_t step{};
-    std::vector<long long> shape;
-    std::vector<double> first;
-    std::vector<double> second;
-};
-
-struct NeuralMomentDeviceRecord {
-    int dtype{};
-    int device{-1};
-    std::size_t count{};
-    quidra::device::Buffer* first{};
-    quidra::device::Buffer* second{};
-
-    NeuralMomentDeviceRecord() = default;
-    NeuralMomentDeviceRecord(const NeuralMomentDeviceRecord&) = delete;
-    NeuralMomentDeviceRecord& operator=(const NeuralMomentDeviceRecord&) = delete;
-    ~NeuralMomentDeviceRecord() {
-        if(first) quidra::device::release(first);
-        if(second) quidra::device::release(second);
-    }
-};
-
-struct NeuralMomentDeviceCache {
-    std::vector<std::unique_ptr<NeuralMomentDeviceRecord>> records;
-};
-
-thread_local std::unordered_map<std::uintptr_t,NeuralMomentDeviceCache>
-    neural_moment_device_caches;
-
-struct NeuralMomentUpdateContext {
-    void* moments_raw{};
-    std::size_t parameter_count{};
-    double rate{};
-    double beta1{};
-    double beta2{};
-    double epsilon{};
-    double correction1{};
-    double correction2{};
-    double one_minus_beta1{};
-    double one_minus_beta2{};
-    double inverse_correction1{};
-    double inverse_correction2{};
-    std::vector<NeuralMomentRecord> records;
-};
-
-thread_local std::unordered_map<std::uintptr_t,NeuralMomentUpdateContext>
-    neural_moment_update_contexts;
-
-void neural_moment_cache_release(void* value) {
-    if(!value) return;
-    neural_moment_device_caches.erase(reinterpret_cast<std::uintptr_t>(value));
-}
-
-std::size_t neural_managed_owner_count(void* value) {
-    if(!value) return 0;
-    const auto found=managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
-    return found==managed_allocations.end()?0:found->second.owners;
-}
-
-constexpr std::uint64_t neural_moment_state_magic = 0x4e4f554144414d33ULL;
-
-std::size_t neural_checked_add(std::size_t a,std::size_t b,
-                               unsigned long long line,unsigned long long column) {
-    if(b>std::numeric_limits<std::size_t>::max()-a)
-        neural_fail("moment state size overflow",line,column);
-    return a+b;
-}
-
-std::size_t neural_checked_mul(std::size_t a,std::size_t b,
-                               unsigned long long line,unsigned long long column) {
-    if(a!=0&&b>std::numeric_limits<std::size_t>::max()/a)
-        neural_fail("moment state size overflow",line,column);
-    return a*b;
-}
-
-std::vector<NeuralMomentRecord> neural_decode_moments(
-    void* raw,unsigned long long line,unsigned long long column) {
-    if(!raw) neural_fail("null moment state",line,column);
-    const auto allocation=managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
-    if(allocation==managed_allocations.end()||allocation->second.size<8)
-        neural_fail("invalid moment state",line,column);
-    std::int64_t signed_bit_length{};
-    std::memcpy(&signed_bit_length,raw,sizeof(signed_bit_length));
-    if(signed_bit_length<0 || signed_bit_length%8!=0)
-        neural_fail("invalid moment state",line,column);
-    const auto byte_length=static_cast<unsigned long long>(signed_bit_length/8);
-    if(byte_length>static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
-        neural_fail("moment state size overflow",line,column);
-    const auto length=static_cast<std::size_t>(byte_length);
-    if(length>allocation->second.size-8)
-        neural_fail("corrupt moment state",line,column);
-    if(length==0) return {};
-
-    const auto* bytes=static_cast<const unsigned char*>(raw)+8;
-    std::size_t cursor=0;
-    const auto need=[&](std::size_t count) {
-        if(count>length-cursor) neural_fail("corrupt moment state",line,column);
-    };
-    auto read_u64=[&]() {
-        need(8); std::uint64_t value{}; std::memcpy(&value,bytes+cursor,8); cursor+=8; return value;
-    };
-    auto read_i32=[&]() {
-        need(4); std::int32_t value{}; std::memcpy(&value,bytes+cursor,4); cursor+=4; return value;
-    };
-    auto read_u32=[&]() {
-        need(4); std::uint32_t value{}; std::memcpy(&value,bytes+cursor,4); cursor+=4; return value;
-    };
-    if(read_u64()!=neural_moment_state_magic)
-        neural_fail("unsupported moment state version",line,column);
-    const auto record_count=read_u64();
-    if(record_count>static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
-        neural_fail("moment record count overflow",line,column);
-    constexpr std::size_t minimum_record_bytes=29;
-    if(record_count>static_cast<std::uint64_t>((length-cursor)/minimum_record_bytes))
-        neural_fail("corrupt moment record count",line,column);
-    std::vector<NeuralMomentRecord> records;
-    records.reserve(static_cast<std::size_t>(record_count));
-    for(std::size_t record_index=0;record_index<static_cast<std::size_t>(record_count);++record_index) {
-        NeuralMomentRecord record;
-        record.dtype=read_i32();
-        const auto rank=read_u32();
-        const auto count_u64=read_u64();
-        record.step=read_u64();
-        const auto path_length=read_u32();
-        need(path_length);
-        record.path.assign(
-            reinterpret_cast<const char*>(bytes+cursor),
-            static_cast<std::size_t>(path_length));
-        cursor+=path_length;
-        if(record.path.empty()) neural_fail("corrupt moment update Parameter path",line,column);
-        if(rank>1024) neural_fail("corrupt moment rank",line,column);
-        if(count_u64>static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
-            neural_fail("moment element count overflow",line,column);
-        const auto count=static_cast<std::size_t>(count_u64);
-        record.shape.resize(rank);
-        std::size_t shape_count=1;
-        for(std::size_t axis=0;axis<rank;++axis) {
-            need(8);
-            std::int64_t dimension{};
-            std::memcpy(&dimension,bytes+cursor,8); cursor+=8;
-            if(dimension<0) neural_fail("corrupt moment shape",line,column);
-            record.shape[axis]=dimension;
-            shape_count=neural_checked_mul(shape_count,static_cast<std::size_t>(dimension),line,column);
-        }
-        if(shape_count!=count) neural_fail("corrupt moment shape/count",line,column);
-        const auto vector_bytes=neural_checked_mul(count,sizeof(double),line,column);
-        need(neural_checked_mul(vector_bytes,2,line,column));
-        record.first.resize(count);
-        record.second.resize(count);
-        if(vector_bytes){
-            std::memcpy(record.first.data(),bytes+cursor,vector_bytes); cursor+=vector_bytes;
-            std::memcpy(record.second.data(),bytes+cursor,vector_bytes); cursor+=vector_bytes;
-        }
-        records.push_back(std::move(record));
-    }
-    if(cursor!=length) neural_fail("trailing bytes in moment state",line,column);
-    return records;
-}
-
-void* neural_encode_moments(
-    const std::vector<NeuralMomentRecord>& records,
-    unsigned long long line,unsigned long long column) {
-    std::size_t payload=16;
-    for(const auto& record:records){
-        if(record.path.empty() ||
-           record.path.size()>std::numeric_limits<std::uint32_t>::max())
-            neural_fail("invalid moment update Parameter path",line,column);
-        payload=neural_checked_add(payload,28,line,column);
-        payload=neural_checked_add(payload,record.path.size(),line,column);
-        payload=neural_checked_add(
-            payload,neural_checked_mul(record.shape.size(),sizeof(std::int64_t),line,column),
-            line,column);
-        payload=neural_checked_add(
-            payload,neural_checked_mul(
-                neural_checked_mul(record.first.size(),sizeof(double),line,column),2,line,column),
-            line,column);
-        if(record.first.size()!=record.second.size())
-            neural_fail("invalid moment vectors",line,column);
-    }
-    if(payload>static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()))
-        neural_fail("moment state too large",line,column);
-    auto* raw=static_cast<unsigned char*>(managed_allocate(neural_checked_add(8,payload,line,column)));
-    if(payload>static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()/8))
-        neural_fail("moment state too large",line,column);
-    const auto signed_length=static_cast<std::int64_t>(payload*8);
-    std::memcpy(raw,&signed_length,8);
-    auto* bytes=raw+8;
-    std::size_t cursor=0;
-    auto write=[&](const void* source,std::size_t count) {
-        if(count){std::memcpy(bytes+cursor,source,count); cursor+=count;}
-    };
-    write(&neural_moment_state_magic,8);
-    const auto record_count=static_cast<std::uint64_t>(records.size());
-    write(&record_count,8);
-    for(const auto& record:records){
-        const auto dtype=static_cast<std::int32_t>(record.dtype);
-        const auto rank=static_cast<std::uint32_t>(record.shape.size());
-        const auto count=static_cast<std::uint64_t>(record.first.size());
-        const auto path_length=static_cast<std::uint32_t>(record.path.size());
-        write(&dtype,4); write(&rank,4); write(&count,8); write(&record.step,8);
-        write(&path_length,4); write(record.path.data(),record.path.size());
-        for(const auto dimension:record.shape) write(&dimension,8);
-        write(record.first.data(),record.first.size()*sizeof(double));
-        write(record.second.data(),record.second.size()*sizeof(double));
-    }
-    return raw;
-}
-
-void neural_sync_moment_cache_records(
-    void* raw,std::vector<NeuralMomentRecord>& records,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) return;
-    const auto key=reinterpret_cast<std::uintptr_t>(raw);
-    const auto found=neural_moment_device_caches.find(key);
-    if(found==neural_moment_device_caches.end()) return;
-
-    auto& cache=found->second;
-    if(cache.records.size()>records.size())
-        neural_fail("moment device cache does not match encoded state",line,column);
-
-    for(std::size_t index=0;index<cache.records.size();++index){
-        auto* device_record=cache.records[index].get();
-        if(!device_record) continue;
-        auto& record=records[index];
-        if(device_record->dtype!=record.dtype ||
-           device_record->count!=record.first.size() ||
-           record.first.size()!=record.second.size())
-            neural_fail("moment device cache does not match encoded state",line,column);
-
-        std::string backend_error;
-        if(record.dtype==10){
-            std::vector<float> first(device_record->count),second(device_record->count);
-            const auto bytes=neural_checked_mul(
-                device_record->count,sizeof(float),line,column);
-            if(!quidra::device::copy_to_host(
-                   device_record->first,0,first.data(),bytes,backend_error) ||
-               !quidra::device::copy_to_host(
-                   device_record->second,0,second.data(),bytes,backend_error))
-                neural_fail(backend_error.c_str(),line,column);
-            for(std::size_t i=0;i<device_record->count;++i){
-                record.first[i]=static_cast<double>(first[i]);
-                record.second[i]=static_cast<double>(second[i]);
-            }
-        }else if(record.dtype==9){
-            const auto bytes=neural_checked_mul(
-                device_record->count,sizeof(double),line,column);
-            if(!quidra::device::copy_to_host(
-                   device_record->first,0,record.first.data(),bytes,backend_error) ||
-               !quidra::device::copy_to_host(
-                   device_record->second,0,record.second.data(),bytes,backend_error))
-                neural_fail(backend_error.c_str(),line,column);
-        }else{
-            neural_fail("invalid moment device cache dtype",line,column);
-        }
-    }
-}
-
-void neural_sync_moment_cache_to_host(
-    void* raw,unsigned long long line,unsigned long long column) {
-    if(!raw) return;
-    const auto key=reinterpret_cast<std::uintptr_t>(raw);
-    if(!neural_moment_device_caches.contains(key)) return;
-
-    auto records=neural_decode_moments(raw,line,column);
-    neural_sync_moment_cache_records(raw,records,line,column);
-
-    auto* encoded=neural_encode_moments(records,line,column);
-    const auto raw_it=managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
-    const auto encoded_it=managed_allocations.find(reinterpret_cast<std::uintptr_t>(encoded));
-    if(raw_it==managed_allocations.end() || encoded_it==managed_allocations.end() ||
-       raw_it->second.size!=encoded_it->second.size){
-        quidra_managed_release(encoded,nullptr);
-        neural_fail("moment state size changed during GPU synchronization",line,column);
-    }
-    std::memcpy(raw,encoded,raw_it->second.size);
-    quidra_managed_release(encoded,nullptr);
-}
-
-NeuralMomentDeviceRecord* neural_moment_device_record(
-    void* raw,std::size_t index,const NeuralMomentRecord& record,
-    TensorValue& parameter,unsigned long long line,unsigned long long column) {
-    if(neural_managed_owner_count(raw)!=1) return nullptr;
-    const auto count=tensor_logical_count(parameter);
-    if(record.first.size()!=count || record.second.size()!=count)
-        neural_fail("moment device cache size mismatch",line,column);
-    auto& cache=neural_moment_device_caches[
-        reinterpret_cast<std::uintptr_t>(raw)];
-    if(cache.records.size()<=index) cache.records.resize(index+1);
-    auto& slot=cache.records[index];
-    if(slot){
-        if(slot->dtype!=record.dtype || slot->device!=parameter.storage->device ||
-           slot->count!=count)
-            neural_fail("GPU Adam moment state device/dtype changed",line,column);
-        return slot.get();
-    }
-
-    const auto width=tensor_dtype_bytes(record.dtype);
-    const auto bytes=neural_checked_mul(count,width,line,column);
-    std::string backend_error;
-    auto created=std::make_unique<NeuralMomentDeviceRecord>();
-    created->dtype=record.dtype;
-    created->device=parameter.storage->device;
-    created->count=count;
-    created->first=quidra::device::allocate(parameter.storage->device,bytes,backend_error);
-    if(!created->first) neural_fail(backend_error.c_str(),line,column);
-    created->second=quidra::device::allocate(parameter.storage->device,bytes,backend_error);
-    if(!created->second) neural_fail(backend_error.c_str(),line,column);
-
-    if(record.dtype==10){
-        std::vector<float> first(count),second(count);
-        bool all_zero=true;
-        for(std::size_t i=0;i<count;++i){
-            first[i]=static_cast<float>(record.first[i]);
-            second[i]=static_cast<float>(record.second[i]);
-            all_zero=all_zero && first[i]==0.0F && second[i]==0.0F;
-        }
-        if(all_zero){
-            if(!quidra::device::zero(created->first,0,bytes,backend_error) ||
-               !quidra::device::zero(created->second,0,bytes,backend_error))
-                neural_fail(backend_error.c_str(),line,column);
-        }else if(!quidra::device::copy_from_host(
-                      created->first,0,first.data(),bytes,backend_error) ||
-                  !quidra::device::copy_from_host(
-                      created->second,0,second.data(),bytes,backend_error)){
-            neural_fail(backend_error.c_str(),line,column);
-        }
-    }else if(record.dtype==9){
-        const bool all_zero=
-            std::all_of(record.first.begin(),record.first.end(),
-                        [](double value){return value==0.0;}) &&
-            std::all_of(record.second.begin(),record.second.end(),
-                        [](double value){return value==0.0;});
-        if(all_zero){
-            if(!quidra::device::zero(created->first,0,bytes,backend_error) ||
-               !quidra::device::zero(created->second,0,bytes,backend_error))
-                neural_fail(backend_error.c_str(),line,column);
-        }else if(!quidra::device::copy_from_host(
-                      created->first,0,record.first.data(),bytes,backend_error) ||
-                  !quidra::device::copy_from_host(
-                      created->second,0,record.second.data(),bytes,backend_error)){
-            neural_fail(backend_error.c_str(),line,column);
-        }
-    }else{
-        neural_fail("invalid moment device cache dtype",line,column);
-    }
-
-    auto* result=created.get();
-    slot=std::move(created);
-    return result;
-}
-
-void neural_replace_moments(void* optimizer,void* encoded) {
-    auto* state=neural_object_pointer_field(optimizer,40);
-    if(!state) runtime_text_failure("null moment State");
-    auto* old=neural_object_pointer_field(state,0);
-    const auto old_key=reinterpret_cast<std::uintptr_t>(old);
-    const auto new_key=reinterpret_cast<std::uintptr_t>(encoded);
-    auto cache=neural_moment_device_caches.extract(old_key);
-    if(!cache.empty()){
-        cache.key()=new_key;
-        neural_moment_device_caches.insert(std::move(cache));
-    }
-    std::memcpy(state,&encoded,sizeof(encoded));
-    quidra_managed_release(old,nullptr);
-}
-
-const NeuralGradient* neural_gradient_for_parameter(
-    void* parameter_raw,void* gradients_raw,
-    unsigned long long line,unsigned long long column) {
-    if(!parameter_raw||!gradients_raw) neural_fail("null neural update operand",line,column);
-    auto* tensor=neural_parameter_tensor(parameter_raw);
-    if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    auto* gradients=static_cast<NeuralGradients*>(gradients_raw);
-    const auto id=neural_parameter_identity(tensor,line,column);
-    const auto found=gradients->data->values.find(id);
-    if(found==gradients->data->values.end()) return nullptr;
-    const auto& gradient=found->second;
-    if((gradient.dtype!=9&&gradient.dtype!=10)||
-       gradient.shape!=tensor->shape||
-       neural_gradient_count(gradient)!=tensor_logical_count(*tensor))
-        neural_fail("gradient and Parameter shape mismatch",line,column);
-    if((gradient.device_tensor!=nullptr)!=(!tensor_on_cpu(*tensor->storage)))
-        neural_fail("gradient and Parameter must be on the same device",line,column);
-    if(gradient.device_tensor &&
-       gradient.device_tensor->storage->device!=tensor->storage->device)
-        neural_fail("gradient and Parameter must use the same gpu(n)",line,column);
-    return &gradient;
-}
-
-
-void neural_replace_tensor_value(
-    TensorValue& target,TensorValue* source,
-    unsigned long long line,unsigned long long column) {
-    if(!source||!source->storage)
-        neural_fail("invalid GPU optimizer result",line,column);
-    if(source->storage->owners==std::numeric_limits<std::size_t>::max())
-        neural_fail("GPU optimizer storage ownership overflow",line,column);
-    ++source->storage->owners;
-    auto* old=target.storage;
-    target.storage=source->storage;
-    target.shape=source->shape;
-    target.strides=source->strides;
-    target.offset=source->offset;
-    tensor_storage_release(old);
-    quidra_tensor_drop(source);
-}
 
 } // namespace
 
-extern "C" void quidra_neural_all_reduce_sum(
+extern "C" void* quidra_tensor_track(
     void* raw,unsigned long long line,unsigned long long column) {
-    if(!raw) neural_fail("neural.all_reduce_sum received a null tensor array",line,column);
-    long long signed_count=0;
-    std::memcpy(&signed_count,raw,sizeof(signed_count));
-    if(signed_count<=0)
-        neural_fail("neural.all_reduce_sum requires at least one tensor",line,column);
-    const auto count=static_cast<std::size_t>(signed_count);
-    if(count>std::numeric_limits<std::size_t>::max()/sizeof(void*))
-        neural_fail("neural.all_reduce_sum tensor array is too large",line,column);
-    auto* payload=static_cast<unsigned char*>(raw)+8;
-    quidra_init_require_range(payload,count*sizeof(void*),line,column);
-
-    std::vector<TensorValue*> tensors;
-    std::vector<quidra::device::Buffer*> buffers;
-    tensors.reserve(count);
-    buffers.reserve(count);
-    int dtype=0;
-    std::vector<long long> shape;
-    std::size_t element_count=0;
-    for(std::size_t index=0;index<count;++index){
-        TensorValue* tensor=nullptr;
-        std::memcpy(&tensor,payload+index*sizeof(void*),sizeof(void*));
-        if(!tensor||!tensor->storage)
-            neural_fail("neural.all_reduce_sum received an invalid tensor",line,column);
-        tensor_require_initialized(*tensor,line,column);
-        if(tensor_on_cpu(*tensor->storage))
-            neural_fail("neural.all_reduce_sum requires GPU tensors",line,column);
-        if(index==0){
-            dtype=tensor->storage->dtype;
-            shape=tensor->shape;
-            element_count=tensor_logical_count(*tensor);
-            if(dtype!=9&&dtype!=10)
-                neural_fail("neural.all_reduce_sum requires float32 or float tensors",line,column);
-        }else if(tensor->storage->dtype!=dtype||tensor->shape!=shape){
-            neural_fail("neural.all_reduce_sum tensors must have identical dtype and shape",line,column);
-        }
-        tensor_detach_for_write(*tensor,line,column);
-        tensors.push_back(tensor);
-        buffers.push_back(tensor->storage->gpu_buffer);
+    if(!raw) autograd_fail("null tensor",line,column);
+    auto* source=static_cast<TensorValue*>(raw);
+    if(source->storage->dtype!=9&&source->storage->dtype!=10)
+        autograd_fail("track() requires tensor<float32> or tensor<float>",line,column);
+    auto* result=static_cast<TensorValue*>(quidra_tensor_clone(raw));
+    if(result->graph) return result;
+    if(!source->grad_slot){
+        source->grad_slot=new_autograd_slot(source->storage->dtype);
+    }else if(source->grad_slot->dtype==0){
+        source->grad_slot->dtype=source->storage->dtype;
     }
-    std::string backend_error;
-    if(!quidra::device::compute_all_reduce_sum(
-           buffers,dtype,element_count,backend_error))
-        neural_fail(backend_error.c_str(),line,column);
-}
-
-extern "C" void* quidra_neural_track(void* raw,unsigned long long line,unsigned long long column) {
-    if(!raw)neural_fail("null tensor",line,column);
-    return neural_descriptor(neural_constant_node(*static_cast<TensorValue*>(raw),line,column));
-}
-extern "C" void* quidra_neural_parameter_track(
-    void* raw,unsigned long long line,unsigned long long column) {
-    if(!raw)neural_fail("null parameter tensor",line,column);
-    auto node=neural_constant_node(*static_cast<TensorValue*>(raw),line,column);
-    node->parameter_id=neural_parameter_identity(raw,line,column);
-    return neural_descriptor(std::move(node));
-}
-
-struct NeuralnormalizationLayout {
-    std::size_t features{};
-    std::size_t inner{};
-    std::size_t samples{};
-};
-
-NeuralnormalizationLayout neural_normalize_layout(
-    const std::vector<long long>& shape,std::size_t count,
-    unsigned long long line,unsigned long long column) {
-    if(shape.size()<2) neural_fail("normalization requires rank >= 2 with feature/channel axis 1",line,column);
-    if(shape[1]<=0) neural_fail("normalization feature/channel dimension must be positive",line,column);
-    std::size_t inner=1;
-    for(std::size_t axis=2;axis<shape.size();++axis){
-        if(shape[axis]<0) neural_fail("normalization shape contains a negative dimension",line,column);
-        const auto dim=static_cast<std::size_t>(shape[axis]);
-        if(inner!=0 && dim>std::numeric_limits<std::size_t>::max()/inner)
-            neural_fail("normalization shape overflow",line,column);
-        inner*=dim;
-    }
-    const auto features=static_cast<std::size_t>(shape[1]);
-    if(features!=0 && inner>std::numeric_limits<std::size_t>::max()/features)
-        neural_fail("normalization shape overflow",line,column);
-    const auto block=features*inner;
-    if(block==0 || count%block!=0)
-        neural_fail("normalization tensor storage does not match shape",line,column);
-    const auto outer=count/block;
-    if(outer!=0 && inner>std::numeric_limits<std::size_t>::max()/outer)
-        neural_fail("normalization sample count overflow",line,column);
-    return NeuralnormalizationLayout{features,inner,outer*inner};
-}
-
-std::size_t neural_normalize_feature(
-    std::size_t linear,const NeuralnormalizationLayout& layout) {
-    return (linear/layout.inner)%layout.features;
-}
-
-template <typename T>
-std::vector<T> neural_normalize_values_t(
-    const std::vector<T>& input,const std::vector<long long>& shape,
-    const std::vector<T>& scale,const std::vector<T>& bias,
-    const std::vector<T>& mean,const std::vector<T>& variance,double epsilon_raw,
-    unsigned long long line,unsigned long long column) {
-    const auto layout=neural_normalize_layout(shape,input.size(),line,column);
-    if(scale.size()!=layout.features||bias.size()!=layout.features||
-       mean.size()!=layout.features||variance.size()!=layout.features)
-        neural_fail("normalization feature dimensions do not match",line,column);
-    const T epsilon=static_cast<T>(epsilon_raw);
-    std::vector<T> denominator(layout.features);
-    for(std::size_t feature=0;feature<layout.features;++feature)
-        denominator[feature]=std::sqrt(
-            static_cast<T>(variance[feature]+epsilon));
-    std::vector<T> output(input.size());
-    for(std::size_t i=0;i<input.size();++i){
-        const auto feature=neural_normalize_feature(i,layout);
-        output[i]=static_cast<T>(
-            static_cast<T>((input[i]-mean[feature])/denominator[feature])*
-            scale[feature]+bias[feature]);
-    }
-    return output;
-}
-
-NeuralBuffer neural_normalize_values(
-    const NeuralBuffer& input,const std::vector<long long>& shape,
-    const NeuralBuffer& scale,const NeuralBuffer& bias,
-    const NeuralBuffer& mean,const NeuralBuffer& variance,double epsilon,
-    unsigned long long line,unsigned long long column) {
-    const auto dtype=input.dtype();
-    if(scale.dtype()!=dtype||bias.dtype()!=dtype||mean.dtype()!=dtype||variance.dtype()!=dtype)
-        neural_fail("normalization input and state dtypes must match",line,column);
-    if(dtype==10)
-        return NeuralBuffer(neural_normalize_values_t<float>(
-            input.typed<float>(),shape,scale.typed<float>(),bias.typed<float>(),
-            mean.typed<float>(),variance.typed<float>(),epsilon,line,column));
-    if(dtype==9)
-        return NeuralBuffer(neural_normalize_values_t<double>(
-            input.typed<double>(),shape,scale.typed<double>(),bias.typed<double>(),
-            mean.typed<double>(),variance.typed<double>(),epsilon,line,column));
-    neural_fail("invalid normalization dtype",line,column);
-}
-
-void* neural_normalize_inference(
-    void* receiver,void* input_raw,unsigned long long line,unsigned long long column) {
-    if(!receiver||!input_raw) neural_fail("null normalization input",line,column);
-    auto& input=*static_cast<TensorValue*>(input_raw);
-    tensor_require_initialized(input,line,column);
-    auto* scale=neural_parameter_tensor(neural_object_pointer_field(receiver,0));
-    auto* bias=neural_parameter_tensor(neural_object_pointer_field(receiver,8));
-    auto* mean_state=neural_object_pointer_field(receiver,16);
-    auto* variance_state=neural_object_pointer_field(receiver,24);
-    auto* mean=static_cast<TensorValue*>(neural_object_pointer_field(mean_state,0));
-    auto* variance=static_cast<TensorValue*>(neural_object_pointer_field(variance_state,0));
-    const double epsilon=neural_object_double_field(receiver,40);
-    if(!scale||!bias||!mean||!variance) neural_fail("invalid normalization state",line,column);
-    if(input.storage->dtype!=scale->storage->dtype||
-       input.storage->dtype!=bias->storage->dtype||
-       input.storage->dtype!=mean->storage->dtype||
-       input.storage->dtype!=variance->storage->dtype)
-        neural_fail("normalization input and state dtypes must match",line,column);
-    neural_require_same_tensor_device(
-        "neural.normalize_inference", input,
-        {scale, bias, mean, variance}, line, column);
-    if(tensor_on_cpu(*input.storage)){
-        const auto layout=neural_normalize_layout(
-            input.shape,tensor_logical_count(input),line,column);
-        if(tensor_logical_count(*scale)!=layout.features||
-           tensor_logical_count(*bias)!=layout.features||
-           tensor_logical_count(*mean)!=layout.features||
-           tensor_logical_count(*variance)!=layout.features)
-            neural_fail("normalization feature dimensions do not match",line,column);
-
-        // Dense CPU inference is the common DNN path. Read directly from
-        // tensor storage and write the result once instead of materializing
-        // five NeuralBuffer copies before producing the output tensor.
-        if(tensor_is_contiguous_value(input)&&
-           tensor_is_contiguous_value(*scale)&&
-           tensor_is_contiguous_value(*bias)&&
-           tensor_is_contiguous_value(*mean)&&
-           tensor_is_contiguous_value(*variance)){
-            tensor_require_initialized(*scale,line,column);
-            tensor_require_initialized(*bias,line,column);
-            tensor_require_initialized(*mean,line,column);
-            tensor_require_initialized(*variance,line,column);
-            auto* output=tensor_storage_create(
-                input.storage->dtype,tensor_logical_count(input),1);
-            if(input.storage->dtype==10){
-                const auto* source=reinterpret_cast<const float*>(
-                    input.storage->data.data())+input.offset;
-                const auto* scale_data=reinterpret_cast<const float*>(
-                    scale->storage->data.data())+scale->offset;
-                const auto* bias_data=reinterpret_cast<const float*>(
-                    bias->storage->data.data())+bias->offset;
-                const auto* mean_data=reinterpret_cast<const float*>(
-                    mean->storage->data.data())+mean->offset;
-                const auto* variance_data=reinterpret_cast<const float*>(
-                    variance->storage->data.data())+variance->offset;
-                auto* destination=reinterpret_cast<float*>(output->data.data());
-                std::vector<float> denominator(layout.features);
-                const float e=static_cast<float>(epsilon);
-                for(std::size_t feature=0;feature<layout.features;++feature)
-                    denominator[feature]=std::sqrt(
-                        static_cast<float>(variance_data[feature]+e));
-                for(std::size_t i=0;i<output->count;++i){
-                    const auto feature=neural_normalize_feature(i,layout);
-                    destination[i]=static_cast<float>(
-                        static_cast<float>(
-                            (source[i]-mean_data[feature])/denominator[feature])*
-                        scale_data[feature]+bias_data[feature]);
-                }
-            }else if(input.storage->dtype==9){
-                const auto* source=reinterpret_cast<const double*>(
-                    input.storage->data.data())+input.offset;
-                const auto* scale_data=reinterpret_cast<const double*>(
-                    scale->storage->data.data())+scale->offset;
-                const auto* bias_data=reinterpret_cast<const double*>(
-                    bias->storage->data.data())+bias->offset;
-                const auto* mean_data=reinterpret_cast<const double*>(
-                    mean->storage->data.data())+mean->offset;
-                const auto* variance_data=reinterpret_cast<const double*>(
-                    variance->storage->data.data())+variance->offset;
-                auto* destination=reinterpret_cast<double*>(output->data.data());
-                std::vector<double> denominator(layout.features);
-                for(std::size_t feature=0;feature<layout.features;++feature)
-                    denominator[feature]=std::sqrt(
-                        variance_data[feature]+epsilon);
-                for(std::size_t i=0;i<output->count;++i){
-                    const auto feature=neural_normalize_feature(i,layout);
-                    destination[i]=
-                        ((source[i]-mean_data[feature])/denominator[feature])*
-                        scale_data[feature]+bias_data[feature];
-                }
-            }else{
-                tensor_storage_release(output);
-                neural_fail("invalid normalization dtype",line,column);
-            }
-            return tensor_descriptor(
-                output,input.shape,tensor_contiguous_strides(input.shape),0);
-        }
-
-        const auto values=neural_normalize_values(
-            tensor_float_values(input,line,column),input.shape,
-            tensor_float_values(*scale,line,column),tensor_float_values(*bias,line,column),
-            tensor_float_values(*mean,line,column),tensor_float_values(*variance,line,column),
-            epsilon,line,column);
-        return neural_tensor_from_values(input.storage->dtype,input.shape,values);
-    }
-    tensor_require_initialized(*scale,line,column);
-    tensor_require_initialized(*bias,line,column);
-    tensor_require_initialized(*mean,line,column);
-    tensor_require_initialized(*variance,line,column);
-    const auto count=tensor_logical_count(input);
-    const auto layout=neural_normalize_layout(input.shape,count,line,column);
-    if(tensor_logical_count(*scale)!=layout.features||
-       tensor_logical_count(*bias)!=layout.features||
-       tensor_logical_count(*mean)!=layout.features||
-       tensor_logical_count(*variance)!=layout.features)
-        neural_fail("normalization feature dimensions do not match",line,column);
-
-    TensorStorage* in_mat=nullptr;TensorStorage* s_mat=nullptr;TensorStorage* b_mat=nullptr;TensorStorage* m_mat=nullptr;TensorStorage* v_mat=nullptr;
-    const TensorStorage* in_store=input.storage;const TensorStorage* s_store=scale->storage;const TensorStorage* b_store=bias->storage;const TensorStorage* m_store=mean->storage;const TensorStorage* v_store=variance->storage;
-    if(!tensor_is_contiguous_value(input)||input.offset!=0){in_mat=tensor_gpu_materialize_storage(input,line,column);in_store=in_mat;}
-    if(!tensor_is_contiguous_value(*scale)||scale->offset!=0){s_mat=tensor_gpu_materialize_storage(*scale,line,column);s_store=s_mat;}
-    if(!tensor_is_contiguous_value(*bias)||bias->offset!=0){b_mat=tensor_gpu_materialize_storage(*bias,line,column);b_store=b_mat;}
-    if(!tensor_is_contiguous_value(*mean)||mean->offset!=0){m_mat=tensor_gpu_materialize_storage(*mean,line,column);m_store=m_mat;}
-    if(!tensor_is_contiguous_value(*variance)||variance->offset!=0){v_mat=tensor_gpu_materialize_storage(*variance,line,column);v_store=v_mat;}
-    auto* output=tensor_storage_create(input.storage->dtype,count,1,input.storage->device,line,column);
-    std::string backend_error;
-    const bool ok=quidra::device::compute_normalize_inference(
-        output->gpu_buffer,in_store->gpu_buffer,s_store->gpu_buffer,b_store->gpu_buffer,
-        m_store->gpu_buffer,v_store->gpu_buffer,input.storage->dtype,count,
-        layout.features,layout.inner,epsilon,backend_error);
-    if(in_mat) tensor_storage_release(in_mat);
-    if(s_mat) tensor_storage_release(s_mat);
-    if(b_mat) tensor_storage_release(b_mat);
-    if(m_mat) tensor_storage_release(m_mat);
-    if(v_mat) tensor_storage_release(v_mat);
-    if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
-    return tensor_descriptor(output,input.shape,tensor_contiguous_strides(input.shape),0);
-}
-
-template <typename T>
-void* neural_normalize_forward_t(
-    void* receiver,const std::shared_ptr<NeuralNode>& input,
-    const std::shared_ptr<NeuralNode>& scale,const std::shared_ptr<NeuralNode>& bias,
-    unsigned long long line,unsigned long long column) {
-    const auto& input_values=input->data.typed<T>();
-    const auto& scale_values=scale->data.typed<T>();
-    const auto& bias_values=bias->data.typed<T>();
-    const auto layout=neural_normalize_layout(input->shape,input_values.size(),line,column);
-    const auto features=layout.features;
-    const auto samples=layout.samples;
-    if(scale_values.size()!=features||bias_values.size()!=features)
-        neural_fail("normalization feature dimensions do not match",line,column);
-    if(samples==0) neural_fail("normalization training requires at least one sample per feature",line,column);
-
-    std::vector<T> mean(features,T{0}),variance(features,T{0});
-    for(std::size_t i=0;i<input_values.size();++i){
-        const auto feature=neural_normalize_feature(i,layout);
-        mean[feature]=static_cast<T>(mean[feature]+input_values[i]);
-    }
-    const T sample_count=static_cast<T>(samples);
-    for(auto& value:mean) value=static_cast<T>(value/sample_count);
-    for(std::size_t i=0;i<input_values.size();++i){
-        const auto feature=neural_normalize_feature(i,layout);
-        const T difference=static_cast<T>(input_values[i]-mean[feature]);
-        variance[feature]=static_cast<T>(
-            variance[feature]+static_cast<T>(difference*difference));
-    }
-    for(auto& value:variance) value=static_cast<T>(value/sample_count);
-
-    auto* mean_state=neural_object_pointer_field(receiver,16);
-    auto* variance_state=neural_object_pointer_field(receiver,24);
-    auto* running_mean=static_cast<TensorValue*>(neural_object_pointer_field(mean_state,0));
-    auto* running_variance=static_cast<TensorValue*>(neural_object_pointer_field(variance_state,0));
-    if(!running_mean||!running_variance) neural_fail("invalid normalization state",line,column);
-    const T momentum=static_cast<T>(neural_object_double_field(receiver,32));
-    const T epsilon=static_cast<T>(neural_object_double_field(receiver,40));
-    tensor_detach_for_write(*running_mean, line, column);
-    tensor_detach_for_write(*running_variance, line, column);
-    for(std::size_t feature=0;feature<features;++feature){
-        const T old_mean=static_cast<T>(neural_tensor_value(*running_mean,feature,line,column));
-        const T old_variance=static_cast<T>(neural_tensor_value(*running_variance,feature,line,column));
-        const T next_mean=static_cast<T>(
-            static_cast<T>((T{1}-momentum)*old_mean)+static_cast<T>(momentum*mean[feature]));
-        const T next_variance=static_cast<T>(
-            static_cast<T>((T{1}-momentum)*old_variance)+
-            static_cast<T>(momentum*variance[feature]));
-        neural_store_float(*running_mean->storage,feature,static_cast<double>(next_mean));
-        neural_store_float(*running_variance->storage,feature,static_cast<double>(next_variance));
-        tracker_set(running_mean->storage->initialization,feature);
-        tracker_set(running_variance->storage->initialization,feature);
-    }
-
-    auto node=std::make_shared<NeuralNode>(input->dtype);
-    node->shape=input->shape;
-    node->data=NeuralBuffer(neural_normalize_values_t<T>(
-        input_values,input->shape,scale_values,bias_values,mean,variance,
-        static_cast<double>(epsilon),line,column));
-    node->op=NeuralOp::Normalize;
-    node->parents={input,scale,bias};
-    node->aux_index={samples};
-    node->aux.resize(features*2);
-    auto& backward_cache=node->aux.typed<T>();
-    for(std::size_t feature=0;feature<features;++feature){
-        backward_cache[feature]=mean[feature];
-        backward_cache[features+feature]=static_cast<T>(
-            T{1}/std::sqrt(static_cast<T>(variance[feature]+epsilon)));
-    }
-    return neural_descriptor(std::move(node));
-}
-
-void* neural_normalize_training(
-    void* receiver,void* input_raw,unsigned long long line,unsigned long long column) {
-    if(!receiver||!input_raw) neural_fail("null normalization input",line,column);
-    const auto input=static_cast<NeuralValue*>(input_raw)->node;
-    auto scale=neural_parameter_node(neural_object_pointer_field(receiver,0),line,column);
-    auto bias=neural_parameter_node(neural_object_pointer_field(receiver,8),line,column);
-    auto* mean_state=neural_object_pointer_field(receiver,16);
-    auto* variance_state=neural_object_pointer_field(receiver,24);
-    auto* running_mean=static_cast<TensorValue*>(neural_object_pointer_field(mean_state,0));
-    auto* running_variance=static_cast<TensorValue*>(neural_object_pointer_field(variance_state,0));
-    if(!running_mean||!running_variance) neural_fail("invalid normalization state",line,column);
-    if(input->dtype!=scale->dtype||input->dtype!=bias->dtype||
-       input->dtype!=running_mean->storage->dtype||
-       input->dtype!=running_variance->storage->dtype)
-        neural_fail("normalization input and state dtypes must match",line,column);
-
-    if(input->device_tensor){
-        if(!scale->device_tensor||!bias->device_tensor)
-            neural_fail("normalization input and Parameter/state tensors must be on the same device",line,column);
-        neural_require_same_tensor_device(
-            "neural.normalize",*input->device_tensor,
-            {scale->device_tensor,bias->device_tensor,running_mean,running_variance},
-            line,column);
-        tensor_require_initialized(*input->device_tensor,line,column);
-        tensor_require_initialized(*scale->device_tensor,line,column);
-        tensor_require_initialized(*bias->device_tensor,line,column);
-        tensor_require_initialized(*running_mean,line,column);
-        tensor_require_initialized(*running_variance,line,column);
-
-        const auto count=tensor_logical_count(*input->device_tensor);
-        const auto layout=neural_normalize_layout(input->shape,count,line,column);
-        if(layout.samples==0)
-            neural_fail("normalization training requires at least one sample per feature",line,column);
-        if(tensor_logical_count(*scale->device_tensor)!=layout.features||
-           tensor_logical_count(*bias->device_tensor)!=layout.features||
-           tensor_logical_count(*running_mean)!=layout.features||
-           tensor_logical_count(*running_variance)!=layout.features)
-            neural_fail("normalization feature dimensions do not match",line,column);
-
-        tensor_detach_for_write(*running_mean,line,column);
-        tensor_detach_for_write(*running_variance,line,column);
-        if(!tensor_is_contiguous_value(*running_mean)||running_mean->offset!=0||
-           !tensor_is_contiguous_value(*running_variance)||running_variance->offset!=0)
-            neural_fail("normalization running state must use contiguous tensor storage",line,column);
-
-        TensorStorage* in_mat=nullptr;
-        TensorStorage* scale_mat=nullptr;
-        TensorStorage* bias_mat=nullptr;
-        const TensorStorage* in_store=input->device_tensor->storage;
-        const TensorStorage* scale_store=scale->device_tensor->storage;
-        const TensorStorage* bias_store=bias->device_tensor->storage;
-        if(!tensor_is_contiguous_value(*input->device_tensor)||input->device_tensor->offset!=0){
-            in_mat=tensor_gpu_materialize_storage(*input->device_tensor,line,column);
-            in_store=in_mat;
-        }
-        if(!tensor_is_contiguous_value(*scale->device_tensor)||scale->device_tensor->offset!=0){
-            scale_mat=tensor_gpu_materialize_storage(*scale->device_tensor,line,column);
-            scale_store=scale_mat;
-        }
-        if(!tensor_is_contiguous_value(*bias->device_tensor)||bias->device_tensor->offset!=0){
-            bias_mat=tensor_gpu_materialize_storage(*bias->device_tensor,line,column);
-            bias_store=bias_mat;
-        }
-
-        auto* output=tensor_storage_create(
-            input->dtype,count,1,input->device_tensor->storage->device,line,column);
-        auto* cache=tensor_storage_create(
-            input->dtype,layout.features*2,1,input->device_tensor->storage->device,line,column);
-        const double momentum=neural_object_double_field(receiver,32);
-        const double epsilon=neural_object_double_field(receiver,40);
-        std::string backend_error;
-        const bool ok=quidra::device::compute_normalize_training(
-            output->gpu_buffer,cache->gpu_buffer,
-            running_mean->storage->gpu_buffer,running_variance->storage->gpu_buffer,
-            in_store->gpu_buffer,scale_store->gpu_buffer,bias_store->gpu_buffer,
-            input->dtype,count,layout.features,layout.inner,layout.samples,
-            momentum,epsilon,backend_error);
-        if(in_mat) tensor_storage_release(in_mat);
-        if(scale_mat) tensor_storage_release(scale_mat);
-        if(bias_mat) tensor_storage_release(bias_mat);
-        if(!ok){
-            tensor_storage_release(output);
-            tensor_storage_release(cache);
-            neural_fail(backend_error.c_str(),line,column);
-        }
-
-        auto node=std::make_shared<NeuralNode>(input->dtype);
-        node->shape=input->shape;
-        node->op=NeuralOp::Normalize;
-        node->parents={input,scale,bias};
-        node->aux_index={layout.samples};
-        node->device_tensor=tensor_descriptor(
-            output,node->shape,tensor_contiguous_strides(node->shape),0);
-        std::vector<long long> cache_shape{
-            2,static_cast<long long>(layout.features)};
-        node->device_aux=tensor_descriptor(
-            cache,cache_shape,tensor_contiguous_strides(cache_shape),0);
-        return neural_descriptor(std::move(node));
-    }
-
-    if(input->dtype==10)
-        return neural_normalize_forward_t<float>(receiver,input,scale,bias,line,column);
-    if(input->dtype==9)
-        return neural_normalize_forward_t<double>(receiver,input,scale,bias,line,column);
-    neural_fail("invalid normalization dtype",line,column);
-}
-
-extern "C" void* quidra_neural_normalize(
-    void* input,void* scale,void* bias,void* running_mean,void* running_variance,
-    double momentum,double epsilon,bool training,
-    unsigned long long line,unsigned long long column) {
-    if(!(epsilon>0.0))
-        neural_fail("neural.normalize epsilon must be positive",line,column);
-    if(training&&!(momentum>=0.0&&momentum<=1.0))
-        neural_fail("neural.normalize momentum must be in [0,1]",line,column);
-    alignas(void*) unsigned char receiver[48]{};
-    std::memcpy(receiver+0,&scale,sizeof(scale));
-    std::memcpy(receiver+8,&bias,sizeof(bias));
-    std::memcpy(receiver+16,&running_mean,sizeof(running_mean));
-    std::memcpy(receiver+24,&running_variance,sizeof(running_variance));
-    std::memcpy(receiver+32,&momentum,sizeof(momentum));
-    std::memcpy(receiver+40,&epsilon,sizeof(epsilon));
-    return training
-        ? neural_normalize_training(receiver,input,line,column)
-        : neural_normalize_inference(receiver,input,line,column);
-}
-
-void* neural_random_mask_apply(
-    void* receiver,void* input_raw,unsigned long long line,unsigned long long column) {
-    if(!receiver||!input_raw) neural_fail("null random mask input",line,column);
-    const auto input=static_cast<NeuralValue*>(input_raw)->node;
-    const double rate=neural_object_double_field(receiver,0);
-    auto* rng_state=neural_object_pointer_field(receiver,8);
-    auto state=neural_state_u64(rng_state);
-
-    // rate == 0 is a true graph identity. Reuse the input node instead of
-    // copying CPU values or cloning a GPU tensor descriptor and allocating an
-    // otherwise redundant RandomMask autograd node.
-    if(rate==0.0){
-        neural_set_state_u64(rng_state,state);
-        return neural_descriptor(input);
-    }
-
-    auto node=std::make_shared<NeuralNode>(input->dtype);
-    node->shape=input->shape;
-    node->parents={input};
-    node->op=NeuralOp::RandomMask;
-
-    if(input->device_tensor){
-        if(input->dtype!=9&&input->dtype!=10)
-            neural_fail("invalid random mask dtype",line,column);
-        tensor_require_initialized(*input->device_tensor,line,column);
-        const auto count=tensor_logical_count(*input->device_tensor);
-        TensorStorage* materialized=nullptr;
-        const TensorStorage* source=input->device_tensor->storage;
-        if(!tensor_is_contiguous_value(*input->device_tensor)||input->device_tensor->offset!=0){
-            materialized=tensor_gpu_materialize_storage(*input->device_tensor,line,column);
-            source=materialized;
-        }
-        auto* output=tensor_storage_create(
-            input->dtype,count,1,input->device_tensor->storage->device,line,column);
-        auto* mask=tensor_storage_create(
-            input->dtype,count,1,input->device_tensor->storage->device,line,column);
-        const double scale=rate==0.0?1.0:1.0/(1.0-rate);
-        const auto cutoff=rate==0.0
-            ? std::uint64_t{0}
-            : static_cast<std::uint64_t>(std::ceil(std::ldexp(rate,53)));
-        std::string backend_error;
-        const bool ok=quidra::device::compute_random_mask(
-            output->gpu_buffer,mask->gpu_buffer,source->gpu_buffer,
-            input->dtype,count,state,cutoff,scale,backend_error);
-        if(materialized) tensor_storage_release(materialized);
-        if(!ok){
-            tensor_storage_release(output);
-            tensor_storage_release(mask);
-            neural_fail(backend_error.c_str(),line,column);
-        }
-        if(rate>0.0)
-            state+=static_cast<std::uint64_t>(count)*0x9e3779b97f4a7c15ULL;
-        neural_set_state_u64(rng_state,state);
-        node->device_tensor=tensor_descriptor(
-            output,node->shape,tensor_contiguous_strides(node->shape),0);
-        node->device_aux=tensor_descriptor(
-            mask,node->shape,tensor_contiguous_strides(node->shape),0);
-        return neural_descriptor(std::move(node));
-    }
-
-    node->data.resize(input->data.size());
-    node->aux.resize(input->data.size());
-    if(input->dtype==10){
-        const float scale=rate==0.0?1.0F:static_cast<float>(1.0/(1.0-rate));
-        const auto& source=input->data.typed<float>();
-        auto& destination=node->data.typed<float>();
-        auto& mask=node->aux.typed<float>();
-        for(std::size_t i=0;i<source.size();++i){
-            float multiplier=1.0F;
-            if(rate>0.0){
-                const auto bits=neural_splitmix64(state)>>11U;
-                const double unit=static_cast<double>(bits)*(1.0/9007199254740992.0);
-                multiplier=unit<rate?0.0F:scale;
-            }
-            mask[i]=multiplier;
-            destination[i]=static_cast<float>(source[i]*multiplier);
-        }
-    }else if(input->dtype==9){
-        const double scale=rate==0.0?1.0:1.0/(1.0-rate);
-        const auto& source=input->data.typed<double>();
-        auto& destination=node->data.typed<double>();
-        auto& mask=node->aux.typed<double>();
-        for(std::size_t i=0;i<source.size();++i){
-            double multiplier=1.0;
-            if(rate>0.0){
-                const auto bits=neural_splitmix64(state)>>11U;
-                const double unit=static_cast<double>(bits)*(1.0/9007199254740992.0);
-                multiplier=unit<rate?0.0:scale;
-            }
-            mask[i]=multiplier;
-            destination[i]=source[i]*multiplier;
-        }
-    }else{
-        neural_fail("invalid random mask dtype",line,column);
-    }
-    neural_set_state_u64(rng_state,state);
-    return neural_descriptor(std::move(node));
-}
-
-extern "C" void* quidra_neural_random_mask(
-    void* input,void* state,double rate,
-    unsigned long long line,unsigned long long column) {
-    if(!(rate>=0.0&&rate<1.0))
-        neural_fail("neural.random_mask rate must be in [0,1)",line,column);
-    alignas(void*) unsigned char receiver[16]{};
-    std::memcpy(receiver+0,&rate,sizeof(rate));
-    std::memcpy(receiver+8,&state,sizeof(state));
-    return neural_random_mask_apply(receiver,input,line,column);
-}
-
-template <typename T>
-std::vector<T> neural_conv2d_values_t(
-    const std::vector<T>& input,const std::vector<long long>& input_shape,
-    const std::vector<T>& weight,const std::vector<long long>& weight_shape,
-    const std::vector<T>& bias,long long stride,long long padding,
-    std::vector<long long>& output_shape,
-    unsigned long long line,unsigned long long column) {
-    if(input_shape.size()!=4||weight_shape.size()!=4)
-        neural_fail("convolution requires NCHW rank-4 input and OIHW rank-4 weight",line,column);
-    if(stride<=0||padding<0)
-        neural_fail("convolution requires stride > 0 and padding >= 0",line,column);
-    const auto n=input_shape[0],in_c=input_shape[1],h=input_shape[2],w=input_shape[3];
-    const auto out_c=weight_shape[0],weight_in=weight_shape[1],kh=weight_shape[2],kw=weight_shape[3];
-    if(n<0||in_c<=0||h<0||w<0||out_c<=0||weight_in!=in_c||kh<=0||kw<=0||kh!=kw||
-       static_cast<long long>(bias.size())!=out_c)
-        neural_fail("convolution dimensions do not match",line,column);
-    if(padding>(std::numeric_limits<long long>::max()-h)/2||
-       padding>(std::numeric_limits<long long>::max()-w)/2)
-        neural_fail("convolution padded shape overflow",line,column);
-    const auto padded_h=h+2*padding,padded_w=w+2*padding;
-    if(padded_h<kh||padded_w<kw)
-        neural_fail("convolution kernel is larger than padded input",line,column);
-    const auto out_h=(padded_h-kh)/stride+1;
-    const auto out_w=(padded_w-kw)/stride+1;
-    output_shape={n,out_c,out_h,out_w};
-    const auto safe_mul=[&](std::size_t a,std::size_t b){
-        if(a!=0&&b>std::numeric_limits<std::size_t>::max()/a)
-            neural_fail("convolution output size overflow",line,column);
-        return a*b;
-    };
-    auto count=safe_mul(static_cast<std::size_t>(n),static_cast<std::size_t>(out_c));
-    count=safe_mul(count,static_cast<std::size_t>(out_h));
-    count=safe_mul(count,static_cast<std::size_t>(out_w));
-    std::vector<T> result(count,T{0});
-    const auto input_plane=static_cast<std::size_t>(h)*static_cast<std::size_t>(w);
-    const auto output_plane=static_cast<std::size_t>(out_h)*static_cast<std::size_t>(out_w);
-    const auto kernel_plane=static_cast<std::size_t>(kh)*static_cast<std::size_t>(kw);
-
-    // 1x1 is the common pointwise-convolution case. Keep the exact channel
-    // reduction order while removing kernel loops and boundary checks entirely.
-    if(kh==1&&kw==1&&padding==0){
-        for(long long bn=0;bn<n;++bn){
-            const auto* input_batch=input.data()+
-                static_cast<std::size_t>(bn*in_c)*input_plane;
-            auto* output_batch=result.data()+
-                static_cast<std::size_t>(bn*out_c)*output_plane;
-            for(long long oc=0;oc<out_c;++oc){
-                const auto* weight_out=weight.data()+
-                    static_cast<std::size_t>(oc*in_c);
-                auto* output_out=output_batch+
-                    static_cast<std::size_t>(oc)*output_plane;
-                for(long long oy=0;oy<out_h;++oy){
-                    const auto iy=oy*stride;
-                    for(long long ox=0;ox<out_w;++ox){
-                        const auto ix=ox*stride;
-                        const auto spatial=static_cast<std::size_t>(iy*w+ix);
-                        T total=bias[static_cast<std::size_t>(oc)];
-                        for(long long ic=0;ic<in_c;++ic){
-                            total=static_cast<T>(total+static_cast<T>(
-                                input_batch[static_cast<std::size_t>(ic)*input_plane+spatial]*
-                                weight_out[static_cast<std::size_t>(ic)]));
-                        }
-                        output_out[static_cast<std::size_t>(oy*out_w+ox)]=total;
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    // Compute valid kernel bounds once per output position, then walk input and
-    // weight rows contiguously. This preserves the original ic->ky->kx
-    // accumulation order (and therefore deterministic CPU semantics) while
-    // removing six-dimensional index arithmetic and bounds branches from every
-    // multiply-add.
-    for(long long bn=0;bn<n;++bn){
-        const auto* input_batch=input.data()+
-            static_cast<std::size_t>(bn*in_c)*input_plane;
-        auto* output_batch=result.data()+
-            static_cast<std::size_t>(bn*out_c)*output_plane;
-        for(long long oc=0;oc<out_c;++oc){
-            const auto* weight_out=weight.data()+
-                static_cast<std::size_t>(oc*in_c)*kernel_plane;
-            auto* output_out=output_batch+
-                static_cast<std::size_t>(oc)*output_plane;
-            for(long long oy=0;oy<out_h;++oy){
-                const auto origin_y=oy*stride-padding;
-                const auto ky_begin=origin_y<0?-origin_y:0;
-                const auto ky_limit=h-origin_y;
-                const auto ky_end=ky_limit<kh?ky_limit:kh;
-                for(long long ox=0;ox<out_w;++ox){
-                    const auto origin_x=ox*stride-padding;
-                    const auto kx_begin=origin_x<0?-origin_x:0;
-                    const auto kx_limit=w-origin_x;
-                    const auto kx_end=kx_limit<kw?kx_limit:kw;
-                    T total=bias[static_cast<std::size_t>(oc)];
-                    if(ky_begin<ky_end&&kx_begin<kx_end){
-                        for(long long ic=0;ic<in_c;++ic){
-                            const auto* input_channel=input_batch+
-                                static_cast<std::size_t>(ic)*input_plane;
-                            const auto* weight_channel=weight_out+
-                                static_cast<std::size_t>(ic)*kernel_plane;
-                            for(long long ky=ky_begin;ky<ky_end;++ky){
-                                const auto input_row=static_cast<std::size_t>(
-                                    (origin_y+ky)*w+origin_x+kx_begin);
-                                const auto weight_row=static_cast<std::size_t>(
-                                    ky*kw+kx_begin);
-                                const auto* input_cursor=input_channel+input_row;
-                                const auto* weight_cursor=weight_channel+weight_row;
-                                for(long long kx=kx_begin;kx<kx_end;++kx){
-                                    total=static_cast<T>(total+static_cast<T>(
-                                        *input_cursor++**weight_cursor++));
-                                }
-                            }
-                        }
-                    }
-                    output_out[static_cast<std::size_t>(oy*out_w+ox)]=total;
-                }
-            }
-        }
-    }
+    result->grad_slot=new_autograd_slot(
+        source->storage->dtype,source->grad_slot->identity);
+    result->graph=autograd_constant_node(*result,line,column);
+    result->graph->target_identity=source->grad_slot->identity;
     return result;
 }
 
-NeuralBuffer neural_conv2d_values(
-    const NeuralBuffer& input,const std::vector<long long>& input_shape,
-    const NeuralBuffer& weight,const std::vector<long long>& weight_shape,
-    const NeuralBuffer& bias,long long stride,long long padding,
-    std::vector<long long>& output_shape,
-    unsigned long long line,unsigned long long column) {
-    if(input.dtype()!=weight.dtype()||input.dtype()!=bias.dtype())
-        neural_fail("convolution input and Parameter dtypes must match",line,column);
-    if(input.dtype()==10)
-        return NeuralBuffer(neural_conv2d_values_t<float>(
-            input.typed<float>(),input_shape,weight.typed<float>(),weight_shape,
-            bias.typed<float>(),stride,padding,output_shape,line,column));
-    if(input.dtype()==9)
-        return NeuralBuffer(neural_conv2d_values_t<double>(
-            input.typed<double>(),input_shape,weight.typed<double>(),weight_shape,
-            bias.typed<double>(),stride,padding,output_shape,line,column));
-    neural_fail("invalid convolution dtype",line,column);
+extern "C" void* quidra_tensor_track_target(
+    void* raw,void* target_raw,unsigned long long line,unsigned long long column) {
+    if(!raw) autograd_fail("null tensor",line,column);
+    auto* source=static_cast<TensorValue*>(raw);
+    if(source->storage->dtype!=9&&source->storage->dtype!=10)
+        autograd_fail("track() requires tensor<float32> or tensor<float>",line,column);
+    auto* handle=autograd_target_from_value(target_raw);
+    if(!handle||!handle->slot) autograd_fail("invalid autograd target",line,column);
+    if(handle->slot->dtype!=0&&handle->slot->dtype!=source->storage->dtype)
+        autograd_fail("autograd target cannot mix tensor dtypes",line,column);
+    handle->slot->dtype=source->storage->dtype;
+    auto* result=static_cast<TensorValue*>(quidra_tensor_clone(raw));
+    result->graph.reset();
+    result->grad_slot=new_autograd_slot(
+        source->storage->dtype,handle->slot->identity);
+    result->graph=autograd_constant_node(*result,line,column);
+    result->graph->target_identity=handle->slot->identity;
+    return result;
 }
 
-extern "C" void* quidra_neural_tensor_convolve2d(
-    void* input_raw,void* weight_raw,void* bias_raw,long long stride,long long padding,
-    unsigned long long line,unsigned long long column) {
-    if(!input_raw) neural_fail("null convolution input",line,column);
-    auto& input=*static_cast<TensorValue*>(input_raw);
-    tensor_require_initialized(input,line,column);
-    auto* weight=neural_parameter_tensor(weight_raw);
-    auto* bias=neural_parameter_tensor(bias_raw);
-    if(!weight||!bias) neural_fail("null convolution Parameter",line,column);
-    if(input.storage->dtype!=weight->storage->dtype||input.storage->dtype!=bias->storage->dtype)
-        neural_fail("convolution input and Parameter dtypes must match",line,column);
-    neural_require_same_tensor_device(
-        "neural.convolve2d", input, {weight, bias}, line, column);
-    if(tensor_on_cpu(*input.storage)){
-        std::vector<long long> output_shape;
-        const auto values=neural_conv2d_values(
-            tensor_float_values(input,line,column),input.shape,
-            tensor_float_values(*weight,line,column),weight->shape,
-            tensor_float_values(*bias,line,column),stride,padding,output_shape,line,column);
-        return neural_tensor_from_values(input.storage->dtype,output_shape,values);
-    }
-    tensor_require_initialized(*weight,line,column);
-    tensor_require_initialized(*bias,line,column);
-    if(input.shape.size()!=4||weight->shape.size()!=4)
-        neural_fail("convolution requires NCHW rank-4 input and OIHW rank-4 weight",line,column);
-    if(stride<=0||padding<0)
-        neural_fail("convolution requires stride > 0 and padding >= 0",line,column);
-    const auto n=input.shape[0],in_c=input.shape[1],height=input.shape[2],width=input.shape[3];
-    const auto out_c=weight->shape[0],weight_in=weight->shape[1],kh=weight->shape[2],kw=weight->shape[3];
-    if(n<0||in_c<=0||height<0||width<0||out_c<=0||weight_in!=in_c||kh<=0||kw<=0||kh!=kw||
-       static_cast<long long>(tensor_logical_count(*bias))!=out_c)
-        neural_fail("convolution dimensions do not match",line,column);
-    if(padding>(std::numeric_limits<long long>::max()-height)/2||
-       padding>(std::numeric_limits<long long>::max()-width)/2)
-        neural_fail("convolution padded shape overflow",line,column);
-    const auto padded_h=height+2*padding,padded_w=width+2*padding;
-    if(padded_h<kh||padded_w<kw)
-        neural_fail("convolution kernel is larger than padded input",line,column);
-    const auto out_h=(padded_h-kh)/stride+1;
-    const auto out_w=(padded_w-kw)/stride+1;
-    std::vector<long long> output_shape{n,out_c,out_h,out_w};
-    const auto safe_mul=[&](std::size_t a,std::size_t b){
-        if(a!=0&&b>std::numeric_limits<std::size_t>::max()/a)
-            neural_fail("convolution output size overflow",line,column);
-        return a*b;
-    };
-    auto output_count=safe_mul(static_cast<std::size_t>(n),static_cast<std::size_t>(out_c));
-    output_count=safe_mul(output_count,static_cast<std::size_t>(out_h));
-    output_count=safe_mul(output_count,static_cast<std::size_t>(out_w));
-
-    TensorStorage* in_mat=nullptr; TensorStorage* w_mat=nullptr; TensorStorage* b_mat=nullptr;
-    const TensorStorage* in_store=input.storage; const TensorStorage* w_store=weight->storage; const TensorStorage* b_store=bias->storage;
-    if(!tensor_is_contiguous_value(input)||input.offset!=0){in_mat=tensor_gpu_materialize_storage(input,line,column);in_store=in_mat;}
-    if(!tensor_is_contiguous_value(*weight)||weight->offset!=0){w_mat=tensor_gpu_materialize_storage(*weight,line,column);w_store=w_mat;}
-    if(!tensor_is_contiguous_value(*bias)||bias->offset!=0){b_mat=tensor_gpu_materialize_storage(*bias,line,column);b_store=b_mat;}
-
-    auto* output=tensor_storage_create(input.storage->dtype,output_count,1,input.storage->device,line,column);
-    std::string backend_error;
-    const bool ok=quidra::device::compute_conv2d(
-        output->gpu_buffer,in_store->gpu_buffer,w_store->gpu_buffer,b_store->gpu_buffer,
-        input.storage->dtype,static_cast<std::size_t>(n),static_cast<std::size_t>(in_c),
-        static_cast<std::size_t>(height),static_cast<std::size_t>(width),
-        static_cast<std::size_t>(out_c),static_cast<std::size_t>(kh),static_cast<std::size_t>(kw),
-        static_cast<std::size_t>(out_h),static_cast<std::size_t>(out_w),
-        static_cast<std::size_t>(stride),static_cast<std::size_t>(padding),backend_error);
-    if(in_mat) tensor_storage_release(in_mat);
-    if(w_mat) tensor_storage_release(w_mat);
-    if(b_mat) tensor_storage_release(b_mat);
-    if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
-    return tensor_descriptor(output,output_shape,tensor_contiguous_strides(output_shape),0);
+extern "C" void* quidra_tensor_untrack(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) autograd_fail("null tensor",line,column);
+    auto* result=static_cast<TensorValue*>(quidra_tensor_clone(raw));
+    result->graph.reset();
+    result->grad_slot.reset();
+    return result;
 }
 
-extern "C" void* quidra_neural_convolve2d(
-    void* input_raw,void* weight_raw,void* bias_raw,long long stride,long long padding,
-    unsigned long long line,unsigned long long column) {
-    if(!input_raw) neural_fail("null convolution input",line,column);
-    const auto input=static_cast<NeuralValue*>(input_raw)->node;
-    auto weight=neural_parameter_node(weight_raw,line,column);
-    auto bias=neural_parameter_node(bias_raw,line,column);
-    if(input->dtype!=weight->dtype||input->dtype!=bias->dtype)
-        neural_fail("convolution input and Parameter dtypes must match",line,column);
-    auto node=std::make_shared<NeuralNode>(input->dtype);
-    node->dtype=input->dtype;
-    if(input->device_tensor){
-        node->device_tensor=static_cast<TensorValue*>(
-            quidra_neural_tensor_convolve2d(
-                input->device_tensor,weight_raw,bias_raw,stride,padding,line,column));
-        if(!node->device_tensor)
-            neural_fail("GPU neural convolution returned null",line,column);
-        node->shape=node->device_tensor->shape;
-    }else{
-        node->data=neural_conv2d_values(
-            input->data,input->shape,weight->data,weight->shape,bias->data,
-            stride,padding,node->shape,line,column);
-    }
-    node->op=NeuralOp::Convolution;
-    node->parents={input,weight,bias};
-    node->aux_index={
-        static_cast<std::size_t>(stride),
-        static_cast<std::size_t>(padding)};
-    return neural_descriptor(std::move(node));
+extern "C" void* quidra_tensor_retrack(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) autograd_fail("null tensor",line,column);
+    auto* source=static_cast<TensorValue*>(raw);
+    if(source->storage->dtype!=9&&source->storage->dtype!=10)
+        autograd_fail("retrack() requires tensor<float32> or tensor<float>",line,column);
+    auto* result=static_cast<TensorValue*>(quidra_tensor_clone(raw));
+    result->graph.reset();
+    result->grad_slot=new_autograd_slot(source->storage->dtype);
+    result->graph=autograd_constant_node(*result,line,column);
+    result->graph->target_identity=result->grad_slot->identity;
+    return result;
 }
 
-extern "C" void* quidra_neural_tensor_affine(
-    void* input_raw,void* weight_raw,void* bias_raw,
-    unsigned long long line,unsigned long long column) {
-    if(!input_raw)neural_fail("null affine input",line,column);
-    auto& input=*static_cast<TensorValue*>(input_raw);
-    tensor_require_initialized(input,line,column);
-    auto* weight=neural_parameter_tensor(weight_raw);
-    auto* bias=neural_parameter_tensor(bias_raw);
-    if(!weight||!bias)neural_fail("null affine Parameter",line,column);
-    if(input.storage->dtype!=weight->storage->dtype ||
-       input.storage->dtype!=bias->storage->dtype) {
-        neural_fail("affine input and Parameter dtypes must match",line,column);
-    }
-    neural_require_same_tensor_device(
-        "neural.affine", input, {weight, bias}, line, column);
-    if(tensor_on_cpu(*input.storage)){
-        const auto input_values=tensor_float_values(input,line,column);
-        const auto weight_values=tensor_float_values(*weight,line,column);
-        const auto bias_values=tensor_float_values(*bias,line,column);
-        auto output_values=neural_affine_values(
-            input_values,input.shape,weight_values,weight->shape,bias_values,line,column);
-        auto shape=input.shape;
-        shape.back()=weight->shape[0];
-        return neural_tensor_from_values(input.storage->dtype,shape,output_values);
-    }
-    tensor_require_initialized(*weight,line,column);
-    tensor_require_initialized(*bias,line,column);
-    if(input.shape.empty()||weight->shape.size()!=2)
-        neural_fail("affine requires input rank >= 1 and rank-2 weight",line,column);
-    const auto features_in=static_cast<std::size_t>(weight->shape[1]);
-    const auto features_out=static_cast<std::size_t>(weight->shape[0]);
-    if(input.shape.back()!=weight->shape[1]||
-       tensor_logical_count(*bias)!=features_out)
-        neural_fail("affine dimensions do not match",line,column);
-    const auto input_count=tensor_logical_count(input);
-    const auto batches=features_in==0?0:input_count/features_in;
-
-    TensorStorage* in_mat=nullptr; TensorStorage* w_mat=nullptr; TensorStorage* b_mat=nullptr;
-    const TensorStorage* in_store=input.storage; const TensorStorage* w_store=weight->storage; const TensorStorage* b_store=bias->storage;
-    if(!tensor_is_contiguous_value(input)||input.offset!=0){in_mat=tensor_gpu_materialize_storage(input,line,column);in_store=in_mat;}
-    if(!tensor_is_contiguous_value(*weight)||weight->offset!=0){w_mat=tensor_gpu_materialize_storage(*weight,line,column);w_store=w_mat;}
-    if(!tensor_is_contiguous_value(*bias)||bias->offset!=0){b_mat=tensor_gpu_materialize_storage(*bias,line,column);b_store=b_mat;}
-
-    auto shape=input.shape; shape.back()=weight->shape[0];
-    const auto output_count=batches*features_out;
-    auto* output=tensor_storage_create(input.storage->dtype,output_count,1,input.storage->device,line,column);
-    std::string backend_error;
-    const bool ok=quidra::device::compute_affine(
-        output->gpu_buffer,in_store->gpu_buffer,w_store->gpu_buffer,b_store->gpu_buffer,
-        input.storage->dtype,batches,features_in,features_out,backend_error);
-    if(in_mat) tensor_storage_release(in_mat);
-    if(w_mat) tensor_storage_release(w_mat);
-    if(b_mat) tensor_storage_release(b_mat);
-    if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
-    return tensor_descriptor(output,shape,tensor_contiguous_strides(shape),0);
-}
-
-extern "C" void* quidra_neural_affine(
-    void* input_raw,void* weight_raw,void* bias_raw,
-    unsigned long long line,unsigned long long column) {
-    if(!input_raw)neural_fail("null affine input",line,column);
-    const auto input=static_cast<NeuralValue*>(input_raw)->node;
-    auto weight=neural_parameter_node(weight_raw,line,column);
-    auto bias=neural_parameter_node(bias_raw,line,column);
-    if(input->dtype!=weight->dtype||input->dtype!=bias->dtype) {
-        neural_fail("affine input and Parameter dtypes must match",line,column);
-    }
-    auto node=std::make_shared<NeuralNode>(input->dtype);
-    node->dtype=input->dtype;
-    node->shape=input->shape;
-    if(node->shape.empty())neural_fail("affine requires input rank >= 1",line,column);
-    node->shape.back()=weight->shape[0];
-    if(input->device_tensor){
-        node->device_tensor=static_cast<TensorValue*>(
-            quidra_neural_tensor_affine(
-                input->device_tensor,weight_raw,bias_raw,line,column));
-        if(!node->device_tensor)
-            neural_fail("GPU neural affine returned null",line,column);
-    }else{
-        node->data=neural_affine_values(
-            input->data,input->shape,weight->data,weight->shape,bias->data,line,column);
-    }
-    node->op=NeuralOp::Affine;
-    node->parents={input,weight,bias};
-    return neural_descriptor(std::move(node));
-}
-extern "C" bool quidra_neural_parameter_has_gradient(
-    void* parameter,void* gradients_raw,
-    unsigned long long line,unsigned long long column) {
-    return neural_gradient_for_parameter(parameter,gradients_raw,line,column)!=nullptr;
-}
-
-template <typename T>
-bool neural_update_parameter_t(
-    void* parameter,const NeuralGradient& gradient,double rate_raw,
-    unsigned long long line,unsigned long long column) {
-    auto* tensor=neural_parameter_tensor(parameter);
-    if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    const auto& values=gradient.data.typed<T>();
-    if(values.size()!=tensor_logical_count(*tensor))
-        neural_fail("optimizer update size mismatch",line,column);
-    const T rate=static_cast<T>(rate_raw);
-    tensor_detach_for_write(*tensor, line, column);
-    for(std::size_t i=0;i<values.size();++i){
-        const auto storage_index=tensor_storage_index(*tensor,i);
-        const T current=static_cast<T>(neural_tensor_value(*tensor,i,line,column));
-        const T delta=static_cast<T>(rate*values[i]);
-        const T next=static_cast<T>(current-delta);
-        neural_store_float(*tensor->storage,storage_index,static_cast<double>(next));
-        tracker_set(tensor->storage->initialization,storage_index);
-    }
-    return true;
-}
-
-extern "C" bool quidra_neural_update_parameter(
-    void* parameter,void* gradients_raw,double rate,
-    unsigned long long line,unsigned long long column) {
-    if(!std::isfinite(rate)||rate<=0.0)
-        neural_fail("neural.update rate must be finite and positive",line,column);
-    const auto* gradient=neural_gradient_for_parameter(
-        parameter,gradients_raw,line,column);
-    if(!gradient) return false;
-    if(gradient->device_tensor){
-        auto* tensor=neural_parameter_tensor(parameter);
-        if(!tensor) neural_fail("invalid neural Parameter",line,column);
-        if(gradient->dtype!=9&&gradient->dtype!=10)
-            neural_fail("invalid neural gradient dtype",line,column);
-        auto* gradient_tensor=gradient->device_tensor;
-        if(tensor->shape==gradient_tensor->shape&&
-           tensor->offset==0&&gradient_tensor->offset==0&&
-           tensor_is_contiguous_value(*tensor)&&
-           tensor_is_contiguous_value(*gradient_tensor)){
-            tensor_detach_for_write(*tensor,line,column);
-            tensor_require_initialized(*tensor,line,column);
-            tensor_require_initialized(*gradient_tensor,line,column);
-            std::string backend_error;
-            if(!quidra::device::compute_scaled_subtract_in_place(
-                    tensor->storage->gpu_buffer,gradient_tensor->storage->gpu_buffer,
-                    gradient->dtype,tensor_logical_count(*tensor),rate,backend_error))
-                neural_fail(backend_error.c_str(),line,column);
-            return true;
-        }
-        void* scaled_raw=nullptr;
-        if(gradient->dtype==10){
-            float scalar=static_cast<float>(rate);
-            scaled_raw=quidra_tensor_binary(
-                gradient_tensor,nullptr,&scalar,2,3,line,column);
-        }else{
-            double scalar=rate;
-            scaled_raw=quidra_tensor_binary(
-                gradient_tensor,nullptr,&scalar,2,3,line,column);
-        }
-        auto* scaled=static_cast<TensorValue*>(scaled_raw);
-        auto* next=static_cast<TensorValue*>(
-            quidra_tensor_binary(tensor,scaled,nullptr,0,2,line,column));
-        quidra_tensor_drop(scaled);
-        neural_replace_tensor_value(*tensor,next,line,column);
-        return true;
-    }
-    if(gradient->dtype==10)
-        return neural_update_parameter_t<float>(parameter,*gradient,rate,line,column);
-    if(gradient->dtype==9)
-        return neural_update_parameter_t<double>(parameter,*gradient,rate,line,column);
-    neural_fail("invalid neural gradient dtype",line,column);
-}
-
-NeuralMomentUpdateContext& neural_moment_update_context(
-    void* optimizer,unsigned long long line,unsigned long long column) {
-    if(!optimizer) neural_fail("null moment update optimizer",line,column);
-    const auto key=reinterpret_cast<std::uintptr_t>(optimizer);
-    const auto found=neural_moment_update_contexts.find(key);
-    if(found==neural_moment_update_contexts.end())
-        neural_fail("moment update transaction is not active",line,column);
-    auto* moments_state=neural_object_pointer_field(optimizer,40);
-    if(!moments_state) neural_fail("invalid moment update moments State",line,column);
-    if(neural_object_pointer_field(moments_state,0)!=found->second.moments_raw)
-        neural_fail("moment update moments State changed during update",line,column);
-    return found->second;
-}
-
-extern "C" long long quidra_neural_moment_begin(
-    void* optimizer,unsigned long long parameter_count,
-    unsigned long long line,unsigned long long column) {
-    if(!optimizer) neural_fail("null moment update optimizer",line,column);
-    const double rate=neural_object_double_field(optimizer,0);
-    const double beta1=neural_object_double_field(optimizer,8);
-    const double beta2=neural_object_double_field(optimizer,16);
-    const double epsilon=neural_object_double_field(optimizer,24);
-    if(!std::isfinite(rate)||rate<=0.0||!std::isfinite(beta1)||beta1<0.0||beta1>=1.0||
-       !std::isfinite(beta2)||beta2<0.0||beta2>=1.0||
-       !std::isfinite(epsilon)||epsilon<=0.0)
-        neural_fail("invalid moment update optimizer state",line,column);
-    auto* step_state=neural_object_pointer_field(optimizer,32);
-    auto* moments_state=neural_object_pointer_field(optimizer,40);
-    if(!step_state||!moments_state) neural_fail("invalid moment update State fields",line,column);
-    const auto step=neural_state_u64(step_state);
-    if(step>=static_cast<std::uint64_t>(std::numeric_limits<long long>::max()))
-        neural_fail("moment update step counter overflow",line,column);
-    auto* moments_raw=neural_object_pointer_field(moments_state,0);
-    auto records=neural_decode_moments(moments_raw,line,column);
-    if((step==0&&!records.empty())||
-       (step>0&&records.size()!=parameter_count))
-        neural_fail("moment update state does not match model Parameter structure",line,column);
-
-    const auto key=reinterpret_cast<std::uintptr_t>(optimizer);
-    if(neural_moment_update_contexts.contains(key))
-        neural_fail("moment update transaction is already active",line,column);
-    NeuralMomentUpdateContext context;
-    context.moments_raw=moments_raw;
-    context.parameter_count=static_cast<std::size_t>(parameter_count);
-    context.rate=rate; context.beta1=beta1; context.beta2=beta2; context.epsilon=epsilon;
-    context.one_minus_beta1=1.0-beta1;
-    context.one_minus_beta2=1.0-beta2;
-    const double next_step=static_cast<double>(step+1);
-    context.correction1=1.0-std::pow(beta1,next_step);
-    context.correction2=1.0-std::pow(beta2,next_step);
-    if(context.correction1<=0.0||context.correction2<=0.0)
-        neural_fail("invalid moment update bias correction",line,column);
-    context.inverse_correction1=1.0/context.correction1;
-    context.inverse_correction2=1.0/context.correction2;
-    context.records=std::move(records);
-    neural_moment_update_contexts.emplace(key,std::move(context));
-    return static_cast<long long>(step+1);
-}
-
-extern "C" void quidra_neural_moment_validate_parameter(
-    void* parameter,void* gradients_raw,void* optimizer,void* path_raw,
-    unsigned long long index,
-    unsigned long long line,unsigned long long column) {
-    const auto* parameter_path=static_cast<const char*>(path_raw);
-    if(!parameter_path||!*parameter_path)
-        neural_fail("invalid moment update Parameter path",line,column);
-    auto* tensor=neural_parameter_tensor(parameter);
-    if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    auto& context=neural_moment_update_context(optimizer,line,column);
-    if(index>=context.parameter_count)
-        neural_fail("moment update Parameter traversal changed",line,column);
-    const auto& records=context.records;
-    if(records.empty()) return;
-    if(index>=records.size())
-        neural_fail("moment update Parameter traversal changed",line,column);
-    const auto& record=records[static_cast<std::size_t>(index)];
-    const auto logical_count=tensor_logical_count(*tensor);
-    if(record.path!=parameter_path)
-        neural_fail("moment update state does not match Parameter structural path",line,column);
-    if(record.dtype!=tensor->storage->dtype||record.shape!=tensor->shape||
-       record.first.size()!=logical_count||record.second.size()!=logical_count)
-        neural_fail("moment update state does not match Parameter dtype/shape",line,column);
-    const auto* gradient=neural_gradient_for_parameter(
-        parameter,gradients_raw,line,column);
-    if(gradient&&record.step==std::numeric_limits<std::uint64_t>::max())
-        neural_fail("moment update Parameter step counter overflow",line,column);
-}
-
-extern "C" void quidra_neural_moment_finish(
-    void* optimizer,long long next_step,
-    unsigned long long line,unsigned long long column) {
-    if(!optimizer||next_step<=0) neural_fail("invalid moment update step",line,column);
-    const auto key=reinterpret_cast<std::uintptr_t>(optimizer);
-    const auto found=neural_moment_update_contexts.find(key);
-    if(found==neural_moment_update_contexts.end())
-        neural_fail("moment update transaction is not active",line,column);
-    if(found->second.records.size()!=found->second.parameter_count)
-        neural_fail("moment update Parameter traversal changed",line,column);
-
-    auto* step_state=neural_object_pointer_field(optimizer,32);
-    if(!step_state) neural_fail("invalid moment update step State",line,column);
-    const auto current=neural_state_u64(step_state);
-    const auto expected=static_cast<std::uint64_t>(next_step);
-    if(current==std::numeric_limits<std::uint64_t>::max()||current+1!=expected)
-        neural_fail("moment update step State changed during update",line,column);
-
-    auto* moments_state=neural_object_pointer_field(optimizer,40);
-    if(!moments_state) neural_fail("invalid moment update moments State",line,column);
-    auto* moments_raw=found->second.moments_raw;
-    const auto allocation=
-        managed_allocations.find(reinterpret_cast<std::uintptr_t>(moments_raw));
-    const bool has_device_cache=neural_moment_device_caches.contains(
-        reinterpret_cast<std::uintptr_t>(moments_raw));
-    bool updated_in_place=false;
-    if(has_device_cache&&allocation!=managed_allocations.end()&&
-       allocation->second.owners==1){
-        auto* bytes=static_cast<unsigned char*>(moments_raw)+8;
-        std::int64_t signed_bit_length{};
-        std::memcpy(&signed_bit_length,moments_raw,sizeof(signed_bit_length));
-        if(signed_bit_length>=0&&signed_bit_length%8==0){
-            const auto length=static_cast<std::size_t>(
-                static_cast<unsigned long long>(signed_bit_length/8));
-            if(length<=allocation->second.size-8&&length>=16){
-                std::size_t cursor=0;
-                auto need=[&](std::size_t count){
-                    return count<=length-cursor;
-                };
-                std::uint64_t magic{},record_count{};
-                if(need(16)){
-                    std::memcpy(&magic,bytes+cursor,8);cursor+=8;
-                    std::memcpy(&record_count,bytes+cursor,8);cursor+=8;
-                }
-                bool valid=magic==neural_moment_state_magic&&
-                    record_count==found->second.records.size();
-                for(std::size_t index=0;valid&&index<found->second.records.size();++index){
-                    if(!need(28)){valid=false;break;}
-                    std::int32_t dtype{};
-                    std::uint32_t rank{},path_length{};
-                    std::uint64_t count{},stored_step{};
-                    std::memcpy(&dtype,bytes+cursor,4);cursor+=4;
-                    std::memcpy(&rank,bytes+cursor,4);cursor+=4;
-                    std::memcpy(&count,bytes+cursor,8);cursor+=8;
-                    auto* step_slot=bytes+cursor;
-                    std::memcpy(&stored_step,step_slot,8);cursor+=8;
-                    std::memcpy(&path_length,bytes+cursor,4);cursor+=4;
-                    const auto& record=found->second.records[index];
-                    if(dtype!=record.dtype||rank!=record.shape.size()||
-                       count!=record.first.size()||stored_step>record.step||
-                       path_length!=record.path.size()||!need(path_length)){
-                        valid=false;break;
-                    }
-                    if(path_length&&
-                       std::memcmp(bytes+cursor,record.path.data(),path_length)!=0){
-                        valid=false;break;
-                    }
-                    cursor+=path_length;
-                    const auto shape_bytes=neural_checked_mul(
-                        static_cast<std::size_t>(rank),sizeof(std::int64_t),line,column);
-                    if(!need(shape_bytes)){valid=false;break;}
-                    for(std::size_t axis=0;axis<record.shape.size();++axis){
-                        std::int64_t dimension{};
-                        std::memcpy(&dimension,bytes+cursor+axis*8,8);
-                        if(dimension!=record.shape[axis]){valid=false;break;}
-                    }
-                    if(!valid)break;
-                    cursor+=shape_bytes;
-                    const auto vector_bytes=neural_checked_mul(
-                        record.first.size(),sizeof(double),line,column);
-                    const auto moments_bytes=neural_checked_mul(
-                        vector_bytes,2,line,column);
-                    if(!need(moments_bytes)){valid=false;break;}
-                    std::memcpy(step_slot,&record.step,8);
-                    cursor+=moments_bytes;
-                }
-                updated_in_place=valid&&cursor==length;
-            }
-        }
-    }
-    if(!updated_in_place){
-        auto* encoded=neural_encode_moments(found->second.records,line,column);
-        neural_replace_moments(optimizer,encoded);
-    }
-    neural_set_state_u64(step_state,expected);
-    neural_moment_update_contexts.erase(found);
-}
-
-extern "C" bool quidra_neural_moment_update_parameter(
-    void* parameter,void* gradients_raw,void* optimizer,void* path_raw,
-    unsigned long long index,long long step,
-    unsigned long long line,unsigned long long column) {
-    if(!optimizer||step<=0) neural_fail("invalid moment update step",line,column);
-    const auto* parameter_path=static_cast<const char*>(path_raw);
-    if(!parameter_path||!*parameter_path)
-        neural_fail("invalid moment update Parameter path",line,column);
-    auto* tensor=neural_parameter_tensor(parameter);
-    if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    auto& context=neural_moment_update_context(optimizer,line,column);
-    if(index>=context.parameter_count)
-        neural_fail("moment update Parameter traversal changed",line,column);
-    auto* moments_raw=context.moments_raw;
-    auto& records=context.records;
-    const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
-
-    const auto moment_key=reinterpret_cast<std::uintptr_t>(moments_raw);
-    const bool cached=neural_moment_device_caches.contains(moment_key);
-    if(cached &&
-       (neural_managed_owner_count(moments_raw)>1 ||
-        (gradient && !gradient->device_tensor))){
-        // Preserve step counters and CPU-side updates already made in this
-        // transaction while materializing authoritative GPU moments.
-        neural_sync_moment_cache_records(moments_raw,records,line,column);
-        neural_moment_device_caches.erase(moment_key);
-    }
-
-    if(index>records.size()) neural_fail("moment update Parameter traversal changed",line,column);
-    const auto logical_count=tensor_logical_count(*tensor);
-    if(index==records.size()){
-        NeuralMomentRecord record;
-        record.path=parameter_path;
-        record.dtype=tensor->storage->dtype;
-        record.shape=tensor->shape;
-        record.first.assign(logical_count,0.0);
-        record.second.assign(logical_count,0.0);
-        records.push_back(std::move(record));
-    }
-    auto& record=records[static_cast<std::size_t>(index)];
-    if(record.path!=parameter_path)
-        neural_fail("moment update state does not match Parameter structural path",line,column);
-    if(record.dtype!=tensor->storage->dtype||record.shape!=tensor->shape||
-       record.first.size()!=logical_count||record.second.size()!=logical_count)
-        neural_fail("moment update state does not match Parameter dtype/shape",line,column);
-
-    bool matched=gradient!=nullptr;
-    if(matched){
-        if(record.step==std::numeric_limits<std::uint64_t>::max())
-            neural_fail("moment update Parameter step counter overflow",line,column);
-        ++record.step;
-        const double rate=context.rate;
-        const double beta1=context.beta1;
-        const double beta2=context.beta2;
-        const double epsilon=context.epsilon;
-        const double correction1=context.correction1;
-        const double correction2=context.correction2;
-        const double one_minus_beta1=context.one_minus_beta1;
-        const double one_minus_beta2=context.one_minus_beta2;
-        const double inverse_correction1=context.inverse_correction1;
-        const double inverse_correction2=context.inverse_correction2;
-
-        if(gradient->device_tensor){
-            if(!tensor_is_contiguous_value(*tensor)||tensor->offset!=0){
-                auto* dense_storage=tensor_gpu_materialize_storage(*tensor,line,column);
-                auto* dense=tensor_descriptor(
-                    dense_storage,tensor->shape,tensor_contiguous_strides(tensor->shape),0);
-                neural_replace_tensor_value(*tensor,dense,line,column);
-            }
-            tensor_detach_for_write(*tensor,line,column);
-
-            TensorStorage* gradient_mat=nullptr;
-            const TensorStorage* gradient_store=gradient->device_tensor->storage;
-            if(!tensor_is_contiguous_value(*gradient->device_tensor)||
-               gradient->device_tensor->offset!=0){
-                gradient_mat=tensor_gpu_materialize_storage(
-                    *gradient->device_tensor,line,column);
-                gradient_store=gradient_mat;
-            }
-            const auto bytes=tensor_dtype_bytes(tensor->storage->dtype);
-            if(logical_count!=0&&bytes>std::numeric_limits<std::size_t>::max()/logical_count){
-                if(gradient_mat) tensor_storage_release(gradient_mat);
-                neural_fail("moment update buffer size overflow",line,column);
-            }
-            const auto buffer_bytes=logical_count*bytes;
-            std::string backend_error;
-            bool ok=false;
-
-            auto* cached_record=neural_moment_device_record(
-                moments_raw,static_cast<std::size_t>(index),record,*tensor,line,column);
-            if(cached_record){
-                ok=quidra::device::compute_moment_update(
-                    tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
-                    cached_record->first,cached_record->second,
-                    tensor->storage->dtype,logical_count,
-                    rate,beta1,beta2,epsilon,correction1,correction2,backend_error);
-            }else{
-                std::unique_ptr<quidra::device::Buffer,void(*)(quidra::device::Buffer*)> first_buffer(
-                    quidra::device::allocate(tensor->storage->device,buffer_bytes,backend_error),
-                    [](quidra::device::Buffer* value){quidra::device::release(value);});
-                if(!first_buffer){
-                    if(gradient_mat) tensor_storage_release(gradient_mat);
-                    neural_fail(backend_error.c_str(),line,column);
-                }
-                std::unique_ptr<quidra::device::Buffer,void(*)(quidra::device::Buffer*)> second_buffer(
-                    quidra::device::allocate(tensor->storage->device,buffer_bytes,backend_error),
-                    [](quidra::device::Buffer* value){quidra::device::release(value);});
-                if(!second_buffer){
-                    if(gradient_mat) tensor_storage_release(gradient_mat);
-                    neural_fail(backend_error.c_str(),line,column);
-                }
-
-                if(tensor->storage->dtype==10){
-                    std::vector<float> first(logical_count),second(logical_count);
-                    for(std::size_t i=0;i<logical_count;++i){
-                        first[i]=static_cast<float>(record.first[i]);
-                        second[i]=static_cast<float>(record.second[i]);
-                    }
-                    ok=quidra::device::copy_from_host(
-                           first_buffer.get(),0,first.data(),buffer_bytes,backend_error)&&
-                       quidra::device::copy_from_host(
-                           second_buffer.get(),0,second.data(),buffer_bytes,backend_error)&&
-                       quidra::device::compute_moment_update(
-                           tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
-                           first_buffer.get(),second_buffer.get(),10,logical_count,
-                           rate,beta1,beta2,epsilon,correction1,correction2,backend_error)&&
-                       quidra::device::copy_to_host(
-                           first_buffer.get(),0,first.data(),buffer_bytes,backend_error)&&
-                       quidra::device::copy_to_host(
-                           second_buffer.get(),0,second.data(),buffer_bytes,backend_error);
-                    if(ok)
-                        for(std::size_t i=0;i<logical_count;++i){
-                            record.first[i]=static_cast<double>(first[i]);
-                            record.second[i]=static_cast<double>(second[i]);
-                        }
-                }else if(tensor->storage->dtype==9){
-                    ok=quidra::device::copy_from_host(
-                           first_buffer.get(),0,record.first.data(),buffer_bytes,backend_error)&&
-                       quidra::device::copy_from_host(
-                           second_buffer.get(),0,record.second.data(),buffer_bytes,backend_error)&&
-                       quidra::device::compute_moment_update(
-                           tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
-                           first_buffer.get(),second_buffer.get(),9,logical_count,
-                           rate,beta1,beta2,epsilon,correction1,correction2,backend_error)&&
-                       quidra::device::copy_to_host(
-                           first_buffer.get(),0,record.first.data(),buffer_bytes,backend_error)&&
-                       quidra::device::copy_to_host(
-                           second_buffer.get(),0,record.second.data(),buffer_bytes,backend_error);
-                }else{
-                    if(gradient_mat) tensor_storage_release(gradient_mat);
-                    neural_fail("invalid neural gradient dtype",line,column);
-                }
-            }
-            if(gradient_mat) tensor_storage_release(gradient_mat);
-            if(!ok) neural_fail(backend_error.c_str(),line,column);
-        }else{
-            // A successful optimizer step must read every Parameter element, so
-            // validate initialization once and then detach. Detaching preserves
-            // COW and materializes views into full contiguous storage when needed.
-            // The hot loop can therefore scan dense CPU storage directly instead
-            // of repeating storage-index and initialization lookups per element.
-            tensor_require_initialized(*tensor,line,column);
-            tensor_detach_for_write(*tensor,line,column);
-            auto update_dense=[&](auto parameter_tag,const auto& gradient_values){
-                using ParameterT=decltype(parameter_tag);
-                const auto width=sizeof(ParameterT);
-                auto* parameter_bytes=tensor->storage->data.data();
-                for(std::size_t i=0;i<logical_count;++i){
-                    const double g=static_cast<double>(gradient_values[i]);
-                    record.first[i]=beta1*record.first[i]+one_minus_beta1*g;
-                    record.second[i]=beta2*record.second[i]+one_minus_beta2*g*g;
-                    const double mhat=record.first[i]*inverse_correction1;
-                    const double vhat=record.second[i]*inverse_correction2;
-                    const double delta=rate*mhat/(std::sqrt(vhat)+epsilon);
-                    ParameterT current{};
-                    std::memcpy(&current,parameter_bytes+i*width,width);
-                    const ParameterT next=static_cast<ParameterT>(
-                        static_cast<double>(current)-delta);
-                    std::memcpy(parameter_bytes+i*width,&next,width);
-                }
-            };
-            if(tensor->storage->dtype==10){
-                if(gradient->dtype==10)
-                    update_dense(float{},gradient->data.typed<float>());
-                else
-                    update_dense(float{},gradient->data.typed<double>());
-            }else if(tensor->storage->dtype==9){
-                if(gradient->dtype==10)
-                    update_dense(double{},gradient->data.typed<float>());
-                else
-                    update_dense(double{},gradient->data.typed<double>());
-            }else{
-                neural_fail("invalid neural Parameter dtype",line,column);
-            }
-        }
-    }
-    return matched;
-}
-
-extern "C" void quidra_neural_validate_step(
-    void* gradients_raw,unsigned long long matched,
-    unsigned long long line,unsigned long long column) {
-    if(!gradients_raw) neural_fail("null gradients",line,column);
-    const auto count=static_cast<NeuralGradients*>(gradients_raw)->data->values.size();
-    if(matched!=count)
-        neural_fail("Gradients contain Parameters that do not belong to the supplied model",line,column);
-}
-
-namespace {
-
-struct NeuralStateReadRequest {
-    std::string path;
-    int kind{};
-    void* address{};
-};
-
-struct NeuralStateContext {
-    std::string path;
-    std::vector<unsigned char> data;
-    std::size_t cursor{};
-    std::size_t end{};
-    std::size_t payload_start{};
-    std::vector<NeuralStateReadRequest> reads;
-};
-
-[[noreturn]] void neural_state_fail(
-    const char* message,unsigned long long line,unsigned long long column) {
-    std::fprintf(stderr,
-        "Quidra runtime error[NEURAL_STATE] at %llu:%llu: %s\n",
-        line,column,message);
-    std::exit(101);
-}
-
-bool neural_state_path_valid(const char* raw) {
-    if(!raw) return false;
-    const std::string_view path(raw);
-    constexpr std::string_view suffix=".quistate";
-    return path.size()>=suffix.size() &&
-           path.substr(path.size()-suffix.size())==suffix;
-}
-
-void neural_state_append_u32(std::vector<unsigned char>& out,std::uint32_t value) {
-    for(unsigned i=0;i<4;++i) out.push_back(static_cast<unsigned char>((value>>(i*8U))&0xffU));
-}
-
-void neural_state_append_u64(std::vector<unsigned char>& out,std::uint64_t value) {
-    for(unsigned i=0;i<8;++i) out.push_back(static_cast<unsigned char>((value>>(i*8U))&0xffU));
-}
-
-std::uint32_t neural_state_read_u32(
-    NeuralStateContext& context,unsigned long long line,unsigned long long column) {
-    if(context.cursor>context.end || context.end-context.cursor<4)
-        neural_state_fail("truncated .quistate file",line,column);
-    std::uint32_t value=0;
-    for(unsigned i=0;i<4;++i)
-        value|=static_cast<std::uint32_t>(context.data[context.cursor++])<<(i*8U);
-    return value;
-}
-
-std::uint64_t neural_state_read_u64(
-    NeuralStateContext& context,unsigned long long line,unsigned long long column) {
-    if(context.cursor>context.end || context.end-context.cursor<8)
-        neural_state_fail("truncated .quistate file",line,column);
-    std::uint64_t value=0;
-    for(unsigned i=0;i<8;++i)
-        value|=static_cast<std::uint64_t>(context.data[context.cursor++])<<(i*8U);
-    return value;
-}
-
-void neural_state_append_raw(
-    std::vector<unsigned char>& out,const void* source,std::size_t width) {
-    if(!source) runtime_text_failure("null .quistate scalar");
-    const auto* bytes=static_cast<const unsigned char*>(source);
-    if constexpr(std::endian::native==std::endian::little) {
-        out.insert(out.end(),bytes,bytes+width);
-    } else {
-        for(std::size_t i=0;i<width;++i) out.push_back(bytes[width-1-i]);
-    }
-}
-
-void neural_state_read_raw(
-    NeuralStateContext& context,void* destination,std::size_t width,
-    unsigned long long line,unsigned long long column) {
-    if(!destination) neural_state_fail("null .quistate load target",line,column);
-    if(context.cursor>context.end || width>context.end-context.cursor)
-        neural_state_fail("truncated .quistate file",line,column);
-    auto* bytes=static_cast<unsigned char*>(destination);
-    if constexpr(std::endian::native==std::endian::little) {
-        std::memcpy(bytes,context.data.data()+context.cursor,width);
-    } else {
-        for(std::size_t i=0;i<width;++i)
-            bytes[width-1-i]=context.data[context.cursor+i];
-    }
-    context.cursor+=width;
-}
-
-std::uint64_t neural_state_checksum(
-    const unsigned char* data,std::size_t size) {
-    std::uint64_t hash=1469598103934665603ULL;
-    for(std::size_t i=0;i<size;++i){
-        hash^=static_cast<std::uint64_t>(data[i]);
-        hash*=1099511628211ULL;
-    }
-    return hash;
-}
-
-std::size_t neural_state_scalar_width(int kind) {
-    if(kind>=1&&kind<=10) return tensor_dtype_bytes(kind);
-    if(kind==11) return 1;
-    return 0;
-}
-
-void neural_state_append_path(
-    NeuralStateContext& context,const char* path,int kind,
-    unsigned long long line,unsigned long long column) {
-    if(!path) neural_state_fail("null .quistate field path",line,column);
-    const auto length=std::strlen(path);
-    if(length>std::numeric_limits<std::uint32_t>::max())
-        neural_state_fail(".quistate field path is too long",line,column);
-    neural_state_append_u32(context.data,static_cast<std::uint32_t>(length));
-    context.data.insert(context.data.end(),path,path+length);
-    context.data.push_back(static_cast<unsigned char>(kind));
-}
-
-void neural_state_expect_path(
-    NeuralStateContext& context,const char* path,int kind,
-    unsigned long long line,unsigned long long column) {
-    if(!path) neural_state_fail("null .quistate field path",line,column);
-    const auto length=neural_state_read_u32(context,line,column);
-    if(context.cursor>=context.end ||
-       static_cast<std::size_t>(length)>context.end-context.cursor-1)
-        neural_state_fail("truncated .quistate field header",line,column);
-    const std::string_view stored(
-        reinterpret_cast<const char*>(context.data.data()+context.cursor),length);
-    context.cursor+=length;
-    const int stored_kind=context.data[context.cursor++];
-    if(stored!=path || stored_kind!=kind)
-        neural_state_fail(".quistate schema/field mismatch",line,column);
-}
-
-void neural_state_write_tensor(
-    NeuralStateContext& context,TensorValue& tensor,
-    unsigned long long line,unsigned long long column) {
-    tensor_require_cpu(*tensor.storage, "neural.save", line, column);
-    tensor_require_initialized(tensor,line,column);
-    neural_state_append_u32(
-        context.data,static_cast<std::uint32_t>(tensor.storage->dtype));
-    if(tensor.shape.size()>std::numeric_limits<std::uint32_t>::max())
-        neural_state_fail("tensor rank is too large for .quistate",line,column);
-    neural_state_append_u32(
-        context.data,static_cast<std::uint32_t>(tensor.shape.size()));
-    for(const auto dimension:tensor.shape)
-        neural_state_append_u64(context.data,static_cast<std::uint64_t>(dimension));
-    const auto count=tensor_logical_count(tensor);
-    neural_state_append_u64(context.data,static_cast<std::uint64_t>(count));
-    const auto width=tensor_dtype_bytes(tensor.storage->dtype);
-    for(std::size_t i=0;i<count;++i){
-        const auto index=tensor_storage_index(tensor,i);
-        neural_state_append_raw(
-            context.data,tensor.storage->data.data()+index*width,width);
-    }
-}
-
-void neural_state_read_tensor(
-    NeuralStateContext& context,void* address,bool apply,
-    unsigned long long line,unsigned long long column) {
-    if(!address) neural_state_fail("null tensor load target",line,column);
-    void* raw=nullptr;
-    std::memcpy(&raw,address,sizeof(raw));
+extern "C" void* quidra_tensor_grad(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) autograd_fail("null tensor",line,column);
     auto* tensor=static_cast<TensorValue*>(raw);
-    if(!tensor) neural_state_fail("null tensor load target",line,column);
-    tensor_require_initialized(*tensor,line,column);
-
-    const auto dtype=static_cast<int>(neural_state_read_u32(context,line,column));
-    const auto rank=neural_state_read_u32(context,line,column);
-    if(dtype!=tensor->storage->dtype ||
-       static_cast<std::size_t>(rank)!=tensor->shape.size())
-        neural_state_fail(".quistate tensor dtype/shape mismatch",line,column);
-    if(static_cast<std::size_t>(rank)>(context.end-context.cursor)/8)
-        neural_state_fail("truncated .quistate tensor shape",line,column);
-    for(std::uint32_t i=0;i<rank;++i){
-        const auto dimension=neural_state_read_u64(context,line,column);
-        if(dimension>static_cast<std::uint64_t>(std::numeric_limits<long long>::max()))
-            neural_state_fail(".quistate tensor dimension is too large",line,column);
-        if(static_cast<long long>(dimension)!=tensor->shape[i])
-            neural_state_fail(".quistate tensor dtype/shape mismatch",line,column);
-    }
-    const auto count=neural_state_read_u64(context,line,column);
-
-    if(count!=tensor_logical_count(*tensor))
-        neural_state_fail(".quistate tensor dtype/shape mismatch",line,column);
-
-    const auto width=tensor_dtype_bytes(dtype);
-    if(count>static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()/width))
-        neural_state_fail(".quistate tensor payload is too large",line,column);
-    const auto payload_bytes=static_cast<std::size_t>(count)*width;
-    if(payload_bytes>context.end-context.cursor)
-        neural_state_fail("truncated .quistate tensor",line,column);
-
-    if(!apply){
-        context.cursor+=payload_bytes;
-        return;
-    }
-
-    tensor_detach_for_write(*tensor, line, column);
-    for(std::size_t i=0;i<static_cast<std::size_t>(count);++i){
-        const auto index=tensor_storage_index(*tensor,i);
-        neural_state_read_raw(
-            context,tensor->storage->data.data()+index*width,width,line,column);
-        tracker_set(tensor->storage->initialization,index);
-    }
+    if(!tensor->grad_slot||!tensor->grad_slot->gradient)
+        autograd_fail("tensor gradient is not available; call backward() first",line,column);
+    return quidra_tensor_clone(tensor->grad_slot->gradient);
 }
 
-void neural_state_process_read(
-    NeuralStateContext& context,const char* path,int kind,void* address,bool apply,
-    unsigned long long line,unsigned long long column) {
-    if(!address) neural_state_fail("null .quistate load target",line,column);
-    neural_state_expect_path(context,path,kind,line,column);
+extern "C" bool quidra_tensor_is_tracked(void* raw) {
+    if(!raw) return false;
+    return static_cast<TensorValue*>(raw)->graph!=nullptr;
+}
 
-    const auto scalar_width=neural_state_scalar_width(kind);
-    if(scalar_width){
-        if(scalar_width>context.end-context.cursor)
-            neural_state_fail("truncated .quistate scalar",line,column);
-        if(apply) neural_state_read_raw(context,address,scalar_width,line,column);
-        else context.cursor+=scalar_width;
-        return;
+extern "C" bool quidra_tensor_has_grad(void* raw) {
+    if(!raw) return false;
+    const auto* tensor=static_cast<TensorValue*>(raw);
+    return tensor->grad_slot && tensor->grad_slot->gradient;
+}
+
+extern "C" void quidra_tensor_clear_grad(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) autograd_fail("null tensor",line,column);
+    auto* tensor=static_cast<TensorValue*>(raw);
+    if(!tensor->grad_slot||!tensor->grad_slot->gradient) return;
+    release_managed_tensor(tensor->grad_slot->gradient);
+    tensor->grad_slot->gradient=nullptr;
+}
+
+TensorValue* tensor_gather_logical_indices(
+    TensorValue& source,std::vector<std::size_t> logical_indices,
+    std::vector<long long> output_shape,
+    unsigned long long line,unsigned long long column) {
+    const auto output_count=tensor_element_count(output_shape,line,column);
+    if(logical_indices.size()!=output_count)
+        tensor_fail(
+            "tensor.gather index count must equal the output element count",
+            line,column);
+    const auto source_count=tensor_logical_count(source);
+    std::vector<std::uint64_t> physical_indices;
+    try{
+        physical_indices.resize(output_count);
+    }catch(...){
+        runtime_allocation_failure();
     }
-    if(kind==12){
-        const auto length=neural_state_read_u64(context,line,column);
-        if(length>context.end-context.cursor)
-            neural_state_fail("truncated .quistate string",line,column);
-        const auto text_size=static_cast<std::size_t>(length);
-        const std::string_view text(
-            reinterpret_cast<const char*>(context.data.data()+context.cursor),
-            text_size);
-        if(!valid_runtime_text(text))
-            neural_state_fail(
-                ".quistate string is not valid UTF-8 text without NUL",
-                line,column);
-        if(!apply){
-            context.cursor+=text_size;
-            return;
+    for(std::size_t i=0;i<output_count;++i){
+        const auto index=logical_indices[i];
+        if(index>=source_count)
+            tensor_fail("tensor.gather index is outside the source tensor",line,column);
+        const auto physical=tensor_storage_index(source,index);
+        if(physical>=source.storage->count)
+            tensor_fail("tensor.gather source view exceeds storage",line,column);
+        physical_indices[i]=static_cast<std::uint64_t>(physical);
+    }
+
+    auto* storage=tensor_storage_create(
+        source.storage->dtype,output_count,0,source.storage->device,line,column);
+    const auto width=tensor_dtype_bytes(source.storage->dtype);
+    if(tensor_on_cpu(*source.storage)){
+        for(std::size_t i=0;i<output_count;++i){
+            const auto physical=static_cast<std::size_t>(physical_indices[i]);
+            std::memcpy(
+                storage->data.data()+i*width,
+                source.storage->data.data()+physical*width,width);
+            if(tracker_bit(source.storage->initialization,physical))
+                tracker_set(storage->initialization,i);
         }
-        std::string value(text);
-        context.cursor+=text_size;
-        auto* replacement=runtime_copy_string(value);
-        void* old=nullptr;
-        std::memcpy(&old,address,sizeof(old));
-        std::memcpy(address,&replacement,sizeof(replacement));
-        quidra_managed_release(old,nullptr);
-        return;
-    }
-    if(kind==13){
-        const auto length=neural_state_read_u64(context,line,column);
-        if(length>context.end-context.cursor ||
-           length>static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()) ||
-           length>static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()-8))
-            neural_state_fail("truncated or oversized .quistate bytes",line,column);
-        if(!apply){
-            context.cursor+=static_cast<std::size_t>(length);
-            return;
-        }
-        const auto total=static_cast<std::size_t>(length)+8;
-        auto* replacement=static_cast<unsigned char*>(managed_allocate(total));
-        const auto signed_length=static_cast<std::int64_t>(length);
-        std::memcpy(replacement,&signed_length,8);
-        if(length)
-            std::memcpy(replacement+8,context.data.data()+context.cursor,
-                        static_cast<std::size_t>(length));
-        context.cursor+=static_cast<std::size_t>(length);
-        void* old=nullptr;
-        std::memcpy(&old,address,sizeof(old));
-        void* replacement_raw=replacement;
-        std::memcpy(address,&replacement_raw,sizeof(replacement_raw));
-        quidra_managed_release(old,nullptr);
-        return;
-    }
-    if(kind==14){
-        neural_state_read_tensor(context,address,apply,line,column);
-        return;
-    }
-    neural_state_fail("unsupported .quistate field kind",line,column);
-}
-
-} // namespace
-
-extern "C" void* quidra_neural_state_save_begin(
-    void* path_raw,void* schema_raw,
-    unsigned long long line,unsigned long long column) {
-    const auto* path=static_cast<const char*>(path_raw);
-    const auto* schema=static_cast<const char*>(schema_raw);
-    if(!neural_state_path_valid(path))
-        neural_state_fail("neural.save path must end with .quistate",line,column);
-    if(!schema) neural_state_fail("null .quistate schema",line,column);
-    auto* context=new NeuralStateContext();
-    context->path=path;
-    constexpr char magic[]="QUIDRASTATE";
-    context->data.insert(context->data.end(),magic,magic+sizeof(magic)-1);
-    neural_state_append_u32(context->data,1);
-    const auto schema_length=std::strlen(schema);
-    neural_state_append_u64(context->data,static_cast<std::uint64_t>(schema_length));
-    context->data.insert(context->data.end(),schema,schema+schema_length);
-    return context;
-}
-
-extern "C" void quidra_neural_state_write(
-    void* raw_context,void* path_raw,int kind,void* raw,
-    unsigned long long line,unsigned long long column) {
-    if(!raw_context) neural_state_fail("null .quistate save context",line,column);
-    auto& context=*static_cast<NeuralStateContext*>(raw_context);
-    const auto* path=static_cast<const char*>(path_raw);
-    neural_state_append_path(context,path,kind,line,column);
-
-    const auto scalar_width=neural_state_scalar_width(kind);
-    if(scalar_width){
-        neural_state_append_raw(context.data,raw,scalar_width);
-        return;
-    }
-    if(kind==12){
-        const auto* text=static_cast<const char*>(raw);
-        if(!text) neural_state_fail("null string in .quistate",line,column);
-        if(!valid_runtime_text(text))
-            neural_state_fail(
-                "string in .quistate is not valid UTF-8 text without NUL",
-                line,column);
-        const auto length=std::strlen(text);
-        neural_state_append_u64(context.data,static_cast<std::uint64_t>(length));
-        context.data.insert(context.data.end(),text,text+length);
-        return;
-    }
-    if(kind==13){
-        if(!raw) neural_state_fail("null bytes in .quistate",line,column);
-        neural_sync_moment_cache_to_host(raw,line,column);
-        std::int64_t signed_length{};
-        std::memcpy(&signed_length,raw,8);
-        if(signed_length<0) neural_state_fail("invalid bytes length in .quistate",line,column);
-        const auto length=static_cast<std::size_t>(signed_length);
-        neural_state_append_u64(context.data,static_cast<std::uint64_t>(length));
-        const auto* data=static_cast<const unsigned char*>(raw)+8;
-        context.data.insert(context.data.end(),data,data+length);
-        return;
-    }
-    if(kind==14){
-        if(!raw) neural_state_fail("null tensor in .quistate",line,column);
-        neural_state_write_tensor(
-            context,*static_cast<TensorValue*>(raw),line,column);
-        return;
-    }
-    neural_state_fail("unsupported .quistate field kind",line,column);
-}
-
-extern "C" void quidra_neural_state_save_finish(
-    void* raw_context,unsigned long long line,unsigned long long column) {
-    if(!raw_context) neural_state_fail("null .quistate save context",line,column);
-    std::unique_ptr<NeuralStateContext> context(
-        static_cast<NeuralStateContext*>(raw_context));
-    const auto checksum=neural_state_checksum(
-        context->data.data(),context->data.size());
-    neural_state_append_u64(context->data,checksum);
-
-    const std::filesystem::path target(context->path);
-    static std::atomic<std::uint64_t> temporary_sequence{0};
-    const auto sequence=temporary_sequence.fetch_add(1,std::memory_order_relaxed);
-    if(sequence==std::numeric_limits<std::uint64_t>::max())
-        neural_state_fail("temporary .quistate sequence exhausted",line,column);
-#ifdef _WIN32
-    const auto process_id=static_cast<std::uint64_t>(GetCurrentProcessId());
-#else
-    const auto process_id=static_cast<std::uint64_t>(getpid());
-#endif
-    auto temporary=target;
-    temporary+=std::string(".tmp.")+std::to_string(process_id)+"."+
-        std::to_string(sequence);
-    std::error_code ignored;
-    std::filesystem::remove(temporary,ignored);
-
-    {
-        std::ofstream output(temporary,std::ios::binary|std::ios::trunc);
-        if(!output)
-            neural_state_fail("cannot open temporary .quistate file for writing",line,column);
-        output.write(
-            reinterpret_cast<const char*>(context->data.data()),
-            static_cast<std::streamsize>(context->data.size()));
-        output.flush();
-        if(!output){
-            output.close();
-            std::filesystem::remove(temporary,ignored);
-            neural_state_fail("failed to write .quistate file",line,column);
-        }
-    }
-
-#ifdef _WIN32
-    if(!MoveFileExW(
-            temporary.c_str(),target.c_str(),
-            MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)){
-        std::filesystem::remove(temporary,ignored);
-        neural_state_fail("failed to replace .quistate file",line,column);
-    }
-#else
-    std::error_code rename_error;
-    std::filesystem::rename(temporary,target,rename_error);
-    if(rename_error){
-        std::filesystem::remove(temporary,ignored);
-        neural_state_fail("failed to replace .quistate file",line,column);
-    }
-#endif
-}
-
-extern "C" void* quidra_neural_state_load_begin(
-    void* path_raw,void* schema_raw,
-    unsigned long long line,unsigned long long column) {
-    const auto* path=static_cast<const char*>(path_raw);
-    const auto* schema=static_cast<const char*>(schema_raw);
-    if(!neural_state_path_valid(path))
-        neural_state_fail("neural.load path must end with .quistate",line,column);
-    if(!schema) neural_state_fail("null .quistate schema",line,column);
-
-    std::ifstream input(path,std::ios::binary);
-    if(!input) neural_state_fail("cannot open .quistate file for reading",line,column);
-    std::vector<unsigned char> data{
-        std::istreambuf_iterator<char>(input),
-        std::istreambuf_iterator<char>()};
-    constexpr char magic[]="QUIDRASTATE";
-    constexpr std::size_t minimum=(sizeof(magic)-1)+4+8+8;
-    if(data.size()<minimum) neural_state_fail("truncated .quistate file",line,column);
-
-    std::uint64_t stored_checksum=0;
-    for(unsigned i=0;i<8;++i)
-        stored_checksum|=static_cast<std::uint64_t>(data[data.size()-8+i])<<(i*8U);
-    const auto computed=neural_state_checksum(data.data(),data.size()-8);
-    if(stored_checksum!=computed)
-        neural_state_fail(".quistate checksum mismatch",line,column);
-
-    auto* context=new NeuralStateContext();
-    context->path=path;
-    context->data=std::move(data);
-    context->end=context->data.size()-8;
-
-    if(context->end<sizeof(magic)-1 ||
-       std::memcmp(context->data.data(),magic,sizeof(magic)-1)!=0){
-        delete context;
-        neural_state_fail("invalid .quistate magic",line,column);
-    }
-    context->cursor=sizeof(magic)-1;
-    const auto version=neural_state_read_u32(*context,line,column);
-    if(version!=1){
-        delete context;
-        neural_state_fail("unsupported .quistate version",line,column);
-    }
-    const auto schema_length=neural_state_read_u64(*context,line,column);
-    if(schema_length>context->end-context->cursor){
-        delete context;
-        neural_state_fail("truncated .quistate schema",line,column);
-    }
-    const std::string_view stored_schema(
-        reinterpret_cast<const char*>(context->data.data()+context->cursor),
-        static_cast<std::size_t>(schema_length));
-    context->cursor+=static_cast<std::size_t>(schema_length);
-    if(stored_schema!=schema){
-        delete context;
-        neural_state_fail(".quistate schema mismatch",line,column);
-    }
-    context->payload_start=context->cursor;
-    return context;
-}
-
-extern "C" void quidra_neural_state_read(
-    void* raw_context,void* path_raw,int kind,void* address,
-    unsigned long long line,unsigned long long column) {
-    if(!raw_context) neural_state_fail("null .quistate load context",line,column);
-    auto& context=*static_cast<NeuralStateContext*>(raw_context);
-    const auto* path=static_cast<const char*>(path_raw);
-    if(!path) neural_state_fail("null .quistate field path",line,column);
-    neural_state_process_read(context,path,kind,address,false,line,column);
-    context.reads.push_back(NeuralStateReadRequest{path,kind,address});
-}
-
-extern "C" void quidra_neural_state_load_finish(
-    void* raw_context,unsigned long long line,unsigned long long column) {
-    if(!raw_context) neural_state_fail("null .quistate load context",line,column);
-    std::unique_ptr<NeuralStateContext> context(
-        static_cast<NeuralStateContext*>(raw_context));
-
-    if(context->cursor!=context->end)
-        neural_state_fail(".quistate contains unexpected trailing state",line,column);
-
-    context->cursor=context->payload_start;
-    for(const auto& request:context->reads){
-        neural_state_process_read(
-            *context,request.path.c_str(),request.kind,request.address,true,line,column);
-    }
-    if(context->cursor!=context->end)
-        neural_state_fail(".quistate internal replay mismatch",line,column);
-}
-
-extern "C" void* quidra_neural_untrack(void* raw) {
-    if(!raw)runtime_text_failure("null neural value");
-    return neural_tensor_from_node(*static_cast<NeuralValue*>(raw)->node);
-}
-extern "C" void* quidra_neural_cast(
-    void* raw,int target_dtype,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) neural_fail("null neural value",line,column);
-    if(target_dtype!=9&&target_dtype!=10)
-        neural_fail("neural cast target must be float32 or float",line,column);
-    auto root=static_cast<NeuralValue*>(raw)->node;
-    return neural_descriptor(neural_cast_graph(root,target_dtype));
-}
-extern "C" void quidra_neural_rank_check(
-    void* raw,long long expected_rank,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) neural_fail("null neural value",line,column);
-    const auto& shape=static_cast<NeuralValue*>(raw)->node->shape;
-    if(expected_rank<0 || shape.size()!=static_cast<std::size_t>(expected_rank))
-        neural_fail("neural rank does not satisfy captured shape constraint",line,column);
-}
-extern "C" void quidra_neural_extent_check(
-    void* raw,long long axis,long long expected,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) neural_fail("null neural value",line,column);
-    const auto& shape=static_cast<NeuralValue*>(raw)->node->shape;
-    if(axis<0 || static_cast<std::size_t>(axis)>=shape.size())
-        neural_fail("neural shape axis is outside rank",line,column);
-    if(expected<0)
-        neural_fail("captured neural extent cannot be negative",line,column);
-    if(shape[static_cast<std::size_t>(axis)]!=expected)
-        neural_fail("neural extent does not satisfy captured shape constraint",line,column);
-}
-extern "C" void* quidra_neural_clone(void* raw) {
-    if(!raw)return nullptr;
-    return neural_descriptor(static_cast<NeuralValue*>(raw)->node);
-}
-extern "C" void quidra_neural_drop(void* raw) {
-    if(raw)static_cast<NeuralValue*>(raw)->~NeuralValue();
-}
-extern "C" void* quidra_neural_gradients_clone(void* raw) {
-    if(!raw)return nullptr;
-    return neural_gradients_descriptor(static_cast<NeuralGradients*>(raw)->data);
-}
-extern "C" void quidra_neural_gradients_drop(void* raw) {
-    if(raw)static_cast<NeuralGradients*>(raw)->~NeuralGradients();
-}
-extern "C" void* quidra_neural_unary(void* raw,int op,unsigned long long line,unsigned long long column) {
-    if(!raw)neural_fail("null neural value",line,column);
-    return neural_descriptor(neural_unary_node(static_cast<NeuralValue*>(raw)->node,op,line,column));
-}
-extern "C" void* quidra_neural_tensor_unary(void* raw,int op,unsigned long long line,unsigned long long column) {
-    if(!raw)neural_fail("null tensor",line,column);
-    auto& input=*static_cast<TensorValue*>(raw);
-    if (tensor_on_cpu(*input.storage)) {
-        auto node=neural_constant_node(input,line,column);
-        auto transformed=neural_unary_node(node,op,line,column);
-        return neural_tensor_from_node(*transformed);
-    }
-    tensor_require_initialized(input,line,column);
-    if(input.storage->dtype!=9&&input.storage->dtype!=10)
-        neural_fail("neural values require float32 or float tensors",line,column);
-
-    TensorStorage* materialized=nullptr;
-    const TensorStorage* source=input.storage;
-    std::size_t source_offset=input.offset*tensor_dtype_bytes(input.storage->dtype);
-    if(!tensor_is_contiguous_value(input)){
-        materialized=tensor_gpu_materialize_storage(input,line,column);
-        source=materialized;
-        source_offset=0;
-    }
-
-    std::vector<long long> output_shape=input.shape;
-    std::size_t output_count=tensor_logical_count(input);
-    if(op==4){
-        output_shape.clear();
-        output_count=1;
-    }
-    auto* output=tensor_storage_create(
-        input.storage->dtype,output_count,1,input.storage->device,line,column);
-    std::string backend_error;
-    bool ok=false;
-    if(op>=1&&op<=3){
-        const int compute_op=op==1?2:op==2?3:4;
-        ok=quidra::device::compute_unary(
-            output->gpu_buffer,source->gpu_buffer,source_offset,
-            input.storage->dtype,compute_op,tensor_logical_count(input),backend_error);
-    }else if(op==4){
-        ok=quidra::device::compute_mean_to(
-            output->gpu_buffer,source->gpu_buffer,input.storage->dtype,
-            tensor_logical_count(input),backend_error);
-    }else if(op==5||op==6){
-        if(input.shape.empty()||input.shape.back()<=0){
-            if(materialized)tensor_storage_release(materialized);
-            tensor_storage_release(output);
-            neural_fail("last-axis reduction requires a non-empty last axis",line,column);
-        }
-        ok=quidra::device::compute_last_reduce_broadcast(
-            output->gpu_buffer,source->gpu_buffer,input.storage->dtype,
-            tensor_logical_count(input),static_cast<std::size_t>(input.shape.back()),
-            op==5?1:2,backend_error);
     }else{
-        if(materialized)tensor_storage_release(materialized);
-        tensor_storage_release(output);
-        neural_fail("unknown neural unary operation",line,column);
+        std::string backend_error;
+        if(!quidra::device::compute_gather(
+                storage->gpu_buffer,source.storage->gpu_buffer,
+                source.storage->dtype,physical_indices.data(),
+                output_count,backend_error)){
+            tensor_storage_release(storage);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        for(std::size_t i=0;i<output_count;++i)
+            if(tracker_bit(
+                    source.storage->initialization,
+                    static_cast<std::size_t>(physical_indices[i])))
+                tracker_set(storage->initialization,i);
     }
-    if(materialized)tensor_storage_release(materialized);
-    if(!ok){
-        tensor_storage_release(output);
-        neural_fail(backend_error.c_str(),line,column);
+
+    auto* result=tensor_descriptor(
+        storage,output_shape,tensor_contiguous_strides(output_shape),0);
+    if(source.graph){
+        if(source.storage->dtype!=9&&source.storage->dtype!=10){
+            release_managed_tensor(result);
+            autograd_fail("tracked tensor gather requires a floating dtype",line,column);
+        }
+        auto node=std::make_shared<AutogradNode>(source.storage->dtype);
+        node->shape=output_shape;
+        node->parents={source.graph};
+        node->op=AutogradOp::Gather;
+        node->aux_index=std::move(logical_indices);
+        if(tensor_on_cpu(*storage))
+            node->data=tensor_float_values(*result,line,column);
+        else
+            node->device_tensor=static_cast<TensorValue*>(
+                quidra_tensor_clone(result));
+        result->graph=std::move(node);
     }
-    auto output_strides=tensor_contiguous_strides(output_shape);
-    return tensor_descriptor(
-        output,std::move(output_shape),std::move(output_strides),0);
+    return result;
 }
-template <typename T>
-void* neural_binary_t(
-    const std::shared_ptr<NeuralNode>& left,const std::shared_ptr<NeuralNode>& right,int op,
+
+extern "C" void* quidra_tensor_gather(
+    void* raw,void* indices_array,void* shape_array,
     unsigned long long line,unsigned long long column) {
-    const auto& a=left->data.typed<T>();
-    const auto& b=right->data.typed<T>();
-    std::vector<T> values(a.size(),T{0});
-    for(std::size_t i=0;i<values.size();++i){
-        if(op==1) values[i]=static_cast<T>(a[i]+b[i]);
-        else if(op==2) values[i]=static_cast<T>(a[i]-b[i]);
-        else if(op==3) values[i]=static_cast<T>(a[i]*b[i]);
-        else{
-            if(b[i]==T{0}) neural_fail("division by zero",line,column);
-            values[i]=static_cast<T>(a[i]/b[i]);
+    if(!raw) tensor_fail("tensor.gather received a null tensor",line,column);
+    auto* source=static_cast<TensorValue*>(raw);
+    auto raw_indices=tensor_int_array_from_array(indices_array,line,column);
+    auto output_shape=tensor_shape_from_array(shape_array,line,column);
+    std::vector<std::size_t> logical_indices;
+    try{
+        logical_indices.reserve(raw_indices.size());
+    }catch(...){
+        runtime_allocation_failure();
+    }
+    for(const auto index:raw_indices){
+        if(index<0)
+            tensor_fail("tensor.gather index is outside the source tensor",line,column);
+        logical_indices.push_back(static_cast<std::size_t>(index));
+    }
+    return tensor_gather_logical_indices(
+        *source,std::move(logical_indices),std::move(output_shape),line,column);
+}
+
+extern "C" void* quidra_tensor_scatter(
+    void* raw,void* indices_array,void* shape_array,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("tensor.scatter received a null tensor",line,column);
+    auto& source=*static_cast<TensorValue*>(raw);
+    if(source.storage->dtype<1||source.storage->dtype>10)
+        tensor_fail(
+            "tensor.scatter requires a numeric tensor element type",
+            line,column);
+    tensor_require_initialized(source,line,column);
+    auto raw_indices=tensor_int_array_from_array(indices_array,line,column);
+    auto output_shape=tensor_shape_from_array(shape_array,line,column);
+    const auto source_count=tensor_logical_count(source);
+    const auto output_count=tensor_element_count(output_shape,line,column);
+    if(raw_indices.size()!=source_count)
+        tensor_fail(
+            "tensor.scatter index count must equal the source element count",
+            line,column);
+
+    std::vector<std::size_t> logical_indices;
+    try{
+        logical_indices.resize(source_count);
+    }catch(...){
+        runtime_allocation_failure();
+    }
+    for(std::size_t i=0;i<source_count;++i){
+        if(raw_indices[i]<0)
+            tensor_fail("tensor.scatter index is outside the output tensor",line,column);
+        const auto index=static_cast<std::size_t>(raw_indices[i]);
+        if(index>=output_count)
+            tensor_fail("tensor.scatter index is outside the output tensor",line,column);
+        logical_indices[i]=index;
+    }
+
+    auto* storage=tensor_storage_create(
+        source.storage->dtype,output_count,1,source.storage->device,line,column);
+    if(tensor_on_cpu(*source.storage)){
+        std::fill(storage->data.begin(),storage->data.end(),0);
+        const auto scatter_typed=[&](auto tag){
+            using T=decltype(tag);
+            for(std::size_t i=0;i<source_count;++i){
+                const auto physical=tensor_storage_index(source,i);
+                T value{},current{},next{};
+                std::memcpy(
+                    &value,source.storage->data.data()+physical*sizeof(T),
+                    sizeof(T));
+                std::memcpy(
+                    &current,storage->data.data()+logical_indices[i]*sizeof(T),
+                    sizeof(T));
+                bool valid=true;
+                if constexpr(std::is_floating_point_v<T>){
+                    next=static_cast<T>(current+value);
+                }else if constexpr(std::is_signed_v<T>){
+                    if((value>0&&current>std::numeric_limits<T>::max()-value)||
+                       (value<0&&current<std::numeric_limits<T>::min()-value))
+                        valid=false;
+                    else
+                        next=static_cast<T>(current+value);
+                }else{
+                    if(current>std::numeric_limits<T>::max()-value)
+                        valid=false;
+                    else
+                        next=static_cast<T>(current+value);
+                }
+                if(!valid){
+                    tensor_storage_release(storage);
+                    tensor_fail("tensor.scatter integer arithmetic overflow",line,column);
+                }
+                std::memcpy(
+                    storage->data.data()+logical_indices[i]*sizeof(T),
+                    &next,sizeof(T));
+            }
+        };
+        switch(source.storage->dtype){
+            case 1: scatter_typed(std::int64_t{}); break;
+            case 2: scatter_typed(std::int8_t{}); break;
+            case 3: scatter_typed(std::int16_t{}); break;
+            case 4: scatter_typed(std::int32_t{}); break;
+            case 5: scatter_typed(std::uint8_t{}); break;
+            case 6: scatter_typed(std::uint16_t{}); break;
+            case 7: scatter_typed(std::uint32_t{}); break;
+            case 8: scatter_typed(std::uint64_t{}); break;
+            case 9: scatter_typed(double{}); break;
+            case 10:scatter_typed(float{}); break;
+            default:
+                tensor_storage_release(storage);
+                tensor_fail("tensor.scatter requires a numeric tensor element type",line,column);
+        }
+    }else{
+        auto* dense=tensor_gpu_materialize_storage(source,line,column);
+        std::vector<std::uint64_t> indices(source_count);
+        for(std::size_t i=0;i<source_count;++i)
+            indices[i]=static_cast<std::uint64_t>(logical_indices[i]);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_gather_backward(
+            storage->gpu_buffer,dense->gpu_buffer,source.storage->dtype,
+            indices.data(),output_count,source_count,backend_error);
+        tensor_storage_release(dense);
+        if(!ok){
+            tensor_storage_release(storage);
+            tensor_fail(backend_error.c_str(),line,column);
         }
     }
-    auto node=std::make_shared<NeuralNode>(left->dtype);
-    node->shape=left->shape;
-    node->parents={left,right};
-    node->op=op==1?NeuralOp::Add:op==2?NeuralOp::Sub:op==3?NeuralOp::Mul:NeuralOp::Div;
-    node->data=NeuralBuffer(std::move(values));
-    return neural_descriptor(std::move(node));
-}
 
-extern "C" void* quidra_neural_binary(void* left_raw,void* right_raw,int op,
-                                       unsigned long long line,unsigned long long column) {
-    if(!left_raw||!right_raw) neural_fail("null neural operand",line,column);
-    const auto left=static_cast<NeuralValue*>(left_raw)->node;
-    const auto right=static_cast<NeuralValue*>(right_raw)->node;
-    neural_require_same_shape(*left,*right,line,column);
-    if(left->device_tensor){
-        auto node=std::make_shared<NeuralNode>(left->dtype);
-        node->shape=left->shape;
-        node->parents={left,right};
-        node->op=op==1?NeuralOp::Add:op==2?NeuralOp::Sub:op==3?NeuralOp::Mul:NeuralOp::Div;
-        node->device_tensor=static_cast<TensorValue*>(
-            quidra_tensor_binary(
-                left->device_tensor,right->device_tensor,nullptr,0,op,line,column));
-        if(!node->device_tensor)
-            neural_fail("GPU neural binary operation returned null",line,column);
-        return neural_descriptor(std::move(node));
+    auto* result=tensor_descriptor(
+        storage,output_shape,tensor_contiguous_strides(output_shape),0);
+    if(source.graph){
+        auto node=std::make_shared<AutogradNode>(source.storage->dtype);
+        node->shape=output_shape;
+        node->parents={source.graph};
+        node->op=AutogradOp::GatherBackward;
+        node->aux_index=std::move(logical_indices);
+        if(tensor_on_cpu(*storage))
+            node->data=tensor_float_values(*result,line,column);
+        else
+            node->device_tensor=static_cast<TensorValue*>(
+                quidra_tensor_clone(result));
+        result->graph=std::move(node);
     }
-    if(left->dtype==10) return neural_binary_t<float>(left,right,op,line,column);
-    if(left->dtype==9) return neural_binary_t<double>(left,right,op,line,column);
-    neural_fail("invalid neural binary dtype",line,column);
+    return result;
 }
 
+extern "C" void* quidra_tensor_convolve(
+    void* raw,void* kernel_raw,long long stride_raw,long long padding_raw,
+    long long dilation_raw,unsigned long long line,unsigned long long column) {
+    if(!raw||!kernel_raw)
+        tensor_fail("tensor.convolve received a null tensor",line,column);
+    auto& source=*static_cast<TensorValue*>(raw);
+    auto& kernel=*static_cast<TensorValue*>(kernel_raw);
+    if(source.storage->dtype!=kernel.storage->dtype)
+        tensor_fail(
+            "tensor.convolve requires input and kernel element types to match",
+            line,column);
+    if(source.storage->dtype<1||source.storage->dtype>10)
+        tensor_fail(
+            "tensor.convolve requires a numeric tensor element type",
+            line,column);
+    if(source.storage->device!=kernel.storage->device)
+        tensor_fail(
+            "tensor.convolve input and kernel are on different devices; transfer them explicitly",
+            line,column);
+    if(stride_raw<=0||dilation_raw<=0||padding_raw<0)
+        tensor_fail(
+            "tensor.convolve requires stride > 0, dilation > 0, and padding >= 0",
+            line,column);
+    if(kernel.shape.empty())
+        tensor_fail("tensor.convolve kernel rank must be at least 1",line,column);
+    if(kernel.shape.size()>source.shape.size())
+        tensor_fail("tensor.convolve kernel rank cannot exceed input rank",line,column);
 
-template <typename T>
-NeuralBuffer neural_binary_scalar_values(
-    const NeuralBuffer& input,double scalar,int op,bool scalar_left,
-    unsigned long long line,unsigned long long column) {
-    const auto& source=input.typed<T>();
-    std::vector<T> values(source.size(),T{0});
-    const T scalar_value=static_cast<T>(scalar);
-    for(std::size_t i=0;i<values.size();++i){
-        const T left=scalar_left?scalar_value:source[i];
-        const T right=scalar_left?source[i]:scalar_value;
-        if(op==1)values[i]=static_cast<T>(left+right);
-        else if(op==2)values[i]=static_cast<T>(left-right);
-        else if(op==3)values[i]=static_cast<T>(left*right);
-        else{
-            if(right==T{0})neural_fail("division by zero",line,column);
-            values[i]=static_cast<T>(left/right);
+    tensor_require_initialized(source,line,column);
+    tensor_require_initialized(kernel,line,column);
+
+    const auto stride=static_cast<std::size_t>(stride_raw);
+    const auto padding=static_cast<std::size_t>(padding_raw);
+    const auto dilation=static_cast<std::size_t>(dilation_raw);
+    const auto rank=source.shape.size();
+    const auto kernel_rank=kernel.shape.size();
+    const auto leading_rank=rank-kernel_rank;
+    std::vector<long long> output_shape=source.shape;
+    for(std::size_t axis=0;axis<kernel_rank;++axis){
+        const auto input_extent=source.shape[leading_rank+axis];
+        const auto kernel_extent=kernel.shape[axis];
+        if(input_extent<=0||kernel_extent<=0)
+            tensor_fail(
+                "tensor.convolve requires positive extents on convolved axes",
+                line,column);
+        const auto input_size=static_cast<std::size_t>(input_extent);
+        const auto kernel_size=static_cast<std::size_t>(kernel_extent);
+        if(kernel_size-1>
+           (std::numeric_limits<std::size_t>::max()-1)/dilation)
+            tensor_fail("tensor.convolve effective kernel size overflow",line,column);
+        const auto effective=std::size_t{1}+(kernel_size-1)*dilation;
+        if(padding>(std::numeric_limits<std::size_t>::max()-input_size)/2)
+            tensor_fail("tensor.convolve padded size overflow",line,column);
+        const auto padded=input_size+padding*2;
+        if(effective>padded)
+            tensor_fail(
+                "tensor.convolve effective kernel is larger than the padded input",
+                line,column);
+        const auto output_extent=(padded-effective)/stride+1;
+        if(output_extent>
+           static_cast<std::size_t>(std::numeric_limits<long long>::max()))
+            tensor_fail("tensor.convolve output extent overflow",line,column);
+        output_shape[leading_rank+axis]=static_cast<long long>(output_extent);
+    }
+
+    const auto output_count=tensor_element_count(output_shape,line,column);
+    const auto kernel_count=tensor_logical_count(kernel);
+    std::vector<long long> expanded_shape=output_shape;
+    expanded_shape.insert(
+        expanded_shape.end(),kernel.shape.begin(),kernel.shape.end());
+    const auto expanded_count=tensor_element_count(expanded_shape,line,column);
+    if(kernel_count!=0&&output_count>
+       std::numeric_limits<std::size_t>::max()/kernel_count)
+        tensor_fail("tensor.convolve expanded size overflow",line,column);
+    if(expanded_count!=output_count*kernel_count)
+        tensor_fail("tensor.convolve expanded size mismatch",line,column);
+
+    std::vector<std::size_t> source_indices;
+    std::vector<std::size_t> kernel_indices;
+    std::vector<unsigned char> valid_mask;
+    try{
+        source_indices.resize(expanded_count);
+        kernel_indices.resize(expanded_count);
+        valid_mask.assign(expanded_count,1);
+    }catch(...){
+        runtime_allocation_failure();
+    }
+
+    std::vector<std::size_t> output_coordinates(rank);
+    std::vector<std::size_t> kernel_coordinates(kernel_rank);
+    bool has_padding_gap=false;
+    for(std::size_t linear=0;linear<expanded_count;++linear){
+        const auto kernel_linear=kernel_count==0?0:linear%kernel_count;
+        auto remaining_kernel=kernel_linear;
+        for(std::size_t axis=kernel_rank;axis-- >0;){
+            const auto extent=static_cast<std::size_t>(kernel.shape[axis]);
+            kernel_coordinates[axis]=remaining_kernel%extent;
+            remaining_kernel/=extent;
+        }
+
+        auto remaining_output=kernel_count==0?0:linear/kernel_count;
+        for(std::size_t axis=rank;axis-- >0;){
+            const auto extent=static_cast<std::size_t>(output_shape[axis]);
+            if(extent==0){
+                output_coordinates[axis]=0;
+            }else{
+                output_coordinates[axis]=remaining_output%extent;
+                remaining_output/=extent;
+            }
+        }
+
+        std::size_t source_linear=0;
+        bool valid=true;
+        for(std::size_t axis=0;axis<rank;++axis){
+            const auto input_extent=
+                static_cast<std::size_t>(source.shape[axis]);
+            std::size_t coordinate=output_coordinates[axis];
+            if(axis>=leading_rank){
+                const auto kernel_axis=axis-leading_rank;
+                const auto kernel_extent=
+                    static_cast<std::size_t>(kernel.shape[kernel_axis]);
+                const auto reversed=
+                    (kernel_extent-1-kernel_coordinates[kernel_axis])*dilation;
+                const auto padded_coordinate=
+                    output_coordinates[axis]*stride+reversed;
+                if(padded_coordinate<padding){
+                    valid=false;
+                }else{
+                    coordinate=padded_coordinate-padding;
+                    if(coordinate>=input_extent) valid=false;
+                }
+            }
+            if(!valid) break;
+            source_linear=source_linear*input_extent+coordinate;
+        }
+        source_indices[linear]=valid?source_linear:0;
+        kernel_indices[linear]=kernel_linear;
+        if(!valid){
+            valid_mask[linear]=0;
+            has_padding_gap=true;
         }
     }
-    return NeuralBuffer(std::move(values));
-}
 
-extern "C" void* quidra_neural_binary_scalar(
-    void* raw,double scalar,int op,bool scalar_left,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) neural_fail("null neural operand",line,column);
-    if(op<1||op>4) neural_fail("invalid neural binary operation",line,column);
-    auto input=static_cast<NeuralValue*>(raw)->node;
-    auto node=std::make_shared<NeuralNode>(input->dtype);
-    node->shape=input->shape;
-    node->parents={input};
-    node->op=NeuralOp::ScalarBinary;
-    node->aux.assign(1,scalar);
-    node->aux_index={
-        static_cast<std::size_t>(op),
-        scalar_left?std::size_t{1}:std::size_t{0}
-    };
-    if(input->device_tensor){
-        if(input->dtype==10){
-            float value=static_cast<float>(scalar);
-            node->device_tensor=static_cast<TensorValue*>(
-                quidra_tensor_binary(
-                    input->device_tensor,nullptr,&value,scalar_left?1:2,
-                    op,line,column));
-        }else if(input->dtype==9){
-            double value=scalar;
-            node->device_tensor=static_cast<TensorValue*>(
-                quidra_tensor_binary(
-                    input->device_tensor,nullptr,&value,scalar_left?1:2,
-                    op,line,column));
+    auto* gathered_source=tensor_gather_logical_indices(
+        source,std::move(source_indices),expanded_shape,line,column);
+    auto* gathered_kernel=tensor_gather_logical_indices(
+        kernel,std::move(kernel_indices),expanded_shape,line,column);
+    auto* current=static_cast<TensorValue*>(
+        quidra_tensor_binary(
+            gathered_source,gathered_kernel,nullptr,0,3,line,column));
+    release_managed_tensor(gathered_source);
+    release_managed_tensor(gathered_kernel);
+
+    if(has_padding_gap){
+        const auto width=tensor_dtype_bytes(source.storage->dtype);
+        if(expanded_count>std::numeric_limits<std::size_t>::max()/width){
+            release_managed_tensor(current);
+            tensor_fail("tensor.convolve mask size overflow",line,column);
+        }
+        std::vector<unsigned char> mask_bytes;
+        try{
+            mask_bytes.resize(expanded_count*width);
+        }catch(...){
+            release_managed_tensor(current);
+            runtime_allocation_failure();
+        }
+        const auto store_mask_value=[&](std::size_t index,auto value){
+            std::memcpy(
+                mask_bytes.data()+index*width,&value,sizeof(value));
+        };
+        for(std::size_t i=0;i<expanded_count;++i){
+            const bool valid=valid_mask[i]!=0;
+            switch(source.storage->dtype){
+                case 1: store_mask_value(i,std::int64_t(valid?1:0)); break;
+                case 2: store_mask_value(i,std::int8_t(valid?1:0)); break;
+                case 3: store_mask_value(i,std::int16_t(valid?1:0)); break;
+                case 4: store_mask_value(i,std::int32_t(valid?1:0)); break;
+                case 5: store_mask_value(i,std::uint8_t(valid?1:0)); break;
+                case 6: store_mask_value(i,std::uint16_t(valid?1:0)); break;
+                case 7: store_mask_value(i,std::uint32_t(valid?1:0)); break;
+                case 8: store_mask_value(i,std::uint64_t(valid?1:0)); break;
+                case 9: store_mask_value(i,valid?1.0:0.0); break;
+                case 10: store_mask_value(i,valid?1.0f:0.0f); break;
+                default:
+                    release_managed_tensor(current);
+                    tensor_fail(
+                        "tensor.convolve requires a numeric tensor element type",
+                        line,column);
+            }
+        }
+        auto* mask_storage=tensor_storage_create(
+            source.storage->dtype,expanded_count,1,source.storage->device,
+            line,column);
+        if(tensor_on_cpu(*source.storage)){
+            if(!mask_bytes.empty())
+                std::memcpy(
+                    mask_storage->data.data(),mask_bytes.data(),mask_bytes.size());
         }else{
-            neural_fail("invalid neural scalar dtype",line,column);
+            std::string backend_error;
+            if(!mask_bytes.empty()&&!quidra::device::copy_from_host(
+                    mask_storage->gpu_buffer,0,mask_bytes.data(),
+                    mask_bytes.size(),backend_error)){
+                tensor_storage_release(mask_storage);
+                release_managed_tensor(current);
+                tensor_fail(backend_error.c_str(),line,column);
+            }
         }
-        if(!node->device_tensor)
-            neural_fail("GPU neural scalar operation returned null",line,column);
-    }else if(input->dtype==10){
-        node->data=neural_binary_scalar_values<float>(
-            input->data,scalar,op,scalar_left,line,column);
-    }else if(input->dtype==9){
-        node->data=neural_binary_scalar_values<double>(
-            input->data,scalar,op,scalar_left,line,column);
-    }else{
-        neural_fail("invalid neural scalar dtype",line,column);
+        auto* mask=tensor_descriptor(
+            mask_storage,expanded_shape,
+            tensor_contiguous_strides(expanded_shape),0);
+        auto* masked=static_cast<TensorValue*>(
+            quidra_tensor_binary(current,mask,nullptr,0,3,line,column));
+        release_managed_tensor(current);
+        release_managed_tensor(mask);
+        current=masked;
     }
-    return neural_descriptor(std::move(node));
+
+    auto reduction_shape=expanded_shape;
+    for(std::size_t reduced=0;reduced<kernel_rank;++reduced){
+        const auto width=static_cast<std::size_t>(reduction_shape.back());
+        reduction_shape.pop_back();
+        const auto collapsed_count=
+            tensor_element_count(reduction_shape,line,column);
+        if(source.storage->dtype==9||source.storage->dtype==10){
+            auto* summed=static_cast<TensorValue*>(
+                quidra_tensor_autograd_unary(current,5,line,column));
+            release_managed_tensor(current);
+            std::vector<std::size_t> collapsed_indices;
+            try{
+                collapsed_indices.resize(collapsed_count);
+            }catch(...){
+                release_managed_tensor(summed);
+                runtime_allocation_failure();
+            }
+            for(std::size_t i=0;i<collapsed_count;++i)
+                collapsed_indices[i]=i*width;
+            current=tensor_gather_logical_indices(
+                *summed,std::move(collapsed_indices),reduction_shape,line,column);
+            release_managed_tensor(summed);
+            continue;
+        }
+
+        TensorValue* summed=nullptr;
+        for(std::size_t offset=0;offset<width;++offset){
+            std::vector<std::size_t> indices;
+            try{
+                indices.resize(collapsed_count);
+            }catch(...){
+                if(summed) release_managed_tensor(summed);
+                release_managed_tensor(current);
+                runtime_allocation_failure();
+            }
+            for(std::size_t i=0;i<collapsed_count;++i)
+                indices[i]=i*width+offset;
+            auto* slice=tensor_gather_logical_indices(
+                *current,std::move(indices),reduction_shape,line,column);
+            if(!summed){
+                summed=slice;
+                continue;
+            }
+            auto* next=static_cast<TensorValue*>(
+                quidra_tensor_binary(summed,slice,nullptr,0,1,line,column));
+            release_managed_tensor(summed);
+            release_managed_tensor(slice);
+            summed=next;
+        }
+        release_managed_tensor(current);
+        current=summed;
+    }
+    return current;
+}
+
+template <typename T>
+TensorValue* tensor_max_last_cpu(
+    const TensorValue& input,unsigned long long line,unsigned long long column) {
+    if(input.shape.empty()||input.shape.back()<=0)
+        tensor_fail("max_last requires a non-empty last axis",line,column);
+    const auto count=tensor_logical_count(input);
+    const auto width=static_cast<std::size_t>(input.shape.back());
+    auto* storage=tensor_storage_create(input.storage->dtype,count,1,-1,line,column);
+    for(std::size_t base=0;base<count;base+=width){
+        const auto first_index=tensor_storage_index(input,base);
+        T reduced{};
+        std::memcpy(&reduced,input.storage->data.data()+first_index*sizeof(T),sizeof(T));
+        for(std::size_t j=1;j<width;++j){
+            const auto source_index=tensor_storage_index(input,base+j);
+            T value{};
+            std::memcpy(&value,input.storage->data.data()+source_index*sizeof(T),sizeof(T));
+            if(value>reduced) reduced=value;
+        }
+        for(std::size_t j=0;j<width;++j)
+            std::memcpy(storage->data.data()+(base+j)*sizeof(T),&reduced,sizeof(T));
+    }
+    return tensor_descriptor(
+        storage,input.shape,tensor_contiguous_strides(input.shape),0);
+}
+
+TensorValue* tensor_numeric_max_last(
+    const TensorValue& input,unsigned long long line,unsigned long long column) {
+    tensor_require_initialized(input,line,column);
+    if(input.graph)
+        autograd_fail("tracked max_last requires a floating dtype",line,column);
+    if(!tensor_on_cpu(*input.storage))
+        return autograd_tensor_unary_raw_gpu(
+            const_cast<TensorValue&>(input),6,line,column);
+    switch(input.storage->dtype){
+        case 1:return tensor_max_last_cpu<std::int64_t>(input,line,column);
+        case 2:return tensor_max_last_cpu<std::int8_t>(input,line,column);
+        case 3:return tensor_max_last_cpu<std::int16_t>(input,line,column);
+        case 4:return tensor_max_last_cpu<std::int32_t>(input,line,column);
+        case 5:return tensor_max_last_cpu<std::uint8_t>(input,line,column);
+        case 6:return tensor_max_last_cpu<std::uint16_t>(input,line,column);
+        case 7:return tensor_max_last_cpu<std::uint32_t>(input,line,column);
+        case 8:return tensor_max_last_cpu<std::uint64_t>(input,line,column);
+        default: autograd_fail("max_last requires a numeric tensor dtype",line,column);
+    }
+}
+
+template <typename T>
+TensorValue* tensor_min_last_cpu(
+    const TensorValue& input,unsigned long long line,unsigned long long column) {
+    if(input.shape.empty()||input.shape.back()<=0)
+        tensor_fail("min_last requires a non-empty last axis",line,column);
+    const auto count=tensor_logical_count(input);
+    const auto width=static_cast<std::size_t>(input.shape.back());
+    auto* storage=tensor_storage_create(input.storage->dtype,count,1,-1,line,column);
+    for(std::size_t base=0;base<count;base+=width){
+        const auto first_index=tensor_storage_index(input,base);
+        T reduced{};
+        std::memcpy(&reduced,input.storage->data.data()+first_index*sizeof(T),sizeof(T));
+        for(std::size_t j=1;j<width;++j){
+            const auto source_index=tensor_storage_index(input,base+j);
+            T value{};
+            std::memcpy(&value,input.storage->data.data()+source_index*sizeof(T),sizeof(T));
+            if(value<reduced) reduced=value;
+        }
+        for(std::size_t j=0;j<width;++j)
+            std::memcpy(storage->data.data()+(base+j)*sizeof(T),&reduced,sizeof(T));
+    }
+    return tensor_descriptor(
+        storage,input.shape,tensor_contiguous_strides(input.shape),0);
+}
+
+TensorValue* tensor_numeric_min_last(
+    const TensorValue& input,unsigned long long line,unsigned long long column) {
+    tensor_require_initialized(input,line,column);
+    if(input.graph)
+        autograd_fail("tracked min_last is not supported; call untrack() explicitly",line,column);
+    if(!tensor_on_cpu(*input.storage))
+        return autograd_tensor_unary_raw_gpu(
+            const_cast<TensorValue&>(input),7,line,column);
+    switch(input.storage->dtype){
+        case 1:return tensor_min_last_cpu<std::int64_t>(input,line,column);
+        case 2:return tensor_min_last_cpu<std::int8_t>(input,line,column);
+        case 3:return tensor_min_last_cpu<std::int16_t>(input,line,column);
+        case 4:return tensor_min_last_cpu<std::int32_t>(input,line,column);
+        case 5:return tensor_min_last_cpu<std::uint8_t>(input,line,column);
+        case 6:return tensor_min_last_cpu<std::uint16_t>(input,line,column);
+        case 7:return tensor_min_last_cpu<std::uint32_t>(input,line,column);
+        case 8:return tensor_min_last_cpu<std::uint64_t>(input,line,column);
+        default: autograd_fail("min_last requires a numeric tensor dtype",line,column);
+    }
+}
+
+extern "C" void* quidra_tensor_autograd_unary(void* raw,int op,unsigned long long line,unsigned long long column) {
+    if(!raw)autograd_fail("null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    if(input.storage->dtype!=9&&input.storage->dtype!=10){
+        if(op==6) return tensor_numeric_max_last(input,line,column);
+        if(op==7) return tensor_numeric_min_last(input,line,column);
+        autograd_fail("autograd tensor unary operation requires a floating dtype",line,column);
+    }
+    const auto base=input.graph?input.graph:autograd_constant_node(input,line,column);
+    const auto transformed=autograd_unary_node(base,op,line,column);
+    auto* result=autograd_tensor_from_node(*transformed);
+    if(input.graph) result->graph=transformed;
+    return result;
 }
 
 
-class NeuralDeviceDenseInput {
+
+
+
+
+class AutogradDeviceDenseInput {
 public:
-    NeuralDeviceDenseInput()=default;
-    NeuralDeviceDenseInput(
+    AutogradDeviceDenseInput()=default;
+    AutogradDeviceDenseInput(
         const TensorValue& value,unsigned long long line,unsigned long long column) {
         reset(value,line,column);
     }
-    NeuralDeviceDenseInput(const NeuralDeviceDenseInput&)=delete;
-    NeuralDeviceDenseInput& operator=(const NeuralDeviceDenseInput&)=delete;
-    ~NeuralDeviceDenseInput() {
-        if(owned_) quidra_tensor_drop(owned_);
+    AutogradDeviceDenseInput(const AutogradDeviceDenseInput&)=delete;
+    AutogradDeviceDenseInput& operator=(const AutogradDeviceDenseInput&)=delete;
+    ~AutogradDeviceDenseInput() {
+        if(owned_) release_managed_tensor(owned_);
     }
 
     void reset(
         const TensorValue& value,unsigned long long line,unsigned long long column) {
         if(owned_) {
-            quidra_tensor_drop(owned_);
+            release_managed_tensor(owned_);
             owned_=nullptr;
         }
         if(tensor_on_cpu(*value.storage))
-            neural_fail("internal neural GPU path received a CPU tensor",line,column);
+            autograd_fail("internal autograd GPU path received a CPU tensor",line,column);
         if(tensor_is_contiguous_value(value)&&value.offset==0){
             value_=&value;
             return;
@@ -5783,24 +4686,49 @@ private:
     TensorValue* owned_{};
 };
 
-TensorValue* neural_device_binary_tensor(
+
+TensorValue* autograd_device_reshape_view(
+    TensorValue* source,const std::vector<long long>& shape,
+    unsigned long long line,unsigned long long column) {
+    if(!source||!source->storage)
+        autograd_fail("invalid GPU matmul reshape operand",line,column);
+    if(tensor_element_count(shape,line,column)!=tensor_logical_count(*source))
+        autograd_fail("GPU matmul reshape cannot change element count",line,column);
+    if(!tensor_is_contiguous_value(*source))
+        autograd_fail("GPU matmul reshape requires contiguous storage",line,column);
+    if(source->storage->owners==std::numeric_limits<std::size_t>::max())
+        runtime_text_failure("tensor storage owner overflow");
+    ++source->storage->owners;
+    return tensor_descriptor(
+        source->storage,shape,tensor_contiguous_strides(shape),source->offset);
+}
+
+TensorValue* autograd_device_transpose_view(
+    TensorValue* source,unsigned long long line,unsigned long long column) {
+    if(!source||source->shape.size()!=2)
+        autograd_fail("GPU matmul transpose requires rank-2 tensor",line,column);
+    return static_cast<TensorValue*>(
+        quidra_tensor_transpose(source,0,1,line,column));
+}
+
+TensorValue* autograd_device_binary_tensor(
     TensorValue* left,TensorValue* right,int operation,
     unsigned long long line,unsigned long long column) {
     return static_cast<TensorValue*>(
         quidra_tensor_binary(left,right,nullptr,0,operation,line,column));
 }
 
-void neural_device_binary_backward(
+void autograd_device_binary_backward(
     TensorValue* gradient,TensorValue* left,TensorValue* right,int operation,
     bool shared_parent,TensorValue*& left_gradient,TensorValue*& right_gradient,
     unsigned long long line,unsigned long long column) {
-    NeuralDeviceDenseInput gd(*gradient,line,column);
-    NeuralDeviceDenseInput ad(*left,line,column);
-    NeuralDeviceDenseInput bd(*right,line,column);
+    AutogradDeviceDenseInput gd(*gradient,line,column);
+    AutogradDeviceDenseInput ad(*left,line,column);
+    AutogradDeviceDenseInput bd(*right,line,column);
     if(gd->shape!=ad->shape||gd->shape!=bd->shape)
-        neural_fail("neural binary backward shape mismatch",line,column);
+        autograd_fail("autograd binary backward shape mismatch",line,column);
     if(shared_parent&&left!=right)
-        neural_fail("shared neural binary parent mismatch",line,column);
+        autograd_fail("shared autograd binary parent mismatch",line,column);
     const auto count=tensor_logical_count(*gd.get());
     auto* left_storage=tensor_storage_create(
         gd->storage->dtype,count,1,gd->storage->device,line,column);
@@ -5821,21 +4749,21 @@ void neural_device_binary_backward(
         gd->storage->gpu_buffer,ad->storage->gpu_buffer,bd->storage->gpu_buffer,
         gd->storage->dtype,operation,count,backend_error);
     if(!ok){
-        quidra_tensor_drop(left_gradient);
-        if(right_gradient) quidra_tensor_drop(right_gradient);
+        release_managed_tensor(left_gradient);
+        if(right_gradient) release_managed_tensor(right_gradient);
         left_gradient=nullptr;
         right_gradient=nullptr;
-        neural_fail(backend_error.c_str(),line,column);
+        autograd_fail(backend_error.c_str(),line,column);
     }
 }
 
-TensorValue* neural_device_negate_tensor(
+TensorValue* autograd_device_negate_tensor(
     TensorValue* input,unsigned long long line,unsigned long long column) {
     return static_cast<TensorValue*>(
         quidra_tensor_unary(input,1,line,column));
 }
 
-bool neural_accumulate_device_gradient_in_place(
+bool autograd_accumulate_device_gradient_in_place(
     TensorValue* destination,const TensorValue* source,
     unsigned long long line,unsigned long long column) {
     if(!destination||!source||destination==source||
@@ -5860,37 +4788,37 @@ bool neural_accumulate_device_gradient_in_place(
             destination->storage->gpu_buffer,0,
             source->storage->gpu_buffer,0,
             nullptr,0,destination->storage->dtype,1,count,backend_error))
-        neural_fail(backend_error.c_str(),line,column);
+        autograd_fail(backend_error.c_str(),line,column);
     return true;
 }
 
-void neural_add_device_gradient(
-    std::unordered_map<const NeuralNode*,TensorValue*>& gradients,
-    const std::shared_ptr<NeuralNode>& node,TensorValue* value,
+void autograd_add_device_gradient(
+    std::unordered_map<const AutogradNode*,TensorValue*>& gradients,
+    const std::shared_ptr<AutogradNode>& node,TensorValue* value,
     unsigned long long line,unsigned long long column) {
-    if(!value) neural_fail("null GPU neural gradient",line,column);
+    if(!value) autograd_fail("null GPU autograd gradient",line,column);
     const auto found=gradients.find(node.get());
     if(found==gradients.end()){
         gradients.emplace(node.get(),value);
         return;
     }
-    if(neural_accumulate_device_gradient_in_place(
+    if(autograd_accumulate_device_gradient_in_place(
             found->second,value,line,column)){
-        quidra_tensor_drop(value);
+        release_managed_tensor(value);
         return;
     }
-    auto* combined=neural_device_binary_tensor(
+    auto* combined=autograd_device_binary_tensor(
         found->second,value,1,line,column);
-    quidra_tensor_drop(found->second);
-    quidra_tensor_drop(value);
+    release_managed_tensor(found->second);
+    release_managed_tensor(value);
     found->second=combined;
 }
 
-TensorValue* neural_device_filled_like(
-    const NeuralNode& node,bool ones,
+TensorValue* autograd_device_filled_like(
+    const AutogradNode& node,bool ones,
     unsigned long long line,unsigned long long column) {
     if(!node.device_tensor)
-        neural_fail("internal neural GPU fill requires a device tensor",line,column);
+        autograd_fail("internal autograd GPU fill requires a device tensor",line,column);
     const auto count=tensor_logical_count(*node.device_tensor);
     auto* storage=tensor_storage_create(
         node.dtype,count,ones?2:1,node.device_tensor->storage->device,line,column);
@@ -5898,74 +4826,55 @@ TensorValue* neural_device_filled_like(
     return tensor_descriptor(storage,node.shape,std::move(strides),0);
 }
 
-void neural_store_device_parameter_gradient(
-    NeuralGradientData& output,const NeuralNode& node,TensorValue* gradient,
+void autograd_grad_device(
+    const std::shared_ptr<AutogradNode>& loss,
+    const std::vector<std::shared_ptr<AutogradSlot>>& selected,
     unsigned long long line,unsigned long long column) {
-    auto [it,inserted]=output.values.try_emplace(node.parameter_id,node.dtype);
-    auto& destination=it->second;
-    if(!inserted&&destination.dtype!=node.dtype)
-        neural_fail("gradient dtype mismatch",line,column);
-    destination.shape=node.shape;
-    if(!destination.device_tensor){
-        destination.device_tensor=static_cast<TensorValue*>(
-            quidra_tensor_clone(gradient));
-        return;
-    }
-    if(neural_accumulate_device_gradient_in_place(
-            destination.device_tensor,gradient,line,column))
-        return;
-    auto* combined=neural_device_binary_tensor(
-        destination.device_tensor,gradient,1,line,column);
-    quidra_tensor_drop(destination.device_tensor);
-    destination.device_tensor=combined;
-}
-
-void* neural_grad_device(
-    const std::shared_ptr<NeuralNode>& loss,
-    unsigned long long line,unsigned long long column) {
-    std::unordered_set<const NeuralNode*> seen;
-    std::vector<std::shared_ptr<NeuralNode>> order;
+    std::unordered_set<const AutogradNode*> seen;
+    std::vector<std::shared_ptr<AutogradNode>> order;
     seen.reserve(64);
     order.reserve(64);
-    neural_topological(loss,seen,order);
+    autograd_topological(loss,seen,order);
 
     if(!loss->device_tensor||tensor_logical_count(*loss->device_tensor)!=1)
-        neural_fail("grad requires a scalar GPU loss",line,column);
+        autograd_fail("grad requires a scalar GPU loss",line,column);
 
-    std::unordered_map<const NeuralNode*,TensorValue*> gradients;
+    std::unordered_map<const AutogradNode*,TensorValue*> gradients;
     gradients.reserve(order.size());
-    auto* initial=neural_device_filled_like(*loss,true,line,column);
+    auto* initial=autograd_device_filled_like(*loss,true,line,column);
     gradients.emplace(loss.get(),initial);
-    auto output=std::make_shared<NeuralGradientData>();
 
     for(auto it=order.rbegin();it!=order.rend();++it){
         const auto& node=*it;
         if(node->dtype!=loss->dtype)
-            neural_fail("autograd graph contains mixed dtypes",line,column);
+            autograd_fail("autograd graph contains mixed dtypes",line,column);
         const auto found=gradients.find(node.get());
         if(found==gradients.end()) continue;
         auto* g=found->second;
 
-        if(node->parameter_id)
-            neural_store_device_parameter_gradient(
-                *output,*node,g,line,column);
-
+        if(node->target_identity){
+            for(const auto& slot:selected){
+                if(!slot || slot->identity!=node->target_identity) continue;
+                autograd_accumulate_slot(
+                    slot,static_cast<TensorValue*>(quidra_tensor_clone(g)),line,column);
+            }
+        }
         if(node->parents.empty()){
-            quidra_tensor_drop(g);
+            release_managed_tensor(g);
             gradients.erase(node.get());
             continue;
         }
 
-        if(node->op==NeuralOp::Add||node->op==NeuralOp::Sub||
-           node->op==NeuralOp::Mul||node->op==NeuralOp::Div){
+        if(node->op==AutogradOp::Add||node->op==AutogradOp::Sub||
+           node->op==AutogradOp::Mul||node->op==AutogradOp::Div){
             if(node->parents.size()!=2 ||
                !node->parents[0]->device_tensor ||
                !node->parents[1]->device_tensor)
-                neural_fail("invalid GPU neural binary graph",line,column);
+                autograd_fail("invalid GPU autograd binary graph",line,column);
             auto* a=node->parents[0]->device_tensor;
             auto* b=node->parents[1]->device_tensor;
-            const int operation=node->op==NeuralOp::Add?1:
-                node->op==NeuralOp::Sub?2:node->op==NeuralOp::Mul?3:4;
+            const int operation=node->op==AutogradOp::Add?1:
+                node->op==AutogradOp::Sub?2:node->op==AutogradOp::Mul?3:4;
             const bool shared_parent=node->parents[0].get()==node->parents[1].get();
             TensorValue* left_gradient=nullptr;
             TensorValue* right_gradient=nullptr;
@@ -5973,39 +4882,39 @@ void* neural_grad_device(
                 // Produce the sum of both partial derivatives directly. This
                 // turns x+x / x*x style backward from two gradient tensors plus
                 // an accumulation kernel into one gradient tensor and one kernel.
-                neural_device_binary_backward(
+                autograd_device_binary_backward(
                     g,a,b,operation,true,left_gradient,right_gradient,line,column);
-                neural_add_device_gradient(
+                autograd_add_device_gradient(
                     gradients,node->parents[0],left_gradient,line,column);
-            }else if(node->op==NeuralOp::Add){
+            }else if(node->op==AutogradOp::Add){
                 right_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
                 left_gradient=g;
                 g=nullptr;
-                neural_add_device_gradient(
+                autograd_add_device_gradient(
                     gradients,node->parents[0],left_gradient,line,column);
-                neural_add_device_gradient(
+                autograd_add_device_gradient(
                     gradients,node->parents[1],right_gradient,line,column);
-            }else if(node->op==NeuralOp::Sub){
-                right_gradient=neural_device_negate_tensor(g,line,column);
+            }else if(node->op==AutogradOp::Sub){
+                right_gradient=autograd_device_negate_tensor(g,line,column);
                 left_gradient=g;
                 g=nullptr;
-                neural_add_device_gradient(
+                autograd_add_device_gradient(
                     gradients,node->parents[0],left_gradient,line,column);
-                neural_add_device_gradient(
+                autograd_add_device_gradient(
                     gradients,node->parents[1],right_gradient,line,column);
             }else{
-                neural_device_binary_backward(
+                autograd_device_binary_backward(
                     g,a,b,operation,false,
                     left_gradient,right_gradient,line,column);
-                neural_add_device_gradient(
+                autograd_add_device_gradient(
                     gradients,node->parents[0],left_gradient,line,column);
-                neural_add_device_gradient(
+                autograd_add_device_gradient(
                     gradients,node->parents[1],right_gradient,line,column);
             }
-        }else if(node->op==NeuralOp::ScalarBinary){
+        }else if(node->op==AutogradOp::ScalarBinary){
             if(node->parents.size()!=1||node->aux.size()!=1||
                node->aux_index.size()!=2)
-                neural_fail("invalid GPU neural scalar graph",line,column);
+                autograd_fail("invalid GPU autograd scalar graph",line,column);
             const auto& input=node->parents[0];
             const auto operation=static_cast<int>(node->aux_index[0]);
             const bool scalar_left=node->aux_index[1]!=0;
@@ -6014,16 +4923,16 @@ void* neural_grad_device(
                 result=g;
                 g=nullptr;
             }else if(operation==2){
-                result=neural_device_negate_tensor(g,line,column);
+                result=autograd_device_negate_tensor(g,line,column);
             }else{
-                NeuralDeviceDenseInput gd(*g,line,column);
-                NeuralDeviceDenseInput xd;
+                AutogradDeviceDenseInput gd(*g,line,column);
+                AutogradDeviceDenseInput xd;
                 const TensorValue* input_dense=gd.get();
                 if(operation==4&&scalar_left){
                     xd.reset(*input->device_tensor,line,column);
                     input_dense=xd.get();
                     if(gd->shape!=xd->shape)
-                        neural_fail("neural scalar backward shape mismatch",line,column);
+                        autograd_fail("autograd scalar backward shape mismatch",line,column);
                 }
                 const auto count=tensor_logical_count(*gd.get());
                 auto* storage=tensor_storage_create(
@@ -6036,16 +4945,16 @@ void* neural_grad_device(
                     input_dense->storage->gpu_buffer,node->dtype,operation,
                     scalar_left,node->aux.scalar_as_double(0),count,backend_error);
                 if(!ok){
-                    quidra_tensor_drop(result);
-                    neural_fail(backend_error.c_str(),line,column);
+                    release_managed_tensor(result);
+                    autograd_fail(backend_error.c_str(),line,column);
                 }
             }
-            neural_add_device_gradient(
+            autograd_add_device_gradient(
                 gradients,input,result,line,column);
-        }else if(node->op==NeuralOp::Absolute){
+        }else if(node->op==AutogradOp::Absolute){
             const auto& input=node->parents[0];
-            NeuralDeviceDenseInput gd(*g,line,column);
-            NeuralDeviceDenseInput xd(*input->device_tensor,line,column);
+            AutogradDeviceDenseInput gd(*g,line,column);
+            AutogradDeviceDenseInput xd(*input->device_tensor,line,column);
             const auto count=tensor_logical_count(*xd.get());
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,xd->storage->device,line,column);
@@ -6056,25 +4965,25 @@ void* neural_grad_device(
                 storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
                 node->dtype,count,backend_error);
             if(!ok){
-                quidra_tensor_drop(result);
-                neural_fail(backend_error.c_str(),line,column);
+                release_managed_tensor(result);
+                autograd_fail(backend_error.c_str(),line,column);
             }
-            neural_add_device_gradient(
+            autograd_add_device_gradient(
                 gradients,input,result,line,column);
-        }else if(node->op==NeuralOp::Exponential){
-            auto* result=neural_device_binary_tensor(
+        }else if(node->op==AutogradOp::Exponential){
+            auto* result=autograd_device_binary_tensor(
                 g,node->device_tensor,3,line,column);
-            neural_add_device_gradient(
+            autograd_add_device_gradient(
                 gradients,node->parents[0],result,line,column);
-        }else if(node->op==NeuralOp::Logarithm){
-            auto* result=neural_device_binary_tensor(
+        }else if(node->op==AutogradOp::Logarithm){
+            auto* result=autograd_device_binary_tensor(
                 g,node->parents[0]->device_tensor,4,line,column);
-            neural_add_device_gradient(
+            autograd_add_device_gradient(
                 gradients,node->parents[0],result,line,column);
-        }else if(node->op==NeuralOp::Mean){
+        }else if(node->op==AutogradOp::Mean){
             const auto& input=node->parents[0];
-            const auto count=neural_node_count(*input);
-            NeuralDeviceDenseInput gd(*g,line,column);
+            const auto count=autograd_node_count(*input);
+            AutogradDeviceDenseInput gd(*g,line,column);
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,input->device_tensor->storage->device,line,column);
             auto strides=tensor_contiguous_strides(input->shape);
@@ -6083,16 +4992,16 @@ void* neural_grad_device(
             const bool ok=quidra::device::compute_mean_backward(
                 storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,count,backend_error);
             if(!ok){
-                quidra_tensor_drop(result);
-                neural_fail(backend_error.c_str(),line,column);
+                release_managed_tensor(result);
+                autograd_fail(backend_error.c_str(),line,column);
             }
-            neural_add_device_gradient(
+            autograd_add_device_gradient(
                 gradients,input,result,line,column);
-        }else if(node->op==NeuralOp::SumLast){
+        }else if(node->op==AutogradOp::SumLast){
             const auto& input=node->parents[0];
-            const auto count=neural_node_count(*input);
+            const auto count=autograd_node_count(*input);
             const auto width=static_cast<std::size_t>(input->shape.back());
-            NeuralDeviceDenseInput gd(*g,line,column);
+            AutogradDeviceDenseInput gd(*g,line,column);
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,input->device_tensor->storage->device,line,column);
             auto strides=tensor_contiguous_strides(input->shape);
@@ -6102,239 +5011,211 @@ void* neural_grad_device(
                 storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
                 count,width,1,backend_error);
             if(!ok){
-                quidra_tensor_drop(result);
-                neural_fail(backend_error.c_str(),line,column);
+                release_managed_tensor(result);
+                autograd_fail(backend_error.c_str(),line,column);
             }
-            neural_add_device_gradient(
+            autograd_add_device_gradient(
                 gradients,input,result,line,column);
-        }else if(node->op==NeuralOp::MaxLast){
+        }else if(node->op==AutogradOp::MaxLast || node->op==AutogradOp::MinLast){
             const auto& input=node->parents[0];
-            const auto count=neural_node_count(*input);
+            const auto count=autograd_node_count(*input);
             const auto width=static_cast<std::size_t>(input->shape.back());
-            NeuralDeviceDenseInput gd(*g,line,column);
-            NeuralDeviceDenseInput xd(*input->device_tensor,line,column);
+            AutogradDeviceDenseInput gd(*g,line,column);
+            AutogradDeviceDenseInput xd(*input->device_tensor,line,column);
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,input->device_tensor->storage->device,line,column);
             auto strides=tensor_contiguous_strides(input->shape);
             auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
             std::string backend_error;
-            const bool ok=quidra::device::compute_max_last_backward(
-                storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
-                node->dtype,count,width,backend_error);
+            const bool ok=node->op==AutogradOp::MaxLast
+                ? quidra::device::compute_max_last_backward(
+                    storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
+                    node->dtype,count,width,backend_error)
+                : quidra::device::compute_min_last_backward(
+                    storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
+                    node->dtype,count,width,backend_error);
             if(!ok){
-                quidra_tensor_drop(result);
-                neural_fail(backend_error.c_str(),line,column);
+                release_managed_tensor(result);
+                autograd_fail(backend_error.c_str(),line,column);
             }
-            neural_add_device_gradient(
+            autograd_add_device_gradient(
                 gradients,input,result,line,column);
-        }else if(node->op==NeuralOp::Affine){
-            if(node->parents.size()!=3)
-                neural_fail("invalid GPU affine graph",line,column);
+        }else if(node->op==AutogradOp::Matmul){
+            if(node->parents.size()!=2||
+               !node->parents[0]->device_tensor||!node->parents[1]->device_tensor)
+                autograd_fail("invalid GPU matmul graph",line,column);
+            auto* left=node->parents[0]->device_tensor;
+            auto* right=node->parents[1]->device_tensor;
+            if(left->shape.empty()||(right->shape.size()!=1&&right->shape.size()!=2))
+                autograd_fail("invalid GPU matmul shape",line,column);
+            std::vector<long long> leading(left->shape.begin(),left->shape.end()-1);
+            const auto rows=tensor_element_count(leading,line,column);
+            const auto inner=left->shape.back();
+            const auto columns=right->shape.size()==1?1:right->shape[1];
+
+            AutogradDeviceDenseInput ld(*left,line,column);
+            AutogradDeviceDenseInput rd(*right,line,column);
+            AutogradDeviceDenseInput gd(*g,line,column);
+            auto* l2=autograd_device_reshape_view(
+                const_cast<TensorValue*>(ld.get()),
+                {static_cast<long long>(rows),inner},line,column);
+            auto* r2=autograd_device_reshape_view(
+                const_cast<TensorValue*>(rd.get()),{inner,columns},line,column);
+            auto* g2=autograd_device_reshape_view(
+                const_cast<TensorValue*>(gd.get()),
+                {static_cast<long long>(rows),columns},line,column);
+
+            auto* rt=autograd_device_transpose_view(r2,line,column);
+            auto* da2=static_cast<TensorValue*>(
+                quidra_linear_matmul(g2,rt,line,column));
+            auto* da=autograd_device_reshape_view(da2,left->shape,line,column);
+            auto* lt=autograd_device_transpose_view(l2,line,column);
+            auto* db2=static_cast<TensorValue*>(
+                quidra_linear_matmul(lt,g2,line,column));
+            auto* db=autograd_device_reshape_view(db2,right->shape,line,column);
+
+            release_managed_tensor(l2);
+            release_managed_tensor(r2);
+            release_managed_tensor(g2);
+            release_managed_tensor(rt);
+            release_managed_tensor(lt);
+            release_managed_tensor(da2);
+            release_managed_tensor(db2);
+            autograd_add_device_gradient(
+                gradients,node->parents[0],da,line,column);
+            autograd_add_device_gradient(
+                gradients,node->parents[1],db,line,column);
+        }else if(node->op==AutogradOp::Reshape){
+            if(node->parents.size()!=1||!node->parents[0]->device_tensor)
+                autograd_fail("invalid GPU tensor reshape graph",line,column);
+            auto* parent=node->parents[0]->device_tensor;
+            AutogradDeviceDenseInput gd(*g,line,column);
+            if(!tensor_is_contiguous_value(*gd.get()))
+                autograd_fail("reshape backward gradient must be contiguous",line,column);
+            if(gd->storage->owners==std::numeric_limits<std::size_t>::max())
+                runtime_text_failure("tensor storage owner overflow");
+            ++gd->storage->owners;
+            auto* result=tensor_descriptor(
+                gd->storage,parent->shape,tensor_contiguous_strides(parent->shape),gd->offset);
+            autograd_add_device_gradient(gradients,node->parents[0],result,line,column);
+        }else if(node->op==AutogradOp::Transpose){
+            if(node->parents.size()!=1||node->aux_index.size()!=2||
+               !node->parents[0]->device_tensor)
+                autograd_fail("invalid GPU tensor transpose graph",line,column);
+            auto* parent=node->parents[0]->device_tensor;
+            if(g->storage->owners==std::numeric_limits<std::size_t>::max())
+                runtime_text_failure("tensor storage owner overflow");
+            ++g->storage->owners;
+            auto shape=g->shape;
+            auto strides=g->strides;
+            const auto axis0=node->aux_index[0],axis1=node->aux_index[1];
+            if(axis0>=shape.size()||axis1>=shape.size())
+                autograd_fail("invalid GPU tensor transpose axis",line,column);
+            std::swap(shape[axis0],shape[axis1]);
+            std::swap(strides[axis0],strides[axis1]);
+            auto* result=tensor_descriptor(g->storage,std::move(shape),std::move(strides),g->offset);
+            if(result->shape!=parent->shape){
+                release_managed_tensor(result);
+                autograd_fail("GPU tensor transpose backward shape mismatch",line,column);
+            }
+            autograd_add_device_gradient(gradients,node->parents[0],result,line,column);
+        }else if(node->op==AutogradOp::Gather){
+            if(node->parents.size()!=1||!node->parents[0]->device_tensor)
+                autograd_fail("invalid GPU tensor gather graph",line,column);
             const auto& input=node->parents[0];
-            const auto& weight=node->parents[1];
-            const auto& bias=node->parents[2];
-            const auto features_in=static_cast<std::size_t>(weight->shape[1]);
-            const auto features_out=static_cast<std::size_t>(weight->shape[0]);
-            const auto batches=features_in==0?0:neural_node_count(*input)/features_in;
-            NeuralDeviceDenseInput gd(*g,line,column);
-            NeuralDeviceDenseInput id(*input->device_tensor,line,column);
-            NeuralDeviceDenseInput wd(*weight->device_tensor,line,column);
-            auto* input_storage=tensor_storage_create(
-                node->dtype,neural_node_count(*input),1,
-                input->device_tensor->storage->device,line,column);
-            auto* weight_storage=tensor_storage_create(
-                node->dtype,neural_node_count(*weight),1,
-                weight->device_tensor->storage->device,line,column);
-            auto* bias_storage=tensor_storage_create(
-                node->dtype,neural_node_count(*bias),1,
-                bias->device_tensor->storage->device,line,column);
-            auto input_strides=tensor_contiguous_strides(input->shape);
-            auto weight_strides=tensor_contiguous_strides(weight->shape);
-            auto bias_strides=tensor_contiguous_strides(bias->shape);
-            auto* input_result=tensor_descriptor(
-                input_storage,input->shape,std::move(input_strides),0);
-            auto* weight_result=tensor_descriptor(
-                weight_storage,weight->shape,std::move(weight_strides),0);
-            auto* bias_result=tensor_descriptor(
-                bias_storage,bias->shape,std::move(bias_strides),0);
+            const auto input_count=autograd_node_count(*input);
+            AutogradDeviceDenseInput gd(*g,line,column);
+            auto* storage=tensor_storage_create(
+                node->dtype,input_count,1,input->device_tensor->storage->device,
+                line,column);
+            auto* result=tensor_descriptor(
+                storage,input->shape,tensor_contiguous_strides(input->shape),0);
+            std::vector<std::uint64_t> indices(node->aux_index.size());
+            for(std::size_t i=0;i<indices.size();++i)
+                indices[i]=static_cast<std::uint64_t>(node->aux_index[i]);
             std::string backend_error;
-            const bool ok=quidra::device::compute_affine_backward(
-                input_storage->gpu_buffer,weight_storage->gpu_buffer,bias_storage->gpu_buffer,
-                gd->storage->gpu_buffer,id->storage->gpu_buffer,wd->storage->gpu_buffer,
-                node->dtype,batches,features_in,features_out,backend_error);
+            const bool ok=quidra::device::compute_gather_backward(
+                storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
+                indices.data(),input_count,indices.size(),backend_error);
             if(!ok){
-                quidra_tensor_drop(input_result);
-                quidra_tensor_drop(weight_result);
-                quidra_tensor_drop(bias_result);
-                neural_fail(backend_error.c_str(),line,column);
+                release_managed_tensor(result);
+                autograd_fail(backend_error.c_str(),line,column);
             }
-            neural_add_device_gradient(
-                gradients,input,input_result,line,column);
-            neural_add_device_gradient(
-                gradients,weight,weight_result,line,column);
-            neural_add_device_gradient(
-                gradients,bias,bias_result,line,column);
-        }else if(node->op==NeuralOp::Convolution){
-            if(node->parents.size()!=3||node->aux_index.size()!=2)
-                neural_fail("invalid GPU convolution graph",line,column);
+            autograd_add_device_gradient(gradients,input,result,line,column);
+        }else if(node->op==AutogradOp::GatherBackward){
+            if(node->parents.size()!=1||!node->parents[0]->device_tensor)
+                autograd_fail("invalid GPU tensor scatter graph",line,column);
             const auto& input=node->parents[0];
-            const auto& weight=node->parents[1];
-            const auto& bias=node->parents[2];
-            if(!input->device_tensor||!weight->device_tensor||!bias->device_tensor)
-                neural_fail("invalid GPU convolution graph storage",line,column);
-            if(input->shape.size()!=4||weight->shape.size()!=4||node->shape.size()!=4)
-                neural_fail("invalid GPU convolution graph shape",line,column);
-            NeuralDeviceDenseInput gd(*g,line,column);
-            NeuralDeviceDenseInput id(*input->device_tensor,line,column);
-            NeuralDeviceDenseInput wd(*weight->device_tensor,line,column);
-            const auto input_count=tensor_logical_count(*input->device_tensor);
-            const auto weight_count=tensor_logical_count(*weight->device_tensor);
-            const auto bias_count=tensor_logical_count(*bias->device_tensor);
-            auto* input_storage=tensor_storage_create(
-                node->dtype,input_count,1,input->device_tensor->storage->device,line,column);
-            auto* weight_storage=tensor_storage_create(
-                node->dtype,weight_count,1,weight->device_tensor->storage->device,line,column);
-            auto* bias_storage=tensor_storage_create(
-                node->dtype,bias_count,1,bias->device_tensor->storage->device,line,column);
-            auto* input_result=tensor_descriptor(
-                input_storage,input->shape,tensor_contiguous_strides(input->shape),0);
-            auto* weight_result=tensor_descriptor(
-                weight_storage,weight->shape,tensor_contiguous_strides(weight->shape),0);
-            auto* bias_result=tensor_descriptor(
-                bias_storage,bias->shape,tensor_contiguous_strides(bias->shape),0);
+            const auto input_count=autograd_node_count(*input);
+            if(node->aux_index.size()!=input_count)
+                autograd_fail("GPU tensor scatter index count mismatch",line,column);
+            AutogradDeviceDenseInput gd(*g,line,column);
+            const auto gradient_count=tensor_logical_count(*gd.get());
+            std::vector<std::uint64_t> indices(input_count);
+            for(std::size_t i=0;i<input_count;++i){
+                if(node->aux_index[i]>=gradient_count)
+                    autograd_fail("GPU tensor scatter index is outside gradient",line,column);
+                indices[i]=static_cast<std::uint64_t>(node->aux_index[i]);
+            }
+            auto* storage=tensor_storage_create(
+                node->dtype,input_count,1,input->device_tensor->storage->device,
+                line,column);
+            auto* result=tensor_descriptor(
+                storage,input->shape,tensor_contiguous_strides(input->shape),0);
             std::string backend_error;
-            const bool ok=quidra::device::compute_conv2d_backward(
-                input_storage->gpu_buffer,weight_storage->gpu_buffer,bias_storage->gpu_buffer,
-                gd->storage->gpu_buffer,id->storage->gpu_buffer,wd->storage->gpu_buffer,
-                node->dtype,
-                static_cast<std::size_t>(input->shape[0]),
-                static_cast<std::size_t>(input->shape[1]),
-                static_cast<std::size_t>(input->shape[2]),
-                static_cast<std::size_t>(input->shape[3]),
-                static_cast<std::size_t>(weight->shape[0]),
-                static_cast<std::size_t>(weight->shape[2]),
-                static_cast<std::size_t>(weight->shape[3]),
-                static_cast<std::size_t>(node->shape[2]),
-                static_cast<std::size_t>(node->shape[3]),
-                node->aux_index[0],node->aux_index[1],backend_error);
+            const bool ok=quidra::device::compute_gather(
+                storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
+                indices.data(),input_count,backend_error);
             if(!ok){
-                quidra_tensor_drop(input_result);
-                quidra_tensor_drop(weight_result);
-                quidra_tensor_drop(bias_result);
-                neural_fail(backend_error.c_str(),line,column);
+                release_managed_tensor(result);
+                autograd_fail(backend_error.c_str(),line,column);
             }
-            neural_add_device_gradient(gradients,input,input_result,line,column);
-            neural_add_device_gradient(gradients,weight,weight_result,line,column);
-            neural_add_device_gradient(gradients,bias,bias_result,line,column);
-        }else if(node->op==NeuralOp::Normalize){
-            if(node->parents.size()!=3||!node->device_aux)
-                neural_fail("invalid GPU normalization graph",line,column);
-            const auto& input=node->parents[0];
-            const auto& scale=node->parents[1];
-            const auto& bias=node->parents[2];
-            if(!input->device_tensor||!scale->device_tensor||!bias->device_tensor)
-                neural_fail("invalid GPU normalization graph storage",line,column);
-            const auto count=tensor_logical_count(*input->device_tensor);
-            const auto layout=neural_normalize_layout(input->shape,count,line,column);
-            if(node->aux_index.size()!=1||node->aux_index[0]!=layout.samples)
-                neural_fail("normalization backward cache layout mismatch",line,column);
-            NeuralDeviceDenseInput gd(*g,line,column);
-            NeuralDeviceDenseInput id(*input->device_tensor,line,column);
-            NeuralDeviceDenseInput sd(*scale->device_tensor,line,column);
-            NeuralDeviceDenseInput cd(*node->device_aux,line,column);
-            auto* input_storage=tensor_storage_create(
-                node->dtype,count,1,input->device_tensor->storage->device,line,column);
-            auto* scale_storage=tensor_storage_create(
-                node->dtype,layout.features,1,scale->device_tensor->storage->device,line,column);
-            auto* bias_storage=tensor_storage_create(
-                node->dtype,layout.features,1,bias->device_tensor->storage->device,line,column);
-            auto* input_result=tensor_descriptor(
-                input_storage,input->shape,tensor_contiguous_strides(input->shape),0);
-            auto* scale_result=tensor_descriptor(
-                scale_storage,scale->shape,tensor_contiguous_strides(scale->shape),0);
-            auto* bias_result=tensor_descriptor(
-                bias_storage,bias->shape,tensor_contiguous_strides(bias->shape),0);
-            std::string backend_error;
-            const bool ok=quidra::device::compute_normalize_backward(
-                input_storage->gpu_buffer,scale_storage->gpu_buffer,bias_storage->gpu_buffer,
-                gd->storage->gpu_buffer,id->storage->gpu_buffer,sd->storage->gpu_buffer,
-                cd->storage->gpu_buffer,node->dtype,count,layout.features,layout.inner,
-                layout.samples,backend_error);
-            if(!ok){
-                quidra_tensor_drop(input_result);
-                quidra_tensor_drop(scale_result);
-                quidra_tensor_drop(bias_result);
-                neural_fail(backend_error.c_str(),line,column);
-            }
-            neural_add_device_gradient(gradients,input,input_result,line,column);
-            neural_add_device_gradient(gradients,scale,scale_result,line,column);
-            neural_add_device_gradient(gradients,bias,bias_result,line,column);
-        }else if(node->op==NeuralOp::RandomMask){
-            if(!node->device_aux){
-                auto* result=g;
-                g=nullptr;
-                neural_add_device_gradient(
-                    gradients,node->parents[0],result,line,column);
-            }else{
-                auto* result=neural_device_binary_tensor(
-                    g,node->device_aux,3,line,column);
-                neural_add_device_gradient(
-                    gradients,node->parents[0],result,line,column);
-            }
+            autograd_add_device_gradient(gradients,input,result,line,column);
         }
 
         // Every child has already contributed in reverse-topological order.
         // Release this gradient now instead of retaining the entire backward pass.
-        if(g) quidra_tensor_drop(g);
+        if(g) release_managed_tensor(g);
         gradients.erase(node.get());
     }
 
     for(auto& [_,value]:gradients)
-        quidra_tensor_drop(value);
-    return neural_gradients_descriptor(std::move(output));
+        release_managed_tensor(value);
 }
 
 template <typename T>
-void* neural_grad_t(
-    const std::shared_ptr<NeuralNode>& loss,
+void autograd_grad_t(
+    const std::shared_ptr<AutogradNode>& loss,
+    const std::vector<std::shared_ptr<AutogradSlot>>& selected,
     unsigned long long line,unsigned long long column) {
-    std::unordered_set<const NeuralNode*> seen;
-    std::vector<std::shared_ptr<NeuralNode>> order;
+    std::unordered_set<const AutogradNode*> seen;
+    std::vector<std::shared_ptr<AutogradNode>> order;
     seen.reserve(64);
     order.reserve(64);
-    neural_topological(loss,seen,order);
+    autograd_topological(loss,seen,order);
 
-    std::unordered_map<const NeuralNode*,std::vector<T>> gradients;
+    std::unordered_map<const AutogradNode*,std::vector<T>> gradients;
     gradients.reserve(order.size());
     gradients[loss.get()]={T{1}};
-    auto output=std::make_shared<NeuralGradientData>();
 
     for(auto it=order.rbegin();it!=order.rend();++it){
         const auto& node=*it;
         if(node->dtype!=loss->dtype)
-            neural_fail("autograd graph contains mixed dtypes",line,column);
+            autograd_fail("autograd graph contains mixed dtypes",line,column);
         const auto found=gradients.find(node.get());
         if(found==gradients.end()) continue;
         const auto& g=found->second;
         const auto& node_values=node->data.typed<T>();
 
-        if(node->parameter_id){
-            auto [gradient_it,inserted]=output->values.try_emplace(node->parameter_id,node->dtype);
-            auto& destination=gradient_it->second;
-            if(!inserted&&destination.dtype!=node->dtype)
-                neural_fail("gradient dtype mismatch",line,column);
-            destination.shape=node->shape;
-            auto& values=destination.data.typed<T>();
-            if(values.empty()){
-                // Parameter gradients are complete at this point in reverse
-                // topological traversal. Transfer their buffer to the result
-                // instead of copying the full tensor.
-                values=std::move(found->second);
-            }
-            else{
-                if(values.size()!=g.size()) neural_fail("gradient size mismatch",line,column);
-                for(std::size_t i=0;i<g.size();++i)
-                    values[i]=static_cast<T>(values[i]+g[i]);
+        if(node->target_identity){
+            for(const auto& slot:selected){
+                if(!slot || slot->identity!=node->target_identity) continue;
+                std::vector<T> slot_values(g.begin(),g.end());
+                autograd_accumulate_slot(
+                    slot,
+                    autograd_tensor_from_values(
+                        node->dtype,node->shape,AutogradBuffer(std::move(slot_values))),
+                    line,column);
             }
         }
 
@@ -6343,8 +5224,8 @@ void* neural_grad_t(
             continue;
         }
 
-        if(node->op==NeuralOp::Add||node->op==NeuralOp::Sub||
-           node->op==NeuralOp::Mul||node->op==NeuralOp::Div){
+        if(node->op==AutogradOp::Add||node->op==AutogradOp::Sub||
+           node->op==AutogradOp::Mul||node->op==AutogradOp::Div){
             const auto& a=node->parents[0]->data.typed<T>();
             const auto& b=node->parents[1]->data.typed<T>();
             const bool shared_parent=node->parents[0].get()==node->parents[1].get();
@@ -6353,11 +5234,11 @@ void* neural_grad_t(
                 for(std::size_t i=0;i<combined.size();++i){
                     const T gradient=combined[i];
                     T left_value{},right_value{};
-                    if(node->op==NeuralOp::Add){
+                    if(node->op==AutogradOp::Add){
                         left_value=gradient;right_value=gradient;
-                    }else if(node->op==NeuralOp::Sub){
+                    }else if(node->op==AutogradOp::Sub){
                         left_value=gradient;right_value=static_cast<T>(-gradient);
-                    }else if(node->op==NeuralOp::Mul){
+                    }else if(node->op==AutogradOp::Mul){
                         left_value=static_cast<T>(gradient*b[i]);
                         right_value=static_cast<T>(gradient*a[i]);
                     }else{
@@ -6368,14 +5249,14 @@ void* neural_grad_t(
                     }
                     combined[i]=static_cast<T>(left_value+right_value);
                 }
-                neural_add_gradient(
+                autograd_add_gradient(
                     gradients,node->parents[0],std::move(combined));
             }else{
                 std::vector<T> left_gradient,right_gradient;
-                if(node->op==NeuralOp::Add){
+                if(node->op==AutogradOp::Add){
                     left_gradient=std::move(found->second);
                     right_gradient=left_gradient;
-                }else if(node->op==NeuralOp::Sub){
+                }else if(node->op==AutogradOp::Sub){
                     left_gradient=std::move(found->second);
                     right_gradient.resize(left_gradient.size());
                     for(std::size_t i=0;i<left_gradient.size();++i)
@@ -6383,7 +5264,7 @@ void* neural_grad_t(
                 }else{
                     left_gradient.resize(g.size());
                     right_gradient.resize(g.size());
-                    if(node->op==NeuralOp::Mul){
+                    if(node->op==AutogradOp::Mul){
                         for(std::size_t i=0;i<g.size();++i){
                             left_gradient[i]=static_cast<T>(g[i]*b[i]);
                             right_gradient[i]=static_cast<T>(g[i]*a[i]);
@@ -6397,13 +5278,13 @@ void* neural_grad_t(
                         }
                     }
                 }
-                neural_add_gradient(gradients,node->parents[0],std::move(left_gradient));
-                neural_add_gradient(gradients,node->parents[1],std::move(right_gradient));
+                autograd_add_gradient(gradients,node->parents[0],std::move(left_gradient));
+                autograd_add_gradient(gradients,node->parents[1],std::move(right_gradient));
             }
-        }else if(node->op==NeuralOp::ScalarBinary){
+        }else if(node->op==AutogradOp::ScalarBinary){
             if(node->parents.size()!=1||node->aux.size()!=1||
                node->aux_index.size()!=2)
-                neural_fail("invalid neural scalar graph",line,column);
+                autograd_fail("invalid autograd scalar graph",line,column);
             const auto& input=node->parents[0]->data.typed<T>();
             const auto operation=static_cast<int>(node->aux_index[0]);
             const bool scalar_left=node->aux_index[1]!=0;
@@ -6426,30 +5307,40 @@ void* neural_grad_t(
                     input_gradient[i]=static_cast<T>(gradient/scalar_value);
                 }
             }
-            neural_add_gradient(
+            autograd_add_gradient(
                 gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==NeuralOp::Absolute||
-                 node->op==NeuralOp::Exponential||
-                 node->op==NeuralOp::Logarithm){
+        }else if(node->op==AutogradOp::Absolute||
+                 node->op==AutogradOp::Exponential||
+                 node->op==AutogradOp::Logarithm){
             const auto& input=node->parents[0]->data.typed<T>();
             std::vector<T> input_gradient=std::move(found->second);
             for(std::size_t i=0;i<input_gradient.size();++i){
                 const T gradient=input_gradient[i];
-                if(node->op==NeuralOp::Absolute)
+                if(node->op==AutogradOp::Absolute)
                     input_gradient[i]=input[i]>T{0}?gradient:
                         input[i]<T{0}?static_cast<T>(-gradient):T{0};
-                else if(node->op==NeuralOp::Exponential)
+                else if(node->op==AutogradOp::Exponential)
                     input_gradient[i]=static_cast<T>(gradient*node_values[i]);
                 else
                     input_gradient[i]=static_cast<T>(gradient/input[i]);
             }
-            neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==NeuralOp::Mean){
+            autograd_add_gradient(gradients,node->parents[0],std::move(input_gradient));
+        }else if(node->op==AutogradOp::Mean){
             const auto count=node->parents[0]->data.size();
-            if(count==0) neural_fail("mean gradient requires at least one element",line,column);
+            if(count==0) autograd_fail("mean gradient requires at least one element",line,column);
             std::vector<T> input_gradient(count,static_cast<T>(g[0]/static_cast<T>(count)));
-            neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==NeuralOp::SumLast||node->op==NeuralOp::MaxLast){
+            autograd_add_gradient(gradients,node->parents[0],std::move(input_gradient));
+        }else if(node->op==AutogradOp::MeanBackward){
+            if(g.empty()) autograd_fail("mean backward higher-order gradient is empty",line,column);
+            T total=T{0};
+            for(const auto value:g) total=static_cast<T>(total+value);
+            autograd_add_gradient(
+                gradients,node->parents[0],
+                std::vector<T>{static_cast<T>(total/static_cast<T>(g.size()))});
+        }else if(node->op==AutogradOp::SumLast||
+                  node->op==AutogradOp::SumLastBackward||
+                  node->op==AutogradOp::MaxLast||
+                  node->op==AutogradOp::MinLast){
             const auto& input=node->parents[0]->data.typed<T>();
             const auto width=static_cast<std::size_t>(node->shape.back());
             std::vector<T> input_gradient=std::move(found->second);
@@ -6457,299 +5348,207 @@ void* neural_grad_t(
                 T total=T{0};
                 for(std::size_t j=0;j<width;++j)
                     total=static_cast<T>(total+input_gradient[base+j]);
-                if(node->op==NeuralOp::SumLast){
+                if(node->op==AutogradOp::SumLast ||
+                   node->op==AutogradOp::SumLastBackward){
                     for(std::size_t j=0;j<width;++j) input_gradient[base+j]=total;
                 }else{
-                    std::size_t selected=0;
+                    std::size_t selected_index=0;
                     for(std::size_t j=1;j<width;++j)
-                        if(input[base+j]>input[base+selected]) selected=j;
+                        if(node->op==AutogradOp::MaxLast
+                               ? input[base+j]>input[base+selected_index]
+                               : input[base+j]<input[base+selected_index])
+                            selected_index=j;
                     for(std::size_t j=0;j<width;++j)
-                        input_gradient[base+j]=j==selected?total:T{0};
+                        input_gradient[base+j]=j==selected_index?total:T{0};
                 }
             }
-            neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==NeuralOp::RandomMask){
-            std::vector<T> input_gradient=std::move(found->second);
-            if(!node->aux.empty()){
-                if(node->aux.size()!=input_gradient.size())
-                    neural_fail("random mask backward mask size mismatch",0,0);
-                const auto& mask=node->aux.typed<T>();
-                for(std::size_t i=0;i<input_gradient.size();++i)
-                    input_gradient[i]=static_cast<T>(input_gradient[i]*mask[i]);
-            }
-            neural_add_gradient(
+            autograd_add_gradient(gradients,node->parents[0],std::move(input_gradient));
+        }else if(node->op==AutogradOp::Matmul){
+            if(node->parents.size()!=2)
+                autograd_fail("invalid matmul graph",line,column);
+            const auto& left=node->parents[0];
+            const auto& right=node->parents[1];
+            if(left->shape.empty()||(right->shape.size()!=1&&right->shape.size()!=2))
+                autograd_fail("invalid matmul shape",line,column);
+            const auto& a=left->data.typed<T>();
+            const auto& b=right->data.typed<T>();
+            std::vector<long long> leading(left->shape.begin(),left->shape.end()-1);
+            const auto rows=tensor_element_count(leading,line,column);
+            const auto inner=static_cast<std::size_t>(left->shape.back());
+            const auto columns=right->shape.size()==1
+                ?std::size_t{1}:static_cast<std::size_t>(right->shape[1]);
+            if(g.size()!=rows*columns||a.size()!=rows*inner||b.size()!=inner*columns)
+                autograd_fail("matmul backward size mismatch",line,column);
+            std::vector<T> da(a.size(),T{0}),db(b.size(),T{0});
+            for(std::size_t i=0;i<rows;++i)
+                for(std::size_t j=0;j<columns;++j){
+                    const T grad=g[i*columns+j];
+                    for(std::size_t k=0;k<inner;++k){
+                        da[i*inner+k]=static_cast<T>(
+                            da[i*inner+k]+static_cast<T>(grad*b[k*columns+j]));
+                        db[k*columns+j]=static_cast<T>(
+                            db[k*columns+j]+static_cast<T>(a[i*inner+k]*grad));
+                    }
+                }
+            autograd_add_gradient(gradients,left,std::move(da));
+            autograd_add_gradient(gradients,right,std::move(db));
+        }else if(node->op==AutogradOp::Reshape){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor reshape graph",line,column);
+            if(g.size()!=node->parents[0]->data.size())
+                autograd_fail("tensor reshape backward size mismatch",line,column);
+            autograd_add_gradient(
+                gradients,node->parents[0],std::vector<T>(g.begin(),g.end()));
+        }else if(node->op==AutogradOp::Transpose){
+            if(node->parents.size()!=1||node->aux_index.size()!=2)
+                autograd_fail("invalid tensor transpose graph",line,column);
+            AutogradBuffer gb(std::vector<T>(g.begin(),g.end()));
+            auto restored=autograd_transpose_values<T>(
+                gb,node->shape,node->aux_index[0],node->aux_index[1],line,column);
+            autograd_add_gradient(
+                gradients,node->parents[0],
+                std::vector<T>(
+                    restored.template typed<T>().begin(),
+                    restored.template typed<T>().end()));
+        }else if(node->op==AutogradOp::Gather){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor gather graph",line,column);
+            auto input_gradient=autograd_gather_backward_values<T>(
+                g,autograd_node_count(*node->parents[0]),node->aux_index,
+                line,column);
+            autograd_add_gradient(
                 gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==NeuralOp::Normalize){
-            const auto& input=node->parents[0];
-            const auto& scale=node->parents[1];
-            const auto& bias=node->parents[2];
-            const auto& input_values=input->data.typed<T>();
-            const auto& scale_values=scale->data.typed<T>();
-            const auto layout=neural_normalize_layout(
-                input->shape,input_values.size(),0,0);
-            const auto features=layout.features;
-            const auto samples=layout.samples;
-            if(node->aux_index.size()!=1 || node->aux_index[0]!=samples ||
-               node->aux.size()!=features*2)
-                neural_fail("normalization backward cache layout mismatch",0,0);
-            const auto& backward_cache=node->aux.typed<T>();
-            // The input gradient has the same element count as the incoming
-            // gradient. Keep the completed buffer and overwrite it after the
-            // two feature reductions instead of allocating another full tensor.
-            std::vector<T> input_gradient=std::move(found->second);
-            std::vector<T> sum_gradient(features,T{0});
-            std::vector<T> sum_gradient_x(features,T{0});
-
-            // Visit elements in the same global index order as the old
-            // per-feature scans. Each feature therefore observes exactly the
-            // same reduction order, without rescanning the full tensor for
-            // every feature.
-            for(std::size_t i=0;i<input_values.size();++i){
-                const auto feature=neural_normalize_feature(i,layout);
-                const T mean=backward_cache[feature];
-                const T inverse=backward_cache[features+feature];
-                const T xhat=static_cast<T>(
-                    static_cast<T>(input_values[i]-mean)*inverse);
-                sum_gradient[feature]=static_cast<T>(
-                    sum_gradient[feature]+input_gradient[i]);
-                sum_gradient_x[feature]=static_cast<T>(
-                    sum_gradient_x[feature]+static_cast<T>(input_gradient[i]*xhat));
-            }
-
-            const T sample_count=static_cast<T>(samples);
-            for(std::size_t i=0;i<input_values.size();++i){
-                const auto feature=neural_normalize_feature(i,layout);
-                const T mean=backward_cache[feature];
-                const T inverse=backward_cache[features+feature];
-                const T xhat=static_cast<T>(
-                    static_cast<T>(input_values[i]-mean)*inverse);
-                input_gradient[i]=static_cast<T>(
-                    static_cast<T>(
-                        static_cast<T>(scale_values[feature]*inverse)/
-                        sample_count)*
-                    static_cast<T>(
-                        static_cast<T>(sample_count*input_gradient[i])-
-                        sum_gradient[feature]-
-                        static_cast<T>(xhat*sum_gradient_x[feature])));
-            }
-            // The feature reductions are no longer needed by the input-gradient
-            // formula. Transfer their storage directly to the parameter results.
-            std::vector<T> scale_gradient=std::move(sum_gradient_x);
-            std::vector<T> bias_gradient=std::move(sum_gradient);
-            neural_add_gradient(
-                gradients,input,std::move(input_gradient));
-            neural_add_gradient(
-                gradients,scale,std::move(scale_gradient));
-            neural_add_gradient(
-                gradients,bias,std::move(bias_gradient));
-        }else if(node->op==NeuralOp::Convolution){
-            const auto& input=node->parents[0];
-            const auto& weight=node->parents[1];
-            const auto& bias=node->parents[2];
-            const auto& input_values=input->data.typed<T>();
-            const auto& weight_values=weight->data.typed<T>();
-            if(node->aux_index.size()!=2)
-                neural_fail("convolution backward metadata mismatch",0,0);
-            const auto stride=static_cast<long long>(node->aux_index[0]);
-            const auto padding=static_cast<long long>(node->aux_index[1]);
-            const auto n=input->shape[0],in_c=input->shape[1],height=input->shape[2],width=input->shape[3];
-            const auto out_c=weight->shape[0],kernel_h=weight->shape[2],kernel_w=weight->shape[3];
-            const auto out_h=node->shape[2],out_w=node->shape[3];
-            std::vector<T> input_gradient(input_values.size(),T{0});
-            std::vector<T> weight_gradient(weight_values.size(),T{0});
-            std::vector<T> bias_gradient(bias->data.size(),T{0});
-
-            // Pointwise convolution is common in CNN bottlenecks. Preserve the
-            // exact batch->output-channel->spatial->input-channel accumulation
-            // order while removing kernel loops, bounds checks, and repeated
-            // four-dimensional index reconstruction from the backward pass.
-            if(kernel_h==1&&kernel_w==1&&padding==0){
-                const auto input_plane=
-                    static_cast<std::size_t>(height)*static_cast<std::size_t>(width);
-                const auto output_plane=
-                    static_cast<std::size_t>(out_h)*static_cast<std::size_t>(out_w);
-                for(long long batch_index=0;batch_index<n;++batch_index){
-                    const auto* input_batch=input_values.data()+
-                        static_cast<std::size_t>(batch_index*in_c)*input_plane;
-                    auto* input_gradient_batch=input_gradient.data()+
-                        static_cast<std::size_t>(batch_index*in_c)*input_plane;
-                    const auto* gradient_batch=g.data()+
-                        static_cast<std::size_t>(batch_index*out_c)*output_plane;
-                    for(long long output_channel=0;output_channel<out_c;++output_channel){
-                        const auto* weight_out=weight_values.data()+
-                            static_cast<std::size_t>(output_channel*in_c);
-                        auto* weight_gradient_out=weight_gradient.data()+
-                            static_cast<std::size_t>(output_channel*in_c);
-                        const auto* gradient_out=gradient_batch+
-                            static_cast<std::size_t>(output_channel)*output_plane;
-                        T bias_total=bias_gradient[
-                            static_cast<std::size_t>(output_channel)];
-                        for(long long oy=0;oy<out_h;++oy){
-                            const auto iy=oy*stride;
-                            for(long long ox=0;ox<out_w;++ox){
-                                const auto ix=ox*stride;
-                                const auto gradient=gradient_out[
-                                    static_cast<std::size_t>(oy*out_w+ox)];
-                                bias_total=static_cast<T>(bias_total+gradient);
-                                const auto spatial=
-                                    static_cast<std::size_t>(iy*width+ix);
-                                for(long long input_channel=0;
-                                    input_channel<in_c;++input_channel){
-                                    const auto input_offset=
-                                        static_cast<std::size_t>(input_channel)*
-                                            input_plane+spatial;
-                                    const auto channel=
-                                        static_cast<std::size_t>(input_channel);
-                                    input_gradient_batch[input_offset]=static_cast<T>(
-                                        input_gradient_batch[input_offset]+static_cast<T>(
-                                            gradient*weight_out[channel]));
-                                    weight_gradient_out[channel]=static_cast<T>(
-                                        weight_gradient_out[channel]+static_cast<T>(
-                                            gradient*input_batch[input_offset]));
-                                }
-                            }
-                        }
-                        bias_gradient[static_cast<std::size_t>(output_channel)]=
-                            bias_total;
-                    }
-                }
-            }else{
-                const auto input_plane=
-                    static_cast<std::size_t>(height)*static_cast<std::size_t>(width);
-                const auto output_plane=
-                    static_cast<std::size_t>(out_h)*static_cast<std::size_t>(out_w);
-                const auto kernel_plane=
-                    static_cast<std::size_t>(kernel_h)*static_cast<std::size_t>(kernel_w);
-                for(long long batch_index=0;batch_index<n;++batch_index){
-                    const auto* input_batch=input_values.data()+
-                        static_cast<std::size_t>(batch_index*in_c)*input_plane;
-                    auto* input_gradient_batch=input_gradient.data()+
-                        static_cast<std::size_t>(batch_index*in_c)*input_plane;
-                    const auto* gradient_batch=g.data()+
-                        static_cast<std::size_t>(batch_index*out_c)*output_plane;
-                    for(long long output_channel=0;output_channel<out_c;++output_channel){
-                        const auto* weight_out=weight_values.data()+
-                            static_cast<std::size_t>(output_channel*in_c)*kernel_plane;
-                        auto* weight_gradient_out=weight_gradient.data()+
-                            static_cast<std::size_t>(output_channel*in_c)*kernel_plane;
-                        const auto* gradient_out=gradient_batch+
-                            static_cast<std::size_t>(output_channel)*output_plane;
-                        T bias_total=bias_gradient[
-                            static_cast<std::size_t>(output_channel)];
-                        for(long long oy=0;oy<out_h;++oy){
-                            const auto origin_y=oy*stride-padding;
-                            const auto ky_begin=origin_y<0?-origin_y:0;
-                            const auto ky_limit=height-origin_y;
-                            const auto ky_end=ky_limit<kernel_h?ky_limit:kernel_h;
-                            for(long long ox=0;ox<out_w;++ox){
-                                const T gradient=gradient_out[
-                                    static_cast<std::size_t>(oy*out_w+ox)];
-                                bias_total=static_cast<T>(bias_total+gradient);
-                                const auto origin_x=ox*stride-padding;
-                                const auto kx_begin=origin_x<0?-origin_x:0;
-                                const auto kx_limit=width-origin_x;
-                                const auto kx_end=kx_limit<kernel_w?kx_limit:kernel_w;
-                                if(ky_begin>=ky_end||kx_begin>=kx_end) continue;
-                                for(long long input_channel=0;
-                                    input_channel<in_c;++input_channel){
-                                    const auto channel=
-                                        static_cast<std::size_t>(input_channel);
-                                    const auto* input_channel_base=input_batch+
-                                        channel*input_plane;
-                                    auto* input_gradient_channel=
-                                        input_gradient_batch+channel*input_plane;
-                                    const auto* weight_channel=
-                                        weight_out+channel*kernel_plane;
-                                    auto* weight_gradient_channel=
-                                        weight_gradient_out+channel*kernel_plane;
-                                    for(long long ky=ky_begin;ky<ky_end;++ky){
-                                        const auto input_row_offset=
-                                            static_cast<std::size_t>(origin_y+ky)*
-                                                static_cast<std::size_t>(width)+
-                                            static_cast<std::size_t>(origin_x+kx_begin);
-                                        const auto weight_row_offset=
-                                            static_cast<std::size_t>(ky)*
-                                                static_cast<std::size_t>(kernel_w)+
-                                            static_cast<std::size_t>(kx_begin);
-                                        auto* input_gradient_row=
-                                            input_gradient_channel+input_row_offset;
-                                        const auto* input_row=
-                                            input_channel_base+input_row_offset;
-                                        auto* weight_gradient_row=
-                                            weight_gradient_channel+weight_row_offset;
-                                        const auto* weight_row=
-                                            weight_channel+weight_row_offset;
-                                        const auto span=
-                                            static_cast<std::size_t>(kx_end-kx_begin);
-                                        for(std::size_t kx=0;kx<span;++kx){
-                                            input_gradient_row[kx]=static_cast<T>(
-                                                input_gradient_row[kx]+static_cast<T>(
-                                                    gradient*weight_row[kx]));
-                                            weight_gradient_row[kx]=static_cast<T>(
-                                                weight_gradient_row[kx]+static_cast<T>(
-                                                    gradient*input_row[kx]));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        bias_gradient[static_cast<std::size_t>(output_channel)]=
-                            bias_total;
-                    }
-                }
-            }
-            neural_add_gradient(gradients,input,std::move(input_gradient));
-            neural_add_gradient(gradients,weight,std::move(weight_gradient));
-            neural_add_gradient(gradients,bias,std::move(bias_gradient));
-        }else if(node->op==NeuralOp::Affine){
-            const auto& input=node->parents[0];
-            const auto& weight=node->parents[1];
-            const auto& bias=node->parents[2];
-            const auto& input_values=input->data.typed<T>();
-            const auto& weight_values=weight->data.typed<T>();
-            const auto in=static_cast<std::size_t>(weight->shape[1]);
-            const auto out=static_cast<std::size_t>(weight->shape[0]);
-            const auto batches=in==0?0:input_values.size()/in;
-            std::vector<T> input_gradient(input_values.size(),T{0});
-            std::vector<T> weight_gradient(weight_values.size(),T{0});
-            std::vector<T> bias_gradient(bias->data.size(),T{0});
-            for(std::size_t batch=0;batch<batches;++batch){
-                for(std::size_t output_index=0;output_index<out;++output_index){
-                    const T gradient=g[batch*out+output_index];
-                    bias_gradient[output_index]=static_cast<T>(
-                        bias_gradient[output_index]+gradient);
-                    for(std::size_t input_index=0;input_index<in;++input_index){
-                        input_gradient[batch*in+input_index]=static_cast<T>(
-                            input_gradient[batch*in+input_index]+static_cast<T>(
-                                gradient*weight_values[output_index*in+input_index]));
-                        weight_gradient[output_index*in+input_index]=static_cast<T>(
-                            weight_gradient[output_index*in+input_index]+static_cast<T>(
-                                gradient*input_values[batch*in+input_index]));
-                    }
-                }
-            }
-            neural_add_gradient(gradients,input,std::move(input_gradient));
-            neural_add_gradient(gradients,weight,std::move(weight_gradient));
-            neural_add_gradient(gradients,bias,std::move(bias_gradient));
+        }else if(node->op==AutogradOp::GatherBackward){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor gather backward graph",line,column);
+            auto input_gradient=autograd_gather_values<T>(
+                g,node->aux_index,line,column);
+            autograd_add_gradient(
+                gradients,node->parents[0],std::move(input_gradient));
         }
 
         // No later child can contribute to a node after reverse-topological visit.
         gradients.erase(node.get());
     }
-    return neural_gradients_descriptor(std::move(output));
 }
 
-extern "C" void* quidra_neural_grad(
+TensorValue* autograd_backward_loss(
     void* raw,unsigned long long line,unsigned long long column) {
-    if(!raw) neural_fail("null loss",line,column);
-    auto loss=static_cast<NeuralValue*>(raw)->node;
-    if(neural_node_count(*loss)!=1) neural_fail("grad requires a scalar loss",line,column);
-    if(loss->device_tensor)
-        return neural_grad_device(loss,line,column);
-    if(loss->dtype==10) return neural_grad_t<float>(loss,line,column);
-    if(loss->dtype==9) return neural_grad_t<double>(loss,line,column);
-    neural_fail("invalid neural gradient dtype",line,column);
+    if(!raw) autograd_fail("null loss tensor",line,column);
+    auto* tensor=static_cast<TensorValue*>(raw);
+    if(!tensor->graph)
+        autograd_fail("backward() requires a tracked tensor",line,column);
+    if(autograd_node_count(*tensor->graph)!=1)
+        autograd_fail("backward() requires a scalar tensor",line,column);
+    return tensor;
 }
+
+void autograd_backward_selected(
+    TensorValue* tensor,const std::vector<std::shared_ptr<AutogradSlot>>& selected,bool track,
+    unsigned long long line,unsigned long long column) {
+    if(track){
+        autograd_backward_tracked(tensor->graph,selected,line,column);
+        return;
+    }
+    if(tensor->graph->device_tensor)
+        autograd_grad_device(tensor->graph,selected,line,column);
+    else if(tensor->graph->dtype==10)
+        autograd_grad_t<float>(tensor->graph,selected,line,column);
+    else
+        autograd_grad_t<double>(tensor->graph,selected,line,column);
+}
+
+extern "C" void quidra_tensor_backward_many(
+    void* raw,void** target_raws,const unsigned char* target_kinds,
+    unsigned long long target_count,bool track,
+    unsigned long long line,unsigned long long column) {
+    auto* tensor=autograd_backward_loss(raw,line,column);
+    if(target_count==0)
+        autograd_fail("backward() requires at least one gradient target",line,column);
+    if(!target_raws||!target_kinds)
+        autograd_fail("invalid gradient target list",line,column);
+
+    std::vector<std::shared_ptr<AutogradSlot>> selected;
+    selected.reserve(static_cast<std::size_t>(target_count));
+    std::unordered_set<const AutogradSlot*> unique;
+    unique.reserve(static_cast<std::size_t>(target_count));
+
+    for(unsigned long long i=0;i<target_count;++i){
+        std::shared_ptr<AutogradSlot> slot;
+        if(target_kinds[i]==0){
+            if(!target_raws[i])
+                autograd_fail("null gradient target tensor",line,column);
+            auto* target=static_cast<TensorValue*>(target_raws[i]);
+            if(!target->grad_slot)
+                autograd_fail(
+                    "tensor.backward gradient tensor target is not tracked; call track() first",
+                    line,column);
+            slot=target->grad_slot;
+        }else if(target_kinds[i]==1){
+            auto* handle=autograd_target_from_value(target_raws[i]);
+            if(!handle||!handle->slot)
+                autograd_fail("invalid autograd target",line,column);
+            slot=handle->slot;
+        }else{
+            autograd_fail("invalid gradient target kind",line,column);
+        }
+        if(unique.insert(slot.get()).second) selected.push_back(std::move(slot));
+    }
+
+    autograd_backward_selected(tensor,selected,track,line,column);
+}
+
+
+extern "C" void quidra_tensor_backward_many_with_autograd_targets(
+    void* raw,void** target_raws,const unsigned char* target_kinds,
+    unsigned long long target_count,void* autograd_targets,bool track,
+    unsigned long long line,unsigned long long column) {
+    if(!autograd_targets)
+        autograd_fail("invalid autograd target array",line,column);
+
+    long long signed_count=0;
+    std::memcpy(&signed_count,autograd_targets,sizeof(signed_count));
+    if(signed_count<0)
+        autograd_fail("invalid autograd target array length",line,column);
+    const auto dynamic_count=static_cast<unsigned long long>(signed_count);
+    if(dynamic_count>
+       std::numeric_limits<unsigned long long>::max()-target_count)
+        runtime_allocation_failure();
+
+    std::vector<void*> combined_targets;
+    std::vector<unsigned char> combined_kinds;
+    try{
+        const auto total=static_cast<std::size_t>(
+            target_count+dynamic_count);
+        combined_targets.reserve(total);
+        combined_kinds.reserve(total);
+        for(unsigned long long i=0;i<target_count;++i){
+            combined_targets.push_back(target_raws[i]);
+            combined_kinds.push_back(target_kinds[i]);
+        }
+        auto* data=static_cast<unsigned char*>(autograd_targets)
+            +sizeof(long long);
+        for(unsigned long long i=0;i<dynamic_count;++i){
+            void* target=nullptr;
+            std::memcpy(
+                &target,
+                data+static_cast<std::size_t>(i)*sizeof(void*),
+                sizeof(target));
+            combined_targets.push_back(target);
+            combined_kinds.push_back(1);
+        }
+    }catch(...){
+        runtime_allocation_failure();
+    }
+
+    quidra_tensor_backward_many(
+        raw,
+        combined_targets.empty()?nullptr:combined_targets.data(),
+        combined_kinds.empty()?nullptr:combined_kinds.data(),
+        static_cast<unsigned long long>(combined_targets.size()),
+        track,line,column);
+}
+
 
 namespace {
 
@@ -6784,6 +5583,35 @@ std::vector<long long> tensor_broadcast_shape(const TensorValue& left,
         shape[i] = std::max(a, b);
     }
     return shape;
+}
+
+std::vector<std::size_t> tensor_broadcast_logical_indices(
+    const TensorValue& source,const std::vector<long long>& output_shape,
+    unsigned long long line,unsigned long long column) {
+    if(source.shape.size()!=output_shape.size())
+        tensor_fail("tensor broadcasting requires identical ranks",line,column);
+    const auto count=tensor_element_count(output_shape,line,column);
+    const auto source_strides=tensor_contiguous_strides(source.shape);
+    std::vector<std::size_t> indices;
+    try{
+        indices.resize(count);
+    }catch(...){
+        runtime_allocation_failure();
+    }
+    for(std::size_t logical=0;logical<count;++logical){
+        auto remaining=logical;
+        std::size_t source_logical=0;
+        for(std::size_t axis=output_shape.size();axis-->0;){
+            const auto extent=static_cast<std::size_t>(output_shape[axis]);
+            const auto coordinate=extent==0?std::size_t{0}:remaining%extent;
+            if(extent!=0) remaining/=extent;
+            const auto input_coordinate=source.shape[axis]==1?std::size_t{0}:coordinate;
+            source_logical+=input_coordinate*
+                static_cast<std::size_t>(source_strides[axis]);
+        }
+        indices[logical]=source_logical;
+    }
+    return indices;
 }
 
 TensorStorage* tensor_gpu_expand_storage(
@@ -7050,94 +5878,195 @@ extern "C" void* quidra_tensor_unary(void* raw, int operation,
         output, source.shape, tensor_contiguous_strides(source.shape), 0);
 }
 
-extern "C" bool quidra_tensor_compare_all(
-    void* left_raw, void* right_raw, int operation,
+extern "C" void* quidra_tensor_compare(
+    void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
     unsigned long long line, unsigned long long column) {
-    if (!left_raw || !right_raw)
-        tensor_fail("null tensor comparison operand", line, column);
-    auto* left = static_cast<TensorValue*>(left_raw);
-    auto* right = static_cast<TensorValue*>(right_raw);
-    if (left->storage->dtype != right->storage->dtype)
+    if (!primary_raw) tensor_fail("null tensor comparison operand", line, column);
+    auto* primary = static_cast<TensorValue*>(primary_raw);
+    auto* other = static_cast<TensorValue*>(other_raw);
+    if (other && scalar_side != 0) tensor_fail("invalid tensor comparison operands", line, column);
+    if (!other && scalar_side != 1 && scalar_side != 2)
+        tensor_fail("invalid tensor scalar comparison side", line, column);
+    if (other && primary->storage->dtype != other->storage->dtype)
         tensor_fail("tensor comparison requires identical element types", line, column);
-    if (left->storage->device != right->storage->device)
+    if (other && primary->storage->device != other->storage->device)
         tensor_fail("tensor operands are on different devices; use an explicit .gpu(n) or .cpu() transfer",
                     line, column);
-    if (left->shape != right->shape)
+    if (other && primary->shape != other->shape)
         tensor_fail("tensor comparison requires identical shape", line, column);
-    tensor_require_initialized(*left, line, column);
-    tensor_require_initialized(*right, line, column);
     if (operation < 1 || operation > 6)
         tensor_fail("invalid tensor comparison operation", line, column);
+    tensor_require_initialized(*primary, line, column);
+    if (other) tensor_require_initialized(*other, line, column);
 
-    const auto count = tensor_logical_count(*left);
-    if (!tensor_on_cpu(*left->storage)) {
-        const auto width = tensor_dtype_bytes(left->storage->dtype);
-        TensorStorage* left_materialized = nullptr;
-        TensorStorage* right_materialized = nullptr;
-        const TensorStorage* left_storage = left->storage;
-        const TensorStorage* right_storage = right->storage;
-        std::size_t left_offset = left->offset * width;
-        std::size_t right_offset = right->offset * width;
-
-        if (!tensor_is_contiguous_value(*left)) {
-            left_materialized = tensor_gpu_materialize_storage(*left, line, column);
-            left_storage = left_materialized;
-            left_offset = 0;
+    const int original_device = primary->storage->device;
+    TensorStorage* primary_cpu_storage = nullptr;
+    TensorStorage* other_cpu_storage = nullptr;
+    TensorValue primary_cpu{};
+    TensorValue other_cpu{};
+    TensorValue* left_tensor = primary;
+    TensorValue* right_tensor = other;
+    if (!tensor_on_cpu(*primary->storage)) {
+        primary_cpu_storage = tensor_transfer_storage(*primary, -1, line, column);
+        primary_cpu = TensorValue{primary_cpu_storage, primary->shape,
+                                  tensor_contiguous_strides(primary->shape), 0, {}, {}};
+        left_tensor = &primary_cpu;
+        if (other) {
+            other_cpu_storage = tensor_transfer_storage(*other, -1, line, column);
+            other_cpu = TensorValue{other_cpu_storage, other->shape,
+                                    tensor_contiguous_strides(other->shape), 0, {}, {}};
+            right_tensor = &other_cpu;
         }
-        if (!tensor_is_contiguous_value(*right)) {
-            right_materialized = tensor_gpu_materialize_storage(*right, line, column);
-            right_storage = right_materialized;
-            right_offset = 0;
-        }
-
-        bool result = false;
-        std::string backend_error;
-        const bool ok = quidra::device::compute_compare_all(
-            left_storage->gpu_buffer, left_offset,
-            right_storage->gpu_buffer, right_offset,
-            left->storage->dtype, operation, count, result, backend_error);
-        if (left_materialized) tensor_storage_release(left_materialized);
-        if (right_materialized) tensor_storage_release(right_materialized);
-        if (!ok) tensor_fail(backend_error.c_str(), line, column);
-        return result;
     }
 
-    const auto compare = [&](auto tag) {
+    const auto count = tensor_logical_count(*left_tensor);
+    auto* output = tensor_storage_create(11, count, 1);
+    const int dtype = left_tensor->storage->dtype;
+    const auto run = [&](auto tag) {
         using T = decltype(tag);
+        T scalar_value{};
+        if (!right_tensor) std::memcpy(&scalar_value, scalar, sizeof(T));
         for (std::size_t i = 0; i < count; ++i) {
-            const auto li = tensor_storage_index(*left, i);
-            const auto ri = tensor_storage_index(*right, i);
+            T primary_value{};
+            const auto pi = tensor_storage_index(*left_tensor, i);
+            std::memcpy(&primary_value,
+                        left_tensor->storage->data.data() + pi * sizeof(T), sizeof(T));
             T a{}, b{};
-            std::memcpy(&a, left->storage->data.data() + li * sizeof(T), sizeof(T));
-            std::memcpy(&b, right->storage->data.data() + ri * sizeof(T), sizeof(T));
-            bool matches = false;
-            switch (operation) {
-                case 1: matches = a == b; break;
-                case 2: matches = a != b; break;
-                case 3: matches = a < b; break;
-                case 4: matches = a <= b; break;
-                case 5: matches = a > b; break;
-                case 6: matches = a >= b; break;
+            if (right_tensor) {
+                T other_value{};
+                const auto oi = tensor_storage_index(*right_tensor, i);
+                std::memcpy(&other_value,
+                            right_tensor->storage->data.data() + oi * sizeof(T), sizeof(T));
+                a = primary_value; b = other_value;
+            } else if (scalar_side == 1) {
+                a = scalar_value; b = primary_value;
+            } else {
+                a = primary_value; b = scalar_value;
             }
-            if (!matches) return false;
+            bool match = false;
+            switch (operation) {
+                case 1: match = a == b; break;
+                case 2: match = a != b; break;
+                case 3: match = a < b; break;
+                case 4: match = a <= b; break;
+                case 5: match = a > b; break;
+                case 6: match = a >= b; break;
+            }
+            output->data[i] = static_cast<unsigned char>(match ? 1 : 0);
         }
-        return true;
+    };
+    switch (dtype) {
+        case 1: run(std::int64_t{}); break;
+        case 2: run(std::int8_t{}); break;
+        case 3: run(std::int16_t{}); break;
+        case 4: run(std::int32_t{}); break;
+        case 5: run(std::uint8_t{}); break;
+        case 6: run(std::uint16_t{}); break;
+        case 7: run(std::uint32_t{}); break;
+        case 8: run(std::uint64_t{}); break;
+        case 9: run(double{}); break;
+        case 10: run(float{}); break;
+        default:
+            tensor_storage_release(output);
+            if (primary_cpu_storage) tensor_storage_release(primary_cpu_storage);
+            if (other_cpu_storage) tensor_storage_release(other_cpu_storage);
+            tensor_fail("invalid tensor comparison element type", line, column);
+    }
+    if (primary_cpu_storage) tensor_storage_release(primary_cpu_storage);
+    if (other_cpu_storage) tensor_storage_release(other_cpu_storage);
+
+    auto* cpu_result = tensor_descriptor(output, primary->shape,
+                                         tensor_contiguous_strides(primary->shape), 0);
+    if (original_device < 0) return cpu_result;
+    auto* gpu_storage = tensor_transfer_storage(*cpu_result, original_device, line, column);
+    release_managed_tensor(cpu_result);
+    return tensor_descriptor(gpu_storage, primary->shape,
+                             tensor_contiguous_strides(primary->shape), 0);
+}
+
+extern "C" bool quidra_tensor_bool_reduce(
+    void* raw, bool all, unsigned long long line, unsigned long long column) {
+    if (!raw) tensor_fail("null boolean tensor", line, column);
+    auto* tensor = static_cast<TensorValue*>(raw);
+    if (tensor->storage->dtype != 11)
+        tensor_fail("all()/any() require tensor<bool>", line, column);
+    tensor_require_initialized(*tensor, line, column);
+    TensorStorage* cpu_storage = nullptr;
+    TensorValue cpu{};
+    TensorValue* source = tensor;
+    if (!tensor_on_cpu(*tensor->storage)) {
+        cpu_storage = tensor_transfer_storage(*tensor, -1, line, column);
+        cpu = TensorValue{cpu_storage, tensor->shape,
+                          tensor_contiguous_strides(tensor->shape), 0, {}, {}};
+        source = &cpu;
+    }
+    const auto count = tensor_logical_count(*source);
+    bool result = all;
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto index = tensor_storage_index(*source, i);
+        const bool value = source->storage->data[index] != 0;
+        if (all && !value) { result = false; break; }
+        if (!all && value) { result = true; break; }
+    }
+    if (cpu_storage) tensor_storage_release(cpu_storage);
+    return result;
+}
+
+void tensor_attach_binary_graph(
+    TensorValue* result,TensorValue* primary,TensorValue* other,
+    void* scalar,int scalar_side,int operation,
+    unsigned long long line,unsigned long long column) {
+    if(!result||!primary) return;
+    if(!primary->graph&&(!other||!other->graph)) return;
+    if(primary->storage->dtype!=9&&primary->storage->dtype!=10)
+        autograd_fail("tracked tensor arithmetic requires a floating dtype",line,column);
+
+    auto graph_operand=[&](TensorValue* operand)->std::shared_ptr<AutogradNode>{
+        if(operand->shape==result->shape)
+            return operand->graph
+                ? operand->graph : autograd_constant_node(*operand,line,column);
+
+        auto indices=tensor_broadcast_logical_indices(
+            *operand,result->shape,line,column);
+        auto* expanded=tensor_gather_logical_indices(
+            *operand,std::move(indices),result->shape,line,column);
+        auto graph=expanded->graph
+            ? expanded->graph : autograd_constant_node(*expanded,line,column);
+        release_managed_tensor(expanded);
+        return graph;
     };
 
-    switch (left->storage->dtype) {
-        case 1: return compare(std::int64_t{});
-        case 2: return compare(std::int8_t{});
-        case 3: return compare(std::int16_t{});
-        case 4: return compare(std::int32_t{});
-        case 5: return compare(std::uint8_t{});
-        case 6: return compare(std::uint16_t{});
-        case 7: return compare(std::uint32_t{});
-        case 8: return compare(std::uint64_t{});
-        case 9: return compare(double{});
-        case 10: return compare(float{});
-        default:
-            tensor_fail("invalid tensor element type", line, column);
+    auto node=std::make_shared<AutogradNode>(primary->storage->dtype);
+    node->shape=result->shape;
+    node->op=other
+        ? (operation==1?AutogradOp::Add:operation==2?AutogradOp::Sub:
+           operation==3?AutogradOp::Mul:AutogradOp::Div)
+        : AutogradOp::ScalarBinary;
+    const auto primary_node=graph_operand(primary);
+    if(other){
+        const auto other_node=graph_operand(other);
+        node->parents={primary_node,other_node};
+    }else{
+        node->parents={primary_node};
+        if(primary->storage->dtype==10){
+            float value{};
+            std::memcpy(&value,scalar,sizeof(value));
+            node->aux.assign(1,static_cast<double>(value));
+        }else{
+            double value{};
+            std::memcpy(&value,scalar,sizeof(value));
+            node->aux.assign(1,value);
+        }
+        node->aux_index={
+            static_cast<std::size_t>(operation),
+            scalar_side==1?std::size_t{1}:std::size_t{0}
+        };
     }
+    if(tensor_on_cpu(*result->storage))
+        node->data=tensor_float_values(*result,line,column);
+    else
+        node->device_tensor=static_cast<TensorValue*>(quidra_tensor_clone(result));
+    result->graph=std::move(node);
 }
 
 extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
@@ -7212,8 +6141,11 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
             tensor_storage_release(output);
             tensor_fail(backend_error.c_str(), line, column);
         }
-        return tensor_descriptor(
+        auto* result=tensor_descriptor(
             output, output_shape, tensor_contiguous_strides(output_shape), 0);
+        tensor_attach_binary_graph(
+            result,primary,other,scalar,scalar_side,operation,line,column);
+        return result;
     }
 
     auto* output = tensor_storage_create(primary->storage->dtype, count, 1);
@@ -7233,8 +6165,11 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
             delete output;
             tensor_fail("invalid tensor element type", line, column);
     }
-    return tensor_descriptor(
+    auto* result=tensor_descriptor(
         output, output_shape, tensor_contiguous_strides(output_shape), 0);
+    tensor_attach_binary_graph(
+        result,primary,other,scalar,scalar_side,operation,line,column);
+    return result;
 }
 
 
@@ -7290,84 +6225,57 @@ T tensor_dense_load(const unsigned char* data, std::size_t index) {
 template <typename T>
 void tensor_matmul_typed(const TensorValue& left, const TensorValue& right,
                          TensorStorage& output,
+                         std::size_t m,std::size_t k,std::size_t n,
                          unsigned long long line,
                          unsigned long long column) {
-    const auto m = static_cast<std::size_t>(left.shape[0]);
-    const auto k = static_cast<std::size_t>(left.shape[1]);
-    const auto n = static_cast<std::size_t>(right.shape[1]);
-
     if constexpr (std::is_floating_point_v<T>) {
         const unsigned char* left_dense{};
         const unsigned char* right_dense{};
         if (tensor_dense_initialized_bytes<T>(left, left_dense) &&
             tensor_dense_initialized_bytes<T>(right, right_dense)) {
-            std::vector<T> dense_output;
-            try {
-                dense_output.assign(output.count, T{});
-            } catch (...) {
-                runtime_allocation_failure();
-            }
-
-            // Keep each output element's accumulation in the same k-order as
-            // the scalar definition, while making adjacent columns the inner
-            // loop so the compiler can SIMD the independent j dimension.
-            for (std::size_t row = 0; row < m; ++row) {
-                for (std::size_t inner = 0; inner < k; ++inner) {
-                    const T a = tensor_dense_load<T>(left_dense, row * k + inner);
-                    for (std::size_t column_index = 0; column_index < n; ++column_index) {
-                        const auto output_index = row * n + column_index;
-                        T product{};
-                        T next{};
+            std::vector<T> dense_output(output.count,T{});
+            for (std::size_t row=0;row<m;++row)
+                for (std::size_t inner=0;inner<k;++inner) {
+                    const T a=tensor_dense_load<T>(left_dense,row*k+inner);
+                    for(std::size_t column_index=0;column_index<n;++column_index){
+                        const auto oi=row*n+column_index;
+                        T product{},next{};
                         (void)tensor_mul_checked(
-                            a, tensor_dense_load<T>(
-                                   right_dense, inner * n + column_index),
-                            product);
-                        (void)tensor_add_checked(
-                            dense_output[output_index], product, next);
-                        dense_output[output_index] = next;
+                            a,tensor_dense_load<T>(
+                                right_dense,inner*n+column_index),product);
+                        (void)tensor_add_checked(dense_output[oi],product,next);
+                        dense_output[oi]=next;
                     }
                 }
-            }
-            if (!dense_output.empty()) {
-                std::memcpy(output.data.data(), dense_output.data(),
-                            dense_output.size() * sizeof(T));
-            }
+            if(!dense_output.empty())
+                std::memcpy(output.data.data(),dense_output.data(),
+                            dense_output.size()*sizeof(T));
             return;
         }
     }
-
-    for (std::size_t row = 0; row < m; ++row) {
-        for (std::size_t column_index = 0; column_index < n; ++column_index) {
+    for(std::size_t row=0;row<m;++row)
+        for(std::size_t column_index=0;column_index<n;++column_index){
             T accumulator{};
-            for (std::size_t inner = 0; inner < k; ++inner) {
-                const auto left_index =
-                    left.offset + row * static_cast<std::size_t>(left.strides[0]) +
-                    inner * static_cast<std::size_t>(left.strides[1]);
-                const auto right_index =
-                    right.offset + inner * static_cast<std::size_t>(right.strides[0]) +
-                    column_index * static_cast<std::size_t>(right.strides[1]);
-                if (left_index >= left.storage->count ||
-                    right_index >= right.storage->count ||
-                    !tracker_bit(left.storage->initialization, left_index) ||
-                    !tracker_bit(right.storage->initialization, right_index)) {
-                    runtime_uninitialized_failure(line, column);
-                }
-                T a{};
-                T b{};
-                std::memcpy(&a, left.storage->data.data() + left_index * sizeof(T), sizeof(T));
-                std::memcpy(&b, right.storage->data.data() + right_index * sizeof(T), sizeof(T));
-                T product{};
-                T next{};
-                if (!tensor_mul_checked(a, b, product) ||
-                    !tensor_add_checked(accumulator, product, next)) {
-                    tensor_fail("linear.matmul integer arithmetic overflow", line, column);
-                }
-                accumulator = next;
+            for(std::size_t inner=0;inner<k;++inner){
+                const auto li=tensor_storage_index(left,row*k+inner);
+                const auto rlogical=right.shape.size()==1
+                    ?inner:inner*n+column_index;
+                const auto ri=tensor_storage_index(right,rlogical);
+                if(li>=left.storage->count||ri>=right.storage->count||
+                   !tracker_bit(left.storage->initialization,li)||
+                   !tracker_bit(right.storage->initialization,ri))
+                    runtime_uninitialized_failure(line,column);
+                T a{},b{},product{},next{};
+                std::memcpy(&a,left.storage->data.data()+li*sizeof(T),sizeof(T));
+                std::memcpy(&b,right.storage->data.data()+ri*sizeof(T),sizeof(T));
+                if(!tensor_mul_checked(a,b,product)||
+                   !tensor_add_checked(accumulator,product,next))
+                    tensor_fail("linear.matmul integer arithmetic overflow",line,column);
+                accumulator=next;
             }
-            std::memcpy(output.data.data() + (row * n + column_index) * sizeof(T),
-                        &accumulator, sizeof(T));
+            std::memcpy(output.data.data()+(row*n+column_index)*sizeof(T),
+                        &accumulator,sizeof(T));
         }
-    }
 }
 
 
@@ -7712,117 +6620,104 @@ extern "C" double quidra_stats_mean(void* raw,
     return static_cast<double>(sum / static_cast<long double>(count));
 }
 
+
+void tensor_attach_matmul_graph(
+    TensorValue* result,TensorValue& left,TensorValue& right,
+    unsigned long long line,unsigned long long column) {
+    if(!result||(!left.graph&&!right.graph)) return;
+    if(left.storage->dtype!=9&&left.storage->dtype!=10){
+        release_managed_tensor(result);
+        autograd_fail("tracked tensor matmul requires float32 or float tensors",line,column);
+    }
+    auto node=std::make_shared<AutogradNode>(left.storage->dtype);
+    node->shape=result->shape;
+    node->op=AutogradOp::Matmul;
+    node->parents={
+        left.graph?left.graph:autograd_constant_node(left,line,column),
+        right.graph?right.graph:autograd_constant_node(right,line,column)};
+    if(tensor_on_cpu(*result->storage))
+        node->data=tensor_float_values(*result,line,column);
+    else
+        node->device_tensor=static_cast<TensorValue*>(quidra_tensor_clone(result));
+    result->graph=std::move(node);
+}
+
 extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
                                        unsigned long long line,
                                        unsigned long long column) {
-    if (!left_raw || !right_raw) tensor_fail("linear.matmul received a null tensor", line, column);
-    auto& left = *static_cast<TensorValue*>(left_raw);
-    auto& right = *static_cast<TensorValue*>(right_raw);
-    if (left.storage->dtype != right.storage->dtype) {
-        tensor_fail("linear.matmul requires identical element types", line, column);
-    }
-    if (left.storage->device != right.storage->device) {
+    if(!left_raw||!right_raw)
+        tensor_fail("linear.matmul received a null tensor",line,column);
+    auto& left=*static_cast<TensorValue*>(left_raw);
+    auto& right=*static_cast<TensorValue*>(right_raw);
+    if(left.storage->dtype!=right.storage->dtype)
+        tensor_fail("linear.matmul requires identical element types",line,column);
+    if(left.storage->device!=right.storage->device)
         tensor_fail("linear.matmul operands are on different devices; transfer them explicitly",
-                    line, column);
-    }
-
-    const bool left_vector = left.shape.size() == 1;
-    const bool right_vector = right.shape.size() == 1;
-    const bool left_matrix = left.shape.size() == 2;
-    const bool right_matrix = right.shape.size() == 2;
-    if ((!left_vector && !left_matrix) || (!right_vector && !right_matrix) ||
-        (left_vector && right_vector)) {
+                    line,column);
+    if(left.shape.empty()||(right.shape.size()!=1&&right.shape.size()!=2))
         tensor_fail(
-            "linear.matmul supports vector-matrix, matrix-vector, and matrix-matrix operands",
-            line, column);
-    }
+            "linear.matmul requires left rank >= 1 and right rank 1 or 2",
+            line,column);
 
-    const auto rows = left_vector ? std::size_t{1}
-                                  : static_cast<std::size_t>(left.shape[0]);
-    const auto inner = left_vector ? static_cast<std::size_t>(left.shape[0])
-                                   : static_cast<std::size_t>(left.shape[1]);
-    const auto right_inner = static_cast<std::size_t>(right.shape[0]);
-    const auto columns = right_vector ? std::size_t{1}
-                                      : static_cast<std::size_t>(right.shape[1]);
-    if (inner != right_inner) {
-        tensor_fail("linear.matmul inner dimensions do not match", line, column);
-    }
+    std::vector<long long> leading(left.shape.begin(),left.shape.end()-1);
+    const auto rows=tensor_element_count(leading,line,column);
+    const auto inner=static_cast<std::size_t>(left.shape.back());
+    const auto right_inner=static_cast<std::size_t>(right.shape[0]);
+    const bool right_vector=right.shape.size()==1;
+    const auto columns=right_vector?std::size_t{1}:
+        static_cast<std::size_t>(right.shape[1]);
+    if(inner!=right_inner)
+        tensor_fail("linear.matmul inner dimensions do not match",line,column);
+    auto shape=leading;
+    if(!right_vector) shape.push_back(static_cast<long long>(columns));
+    const auto count=tensor_element_count(shape,line,column);
 
-    std::vector<long long> shape;
-    if (left_vector) {
-        shape = {static_cast<long long>(columns)};
-    } else if (right_vector) {
-        shape = {static_cast<long long>(rows)};
-    } else {
-        shape = {static_cast<long long>(rows), static_cast<long long>(columns)};
-    }
-    const auto count = tensor_element_count(shape, line, column);
-
-    if (!tensor_on_cpu(*left.storage)) {
-        tensor_require_initialized(left, line, column);
-        tensor_require_initialized(right, line, column);
-        TensorStorage* left_materialized = nullptr;
-        TensorStorage* right_materialized = nullptr;
-        const TensorStorage* left_storage = left.storage;
-        const TensorStorage* right_storage = right.storage;
-        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
-            left_materialized = tensor_gpu_materialize_storage(left, line, column);
-            left_storage = left_materialized;
+    if(!tensor_on_cpu(*left.storage)){
+        tensor_require_initialized(left,line,column);
+        tensor_require_initialized(right,line,column);
+        TensorStorage* lm=nullptr;
+        TensorStorage* rm=nullptr;
+        const TensorStorage* ls=left.storage;
+        const TensorStorage* rs=right.storage;
+        if(!tensor_is_contiguous_value(left)||left.offset!=0){
+            lm=tensor_gpu_materialize_storage(left,line,column);ls=lm;
         }
-        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
-            right_materialized = tensor_gpu_materialize_storage(right, line, column);
-            right_storage = right_materialized;
+        if(!tensor_is_contiguous_value(right)||right.offset!=0){
+            rm=tensor_gpu_materialize_storage(right,line,column);rs=rm;
         }
-        auto* output = tensor_storage_create(
-            left.storage->dtype, count, 1, left.storage->device, line, column);
+        auto* output=tensor_storage_create(
+            left.storage->dtype,count,1,left.storage->device,line,column);
         std::string backend_error;
-        const bool ok = quidra::device::compute_matmul(
-            output->gpu_buffer, left_storage->gpu_buffer, right_storage->gpu_buffer,
-            left.storage->dtype, rows, inner, columns, backend_error);
-        if (left_materialized) tensor_storage_release(left_materialized);
-        if (right_materialized) tensor_storage_release(right_materialized);
-        if (!ok) {
-            tensor_storage_release(output);
-            tensor_fail(backend_error.c_str(), line, column);
-        }
-        auto strides = tensor_contiguous_strides(shape);
-        return tensor_descriptor(output, std::move(shape), std::move(strides), 0);
+        const bool ok=quidra::device::compute_matmul(
+            output->gpu_buffer,ls->gpu_buffer,rs->gpu_buffer,
+            left.storage->dtype,rows,inner,columns,backend_error);
+        if(lm) tensor_storage_release(lm);
+        if(rm) tensor_storage_release(rm);
+        if(!ok){tensor_storage_release(output);tensor_fail(backend_error.c_str(),line,column);}
+        auto* result=tensor_descriptor(
+            output,shape,tensor_contiguous_strides(shape),0);
+        tensor_attach_matmul_graph(result,left,right,line,column);
+        return result;
     }
 
-    TensorValue left_view = left;
-    TensorValue right_view = right;
-    if (left_vector) {
-        const auto stride = left.strides[0];
-        left_view.shape = {1, left.shape[0]};
-        // The synthetic row stride is never observed because the virtual
-        // matrix has exactly one row. Keep it zero instead of multiplying
-        // an extent by a runtime stride and risking signed overflow.
-        left_view.strides = {0, stride};
+    auto* output=tensor_storage_create(left.storage->dtype,count,1);
+    switch(left.storage->dtype){
+        case 1:tensor_matmul_typed<std::int64_t>(left,right,*output,rows,inner,columns,line,column);break;
+        case 2:tensor_matmul_typed<std::int8_t>(left,right,*output,rows,inner,columns,line,column);break;
+        case 3:tensor_matmul_typed<std::int16_t>(left,right,*output,rows,inner,columns,line,column);break;
+        case 4:tensor_matmul_typed<std::int32_t>(left,right,*output,rows,inner,columns,line,column);break;
+        case 5:tensor_matmul_typed<std::uint8_t>(left,right,*output,rows,inner,columns,line,column);break;
+        case 6:tensor_matmul_typed<std::uint16_t>(left,right,*output,rows,inner,columns,line,column);break;
+        case 7:tensor_matmul_typed<std::uint32_t>(left,right,*output,rows,inner,columns,line,column);break;
+        case 8:tensor_matmul_typed<std::uint64_t>(left,right,*output,rows,inner,columns,line,column);break;
+        case 9:tensor_matmul_typed<double>(left,right,*output,rows,inner,columns,line,column);break;
+        case 10:tensor_matmul_typed<float>(left,right,*output,rows,inner,columns,line,column);break;
+        default:delete output;tensor_fail("linear.matmul received an unsupported tensor dtype",line,column);
     }
-    if (right_vector) {
-        const auto stride = right.strides[0];
-        right_view.shape = {right.shape[0], 1};
-        right_view.strides = {stride, 1};
-    }
-
-    auto* output = tensor_storage_create(left.storage->dtype, count, 1);
-    switch (left.storage->dtype) {
-        case 1: tensor_matmul_typed<std::int64_t>(left_view,right_view,*output,line,column); break;
-        case 2: tensor_matmul_typed<std::int8_t>(left_view,right_view,*output,line,column); break;
-        case 3: tensor_matmul_typed<std::int16_t>(left_view,right_view,*output,line,column); break;
-        case 4: tensor_matmul_typed<std::int32_t>(left_view,right_view,*output,line,column); break;
-        case 5: tensor_matmul_typed<std::uint8_t>(left_view,right_view,*output,line,column); break;
-        case 6: tensor_matmul_typed<std::uint16_t>(left_view,right_view,*output,line,column); break;
-        case 7: tensor_matmul_typed<std::uint32_t>(left_view,right_view,*output,line,column); break;
-        case 8: tensor_matmul_typed<std::uint64_t>(left_view,right_view,*output,line,column); break;
-        case 9: tensor_matmul_typed<double>(left_view,right_view,*output,line,column); break;
-        case 10:tensor_matmul_typed<float>(left_view,right_view,*output,line,column); break;
-        default:
-            delete output;
-            tensor_fail("linear.matmul received an unsupported tensor dtype", line, column);
-    }
-    auto strides = tensor_contiguous_strides(shape);
-    return tensor_descriptor(output, std::move(shape), std::move(strides), 0);
+    auto* result=tensor_descriptor(
+        output,shape,tensor_contiguous_strides(shape),0);
+    tensor_attach_matmul_graph(result,left,right,line,column);
+    return result;
 }
 
 namespace {
@@ -7850,6 +6745,11 @@ TensorStorage* tensor_materialize_storage(const TensorValue& source) {
 
 void tensor_detach_for_write(
     TensorValue& tensor, unsigned long long line, unsigned long long column) {
+    if(tensor.graph){
+        tensor_fail(
+            "tracked tensor mutation is forbidden; call untrack() before writing",
+            line,column);
+    }
     const auto logical_count = tensor_logical_count(tensor);
     const bool owns_full_contiguous_storage =
         tensor.offset == 0 && tensor_is_contiguous_value(tensor) &&
@@ -7874,6 +6774,7 @@ extern "C" void* quidra_tensor_index(void* raw, const long long* specs,
                                        unsigned long long column) {
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
+    tensor_require_untracked_transform(*source,"indexing",line,column);
     if (count > source->shape.size()) {
         tensor_fail("too many tensor indices", line, column);
     }
@@ -10024,413 +8925,4 @@ extern "C" bool quidra_cli_parse_bool(const char* text) {
     if (text && std::strcmp(text, "true") == 0) return true;
     if (text && std::strcmp(text, "false") == 0) return false;
     cli_fail("bool values must be true or false");
-}
-
-
-namespace {
-
-void image_tensor_require_chw(
-    const TensorValue& value,const char* operation,
-    unsigned long long line,unsigned long long column) {
-    if(value.shape.size()!=3)
-        tensor_fail((std::string(operation)+" requires a rank-3 CHW tensor").c_str(),line,column);
-    if(value.shape[0]<=0||value.shape[1]<=0||value.shape[2]<=0)
-        tensor_fail((std::string(operation)+" requires positive CHW dimensions").c_str(),line,column);
-    tensor_require_initialized(value,line,column);
-}
-
-TensorValue* image_tensor_output(
-    int dtype,const std::vector<long long>& shape,int device,
-    unsigned long long line,unsigned long long column) {
-    const auto count=tensor_element_count(shape,line,column);
-    auto* storage=tensor_storage_create(dtype,count,1,device,line,column);
-    auto strides=tensor_contiguous_strides(shape);
-    return tensor_descriptor(storage,shape,std::move(strides),0);
-}
-
-const TensorStorage* image_tensor_dense_gpu(
-    const TensorValue& source,TensorStorage*& materialized,
-    unsigned long long line,unsigned long long column) {
-    materialized=nullptr;
-    if(tensor_is_contiguous_value(source)&&source.offset==0)
-        return source.storage;
-    materialized=tensor_gpu_materialize_storage(source,line,column);
-    return materialized;
-}
-
-template <typename T>
-void image_morphology_cpu(
-    const TensorValue& input,TensorStorage& output,std::size_t channels,
-    std::size_t height,std::size_t width,std::size_t radius,bool dilate) {
-    for(std::size_t c=0;c<channels;++c)
-        for(std::size_t y=0;y<height;++y)
-            for(std::size_t x=0;x<width;++x){
-                const auto center=tensor_storage_index(
-                    input,(c*height+y)*width+x);
-                T best{};
-                std::memcpy(&best,input.storage->data.data()+center*sizeof(T),sizeof(T));
-                const auto y0=y>radius?y-radius:0;
-                const auto y1=std::min(height-1,y+std::min(radius,height-1-y));
-                const auto x0=x>radius?x-radius:0;
-                const auto x1=std::min(width-1,x+std::min(radius,width-1-x));
-                for(std::size_t sy=y0;sy<=y1;++sy)
-                    for(std::size_t sx=x0;sx<=x1;++sx){
-                        const auto source_index=tensor_storage_index(
-                            input,(c*height+sy)*width+sx);
-                        T candidate{};
-                        std::memcpy(&candidate,
-                            input.storage->data.data()+source_index*sizeof(T),sizeof(T));
-                        if(dilate?candidate>best:candidate<best) best=candidate;
-                    }
-                const auto out_index=(c*height+y)*width+x;
-                std::memcpy(output.data.data()+out_index*sizeof(T),&best,sizeof(T));
-            }
-}
-
-} // namespace
-
-extern "C" void* quidra_image_tensor_geometry(
-    void* raw,int dtype,int operation,
-    long long p0,long long p1,long long p2,long long p3,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) tensor_fail("image tensor geometry received a null tensor",line,column);
-    auto& input=*static_cast<TensorValue*>(raw);
-    if(input.storage->dtype!=dtype)
-        tensor_fail("image tensor geometry dtype mismatch",line,column);
-    image_tensor_require_chw(input,"image tensor geometry",line,column);
-    const auto channels=static_cast<std::size_t>(input.shape[0]);
-    const auto ih=static_cast<std::size_t>(input.shape[1]);
-    const auto iw=static_cast<std::size_t>(input.shape[2]);
-    std::size_t oh=ih,ow=iw,param0=0,param1=0;
-
-    if(operation==1){
-        if(p0<0||p1<0||p2<=0||p3<=0)
-            tensor_fail("image crop requires nonnegative origin and positive size",line,column);
-        if(p0>=input.shape[1]||p1>=input.shape[2]||
-           p2>input.shape[1]-p0||p3>input.shape[2]-p1)
-            tensor_fail("image crop rectangle exceeds the image",line,column);
-        param0=static_cast<std::size_t>(p0);
-        param1=static_cast<std::size_t>(p1);
-        oh=static_cast<std::size_t>(p2);
-        ow=static_cast<std::size_t>(p3);
-    }else if(operation==2){
-        if(p0<=0||p1<=0)
-            tensor_fail("image resize requires positive output dimensions",line,column);
-        oh=static_cast<std::size_t>(p0);
-        ow=static_cast<std::size_t>(p1);
-    }else if(operation==3||operation==4||operation==7){
-    }else if(operation==5||operation==6){
-        oh=iw; ow=ih;
-    }else{
-        tensor_fail("unknown image tensor geometry operation",line,column);
-    }
-
-    std::vector<long long> shape{
-        static_cast<long long>(channels),
-        static_cast<long long>(oh),
-        static_cast<long long>(ow)};
-    auto* result=image_tensor_output(dtype,shape,input.storage->device,line,column);
-
-    if(!tensor_on_cpu(*input.storage)){
-        TensorStorage* materialized=nullptr;
-        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
-        std::string backend_error;
-        const bool ok=quidra::device::compute_image_geometry(
-            result->storage->gpu_buffer,source->gpu_buffer,dtype,
-            channels,ih,iw,oh,ow,operation,param0,param1,backend_error);
-        if(materialized) tensor_storage_release(materialized);
-        if(!ok){
-            quidra_tensor_drop(result);
-            tensor_fail(backend_error.c_str(),line,column);
-        }
-        return result;
-    }
-
-    const auto bytes=tensor_dtype_bytes(dtype);
-    const auto output_count=channels*oh*ow;
-    for(std::size_t linear=0;linear<output_count;++linear){
-        const auto x=linear%ow;
-        const auto y=(linear/ow)%oh;
-        const auto c=linear/(ow*oh);
-        std::size_t sy=0,sx=0;
-        if(operation==1){sy=param0+y;sx=param1+x;}
-        else if(operation==2){sy=y*ih/oh;sx=x*iw/ow;}
-        else if(operation==3){sy=y;sx=iw-1-x;}
-        else if(operation==4){sy=ih-1-y;sx=x;}
-        else if(operation==5){sy=ih-1-x;sx=y;}
-        else if(operation==7){sy=ih-1-y;sx=iw-1-x;}
-        else {sy=x;sx=iw-1-y;}
-        const auto source_index=tensor_storage_index(input,(c*ih+sy)*iw+sx);
-        std::memcpy(
-            result->storage->data.data()+linear*bytes,
-            input.storage->data.data()+source_index*bytes,bytes);
-    }
-    return result;
-}
-
-extern "C" void* quidra_image_tensor_grayscale(
-    void* raw,unsigned long long line,unsigned long long column) {
-    if(!raw) tensor_fail("image grayscale received a null tensor",line,column);
-    auto& input=*static_cast<TensorValue*>(raw);
-    image_tensor_require_chw(input,"image grayscale",line,column);
-    if(input.storage->dtype!=5)
-        tensor_fail("image grayscale requires tensor<uint8>",line,column);
-    const auto channels=static_cast<std::size_t>(input.shape[0]);
-    const auto height=static_cast<std::size_t>(input.shape[1]);
-    const auto width=static_cast<std::size_t>(input.shape[2]);
-    if(channels!=1&&channels!=3&&channels!=4)
-        tensor_fail("image grayscale requires 1, 3, or 4 channels",line,column);
-    std::vector<long long> shape{1,input.shape[1],input.shape[2]};
-    auto* result=image_tensor_output(5,shape,input.storage->device,line,column);
-    if(!tensor_on_cpu(*input.storage)){
-        TensorStorage* materialized=nullptr;
-        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
-        std::string backend_error;
-        const bool ok=quidra::device::compute_image_grayscale(
-            result->storage->gpu_buffer,source->gpu_buffer,
-            channels,height,width,backend_error);
-        if(materialized) tensor_storage_release(materialized);
-        if(!ok){
-            quidra_tensor_drop(result);
-            tensor_fail(backend_error.c_str(),line,column);
-        }
-        return result;
-    }
-    const auto pixels=height*width;
-    for(std::size_t i=0;i<pixels;++i){
-        std::uint8_t value{};
-        if(channels==1){
-            const auto index=tensor_storage_index(input,i);
-            value=input.storage->data[index];
-        }else{
-            const auto ri=tensor_storage_index(input,i);
-            const auto gi=tensor_storage_index(input,pixels+i);
-            const auto bi=tensor_storage_index(input,2*pixels+i);
-            const double luminance=
-                0.299*input.storage->data[ri]+
-                0.587*input.storage->data[gi]+
-                0.114*input.storage->data[bi];
-            value=static_cast<std::uint8_t>(
-                std::clamp<long long>(std::llround(luminance),0,255));
-        }
-        result->storage->data[i]=value;
-    }
-    return result;
-}
-
-extern "C" void* quidra_image_tensor_threshold(
-    void* raw,std::uint8_t cutoff,std::uint8_t low,std::uint8_t high,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) tensor_fail("image threshold received a null tensor",line,column);
-    auto& input=*static_cast<TensorValue*>(raw);
-    image_tensor_require_chw(input,"image threshold",line,column);
-    if(input.storage->dtype!=5)
-        tensor_fail("image threshold requires tensor<uint8>",line,column);
-    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
-    const auto count=tensor_logical_count(input);
-    if(!tensor_on_cpu(*input.storage)){
-        TensorStorage* materialized=nullptr;
-        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
-        std::string backend_error;
-        const bool ok=quidra::device::compute_image_threshold(
-            result->storage->gpu_buffer,source->gpu_buffer,count,
-            cutoff,low,high,backend_error);
-        if(materialized) tensor_storage_release(materialized);
-        if(!ok){
-            quidra_tensor_drop(result);
-            tensor_fail(backend_error.c_str(),line,column);
-        }
-        return result;
-    }
-    for(std::size_t i=0;i<count;++i){
-        const auto source=tensor_storage_index(input,i);
-        result->storage->data[i]=input.storage->data[source]>=cutoff?high:low;
-    }
-    return result;
-}
-
-extern "C" void* quidra_image_tensor_blur(
-    void* raw,long long radius,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) tensor_fail("image blur received a null tensor",line,column);
-    auto& input=*static_cast<TensorValue*>(raw);
-    image_tensor_require_chw(input,"image blur",line,column);
-    if(input.storage->dtype!=5)
-        tensor_fail("image blur requires tensor<uint8>",line,column);
-    if(radius<0) tensor_fail("image blur radius must be nonnegative",line,column);
-    const auto channels=static_cast<std::size_t>(input.shape[0]);
-    const auto height=static_cast<std::size_t>(input.shape[1]);
-    const auto width=static_cast<std::size_t>(input.shape[2]);
-    const auto max_radius=std::max(height-1,width-1);
-    const auto r=std::min(static_cast<std::size_t>(radius),max_radius);
-    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
-    if(!tensor_on_cpu(*input.storage)){
-        TensorStorage* materialized=nullptr;
-        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
-        std::string backend_error;
-        const bool ok=quidra::device::compute_image_blur(
-            result->storage->gpu_buffer,source->gpu_buffer,
-            channels,height,width,r,backend_error);
-        if(materialized) tensor_storage_release(materialized);
-        if(!ok){
-            quidra_tensor_drop(result);
-            tensor_fail(backend_error.c_str(),line,column);
-        }
-        return result;
-    }
-    for(std::size_t c=0;c<channels;++c)
-        for(std::size_t y=0;y<height;++y)
-            for(std::size_t x=0;x<width;++x){
-                std::uint64_t total=0,count=0;
-                const auto y0=y>r?y-r:0;
-                const auto y1=std::min(height-1,y+std::min(r,height-1-y));
-                const auto x0=x>r?x-r:0;
-                const auto x1=std::min(width-1,x+std::min(r,width-1-x));
-                for(std::size_t sy=y0;sy<=y1;++sy)
-                    for(std::size_t sx=x0;sx<=x1;++sx){
-                        const auto source=tensor_storage_index(
-                            input,(c*height+sy)*width+sx);
-                        total+=input.storage->data[source];
-                        ++count;
-                    }
-                result->storage->data[(c*height+y)*width+x]=
-                    static_cast<std::uint8_t>(total/count);
-            }
-    return result;
-}
-
-extern "C" void* quidra_image_tensor_filter(
-    void* raw,void* kernel_raw,long long divisor,long long offset,
-    unsigned long long line,unsigned long long column) {
-    if(!raw||!kernel_raw)
-        tensor_fail("image filter received a null tensor",line,column);
-    auto& input=*static_cast<TensorValue*>(raw);
-    auto& kernel=*static_cast<TensorValue*>(kernel_raw);
-    image_tensor_require_chw(input,"image filter",line,column);
-    tensor_require_initialized(kernel,line,column);
-    if(input.storage->dtype!=5||kernel.storage->dtype!=1||kernel.shape.size()!=2)
-        tensor_fail("image filter requires tensor<uint8> pixels and a rank-2 tensor<int> kernel",line,column);
-    if(kernel.shape[0]<=0||kernel.shape[1]<=0)
-        tensor_fail("image filter requires positive kernel dimensions",line,column);
-    if(divisor==0) tensor_fail("image filter divisor must not be zero",line,column);
-    if(input.storage->device!=kernel.storage->device)
-        tensor_fail("image filter tensors must be on the same device",line,column);
-    const auto channels=static_cast<std::size_t>(input.shape[0]);
-    const auto height=static_cast<std::size_t>(input.shape[1]);
-    const auto width=static_cast<std::size_t>(input.shape[2]);
-    const auto kh=static_cast<std::size_t>(kernel.shape[0]);
-    const auto kw=static_cast<std::size_t>(kernel.shape[1]);
-    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
-
-    if(!tensor_on_cpu(*input.storage)){
-        TensorStorage* input_mat=nullptr;
-        TensorStorage* kernel_mat=nullptr;
-        const auto* input_store=image_tensor_dense_gpu(input,input_mat,line,column);
-        const auto* kernel_store=image_tensor_dense_gpu(kernel,kernel_mat,line,column);
-        std::string backend_error;
-        const bool ok=quidra::device::compute_image_filter(
-            result->storage->gpu_buffer,input_store->gpu_buffer,kernel_store->gpu_buffer,
-            channels,height,width,kh,kw,divisor,offset,backend_error);
-        if(input_mat) tensor_storage_release(input_mat);
-        if(kernel_mat) tensor_storage_release(kernel_mat);
-        if(!ok){
-            quidra_tensor_drop(result);
-            tensor_fail(backend_error.c_str(),line,column);
-        }
-        return result;
-    }
-
-    const auto cy=kh/2,cx=kw/2;
-    for(std::size_t c=0;c<channels;++c)
-        for(std::size_t y=0;y<height;++y)
-            for(std::size_t x=0;x<width;++x){
-                std::int64_t total=0;
-                for(std::size_t ky=0;ky<kh;++ky){
-                    const auto sy=static_cast<long long>(y)+
-                        static_cast<long long>(ky)-static_cast<long long>(cy);
-                    if(sy<0||sy>=static_cast<long long>(height)) continue;
-                    for(std::size_t kx=0;kx<kw;++kx){
-                        const auto sx=static_cast<long long>(x)+
-                            static_cast<long long>(kx)-static_cast<long long>(cx);
-                        if(sx<0||sx>=static_cast<long long>(width)) continue;
-                        const auto pi=tensor_storage_index(
-                            input,(c*height+static_cast<std::size_t>(sy))*width+
-                                  static_cast<std::size_t>(sx));
-                        const auto ki=tensor_storage_index(kernel,ky*kw+kx);
-                        std::int64_t weight{};
-                        std::memcpy(&weight,kernel.storage->data.data()+ki*8,8);
-                        std::int64_t product{},next{};
-                        if(!tensor_mul_checked(
-                               static_cast<std::int64_t>(input.storage->data[pi]),
-                               weight,product)||
-                           !tensor_add_checked(total,product,next)){
-                            quidra_tensor_drop(result);
-                            tensor_fail("image filter integer arithmetic overflow",line,column);
-                        }
-                        total=next;
-                    }
-                }
-                if(total==std::numeric_limits<std::int64_t>::min()&&divisor==-1){
-                    quidra_tensor_drop(result);
-                    tensor_fail("image filter integer arithmetic overflow",line,column);
-                }
-                const auto divided=total/divisor;
-                long long adjusted{};
-                if(!tensor_add_checked(divided,offset,adjusted)){
-                    quidra_tensor_drop(result);
-                    tensor_fail("image filter integer arithmetic overflow",line,column);
-                }
-                const auto clamped=std::clamp<std::int64_t>(adjusted,0,255);
-                result->storage->data[(c*height+y)*width+x]=
-                    static_cast<std::uint8_t>(clamped);
-            }
-    return result;
-}
-
-extern "C" void* quidra_image_tensor_morphology(
-    void* raw,int dtype,long long radius,bool dilate,
-    unsigned long long line,unsigned long long column) {
-    if(!raw) tensor_fail("image morphology received a null tensor",line,column);
-    auto& input=*static_cast<TensorValue*>(raw);
-    if(input.storage->dtype!=dtype)
-        tensor_fail("image morphology dtype mismatch",line,column);
-    image_tensor_require_chw(input,"image morphology",line,column);
-    if(radius<0)
-        tensor_fail("image morphology radius must be nonnegative",line,column);
-    const auto channels=static_cast<std::size_t>(input.shape[0]);
-    const auto height=static_cast<std::size_t>(input.shape[1]);
-    const auto width=static_cast<std::size_t>(input.shape[2]);
-    const auto max_radius=std::max(height-1,width-1);
-    const auto r=std::min(static_cast<std::size_t>(radius),max_radius);
-    auto* result=image_tensor_output(dtype,input.shape,input.storage->device,line,column);
-    if(!tensor_on_cpu(*input.storage)){
-        TensorStorage* materialized=nullptr;
-        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
-        std::string backend_error;
-        const bool ok=quidra::device::compute_image_morphology(
-            result->storage->gpu_buffer,source->gpu_buffer,dtype,
-            channels,height,width,r,dilate,backend_error);
-        if(materialized) tensor_storage_release(materialized);
-        if(!ok){
-            quidra_tensor_drop(result);
-            tensor_fail(backend_error.c_str(),line,column);
-        }
-        return result;
-    }
-    switch(dtype){
-        case 1:image_morphology_cpu<std::int64_t>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 2:image_morphology_cpu<std::int8_t>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 3:image_morphology_cpu<std::int16_t>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 4:image_morphology_cpu<std::int32_t>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 5:image_morphology_cpu<std::uint8_t>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 6:image_morphology_cpu<std::uint16_t>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 7:image_morphology_cpu<std::uint32_t>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 8:image_morphology_cpu<std::uint64_t>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 9:image_morphology_cpu<double>(input,*result->storage,channels,height,width,r,dilate);break;
-        case 10:image_morphology_cpu<float>(input,*result->storage,channels,height,width,r,dilate);break;
-        default:
-            quidra_tensor_drop(result);
-            tensor_fail("image morphology received an unsupported dtype",line,column);
-    }
-    return result;
 }

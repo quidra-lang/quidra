@@ -85,7 +85,7 @@ def make_workspace(tmp: Path) -> Path:
         },
         "evaluated": {
             "commit_sha": "0" * 40,
-            "compiler_version": "synthetic",
+            "version": "synthetic",
             "quidra_execution_identity": quidra_identity,
         },
         "created_at_utc": "2026-09-22T00:00:00+00:00",

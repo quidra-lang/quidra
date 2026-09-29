@@ -1,4 +1,6 @@
 #include "quidra/source_tools.hpp"
+#include "quidra/lexer.hpp"
+#include "quidra/parser.hpp"
 
 #include <algorithm>
 #include <array>
@@ -132,6 +134,7 @@ const char* stmt_kind(const Stmt& stmt) {
         else if constexpr (std::is_same_v<T, LoopControlStmt>) return node.is_continue ? "continue" : "break";
         else if constexpr (std::is_same_v<T, ExprStmt>) return "expression_statement";
         else if constexpr (std::is_same_v<T, IfStmt>) return "if";
+        else if constexpr (std::is_same_v<T, MainGuardStmt>) return "main_guard";
         else if constexpr (std::is_same_v<T, WhileStmt>) return "while";
         else if constexpr (std::is_same_v<T, ForStmt>) return "for";
         else if constexpr (std::is_same_v<T, MatchStmt>) return "match";
@@ -141,12 +144,12 @@ const char* stmt_kind(const Stmt& stmt) {
 
 struct NodeCollector {
     std::string_view source;
-    const CheckedProgram& checked;
+    const CheckedProgram* checked{};
     std::vector<SourceNode> nodes;
     std::vector<std::string> parents;
     std::size_t next_id{};
 
-    NodeCollector(std::string_view source_text, const CheckedProgram& checked_program)
+    NodeCollector(std::string_view source_text, const CheckedProgram* checked_program)
         : source(source_text), checked(checked_program) {}
 
     std::string emit(std::string_view kind, SourceSpan span,
@@ -173,9 +176,11 @@ struct NodeCollector {
 
     void expr(const Expr& expression) {
         std::optional<Type> type;
-        if (const auto found = checked.expr_types.find(&expression);
-            found != checked.expr_types.end()) {
-            type = found->second;
+        if (checked) {
+            if (const auto found = checked->expr_types.find(&expression);
+                found != checked->expr_types.end()) {
+                type = found->second;
+            }
         }
         const auto id = emit(expr_kind(expression), expression.span, type);
         parents.push_back(id);
@@ -215,9 +220,11 @@ struct NodeCollector {
         std::optional<Type> inferred;
         std::optional<std::string> authority;
         if (const auto* binding = std::get_if<BindingStmt>(&statement.data)) {
-            if (const auto it = checked.binding_types.find(&statement);
-                it != checked.binding_types.end()) {
-                inferred = it->second;
+            if (checked) {
+                if (const auto it = checked->binding_types.find(&statement);
+                    it != checked->binding_types.end()) {
+                    inferred = it->second;
+                }
             }
             if (binding->reference) {
                 authority = binding->is_const ? "read_only_reference" : "read_write_reference";
@@ -241,6 +248,8 @@ struct NodeCollector {
                 expr(*node.condition);
                 for (const auto& child : node.then_body) stmt(*child);
                 for (const auto& child : node.else_body) stmt(*child);
+            } else if constexpr (std::is_same_v<T, MainGuardStmt>) {
+                for (const auto& child : node.body) stmt(*child);
             } else if constexpr (std::is_same_v<T, WhileStmt>) {
                 expr(*node.condition);
                 for (const auto& child : node.body) stmt(*child);
@@ -256,7 +265,14 @@ struct NodeCollector {
     }
 
     void function(const FunctionDecl& fn, const std::string& signature_name) {
-        const auto id = emit("function", fn.span, checked.functions.at(signature_name).result);
+        std::optional<Type> result;
+        if (checked) {
+            if (const auto found = checked->functions.find(signature_name);
+                found != checked->functions.end()) {
+                result = found->second.result;
+            }
+        }
+        const auto id = emit("function", fn.span, result);
         parents.push_back(id);
         for (const auto& p : fn.parameters) if(p.default_value) expr(*p.default_value);
         for (const auto& statement : fn.body) stmt(*statement);
@@ -266,14 +282,23 @@ struct NodeCollector {
     void class_decl(const ClassDecl& declaration) {
         const auto id = emit("class", declaration.span, Type::class_type(declaration.name));
         parents.push_back(id);
-        const auto& info = checked.classes.at(declaration.name);
+        const ClassTypeInfo* info = nullptr;
+        if (checked) {
+            if (const auto found = checked->classes.find(declaration.name);
+                found != checked->classes.end()) {
+                info = &found->second;
+            }
+        }
         for (const auto& field : declaration.fields) {
-            const auto it = std::find_if(info.fields.begin(), info.fields.end(),
-                                         [&](const auto& item) { return item.name == field.name; });
+            std::optional<Type> field_type;
+            if (info) {
+                const auto it = std::find_if(
+                    info->fields.begin(), info->fields.end(),
+                    [&](const auto& item) { return item.name == field.name; });
+                if (it != info->fields.end()) field_type = it->type;
+            }
             const auto field_id = emit(
-                "field", field.span,
-                it == info.fields.end() ? std::optional<Type>{}
-                                        : std::optional<Type>{it->type},
+                "field", field.span, field_type,
                 field.is_const ? std::optional<std::string>{"const_value"}
                                : std::optional<std::string>{});
             if (field.default_value) {
@@ -321,8 +346,27 @@ std::string sha256_hex(std::string_view text) {
     return out.str();
 }
 
+SourceInspection inspect_syntax_source(std::string_view source) {
+    Parser parser(Lexer(source).scan(), 20);
+    const auto program = parser.parse();
+    NodeCollector collector{source, nullptr};
+    const auto belongs_to_root = [&](SourceSpan span) {
+        return span.start.offset <= source.size() && span.end.offset <= source.size();
+    };
+    for (const auto& declaration : program.classes) {
+        if (belongs_to_root(declaration.span)) collector.class_decl(declaration);
+    }
+    for (const auto& fn : program.functions) {
+        if (belongs_to_root(fn.span)) collector.function(fn, fn.name);
+    }
+    for (const auto& statement : program.statements) {
+        if (belongs_to_root(statement->span)) collector.stmt(*statement);
+    }
+    return SourceInspection{sha256_hex(source), std::move(collector.nodes)};
+}
+
 SourceInspection inspect_source(std::string_view source, const CheckedProgram& checked) {
-    NodeCollector collector{source, checked};
+    NodeCollector collector{source, &checked};
     const auto belongs_to_root = [&](SourceSpan span) {
         return span.start.offset <= source.size() && span.end.offset <= source.size();
     };
@@ -333,6 +377,8 @@ SourceInspection inspect_source(std::string_view source, const CheckedProgram& c
         if (belongs_to_root(fn.span)) collector.function(fn, fn.name);
     }
     for (const auto& statement : checked.program.statements) {
+        if (const auto* guard = std::get_if<MainGuardStmt>(&statement->data);
+            guard && !guard->active) continue;
         if (belongs_to_root(statement->span)) collector.stmt(*statement);
     }
     return SourceInspection{sha256_hex(source), std::move(collector.nodes)};

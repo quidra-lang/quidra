@@ -1,10 +1,11 @@
-(* Quidra 0.2. INDENT/DEDENT use four spaces per level.
+(* Quidra grammar. The release version is owned by project.toml.
+   INDENT/DEDENT use four spaces per level.
    Bracketed newlines are insignificant. String backslashes are literal;
    physical CRLF inside a string literal is normalized to LF, so checkout
    line-ending style does not change string data. Control characters use
    ENTER, TAB, HOME, QUOTE, BACKSPACE, PAGE, VTAB, and BELL. *)
 
-program          = { NEWLINE | import_decl | extern_decl | cli_decl | enum_decl | class_decl | function | statement }, EOF ;
+program          = { NEWLINE | import_decl | extern_decl | cli_decl | enum_decl | class_decl | function_decl | main_guard | statement }, EOF ;
 
 import_decl      = [ "public" ], "import", identifier,
                    [ "=", ( string | identifier ) ], statement_end ;
@@ -23,14 +24,20 @@ enum_decl        = "enum", identifier, NEWLINE, INDENT,
                    enum_variant, { enum_variant | NEWLINE }, DEDENT ;
 enum_variant     = identifier, [ "(", type, ")" ], statement_end ;
 
-class_decl       = "class", identifier, [ type_parameters ], NEWLINE, INDENT,
+class_decl       = class_prototype | class_definition ;
+qualified_identifier = identifier, { ".", identifier } ;
+class_prototype  = "class", qualified_identifier, [ type_parameters ], ";", statement_end ;
+class_definition = "class", qualified_identifier, [ type_parameters ], NEWLINE, INDENT,
                    class_member, { class_member | NEWLINE }, DEDENT ;
-class_member     = [ "private" ], ( field | constructor | function ) ;
+class_member     = [ "private" ], ( field | constructor | function_definition ) ;
 constructor      = [ type, "|", "error" ], "construct", "(", [ parameters ], ")", suite ;
 field            = [ "const" ], type, identifier, [ "=", expression ], statement_end ;
 
-function         = type, identifier, [ type_parameters ],
-                   "(", [ parameters ], ")", suite ;
+function_decl    = function_prototype | function_definition ;
+function_prototype = function_signature, ";", statement_end ;
+function_definition = function_signature, suite ;
+function_signature = type, identifier, [ type_parameters ],
+                   "(", [ parameters ], ")" ;
 type_parameters  = "<", type_parameter, { ",", type_parameter }, ">" ;
 type_parameter   = identifier, [ ":", generic_constraint ] ;
 generic_constraint = "numeric" | "integer" | "floating" | "ordered" | "equatable" ;
@@ -39,10 +46,9 @@ parameter        = [ "const" ], type, [ "&" ], identifier, [ "=", expression ] ;
 
 type             = array_type, { "|", array_type } ;
 array_type       = type_atom, { "[", [ integer_expression ], "]" } ;
-type_atom        = function_type | tensor_type | neural_type | qualified_identifier, [ type_arguments ] ;
+type_atom        = function_type | tensor_type | qualified_identifier, [ type_arguments ] ;
 function_type    = "fn", "<", type, ">", "(", [ type, { ",", type } ], ")" ;
 tensor_type      = "tensor", "<", type, ">", [ shape_pattern ] ;
-neural_type      = "neural", [ ( type_arguments, [ shape_pattern ] ) | shape_pattern ] ;
 shape_pattern    = "<", shape_axis, { ",", shape_axis }, ">" ;
 shape_axis       = integer_expression | "_" ;
 integer_expression = integer_term, { ( "+" | "-" ), integer_term } ;
@@ -53,6 +59,7 @@ type_arguments   = "<", type, { ",", type }, ">" ;
 qualified_identifier = identifier, { ".", identifier } ;
 
 suite            = NEWLINE, INDENT, statement, { statement | NEWLINE }, DEDENT ;
+main_guard       = "if", "main", suite ;
 statement        = binding | assignment | address_assignment | return_stmt |
                    loop_control_stmt | if_stmt | while_stmt | for_stmt | match_stmt | expr_stmt ;
 binding          = [ "const" ], type, [ "&" ], identifier,
@@ -112,7 +119,12 @@ statement_end    = NEWLINE | EOF ;
      Lowercase and/or/not remain bool-only logical operators. *)
 
 (* Static/frontend constraints:
-   - import is top-level only; imported modules contain declarations only;
+   - import is top-level only; imported modules contain declarations and may contain
+     top-level if main guards, whose bodies are checked but inactive when imported;
+     other executable top-level statements are root-only;
+   - top-level function/class names are downward-visible unless introduced earlier by
+     a same-file prototype; ';' is reserved for those prototypes, which require one
+     matching later definition; methods and enums do not have prototype forms;
    - standard namespaces are always visible and cannot be imported;
    - unquoted non-standard import targets name installed packages; quoted ./ and ../
      imports are importer-relative and quoted @/ imports are command-working-directory-relative;
@@ -127,9 +139,6 @@ statement_end    = NEWLINE | EOF ;
      created and their nonnegative results are captured for that binding;
    - array dimensions use the same integer-expression rule. `[]` remains a
      runtime-sized dimension, while `[expr]` captures expr once for the binding;
-   - `neural<D0, D1, ...>` means `neural<float32><D0, D1, ...>`; an explicit
-     floating dtype is written `neural<T><D0, D1, ...>` and uses the same
-     exact-rank/captured-extent semantics as tensor;
    - generic classes require explicit type arguments; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;
@@ -137,11 +146,15 @@ statement_end    = NEWLINE | EOF ;
      function to it requires the complete explicit function-value context and an exact
      by-value signature; extern functions, reference-parameter functions, and bound
      methods do not implicitly become function values;
-   - `T(...)` is a constructor call of class T: it runs one of the class's `construct`
-     members, chosen by the call's shape and then by argument types, and an ambiguous call
-     is invalid. `construct(...)` names no type; a fallible one is spelled
+   - `T(...)` is a constructor call of class T: a class has at most one `construct`
+     member, and alternative call forms use that constructor's default parameters rather
+     than overload resolution. `construct(...)` names no type; a fallible one is spelled
      `T | error construct(...)`. A class-typed declaration without an initializer creates
      the value with its field defaults; fields may remain uninitialized until assigned;
+   - in an initialized local binding, bare `auto` infers the non-`error` success side and
+     fails fast if the initializer produces `error`; `auto | error` is the only union form
+     containing `auto` and explicitly retains that failure channel. Forms such as
+     `error | auto` and `auto | none` are invalid;
    - class members are public by default. private is a class-member-only prefix, valid on
      constructors too; private access is restricted to methods declared by the owning class;
    - a string literal placeholder `{&storage}` is an input target and is valid only as

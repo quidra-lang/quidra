@@ -85,28 +85,23 @@ int main() {
     {
         auto shaped = parse(
             "tensor<float32><3, _, _> image\n"
-            "neural<3, _, _> graph\n"
-            "neural<float><_, 768> wide\n"
+            "tensor<float><_, 768> wide\n"
         );
         const auto& image = std::get<BindingStmt>(shaped.statements[0]->data).declared_type;
-        const auto& graph = std::get<BindingStmt>(shaped.statements[1]->data).declared_type;
-        const auto& wide = std::get<BindingStmt>(shaped.statements[2]->data).declared_type;
+        const auto& wide = std::get<BindingStmt>(shaped.statements[1]->data).declared_type;
         require(image.arguments.size() == 1 &&
                 image.tensor_shape_prefix == std::vector<long long>({3, -1, -1}),
                 "tensor exact shape pattern AST");
-        require(graph.arguments.empty() &&
-                graph.tensor_shape_prefix == std::vector<long long>({3, -1, -1}),
-                "neural default-float shape shorthand AST");
         require(wide.arguments.size() == 1 &&
                 wide.tensor_shape_prefix == std::vector<long long>({-1, 768}),
-                "neural explicit dtype shape pattern AST");
+                "tensor explicit dtype shape pattern AST");
     }
     {
         auto extents = parse(
             "int n = 3\n"
             "int m = 4\n"
             "tensor<float><n * 2 + 1, _, 224> image\n"
-            "neural<float><n * m, 224> graph\n"
+            "tensor<float><n * m, 224> graph\n"
             "float[n * m] row\n"
             "float[][n * m] nested\n"
         );
@@ -128,7 +123,7 @@ int main() {
         require(graph.tensor_shape_prefix ==
                     std::vector<long long>({-2, 224}) &&
                 graph.tensor_shape_expressions[0],
-                "neural integer-expression shape AST");
+                "tensor graph integer-expression shape AST");
         require(row.dimensions == std::vector<long long>({-2}) &&
                 row.dimension_expressions.size() == 1 &&
                 row.dimension_expressions[0],
@@ -227,7 +222,7 @@ int main() {
     }
 
     {
-        reject("import neural += package\n");
+        reject("import tensor += package\n");
     }
 
     {

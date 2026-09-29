@@ -293,7 +293,7 @@ void publish_package(
 }
 
 SemanticVersion current_quidra_version() {
-    return parse_semantic_version(compiler_version);
+    return parse_semantic_version(version);
 }
 
 void validate_manifest_name(const PackageManifest& manifest) {
@@ -322,7 +322,7 @@ void require_current_quidra(const PackageManifest& manifest) {
         throw std::runtime_error(
             manifest.name + " " + manifest.version.str() +
             " requires Quidra " + found->second.text +
-            "; installed Quidra is " + std::string(compiler_version));
+            "; installed Quidra is " + std::string(version));
     }
 }
 
@@ -561,9 +561,9 @@ void hydrate_release_asset(
 
 void clone_release(
     const std::string& repository,
-    const SemanticVersion& version,
+    const SemanticVersion& release_version,
     const fs::path& destination) {
-    const auto tag = "v" + version.str();
+    const auto tag = "v" + release_version.str();
     (void)run_git_capture({
         "clone",
         "--quiet",
@@ -754,9 +754,9 @@ void install_remote(std::string_view raw_spec) {
         const auto found =
             std::find_if(
                 versions.begin(), versions.end(),
-                [&](const auto& version) {
+                [&](const auto& candidate_version) {
                     return same_version(
-                        version, *spec.requested_version);
+                        candidate_version, *spec.requested_version);
                 });
 
         if (found == versions.end()) {
@@ -777,18 +777,18 @@ void install_remote(std::string_view raw_spec) {
     fs::path selected_source;
     std::string newest_requirement;
 
-    for (const auto& version : candidates) {
+    for (const auto& candidate_version : candidates) {
         const auto source =
-            temp.path() / ("source-" + version.str());
+            temp.path() / ("source-" + candidate_version.str());
 
         clone_release(
-            spec.repository, version, source);
+            spec.repository, candidate_version, source);
         require_package_source(source);
 
         auto manifest =
             read_package_manifest(source);
         validate_release_manifest(
-            manifest, spec, version);
+            manifest, spec, candidate_version);
 
         const auto& quidra_requirement =
             require_quidra_requirement(manifest);
@@ -810,13 +810,13 @@ void install_remote(std::string_view raw_spec) {
                     " requires Quidra " +
                     quidra_requirement.text +
                     "; installed Quidra is " +
-                    std::string(compiler_version));
+                    current_quidra_version().str());
             }
             continue;
         }
 
         selected_manifest = std::move(manifest);
-        selected_version = version;
+        selected_version = candidate_version;
         selected_source = source;
         break;
     }
@@ -828,7 +828,7 @@ void install_remote(std::string_view raw_spec) {
                  ? *spec.expected_distribution_name
                  : spec.expected_import_name) +
             " is compatible with Quidra " +
-            std::string(compiler_version);
+            std::string(version);
 
         if (!newest_requirement.empty()) {
             message +=

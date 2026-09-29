@@ -12,11 +12,11 @@ namespace fs = std::filesystem;
 int main() {
     using namespace quidra;
 
-    const auto version = parse_semantic_version("0.2.3");
-    assert(version.major == 0);
-    assert(version.minor == 2);
-    assert(version.patch == 3);
-    assert(version.str() == "0.2.3");
+    const auto parsed_version = parse_semantic_version("0.2.3");
+    assert(parsed_version.major == 0);
+    assert(parsed_version.minor == 2);
+    assert(parsed_version.patch == 3);
+    assert(parsed_version.str() == "0.2.3");
 
     const auto requirement =
         parse_version_requirement(">=0.2.0 <0.3.0");

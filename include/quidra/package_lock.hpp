@@ -9,6 +9,7 @@ namespace quidra {
 
 struct PackageLockEntry {
     std::string distribution_name;
+    bool distribution_name_explicit{};
     std::string version;
     std::string sha256;
 };

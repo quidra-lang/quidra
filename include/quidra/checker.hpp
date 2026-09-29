@@ -68,9 +68,9 @@ struct ClassTypeInfo {
     std::vector<ClassFieldType> fields;
     std::unordered_map<std::string, std::string> methods;
     std::unordered_map<std::string, std::string> private_methods;
-    // Internal function names of the class's construct(...) members, in
-    // declaration order. A constructor is an ordinary function whose result is
-    // the class (or the class joined with error); its receiver is a local.
+    // Internal function name of the class's sole construct(...) member, stored
+    // in a vector for the existing checked-program ABI. Frontend validation
+    // guarantees this contains at most one entry.
     std::vector<std::string> constructors;
     std::unordered_set<std::string> private_constructors;
 };
@@ -106,6 +106,7 @@ struct CheckedProgram {
     std::unordered_map<const Expr*, Type> expr_types;
     std::unordered_map<const Expr*, Type> raw_types;
     std::unordered_map<const Expr*, FieldAccessInfo> field_accesses;
+    std::unordered_set<const Expr*> tensor_grad_accesses;
     std::unordered_map<const Expr*, MethodCallInfo> method_calls;
     std::unordered_map<const Expr*, CallResolution> call_resolutions;
     std::unordered_map<const Expr*, std::string> function_references;
@@ -136,6 +137,7 @@ private:
     std::unordered_map<const Expr*, Type> expr_types_;
     std::unordered_map<const Expr*, Type> raw_types_;
     std::unordered_map<const Expr*, FieldAccessInfo> field_accesses_;
+    std::unordered_set<const Expr*> tensor_grad_accesses_;
     std::unordered_map<const Expr*, MethodCallInfo> method_calls_;
     std::unordered_map<const Expr*, CallResolution> call_resolutions_;
     std::unordered_map<const Expr*, std::string> function_references_;

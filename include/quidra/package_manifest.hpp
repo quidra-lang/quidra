@@ -26,7 +26,7 @@ struct VersionClause {
 struct VersionRequirement {
     std::string text;
     std::vector<VersionClause> clauses;
-    bool matches(const SemanticVersion& version) const;
+    bool matches(const SemanticVersion& candidate_version) const;
 };
 
 // The names a package declares in project.toml. quidra.package's `name` is the

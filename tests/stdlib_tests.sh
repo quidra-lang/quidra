@@ -53,56 +53,56 @@ for mode in missing invalid unknown duplicate; do
 done
 
 cat > "$TMP/file.qui" <<QUI
-auto written = file.write("$TMP/source.txt", "hello")
+auto | error written = file.write("$TMP/source.txt", "hello")
 match written
     void
         print("write")
     error e
         print(e)
 
-auto read = file.read("$TMP/source.txt")
+auto | error read = file.read("$TMP/source.txt")
 match read
     string value
         print(value)
     error e
         print(e)
 
-auto present = file.exists("$TMP/source.txt")
+auto | error present = file.exists("$TMP/source.txt")
 match present
     bool value
         print(value)
     error e
         print(e)
 
-auto copied = file.copy("$TMP/source.txt", "$TMP/copied.txt")
+auto | error copied = file.copy("$TMP/source.txt", "$TMP/copied.txt")
 match copied
     void
         print("copy")
     error e
         print(e)
 
-auto moved = file.move("$TMP/copied.txt", "$TMP/moved.txt")
+auto | error moved = file.move("$TMP/copied.txt", "$TMP/moved.txt")
 match moved
     void
         print("move")
     error e
         print(e)
 
-auto removed = file.remove("$TMP/moved.txt")
+auto | error removed = file.remove("$TMP/moved.txt")
 match removed
     void
         print("remove")
     error e
         print(e)
 
-auto absent = file.exists("$TMP/moved.txt")
+auto | error absent = file.exists("$TMP/moved.txt")
 match absent
     bool value
         print(value)
     error e
         print(e)
 
-auto directory = file.mkdir("$TMP/new-directory")
+auto | error directory = file.mkdir("$TMP/new-directory")
 match directory
     void
         print("mkdir")
@@ -115,17 +115,17 @@ QUI
 [[ -d "$TMP/new-directory" ]]
 
 cat > "$TMP/file-handle.qui" <<QUI
-auto opened = file.open("$TMP/source.txt")
+auto | error opened = file.open("$TMP/source.txt")
 match opened
     file.Handle handle
-        auto content = handle.read()
+        auto | error content = handle.read()
         match content
             string value
                 print(value)
             error problem
                 print("read-error")
         handle.close()
-        auto closed = handle.read()
+        auto | error closed = handle.read()
         match closed
             string value
                 print("unexpected")
@@ -138,12 +138,12 @@ file_handle_expected=$(printf 'hello\nclosed')
 [[ "$("$QUIDRA" "$TMP/file-handle.qui")" == "$file_handle_expected" ]]
 
 cat > "$TMP/file-handle-copy.qui" <<QUI
-auto opened = file.open("$TMP/source.txt")
+auto | error opened = file.open("$TMP/source.txt")
 match opened
     file.Handle first
         file.Handle second = first
         first.close()
-        auto content = second.read()
+        auto | error content = second.read()
         match content
             string value
                 print(value)
@@ -156,18 +156,18 @@ QUI
 
 printf 'old-resource' > "$TMP/resource-source.txt"
 cat > "$TMP/file-handle-resource-identity.qui" <<QUI
-auto opened = file.open("$TMP/resource-source.txt")
+auto | error opened = file.open("$TMP/resource-source.txt")
 match opened
     file.Handle first
-        auto moved = file.move("$TMP/resource-source.txt", "$TMP/resource-original.txt")
+        auto | error moved = file.move("$TMP/resource-source.txt", "$TMP/resource-original.txt")
         match moved
             void
-                auto written = file.write("$TMP/resource-source.txt", "new-resource")
+                auto | error written = file.write("$TMP/resource-source.txt", "new-resource")
                 match written
                     void
                         file.Handle second = first
-                        auto a = first.read()
-                        auto b = second.read()
+                        auto | error a = first.read()
+                        auto | error b = second.read()
                         match a
                             string left
                                 match b
@@ -189,15 +189,15 @@ file_resource_identity_expected=$(printf 'old-resource\nold-resource')
 [[ "$("$QUIDRA" "$TMP/file-handle-resource-identity.qui")" == "$file_resource_identity_expected" ]]
 
 cat > "$TMP/file-handle-closed-copy.qui" <<QUI
-auto opened = file.open("$TMP/source.txt")
+auto | error opened = file.open("$TMP/source.txt")
 match opened
     file.Handle first
         first.close()
-        auto removed = file.remove("$TMP/source.txt")
+        auto | error removed = file.remove("$TMP/source.txt")
         match removed
             void
                 file.Handle second = first
-                auto content = second.read()
+                auto | error content = second.read()
                 match content
                     string value
                         print("unexpected")
@@ -211,7 +211,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/file-handle-closed-copy.qui")" == "closed-copy" ]]
 
 cat > "$TMP/file-handle-write.qui" <<QUI
-auto created = file.create("$TMP/incremental.txt")
+auto | error created = file.create("$TMP/incremental.txt")
 match created
     file.Handle handle
         match handle.write("alpha")
@@ -241,10 +241,10 @@ QUI
 [[ "$("$QUIDRA" "$TMP/file-handle-write.qui")" == "alpha beta" ]]
 
 cat > "$TMP/file-handle-read-line.qui" <<QUI
-auto opened = file.open("$TMP/incremental.txt")
+auto | error opened = file.open("$TMP/incremental.txt")
 match opened
     file.Handle handle
-        auto first = handle.read_line()
+        auto | error first = handle.read_line()
         match first
             string line
                 print(line)
@@ -252,7 +252,7 @@ match opened
                 print("unexpected-eof")
             error problem
                 print("read-line-error")
-        auto eof = handle.read_line()
+        auto | error eof = handle.read_line()
         match eof
             string line
                 print("unexpected-line")
@@ -268,7 +268,7 @@ file_read_line_expected=$(printf 'alpha beta\neof')
 
 printf 'one\ntwo\nthree\n' > "$TMP/interleaved-lines.txt"
 cat > "$TMP/file-handle-interleaved-copy.qui" <<QUI
-auto opened = file.open("$TMP/interleaved-lines.txt")
+auto | error opened = file.open("$TMP/interleaved-lines.txt")
 match opened
     file.Handle first
         file.Handle second = first
@@ -316,7 +316,7 @@ file_interleaved_copy_expected=$(printf 'one\ntwo\none\nthree\ntwo')
 printf 'last' > "$TMP/line-no-newline.txt"
 printf '\377\n' > "$TMP/line-invalid-utf8.bin"
 cat > "$TMP/file-handle-read-line-edge.qui" <<QUI
-auto tail_opened = file.open("$TMP/line-no-newline.txt")
+auto | error tail_opened = file.open("$TMP/line-no-newline.txt")
 match tail_opened
     file.Handle handle
         match handle.read_line()
@@ -336,7 +336,7 @@ match tail_opened
     error problem
         print("open-error")
 
-auto invalid_opened = file.open("$TMP/line-invalid-utf8.bin")
+auto | error invalid_opened = file.open("$TMP/line-invalid-utf8.bin")
 match invalid_opened
     file.Handle handle
         match handle.read_line()
@@ -353,7 +353,7 @@ file_read_line_edge_expected=$(printf 'last\neof\ninvalid')
 [[ "$("$QUIDRA" "$TMP/file-handle-read-line-edge.qui")" == "$file_read_line_edge_expected" ]]
 
 cat > "$TMP/file-handle-append.qui" <<QUI
-auto appended = file.append("$TMP/incremental.txt")
+auto | error appended = file.append("$TMP/incremental.txt")
 match appended
     file.Handle handle
         match handle.write_line("tail")
@@ -367,7 +367,7 @@ match appended
                 print("append-error")
     error problem
         print("open-error")
-auto loaded = file.read("$TMP/incremental.txt")
+auto | error loaded = file.read("$TMP/incremental.txt")
 match loaded
     string content
         print(content)
@@ -398,7 +398,7 @@ void | error open_and_return(string path)
 
 int i = 0
 while i < 256
-    auto result = open_and_return("$TMP/source.txt")
+    auto | error result = open_and_return("$TMP/source.txt")
     match result
         void
             void
@@ -414,7 +414,7 @@ bin allocated = bin.fill(5, 1)
 print(len(allocated))
 print(allocated)
 
-auto parsed_result = bin.parse("01010000")
+auto | error parsed_result = bin.parse("01010000")
 match parsed_result
     bin parsed
         print(parsed[0])
@@ -428,7 +428,7 @@ print(packed)
 int8 restored = int8(packed)
 print(restored)
 
-auto flag_result = bin.parse("1")
+auto | error flag_result = bin.parse("1")
 match flag_result
     bin bit
         bool flag = bool(bit)
@@ -474,7 +474,7 @@ QUI
 
 cat > "$TMP/bin-parse-error.qui" <<'QUI'
 string invalid_text = "012"
-auto parsed = bin.parse(invalid_text)
+auto | error parsed = bin.parse(invalid_text)
 match parsed
     bin value
         print("unexpected")
@@ -489,10 +489,10 @@ open(sys.argv[1], "wb").write(bytes([0, 255, 65, 10, 128]))
 PY
 
 cat > "$TMP/file-handle-bin.qui" <<QUI
-auto opened = file.open("$TMP/source.bin")
+auto | error opened = file.open("$TMP/source.bin")
 match opened
     file.Handle handle
-        auto raw = handle.read_bin()
+        auto | error raw = handle.read_bin()
         match raw
             bin value
                 print(len(value))
@@ -507,7 +507,7 @@ file_handle_bin_expected=$(printf '40\n255')
 [[ "$("$QUIDRA" "$TMP/file-handle-bin.qui")" == "$file_handle_bin_expected" ]]
 
 cat > "$TMP/file-bin.qui" <<QUI
-auto raw = file.read_bin("$TMP/source.bin")
+auto | error raw = file.read_bin("$TMP/source.bin")
 match raw
     bin value
         print(len(value))
@@ -516,7 +516,7 @@ match raw
         print(values[1])
         values[2] = 66
         bin changed = bin(values)
-        auto saved = file.write_bin("$TMP/copied.bin", changed)
+        auto | error saved = file.write_bin("$TMP/copied.bin", changed)
         match saved
             void
                 print("bin")
@@ -534,7 +534,7 @@ PY
 
 cat > "$TMP/file-bin-unaligned.qui" <<QUI
 bin value = bin.fill(3, 1)
-auto saved = file.write_bin("$TMP/unaligned.bin", value)
+auto | error saved = file.write_bin("$TMP/unaligned.bin", value)
 match saved
     void
         print("unexpected")
@@ -547,7 +547,7 @@ QUI
 printf 'b' > "$TMP/new-directory/b.txt"
 printf 'a' > "$TMP/new-directory/a.txt"
 cat > "$TMP/file-list.qui" <<QUI
-auto listed = file.list("$TMP/new-directory")
+auto | error listed = file.list("$TMP/new-directory")
 match listed
     string[] entries
         print(len(entries))
@@ -559,7 +559,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/file-list.qui")" == $'2\ntrue\ntrue' ]]
 
 cat > "$TMP/file-list-missing.qui" <<QUI
-auto listed = file.list("$TMP/no-such-directory")
+auto | error listed = file.list("$TMP/no-such-directory")
 match listed
     string[] entries
         print(len(entries))
@@ -569,7 +569,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/file-list-missing.qui")" == "file operation failed" ]]
 
 cat > "$TMP/missing-file.qui" <<QUI
-auto read = file.read("$TMP/does-not-exist.txt")
+auto | error read = file.read("$TMP/does-not-exist.txt")
 match read
     string value
         print(value)
@@ -583,7 +583,7 @@ import sys
 open(sys.argv[1], "wb").write(b"\xc0\xaf")
 PY
 cat > "$TMP/invalid-utf8-file.qui" <<QUI
-auto read = file.read("$TMP/invalid-utf8.txt")
+auto | error read = file.read("$TMP/invalid-utf8.txt")
 match read
     string value
         print("unexpected")
@@ -597,7 +597,7 @@ import sys
 open(sys.argv[1], "wb").write(b"A\x00B")
 PY
 cat > "$TMP/nul-text-file.qui" <<QUI
-auto read = file.read("$TMP/nul-text.txt")
+auto | error read = file.read("$TMP/nul-text.txt")
 match read
     string value
         print("unexpected")
@@ -701,6 +701,21 @@ test_failure_rc=$?
 set -e
 [[ "$test_failure_rc" -eq 1 ]]
 grep -q 'Quidra test assertion failed' "$TMP/test-failure.err"
+"$QUIDRA" inspect "$TMP/test-failure.qui" >"$TMP/test-failure.inspect.json"
+python3 - "$TMP/test-failure.inspect.json" "$TMP/test-failure.err" <<'PY'
+import json, pathlib, sys
+inspection = json.load(open(sys.argv[1]))
+failure = pathlib.Path(sys.argv[2]).read_text()
+nodes = [
+    node for node in inspection["nodes"]
+    if node["span"]["start"]["line"] == 1 and node["kind"] == "expression_statement"
+]
+assert len(nodes) == 1, nodes
+node = nodes[0]
+assert f"source_revision={inspection['revision']}" in failure, failure
+assert f"node_id={node['node_id']}" in failure, failure
+assert f"node_kind={node['kind']}" in failure, failure
+PY
 [[ ! -s "$TMP/test-failure.out" ]]
 
 cat > "$TMP/time.qui" <<'QUI'
@@ -796,11 +811,11 @@ random.Generator rng = random.generator(seed = 1)
 print(rng.int(5, 5))
 QUI
 set +e
-"$QUIDRA" "$TMP/random-invalid.qui" >"$TMP/random-invalid.out" 2>"$TMP/random-invalid.err"
+ASAN_OPTIONS=detect_leaks=0 "$QUIDRA" "$TMP/random-invalid.qui" >"$TMP/random-invalid.out" 2>"$TMP/random-invalid.err"
 random_invalid_rc=$?
 set -e
 [[ "$random_invalid_rc" -eq 101 ]]
-grep -q 'invalid random range' "$TMP/random-invalid.out"
+grep -q 'invalid random range' "$TMP/random-invalid.err"
 
 cat > "$TMP/process.qui" <<'QUI'
 process.Result completed = process.run("/bin/sh", ["-c", "printf out; printf err >&2; exit 3"])
@@ -1503,22 +1518,22 @@ set -e
 grep -Eq 'Quidra runtime error\[UNINITIALIZED\] at [0-9]+:[0-9]+: value is uninitialized' "$TMP/tensor-uninitialized.err"
 
 
-cat > "$TMP/neural-dtype-precision.qui" <<'QUI'
+cat > "$TMP/autograd-dtype-precision.qui" <<'QUI'
 tensor<float32> source32 = tensor<float32>([1])
 source32[0] = 16777216.0
-neural<float32> value32 = neural.track(source32)
-neural<float32> plus32 = value32 + float32(1)
-neural<float32> plus32_again = plus32 + float32(1)
+tensor<float32> value32 = source32.track()
+tensor<float32> plus32 = value32 + float32(1)
+tensor<float32> plus32_again = plus32 + float32(1)
 print(plus32_again.untrack()[0].item() == float32(16777216))
 
 tensor<float> source64 = tensor<float>([1])
 source64[0] = 16777216.0
-neural<float> value64 = neural.track(source64)
-neural<float> plus64 = value64 + 1.0
-neural<float> plus64_again = plus64 + 1.0
+tensor<float> value64 = source64.track()
+tensor<float> plus64 = value64 + 1.0
+tensor<float> plus64_again = plus64 + 1.0
 print(plus64_again.untrack()[0].item() == float(16777218))
 QUI
-[[ "$("$QUIDRA" "$TMP/neural-dtype-precision.qui")" == "$(printf 'true\ntrue')" ]]
+[[ "$("$QUIDRA" "$TMP/autograd-dtype-precision.qui")" == "$(printf 'true\ntrue')" ]]
 
 cat > "$TMP/image.qui" <<QUI
 tensor<uint8> pixels = tensor<uint8>([3, 2, 2])
@@ -1535,7 +1550,7 @@ pixels[2, 0, 1] = 100
 pixels[2, 1, 0] = 110
 pixels[2, 1, 1] = 120
 
-auto png_written = image.write("$TMP/image.png", pixels)
+auto | error png_written = image.write("$TMP/image.png", pixels)
 match png_written
     void
         print("png-write")
@@ -1554,7 +1569,7 @@ match png_read
     error problem
         print(problem)
 
-auto bmp_written = image.write("$TMP/image.bmp", pixels)
+auto | error bmp_written = image.write("$TMP/image.bmp", pixels)
 match bmp_written
     void
         print("bmp-write")
@@ -1568,7 +1583,7 @@ match bmp_read
     error problem
         print(problem)
 
-auto tiff_written = image.write("$TMP/image.tiff", pixels)
+auto | error tiff_written = image.write("$TMP/image.tiff", pixels)
 match tiff_written
     void
         print("tiff-write")
@@ -1584,7 +1599,7 @@ match tiff_read
     error problem
         print(problem)
 
-auto jpeg_written = image.write("$TMP/image.jpg", pixels, quality = 100)
+auto | error jpeg_written = image.write("$TMP/image.jpg", pixels, quality = 100)
 match jpeg_written
     void
         print("jpeg-write")
@@ -1601,7 +1616,7 @@ match jpeg_read
     error problem
         print(problem)
 
-auto webp_written = image.write("$TMP/image.webp", pixels, quality = 100)
+auto | error webp_written = image.write("$TMP/image.webp", pixels, quality = 100)
 match webp_written
     void
         print("webp-write")
@@ -1619,7 +1634,7 @@ match webp_read
         print(problem)
 
 tensor<uint8> rgba = tensor.zeros<uint8>([4, 1, 1])
-auto rgba_jpeg = image.write("$TMP/rgba.jpg", rgba)
+auto | error rgba_jpeg = image.write("$TMP/rgba.jpg", rgba)
 match rgba_jpeg
     void
         print("unexpected-jpeg-alpha")
@@ -1635,24 +1650,24 @@ cat > "$TMP/json-data.json" <<'JSON'
 JSON
 
 cat > "$TMP/json.qui" <<QUI
-auto loaded = file.read("$TMP/json-data.json")
+auto | error loaded = file.read("$TMP/json-data.json")
 match loaded
     string source
-        auto parsed = json.parse(source)
+        auto | error parsed = json.parse(source)
         match parsed
             json.Value root
                 print(root.kind())
-                auto size = root.size()
+                auto | error size = root.size()
                 match size
                     int value
                         print(value)
                     error problem
                         print(problem)
 
-                auto name = root.get("name")
+                auto | error name = root.get("name")
                 match name
                     json.Value value
-                        auto text = value.text()
+                        auto | error text = value.text()
                         match text
                             string content
                                 print(content)
@@ -1663,7 +1678,7 @@ match loaded
                     error problem
                         print(problem)
 
-                auto missing = root.get("missing")
+                auto | error missing = root.get("missing")
                 match missing
                     json.Value value
                         print(value.kind())
@@ -1672,7 +1687,7 @@ match loaded
                     error problem
                         print(problem)
 
-                auto nothing = root.get("nothing")
+                auto | error nothing = root.get("nothing")
                 match nothing
                     json.Value value
                         print(value.kind())
@@ -1681,13 +1696,13 @@ match loaded
                     error problem
                         print(problem)
 
-                auto items = root.get("items")
+                auto | error items = root.get("items")
                 match items
                     json.Value items_value
-                        auto second = items_value.at(1)
+                        auto | error second = items_value.at(1)
                         match second
                             json.Value value
-                                auto integer = value.integer()
+                                auto | error integer = value.integer()
                                 match integer
                                     int number
                                         print(number)
@@ -1702,10 +1717,10 @@ match loaded
                     error problem
                         print(problem)
 
-                auto ok = root.get("ok")
+                auto | error ok = root.get("ok")
                 match ok
                     json.Value value
-                        auto boolean = value.boolean()
+                        auto | error boolean = value.boolean()
                         match boolean
                             bool bit
                                 print(bit)
@@ -1716,10 +1731,10 @@ match loaded
                     error problem
                         print(problem)
 
-                auto pi = root.get("pi")
+                auto | error pi = root.get("pi")
                 match pi
                     json.Value value
-                        auto number = value.number()
+                        auto | error number = value.number()
                         match number
                             float scalar
                                 print(scalar)
@@ -1732,7 +1747,7 @@ match loaded
 
                 string encoded = root.encode()
                 print(encoded)
-                auto reparsed = json.parse(encoded)
+                auto | error reparsed = json.parse(encoded)
                 match reparsed
                     json.Value other
                         print(root.equal(other))
@@ -1750,10 +1765,10 @@ json_expected="$(printf 'object\n5\nQuidra\nnone\nnull\n2\ntrue\n3.5\n%s\ntrue' 
 [[ "$json_output" == "$json_expected" ]]
 
 cat > "$TMP/json-kind-error.qui" <<'QUI'
-auto parsed = json.parse("1")
+auto | error parsed = json.parse("1")
 match parsed
     json.Value value
-        auto text = value.text()
+        auto | error text = value.text()
         match text
             string content
                 print(content)
@@ -1765,7 +1780,7 @@ QUI
 [[ "$("$QUIDRA" "$TMP/json-kind-error.qui")" == "JSON value has incompatible kind" ]]
 
 cat > "$TMP/json-invalid.qui" <<'QUI'
-auto parsed = json.parse("[")
+auto | error parsed = json.parse("[")
 match parsed
     json.Value value
         print(value.kind())
@@ -1778,10 +1793,10 @@ cat > "$TMP/json-duplicate.json" <<'JSON'
 {"a":1,"a":2}
 JSON
 cat > "$TMP/json-duplicate.qui" <<QUI
-auto loaded = file.read("$TMP/json-duplicate.json")
+auto | error loaded = file.read("$TMP/json-duplicate.json")
 match loaded
     string source
-        auto parsed = json.parse(source)
+        auto | error parsed = json.parse(source)
         match parsed
             json.Value value
                 print(value.kind())
@@ -1803,8 +1818,8 @@ set -e
 grep -q 'Standard library value types cannot be constructed directly' "$TMP/json-direct-construction.json"
 
 cat > "$TMP/json-equality.qui" <<'QUI'
-auto left = json.parse("1")
-auto right = json.parse("1")
+auto | error left = json.parse("1")
+auto | error right = json.parse("1")
 match left
     json.Value a
         match right
@@ -1862,14 +1877,14 @@ print(decimal_tenth == preserved)
 float roundtrip = float(preserved)
 print(roundtrip == ieee)
 
-auto parsed_bigint = bigint.parse("1234567890123456789012345678901234567890")
+auto | error parsed_bigint = bigint.parse("1234567890123456789012345678901234567890")
 match parsed_bigint
     bigint value
         print(value == a)
     error problem
         print(problem)
 
-auto parsed_bigreal = bigreal.parse("0.1")
+auto | error parsed_bigreal = bigreal.parse("0.1")
 match parsed_bigreal
     bigreal value
         print(value == decimal_tenth)
@@ -2061,6 +2076,110 @@ QUI
 ref_cell_expected="$(printf 'true\nfalse\n9\n9')"
 [[ "$("$QUIDRA" run "$TMP/ref-cell-identity.qui")" == "$ref_cell_expected" ]]
 
+cat > "$TMP/reflect-collect.qui" <<'QUI'
+class Marker
+    int value = 0
+
+class Inner
+    Marker marker
+
+class Outer
+    Inner inner
+    Marker direct
+
+Marker inner_marker
+inner_marker.value = 7
+Inner inner
+inner.marker = inner_marker
+Marker direct
+direct.value = 11
+Outer model
+model.inner = inner
+model.direct = direct
+Marker[] markers = reflect.collect<Marker>(model)
+print(len(markers))
+print(markers[0].value)
+print(markers[1].value)
+QUI
+reflect_collect_expected="$(printf '2\n7\n11')"
+[[ "$("$QUIDRA" run "$TMP/reflect-collect.qui")" == "$reflect_collect_expected" ]]
+
+cat > "$TMP/reflect-collect-fixed-array.qui" <<'QUI'
+class Marker
+    int value = 0
+
+class Model
+    Marker[2] markers
+
+Marker first
+first.value = 13
+Marker second
+second.value = 17
+Model model
+model.markers = [first, second]
+Marker[] markers = reflect.collect<Marker>(model)
+print(len(markers))
+print(markers[0].value)
+print(markers[1].value)
+QUI
+reflect_collect_fixed_expected="$(printf '2\n13\n17')"
+[[ "$("$QUIDRA" run "$TMP/reflect-collect-fixed-array.qui")" == "$reflect_collect_fixed_expected" ]]
+
+cat > "$TMP/reflect-collect-runtime-array.qui" <<'QUI'
+class Marker
+    int value = 0
+
+class Block
+    Marker marker
+
+class Model
+    Block[] blocks
+
+Marker first
+first.value = 19
+Block first_block
+first_block.marker = first
+Marker second
+second.value = 29
+Block second_block
+second_block.marker = second
+
+Block[] blocks = []
+blocks = blocks.append(first_block)
+blocks = blocks.append(second_block)
+Model model
+model.blocks = blocks
+
+Marker[] markers = reflect.collect<Marker>(model)
+print(len(markers))
+print(markers[0].value)
+print(markers[1].value)
+QUI
+reflect_collect_runtime_expected="$(printf '2\n19\n29')"
+[[ "$("$QUIDRA" run "$TMP/reflect-collect-runtime-array.qui")" == "$reflect_collect_runtime_expected" ]]
+
+cat > "$TMP/reflect-collect-reference-effects.qui" <<'QUI'
+class Marker
+    int value = 0
+
+class Model
+    Marker marker
+    int unrelated
+
+void print_markers<M>(M &model)
+    Marker[] markers = reflect.collect<Marker>(model)
+    print(len(markers))
+    print(markers[0].value)
+
+Marker marker
+marker.value = 23
+Model model
+model.marker = marker
+print_markers(&model)
+QUI
+reflect_collect_reference_expected="$(printf '1\n23')"
+[[ "$("$QUIDRA" run "$TMP/reflect-collect-reference-effects.qui")" == "$reflect_collect_reference_expected" ]]
+
 cat > "$TMP/atomic-counter-overflow.qui" <<'QUI'
 atomic.Counter counter = atomic.counter(9223372036854775807)
 counter.add(1)
@@ -2082,7 +2201,7 @@ ASAN_OPTIONS=detect_leaks=0 "$QUIDRA" run "$TMP/exact-noninteger-cast.qui" >"$TM
 exact_noninteger_rc=$?
 set -e
 [[ "$exact_noninteger_rc" -eq 101 ]]
-grep -q 'bigreal is not provably an integer' "$TMP/exact-noninteger-cast.err"
+grep -Eq 'Quidra runtime error\[UNHANDLED_ERROR\].*numeric cast outside destination range' "$TMP/exact-noninteger-cast.err"
 
 cat > "$TMP/exact-collections.qui" <<'QUI'
 bigint key = 123456789012345678901234567890
@@ -2119,16 +2238,16 @@ cat > "$TMP/json-exact-data.json" <<'JSON'
 {"huge":12345678901234567890123456789012345678901234567890,"real":1.25e1000}
 JSON
 cat > "$TMP/json-exact-numerics.qui" <<QUI
-auto loaded = file.read("$TMP/json-exact-data.json")
+auto | error loaded = file.read("$TMP/json-exact-data.json")
 match loaded
     string source
-        auto parsed = json.parse(source)
+        auto | error parsed = json.parse(source)
         match parsed
             json.Value root
-                auto huge_value = root.get("huge")
+                auto | error huge_value = root.get("huge")
                 match huge_value
                     json.Value value
-                        auto huge = value.bigint()
+                        auto | error huge = value.bigint()
                         match huge
                             bigint integer
                                 print(integer)
@@ -2139,10 +2258,10 @@ match loaded
                     error problem
                         print(problem)
 
-                auto real_value = root.get("real")
+                auto | error real_value = root.get("real")
                 match real_value
                     json.Value value
-                        auto exact = value.bigreal()
+                        auto | error exact = value.bigreal()
                         match exact
                             bigreal number
                                 bigreal expected = 1.25e1000
@@ -2150,7 +2269,7 @@ match loaded
                             error problem
                                 print(problem)
 
-                        auto narrow = value.number()
+                        auto | error narrow = value.number()
                         match narrow
                             float number
                                 print(number)
@@ -2232,7 +2351,7 @@ fi
 HTTP_PORT="$(cat "$TMP/http-port")"
 
 cat > "$TMP/http.qui" <<QUI
-auto successful = http.get("http://127.0.0.1:$HTTP_PORT/ok")
+auto | error successful = http.get("http://127.0.0.1:$HTTP_PORT/ok")
 match successful
     http.Response ok_response
         print(ok_response.status)
@@ -2254,7 +2373,7 @@ match successful
     error problem
         print(problem)
 
-auto missing = http.get("http://127.0.0.1:$HTTP_PORT/missing")
+auto | error missing = http.get("http://127.0.0.1:$HTTP_PORT/missing")
 match missing
     http.Response missing_response
         print(missing_response.status)
@@ -2262,7 +2381,7 @@ match missing
     error problem
         print(problem)
 
-auto transport = http.get("file:///etc/passwd")
+auto | error transport = http.get("file:///etc/passwd")
 match transport
     http.Response unexpected_response
         print(unexpected_response.status)
@@ -2287,7 +2406,7 @@ set -e
 grep -q 'Standard library value types cannot be constructed directly' "$TMP/http-direct-construction.json"
 
 cat > "$TMP/http-equality.qui" <<QUI
-auto first = http.get("http://127.0.0.1:1/")
+auto | error first = http.get("http://127.0.0.1:1/")
 match first
     http.Response a
         print(a == a)
@@ -2598,7 +2717,7 @@ grep -q 'bin length is not divisible by destination element width' "$TMP/bin-arr
 
 
 cat > "$TMP/video-api.qui" <<'QUI'
-auto opened = video.open("sample.mp4")
+auto | error opened = video.open("sample.mp4")
 match opened
     video.Reader reader
         int width = reader.width()
@@ -2631,7 +2750,7 @@ if command -v ffmpeg >/dev/null 2>&1; then
         -frames:v 2 -c:v rawvideo -pix_fmt yuv420p -y "$TMP/video-sample.nut"
 
     cat > "$TMP/video-runtime.qui" <<QUI
-auto opened = video.open("$TMP/video-sample.nut")
+auto | error opened = video.open("$TMP/video-sample.nut")
 match opened
     video.Reader reader
         print(reader.width())

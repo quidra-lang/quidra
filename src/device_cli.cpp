@@ -9,7 +9,7 @@ namespace quidra::cli {
 int run_gpu_cli(bool verbose) {
     const auto& all = device::devices();
     if (verbose) {
-        std::cout << quidra::language_name << " " << quidra::compiler_version << "\n";
+        std::cout << quidra::language_name << " " << quidra::version << "\n";
         std::cout << "CPU backend: native LLVM\n";
     }
     if (all.empty()) {
@@ -25,9 +25,8 @@ int run_gpu_cli(bool verbose) {
             std::cout << "  driver: " << gpu.driver << "\n";
         if (!gpu.runtime.empty())
             std::cout << "  runtime: " << gpu.runtime << "\n";
-        std::cout << "  " << quidra::language_name << " "
-                  << device::backend_display_name(gpu.backend)
-                  << " backend: " << quidra::compiler_version << "\n";
+        std::cout << "  " << quidra::language_name << " version: "
+                  << quidra::version << "\n";
         if (gpu.backend == device::Backend::Cuda) {
             std::cout << "  CUDA Toolkit dependency: none (CUDA Driver API only)\n";
         }

@@ -110,17 +110,17 @@ std::vector<fs::path> llvm_library_candidates() {
     result.emplace_back("libLLVM.dylib");
     result.emplace_back("/opt/homebrew/opt/llvm/lib/libLLVM.dylib");
     result.emplace_back("/usr/local/opt/llvm/lib/libLLVM.dylib");
-    for (int version = 24; version >= 15; --version) {
-        result.emplace_back("/opt/homebrew/opt/llvm@" + std::to_string(version) + "/lib/libLLVM.dylib");
-        result.emplace_back("/usr/local/opt/llvm@" + std::to_string(version) + "/lib/libLLVM.dylib");
+    for (int llvm_major = 24; llvm_major >= 15; --llvm_major) {
+        result.emplace_back("/opt/homebrew/opt/llvm@" + std::to_string(llvm_major) + "/lib/libLLVM.dylib");
+        result.emplace_back("/usr/local/opt/llvm@" + std::to_string(llvm_major) + "/lib/libLLVM.dylib");
     }
 #else
     result.emplace_back("libLLVM.so");
-    for (int version = 24; version >= 15; --version) {
-        result.emplace_back("libLLVM-" + std::to_string(version) + ".so");
-        result.emplace_back("libLLVM-" + std::to_string(version) + ".so.1");
-        result.emplace_back("/usr/lib/llvm-" + std::to_string(version) + "/lib/libLLVM.so");
-        result.emplace_back("/usr/lib/llvm-" + std::to_string(version) + "/lib/libLLVM.so.1");
+    for (int llvm_major = 24; llvm_major >= 15; --llvm_major) {
+        result.emplace_back("libLLVM-" + std::to_string(llvm_major) + ".so");
+        result.emplace_back("libLLVM-" + std::to_string(llvm_major) + ".so.1");
+        result.emplace_back("/usr/lib/llvm-" + std::to_string(llvm_major) + "/lib/libLLVM.so");
+        result.emplace_back("/usr/lib/llvm-" + std::to_string(llvm_major) + "/lib/libLLVM.so.1");
     }
 #endif
     return result;

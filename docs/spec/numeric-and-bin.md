@@ -67,7 +67,7 @@ Integer literals use decimal notation only. Base-prefixed forms such as `0x`, `0
 
 ## `auto`
 
-`auto` propagates a type that the initializer already determines independently. It never chooses a concrete numeric type.
+`auto` infers the type that the initializer already determines independently and never chooses a concrete numeric representation. If that inferred type is an unnamed union containing `error`, bare `auto` removes only `error` from the binding type and makes the initialization fail fast on error; `auto | error` retains the failure channel explicitly.
 
 ```quidra
 int32 source = 3
@@ -125,7 +125,7 @@ uint8 right = flags >> 2
 
 Bitwise operations bind more tightly than comparison, equality, and lowercase boolean logic. Therefore `flags AND mask == expected` means `(flags AND mask) == expected`, avoiding a comparison-first interpretation.
 
-Binary bitwise operands have the same concrete fixed-width integer type. A bare integer-family literal may materialize from that operator context in the normal way. `float32`, `float`, `bigint`, `bigreal`, `bool`, `bin`, tensor, and neural values do not accept these operators.
+Binary bitwise operands have the same concrete fixed-width integer type. A bare integer-family literal may materialize from that operator context in the normal way. `float32`, `float`, `bigint`, `bigreal`, `bool`, `bin`, and tensor values do not accept these operators.
 
 Signed fixed-width integers use a two's-complement bit representation; unsigned integers use the ordinary modulo-`2^N` N-bit representation. `NOT` flips every bit of that fixed-width representation. `AND`, `OR`, and `XOR` operate on it directly. `<<` shifts the N-bit representation left and discards bits shifted beyond the width; it is a representation operation and does not raise arithmetic overflow. `>>` is arithmetic with sign extension for signed integer types and logical with zero fill for unsigned integer types. Shift counts must be nonnegative and smaller than the operand width; a provably invalid constant count is a compile-time `SHIFT_COUNT` error and a dynamic invalid count is a deterministic runtime `SHIFT_COUNT` failure.
 
@@ -167,7 +167,7 @@ int value = 100
 int8 checked = int8(value)
 ```
 
-Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity.
+Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A scalar conversion that can fail because the runtime value is outside that range exposes `T | error`: bare `auto` infers `T` and fails fast on error, `auto | error` keeps the error alternative, a success-only `T` destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Integer widening whose source range is fully contained in the destination is infallible.
 
 IEEE floating-point to an integer-family type is not a generic cast because a rounding policy is required; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
 
@@ -178,7 +178,7 @@ Exact conversions follow these rules:
 - `float32`/`float` -> `bigreal`: exact conversion of the stored IEEE value, not reinterpretation of the original decimal spelling;
 - `bigint` -> fixed-width integer: explicit and range-checked;
 - `bigreal` -> integer-family type: accepted only when the mathematical value is provably integral, then range-checked when the destination is fixed-width;
-- `bigint`/`bigreal` -> IEEE float: explicit, with finite destination-range checking.
+- `bigint`/`bigreal` -> IEEE float: explicit, with finite destination-range checking through the same `T | error` scalar conversion channel.
 
 In short: **an explicit conversion may discard precision when the destination representation requires it, but it may not discard range or invent an integer rounding policy**.
 

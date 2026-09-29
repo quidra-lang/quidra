@@ -85,7 +85,7 @@ const char* token_name(TokenKind kind) {
         case TokenKind::KwBitOr: return "OR"; case TokenKind::KwBitXor: return "XOR";
         case TokenKind::LParen: return "("; case TokenKind::RParen: return ")";
         case TokenKind::LBracket: return "["; case TokenKind::RBracket: return "]";
-        case TokenKind::Colon: return ":"; case TokenKind::Comma: return ","; case TokenKind::Dot: return ".";
+        case TokenKind::Colon: return ":"; case TokenKind::Comma: return ","; case TokenKind::Semicolon: return ";"; case TokenKind::Dot: return ".";
         case TokenKind::Assign: return "=";
         case TokenKind::PlusAssign: return "+="; case TokenKind::MinusAssign: return "-=";
         case TokenKind::StarAssign: return "*="; case TokenKind::SlashAssign: return "/=";
@@ -298,6 +298,7 @@ std::vector<Token> Lexer::scan() {
             case ']': tokens.push_back(make(TokenKind::RBracket, start_index, start)); break;
             case ':': tokens.push_back(make(TokenKind::Colon, start_index, start)); break;
             case ',': tokens.push_back(make(TokenKind::Comma, start_index, start)); break;
+            case ';': tokens.push_back(make(TokenKind::Semicolon, start_index, start)); break;
             case '.': tokens.push_back(make(TokenKind::Dot, start_index, start)); break;
             case '+': tokens.push_back(make(match('=') ? TokenKind::PlusAssign : TokenKind::Plus, start_index, start)); break;
             case '-': tokens.push_back(make(match('=') ? TokenKind::MinusAssign : TokenKind::Minus, start_index, start)); break;

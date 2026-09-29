@@ -1,14 +1,28 @@
-# Quidra Language 0.2
+# Quidra Language Specification
 
 ## Source structure
 
-Top-level statements execute in source order. Functions have explicit return and parameter types and are declared at top level. `main` is reserved because top-level code is the entrypoint.
+Top-level statements execute in source order. Functions have explicit return and parameter types and are declared at top level. User-defined top-level names are downward-visible by default: a function or class becomes visible at its declaration point rather than being implicitly hoisted.
+
+A top-level function may opt into forward visibility with a same-file prototype: write its complete signature without a body and terminate that declaration with `;`, for example `int calculate(int value);`. A class prototype is the incomplete nominal declaration `class User;` (or `class Box<T>;`). A function prototype must have exactly one matching later definition in the same source file; its return type, generic contract, parameter types/names/reference/const forms must match exactly. Defaults, when present, belong on the prototype only and are omitted from the later definition. A class prototype exposes only the nominal type until its matching later definition: construction, fields, methods, and by-value layout-dependent uses require the complete class. Prototypes are not `extern` declarations, do not cross module boundaries, and do not create overload sets. Enum and class-member prototype forms do not exist. The semicolon is reserved for top-level function/class prototypes; ordinary statements and complete definitions do not accept it.
+
+Every source file also has one compiler-owned direct-execution flag named `main`. User source can observe it only with an exact top-level `if main` guard. The directly executed root file treats its own guard as true; every imported file treats its own guard as false. Imported `if main` bodies are still parsed and type-checked but emit no runtime module-initialization code. The guard has no `elif` or `else`, does not hoist declarations, and multiple guards execute at their source positions when the file is run directly. User code cannot declare, assign, shadow, store, pass, return, or take the address of `main`. REPL submissions do not receive a synthetic per-submission `main`.
+
+```quidra
+int calculate(int value);
+
+if main
+    print(calculate(10))
+
+int calculate(int value)
+    return value * 2
+```
 
 Blocks use four spaces per indentation level; tabs are invalid as indentation. A dedent closes a block. Blank and comment-only lines do not affect nesting. Parentheses and square brackets permit line continuation. A trailing comma is optional in a list; canonical formatting omits it on one line and includes it in multiline lists. Strings may contain literal newlines and literal tab characters. Line comments start with `//`.
 
 ## Types
 
-Numeric built-ins are `int8`, `int16`, `int32`, `int`/`int64`, `uint8`, `uint16`, `uint32`, `uint64`, `float32`, `float`/`float64`, `bigint`, and `bigreal`. `int` and `int64` are the same signed 64-bit type; `float` and `float64` are the same IEEE-754 binary64 type; `float32` is IEEE-754 binary32. `bigint` is an exact arbitrary-precision integer. `bigreal` represents exact rationals and symbolic exact real expressions such as `math.pi` and `math.sqrt(2.0)`. Numeric literals have no default type: integer-family literals may materialize as fixed integers or `bigint`, while real-family literals may materialize as IEEE floats or `bigreal`. A `bigint` context admits decimal integer literals beyond `uint64`; fixed-width contexts retain their normal range limits. `bool`, `string`, `bin`, and `error` hold booleans, immutable text, packed raw binary data, and error information. There is no `char`: text uses `string`, a one-byte numeric value uses `uint8`, and arbitrary raw bit sequences use `bin`. `void` denotes normal completion without data. Process termination is control flow rather than a source-visible value type. `auto` requests inference for a binding with an initializer.
+Numeric built-ins are `int8`, `int16`, `int32`, `int`/`int64`, `uint8`, `uint16`, `uint32`, `uint64`, `float32`, `float`/`float64`, `bigint`, and `bigreal`. `int` and `int64` are the same signed 64-bit type; `float` and `float64` are the same IEEE-754 binary64 type; `float32` is IEEE-754 binary32. `bigint` is an exact arbitrary-precision integer. `bigreal` represents exact rationals and symbolic exact real expressions such as `math.pi` and `math.sqrt(2.0)`. Numeric literals have no default type: integer-family literals may materialize as fixed integers or `bigint`, while real-family literals may materialize as IEEE floats or `bigreal`. A `bigint` context admits decimal integer literals beyond `uint64`; fixed-width contexts retain their normal range limits. `bool`, `string`, `bin`, and `error` hold booleans, immutable text, packed raw binary data, and error information. There is no `char`: text uses `string`, a one-byte numeric value uses `uint8`, and arbitrary raw bit sequences use `bin`. `void` denotes normal completion without data. Process termination is control flow rather than a source-visible value type. `auto` requests inference for an initialized binding. If the initializer's unnamed union contains `error`, bare `auto` infers the complete non-`error` success side and makes that initialization site fail fast on `error`. The dedicated `auto | error` binding form instead infers the same success side while retaining the `error` alternative for explicit handling; `auto` cannot participate in any other source union.
 
 `T | U` is an untagged surface description of a runtime tagged union: exactly one alternative is active. Union types flatten nested alternatives, remove duplicates, and have deterministic canonical representation independent of spelling order. A union with one distinct member is that member. Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type.
 
@@ -81,9 +95,9 @@ print(x)
 
 A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized. Fixed arrays and class values are the storage-oriented exceptions. A fixed array's storage exists immediately, while initialization is tracked per element. A class-typed declaration such as `Point point` creates the value with its declared field defaults; every other field is uninitialized until assigned, and initialization is tracked per field exactly as for a constructed value. Standard-library value types that user code cannot construct, such as file handles and random generators, stay uninitialized until the library supplies a value. Runtime-sized `array(n)` values use the same per-element model. Reading an element that has not been initialized is rejected at runtime; whole-array operations require the participating elements to be initialized. Whole-value assignment establishes the destination value. All continuing branches must establish ordinary binding initialization before a subsequent read; branches that return do not contribute to the merge. A loop may execute zero times, so assignment only within a loop does not establish initialization after it.
 
-`auto x = expression` infers a static storable type. `auto x` is invalid. Assignments preserve the declared or inferred type. Compound assignments `+=`, `-=`, `*=`, `/=`, and `%=` are available when the corresponding binary operator is valid. The assignment target is evaluated exactly once, so an expression such as `values[next(&index)] += 1` does not repeat the index computation or its side effects.
+`auto x = expression` infers a static storable success type. When the expression has type `T | error` (or `T | none | error`), the inferred binding is `T` (or `T | none`) and an actual `error` fails fast at that initialization site. `auto | error x = expression` is the explicit failure-preserving counterpart and keeps the inferred success alternatives plus `error`. `auto x` and `auto | error x` without an initializer are invalid, and forms such as `auto | none` or `error | auto` are invalid. Assignments preserve the declared or inferred type. Compound assignments `+=`, `-=`, `*=`, `/=`, and `%=` are available when the corresponding binary operator is valid. The assignment target is evaluated exactly once, so an expression such as `values[next(&index)] += 1` does not repeat the index computation or its side effects.
 
-Ordinary value arguments never specialize a call's static return type based on their values. Values determine behavior and compile-time facts; static types determine static types. An explicitly supplied expected type may constrain a result, and overload or generic resolution may select a return type from the static types of arguments. Compile-time-known values may still prove invalid input, prove an expected-type contradiction, remove unreachable checks, or enable other optimization; those facts remain internal and do not silently narrow the source-visible return type. In short: **values determine behavior and facts; types determine types; write the type when the result type must be fixed.**
+Ordinary value arguments never specialize a call's static return type based on their values. Values determine behavior and compile-time facts; static types determine static types. An explicitly supplied expected type may constrain a result, and generic specialization resolution may select a return type from the static types of arguments. Compile-time-known values may still prove invalid input, prove an expected-type contradiction, remove unreachable checks, or enable other optimization; those facts remain internal and do not silently narrow the source-visible return type. In short: **values determine behavior and facts; types determine types; write the type when the result type must be fixed.**
 
 Quidra uses absolute reservation plus monotonic visibility. A language-reserved identifier cannot be introduced by user code in any naming position, including bindings, parameters, functions, classes, fields, methods, generic parameters, loop/match binders, CLI fields, or import aliases. Qualification does not make a reserved spelling reusable. Standard-library internal declarations are language-owned and are the only implementation-level exception.
 
@@ -99,7 +113,7 @@ print(add(41))
 print(add(a = 40, b = 2))
 ```
 
-Function boundaries use explicit types. Named arguments use the declared parameter name followed by `=`. Positional arguments precede named arguments. Unknown names, duplicate supply, missing required arguments, and positional arguments following named arguments are errors.
+Function boundaries use explicit types. Named arguments use the declared parameter name followed by `=`. Positional arguments precede named arguments. Unknown names, duplicate supply, missing required arguments, and positional arguments following named arguments are errors. Ordinary function overloading is not supported: a function name has one ordinary definition, so argument-count variants and return-type-only variants are errors. Optional call forms belong in default parameters. The only repeated-name exception is a generic specialization family described below.
 
 Required parameters precede default parameters. A default is evaluated for each call that omits that argument; it is not evaluated when an explicit argument is supplied. Defaults are evaluated in parameter order and cannot reference parameters or caller-local bindings. They may call declared functions. Mutable array defaults are independent values on different calls. Reference parameters cannot have defaults.
 
@@ -144,6 +158,15 @@ Standard namespaces are always visible and cannot be imported or aliased. For ex
 An unquoted non-standard target denotes an installed package, for example `import plotting` or `import plot = plotting`. Package resolution never falls back to a same-named source file in the working directory. Local source modules use quoted paths only. Imported declarations are accessed through their alias, for example `geometry.Point`. A module's own imports are private implementation namespaces rather than automatic re-exports. A module re-exports one deliberately with `public import mode = "./mode.qui"`: an importer of that module then reaches the target's declarations as a nested namespace, `dnn.mode.fast()`, and the namespace itself is not a value.
 
 Import aliases cannot collide with another import alias or a class/function declared in the same file. Import cycles are compile-time errors. Nested imports are supported and retain independent namespaces.
+
+A class may place itself directly under an exported namespace by qualifying its
+top-level declaration name, for example `class model.ResNet50`. This does not
+create a nested lexical class or a separate module: the declaration remains in
+the same source file and can therefore use the file's ordinary declarations,
+while importers access it through the declared namespace path, such as
+`dnn.model.ResNet50`. Qualified class names are useful for grouping families
+of public types without duplicating implementation modules or introducing
+import cycles.
 
 ## Generics
 
@@ -194,6 +217,18 @@ tensor<T> normalize<T: floating>(tensor<T> value)
 ```
 
 The built-in constraints are `numeric`, `integer`, `floating`, `ordered`, and `equatable`. They add no runtime representation, vtable, dynamic dispatch, or implicit conversion. `integer` accepts the fixed-width integer families and `bigint`; `floating` accepts `float32` and `float`; `numeric` accepts integer, floating, and `bigreal`; `ordered` is the numeric set with relational ordering; and `equatable` accepts values with ordinary structural/scalar equality. Constraint failure is diagnosed before a concrete generic body is emitted. User-defined traits/interfaces are intentionally not part of this constraint system.
+
+A repeated function or method name is legal only when the declarations form one generic specialization family within the same scope. Family members keep the same call shape and generic type pattern: the same argument count, parameter names, reference/const forms, default-argument positions, and the same relationships among generic parameters. The number of generic parameters is unrestricted; for example, a family may use `<T1, T2>`. A concrete exact-type member may specialize the family, and generic members may narrow the same type variables with constraints.
+
+```quidra
+T1 combine<T1: numeric, T2: integer>(T1 left, T2 right)
+    return left
+
+T1 combine<T1: floating, T2: integer>(T1 left, T2 right)
+    return left
+```
+
+A concrete exact match is preferred to generic members. Between generic matches, a uniquely narrower supported constraint wins, such as `floating` over `numeric`. Domains such as `ordered` and `equatable` that overlap without a unique specificity relation are rejected as ambiguous; the compiler never chooses an arbitrary member. Changing the type-variable relationship, such as pairing `(T, T)` in one declaration with `(T, U)` in another, is an ordinary overload rather than specialization and is rejected.
 
 ## Named enums and variants
 
@@ -269,32 +304,29 @@ Config config
 config.endpoint = "server"
 ```
 
-A constructor call `T(...)` runs a `construct` member of `T`. A class may declare any number of `construct` members, and they are distinguished by their parameters. Inside the body the implicit receiver is the value under construction: its fields with defaults are already initialized, every other field is uninitialized, and assigning a field initializes it. The constructor completes with a bare `return` or by reaching the end of its body; the receiver is its result.
+A constructor call `T(...)` runs the class's `construct` member. A class may declare at most one constructor. Alternative call forms are expressed with default parameters rather than constructor overloads. Inside the body the implicit receiver is the value under construction: its fields with defaults are already initialized, every other field is uninitialized, and assigning a field initializes it. The constructor completes with a bare `return` or by reaching the end of its body; the receiver is its result.
 
 ```quidra
 class Point
     float x
     float y = 0.0
 
-    construct(float px, float py)
+    construct(float px = 0.0, float py = 0.0)
         x = px
         y = py
 
-    construct(float both)
-        x = both
-        y = both
-
 Point complete = Point(3.0, 4.0)
-Point diagonal = Point(both = 5.0)
+Point diagonal = Point(px = 5.0, py = 5.0)
+Point origin = Point()
 ```
 
-`T(...)` is always a constructor call of class `T`; there is no other spelling of construction, and `Point()` is valid only when the class declares a `construct()` with no parameters. Arguments follow the ordinary call rules: positional arguments precede named arguments, names are the constructor's parameter names, and defaults apply. A constructor is chosen by its parameters, first by the shape of the call (argument count, names, and reference forms) and then, when several constructors fit that shape, by the argument types; a bare numeric literal has no type of its own at that point and must be cast explicitly. A call that fits no constructor, or more than one, is a compile-time error. A parameter cannot share a field's name, because a bare name inside the body always means the field.
+`T(...)` is always a constructor call of class `T`; there is no other spelling of construction. Arguments follow the ordinary call rules: positional arguments precede named arguments, names are the constructor's parameter names, and defaults apply. A call that does not satisfy that one constructor is a compile-time error. A parameter cannot share a field's name, because a bare name inside the body always means the field.
 
-A constructor that can fail is declared `T | error construct(...)`. It may `return error(...)`, and it must initialize every field on every completion because the value enters a union. `T x = T(...)` then applies the ordinary fail-fast rule at the consumption site, `auto x = T(...)` keeps the `T | error` type, and `try T(...)` propagates the error from the enclosing function instead of terminating.
+A constructor that can fail is declared `T | error construct(...)`. It may `return error(...)`, and it must initialize every field on every completion because the value enters a union. `T x = T(...)` and `auto x = T(...)` both fail fast if construction returns `error`; the latter infers `T` as its success type. `auto | error x = T(...)` retains `T | error` for local handling, while `try T(...)` propagates the error from the enclosing function instead of terminating.
 
 Defaults are evaluated afresh for each construction and each declaration, in field declaration order, before a constructor body runs. This gives mutable defaults independent storage for each instance. A field without a default remains uninitialized rather than becoming zero, false, empty, or none, and reading it is a compile-time error, in a constructor body as everywhere else.
 
-A `const` field without a default is initialized by exactly one assignment directly in the constructor body, not inside a branch or loop, and every constructor must initialize it; a class with such a field cannot be declared without a constructor call. A constructor may be marked `private`; it is then callable only inside the class.
+A `const` field without a default is initialized by exactly one assignment directly in the constructor body, not inside a branch or loop, and the constructor must initialize it; a class with such a field cannot be declared without a constructor call. A constructor may be marked `private`; it is then callable only inside the class.
 
 Members are public by default. A field or method may be prefixed with `private`:
 
@@ -502,9 +534,7 @@ match doubled(true)
         print(problem)
 ```
 
-A fallible union is preserved when no narrower destination is requested. In
-particular, `auto result = operation()` retains the full `T | error` static
-type.
+A fallible union is preserved only when the source explicitly requests that failure channel, for example with an explicit `T | error` type or the dedicated `auto | error` inference form. Bare `auto result = operation()` infers the complete non-`error` success side and makes the initialization site fail fast on `error`; `auto | error result = operation()` retains the inferred success alternatives plus `error`. `none` is not removed: `auto` applied to `T | none | error` produces `T | none`.
 
 When a value whose unnamed union contains `error` is consumed where the
 expected type accepts every non-`error` alternative but excludes `error`,
@@ -547,9 +577,9 @@ The immutable built-in `string` values `ENTER`, `TAB`, `HOME`, `QUOTE`, `BACKSPA
 
 Numeric arithmetic requires matching operand types. An already-typed numeric value never changes representation implicitly, even when the conversion would be lossless. Numeric literals may be contextually typed directly when the literal is representable in that type. Representation changes require an explicit cast or an API operation whose arguments explicitly request that conversion.
 
-Fixed-width integers additionally support `AND`, `OR`, `XOR`, unary `NOT`, `<<`, and `>>`. The uppercase words are deliberately distinct from bool-only `and`, `or`, and `not`; `&` remains storage access and `|` remains union syntax. Bitwise operations do not apply to `bool`, floating-point values, `bigint`, `bigreal`, `bin`, tensor, or neural values. Signed fixed-width integers have a defined two's-complement bit representation. `<<` operates on the N-bit representation and discards shifted-out bits without turning the operation into checked arithmetic; signed `>>` is arithmetic with sign extension and unsigned `>>` is logical with zero fill. Shift counts outside `[0, width)` are rejected statically when proven and otherwise fail deterministically at runtime.
+Fixed-width integers additionally support `AND`, `OR`, `XOR`, unary `NOT`, `<<`, and `>>`. The uppercase words are deliberately distinct from bool-only `and`, `or`, and `not`; `&` remains storage access and `|` remains union syntax. Bitwise operations do not apply to `bool`, floating-point values, `bigint`, `bigreal`, `bin`, tensor, or tensor values. Signed fixed-width integers have a defined two's-complement bit representation. `<<` operates on the N-bit representation and discards shifted-out bits without turning the operation into checked arithmetic; signed `>>` is arithmetic with sign extension and unsigned `>>` is logical with zero fill. Shift counts outside `[0, width)` are rejected statically when proven and otherwise fail deterministically at runtime.
 
-Explicit numeric casts use the destination type directly: `int8(value)`, `uint32(value)`, or `float32(value)`. Integer-to-integer casts are allowed only when the runtime value is in the destination range; an out-of-range conversion fails deterministically and never wraps or clamps. Integer-to-float and float-to-float casts are explicit practical conversions and may use the destination IEEE-754 rounding. Generic float-to-integer casts are forbidden because they hide a rounding choice; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` instead.
+Explicit numeric casts use the destination type directly: `int8(value)`, `uint32(value)`, or `float32(value)`. A scalar range-checked cast whose runtime value may not fit has source-visible type `T | error`; bare `auto` infers `T` and fails fast on the error, `auto | error` preserves the union, a success-only `T` destination also applies contextual fail-fast, `try` propagates the error, and `match` may handle an explicitly preserved result locally. Integer narrowing never wraps or clamps. Integer-to-float and float-to-float casts are explicit practical conversions and may use the destination IEEE-754 rounding. Generic float-to-integer casts are forbidden because they hide a rounding choice; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` instead.
 
 Numeric types expose `Type.parse(text) -> T | error`. Scalar values expose `.string()` for their standard textual form. Parsing is interpretation of text and is distinct from casting. Mathematical functions live in the `math` namespace only: `math.abs` accepts numeric values, `math.sqrt` accepts floating-point values, and `math.min`/`math.max` require two values of the same numeric type. There are no bare spellings of these names, so `abs`, `sqrt`, `min`, and `max` are ordinary identifiers.
 
@@ -557,7 +587,7 @@ Numeric types expose `Type.parse(text) -> T | error`. Scalar values expose `.str
 
 `scan(...)` is the one input operation. It reads one line of standard input, without the trailing LF, and stores what it reads into the targets named by its format; its result is `void | error`. `scan(&n)` reads a single value and is the short form of `scan("{&n}")`. A format is a string literal whose placeholders `{&target}` name writable storage of numeric or `string` type; every other character of the format must appear in the input at that position. Each target takes the input up to the next literal text of the format, or to the end of the line for the last target, and that text is converted with the same rules as `T.parse`; a `string` target takes the text as it is. So `scan("{&n} {&m}")` reads two numbers separated by one space, `scan("{&name},{&age}")` reads a name up to the comma and then an age, and `scan(&line)` into a `string` takes the whole line. Two placeholders need literal text between them, and input left over after the format is an error, as are end of input, invalid UTF-8 or embedded NUL, and text that does not parse as the target's type. A target is definitely initialized after a `scan` statement or a `try scan(...)`, because the error cannot continue past either; when the result is bound instead, as in `void | error read = scan(&line)`, the targets must already be initialized, and on failure they keep their values. Runtime `string` values are always valid UTF-8 text and cannot contain embedded NUL; raw binary data belongs in `bin`.
 
-Integer division or remainder whose divisor is statically known to be zero is a compile-time error. Otherwise integer overflow at every integer width, dynamically determined integer division/remainder by zero, array and bin bounds failures, invalid allocation sizes, out-of-range explicit integer casts, zero range steps, and exceeding the native call-depth safety limit are deterministic runtime errors with exit status 101. The call-depth guard fails before host stack exhaustion rather than allowing a segmentation fault. Floating-point exceptional values follow the corresponding IEEE-754 binary32 or binary64 behavior. Text formatting is canonical: NaN is `nan`, positive infinity is `inf`, and negative infinity is `-inf`.
+Integer division or remainder whose divisor is statically known to be zero is a compile-time error. Otherwise integer overflow at every integer width, dynamically determined integer division/remainder by zero, array and bin bounds failures, invalid allocation sizes, zero range steps, and exceeding the native call-depth safety limit are deterministic runtime errors with exit status 101. Scalar range-checked numeric casts instead produce their source-visible `error` alternative when the value is outside the destination range; status 101 occurs only if that error reaches a contextual fail-fast consumption site. The call-depth guard fails before host stack exhaustion rather than allowing a segmentation fault. Floating-point exceptional values follow the corresponding IEEE-754 binary32 or binary64 behavior. Text formatting is canonical: NaN is `nan`, positive infinity is `inf`, and negative infinity is `-inf`.
 
 Float text uses the shortest decimal representation that round-trips to the same binary floating-point value. If that shortest representation would look integral, at least one fractional digit is retained, so `0.6` stays `0.6`, `1.0 / 3.0` is `0.3333333333333333`, and `4.0` remains `4.0`. The same canonical form is used by print, write, interpolation, REPL display, and `.string()`. Fractional literals continue to require a leading zero; `.5` is invalid and `0.5` is the canonical form.
 
@@ -639,9 +669,9 @@ Slices may share internal storage, but source semantics remain value-oriented. M
 
 Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. Tensor-to-tensor implicit broadcasting requires identical rank; each axis must match or have size 1 on one side. Rank-changing broadcasting is not implicit. Scalars are the one exception and broadcast to any tensor rank.
 
-Tensor `==`, `!=`, `<`, `<=`, `>`, and `>=` are whole-tensor all-element relations and return one `bool`. Both operands must be tensors with identical element type and identical shape; statically known shape mismatches are compile-time errors and otherwise exact shape equality is checked at runtime. The result is `true` only when every pair of corresponding elements satisfies the written operator. In particular, `a != b` means every corresponding pair is unequal; it is intentionally not defined as `!(a == b)`. Empty equal-shaped tensors satisfy every all-element relation vacuously. Comparisons do not broadcast and do not allocate an intermediate `tensor<bool>`; implementations may fuse comparison with an AND reduction, vectorize it on CPU, or use a device reduction on GPU.
+Tensor `==`, `!=`, `<`, `<=`, `>`, and `>=` are elementwise and return a same-shaped `tensor<bool>` mask. Tensor-to-tensor comparison requires identical element type, rank, and extents; it never performs tensor-to-tensor broadcasting. A scalar of the tensor's exact element type is the one comparison-broadcast exception and is compared with every element. `!=` is the elementwise logical negation of `==`. Whole-tensor questions are explicit: `mask.all()` requires every mask element to be true and `mask.any()` requires at least one; empty masks use the logical identities `true` for `.all()` and `false` for `.any()`. `tensor<bool>` supports ordinary tensor storage, indexing, slicing, copying, and explicit device transfer, but numeric tensor arithmetic and numeric kernels reject it unless an API explicitly accepts masks. Results remain on the tensor's device.
 
-Explicit numeric casts use the destination scalar type as the operation: `float(value)`, `float32(value)`, `int8(value)`, and so on. Applied to a tensor, the cast preserves rank, shape constraints, known extents, and value semantics while converting every initialized numeric element. Applied to a neural value, a floating-to-floating cast preserves the differentiable graph. Integer narrowing is range-checked; integer-to-float and float-to-float conversion may use destination IEEE-754 rounding. Generic float-to-integer casts are forbidden because they hide a rounding choice. Container-specific cast methods are not part of the surface language.
+Explicit numeric casts use the destination scalar type as the operation: `float(value)`, `float32(value)`, `int8(value)`, and so on. Applied to an untracked tensor, the cast preserves rank, shape constraints, known extents, and value semantics while converting every initialized numeric element. A tracked tensor cannot change dtype; call `.untrack()` explicitly before casting. That explicit cut is required so a representation change never silently preserves or detaches autograd provenance. A scalar conversion whose runtime value may be outside the destination range has source-visible type `T | error`: bare `auto` infers the non-error destination type and fails fast on error, `auto | error` preserves the union, a success-only destination applies the ordinary contextual fail-fast rule, `try` propagates the error, and `match` handles an explicitly preserved result locally. Integer widening whose complete source range fits the destination is infallible. Integer-to-float and in-range float-to-float conversion may use destination IEEE-754 rounding. Generic float-to-integer casts are forbidden because they hide a rounding choice. Container-specific cast methods are not part of the surface language.
 
 ## Implementation scope
 
@@ -650,7 +680,7 @@ The native core supports fixed-width numeric types, no implicit representation-c
 
 ## Standard namespaces and imports
 
-Standard namespaces are always visible; importing them is an error. Current reserved namespaces are `math`, `io`, `cli`, `file`, `environment`, `test`, `time`, `gpu`, `task`, `atomic`, `ref`, `random`, `process`, `map`, `set`, `json`, `http`, `stats`, `linear`, `signal`, `image`, `video`, `tensor`, and `neural`.
+Standard namespaces are always visible; importing them is an error. Current reserved namespaces are `math`, `io`, `cli`, `file`, `environment`, `test`, `time`, `gpu`, `task`, `atomic`, `autograd`, `ref`, `reflect`, `random`, `process`, `map`, `set`, `json`, `http`, `stats`, `linear`, `signal`, `image`, `video`, `tensor`.
 
 A source-file import always uses a quoted path:
 
@@ -707,11 +737,11 @@ quidra run app.qui -- input.png --count 5 --verbose
 `file` provides simple whole-file and filesystem operations:
 
 ```quidra
-auto text = file.read("input.txt")               // string | error
-auto raw = file.read_bin("input.bin")            // bin | error
-auto saved = file.write("out.txt", "x")          // void | error
-auto present = file.exists("out.txt")            // bool | error
-auto directory = file.is_directory("out.txt")      // bool | error
+auto | error text = file.read("input.txt")          // string | error
+auto | error raw = file.read_bin("input.bin")        // bin | error
+auto | error saved = file.write("out.txt", "x")      // void | error
+auto | error present = file.exists("out.txt")        // bool | error
+auto | error directory = file.is_directory("out.txt") // bool | error
 ```
 
 `file.is_directory(path)` returns `false` for a missing path and `error` for other filesystem failures. It also exports `remove`, `copy`, `move`, and `mkdir`, each returning `void | error`. `file.list(path)` returns `string[] | error`: on success it contains the direct child paths of the directory, non-recursively, sorted lexicographically so enumeration order is deterministic. Returned paths preserve the directory prefix supplied by the caller. I/O failure is typed data rather than an implicit process abort. `read` and `write` are text-oriented whole-file operations. `read` accepts only valid UTF-8 without embedded NUL and returns `error` for invalid text. `read_bin(path) -> bin | error` and `write_bin(path, bin) -> void | error` are binary whole-file operations. File input produces a byte-aligned `bin`; file output requires `len(value) % 8 == 0` and otherwise fails deterministically. Arbitrary byte values, including NUL and invalid UTF-8, are preserved exactly. `file.list` converts host paths to UTF-8 and returns `error` if a path cannot be represented as Quidra text. Text and binary I/O are separate so arbitrary bytes never enter `string` storage implicitly.
@@ -844,7 +874,7 @@ Ordinary source-level `==` is intentionally not defined for `json.Value`; use `e
 
 HTTP status is not transport success. Any response received through HTTP, including 4xx and 5xx, is represented as `Response`. DNS resolution failure, connection failure, TLS verification failure, unsupported protocol, redirect failure, or timeout returns `error`.
 
-The v0.1 implementation uses libcurl directly in the native runtime. It permits only HTTP and HTTPS URLs and redirects, follows at most ten redirects, enables content decoding supported by libcurl, uses a 5-second connection timeout and a 30-second total timeout, and leaves normal TLS certificate and hostname verification enabled. The runtime buffers the complete response body in memory. The body is deliberately `bin`; text decoding is not implicit.
+The native implementation uses libcurl directly in the runtime. It permits only HTTP and HTTPS URLs and redirects, follows at most ten redirects, enables content decoding supported by libcurl, uses a 5-second connection timeout and a 30-second total timeout, and leaves normal TLS certificate and hostname verification enabled. The runtime buffers the complete response body in memory. The body is deliberately `bin`; text decoding is not implicit.
 
 `http.Response` contains immutable internal header metadata which is not source-visible. Ordinary assignment preserves independent observable value behavior; header metadata may be shared because it is immutable. Source-level `==` is not defined for `http.Response`.
 
@@ -855,7 +885,7 @@ The v0.1 implementation uses libcurl directly in the native runtime. It permits 
 
 ### linear
 
-`linear.dot(a, b)` computes the scalar dot product of two rank-1 numeric tensors with the same element type and length. The scalar result preserves that element type. `linear.matmul(a, b)` supports vector-matrix `[k] × [k, n] -> [n]`, matrix-vector `[m, k] × [k] -> [m]`, and matrix-matrix `[m, k] × [k, n] -> [m, n]` multiplication. Operands must have the same tensor element type and compatible inner dimensions; results preserve that element type and device placement. Integer multiplication and accumulation remain overflow-checked. Vector-vector multiplication remains `linear.dot`; higher-rank batched matmul is not implicit in language version 0.1.
+`linear.dot(a, b)` computes the scalar dot product of two rank-1 numeric tensors with the same element type and length. The scalar result preserves that element type. `linear.matmul(a, b)` supports vector-matrix `[k] × [k, n] -> [n]`, matrix-vector `[m, k] × [k] -> [m]`, and matrix-matrix `[m, k] × [k, n] -> [m, n]` multiplication. Operands must have the same tensor element type and compatible inner dimensions; results preserve that element type and device placement. Integer multiplication and accumulation remain overflow-checked. Vector-vector multiplication remains `linear.dot`; higher-rank batched matmul is not implicit.
 
 ### image
 
@@ -882,15 +912,11 @@ image.read(path, channel = 3, type = float32)
 
 `image.write(path, image, quality = 95)` accepts a fully initialized CPU CHW numeric tensor and returns `void | error`. Image codecs and filesystem I/O are host operations: a GPU tensor is rejected rather than being copied to CPU implicitly, so callers must write `image.write(path, image.cpu(), ...)` when that transfer is intended. The codec is selected from the filename extension and writing succeeds only when that codec can represent the tensor element type without conversion: PNG supports `uint8` and `uint16`, TIFF supports every built-in numeric tensor element type, and JPEG/BMP/WebP require `uint8`. JPEG and WebP quality is 1 through 100. JPEG rejects RGBA input unless the caller explicitly converts channels first.
 
-The source-visible low-level tensor bridge exports `image.tensor_crop`,
-`image.tensor_resize`, `image.tensor_flip_horizontal`,
-`image.tensor_flip_vertical`, `image.tensor_rotate90`,
-`image.tensor_rotate180`, `image.tensor_rotate270`,
-`image.tensor_grayscale`, `image.tensor_threshold`, `image.tensor_blur`,
-`image.tensor_filter`, `image.tensor_dilate`, and `image.tensor_erode`.
-These operations preserve explicit tensor placement and support implementation of
-the official `vision` source package. Applications should normally use that
-package rather than depending directly on this low-level bridge.
+Core's `image` namespace is limited to image codec and filesystem I/O.
+Image transforms, including grayscale, threshold, blur, filter, morphology,
+crop, resize, flip, and right-angle rotation, are implemented by the official
+`vision` package from generic tensor primitives; they are not Core image
+intrinsics. These operations preserve explicit tensor placement.
 
 
 Higher-level tensor image processing is provided by the official `vision`
@@ -913,13 +939,13 @@ system and has no compiler-specific name handling.
 
 A successful `read()` yields one CPU CHW frame. The default channel layout is RGB. `channel = 1`, `3`, or `4` explicitly requests gray, RGB, or RGBA. Decoded component precision is represented as `uint8` for up-to-8-bit sources and `uint16` for higher decoded precision, rather than silently narrowing high-bit-depth video to 8-bit. `type = T` is an explicit numeric representation conversion and follows the same range-preserving policy as `image.read`; sample ranges are not normalized. The conversion from an encoded YUV/RGB pixel format into the requested gray/RGB/RGBA layout is part of decoding, not an implicit tensor cast.
 
-Conversion option values do not specialize the static result type of an `auto` expression. An explicit expected type such as `tensor<uint16><3, _, _> | none | error` is an acceptance constraint and may narrow the checked result. A runtime dtype/shape mismatch returns `error`. Clean end-of-stream is `none`.
+Conversion option values do not specialize the static non-`error` alternatives inferred by `auto`. An explicit expected type such as `tensor<uint16><3, _, _> | none | error` is an acceptance constraint and may narrow the checked result. A runtime dtype/shape mismatch returns `error`. Clean end-of-stream is `none`.
 
 `fps()`, `frames()`, and `duration()` return `none` when the container cannot supply the corresponding metadata. `seek(frame)` uses a logical frame index and does not silently reinterpret it as a timestamp. Reader assignment, parameter passing, and return preserve ordinary Quidra value semantics: a copied Reader has an independent logical position. Immutable source metadata may be shared internally, while decoder state is reconstructed lazily for a copied value. Native decoder resources are released automatically with value lifetime.
 
 No GPU transfer is hidden in video I/O; decoded frames stay on CPU until an explicit `.gpu(n)`. Audio is ignored by this API. The native implementation uses FFmpeg libavformat/libavcodec/libavutil/libswscale behind the standard API, but FFmpeg types and handles are not source-visible.
 
-`signal` is reserved as a standard namespace so its future qualified API cannot be captured by a user bare declaration, but language version 0.1 does not define public signal-processing callables.
+`signal` is reserved as a standard namespace so its future qualified API cannot be captured by a user bare declaration, but it currently does not define public signal-processing callables.
 
 ## Function values and union payload initialization
 
@@ -939,6 +965,26 @@ print(apply(operation, 21))
 A function declaration becomes a value only when an explicit `fn<...>(...)` context supplies the complete signature. `auto operation = twice` is rejected rather than inferring an implicit function type. Conversion requires an exact result/parameter match and currently represents only by-value parameters; a function with a reference parameter cannot be converted to an `fn` value. `extern` C declarations are not function values, and methods are not implicitly converted into bound closures. Function-value calls use positional by-value arguments only.
 
 The value contains only the statically known code target: it captures no local, receiver, top-level, or hidden environment. Ordinary assignment/pass/return therefore does not create a closure allocation or hidden lifetime. Function identity is not part of source semantics, so `==` and `!=` are not defined for function values. Calling an uninitialized function binding is a definite-initialization error. A function value stored behind an explicit reference still follows the ordinary reference read-before-use rules.
+
+### Compile-time field collection
+
+`reflect.collect<T>(value) -> T[]` recursively walks the statically known public
+class fields of a class value and returns copies of every field whose exact type is
+`T`. Traversal is resolved at compile time; there is no runtime type metadata
+lookup, string-based field access, or access to private representation. Recursive
+class cycles are cut by nominal type while descending.
+
+Only storage paths that can actually lead to a collected `T` are read requirements.
+Unrelated fields may remain uninitialized. A collected class value itself must be
+fully initialized, including its private representation, because the result is an
+ordinary value copy. Inside a function or method taking a reference parameter,
+these requirements become part of that reference's normal storage-effect contract
+and are checked at the call site.
+
+This is a general structural facility rather than a model- or framework-specific
+hook. Copy behavior follows the collected type's ordinary semantics, so collecting
+an explicit shared-reference value such as `ref.Cell<T>` preserves that cell's
+shared storage identity.
 
 ### Explicit reference cells
 
@@ -1056,27 +1102,49 @@ The admissibility rule is exactly the scalar rule applied to every leaf: integer
 Container syntax is not duplicated at the cast site. Numeric representation conversion always uses the scalar destination form `T(value)`; tensor type syntax remains reserved for tensor storage construction.
 
 
-## Neural values and training state
+## Tensor autograd and training state
 
-`neural` is shorthand for `neural<float32>`; another floating element type is written explicitly. Neural uses the same exact-rank integer-expression/`_` shape patterns and binding-time captured extent semantics as tensor. `neural<3, _, _>` is shorthand for `neural<float32><3, _, _>`, while `neural<float><_, 768>` explicitly selects float64 and rank 2. `neural.track(tensor)` creates an immutable value in a dynamic graph while preserving rank/shape facts, `.untrack()` returns ordinary tensor storage with those facts restored, and floating numeric casts remain differentiable graph operations. `neural.grad(loss)` traverses the executed graph and returns an independent `neural.Gradients` value without hidden accumulation.
+Quidra has one numeric tensor value type: `tensor<T>`. Floating tensors are
+untracked by default. `.track()` starts a dynamic computation graph,
+`.untrack()` disconnects the value from its graph, and `.retrack()` cuts the
+previous graph and starts a new tracked root. Tracking is runtime metadata and
+does not change the source type or its optional exact-rank shape contract.
 
-Learnable storage is represented by `neural.Parameter<T>` and persistent non-gradient storage by `neural.State<T>`. A model is an ordinary class containing these values. Parameters have opaque persistent identities used to match gradients; user code cannot replace or index-write `Parameter.value`.
+Tracked and untracked tensors may participate in the same operation. If any
+operand is tracked, the result is tracked; untracked operands are constants for
+that graph.
 
-The namespace exposes the operand-level differentiable primitives
-`neural.affine`, `neural.convolve2d`, `neural.absolute`,
-`neural.exponential`, `neural.logarithm`, `neural.mean`,
-`neural.sum_last`, `neural.max_last`, `neural.normalize`,
-`neural.normalize_inference`, and `neural.random_mask`. Safe stateful operations
-are `neural.update`, `neural.moment_update`, and the explicit writable
-multi-GPU reduction `neural.all_reduce_sum`. Together with `neural.track`,
-`neural.grad`, `neural.save`, and `neural.load`, these are infrastructure for
-ordinary source packages rather than layer or optimizer types.
+A tensor operation must never silently discard tracking metadata. `.reshape()`
+and `.transpose()` are graph-preserving tensor views and participate in
+autograd. Operations that currently have no autograd transform for their
+structural/device change (`.contiguous()`, tensor indexing/slicing, and
+`.gpu()`/`.cpu()`) reject tracked inputs; call `.untrack()` explicitly when
+the graph is intentionally cut. Assignment through a tracked tensor or tracked
+alias is likewise rejected.
 
-High-level deep-learning APIs are provided by the official `dnn` package through `import dnn`. It defines layers, activations, losses, and optimizers without compiler recognition of the package name.
+`loss.backward(&target, ...)` performs reverse-mode autodiff and accumulates
+only into the writable gradient destinations named at that call site. At least
+one destination is required. A direct floating tensor target uses that tensor's
+logical autograd identity, not its physical/COW storage identity; ordinary
+tensor assignment therefore never makes another tensor's `.grad`,
+`.has_grad()`, or `.clear_grad()` state change. Repeated backward calls add to
+existing destination gradients. Clear them explicitly when a fresh accumulation
+window is required. A single backward call treats repeated references to the
+same underlying gradient destination as one destination rather than multiplying
+that gradient. A final `track = true` option, for example
+`loss.backward(&x, track = true)`, keeps the backward computation tracked where
+the primitive supports higher-order differentiation.
 
-### Neural state persistence
+`autograd.Target` is the generic Core mechanism for an abstraction to own a
+stable explicit gradient destination. `tensor.track(&target)` binds a new graph
+leaf to that destination without making ordinary tensor copies share gradient
+state. Core has no Parameter, State, model, layer, optimizer, training-mode, or
+optimizer-state type. The official `dnn` package defines `dnn.Parameter<T>` as
+an ordinary source class whose private `autograd.Target` owns its gradient state;
+`dnn.State<T>` has no such target. DNN owns parameter traversal, layers, losses,
+optimizers, update equations, and optimizer state.
 
-`neural.save` and `neural.load` use the typed `.quistate` format. The supplied class object graph determines what is serialized. The format records exact nominal roots, structural field paths and types, tensor element type and shape, version, and checksum. Loading validates the complete payload before mutating existing storage and preserves Parameter identity.
+
 
 ### Package management
 
@@ -1099,9 +1167,9 @@ installs require explicit `--force` replacement. `quidra remove`,
 `quidra list`, and `quidra package-path` manage the default store.
 
 `quidra lock FILE.qui` resolves the direct and transitive installed-package
-import graph and writes sorted `quidra-lock-v2` entries containing package
-name, package version (or `-` for an unversioned local package), and a SHA-256
-over the complete regular-file tree excluding `.git` metadata. When the
+import graph and writes sorted `quidra-lock-v3` entries containing distribution
+name, import name, package version (or `-` for an unversioned local package),
+and a SHA-256 over the complete regular-file tree excluding `.git` metadata. When the
 lockfile exists, normal compilation requires the same package graph, declared
 version, and content hash. `--check` verifies the current resolution without
 rewriting the lockfile.
@@ -1118,4 +1186,4 @@ extern int c_abs(int value) = "llabs"
 print(c_abs(-42))
 ```
 
-The declaration is top-level only and binds a Quidra function name to an explicit C symbol. Results are restricted to `void` or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, `int`/`int64`, `float32`, `float`/`float64`, and `bool`. Scalar and bool parameters are also by value. Capture-free Quidra function values may cross as explicit C callback pointers when the `fn` signature uses only `int32`, `uint32`, `int`/`int64`, `uint64`, `float32`, and `float`/`float64` value parameters and the same scalar set or `void` as its result. The narrower callback scalar set deliberately excludes 8/16-bit integers and `bool` so callback ABI extension rules cannot become platform-dependent hidden behavior. A callback is only a code pointer: it has no capture environment or bound receiver and therefore no hidden allocation or captured-object lifetime. Managed buffers cross the boundary only through explicit call-scoped storage borrows: `const string &name` is a read-only UTF-8 span, `const bin &name` is a read-only byte span, and `bin &name` is a mutable byte span; all are passed as `&storage` at the call. Mutable `string &` is forbidden so foreign code cannot violate Quidra's UTF-8 invariant. Each borrowed parameter expands at the C ABI boundary to two adjacent C parameters: a non-null data pointer followed by a `uint64` byte length. For `string`, the bytes are the existing validated UTF-8 representation; for `bin`, only the payload after Quidra's private length header is exposed, and only when its bit length is byte-aligned. The adjacent length is the payload byte count, so foreign code cannot resize the Quidra value or access its ownership metadata. No encoding conversion is performed and the foreign contract does not depend on NUL termination. A `const` borrow may not be mutated; a mutable `bin &` borrow may mutate only bytes inside the supplied length. Neither form may retain the pointer after the call. Quidra `bin` has independent value storage, so ordinary value copies remain independent even when one copy is later passed mutably to C. This deliberately means a one-pointer C-string API such as `puts(const char*)` is not directly compatible with a Quidra `string` parameter; use a small C wrapper with an explicit pointer+length signature instead. LLVM marks borrowed pointers `nocapture nonnull`; read-only `string`/`bin` borrows additionally carry `readonly`. Integer ABI extension contracts are explicit: signed 8/16-bit values use `signext`, unsigned 8/16-bit values use `zeroext`, and `bool` uses `zeroext`, on both declarations and call sites. By-value/const-value managed buffers, scalar references, default arguments, generics, managed-value results, arrays, tensors, neural values, unions, and classes remain rejected. Foreign failure is never inferred from `errno`, a null pointer, or ownership convention: expose an explicit scalar status/result and handle it in Quidra. C symbols must be ordinary C identifiers. The generated entrypoint `main`, the compiler-owned `n_*` function-mangling namespace, the implementation-owned `quidra_*` / `__quidra_*` symbol namespaces, and symbols already owned by the generated runtime prelude cannot be rebound through `extern`; use a distinct C wrapper symbol instead. A C symbol may be bound by only one source `extern` declaration per compilation; duplicate aliases are rejected during checking rather than producing conflicting LLVM declarations. External calls are treated as potentially effectful by the REPL, so accumulated-source replay never silently re-executes them. The core declaration does not load libraries or run foreign initialization code. Foreign object, archive, shared-library, or import-library files are linked only when explicitly named with repeatable `--link FILE` options on `quidra build`, `quidra run`, or `quidra debug`; each path must name an existing regular file. There is no implicit package linker script, library search, or build-time network access.
+The declaration is top-level only and binds a Quidra function name to an explicit C symbol. Results are restricted to `void` or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, `int`/`int64`, `float32`, `float`/`float64`, and `bool`. Scalar and bool parameters are also by value. Capture-free Quidra function values may cross as explicit C callback pointers when the `fn` signature uses only `int32`, `uint32`, `int`/`int64`, `uint64`, `float32`, and `float`/`float64` value parameters and the same scalar set or `void` as its result. The narrower callback scalar set deliberately excludes 8/16-bit integers and `bool` so callback ABI extension rules cannot become platform-dependent hidden behavior. A callback is only a code pointer: it has no capture environment or bound receiver and therefore no hidden allocation or captured-object lifetime. Managed buffers cross the boundary only through explicit call-scoped storage borrows: `const string &name` is a read-only UTF-8 span, `const bin &name` is a read-only byte span, and `bin &name` is a mutable byte span; all are passed as `&storage` at the call. Mutable `string &` is forbidden so foreign code cannot violate Quidra's UTF-8 invariant. Each borrowed parameter expands at the C ABI boundary to two adjacent C parameters: a non-null data pointer followed by a `uint64` byte length. For `string`, the bytes are the existing validated UTF-8 representation; for `bin`, only the payload after Quidra's private length header is exposed, and only when its bit length is byte-aligned. The adjacent length is the payload byte count, so foreign code cannot resize the Quidra value or access its ownership metadata. No encoding conversion is performed and the foreign contract does not depend on NUL termination. A `const` borrow may not be mutated; a mutable `bin &` borrow may mutate only bytes inside the supplied length. Neither form may retain the pointer after the call. Quidra `bin` has independent value storage, so ordinary value copies remain independent even when one copy is later passed mutably to C. This deliberately means a one-pointer C-string API such as `puts(const char*)` is not directly compatible with a Quidra `string` parameter; use a small C wrapper with an explicit pointer+length signature instead. LLVM marks borrowed pointers `nocapture nonnull`; read-only `string`/`bin` borrows additionally carry `readonly`. Integer ABI extension contracts are explicit: signed 8/16-bit values use `signext`, unsigned 8/16-bit values use `zeroext`, and `bool` uses `zeroext`, on both declarations and call sites. By-value/const-value managed buffers, scalar references, default arguments, generics, managed-value results, arrays, tensors, tensor values, unions, and classes remain rejected. Foreign failure is never inferred from `errno`, a null pointer, or ownership convention: expose an explicit scalar status/result and handle it in Quidra. C symbols must be ordinary C identifiers. The generated entrypoint `main`, the compiler-owned `n_*` function-mangling namespace, the implementation-owned `quidra_*` / `__quidra_*` symbol namespaces, and symbols already owned by the generated runtime prelude cannot be rebound through `extern`; use a distinct C wrapper symbol instead. A C symbol may be bound by only one source `extern` declaration per compilation; duplicate aliases are rejected during checking rather than producing conflicting LLVM declarations. External calls are treated as potentially effectful by the REPL, so accumulated-source replay never silently re-executes them. The core declaration does not load libraries or run foreign initialization code. Foreign object, archive, shared-library, or import-library files are linked only when explicitly named with repeatable `--link FILE` options on `quidra build`, `quidra run`, or `quidra debug`; each path must name an existing regular file. There is no implicit package linker script, library search, or build-time network access.

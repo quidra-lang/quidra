@@ -1,10 +1,12 @@
 #include "quidra/ir.hpp"
 #include "quidra/language.hpp"
+#include "quidra/source_tools.hpp"
 #include "operator_policy.hpp"
 #include "nesting_budget.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <functional>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -43,6 +45,65 @@ struct Lowerer {
     std::unordered_map<const Expr*, std::vector<std::optional<std::string>>> contextual_tensor_shapes;
     std::vector<std::optional<std::string>> return_shaped_constraints;
     std::vector<std::optional<std::string>> return_array_constraints;
+    std::unordered_map<std::string, SourceInspection> source_inspections;
+
+    SourceLocation source_location(SourceSpan span) const {
+        SourceLocation location{};
+        location.line = static_cast<std::uint32_t>(span.start.line);
+        location.column = static_cast<std::uint32_t>(span.start.column);
+        if (!fn || fn->source_file.empty()) return location;
+        const auto inspection = source_inspections.find(fn->source_file);
+        if (inspection == source_inspections.end()) return location;
+
+        const SourceNode* best = nullptr;
+        for (const auto& node : inspection->second.nodes) {
+            if (node.span.start.offset != span.start.offset ||
+                node.span.end.offset != span.end.offset) continue;
+            if (!best || node.depth < best->depth) best = &node;
+        }
+        if (!best) {
+            for (const auto& node : inspection->second.nodes) {
+                if (node.span.start.offset > span.start.offset ||
+                    node.span.end.offset < span.end.offset) continue;
+                const auto width = node.span.end.offset - node.span.start.offset;
+                const auto best_width = best
+                    ? best->span.end.offset - best->span.start.offset
+                    : std::numeric_limits<std::size_t>::max();
+                if (!best || width < best_width ||
+                    (width == best_width && node.depth < best->depth)) {
+                    best = &node;
+                }
+            }
+        }
+        // Parser statement spans can include the terminating newline while the
+        // public structural node deliberately ends at the last source token.
+        // In that case no public node can contain the compiler span even though
+        // both identify the same statement. Fall back to the widest public node
+        // that starts at the same byte and is contained by the compiler span;
+        // this selects the statement rather than a nested expression sharing
+        // its start position.
+        if (!best) {
+            for (const auto& node : inspection->second.nodes) {
+                if (node.span.start.offset != span.start.offset ||
+                    node.span.end.offset > span.end.offset) continue;
+                const auto width = node.span.end.offset - node.span.start.offset;
+                const auto best_width = best
+                    ? best->span.end.offset - best->span.start.offset
+                    : 0;
+                if (!best || width > best_width ||
+                    (width == best_width && node.depth < best->depth)) {
+                    best = &node;
+                }
+            }
+        }
+        if (best) {
+            location.source_file = fn->source_file;
+            location.source_revision = inspection->second.revision;
+            location.node_id = best->node_id;
+            location.node_kind = best->kind;
+        }
+        return location;
+    }
 
     struct ActiveRangeBound {
         std::string index_name;
@@ -366,6 +427,9 @@ struct Lowerer {
         std::size_t replay_prefix_offset = 0)
         : checked(c), repl_expression(repl),
           repl_replay_prefix_offset(replay_prefix_offset) {
+        for (const auto& [path, source] : checked.program.source_texts) {
+            source_inspections.emplace(path, inspect_syntax_source(source));
+        }
         classify_borrowed_parameters();
     }
 
@@ -1413,105 +1477,206 @@ struct Lowerer {
         }
         return storage;
     }
-    void collect_neural_parameters(
-        ValueId object,const Type& type,const std::string& path,
-        std::vector<NeuralParameterRef>& out,
+    std::string collected_array_local(
+        const Type& element_type,const std::string& prefix) {
+        const auto array_type=Type::array(element_type);
+        const auto name=hidden(prefix);
+        locals[name]=array_type;
+        auto empty=fresh();
+        block->instructions.push_back(ArrayMake{empty,{},array_type});
+        // The hidden accumulator transfers ownership to its expression result
+        // (or is released explicitly after backward), so ordinary function
+        // cleanup must not release the local a second time.
+        block->instructions.push_back(
+            StoreLocal{name,empty,array_type,true,true});
+        return name;
+    }
+
+    void append_collected_value(
+        const std::string& destination,const Type& element_type,ValueId value) {
+        const auto array_type=Type::array(element_type);
+        auto current=fresh();
+        block->instructions.push_back(
+            LoadLocal{current,destination,array_type});
+        auto length=fresh();
+        block->instructions.push_back(ArrayLength{length,current});
+        auto grown=fresh();
+        block->instructions.push_back(
+            ArrayGrowMove{grown,current,array_type});
+        auto owned=copy_value(value,element_type);
+        block->instructions.push_back(ArraySet{
+            grown,length,owned,element_type,0,0,true,true});
+        block->instructions.push_back(
+            StoreLocal{destination,grown,array_type,true,true});
+    }
+
+    void for_each_collected_array_element(
+        ValueId array,const Type& array_type,const std::string& prefix,
+        const std::function<void(ValueId,const Type&)>& visit) {
+        if(array_type.kind!=TypeKind::Array||!array_type.first) return;
+        auto count=fresh();
+        block->instructions.push_back(ArrayLength{count,array});
+        const auto index_name=hidden(prefix+".index");
+        locals[index_name]=Type::simple(TypeKind::Int);
+        block->instructions.push_back(StoreLocal{
+            index_name,const_int(0),Type::simple(TypeKind::Int)});
+
+        const auto cond=label(prefix+".cond");
+        const auto body=label(prefix+".body");
+        const auto done=label(prefix+".done");
+        block->instructions.push_back(Jump{cond});
+
+        block=&add_block(cond);
+        auto index=fresh();
+        block->instructions.push_back(
+            LoadLocal{index,index_name,Type::simple(TypeKind::Int)});
+        auto more=fresh();
+        block->instructions.push_back(Binary{
+            more,"<",index,count,Type::simple(TypeKind::Int),
+            Type::simple(TypeKind::Bool)});
+        block->instructions.push_back(Branch{more,body,done});
+
+        block=&add_block(body);
+        auto child=fresh();
+        block->instructions.push_back(ArrayGet{
+            child,array,index,*array_type.first,0,0,
+            array_type.length>=0,true});
+        visit(child,*array_type.first);
+        auto next=fresh();
+        block->instructions.push_back(Binary{
+            next,"+",index,const_int(1),Type::simple(TypeKind::Int),
+            Type::simple(TypeKind::Int)});
+        block->instructions.push_back(StoreLocal{
+            index_name,next,Type::simple(TypeKind::Int)});
+        block->instructions.push_back(Jump{cond});
+
+        block=&add_block(done);
+    }
+
+    bool reflected_type_contains(
+        const Type& type,const Type& target,
+        std::unordered_set<std::string>& active) const {
+        if(type==target) return true;
+        if(type.kind==TypeKind::Array){
+            return type.first &&
+                reflected_type_contains(*type.first,target,active);
+        }
+        if(type.kind!=TypeKind::Class) return false;
+        if(!active.insert(type.class_name).second) return false;
+        const auto ci=checked.classes.find(type.class_name);
+        if(ci==checked.classes.end()){
+            active.erase(type.class_name);
+            return false;
+        }
+        for(const auto& field:ci->second.fields){
+            if(field.is_private) continue;
+            if(reflected_type_contains(field.type,target,active)){
+                active.erase(type.class_name);
+                return true;
+            }
+        }
+        active.erase(type.class_name);
+        return false;
+    }
+
+    void collect_reflected_values(
+        ValueId object,const Type& type,const Type& target,
+        const std::string& destination,
         std::unordered_set<std::string>& active) {
+        if(type==target){
+            append_collected_value(destination,target,object);
+            return;
+        }
+        if(type.kind==TypeKind::Array){
+            for_each_collected_array_element(
+                object,type,"reflect.collect",
+                [&](ValueId child,const Type& child_type) {
+                    collect_reflected_values(
+                        child,child_type,target,destination,active);
+                });
+            return;
+        }
         if(type.kind!=TypeKind::Class) return;
-        if(type.class_name.rfind("__quidra_gc__std_neural_Parameter_",0)==0){
-            if(path.empty()) throw std::logic_error("Parameter path cannot be empty");
-            out.push_back(NeuralParameterRef{path,object});
+        if(!active.insert(type.class_name).second) return;
+        const auto ci=checked.classes.find(type.class_name);
+        if(ci==checked.classes.end()){
+            active.erase(type.class_name);
             return;
         }
-        if(active.contains(type.class_name)) return;
-        const auto ci=checked.classes.find(type.class_name);
-        if(ci==checked.classes.end()) return;
-        active.insert(type.class_name);
         for(const auto& field:ci->second.fields){
-            if(field.type.kind!=TypeKind::Class) continue;
+            if(field.is_private) continue;
+            std::unordered_set<std::string> probe=active;
+            if(!reflected_type_contains(field.type,target,probe)) continue;
             auto child=fresh();
-            block->instructions.push_back(FieldGet{child,object,field.index,field.type});
-            const auto child_path=path.empty()?field.name:path+"."+field.name;
-            collect_neural_parameters(child,field.type,child_path,out,active);
+            block->instructions.push_back(
+                FieldGet{child,object,field.index,field.type});
+            collect_reflected_values(
+                child,field.type,target,destination,active);
         }
         active.erase(type.class_name);
     }
 
-    static bool neural_state_leaf(const Type& type) {
-        return is_numeric(type) || type.kind==TypeKind::Bool ||
-               type.kind==TypeKind::String || type.kind==TypeKind::Bin ||
-               type.kind==TypeKind::Tensor;
+    bool autograd_target_type_contains(
+        const Type& type,std::unordered_set<std::string>& active) const {
+        if(type.kind==TypeKind::Class &&
+           type.class_name=="$std.autograd.Target") return true;
+        if(type.kind==TypeKind::Array){
+            return type.first &&
+                autograd_target_type_contains(*type.first,active);
+        }
+        if(type.kind!=TypeKind::Class) return false;
+        if(!active.insert(type.class_name).second) return false;
+        const auto ci=checked.classes.find(type.class_name);
+        if(ci==checked.classes.end()){
+            active.erase(type.class_name);
+            return false;
+        }
+        for(const auto& field:ci->second.fields){
+            if(autograd_target_type_contains(field.type,active)){
+                active.erase(type.class_name);
+                return true;
+            }
+        }
+        active.erase(type.class_name);
+        return false;
     }
 
-    void collect_neural_state_values(
-        ValueId object,const Type& type,const std::string& path,
-        std::vector<NeuralStateValue>& out,std::unordered_set<std::string>& active) {
-        if(neural_state_leaf(type)){
-            out.push_back(NeuralStateValue{path,object,type});
+    void collect_autograd_targets(
+        ValueId object,const Type& type,const std::string& destination,
+        std::unordered_set<std::string>& active) {
+        const auto target_type=Type::class_type("$std.autograd.Target");
+        if(type==target_type){
+            append_collected_value(destination,target_type,object);
             return;
         }
-        if(type.kind!=TypeKind::Class) throw std::logic_error("unsupported neural state type");
-        if(!active.insert(type.class_name).second)
-            throw std::logic_error("recursive neural state type");
+        if(type.kind==TypeKind::Array){
+            for_each_collected_array_element(
+                object,type,"backward.targets",
+                [&](ValueId child,const Type& child_type) {
+                    collect_autograd_targets(
+                        child,child_type,destination,active);
+                });
+            return;
+        }
+        if(type.kind!=TypeKind::Class) return;
+        if(!active.insert(type.class_name).second) return;
         const auto ci=checked.classes.find(type.class_name);
-        if(ci==checked.classes.end()) throw std::logic_error("missing neural state class");
+        if(ci==checked.classes.end()){
+            active.erase(type.class_name);
+            return;
+        }
         for(const auto& field:ci->second.fields){
+            std::unordered_set<std::string> probe=active;
+            if(!autograd_target_type_contains(field.type,probe)) continue;
             auto child=fresh();
-            block->instructions.push_back(FieldGet{child,object,field.index,field.type});
-            const auto child_path=path.empty()?field.name:path+"."+field.name;
-            collect_neural_state_values(child,field.type,child_path,out,active);
+            block->instructions.push_back(
+                FieldGet{child,object,field.index,field.type});
+            collect_autograd_targets(
+                child,field.type,destination,active);
         }
         active.erase(type.class_name);
     }
 
-    void collect_neural_state_targets(
-        ValueId address,const Type& type,const std::string& path,
-        std::vector<NeuralStateTarget>& out,std::unordered_set<std::string>& active) {
-        if(neural_state_leaf(type)){
-            out.push_back(NeuralStateTarget{path,address,type});
-            return;
-        }
-        if(type.kind!=TypeKind::Class) throw std::logic_error("unsupported neural state type");
-        if(!active.insert(type.class_name).second)
-            throw std::logic_error("recursive neural state type");
-        const auto ci=checked.classes.find(type.class_name);
-        if(ci==checked.classes.end()) throw std::logic_error("missing neural state class");
-        auto object=fresh();
-        block->instructions.push_back(LoadAddress{object,address,type});
-        for(const auto& field:ci->second.fields){
-            auto child_address=fresh();
-            block->instructions.push_back(AddressField{child_address,object,field.index});
-            const auto child_path=path.empty()?field.name:path+"."+field.name;
-            collect_neural_state_targets(child_address,field.type,child_path,out,active);
-        }
-        active.erase(type.class_name);
-    }
-
-    static std::string neural_state_schema_prefix(
-        const std::vector<std::pair<std::string,Type>>& roots) {
-        std::string schema="quidra.quistate.v1";
-        for(const auto& [name,type]:roots)
-            schema+="|root:"+name+":"+type_name(type);
-        return schema;
-    }
-
-    static std::string neural_state_schema(
-        const std::vector<std::pair<std::string,Type>>& roots,
-        const std::vector<NeuralStateValue>& values) {
-        auto schema=neural_state_schema_prefix(roots);
-        for(const auto& value:values)
-            schema+="|"+value.path+":"+type_name(value.type);
-        return schema;
-    }
-
-    static std::string neural_state_schema(
-        const std::vector<std::pair<std::string,Type>>& roots,
-        const std::vector<NeuralStateTarget>& targets) {
-        auto schema=neural_state_schema_prefix(roots);
-        for(const auto& target:targets)
-            schema+="|"+target.path+":"+type_name(target.type);
-        return schema;
-    }
     ValueId copy_value(ValueId v,const Type& t) {
         if (requires_value_clone(t)) {
             auto out=fresh();
@@ -1529,7 +1694,18 @@ struct Lowerer {
     bool expression_owns_result(const Expr& expression) const {
         if (checked.enum_constructions.contains(&expression)) return true;
         const auto type = type_of(expression);
-        if (!requires_lifetime_management(type)) return false;
+        // A contextual fail-fast expression is source-visible as T | error but
+        // type_of(expression) is the narrowed success type T.  Ownership still
+        // belongs to the raw temporary container.  Use the raw type only for
+        // the lifetime gate; the structural cases below continue to distinguish
+        // owned temporaries from borrowed names/members.
+        const auto raw = checked.raw_types.find(&expression);
+        const auto& lifetime_type =
+            checked.fail_fast_expressions.contains(&expression) &&
+                    raw != checked.raw_types.end()
+                ? raw->second
+                : type;
+        if (!requires_lifetime_management(lifetime_type)) return false;
         if (std::holds_alternative<StringExpr>(expression.data)) {
             return false;
         }
@@ -1540,6 +1716,10 @@ struct Lowerer {
                    standard_float_constant(name->name).has_value();
         }
         if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+            // Tensor .grad materializes a fresh tensor clone. Treat it as an owned
+            // temporary so chained indexing/item() and discarded gradient reads
+            // release that clone.
+            if (checked.tensor_grad_accesses.contains(&expression)) return true;
             return expression_owns_result(*member->base);
         }
         if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
@@ -2223,6 +2403,17 @@ struct Lowerer {
             const auto& ir_name=source_local(n->name); const auto t=locals.at(ir_name); block->instructions.push_back(LoadLocal{out,ir_name,t}); if(t.kind==TypeKind::Union&&raw.kind!=TypeKind::Union){auto pv=fresh();block->instructions.push_back(VariantPayload{pv,out,raw});return pv;}return out;
         }
         if (const auto* n=std::get_if<MemberExpr>(&e.data)) {
+            if (checked.tensor_grad_accesses.contains(&e)) {
+                const auto tensor_type=type_of(*n->base);
+                const bool base_owned=expression_owns_result(*n->base);
+                auto tensor=expr(*n->base),out=fresh();
+                block->instructions.push_back(TensorGrad{
+                    out,tensor,type_of(e),
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+                if(base_owned) block->instructions.push_back(Release{tensor,tensor_type});
+                return out;
+            }
             const bool base_owned=expression_owns_result(*n->base);
             auto object=expr(*n->base),out=fresh();
             const auto& info=checked.field_accesses.at(&e);
@@ -2462,7 +2653,7 @@ struct Lowerer {
             };
 
             // Operator trees are frequently left-deep. Lower every eager binary
-            // node iteratively so scalar, tensor, and neural expressions do not
+            // node iteratively so scalar and tensor expressions do not
             // depend on the host compiler process stack size.
             std::vector<std::pair<const Expr*,bool>> pending;
             std::unordered_map<const Expr*,ValueId> values;
@@ -2490,12 +2681,7 @@ struct Lowerer {
                 auto right_type=type_of(*binary->right);
                 auto out=fresh();
 
-                if(left_type.kind==TypeKind::Neural || right_type.kind==TypeKind::Neural){
-                    block->instructions.push_back(NeuralBinary{
-                        out,binary->op,left,right,left_type,right_type,type_of(*current),
-                        static_cast<std::uint32_t>(current->span.start.line),
-                        static_cast<std::uint32_t>(current->span.start.column)});
-                }else if(left_type.kind==TypeKind::Tensor || right_type.kind==TypeKind::Tensor){
+                if(left_type.kind==TypeKind::Tensor || right_type.kind==TypeKind::Tensor){
                     const auto tensor_type=
                         left_type.kind==TypeKind::Tensor?left_type:right_type;
                     const auto element=*tensor_type.first;
@@ -2504,7 +2690,7 @@ struct Lowerer {
                         binary->op=="<=" || binary->op==">" || binary->op==">=";
                     if(comparison){
                         block->instructions.push_back(TensorCompare{
-                            out,binary->op,left,right,element,
+                            out,binary->op,left,right,left_type,right_type,type_of(*current),
                             static_cast<std::uint32_t>(current->span.start.line),
                             static_cast<std::uint32_t>(current->span.start.column)});
                     }else{
@@ -2650,6 +2836,36 @@ struct Lowerer {
                 if(n->method=="load"){
                     auto out=fresh();
                     block->instructions.push_back(AtomicCounterLoad{out,counter});
+                    return finish(out);
+                }
+            }
+            if(receiver_type.kind==TypeKind::Class &&
+               receiver_type.class_name=="$std.autograd.Target"){
+                auto target=expr(*n->receiver);
+                const bool owned=expression_owns_result(*n->receiver);
+                const auto finish=[&](ValueId result){
+                    if(owned) block->instructions.push_back(Release{target,receiver_type});
+                    return result;
+                };
+                if(n->method=="has_grad"){
+                    auto out=fresh();
+                    block->instructions.push_back(AutogradTargetHasGrad{out,target});
+                    return finish(out);
+                }
+                if(n->method=="clear_grad"){
+                    block->instructions.push_back(AutogradTargetClearGrad{
+                        target,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    finish(0);
+                    return 0;
+                }
+                if(n->method=="gradient"){
+                    auto out=fresh();
+                    block->instructions.push_back(AutogradTargetGradient{
+                        out,target,type_of(e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
                     return finish(out);
                 }
             }
@@ -2816,15 +3032,6 @@ struct Lowerer {
                     return finish_string_receiver(out);
                 }
             }
-            if(receiver_type.kind==TypeKind::Neural){
-                auto receiver=expr(*n->receiver),out=fresh();
-                if(n->method=="untrack"){
-                    const auto result=type_of(e);
-                    block->instructions.push_back(NeuralUntrack{out,receiver,result});
-                    if(expression_owns_result(*n->receiver)) block->instructions.push_back(Release{receiver,receiver_type});
-                    return out;
-                }
-            }
             if(receiver_type.kind==TypeKind::Tensor){
                 auto receiver=expr(*n->receiver);
                 const bool receiver_owned=expression_owns_result(*n->receiver);
@@ -2832,6 +3039,88 @@ struct Lowerer {
                     if(receiver_owned) block->instructions.push_back(Release{receiver,receiver_type});
                     return out;
                 };
+                if(n->method=="track" || n->method=="untrack" || n->method=="retrack"){
+                    auto out=fresh();
+                    ValueId target=0;
+                    if(n->method=="track" && !n->args.empty())
+                        target=expr(*n->args[0].value);
+                    const int mode=n->method=="track"?1:n->method=="retrack"?2:0;
+                    block->instructions.push_back(TensorTrack{
+                        out,receiver,target,type_of(e),mode,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
+                if(n->method=="clear_grad"){
+                    block->instructions.push_back(TensorClearGrad{
+                        receiver,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    if(receiver_owned) block->instructions.push_back(Release{receiver,receiver_type});
+                    return 0;
+                }
+                if(n->method=="backward"){
+                    std::vector<TensorBackwardTarget> targets;
+                    const auto autograd_target_type=
+                        Type::class_type("$std.autograd.Target");
+                    const auto autograd_target_array=
+                        Type::array(autograd_target_type);
+                    std::optional<std::string> dynamic_destination;
+                    auto track=const_bool(false);
+                    for(const auto& argument:n->args){
+                        if(!argument.writable){
+                            track=expr(*argument.value);
+                            continue;
+                        }
+                        auto target=expr(*argument.value);
+                        const auto target_type=type_of(*argument.value);
+                        if(target_type.kind==TypeKind::Tensor){
+                            targets.push_back(TensorBackwardTarget{target,false});
+                        }else{
+                            if(!dynamic_destination){
+                                dynamic_destination=collected_array_local(
+                                    autograd_target_type,"backward.targets.result");
+                            }
+                            std::unordered_set<std::string> active;
+                            collect_autograd_targets(
+                                target,target_type,*dynamic_destination,active);
+                        }
+                    }
+                    ValueId dynamic_targets=0;
+                    if(dynamic_destination){
+                        dynamic_targets=fresh();
+                        block->instructions.push_back(LoadLocal{
+                            dynamic_targets,*dynamic_destination,
+                            autograd_target_array});
+                    }
+                    block->instructions.push_back(TensorBackward{
+                        receiver,std::move(targets),dynamic_targets,track,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    if(dynamic_targets!=0)
+                        block->instructions.push_back(
+                            Release{dynamic_targets,autograd_target_array});
+                    if(receiver_owned) block->instructions.push_back(Release{receiver,receiver_type});
+                    return 0;
+                }
+                if(n->method=="abs" || n->method=="exp" || n->method=="log" ||
+                   n->method=="mean" || n->method=="sum_last" ||
+                   n->method=="max_last" || n->method=="min_last"){
+                    auto out=fresh();
+                    const auto operation=
+                        n->method=="abs"?BuiltinCallable::TensorAbsolute:
+                        n->method=="exp"?BuiltinCallable::TensorExponential:
+                        n->method=="log"?BuiltinCallable::TensorLogarithm:
+                        n->method=="mean"?BuiltinCallable::TensorMean:
+                        n->method=="sum_last"?BuiltinCallable::TensorSumLast:
+                        n->method=="max_last"?BuiltinCallable::TensorMaxLast:
+                        BuiltinCallable::TensorMinLast;
+                    block->instructions.push_back(TensorAutogradUnary{
+                        out,receiver,type_of(e),operation,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
                 if(n->method=="gpu"){
                     auto gpu=expr(*n->args[0].value),out=fresh();
                     block->instructions.push_back(TensorTransfer{
@@ -2858,6 +3147,73 @@ struct Lowerer {
                     release_temporary(*n->args[0].value,shape);
                     return finish(out);
                 }
+                if(n->method=="gather"){
+                    const auto array_type=Type::array(Type::simple(TypeKind::Int));
+                    auto indices=destination_value(*n->args[0].value,array_type);
+                    auto shape=destination_value(*n->args[1].value,array_type);
+                    auto out=fresh();
+                    block->instructions.push_back(TensorGather{
+                        out,receiver,indices,shape,type_of(e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_temporary(*n->args[0].value,indices);
+                    release_temporary(*n->args[1].value,shape);
+                    return finish(out);
+                }
+                if(n->method=="scatter"){
+                    const auto array_type=Type::array(Type::simple(TypeKind::Int));
+                    auto indices=destination_value(*n->args[0].value,array_type);
+                    auto shape=destination_value(*n->args[1].value,array_type);
+                    auto out=fresh();
+                    block->instructions.push_back(TensorScatter{
+                        out,receiver,indices,shape,type_of(e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_temporary(*n->args[0].value,indices);
+                    release_temporary(*n->args[1].value,shape);
+                    return finish(out);
+                }
+                if(n->method=="convolve"){
+                    std::optional<ValueId> kernel;
+                    std::optional<ValueId> stride;
+                    std::optional<ValueId> padding;
+                    std::optional<ValueId> dilation;
+                    std::vector<std::pair<std::size_t,ValueId>> evaluated;
+                    std::size_t positional_slot=0;
+                    for(std::size_t index=0;index<n->args.size();++index){
+                        const auto value_id=expr(*n->args[index].value);
+                        evaluated.emplace_back(index,value_id);
+                        std::size_t slot=0;
+                        if(n->args[index].name){
+                            const auto& name=*n->args[index].name;
+                            slot=name=="kernel"?0:name=="stride"?1:name=="padding"?2:3;
+                        }else slot=positional_slot++;
+                        auto* target=slot==0?&kernel:slot==1?&stride:slot==2?&padding:&dilation;
+                        *target=value_id;
+                    }
+                    auto out=fresh();
+                    block->instructions.push_back(TensorConvolve{
+                        out,receiver,*kernel,
+                        stride.value_or(const_int(1)),
+                        padding.value_or(const_int(0)),
+                        dilation.value_or(const_int(1)),
+                        type_of(e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    for(const auto& [index,value_id]:evaluated)
+                        release_temporary(*n->args[index].value,value_id);
+                    return finish(out);
+                }
+                if(n->method=="matmul"){
+                    auto right=expr(*n->args[0].value);
+                    auto out=fresh();
+                    block->instructions.push_back(LinearMatmul{
+                        out,receiver,right,type_of(e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_temporary(*n->args[0].value,right);
+                    return finish(out);
+                }
                 if(n->method=="transpose"){
                     auto axis0=expr(*n->args[0].value);
                     auto axis1=expr(*n->args[1].value);
@@ -2870,7 +3226,10 @@ struct Lowerer {
                 }
                 if(n->method=="contiguous"){
                     auto out=fresh();
-                    block->instructions.push_back(TensorContiguous{out,receiver,receiver_type});
+                    block->instructions.push_back(TensorContiguous{
+                        out,receiver,receiver_type,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
                     return finish(out);
                 }
                 if(n->method=="shape"){
@@ -2883,10 +3242,28 @@ struct Lowerer {
                     block->instructions.push_back(TensorIsContiguous{out,receiver});
                     return finish(out);
                 }
+                if(n->method=="is_tracked"){
+                    auto out=fresh();
+                    block->instructions.push_back(TensorIsTracked{out,receiver});
+                    return finish(out);
+                }
+                if(n->method=="has_grad"){
+                    auto out=fresh();
+                    block->instructions.push_back(TensorHasGrad{out,receiver});
+                    return finish(out);
+                }
                 if(n->method=="item"){
                     auto out=fresh();
                     block->instructions.push_back(TensorItem{
                         out,receiver,*receiver_type.first,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
+                if(n->method=="all" || n->method=="any"){
+                    auto out=fresh();
+                    block->instructions.push_back(TensorBoolReduce{
+                        out,receiver,n->method=="all",
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
                     return finish(out);
@@ -3045,7 +3422,18 @@ struct Lowerer {
         if(resolution.kind==CallKind::NumericCast){
             auto value=expr(*n.args[0].value),out=fresh();
             const auto source=type_of(*n.args[0].value);
-            const auto& target=resolution.type;
+            const auto scalar_target=builtin_scalar_type(resolution.target);
+            // Container conversion IR carries the complete container target
+            // type. Only a scalar numeric cast can have a source-visible
+            // T | error result that differs from its scalar conversion target.
+            const bool container_source =
+                source.kind==TypeKind::Array || source.kind==TypeKind::Tensor ||
+                source.kind==TypeKind::Bin;
+            const auto target =
+                !container_source && scalar_target && is_numeric(*scalar_target)
+                    ? *scalar_target
+                    : resolution.type;
+            const auto result_type=checked.raw_types.at(&e);
             if(source.kind==TypeKind::Bin){
                 block->instructions.push_back(BinConvert{
                     out,value,source,target,
@@ -3057,23 +3445,32 @@ struct Lowerer {
                     out,value,source,target,
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
-            }else if(source.kind==TypeKind::Neural){
-                block->instructions.push_back(NeuralNumericCast{
-                    out,value,source,target,
-                    static_cast<std::uint32_t>(e.span.start.line),
-                    static_cast<std::uint32_t>(e.span.start.column)});
+                release_temporary(*n.args[0].value,value);
             }else if(source.kind==TypeKind::Array){
                 block->instructions.push_back(ArrayNumericCast{
                     out,value,source,target,
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
+                release_temporary(*n.args[0].value,value);
             }else{
-                const bool checked_range=
+                const bool recoverable_range =
+                    result_type.kind == TypeKind::Union &&
+                    result_type.union_name.empty() &&
+                    case_index(result_type, Type::simple(TypeKind::Error)) >= 0 &&
                     numeric_conversion_policy(source,target)==NumericConversionPolicy::ExplicitRangeCheck;
-                block->instructions.push_back(NumericConvert{
-                    out,value,source,target,checked_range,
-                    static_cast<std::uint32_t>(e.span.start.line),
-                    static_cast<std::uint32_t>(e.span.start.column)});
+                if (recoverable_range) {
+                    block->instructions.push_back(FallibleNumericConvert{
+                        out,value,source,target,result_type,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                } else {
+                    const bool checked_range =
+                        numeric_conversion_policy(source,target)==NumericConversionPolicy::ExplicitRangeCheck;
+                    block->instructions.push_back(NumericConvert{
+                        out,value,source,target,checked_range,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                }
                 release_temporary(*n.args[0].value,value);
             }
             return out;
@@ -3139,14 +3536,26 @@ struct Lowerer {
             };
             switch(*resolution.builtin){
                 case BuiltinCallable::Print: {
-                    auto v=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(Print{v,type_of(*n.args[0].value),out,checked.raw_types.at(&e)});
+                    const auto argument_type=type_of(*n.args[0].value);
+                    const bool fail_fast_argument =
+                        checked.fail_fast_expressions.contains(n.args[0].value.get());
+                    auto v=fail_fast_argument
+                        ? destination_value(*n.args[0].value,argument_type)
+                        : expr(*n.args[0].value);
+                    auto out=fresh();
+                    block->instructions.push_back(Print{v,argument_type,out,checked.raw_types.at(&e)});
                     release_arg(0,v);
                     return out;
                 }
                 case BuiltinCallable::Write: {
-                    auto v=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(Write{v,type_of(*n.args[0].value),out,checked.raw_types.at(&e)});
+                    const auto argument_type=type_of(*n.args[0].value);
+                    const bool fail_fast_argument =
+                        checked.fail_fast_expressions.contains(n.args[0].value.get());
+                    auto v=fail_fast_argument
+                        ? destination_value(*n.args[0].value,argument_type)
+                        : expr(*n.args[0].value);
+                    auto out=fresh();
+                    block->instructions.push_back(Write{v,argument_type,out,checked.raw_types.at(&e)});
                     release_arg(0,v);
                     return out;
                 }
@@ -3158,193 +3567,39 @@ struct Lowerer {
                     block->instructions.push_back(Exit{v});
                     return 0;
                 }
-                case BuiltinCallable::NeuralTrack:
-                case BuiltinCallable::NeuralParameterTrack: {
-                    auto input=expr(*n.args[0].value),out=fresh();
-                    const bool parameter =
-                        *resolution.builtin == BuiltinCallable::NeuralParameterTrack;
-                    block->instructions.push_back(NeuralTrack{
-                        out,input,checked.raw_types.at(&e),parameter,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,input);
+                case BuiltinCallable::ReflectCollect: {
+                    auto object=expr(*n.args[0].value);
+                    const auto result_type=checked.raw_types.at(&e);
+                    if(result_type.kind!=TypeKind::Array||!result_type.first)
+                        throw std::logic_error("reflect.collect result is not an array");
+                    const auto destination=collected_array_local(
+                        *result_type.first,"reflect.collect.result");
+                    std::unordered_set<std::string> active;
+                    collect_reflected_values(
+                        object,type_of(*n.args[0].value),*result_type.first,
+                        destination,active);
+                    auto out=fresh();
+                    block->instructions.push_back(
+                        LoadLocal{out,destination,result_type});
+                    release_arg(0,object);
                     return out;
                 }
-                case BuiltinCallable::NeuralGrad: {
-                    auto loss=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(NeuralGrad{out,loss,type_of(*n.args[0].value),
-                        static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,loss);
-                    return out;
-                }
-                case BuiltinCallable::NeuralAbsolute:
-                case BuiltinCallable::NeuralExponential:
-                case BuiltinCallable::NeuralLogarithm:
-                case BuiltinCallable::NeuralMean:
-                case BuiltinCallable::NeuralSumLast:
-                case BuiltinCallable::NeuralMaxLast: {
+                case BuiltinCallable::TensorAbsolute:
+                case BuiltinCallable::TensorExponential:
+                case BuiltinCallable::TensorLogarithm:
+                case BuiltinCallable::TensorMean:
+                case BuiltinCallable::TensorSumLast:
+                case BuiltinCallable::TensorMaxLast: {
                     auto input=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(NeuralUnary{
+                    block->instructions.push_back(TensorAutogradUnary{
                         out,input,checked.raw_types.at(&e),*resolution.builtin,
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
                     release_arg(0,input);
                     return out;
                 }
-                case BuiltinCallable::NeuralUpdate: {
-                    auto model=expr(*n.args[0].value);
-                    auto gradients=expr(*n.args[1].value);
-                    auto rate=expr(*n.args[2].value);
-                    std::vector<NeuralParameterRef> parameters;
-                    std::unordered_set<std::string> active;
-                    collect_neural_parameters(
-                        model,type_of(*n.args[0].value),"",parameters,active);
-                    block->instructions.push_back(NeuralUpdate{
-                        std::move(parameters),gradients,rate,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(1,gradients);
-                    return 0;
-                }
-                case BuiltinCallable::NeuralNormalize:
-                case BuiltinCallable::NeuralNormalizeInference: {
-                    const bool training=
-                        *resolution.builtin==BuiltinCallable::NeuralNormalize;
-                    auto input=expr(*n.args[0].value);
-                    auto scale=expr(*n.args[1].value);
-                    auto bias=expr(*n.args[2].value);
-                    auto running_mean=expr(*n.args[3].value);
-                    auto running_variance=expr(*n.args[4].value);
-                    auto momentum=training?expr(*n.args[5].value):const_float(0.0);
-                    auto epsilon=expr(*n.args[training?6:5].value);
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralNormalize{
-                        out,input,scale,bias,running_mean,running_variance,
-                        momentum,epsilon,checked.raw_types.at(&e),training,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    for(std::size_t i=0;i<5;++i) release_arg(i,
-                        i==0?input:i==1?scale:i==2?bias:i==3?running_mean:running_variance);
-                    return out;
-                }
-                case BuiltinCallable::NeuralRandomMask: {
-                    auto input=expr(*n.args[0].value);
-                    auto state=expr(*n.args[1].value);
-                    auto rate=expr(*n.args[2].value);
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralRandomMask{
-                        out,input,state,rate,checked.raw_types.at(&e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,input);
-                    release_arg(1,state);
-                    return out;
-                }
-                case BuiltinCallable::NeuralMomentUpdate: {
-                    auto model=expr(*n.args[0].value);
-                    auto rate=expr(*n.args[1].value);
-                    auto beta1=expr(*n.args[2].value);
-                    auto beta2=expr(*n.args[3].value);
-                    auto epsilon=expr(*n.args[4].value);
-                    auto step=expr(*n.args[5].value);
-                    auto moments=expr(*n.args[6].value);
-                    auto gradients=expr(*n.args[7].value);
-                    std::vector<NeuralParameterRef> parameters;
-                    std::unordered_set<std::string> active;
-                    collect_neural_parameters(
-                        model,type_of(*n.args[0].value),"",parameters,active);
-                    block->instructions.push_back(NeuralMomentUpdate{
-                        std::move(parameters),rate,beta1,beta2,epsilon,step,moments,gradients,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(7,gradients);
-                    return 0;
-                }
-                case BuiltinCallable::NeuralAllReduceSum: {
-                    auto values=expr(*n.args[0].value);
-                    const auto array_type=type_of(*n.args[0].value);
-                    block->instructions.push_back(NeuralAllReduceSum{
-                        values,*array_type.first,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return 0;
-                }
-                case BuiltinCallable::NeuralSave: {
-                    std::vector<NeuralStateValue> values;
-                    std::vector<std::pair<const Expr*,ValueId>> roots;
-                    std::vector<std::pair<std::string,Type>> root_types;
-                    std::unordered_set<std::string> active;
-                    const auto object_count=n.args.size()-1;
-                    for(std::size_t i=0;i<object_count;++i){
-                        auto object=expr(*n.args[i].value);
-                        roots.push_back({n.args[i].value.get(),object});
-                        const std::string root=i==0?"model":"optimizer";
-                        const auto root_type=type_of(*n.args[i].value);
-                        root_types.push_back({root,root_type});
-                        collect_neural_state_values(
-                            object,root_type,root,values,active);
-                    }
-                    auto path=expr(*n.args.back().value);
-                    block->instructions.push_back(NeuralSave{
-                        path,neural_state_schema(root_types,values),std::move(values),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(n.args.size()-1,path);
-                    for(std::size_t i=0;i<roots.size();++i)
-                        release_arg(i,roots[i].second);
-                    return 0;
-                }
-                case BuiltinCallable::NeuralLoad: {
-                    std::vector<NeuralStateTarget> targets;
-                    std::vector<std::pair<std::string,Type>> root_types;
-                    std::unordered_set<std::string> active;
-                    const auto object_count=n.args.size()-1;
-                    for(std::size_t i=0;i<object_count;++i){
-                        auto address=address_of(*n.args[i].value);
-                        const std::string root=i==0?"model":"optimizer";
-                        const auto root_type=type_of(*n.args[i].value);
-                        root_types.push_back({root,root_type});
-                        collect_neural_state_targets(
-                            address,root_type,root,targets,active);
-                    }
-                    auto path=expr(*n.args.back().value);
-                    block->instructions.push_back(NeuralLoad{
-                        path,neural_state_schema(root_types,targets),std::move(targets),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(n.args.size()-1,path);
-                    return 0;
-                }
-                case BuiltinCallable::NeuralConvolve2D: {
-                    auto input=expr(*n.args[0].value);
-                    auto weight=expr(*n.args[1].value);
-                    auto bias=expr(*n.args[2].value);
-                    auto stride=expr(*n.args[3].value);
-                    auto padding=expr(*n.args[4].value);
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralConvolve2D{
-                        out,input,weight,bias,stride,padding,type_of(*n.args[0].value),
-                        checked.raw_types.at(&e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,input); release_arg(1,weight); release_arg(2,bias);
-                    return out;
-                }
-                case BuiltinCallable::NeuralAffine: {
-                    auto input=expr(*n.args[0].value);
-                    auto weight=expr(*n.args[1].value);
-                    auto bias=expr(*n.args[2].value);
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralAffine{
-                        out,input,weight,bias,type_of(*n.args[0].value),
-                        checked.raw_types.at(&e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,input);
-                    release_arg(1,weight);
-                    release_arg(2,bias);
-                    return out;
-                }
+                case BuiltinCallable::TensorMinLast:
+                    throw std::logic_error("TensorMinLast is method-only and cannot be lowered as a builtin.");
                 case BuiltinCallable::StatsMean: {
                     auto input=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(StatsMean{
@@ -3720,6 +3975,11 @@ struct Lowerer {
                     block->instructions.push_back(GpuSync{index,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
                     return 0;
                 }
+                case BuiltinCallable::AutogradTarget: {
+                    auto out=fresh();
+                    block->instructions.push_back(AutogradTargetCreate{out});
+                    return out;
+                }
                 case BuiltinCallable::AtomicCounter: {
                     auto initial=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(AtomicCounterCreate{out,initial});
@@ -3898,35 +4158,6 @@ struct Lowerer {
                     if(n.args.size()==3) release_arg(2,quality);
                     return out;
                 }
-                case BuiltinCallable::ImageTensorCrop:
-                case BuiltinCallable::ImageTensorResize:
-                case BuiltinCallable::ImageTensorFlipHorizontal:
-                case BuiltinCallable::ImageTensorFlipVertical:
-                case BuiltinCallable::ImageTensorRotate90:
-                case BuiltinCallable::ImageTensorRotate180:
-                case BuiltinCallable::ImageTensorRotate270:
-                case BuiltinCallable::ImageTensorGrayscale:
-                case BuiltinCallable::ImageTensorThreshold:
-                case BuiltinCallable::ImageTensorBlur:
-                case BuiltinCallable::ImageTensorFilter:
-                case BuiltinCallable::ImageTensorDilate:
-                case BuiltinCallable::ImageTensorErode: {
-                    std::vector<ValueId> args;
-                    args.reserve(n.args.size());
-                    for (const auto& argument : n.args) {
-                        args.push_back(expr(*argument.value));
-                    }
-                    auto out=fresh();
-                    const auto input_type=type_of(*n.args[0].value);
-                    block->instructions.push_back(ImageTensorOp{
-                        out,*resolution.builtin,std::move(args),
-                        checked.raw_types.at(&e),*input_type.first,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    for(std::size_t i=0;i<n.args.size();++i)
-                        release_arg(i,std::get<ImageTensorOp>(block->instructions.back()).args[i]);
-                    return out;
-                }
                 case BuiltinCallable::HttpGet: {
                     auto url=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(HttpGet{out,url,checked.raw_types.at(&e)});
@@ -4034,36 +4265,67 @@ struct Lowerer {
         return false;
     }
 
-    const CallExpr* split_parse_call(
+    bool split_parse_call(
         const BindingStmt& binding, const std::string& fields_name,
         std::uint64_t expected_index) const {
-        if (binding.reference || !binding.value) return nullptr;
+        if (binding.reference || !binding.value) return false;
         const auto binding_type_it = checked.expr_types.find(binding.value.get());
         if (binding_type_it == checked.expr_types.end() ||
             binding_type_it->second.kind != TypeKind::Int)
-            return nullptr;
+            return false;
+
+        const auto matches_index =
+            [&](const Expr& argument) {
+                const auto* index = std::get_if<IndexExpr>(&argument.data);
+                if (!index || index->items.size() != 1 ||
+                    index->items.front().slice ||
+                    !index->items.front().index)
+                    return false;
+                const auto* base =
+                    std::get_if<NameExpr>(&index->base->data);
+                const auto* literal =
+                    std::get_if<IntegerExpr>(
+                        &index->items.front().index->data);
+                return base && base->name == fields_name && literal &&
+                       literal->fits_u64 &&
+                       literal->value == expected_index;
+            };
+
+        // Direct int.parse(fields[N]) is the canonical source form. The typed
+        // int destination is a success-only context, so an invalid parse
+        // already has the same fail-fast semantics as the wrapper form below.
+        // The fused runtime helper falls back to the original path whenever it
+        // cannot prove the two canonical decimal fields.
+        if (const auto* parse =
+                std::get_if<MethodCallExpr>(&binding.value->data)) {
+            const auto* receiver =
+                std::get_if<NameExpr>(&parse->receiver->data);
+            if (receiver && receiver->name == "int" &&
+                parse->method == "parse" &&
+                parse->type_arguments.empty() &&
+                parse->args.size() == 1 &&
+                !parse->args.front().writable &&
+                parse->args.front().value &&
+                matches_index(*parse->args.front().value)) {
+                const auto raw = checked.raw_types.find(binding.value.get());
+                return raw != checked.raw_types.end() &&
+                       raw->second.kind == TypeKind::Union &&
+                       case_index(raw->second, Type::simple(TypeKind::Int)) >= 0 &&
+                       case_index(raw->second, Type::simple(TypeKind::Error)) >= 0;
+            }
+        }
+
         const auto* call = std::get_if<CallExpr>(&binding.value->data);
-        if (!call || call->args.size() != 1 || !call->args.front().value)
-            return nullptr;
+        if (!call || call->args.size() != 1 ||
+            !call->args.front().value)
+            return false;
         const auto resolution =
             checked.call_resolutions.find(binding.value.get());
         if (resolution == checked.call_resolutions.end() ||
             resolution->second.kind != CallKind::Function ||
             !is_signed_parse_wrapper(resolution->second.target))
-            return nullptr;
-
-        const auto* index =
-            std::get_if<IndexExpr>(&call->args.front().value->data);
-        if (!index || index->items.size() != 1 ||
-            index->items.front().slice || !index->items.front().index)
-            return nullptr;
-        const auto* base = std::get_if<NameExpr>(&index->base->data);
-        const auto* literal =
-            std::get_if<IntegerExpr>(&index->items.front().index->data);
-        if (!base || base->name != fields_name || !literal ||
-            !literal->fits_u64 || literal->value != expected_index)
-            return nullptr;
-        return call;
+            return false;
+        return matches_index(*call->args.front().value);
     }
 
     bool lower_split_parse_pair(
@@ -4107,15 +4369,13 @@ struct Lowerer {
         if (separator_byte == 0 || separator_byte >= 0x80U)
             return false;
 
-        const auto* left_call =
+        const bool left_parse =
             split_parse_call(*left_binding, split_binding->name, 0);
-        const auto* right_call =
+        const bool right_parse =
             split_parse_call(*right_binding, split_binding->name, 1);
-        if (!left_call || !right_call) return false;
+        if (!left_parse || !right_parse) return false;
 
-        block->instructions.push_back(SourceLocation{
-            static_cast<std::uint32_t>(split_statement.span.start.line),
-            static_cast<std::uint32_t>(split_statement.span.start.column)});
+        block->instructions.push_back(source_location(split_statement.span));
 
         const auto fields_local =
             bind_source_local(split_binding->name, fields_type);
@@ -4159,10 +4419,12 @@ struct Lowerer {
         auto split_value = expr(*split_binding->value);
         block->instructions.push_back(
             StoreLocal{fields_local, split_value, fields_type});
-        auto left_value = expr(*left_binding->value);
+        auto left_value =
+            destination_value(*left_binding->value, left_type);
         block->instructions.push_back(
             StoreLocal{left_local, left_value, left_type, true});
-        auto right_value = expr(*right_binding->value);
+        auto right_value =
+            destination_value(*right_binding->value, right_type);
         block->instructions.push_back(
             StoreLocal{right_local, right_value, right_type, true});
         block->instructions.push_back(Jump{done});
@@ -4264,9 +4526,7 @@ struct Lowerer {
             bind_source_local(array_binding->name, array_type);
         const auto line_local =
             bind_source_local(line_binding->name, line_type);
-        block->instructions.push_back(SourceLocation{
-            static_cast<std::uint32_t>(array_statement.span.start.line),
-            static_cast<std::uint32_t>(array_statement.span.start.column)});
+        block->instructions.push_back(source_location(array_statement.span));
         block->instructions.push_back(DeclareLocal{
             fields_local, array_type, array_binding->name,
             static_cast<std::uint32_t>(array_statement.span.start.line),
@@ -4365,17 +4625,13 @@ struct Lowerer {
         for (const auto& element : array->elements)
             if (!string_build_element_supported(*element)) return false;
 
-        block->instructions.push_back(SourceLocation{
-            static_cast<std::uint32_t>(array_statement.span.start.line),
-            static_cast<std::uint32_t>(array_statement.span.start.column)});
+        block->instructions.push_back(source_location(array_statement.span));
         std::vector<StringBuildPart> parts;
         parts.reserve(array->elements.size());
         for (const auto& element : array->elements)
             parts.push_back(lower_string_build_element(*element));
 
-        block->instructions.push_back(SourceLocation{
-            static_cast<std::uint32_t>(join_statement.span.start.line),
-            static_cast<std::uint32_t>(join_statement.span.start.column)});
+        block->instructions.push_back(source_location(join_statement.span));
         auto separator = expr(*join->args[0].value);
         auto built = fresh();
         block->instructions.push_back(
@@ -4452,9 +4708,7 @@ struct Lowerer {
             type_of(*split->receiver).kind != TypeKind::String)
             return false;
 
-        block->instructions.push_back(SourceLocation{
-            static_cast<std::uint32_t>(binding_statement.span.start.line),
-            static_cast<std::uint32_t>(binding_statement.span.start.column)});
+        block->instructions.push_back(source_location(binding_statement.span));
 
         auto text = expr(*split->receiver);
         auto separator = expr(*split->args.front().value);
@@ -5341,9 +5595,9 @@ struct Lowerer {
         auto current_slot = load_field(*empty_slot_field);
         block->instructions.push_back(FieldSet{
             object, last_slot_field->index, current_slot, int_type});
-        auto version = load_field(*version_field);
+        auto map_version = load_field(*version_field);
         block->instructions.push_back(FieldSet{
-            object, last_version_field->index, version, int_type});
+            object, last_version_field->index, map_version, int_type});
 
         auto zero = const_int(0);
         auto found_test = fresh();
@@ -5440,9 +5694,7 @@ struct Lowerer {
     void stmt(const Stmt& s) {
         nesting::DepthGuard guard(
             stmt_depth_, nesting::max_statement_depth, s.span, "Statement");
-        block->instructions.push_back(SourceLocation{
-            static_cast<std::uint32_t>(s.span.start.line),
-            static_cast<std::uint32_t>(s.span.start.column)});
+        block->instructions.push_back(source_location(s.span));
         if(const auto* n=std::get_if<BindingStmt>(&s.data)){
             const auto t=checked.binding_types.at(&s);
             if(n->reference){
@@ -5458,7 +5710,7 @@ struct Lowerer {
                 static_cast<std::uint32_t>(s.span.start.line),
                 static_cast<std::uint32_t>(s.span.start.column)});
 
-            if(t.kind==TypeKind::Tensor || t.kind==TypeKind::Neural){
+            if(t.kind==TypeKind::Tensor){
                 auto captured=capture_extents(
                     n->declared_type.tensor_shape_expressions,"shape.extent");
                 if(!captured.empty()) shaped_constraints[ir_name]=captured;
@@ -5990,6 +6242,22 @@ struct Lowerer {
             release_temporary(*n->value,value);
             return;
         }
+        if(const auto* n=std::get_if<MainGuardStmt>(&s.data)){
+            if(!n->active) return;
+            auto before=locals;
+            auto before_names=local_names;
+            auto before_references=references;
+            auto before_reference_names=reference_names;
+            const auto before_full=fully_initialized_array_locals;
+            for(const auto& x:n->body){ stmt(*x); if(terminated()) break; }
+            if(terminated()) return;
+            locals=std::move(before);
+            local_names=std::move(before_names);
+            references=std::move(before_references);
+            reference_names=std::move(before_reference_names);
+            fully_initialized_array_locals=before_full;
+            return;
+        }
         if(const auto* n=std::get_if<IfStmt>(&s.data)){
             auto cond=expr(*n->condition);
             const auto then_name=label("if.then"), else_name=label("if.else"), end_name=label("if.end");
@@ -6138,8 +6406,7 @@ struct Lowerer {
             const auto& parameter = fn->parameters[ir_index];
             const auto& syntax = source.parameters[i].type;
 
-            if ((parameter.type.kind == TypeKind::Tensor ||
-                 parameter.type.kind == TypeKind::Neural) &&
+            if (parameter.type.kind == TypeKind::Tensor &&
                 !syntax.tensor_shape_expressions.empty()) {
                 auto captured =
                     capture_extents(syntax.tensor_shape_expressions, "param.shape");
@@ -6164,8 +6431,7 @@ struct Lowerer {
             }
         }
 
-        if ((fn->result.kind == TypeKind::Tensor ||
-             fn->result.kind == TypeKind::Neural) &&
+        if (fn->result.kind == TypeKind::Tensor &&
             !source.return_type.tensor_shape_expressions.empty()) {
             return_shaped_constraints = capture_extents(
                 source.return_type.tensor_shape_expressions, "return.shape");
@@ -6181,7 +6447,7 @@ struct Lowerer {
         module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();reference_array_initialization.clear();reference_array_bounds.clear();active_range_bounds.clear();scalar_length_of_array.clear();array_length_from_scalar.clear();proven_nonnegative_integer_ranges.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
         for(const auto& p:fn->parameters){locals[p.name]=p.type;local_names[p.name]=p.name;}
         for(const auto& p:fn->parameters){
-            if((p.type.kind!=TypeKind::Tensor&&p.type.kind!=TypeKind::Neural)||
+            if(p.type.kind!=TypeKind::Tensor||
                p.type.tensor_shape_prefix.empty()) continue;
             auto parameter=fresh();
             block->instructions.push_back(LoadLocal{parameter,p.name,p.type});
@@ -6371,31 +6637,27 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,ParseBin>)out<<"%"<<n.out<<" = bin.parse %"<<n.text<<" : "<<type_name(n.result_type)<<(n.success_proven?" success-proven":"");
     if constexpr(std::is_same_v<T,MathRoundInt>)out<<"%"<<n.out<<" = math.round-int %"<<n.value;
     if constexpr(std::is_same_v<T,NumericConvert>)out<<"%"<<n.out<<" = convert %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type)<<(n.checked_range?" checked":"");
+    if constexpr(std::is_same_v<T,FallibleNumericConvert>)out<<"%"<<n.out<<" = convert.fallible %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones")<<(n.gpu?" gpu=%"+std::to_string(*n.gpu):" cpu");
     if constexpr(std::is_same_v<T,TensorTransfer>)out<<"%"<<n.out<<" = tensor."<<(n.gpu?"gpu":"cpu")<<" %"<<n.tensor<<(n.gpu?", %"+std::to_string(*n.gpu):"")<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorReshape>)out<<"%"<<n.out<<" = tensor.reshape %"<<n.tensor<<", %"<<n.shape<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorTranspose>)out<<"%"<<n.out<<" = tensor.transpose %"<<n.tensor<<", %"<<n.axis0<<", %"<<n.axis1<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorContiguous>)out<<"%"<<n.out<<" = tensor.contiguous %"<<n.tensor<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,TensorGather>)out<<"%"<<n.out<<" = tensor.gather %"<<n.tensor<<", %"<<n.indices<<", %"<<n.shape<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,TensorScatter>)out<<"%"<<n.out<<" = tensor.scatter %"<<n.tensor<<", %"<<n.indices<<", %"<<n.shape<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,TensorConvolve>)out<<"%"<<n.out<<" = tensor.convolve %"<<n.tensor<<", %"<<n.kernel<<", stride %"<<n.stride<<", padding %"<<n.padding<<", dilation %"<<n.dilation<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorShape>)out<<"%"<<n.out<<" = tensor.shape %"<<n.tensor<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorIsContiguous>)out<<"%"<<n.out<<" = tensor.is_contiguous %"<<n.tensor;
+    if constexpr(std::is_same_v<T,TensorIsTracked>)out<<"%"<<n.out<<" = tensor.is_tracked %"<<n.tensor;
+    if constexpr(std::is_same_v<T,TensorHasGrad>)out<<"%"<<n.out<<" = tensor.has_grad %"<<n.tensor;
+    if constexpr(std::is_same_v<T,TensorClearGrad>)out<<"tensor.clear_grad %"<<n.tensor;
     if constexpr(std::is_same_v<T,TensorItem>)out<<"%"<<n.out<<" = tensor.item %"<<n.tensor<<" : "<<type_name(n.element_type);
-    if constexpr(std::is_same_v<T,NeuralTrack>)out<<"%"<<n.out<<" = neural.track %"<<n.tensor;
-    if constexpr(std::is_same_v<T,NeuralUntrack>)out<<"%"<<n.out<<" = neural.untrack %"<<n.value;
-    if constexpr(std::is_same_v<T,NeuralUnary>)out<<"%"<<n.out<<" = neural.unary %"<<n.value;
-    if constexpr(std::is_same_v<T,NeuralBinary>)out<<"%"<<n.out<<" = neural.binary "<<n.op<<" %"<<n.left<<", %"<<n.right;
-    if constexpr(std::is_same_v<T,NeuralGrad>)out<<"%"<<n.out<<" = neural.grad %"<<n.loss;
-if constexpr(std::is_same_v<T,NeuralAllReduceSum>)out<<"neural.all_reduce_sum %"<<n.values;
-if constexpr(std::is_same_v<T,NeuralAffine>)out<<"%"<<n.out<<" = neural.affine %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralConvolve2D>)out<<"%"<<n.out<<" = neural.convolve2d %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralUpdate>)out<<"neural.update params="<<n.parameters.size();
-if constexpr(std::is_same_v<T,NeuralNormalize>)out<<"%"<<n.out<<" = neural.normalize %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralRandomMask>)out<<"%"<<n.out<<" = neural.random_mask %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralMomentUpdate>)out<<"neural.moment_update params="<<n.parameters.size();
-if constexpr(std::is_same_v<T,NeuralSave>)out<<"neural.save leaves="<<n.values.size();
-if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.size();
+    if constexpr(std::is_same_v<T,TensorTrack>)out<<"%"<<n.out<<" = tensor."<<(n.mode==0?"untrack":n.mode==1?"track":"retrack")<<" %"<<n.tensor<<(n.target?" target %"+std::to_string(n.target):"");
+    if constexpr(std::is_same_v<T,TensorBackward>){out<<"tensor.backward %"<<n.tensor;for(const auto&target:n.targets)out<<" "<<(target.autograd_target?"target":"tensor")<<" %"<<target.value;}
+    if constexpr(std::is_same_v<T,TensorGrad>)out<<"%"<<n.out<<" = tensor.grad %"<<n.tensor;
+    if constexpr(std::is_same_v<T,TensorAutogradUnary>)out<<"%"<<n.out<<" = tensor.autograd.unary %"<<n.value;
     if constexpr(std::is_same_v<T,ArrayNumericCast>)out<<"%"<<n.out<<" = array.numeric_cast %"<<n.array<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
     if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.numeric_cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
-    if constexpr(std::is_same_v<T,NeuralNumericCast>)out<<"%"<<n.out<<" = neural.numeric_cast %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
     if constexpr(std::is_same_v<T,ShapedConstraintCheck>)out<<"shape.constraint %"<<n.value<<" rank="<<n.extents.size();
     if constexpr(std::is_same_v<T,ExtentEqualCheck>)out<<"extent.check %"<<n.actual<<", %"<<n.expected;
     if constexpr(std::is_same_v<T,StatsMean>)out<<"%"<<n.out<<" = stats.mean %"<<n.tensor;
@@ -6409,8 +6671,9 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
         out<<" : "<<type_name(n.result_type);
     }
     if constexpr(std::is_same_v<T,ImageWrite>)out<<"%"<<n.out<<" = image.write %"<<n.path<<", %"<<n.image<<", quality %"<<n.quality<<" : "<<type_name(n.result_type);
-    if constexpr(std::is_same_v<T,ImageTensorOp>)out<<"%"<<n.out<<" = image.tensor.op";
     if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,TensorCompare>)out<<"%"<<n.out<<" = tensor.compare "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,TensorBoolReduce>)out<<"%"<<n.out<<" = tensor."<<(n.all?"all":"any")<<" %"<<n.tensor;
     if constexpr(std::is_same_v<T,TensorIndex>){
         out<<"%"<<n.out<<" = tensor.index %"<<n.tensor<<" [";
         for(std::size_t i=0;i<n.items.size();++i){
@@ -6473,6 +6736,10 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,AtomicCounterCreate>)out<<"%"<<n.out<<" = atomic.counter %"<<n.initial;
     if constexpr(std::is_same_v<T,AtomicCounterAdd>)out<<"%"<<n.out<<" = atomic.counter.add %"<<n.counter<<", %"<<n.delta;
     if constexpr(std::is_same_v<T,AtomicCounterLoad>)out<<"%"<<n.out<<" = atomic.counter.load %"<<n.counter;
+    if constexpr(std::is_same_v<T,AutogradTargetCreate>)out<<"%"<<n.out<<" = autograd.target.create";
+    if constexpr(std::is_same_v<T,AutogradTargetHasGrad>)out<<"%"<<n.out<<" = autograd.target.has_grad %"<<n.target;
+    if constexpr(std::is_same_v<T,AutogradTargetClearGrad>)out<<"autograd.target.clear_grad %"<<n.target;
+    if constexpr(std::is_same_v<T,AutogradTargetGradient>)out<<"%"<<n.out<<" = autograd.target.gradient %"<<n.target;
     if constexpr(std::is_same_v<T,TaskAll>){
         if(n.result_type.kind==TypeKind::Void) out<<"task.all %"<<n.operations;
         else out<<"%"<<n.out<<" = task.all %"<<n.operations;

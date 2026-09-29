@@ -1,6 +1,7 @@
 #include "quidra/source_patch.hpp"
 
 #include "quidra/compiler.hpp"
+#include "quidra/formatter.hpp"
 #include "quidra/source_tools.hpp"
 
 #include <algorithm>
@@ -21,8 +22,8 @@ constexpr std::string_view kPatchSchema = R"QUIDRA_SCHEMA({
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Quidra source patch",
   "description": "Revision-safe structural source edits for quidra patch.",
-  "x-quidra-supported-versions": [1, 2],
-  "x-quidra-preferred-version": 2,
+  "x-quidra-supported-versions": [1, 2, 3],
+  "x-quidra-preferred-version": 3,
   "$defs": {
     "v1_operation": {
       "type": "object",
@@ -57,6 +58,32 @@ constexpr std::string_view kPatchSchema = R"QUIDRA_SCHEMA({
         "expected_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "expected_kind": {"type": "string", "minLength": 1}
       }
+    },
+    "structural_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "source": {"type": "string"}
+      }
+    },
+    "v3_edit_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "node_id", "expected_hash", "expected_kind"],
+      "properties": {
+        "op": {"enum": ["replace_node", "insert_before", "insert_after"]},
+        "node_id": {"type": "string", "minLength": 1},
+        "expected_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "expected_kind": {"type": "string", "minLength": 1},
+        "replacement": {"type": "string"},
+        "replacement_node": {"$ref": "#/$defs/structural_node"}
+      },
+      "oneOf": [
+        {"required": ["replacement"], "not": {"required": ["replacement_node"]}},
+        {"required": ["replacement_node"], "not": {"required": ["replacement"]}}
+      ]
     }
   },
   "oneOf": [
@@ -87,6 +114,25 @@ constexpr std::string_view kPatchSchema = R"QUIDRA_SCHEMA({
           "items": {
             "oneOf": [
               {"$ref": "#/$defs/v2_edit_operation"},
+              {"$ref": "#/$defs/v2_delete_operation"}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "base_revision", "operations"],
+      "properties": {
+        "schema_version": {"const": 3},
+        "base_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/v3_edit_operation"},
               {"$ref": "#/$defs/v2_delete_operation"}
             ]
           }
@@ -344,6 +390,8 @@ struct Operation {
     std::string expected_hash;
     std::optional<std::string> expected_kind;
     std::string replacement;
+    std::optional<std::string> replacement_kind;
+    bool structured{};
 };
 
 struct Patch {
@@ -367,8 +415,8 @@ Patch parse_patch(std::string_view text) {
 
     Patch patch;
     patch.schema_version = as_integer(require(object, "schema_version"), "schema_version");
-    if (patch.schema_version != 1 && patch.schema_version != 2) {
-        throw PatchError("INVALID_PATCH", "Patch schema_version must be 1 or 2.");
+    if (patch.schema_version != 1 && patch.schema_version != 2 && patch.schema_version != 3) {
+        throw PatchError("INVALID_PATCH", "Patch schema_version must be 1, 2, or 3.");
     }
     patch.base_revision = as_string(require(object, "base_revision"), "base_revision");
 
@@ -389,31 +437,75 @@ Patch parse_patch(std::string_view text) {
                 as_string(require(op, "node_id"), "node_id"),
                 as_string(require(op, "expected_hash"), "expected_hash"),
                 std::nullopt,
-                as_string(require(op, "replacement"), "replacement")});
+                as_string(require(op, "replacement"), "replacement"),
+                std::nullopt,
+                false});
             continue;
         }
 
         const auto kind = operation_kind(op_name);
+        const auto& expected_kind = as_string(require(op, "expected_kind"), "expected_kind");
+        if (expected_kind.empty()) {
+            throw PatchError("INVALID_PATCH", "expected_kind must be nonempty in patch schema version 2 or 3.");
+        }
         if (kind == OperationKind::DeleteNode) {
             require_exact_keys(
                 op, {"op", "node_id", "expected_hash", "expected_kind"}, "Patch operation");
-        } else {
+            patch.operations.push_back(Operation{
+                kind,
+                as_string(require(op, "node_id"), "node_id"),
+                as_string(require(op, "expected_hash"), "expected_hash"),
+                expected_kind, {}, std::nullopt, false});
+            continue;
+        }
+        if (patch.schema_version == 2) {
             require_exact_keys(
                 op, {"op", "node_id", "expected_hash", "expected_kind", "replacement"},
                 "Patch operation");
+            patch.operations.push_back(Operation{
+                kind,
+                as_string(require(op, "node_id"), "node_id"),
+                as_string(require(op, "expected_hash"), "expected_hash"),
+                expected_kind,
+                as_string(require(op, "replacement"), "replacement"),
+                std::nullopt, false});
+            continue;
         }
-        const auto& expected_kind = as_string(require(op, "expected_kind"), "expected_kind");
-        if (expected_kind.empty()) {
-            throw PatchError("INVALID_PATCH", "expected_kind must be nonempty in patch schema version 2.");
+
+        const bool has_source = op.contains("replacement");
+        const bool has_node = op.contains("replacement_node");
+        if (has_source == has_node) {
+            throw PatchError("INVALID_PATCH",
+                             "Patch schema version 3 edit requires exactly one of replacement or replacement_node.");
         }
-        patch.operations.push_back(Operation{
-            kind,
-            as_string(require(op, "node_id"), "node_id"),
-            as_string(require(op, "expected_hash"), "expected_hash"),
-            expected_kind,
-            kind == OperationKind::DeleteNode
-                ? std::string{}
-                : as_string(require(op, "replacement"), "replacement")});
+        if (has_source) {
+            require_exact_keys(
+                op, {"op", "node_id", "expected_hash", "expected_kind", "replacement"},
+                "Patch operation");
+            patch.operations.push_back(Operation{
+                kind,
+                as_string(require(op, "node_id"), "node_id"),
+                as_string(require(op, "expected_hash"), "expected_hash"),
+                expected_kind,
+                as_string(require(op, "replacement"), "replacement"),
+                std::nullopt, false});
+        } else {
+            require_exact_keys(
+                op, {"op", "node_id", "expected_hash", "expected_kind", "replacement_node"},
+                "Patch operation");
+            const auto& node = as_object(require(op, "replacement_node"), "replacement_node");
+            require_exact_keys(node, {"kind", "source"}, "replacement_node");
+            const auto& replacement_kind = as_string(require(node, "kind"), "replacement_node.kind");
+            if (replacement_kind.empty())
+                throw PatchError("INVALID_PATCH", "replacement_node.kind must be nonempty.");
+            patch.operations.push_back(Operation{
+                kind,
+                as_string(require(op, "node_id"), "node_id"),
+                as_string(require(op, "expected_hash"), "expected_hash"),
+                expected_kind,
+                as_string(require(node, "source"), "replacement_node.source"),
+                replacement_kind, true});
+        }
     }
     return patch;
 }
@@ -425,6 +517,21 @@ struct Edit {
     SourceSpan span{};
     std::string node_id;
 };
+
+bool contains_line_comment(std::string_view source) {
+    bool in_string = false;
+    for (std::size_t i = 0; i < source.size(); ++i) {
+        const char c = source[i];
+        if (c == '"') {
+            in_string = !in_string;
+            continue;
+        }
+        if (!in_string && c == '/' && i + 1 < source.size() && source[i + 1] == '/') {
+            return true;
+        }
+    }
+    return false;
+}
 
 bool edits_conflict(const Edit& left, const Edit& right) {
     const bool left_insert = left.start == left.end;
@@ -457,8 +564,10 @@ PatchResult apply_source_patch(
 
     std::vector<Edit> edits;
     edits.reserve(patch.operations.size());
+    bool has_structured_edit = false;
 
     for (const auto& operation : patch.operations) {
+        has_structured_edit = has_structured_edit || operation.structured;
         const auto it = nodes.find(operation.node_id);
         if (it == nodes.end()) {
             throw PatchError("UNKNOWN_NODE", "Patch references unknown node '" + operation.node_id + "'.");
@@ -475,6 +584,25 @@ PatchResult apply_source_patch(
                 "Node kind '" + node.kind + "' does not match expected_kind '" +
                     *operation.expected_kind + "'.",
                 node.span, node.node_id);
+        }
+
+        if (operation.structured) {
+            if (operation.kind == OperationKind::ReplaceNode &&
+                operation.replacement_kind && *operation.replacement_kind != node.kind) {
+                throw PatchError(
+                    "PATCH_ROLE_MISMATCH",
+                    "Structured replacement kind '" + *operation.replacement_kind +
+                        "' does not match target role '" + node.kind + "'.",
+                    node.span, node.node_id);
+            }
+            const auto original = source.substr(
+                node.span.start.offset, node.span.end.offset - node.span.start.offset);
+            if (contains_line_comment(original)) {
+                throw PatchError(
+                    "PATCH_TRIVIA_CONFLICT",
+                    "Structured edit would replace a node containing comments; use a source replacement to preserve trivia explicitly.",
+                    node.span, node.node_id);
+            }
         }
 
         std::size_t start = node.span.start.offset;
@@ -513,6 +641,13 @@ PatchResult apply_source_patch(
     for (auto it = edits.rbegin(); it != edits.rend(); ++it) {
         updated.replace(it->start, it->end - it->start, it->replacement);
     }
+
+    // A public structural-node payload represents structure rather than trivia.
+    // Render the complete accepted result through the language's canonical
+    // formatter before validation/write so source -> structure -> source has one
+    // deterministic representation. Source-fragment-only patches intentionally
+    // retain their historical byte-preserving behavior.
+    if (has_structured_edit) updated = format_source(updated);
 
     // A patch is accepted only when the resulting source still passes the full
     // frontend and IR/backend validation path. File-aware callers provide a validator

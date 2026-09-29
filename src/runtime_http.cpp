@@ -245,7 +245,7 @@ extern "C" void* quidra_http_get(const char* url) {
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 30000L);
     static const std::string user_agent = std::string(quidra::language_name) +
                                           "/" +
-                                          std::string(quidra::compiler_version);
+                                          std::string(quidra::version);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, user_agent.c_str());
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
 #if LIBCURL_VERSION_NUM >= 0x075500

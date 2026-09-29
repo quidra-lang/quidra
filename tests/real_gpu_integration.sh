@@ -72,21 +72,21 @@ tensor<float32> gpu_elementwise = ((gpu_a + gpu_b) * 2.0).cpu()
 print(cpu_elementwise[2].item() == gpu_elementwise[2].item())
 print(stats.sum(cpu_a) == stats.sum(gpu_a))
 print(stats.mean(cpu_b) == stats.mean(gpu_b))
-print(gpu_a == gpu_a)
-print(gpu_a != gpu_b)
-print(gpu_a < gpu_b)
-print(gpu_a <= gpu_b)
-print(gpu_b > gpu_a)
-print(gpu_b >= gpu_a)
+print((gpu_a == gpu_a).all())
+print((gpu_a != gpu_b).any())
+print((gpu_a < gpu_b).all())
+print((gpu_a <= gpu_b).all())
+print((gpu_b > gpu_a).all())
+print((gpu_b >= gpu_a).all())
 
 tensor<float32> compare_mixed = tensor.ones<float32>([4], gpu = $GPU_INDEX)
 compare_mixed[3] = float32(2)
-print(gpu_a != compare_mixed)
+print((gpu_a != compare_mixed).any())
 
 tensor<float32> compare_view_source = tensor.ones<float32>([2, 3], gpu = $GPU_INDEX)
 tensor<float32> compare_view_a = compare_view_source[0:2, 1:3]
 tensor<float32> compare_view_b = compare_view_source[0:2, 1:3]
-print(compare_view_a == compare_view_b)
+print((compare_view_a == compare_view_b).all())
 
 tensor<float32> cpu_left = tensor.ones<float32>([2, 3])
 tensor<float32> cpu_right = tensor.ones<float32>([3, 2]) * 2.0
@@ -156,6 +156,16 @@ print(stats.min(ri32) == int32(-3))
 print(stats.max(ru64) == uint64(10))
 print(stats.mean(ri16) == 3.0)
 
+tensor<int32> scatter_values = tensor.zeros<int32>([3], gpu = $GPU_INDEX)
+scatter_values[0] = int32(1)
+scatter_values[1] = int32(2)
+scatter_values[2] = int32(3)
+tensor<int32> scatter_result = scatter_values.scatter([0, 0, 2], [4]).cpu()
+print(scatter_result[0].item() == int32(3))
+print(scatter_result[1].item() == int32(0))
+print(scatter_result[2].item() == int32(3))
+print(scatter_result[3].item() == int32(0))
+
 print(stats.min(cpu_b) == stats.min(gpu_b))
 print(stats.max(cpu_b) == stats.max(gpu_b))
 tensor<float32> negated = (-gpu_b).cpu()
@@ -188,11 +198,7 @@ print(direct[0].item() == int32(4) and direct[1].item() == int32(5))
 QUI
 
 output="$("$QUIDRA" run "$TMP/real-gpu.qui")"
-expected="$(
-    printf 'true\n%.0s' {1..11}
-    printf 'false\n'
-    printf 'true\n%.0s' {1..38}
-)"
+expected="$(printf 'true\n%.0s' {1..54})"
 if [[ "$output" != "$expected" ]]; then
     echo "real GPU numerical equivalence failed on gpu($GPU_INDEX)" >&2
     printf '%s\n' "$output" >&2
@@ -236,7 +242,7 @@ fi
 
 cat > "$TMP/log-domain.qui" <<QUI
 tensor<float32> value = tensor.zeros<float32>([1], gpu = $GPU_INDEX)
-neural<float32> invalid = neural.logarithm(neural.track(value))
+tensor<float32> invalid = value.track().log()
 print(invalid.untrack().reshape([]).item())
 QUI
 set +e
@@ -273,6 +279,27 @@ fi
 if ! grep -Fq "tensor integer arithmetic overflow" "$TMP/integer-overflow.err"; then
     echo "missing real GPU integer overflow diagnostic" >&2
     cat "$TMP/integer-overflow.err" >&2
+    exit 1
+fi
+
+cat > "$TMP/scatter-overflow.qui" <<QUI
+tensor<int8> values = tensor.ones<int8>([2], gpu = $GPU_INDEX) * int8(127)
+tensor<int8> invalid = values.scatter([0, 0], [1])
+print(invalid.cpu()[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/scatter-overflow.qui" >"$TMP/scatter-overflow.out" 2>"$TMP/scatter-overflow.err"
+scatter_overflow_status=$?
+set -e
+if [[ $scatter_overflow_status -ne 101 ]]; then
+    echo "real GPU integer scatter overflow should fail with status 101, got $scatter_overflow_status" >&2
+    cat "$TMP/scatter-overflow.out" >&2 || true
+    cat "$TMP/scatter-overflow.err" >&2 || true
+    exit 1
+fi
+if ! grep -Fq "tensor.scatter integer arithmetic overflow" "$TMP/scatter-overflow.err"; then
+    echo "missing real GPU scatter overflow diagnostic" >&2
+    cat "$TMP/scatter-overflow.err" >&2
     exit 1
 fi
 
@@ -423,8 +450,8 @@ tensor<float> right = tensor.ones<float>([2, 2], gpu = $GPU_INDEX)
 tensor<float> product = linear.matmul(left, right).cpu()
 print(product[1, 1].item() == 2.0)
 tensor<float> positive = tensor.ones<float>([1], gpu = $GPU_INDEX)
-neural<float> exponential = neural.exponential(neural.track(positive))
-neural<float> restored = neural.logarithm(exponential)
+tensor<float> exponential = positive.track().exp()
+tensor<float> restored = exponential.log()
 float restored_value = restored.untrack().reshape([]).item()
 print(restored_value > 0.999999999 and restored_value < 1.000000001)
 QUI

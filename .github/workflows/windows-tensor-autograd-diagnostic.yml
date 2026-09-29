@@ -1,0 +1,77 @@
+name: windows-tensor-autograd-diagnostic
+
+on:
+  push:
+    paths:
+      - .github/workflows/windows-tensor-autograd-diagnostic.yml
+
+jobs:
+  autograd:
+    runs-on: windows-latest
+    env:
+      VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-binary-cache,readwrite"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: vcpkg-windows-x64-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: |
+            vcpkg-windows-x64-${{ runner.os }}-
+      - name: Prepare vcpkg binary cache
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path .vcpkg-binary-cache | Out-Null
+      - name: Install native dependencies
+        shell: pwsh
+        run: vcpkg install curl:x64-windows libpng:x64-windows libjpeg-turbo:x64-windows tiff:x64-windows libwebp:x64-windows ffmpeg:x64-windows
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake -S . -B build -A x64
+          -DQUIDRA_WARNINGS_AS_ERRORS=ON
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Autograd compiler phases
+        shell: pwsh
+        run: |
+          Set-Content -Path build/autograd-smoke.qui -Value @'
+          class WindowsTensorState
+              tensor<float32> weight
+
+          WindowsTensorState state
+          state.weight = tensor.ones<float32>([1])
+          float32 before = state.weight[0].item()
+
+          tensor<float32> tracked_weight = state.weight.track()
+          tensor<float32> loss = (tracked_weight * tracked_weight).mean()
+          loss.backward()
+          print(state.weight.has_grad())
+          tensor<float32> gradient = state.weight.grad
+          state.weight.clear_grad()
+          state.weight = state.weight - gradient * float32(0.1)
+          print(state.weight[0].item() < before and not state.weight.has_grad())
+          '@
+          & build/Release/quidra.exe check build/autograd-smoke.qui
+          $checkExit = $LASTEXITCODE
+          Write-Host "AUTOGRAD_CHECK_EXIT=$checkExit"
+          if ($checkExit -ne 0) { throw "autograd check failed with exit code $checkExit" }
+
+          & build/Release/quidra.exe llvm build/autograd-smoke.qui | Out-File -Encoding utf8 build/autograd-smoke.ll
+          $llvmExit = $LASTEXITCODE
+          Write-Host "AUTOGRAD_FULL_COMPILE_EXIT=$llvmExit"
+          if ($llvmExit -ne 0) { throw "autograd full compile failed with exit code $llvmExit" }
+
+          & build/Release/quidra.exe build build/autograd-smoke.qui -o build/autograd-smoke.exe
+          $buildExit = $LASTEXITCODE
+          Write-Host "AUTOGRAD_NATIVE_BUILD_EXIT=$buildExit"
+          if ($buildExit -ne 0) { throw "autograd native build failed with exit code $buildExit" }
+
+          $autograd = & build/autograd-smoke.exe
+          $runExit = $LASTEXITCODE
+          Write-Host "AUTOGRAD_RUN_EXIT=$runExit"
+          if ($runExit -ne 0) { throw "autograd executable failed with exit code $runExit" }
+          $actual = ($autograd -join "`n").Trim()
+          Write-Host "AUTOGRAD_OUTPUT=$actual"
+          if ($actual -ne "true`ntrue") { throw "autograd output mismatch: $actual" }

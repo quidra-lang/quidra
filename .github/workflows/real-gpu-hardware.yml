@@ -17,13 +17,15 @@ on:
       - develop
     paths:
       - ".github/workflows/real-gpu-hardware.yml"
+      - "CMakeLists.txt"
       - "src/device_backend.cpp"
       - "src/device_backend.hpp"
+      - "src/device_cli.cpp"
+      - "src/device_cli.hpp"
+      - "src/device_autograd_compute.inc"
       - "src/device_compute.inc"
       - "src/device_integer_compute.inc"
-      - "src/device_neural_compute.inc"
-      - "src/device_training_compute.inc"
-      - "src/device_vision_compute.inc"
+      - "src/device_tensor_reduce_compute.inc"
       - "tests/real_gpu_integration.sh"
 
 concurrency:

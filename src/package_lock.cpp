@@ -292,7 +292,7 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
         std::istringstream fields(line);
         std::string distribution_name;
         std::string name;
-        std::string version = "-";
+        std::string package_version = "-";
         std::string digest;
         std::string extra;
         if (legacy_v1) {
@@ -303,14 +303,14 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
             }
             distribution_name = name;
         } else if (legacy_v2) {
-            if (!(fields >> name >> version >> digest) || (fields >> extra)) {
+            if (!(fields >> name >> package_version >> digest) || (fields >> extra)) {
                 throw std::runtime_error(
                     "invalid quidra.lock entry on line " +
                     std::to_string(line_number));
             }
             distribution_name = name;
         } else {
-            if (!(fields >> distribution_name >> name >> version >> digest) ||
+            if (!(fields >> distribution_name >> name >> package_version >> digest) ||
                 (fields >> extra)) {
                 throw std::runtime_error(
                     "invalid quidra.lock entry on line " +
@@ -324,9 +324,9 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
                 "invalid quidra.lock entry on line " +
                 std::to_string(line_number));
         }
-        if (version != "-") {
+        if (package_version != "-") {
             try {
-                (void)parse_semantic_version(version);
+                (void)parse_semantic_version(package_version);
             } catch (const std::exception&) {
                 throw std::runtime_error(
                     "invalid package version in quidra.lock on line " +
@@ -339,7 +339,8 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
                      name,
                      PackageLockEntry{
                          std::move(distribution_name),
-                         std::move(version), std::move(digest)})
+                         !legacy_v1 && !legacy_v2,
+                         std::move(package_version), std::move(digest)})
                  .second) {
             throw std::runtime_error(
                 "duplicate package in quidra.lock: " + name);
@@ -360,10 +361,10 @@ std::string package_lock_text(
         }
 
         std::string distribution_name = name;
-        std::string version = "-";
+        std::string package_version = "-";
         if (const auto manifest =
                 try_read_package_manifest(main.parent_path())) {
-            version = manifest->version.str();
+            package_version = manifest->version.str();
             distribution_name =
                 std::string(package_distribution_name(*manifest));
             if (package_import_name(*manifest) != name) {
@@ -379,7 +380,7 @@ std::string package_lock_text(
         output
             << distribution_name << ' '
             << name << ' '
-            << version << ' '
+            << package_version << ' '
             << package_tree_sha256(main) << '\n';
     }
 

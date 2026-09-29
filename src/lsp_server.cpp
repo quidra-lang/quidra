@@ -508,6 +508,8 @@ void consider_statement(const Stmt& statement,std::size_t offset,const Expr*& be
             consider_expression(*node.condition,offset,best);
             for(const auto& child:node.then_body) consider_statement(*child,offset,best);
             for(const auto& child:node.else_body) consider_statement(*child,offset,best);
+        } else if constexpr(std::is_same_v<T,MainGuardStmt>) {
+            for(const auto& child:node.body) consider_statement(*child,offset,best);
         } else if constexpr(std::is_same_v<T,WhileStmt>) {
             consider_expression(*node.condition,offset,best);
             for(const auto& child:node.body) consider_statement(*child,offset,best);
@@ -636,6 +638,8 @@ void consider_call_statement(const Stmt& statement,std::size_t offset,const Expr
             consider_call(*node.condition,offset,best);
             for(const auto& child:node.then_body) consider_call_statement(*child,offset,best);
             for(const auto& child:node.else_body) consider_call_statement(*child,offset,best);
+        } else if constexpr(std::is_same_v<T,MainGuardStmt>) {
+            for(const auto& child:node.body) consider_call_statement(*child,offset,best);
         } else if constexpr(std::is_same_v<T,WhileStmt>) {
             consider_call(*node.condition,offset,best);
             for(const auto& child:node.body) consider_call_statement(*child,offset,best);
@@ -708,6 +712,9 @@ std::optional<SourceSpan> local_definition(
                 } else if(body_contains(node.else_body,offset)) {
                     if(auto nested=local_definition(node.else_body,name,offset,tokens)) result=nested;
                 }
+            } else if constexpr(std::is_same_v<T,MainGuardStmt>) {
+                if(body_contains(node.body,offset))
+                    if(auto nested=local_definition(node.body,name,offset,tokens)) result=nested;
             } else if constexpr(std::is_same_v<T,WhileStmt>) {
                 if(body_contains(node.body,offset))
                     if(auto nested=local_definition(node.body,name,offset,tokens)) result=nested;
@@ -1285,7 +1292,7 @@ private:
             "\"namespace\",\"type\",\"class\",\"function\",\"method\",\"parameter\","
             "\"variable\",\"property\",\"keyword\",\"string\",\"number\",\"operator\"],"
             "\"tokenModifiers\":[]},\"full\":true}},"
-            "\"serverInfo\":{\"name\":\""+escape(std::string(language_name))+"\",\"version\":\""+escape(compiler_version)+"\"}}");
+            "\"serverInfo\":{\"name\":\""+escape(std::string(language_name))+"\",\"version\":\""+escape(version)+"\"}}");
     }
 
     void diagnostics(std::string_view uri,std::string_view source) {

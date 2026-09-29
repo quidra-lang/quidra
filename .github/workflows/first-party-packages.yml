@@ -40,5 +40,19 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && cmake --build build --parallel
       - name: Test vision against this Quidra
         run: bash packages/vision/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test Vision tensor autograd against this Quidra
+        run: bash packages/vision/tests/develop_autograd.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test Vision boundary contracts against this Quidra
+        run: bash packages/vision/tests/boundary.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Check Vision example against this Quidra
+        env:
+          QUIDRA_PACKAGE_PATH: ${{ github.workspace }}/packages
+        run: build/quidra check packages/vision/examples/process.qui
       - name: Test dnn against this Quidra
         run: bash packages/dnn/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test DNN contracts against this Quidra
+        run: bash packages/dnn/tests/contracts.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Check DNN example against this Quidra
+        env:
+          QUIDRA_PACKAGE_PATH: ${{ github.workspace }}/packages
+        run: build/quidra check packages/dnn/examples/training.qui

@@ -374,6 +374,29 @@ std::string hip_gather_source(std::size_t width) {
 }
 
 
+std::string hip_gather_backward_source(int dtype) {
+    const auto type=hip_dtype_type(dtype);
+    return "extern \"C\" __global__ void q_kernel("+type+
+           "* out,const "+type+"* grad,const unsigned long long* offsets,"
+           "const unsigned long long* positions,unsigned long long count){"
+           "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+           "if(i>=count)return;"+type+" total=("+type+")0;"
+           "for(unsigned long long p=offsets[i];p<offsets[i+1];++p)"
+           "total=("+type+")(total+grad[positions[p]]);out[i]=total;}";
+}
+
+std::string hip_integer_gather_backward_source(int dtype) {
+    const auto type=hip_dtype_type(dtype);
+    return "extern \"C\" __global__ void q_kernel("+type+
+           "* out,const "+type+"* grad,const unsigned long long* offsets,"
+           "const unsigned long long* positions,unsigned long long count,unsigned int* status){"
+           "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+           "if(i>=count)return;"+type+" total=("+type+")0;"
+           "for(unsigned long long p=offsets[i];p<offsets[i+1];++p){"+type+
+           " next=("+type+")0;if(__builtin_add_overflow(total,grad[positions[p]],&next)){"
+           "atomicExch(status,1u);return;}total=next;}out[i]=total;}";
+}
+
 bool hip_integer_dtype(int dtype) {
     return dtype>=1 && dtype<=8;
 }
@@ -670,6 +693,52 @@ std::string ptx_gather_kernel(std::size_t width) {
                "  st.global.u64 [%rd14], %rd15;\n";
     }
     out << "DONE:\n  ret;\n}\n";
+    return out.str();
+}
+
+std::string ptx_gather_backward_kernel(int dtype) {
+    const bool f32=dtype==10;
+    const auto width=f32?4:8;
+    std::ostringstream out;
+    out<<ptx_thread_prologue(
+        "  .param .u64 p_out,\n  .param .u64 p_grad,\n"
+        "  .param .u64 p_offsets,\n  .param .u64 p_positions,\n"
+        "  .param .u64 p_count\n",
+        f32
+          ? "  .reg .pred %p<3>;\n  .reg .b32 %r<8>;\n  .reg .b64 %rd<28>;\n  .reg .f32 %f<4>;\n"
+          : "  .reg .pred %p<3>;\n  .reg .b32 %r<8>;\n  .reg .b64 %rd<28>;\n  .reg .f64 %fd<4>;\n");
+    out<<"  ld.param.u64 %rd1, [p_out];\n"
+          "  ld.param.u64 %rd2, [p_grad];\n"
+          "  ld.param.u64 %rd3, [p_offsets];\n"
+          "  ld.param.u64 %rd4, [p_positions];\n"
+          "  ld.param.u64 %rd5, [p_count];\n"
+          "  setp.ge.u64 %p1, %rd7, %rd5;\n"
+          "  @%p1 bra DONE;\n"
+          "  mul.lo.u64 %rd8, %rd7, 8;\n"
+          "  add.u64 %rd9, %rd3, %rd8;\n"
+          "  ld.global.u64 %rd10, [%rd9];\n"
+          "  add.u64 %rd11, %rd9, 8;\n"
+          "  ld.global.u64 %rd12, [%rd11];\n";
+    if(f32) out<<"  mov.f32 %f1, 0f00000000;\n";
+    else out<<"  mov.f64 %fd1, 0d0000000000000000;\n";
+    out<<"LOOP:\n"
+          "  setp.ge.u64 %p2, %rd10, %rd12;\n"
+          "  @%p2 bra STORE;\n"
+          "  mul.lo.u64 %rd13, %rd10, 8;\n"
+          "  add.u64 %rd14, %rd4, %rd13;\n"
+          "  ld.global.u64 %rd15, [%rd14];\n"
+       <<"  mul.lo.u64 %rd16, %rd15, "<<width<<";\n"
+          "  add.u64 %rd17, %rd2, %rd16;\n";
+    if(f32) out<<"  ld.global.f32 %f2, [%rd17];\n  add.rn.f32 %f1, %f1, %f2;\n";
+    else out<<"  ld.global.f64 %fd2, [%rd17];\n  add.rn.f64 %fd1, %fd1, %fd2;\n";
+    out<<"  add.u64 %rd10, %rd10, 1;\n"
+          "  bra LOOP;\n"
+          "STORE:\n"
+       <<"  mul.lo.u64 %rd18, %rd7, "<<width<<";\n"
+          "  add.u64 %rd19, %rd1, %rd18;\n";
+    if(f32) out<<"  st.global.f32 [%rd19], %f1;\n";
+    else out<<"  st.global.f64 [%rd19], %fd1;\n";
+    out<<"DONE:\n  ret;\n}\n";
     return out.str();
 }
 
@@ -1467,6 +1536,19 @@ std::string msl_gather_source(std::size_t width) {
     return out.str();
 }
 
+std::string msl_gather_backward_source() {
+    return "#include <metal_stdlib>\nusing namespace metal;\n"
+           "kernel void q_kernel(device float* out [[buffer(0)]], "
+           "const device float* grad [[buffer(1)]], "
+           "const device ulong* offsets [[buffer(2)]], "
+           "const device ulong* positions [[buffer(3)]], "
+           "constant ulong& count [[buffer(4)]], "
+           "uint gid [[thread_position_in_grid]]) {\n"
+           "  ulong i=ulong(gid); if(i>=count) return; float total=0.0f;\n"
+           "  for(ulong p=offsets[i];p<offsets[i+1];++p) total+=grad[positions[p]];\n"
+           "  out[i]=total;\n}\n";
+}
+
 std::string msl_float_binary_source(int operation, int scalar_side) {
     const char* op = operation == 1 ? "+" : operation == 2 ? "-" :
                      operation == 3 ? "*" : "/";
@@ -1704,6 +1786,221 @@ bool compute_gather(Buffer* output, const Buffer* source, int dtype,
     return real_compute_unavailable(output, "tensor.contiguous", dtype, error);
 }
 
+
+bool compute_gather_backward(
+    Buffer* input_gradient,const Buffer* output_gradient,int dtype,
+    const std::uint64_t* source_indices,std::size_t source_count,
+    std::size_t output_count,std::string& error) {
+    if(dtype<1||dtype>10){
+        error="tensor scatter/gather backward requires a numeric tensor dtype";
+        return false;
+    }
+    const auto width=compute_dtype_width(dtype);
+    if((!source_indices&&output_count!=0)||
+       !compute_same_device(input_gradient,output_gradient,error)||
+       !compute_buffer_range(input_gradient,0,source_count,width,error)||
+       !compute_buffer_range(output_gradient,0,output_count,width,error))
+        return false;
+    if(source_count==std::numeric_limits<std::size_t>::max()){
+        error="tensor scatter/gather backward source is too large";
+        return false;
+    }
+
+    std::vector<std::uint64_t> offsets(source_count+1,0);
+    std::vector<std::uint64_t> positions(output_count,0);
+    for(std::size_t i=0;i<output_count;++i){
+        if(source_indices[i]>=source_count){
+            error="tensor scatter/gather backward source index is outside input";
+            return false;
+        }
+        ++offsets[static_cast<std::size_t>(source_indices[i])+1];
+    }
+    for(std::size_t i=1;i<offsets.size();++i) offsets[i]+=offsets[i-1];
+    auto cursor=offsets;
+    for(std::size_t i=0;i<output_count;++i){
+        const auto source=static_cast<std::size_t>(source_indices[i]);
+        positions[static_cast<std::size_t>(cursor[source]++)]=
+            static_cast<std::uint64_t>(i);
+    }
+
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if(input_gradient->backend==Backend::Test){
+        std::fill(input_gradient->test_data.begin(),input_gradient->test_data.end(),0);
+        const auto run=[&](auto tag)->bool{
+            using T=decltype(tag);
+            for(std::size_t source=0;source<source_count;++source){
+                T total{};
+                for(auto p=offsets[source];p<offsets[source+1];++p){
+                    T value{},next{};
+                    std::memcpy(
+                        &value,
+                        output_gradient->test_data.data()+
+                        static_cast<std::size_t>(
+                            positions[static_cast<std::size_t>(p)])*sizeof(T),
+                        sizeof(T));
+                    if(!fake_add(total,value,next)){
+                        error="tensor.scatter integer arithmetic overflow";
+                        return false;
+                    }
+                    total=next;
+                }
+                std::memcpy(
+                    input_gradient->test_data.data()+source*sizeof(T),
+                    &total,sizeof(T));
+            }
+            return true;
+        };
+        switch(dtype){
+            case 1:return run(std::int64_t{});
+            case 2:return run(std::int8_t{});
+            case 3:return run(std::int16_t{});
+            case 4:return run(std::int32_t{});
+            case 5:return run(std::uint8_t{});
+            case 6:return run(std::uint16_t{});
+            case 7:return run(std::uint32_t{});
+            case 8:return run(std::uint64_t{});
+            case 9:return run(double{});
+            case 10:return run(float{});
+            default:error="invalid tensor scatter dtype";return false;
+        }
+    }
+#endif
+
+    const auto positions_bytes=
+        std::max<std::size_t>(std::size_t{1},positions.size())*
+        sizeof(std::uint64_t);
+    std::unique_ptr<Buffer, void(*)(Buffer*)> offsets_buffer(
+        allocate(input_gradient->global_index,
+                 offsets.size()*sizeof(std::uint64_t),error),
+        [](Buffer* value){ quidra::device::release(value); });
+    if(!offsets_buffer) return false;
+    std::unique_ptr<Buffer, void(*)(Buffer*)> positions_buffer(
+        allocate(input_gradient->global_index,positions_bytes,error),
+        [](Buffer* value){ quidra::device::release(value); });
+    if(!positions_buffer) return false;
+    if(!copy_from_host(offsets_buffer.get(),0,offsets.data(),
+                       offsets.size()*sizeof(std::uint64_t),error) ||
+       (!positions.empty()&&!copy_from_host(
+           positions_buffer.get(),0,positions.data(),
+           positions.size()*sizeof(std::uint64_t),error)))
+        return false;
+
+    if(gpu_integer_dtype(dtype)&&input_gradient->backend==Backend::Cuda){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            acquire_validation_status(input_gradient->global_index,error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status)return false;
+        auto ptx=ptx_integer_gather_backward_source(dtype);
+        auto out_ptr=input_gradient->cuda_pointer;
+        auto grad_ptr=output_gradient->cuda_pointer;
+        auto offsets_ptr=offsets_buffer->cuda_pointer;
+        auto positions_ptr=positions_buffer->cuda_pointer;
+        auto status_ptr=status->cuda_pointer;
+        auto count=static_cast<std::uint64_t>(source_count);
+        void* args[]={
+            &out_ptr,&grad_ptr,&offsets_ptr,&positions_ptr,&count,&status_ptr};
+        if(!launch_ptx_1d(
+               input_gradient,"gather-backward-int-"+std::to_string(dtype),
+               ptx,source_count,args,error))
+            return false;
+        defer_validation(
+            status.release(),"tensor.scatter integer arithmetic overflow");
+        return true;
+    }
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Cuda){
+        auto ptx=ptx_gather_backward_kernel(dtype);
+        auto out_ptr=input_gradient->cuda_pointer;
+        auto grad_ptr=output_gradient->cuda_pointer;
+        auto offsets_ptr=offsets_buffer->cuda_pointer;
+        auto positions_ptr=positions_buffer->cuda_pointer;
+        auto count=static_cast<std::uint64_t>(source_count);
+        void* args[]={&out_ptr,&grad_ptr,&offsets_ptr,&positions_ptr,&count};
+        return launch_ptx_1d(
+            input_gradient,"gather-backward-"+std::to_string(dtype),
+            ptx,source_count,args,error);
+    }
+    if(hip_integer_dtype(dtype)&&input_gradient->backend==Backend::Hip){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            acquire_validation_status(input_gradient->global_index,error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status)return false;
+        auto source=hip_integer_gather_backward_source(dtype);
+        auto out_ptr=input_gradient->pointer;
+        auto grad_ptr=output_gradient->pointer;
+        auto offsets_ptr=offsets_buffer->pointer;
+        auto positions_ptr=positions_buffer->pointer;
+        auto status_ptr=status->pointer;
+        auto count=static_cast<std::uint64_t>(source_count);
+        void* args[]={
+            &out_ptr,&grad_ptr,&offsets_ptr,&positions_ptr,&count,&status_ptr};
+        if(!launch_hip_1d(
+               input_gradient,"gather-backward-int-"+std::to_string(dtype),
+               source,source_count,args,error))
+            return false;
+        defer_validation(
+            status.release(),"tensor.scatter integer arithmetic overflow");
+        return true;
+    }
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Hip){
+        auto source=hip_gather_backward_source(dtype);
+        auto out_ptr=input_gradient->pointer;
+        auto grad_ptr=output_gradient->pointer;
+        auto offsets_ptr=offsets_buffer->pointer;
+        auto positions_ptr=positions_buffer->pointer;
+        auto count=static_cast<std::uint64_t>(source_count);
+        void* args[]={&out_ptr,&grad_ptr,&offsets_ptr,&positions_ptr,&count};
+        return launch_hip_1d(
+            input_gradient,"gather-backward-"+std::to_string(dtype),
+            source,source_count,args,error);
+    }
+#ifdef __APPLE__
+    if(gpu_integer_dtype(dtype)&&input_gradient->backend==Backend::Metal){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            acquire_validation_status(input_gradient->global_index,error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status)return false;
+        auto source=msl_integer_gather_backward_source(dtype);
+        auto pipeline=cached_metal_pipeline(
+            [input_gradient->metal_buffer device],
+            "gather-backward-int-"+std::to_string(dtype),source,error);
+        if(!pipeline)return false;
+        auto count=static_cast<std::uint64_t>(source_count);
+        if(!dispatch_metal_1d(
+               input_gradient,pipeline,source_count,
+               [&](id<MTLComputeCommandEncoder> encoder){
+                   [encoder setBuffer:input_gradient->metal_buffer offset:0 atIndex:0];
+                   [encoder setBuffer:output_gradient->metal_buffer offset:0 atIndex:1];
+                   [encoder setBuffer:offsets_buffer->metal_buffer offset:0 atIndex:2];
+                   [encoder setBuffer:positions_buffer->metal_buffer offset:0 atIndex:3];
+                   [encoder setBytes:&count length:sizeof(count) atIndex:4];
+                   [encoder setBuffer:status->metal_buffer offset:0 atIndex:5];
+               },error))
+            return false;
+        defer_validation(
+            status.release(),"tensor.scatter integer arithmetic overflow");
+        return true;
+    }
+    if(dtype==10&&input_gradient->backend==Backend::Metal){
+        auto source=msl_gather_backward_source();
+        auto pipeline=cached_metal_pipeline(
+            [input_gradient->metal_buffer device],
+            "gather-backward-f32",source,error);
+        if(!pipeline)return false;
+        auto count=static_cast<std::uint64_t>(source_count);
+        return dispatch_metal_1d(
+            input_gradient,pipeline,source_count,
+            [&](id<MTLComputeCommandEncoder> encoder){
+                [encoder setBuffer:input_gradient->metal_buffer offset:0 atIndex:0];
+                [encoder setBuffer:output_gradient->metal_buffer offset:0 atIndex:1];
+                [encoder setBuffer:offsets_buffer->metal_buffer offset:0 atIndex:2];
+                [encoder setBuffer:positions_buffer->metal_buffer offset:0 atIndex:3];
+                [encoder setBytes:&count length:sizeof(count) atIndex:4];
+            },error);
+    }
+#endif
+    return real_compute_unavailable(
+        input_gradient,"tensor.scatter/gather backward",dtype,error);
+}
 
 template <typename T>
 bool fake_compare_all_values(
@@ -2173,7 +2470,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
             }
         }
         if (dtype != 9 && dtype != 10) {
-            error = "GPU neural unary operation requires a floating dtype";
+            error = "GPU tensor autograd unary operation requires a floating dtype";
             return false;
         }
         if (dtype == 10) {

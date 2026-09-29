@@ -13,8 +13,26 @@ inline constexpr std::string_view grammar_ebnf = R"QUIDRA_EBNF(@QUIDRA_GRAMMAR_E
 // deterministic compiler interfaces a client should use rather than asking it
 // to infer a workflow from prose.
 inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
-  "schema_version": 1,
+  "schema_version": 2,
   "language": "@QUIDRA_PROJECT_NAME@",
+  "grammar": {
+    "schema_version": 1,
+    "fingerprint": "sha256:@QUIDRA_GRAMMAR_SHA256@"
+  },
+  "diagnostics": {
+    "schema_version": 2,
+    "fields": ["source_revision", "node_id", "node_kind", "span"],
+    "node_addressing": "smallest containing source node when unambiguous; revision plus span fallback otherwise",
+    "runtime_provenance": {
+      "schema_version": 1,
+      "fields": ["source_revision", "node_id", "node_kind", "source_file"],
+      "format": "source-bearing runtime and test failures append a bracketed key/value provenance suffix; absent when no public source node is attributable"
+    }
+  },
+  "structural_syntax": {
+    "schema_version": 1,
+    "representation": "inspect tree plus canonical Quidra source payload"
+  },
   "source_extension": "@QUIDRA_PROJECT_EXTENSION@",
   "generation": {
     "grammar_command": "@QUIDRA_PROJECT_CLI@ describe grammar",
@@ -22,6 +40,7 @@ inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
     "check_command": "@QUIDRA_PROJECT_CLI@ check FILE@QUIDRA_PROJECT_EXTENSION@ --json"
   },
   "inspection": {
+    "schema_version": 1,
     "command": "@QUIDRA_PROJECT_CLI@ inspect FILE@QUIDRA_PROJECT_EXTENSION@ --no-source",
     "fields": ["revision", "node_id", "kind", "source_hash", "parent_id", "depth", "inferred_type", "authority", "effects"],
     "type_contracts": {
@@ -32,9 +51,12 @@ inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
   },
   "repair": {
     "schema_command": "@QUIDRA_PROJECT_CLI@ describe patch-schema",
-    "preferred_schema_version": 2,
+    "supported_schema_versions": [1, 2, 3],
+    "preferred_schema_version": 3,
     "apply_command": "@QUIDRA_PROJECT_CLI@ patch FILE@QUIDRA_PROJECT_EXTENSION@ PATCH.json --write",
-    "operations": ["replace_node", "insert_before", "insert_after", "delete_node"]
+    "operations": ["replace_node", "insert_before", "insert_after", "delete_node"],
+    "replacement_forms": ["source", "structured_node"],
+    "structured_node_fields": ["kind", "source"]
   },
   "calls": {
     "argument_order": "positional_then_named",

@@ -45,7 +45,7 @@ inline constexpr bool is_builtin_type_name(std::string_view name) {
 }
 
 inline constexpr bool is_language_type_name(std::string_view name) {
-    return is_builtin_type_name(name) || name == "tensor" || name == "neural" ||
+    return is_builtin_type_name(name) || name == "tensor" ||
            name == "fn" || name == "auto" || name == "union" ||
            name == "extern";
 }
@@ -111,6 +111,7 @@ enum class BuiltinCallable {
     GpuSync,
     TaskAll,
     AtomicCounter,
+    AutogradTarget,
     RandomGenerator,
     RandomInt,
     RandomFloat,
@@ -148,38 +149,14 @@ enum class BuiltinCallable {
     LinearDot,
     ImageRead,
     ImageWrite,
-    ImageTensorCrop,
-    ImageTensorResize,
-    ImageTensorFlipHorizontal,
-    ImageTensorFlipVertical,
-    ImageTensorRotate90,
-    ImageTensorRotate180,
-    ImageTensorRotate270,
-    ImageTensorGrayscale,
-    ImageTensorThreshold,
-    ImageTensorBlur,
-    ImageTensorFilter,
-    ImageTensorDilate,
-    ImageTensorErode,
-    NeuralTrack,
-    NeuralParameterTrack,
-    NeuralAffine,
-    NeuralConvolve2D,
-    NeuralAbsolute,
-    NeuralExponential,
-    NeuralLogarithm,
-    NeuralMean,
-    NeuralSumLast,
-    NeuralMaxLast,
-    NeuralUpdate,
-    NeuralNormalize,
-    NeuralNormalizeInference,
-    NeuralRandomMask,
-    NeuralMomentUpdate,
-    NeuralGrad,
-    NeuralAllReduceSum,
-    NeuralSave,
-    NeuralLoad
+    ReflectCollect,
+    TensorAbsolute,
+    TensorExponential,
+    TensorLogarithm,
+    TensorMean,
+    TensorSumLast,
+    TensorMaxLast,
+    TensorMinLast,
 };
 
 struct BuiltinCallableInfo {
@@ -201,7 +178,7 @@ inline constexpr std::array<BuiltinCallableInfo, 7> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 115> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 100> intrinsic_callables{{
     {"$std.math.abs", BuiltinCallable::Abs},
     {"$std.math.sqrt", BuiltinCallable::Sqrt},
     {"$std.math.min", BuiltinCallable::Min},
@@ -248,6 +225,7 @@ inline constexpr std::array<BuiltinCallableInfo, 115> intrinsic_callables{{
     {"$std.gpu.sync", BuiltinCallable::GpuSync},
     {"$std.task.all", BuiltinCallable::TaskAll},
     {"$std.atomic.counter", BuiltinCallable::AtomicCounter},
+    {"$std.autograd.target", BuiltinCallable::AutogradTarget},
     {"$std.random.generator", BuiltinCallable::RandomGenerator},
     {"$std.random.int", BuiltinCallable::RandomInt},
     {"$std.random.float", BuiltinCallable::RandomFloat},
@@ -285,38 +263,7 @@ inline constexpr std::array<BuiltinCallableInfo, 115> intrinsic_callables{{
     {"$std.linear.dot", BuiltinCallable::LinearDot},
     {"$std.image.read", BuiltinCallable::ImageRead},
     {"$std.image.write", BuiltinCallable::ImageWrite},
-    {"$std.image.tensor_crop", BuiltinCallable::ImageTensorCrop},
-    {"$std.image.tensor_resize", BuiltinCallable::ImageTensorResize},
-    {"$std.image.tensor_flip_horizontal", BuiltinCallable::ImageTensorFlipHorizontal},
-    {"$std.image.tensor_flip_vertical", BuiltinCallable::ImageTensorFlipVertical},
-    {"$std.image.tensor_rotate90", BuiltinCallable::ImageTensorRotate90},
-    {"$std.image.tensor_rotate180", BuiltinCallable::ImageTensorRotate180},
-    {"$std.image.tensor_rotate270", BuiltinCallable::ImageTensorRotate270},
-    {"$std.image.tensor_grayscale", BuiltinCallable::ImageTensorGrayscale},
-    {"$std.image.tensor_threshold", BuiltinCallable::ImageTensorThreshold},
-    {"$std.image.tensor_blur", BuiltinCallable::ImageTensorBlur},
-    {"$std.image.tensor_filter", BuiltinCallable::ImageTensorFilter},
-    {"$std.image.tensor_dilate", BuiltinCallable::ImageTensorDilate},
-    {"$std.image.tensor_erode", BuiltinCallable::ImageTensorErode},
-    {"$std.neural.track", BuiltinCallable::NeuralTrack},
-    {"$std.neural.parameter_track", BuiltinCallable::NeuralParameterTrack},
-    {"$std.neural.affine", BuiltinCallable::NeuralAffine},
-    {"$std.neural.convolve2d", BuiltinCallable::NeuralConvolve2D},
-    {"$std.neural.absolute", BuiltinCallable::NeuralAbsolute},
-    {"$std.neural.exponential", BuiltinCallable::NeuralExponential},
-    {"$std.neural.logarithm", BuiltinCallable::NeuralLogarithm},
-    {"$std.neural.mean", BuiltinCallable::NeuralMean},
-    {"$std.neural.sum_last", BuiltinCallable::NeuralSumLast},
-    {"$std.neural.max_last", BuiltinCallable::NeuralMaxLast},
-    {"$std.neural.update", BuiltinCallable::NeuralUpdate},
-    {"$std.neural.normalize", BuiltinCallable::NeuralNormalize},
-    {"$std.neural.normalize_inference", BuiltinCallable::NeuralNormalizeInference},
-    {"$std.neural.random_mask", BuiltinCallable::NeuralRandomMask},
-    {"$std.neural.moment_update", BuiltinCallable::NeuralMomentUpdate},
-    {"$std.neural.grad", BuiltinCallable::NeuralGrad},
-    {"$std.neural.all_reduce_sum", BuiltinCallable::NeuralAllReduceSum},
-    {"$std.neural.save", BuiltinCallable::NeuralSave},
-    {"$std.neural.load", BuiltinCallable::NeuralLoad},
+    {"$std.reflect.collect", BuiltinCallable::ReflectCollect},
 }};
 
 inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_view name) {
@@ -329,10 +276,9 @@ inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_vie
     return std::nullopt;
 }
 
-inline constexpr std::array<std::string_view, 24> standard_modules{{
-    "math", "io", "cli", "file", "environment", "test", "time", "gpu", "task", "atomic", "ref", "random", "process",
-    "map", "set", "json", "http", "stats", "linear", "signal", "image", "video", "tensor",
-    "neural"
+inline constexpr std::array<std::string_view, 25> standard_modules{{
+    "math", "io", "cli", "file", "environment", "test", "time", "gpu", "task", "atomic", "autograd", "ref", "reflect", "random", "process",
+    "map", "set", "json", "http", "stats", "linear", "signal", "image", "video", "tensor"
 }};
 
 inline constexpr bool is_standard_module(std::string_view name) {
@@ -387,6 +333,14 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         if (member == "counter") return "$std.atomic.counter";
         return std::nullopt;
     }
+    if (module == "autograd") {
+        if (member == "target") return "$std.autograd.target";
+        return std::nullopt;
+    }
+    if (module == "reflect") {
+        if (member == "collect") return "$std.reflect.collect";
+        return std::nullopt;
+    }
     if (module == "random") {
         if (member == "generator") return "$std.random.generator";
         return std::nullopt;
@@ -429,40 +383,6 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     if (module == "image") {
         if (member == "read") return "$std.image.read";
         if (member == "write") return "$std.image.write";
-        if (member == "tensor_crop") return "$std.image.tensor_crop";
-        if (member == "tensor_resize") return "$std.image.tensor_resize";
-        if (member == "tensor_flip_horizontal") return "$std.image.tensor_flip_horizontal";
-        if (member == "tensor_flip_vertical") return "$std.image.tensor_flip_vertical";
-        if (member == "tensor_rotate90") return "$std.image.tensor_rotate90";
-        if (member == "tensor_rotate180") return "$std.image.tensor_rotate180";
-        if (member == "tensor_rotate270") return "$std.image.tensor_rotate270";
-        if (member == "tensor_grayscale") return "$std.image.tensor_grayscale";
-        if (member == "tensor_threshold") return "$std.image.tensor_threshold";
-        if (member == "tensor_blur") return "$std.image.tensor_blur";
-        if (member == "tensor_filter") return "$std.image.tensor_filter";
-        if (member == "tensor_dilate") return "$std.image.tensor_dilate";
-        if (member == "tensor_erode") return "$std.image.tensor_erode";
-        return std::nullopt;
-    }
-    if (module == "neural") {
-        if (member == "track") return "$std.neural.track";
-        if (member == "affine") return "$std.neural.affine";
-        if (member == "convolve2d") return "$std.neural.convolve2d";
-        if (member == "absolute") return "$std.neural.absolute";
-        if (member == "exponential") return "$std.neural.exponential";
-        if (member == "logarithm") return "$std.neural.logarithm";
-        if (member == "mean") return "$std.neural.mean";
-        if (member == "sum_last") return "$std.neural.sum_last";
-        if (member == "max_last") return "$std.neural.max_last";
-        if (member == "update") return "$std.neural.update";
-        if (member == "normalize") return "$std.neural.normalize";
-        if (member == "normalize_inference") return "$std.neural.normalize_inference";
-        if (member == "random_mask") return "$std.neural.random_mask";
-        if (member == "moment_update") return "$std.neural.moment_update";
-        if (member == "grad") return "$std.neural.grad";
-        if (member == "all_reduce_sum") return "$std.neural.all_reduce_sum";
-        if (member == "save") return "$std.neural.save";
-        if (member == "load") return "$std.neural.load";
         return std::nullopt;
     }
     if (module == "file") {
@@ -551,9 +471,9 @@ inline constexpr std::string_view builtin_text_constant(std::string_view name) {
 
 // The text constants are the only built-in values spelled in capitals: they
 // stand for characters that cannot be written directly, and the capitals mark
-// them as language-provided symbols rather than user bindings. Before language
-// 0.2 they were lowercase; a lowercase spelling now resolves to nothing, and
-// this names the constant the writer most likely meant.
+// them as language-provided symbols rather than user bindings. Legacy lowercase
+// spellings resolve to nothing; this names the constant the writer most likely
+// meant so diagnostics can point to the canonical spelling.
 inline constexpr std::string_view renamed_text_constant(std::string_view name) {
     for (const auto& [candidate, value] : builtin_text_constants) {
         (void)value;
@@ -581,7 +501,7 @@ inline constexpr bool is_reserved_value_name(std::string_view name) {
     return is_builtin_text_constant(name) || is_builtin_callable(name) ||
            is_builtin_type_name(name) || is_standard_module(name) ||
            name == "fn" || name == "auto" || name == "union" ||
-           name == "construct";
+           name == "construct" || name == "main";
 }
 
 inline std::string builtin_types_json() {

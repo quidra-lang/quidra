@@ -13,9 +13,9 @@ inline constexpr std::string_view cli_name = "@QUIDRA_PROJECT_CLI@";
 inline constexpr std::string_view source_extension = "@QUIDRA_PROJECT_EXTENSION@";
 inline constexpr std::string_view tagline = "@QUIDRA_TAGLINE@";
 
-inline constexpr std::string_view compiler_version = "@PROJECT_VERSION@";
+inline constexpr std::string_view version = "@PROJECT_VERSION@";
 
-// Format versions, independent of compiler_version.
+// Format/schema versions, independent of the Quidra version.
 inline constexpr std::string_view ir_version = "@QUIDRA_IR_VERSION@";
 inline constexpr int abi_version = @QUIDRA_ABI_VERSION@;
 inline constexpr int package_schema_version = @QUIDRA_PACKAGE_SCHEMA_VERSION@;

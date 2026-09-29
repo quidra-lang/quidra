@@ -12,7 +12,7 @@ enum class TokenKind {
     KwBreak, KwContinue,
     KwTrue, KwFalse, KwNot, KwAnd, KwOr,
     KwBitNot, KwBitAnd, KwBitOr, KwBitXor,
-    LParen, RParen, LBracket, RBracket, Colon, Comma, Dot,
+    LParen, RParen, LBracket, RBracket, Colon, Comma, Semicolon, Dot,
     Assign, PlusAssign, MinusAssign, StarAssign, SlashAssign, PercentAssign,
     Plus, Minus, Star, Slash, Percent,
     EqEq, NotEq, Less, LessEq, Greater, GreaterEq

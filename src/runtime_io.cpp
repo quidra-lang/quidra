@@ -171,6 +171,10 @@ struct FileState {
     std::shared_ptr<FileResource> resource;
     std::uint64_t position{};
     bool closed{};
+    // Reuse the host-side traversal buffer across read_line() calls. The
+    // returned Quidra string is still an independent value, so this allocation
+    // optimization is unobservable at the language level.
+    std::string line_buffer;
 
     explicit FileState(std::shared_ptr<FileResource> source)
         : resource(std::move(source)) {}
@@ -313,7 +317,8 @@ extern "C" int quidra_file_handle_read_line_raw(void* value, char** out) {
     if (!position_file_stream(resource, start, FileStreamDirection::Read))
         return -1;
 
-    std::string line;
+    auto& line = handle->state->line_buffer;
+    line.clear();
     if (!std::getline(stream, line)) {
         const bool eof = stream.eof();
         stream.clear();

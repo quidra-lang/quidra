@@ -23,7 +23,7 @@
 name = "Quidra"
 cli = "quidra"
 extension = ".qui"
-version = "0.3.0"
+version = "0.4.0"
 tagline = "Programming with maximum meaning per token."
 
 # Format versions, deliberately independent of [project] version. A value here

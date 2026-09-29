@@ -36,7 +36,7 @@ def manifest_fields(project: dict) -> dict:
     meta = project["project"]
     return {
         "language": meta["name"],
-        "compiler_version": meta["version"],
+        "version": meta["version"],
         "tagline": meta["tagline"],
         "source_extension": meta["extension"],
         "canonical_repository": project["repos"]["core"],
@@ -75,7 +75,7 @@ def render_readme(project: dict) -> str:
     version = project["project"]["version"]
     name = project["project"]["name"]
     text = README.read_text(encoding="utf-8")
-    # The REPL transcript prints the running compiler's banner; pinning a stale
+    # The REPL transcript prints the running Quidra banner; pinning a stale
     # version there is exactly the drift this file exists to prevent.
     return re.sub(
         rf"^{re.escape(name)} \d+\.\d+\.\d+$",

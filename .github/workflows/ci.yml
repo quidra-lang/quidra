@@ -316,13 +316,13 @@ jobs:
           if (($binary -join "`n").Trim() -ne "64") { throw "binary expression smoke failed: $binary" }
           Set-Content -Path build/json-smoke.qui -Value @'
           string source = "{{" + QUOTE + "name" + QUOTE + ":" + QUOTE + "Quidra" + QUOTE + "," + QUOTE + "items" + QUOTE + ":[1,2]}}"
-          auto parsed = json.parse(source)
+          auto | error parsed = json.parse(source)
           match parsed
               json.Value root
-                  auto name = root.get("name")
+                  auto | error name = root.get("name")
                   match name
                       json.Value value
-                          auto text = value.text()
+                          auto | error text = value.text()
                           match text
                               string result
                                   print(result)
@@ -359,45 +359,34 @@ jobs:
           $processShell = & build/Release/quidra.exe run build/process-shell-smoke.qui
           $expectedProcessShell = "true`n0`nquidra shell"
           if (($processShell -join "`n").Trim() -ne $expectedProcessShell) { throw "process.shell smoke failed: $processShell" }
-          Set-Content -Path build/neural-smoke.qui -Value @'
-          class WindowsNeuralModel
-              neural.Parameter<float32> weight
+          Set-Content -Path build/autograd-smoke.qui -Value @'
+          class WindowsTensorState
+              tensor<float32> weight
 
-          WindowsNeuralModel model
-          model.weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
+          WindowsTensorState state
+          state.weight = tensor.ones<float32>([1])
+          float32 before = state.weight[0].item()
 
-          neural<float32> first_prediction = model.weight.track()
-          neural<float32> first_loss = neural.mean(
-              first_prediction * first_prediction
-          )
-          neural.Gradients first_gradients = neural.grad(first_loss)
-          neural.update(&model, first_gradients, rate = 0.1)
-          float32 saved = model.weight.raw()[0].item()
-          neural.save(model, path = "build/windows-neural.quistate")
-
-          neural<float32> second_prediction = model.weight.track()
-          neural<float32> second_loss = neural.mean(
-              second_prediction * second_prediction
-          )
-          neural.Gradients second_gradients = neural.grad(second_loss)
-          neural.update(&model, second_gradients, rate = 0.1)
-          print(model.weight.raw()[0].item() != saved)
-
-          neural.load(&model = &model, path = "build/windows-neural.quistate")
-          print(model.weight.raw()[0].item() == saved)
-          neural.save(model, path = "build/windows-neural.quistate")
+          state.weight = state.weight.track()
+          tensor<float32> loss = (state.weight * state.weight).mean()
+          loss.backward(&state.weight)
+          print(state.weight.has_grad())
+          tensor<float32> gradient = state.weight.grad
+          state.weight.clear_grad()
+          state.weight = state.weight.untrack() - gradient * float32(0.1)
+          print(state.weight[0].item() < before and not state.weight.has_grad())
           '@
-          & build/Release/quidra.exe check build/neural-smoke.qui | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "neural smoke check failed with exit code $LASTEXITCODE" }
-          & build/Release/quidra.exe ir build/neural-smoke.qui | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "neural smoke IR lowering failed with exit code $LASTEXITCODE" }
-          & build/Release/quidra.exe llvm build/neural-smoke.qui | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "neural smoke LLVM emission failed with exit code $LASTEXITCODE" }
-          & build/Release/quidra.exe build build/neural-smoke.qui -o build/neural-smoke.exe
-          if ($LASTEXITCODE -ne 0) { throw "neural smoke build failed with exit code $LASTEXITCODE" }
-          $neural = & build/neural-smoke.exe
-          $neuralExit = $LASTEXITCODE
-          if ($neuralExit -ne 0) { throw "neural smoke executable failed with exit code $neuralExit" }
-          if (($neural -join "`n").Trim() -ne "true`ntrue") { throw "neural smoke output mismatch: $neural" }
+          & build/Release/quidra.exe check build/autograd-smoke.qui | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "autograd smoke check failed with exit code $LASTEXITCODE" }
+          & build/Release/quidra.exe ir build/autograd-smoke.qui | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "autograd smoke IR lowering failed with exit code $LASTEXITCODE" }
+          & build/Release/quidra.exe llvm build/autograd-smoke.qui | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "autograd smoke LLVM emission failed with exit code $LASTEXITCODE" }
+          & build/Release/quidra.exe build build/autograd-smoke.qui -o build/autograd-smoke.exe
+          if ($LASTEXITCODE -ne 0) { throw "autograd smoke build failed with exit code $LASTEXITCODE" }
+          $autograd = & build/autograd-smoke.exe
+          $autogradExit = $LASTEXITCODE
+          if ($autogradExit -ne 0) { throw "autograd smoke executable failed with exit code $autogradExit" }
+          if (($autograd -join "`n").Trim() -ne "true`ntrue") { throw "autograd smoke output mismatch: $autograd" }
       - name: Package smoke
         run: cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist

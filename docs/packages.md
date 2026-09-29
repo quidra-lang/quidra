@@ -8,9 +8,9 @@ immutable release tags.
 
 ```text
 quidra install quidra-dnn
-quidra install quidra-dnn@0.2.0
+quidra install quidra-dnn@0.4.0
 quidra install owner/repository
-quidra install https://github.com/owner/repository.git@0.2.0
+quidra install https://github.com/owner/repository.git@1.2.3
 quidra install ./local-package
 quidra remove quidra-dnn
 quidra list
@@ -36,8 +36,8 @@ executed.
 A released package may attach a platform asset to the immutable source release:
 
 ```text
-asset.linux-x86_64 = https://github.com/owner/package/releases/download/v0.1.0/package-linux-x86_64.tar.xz
-asset.windows-x86_64 = https://github.com/owner/package/releases/download/v0.1.0/package-windows-x86_64.zip
+asset.linux-x86_64 = https://github.com/owner/package/releases/download/v1.2.3/package-linux-x86_64.tar.xz
+asset.windows-x86_64 = https://github.com/owner/package/releases/download/v1.2.3/package-windows-x86_64.zip
 ```
 
 The installer downloads only HTTPS assets, inspects the archive before
@@ -59,18 +59,18 @@ Released packages contain `quidra.package` at the repository root:
 
 ```text
 name = dnn
-version = 0.1.0
+version = 0.4.0
 repository = https://github.com/quidra-lang/dnn
-description = Neural network layers and optimizers for Quidra
+description = DNN layers and optimizers for Quidra
 license = MIT
 homepage = https://github.com/quidra-lang/dnn
-requires.quidra = >=0.1.0 <0.3.0
+requires.quidra = >=0.4.0 <0.5.0
 ```
 
 Package-to-package requirements use the same form:
 
 ```text
-requires.vision = >=0.1.0 <0.3.0
+requires.vision = >=0.4.0 <0.5.0
 ```
 
 Versions use exact `MAJOR.MINOR.PATCH` Semantic Versioning. Requirement terms
@@ -100,11 +100,11 @@ optional `project.toml` next to it, which older compilers simply never open:
 name = "quidra-dnn"
 import = "dnn"
 display_name = "Quidra DNN"
-version = "0.2.0"
+version = "0.4.0"
 repository = "https://github.com/quidra-lang/dnn"
 
 [requires]
-quidra = ">=0.1.0 <0.3.0"
+quidra = ">=0.4.0 <0.5.0"
 abi = 1
 ```
 
@@ -164,8 +164,8 @@ transitive package reached by the program's import graph records both identities
 
 ```text
 quidra-lock-v3
-quidra-dnn dnn 0.2.0 <sha256>
-quidra-vision vision 0.2.0 <sha256>
+quidra-dnn dnn 0.4.0 <sha256>
+quidra-vision vision 0.4.0 <sha256>
 ```
 
 The columns are distribution name, import name, version and content hash.

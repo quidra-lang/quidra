@@ -2,10 +2,7 @@ class Point
     int x = 1
     int y = 2
 
-    construct()
-        return
-
-    construct(int first)
+    construct(int first = 1)
         x = first
 
     int sum()

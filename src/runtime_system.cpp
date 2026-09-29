@@ -10,6 +10,30 @@
 #include <string>
 
 namespace {
+struct SourceProvenance {
+    const char* file{};
+    const char* revision{};
+    const char* node_id{};
+    const char* node_kind{};
+    unsigned long long line{};
+    unsigned long long column{};
+};
+
+thread_local const SourceProvenance* source_provenance{};
+
+void print_source_provenance(std::FILE* stream) {
+    const auto* provenance = source_provenance;
+    if (!provenance || !provenance->node_id || provenance->node_id[0] == '\0')
+        return;
+    std::fprintf(
+        stream,
+        " [source_revision=%s node_id=%s node_kind=%s source_file=%s]",
+        provenance->revision ? provenance->revision : "",
+        provenance->node_id,
+        provenance->node_kind ? provenance->node_kind : "",
+        provenance->file ? provenance->file : "");
+}
+
 std::uint64_t random_next(void* generator) {
     auto* state=static_cast<std::uint64_t*>(generator);
     *state+=0x9e3779b97f4a7c15ULL;
@@ -20,9 +44,47 @@ std::uint64_t random_next(void* generator) {
 }
 }
 
+extern "C" void quidra_runtime_set_source_provenance(
+    const void* provenance) {
+    source_provenance = static_cast<const SourceProvenance*>(provenance);
+}
+
+extern "C" void quidra_runtime_fail_at(
+    const char* code, const char* message, unsigned long long line,
+    unsigned long long column) {
+    std::fprintf(
+        stderr, "Quidra runtime error[%s] at %llu:%llu: %s",
+        code ? code : "RUNTIME", line, column,
+        message ? message : "runtime failure");
+    print_source_provenance(stderr);
+    std::fputc('\n', stderr);
+    std::fflush(stderr);
+    std::exit(101);
+}
+
+extern "C" void quidra_runtime_bounds_fail(
+    long long index, long long length, unsigned long long line,
+    unsigned long long column) {
+    std::fprintf(
+        stderr,
+        "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: "
+        "index %lld outside length %lld",
+        line, column, index, length);
+    print_source_provenance(stderr);
+    std::fputc('\n', stderr);
+    std::fflush(stderr);
+    std::exit(101);
+}
+
 extern "C" void quidra_test_assert(bool condition) {
     if(condition) return;
-    std::fprintf(stderr,"Quidra test assertion failed\n");
+    const auto line = source_provenance ? source_provenance->line : 0;
+    const auto column = source_provenance ? source_provenance->column : 0;
+    std::fprintf(
+        stderr, "Quidra test assertion failed at %llu:%llu",
+        line, column);
+    print_source_provenance(stderr);
+    std::fputc('\n', stderr);
     std::exit(1);
 }
 // io.flush() returns void | error: 0 here is success, anything else becomes
@@ -52,16 +114,12 @@ extern "C" void quidra_gpu_sync(long long index,
                                 unsigned long long line,
                                 unsigned long long column) {
     if (index < 0) {
-        std::fprintf(stderr,
-                     "Quidra runtime error[GPU_SYNC] at %llu:%llu: GPU index must be non-negative\n",
-                     line, column);
-        std::exit(101);
+        quidra_runtime_fail_at(
+            "GPU_SYNC", "GPU index must be non-negative", line, column);
     }
     std::string error;
     if (!quidra::device::synchronize(static_cast<int>(index), error)) {
-        std::fprintf(stderr, "Quidra runtime error[GPU_SYNC] at %llu:%llu: %s\n",
-                     line, column, error.c_str());
-        std::exit(101);
+        quidra_runtime_fail_at("GPU_SYNC", error.c_str(), line, column);
     }
 }
 extern "C" bool quidra_time_sleep(double seconds) {

@@ -40,7 +40,8 @@
 namespace {
 
 // The request/response contract version. It is deliberately independent of the
-// product version: the compiler may reach 0.4.0 while this envelope is still 1.
+// product version: the compiler may ship several releases while this envelope
+// is still 1.
 // Bump it only when the shape below changes incompatibly.
 constexpr int wasm_schema_version = 1;
 
@@ -512,12 +513,12 @@ std::string run_patch(const std::string& source, const RequestReader& request) {
     }
 }
 
-// Everything a client needs to state exactly which compiler answered, without
-// guessing. The product version comes from project.toml by way of project.hpp.
+// Everything a client needs to identify the Quidra release that answered,
+// without guessing. The version comes from project.toml by way of project.hpp.
 std::string run_metadata() {
     return success("metadata",
-                   std::string("\"metadata\":{\"product_version\":") +
-                       json_string(quidra::compiler_version) +
+                   std::string("\"metadata\":{\"version\":") +
+                       json_string(quidra::version) +
                        ",\"ir_version\":" + json_string(quidra::ir_version) +
                        ",\"core_commit\":" + json_string(QUIDRA_CORE_COMMIT) +
                        ",\"wasm_schema_version\":" + std::to_string(wasm_schema_version) +
@@ -542,8 +543,9 @@ std::string dispatch(const char* request_json) {
         return failure("unknown", "invalid_request", "A request requires an 'operation' field.");
     }
 
-    if (const auto version = request.number_field("schema_version");
-        version && static_cast<int>(*version) != wasm_schema_version) {
+    if (const auto requested_schema_version = request.number_field("schema_version");
+        requested_schema_version &&
+        static_cast<int>(*requested_schema_version) != wasm_schema_version) {
         return failure(operation, "unsupported_schema_version",
                        "This build speaks request schema version " +
                            std::to_string(wasm_schema_version) + ".");

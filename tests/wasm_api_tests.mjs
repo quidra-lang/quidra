@@ -60,7 +60,7 @@ const UNFORMATTED = 'int    x   =   1\nprint(x)\n';
     check(response.schema_version === 1, "metadata reports the envelope version", response);
     const metadata = response.metadata ?? {};
     for (const field of [
-        "product_version",
+        "version",
         "ir_version",
         "core_commit",
         "wasm_schema_version",
@@ -69,8 +69,8 @@ const UNFORMATTED = 'int    x   =   1\nprint(x)\n';
         check(metadata[field] !== undefined && metadata[field] !== "",
               `metadata carries ${field}`, metadata);
     }
-    check(/^\d+\.\d+\.\d+$/.test(metadata.product_version ?? ""),
-          "product_version looks like a release version", metadata.product_version);
+    check(/^\d+\.\d+\.\d+$/.test(metadata.version ?? ""),
+          "version looks like a release version", metadata.version);
     check(metadata.core_commit !== "unknown",
           "core_commit was resolved at configure time", metadata.core_commit);
 
@@ -80,8 +80,8 @@ const UNFORMATTED = 'int    x   =   1\nprint(x)\n';
         const projectToml = readFileSync(resolve(buildDir, "..", "project.toml"), "utf8");
         const declared = /^version = "([^"]+)"$/m.exec(projectToml);
         if (declared) {
-            check(metadata.product_version === declared[1],
-                  "product_version matches project.toml", `${metadata.product_version} vs ${declared[1]}`);
+            check(metadata.version === declared[1],
+                  "version matches project.toml", `${metadata.version} vs ${declared[1]}`);
         }
     } catch {
         // Running against an unpacked build tree without the source beside it.

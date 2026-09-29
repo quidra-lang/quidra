@@ -58,6 +58,7 @@ int main() {
     const auto current = read_package_lock(root);
     assert(current);
     assert(current->at("sample").distribution_name == "quidra-sample");
+    assert(current->at("sample").distribution_name_explicit);
     assert(current->at("sample").version == "1.2.3");
 
     const std::string digest(64, '0');
@@ -68,6 +69,7 @@ int main() {
     const auto legacy_v1 = read_package_lock(root);
     assert(legacy_v1);
     assert(legacy_v1->at("sample").distribution_name == "sample");
+    assert(!legacy_v1->at("sample").distribution_name_explicit);
     assert(legacy_v1->at("sample").version == "-");
 
     write_text(
@@ -77,6 +79,7 @@ int main() {
     const auto legacy_v2 = read_package_lock(root);
     assert(legacy_v2);
     assert(legacy_v2->at("sample").distribution_name == "sample");
+    assert(!legacy_v2->at("sample").distribution_name_explicit);
     assert(legacy_v2->at("sample").version == "1.2.3");
 
     fs::remove_all(root);

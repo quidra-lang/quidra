@@ -801,7 +801,7 @@ struct CublasApi {
     }
 };
 
-CublasApi& cublas() {
+[[maybe_unused]] CublasApi& cublas() {
     static CublasApi api;
     return api;
 }
@@ -1227,189 +1227,11 @@ struct CudnnApi {
     }
 };
 
-CudnnApi& cudnn() {
+[[maybe_unused]] CudnnApi& cudnn() {
     static CudnnApi api;
     return api;
 }
 
-
-struct NcclApi {
-    struct UniqueId { char internal[128]; };
-    using Comm = void*;
-    using Result = int;
-
-    DynamicLibrary library;
-    Result (*get_unique_id)(UniqueId*){};
-    Result (*comm_init_rank)(Comm*, int, UniqueId, int){};
-    Result (*all_reduce)(const void*, void*, std::size_t, int, int, Comm, void*){};
-    Result (*comm_destroy)(Comm){};
-    Result (*get_async_error)(Comm, Result*){};
-    const char* (*get_error_string)(Result){};
-    bool ready{};
-
-    NcclApi() {
-#ifdef _WIN32
-        return;
-#else
-        constexpr std::array names{"libnccl.so.2", "libnccl.so"};
-        if (!open_dnn_nvidia_library(library, names)) return;
-        get_unique_id=load_symbol<decltype(get_unique_id)>(library,"ncclGetUniqueId");
-        comm_init_rank=load_symbol<decltype(comm_init_rank)>(library,"ncclCommInitRank");
-        all_reduce=load_symbol<decltype(all_reduce)>(library,"ncclAllReduce");
-        comm_destroy=load_symbol<decltype(comm_destroy)>(library,"ncclCommDestroy");
-        get_async_error=
-            load_symbol<decltype(get_async_error)>(library,"ncclCommGetAsyncError");
-        get_error_string=load_symbol<decltype(get_error_string)>(library,"ncclGetErrorString");
-        ready=get_unique_id&&comm_init_rank&&all_reduce&&comm_destroy;
-#endif
-    }
-
-    std::string message(Result result) const {
-        if(get_error_string){
-            if(const char* text=get_error_string(result)) return text;
-        }
-        return "NCCL error " + std::to_string(result);
-    }
-};
-
-NcclApi& nccl() {
-    static NcclApi api;
-    return api;
-}
-
-struct NcclCommGroup {
-    std::vector<int> backend_indices;
-    std::vector<NcclApi::Comm> comms;
-    std::mutex operation_mutex;
-};
-
-struct NcclResourceState {
-    std::mutex mutex;
-    std::unordered_map<std::string,std::shared_ptr<NcclCommGroup>> groups;
-
-    ~NcclResourceState() {
-        auto& api=nccl();
-        for(auto& entry:groups){
-            auto& group=*entry.second;
-            for(int backend_index:group.backend_indices){
-                auto& cu=cuda();
-                CudaApi::CUcontext context=nullptr;
-                std::string ignored;
-                if(cu.current(backend_index,context,ignored)&&cu.ctx_synchronize)
-                    (void)cu.ctx_synchronize();
-            }
-            if(api.comm_destroy)
-                for(auto comm:group.comms)
-                    if(comm)(void)api.comm_destroy(comm);
-        }
-    }
-};
-
-NcclResourceState& nccl_resources() {
-    static NcclResourceState state;
-    return state;
-}
-
-std::string nccl_group_key(const std::vector<int>& backend_indices) {
-    std::string key;
-    for(std::size_t i=0;i<backend_indices.size();++i){
-        if(i) key.push_back(',');
-        key+=std::to_string(backend_indices[i]);
-    }
-    return key;
-}
-
-std::shared_ptr<NcclCommGroup> nccl_group(
-    const std::vector<int>& backend_indices,std::string& error) {
-    auto& api=nccl();
-    if(!api.ready){
-        error="NCCL is unavailable; configure the DNN NVIDIA library path";
-        return {};
-    }
-    const auto key=nccl_group_key(backend_indices);
-    auto& state=nccl_resources();
-    std::lock_guard lock(state.mutex);
-    if(const auto found=state.groups.find(key);found!=state.groups.end())
-        return found->second;
-
-    if(backend_indices.size()>
-       static_cast<std::size_t>(std::numeric_limits<int>::max())){
-        error="NCCL all-reduce rank count is too large";
-        return {};
-    }
-
-    NcclApi::UniqueId unique{};
-    const auto unique_status=api.get_unique_id(&unique);
-    if(unique_status!=0){
-        error="NCCL unique-id creation failed: "+api.message(unique_status);
-        return {};
-    }
-
-    auto group=std::make_shared<NcclCommGroup>();
-    group->backend_indices=backend_indices;
-    group->comms.resize(backend_indices.size(),nullptr);
-    std::vector<std::string> rank_errors(backend_indices.size());
-    std::vector<std::thread> threads;
-    try{
-        threads.reserve(backend_indices.size());
-        for(std::size_t rank=0;rank<backend_indices.size();++rank){
-            threads.emplace_back([&,rank]{
-                auto& cu=cuda();
-                CudaApi::CUcontext context=nullptr;
-                std::string context_error;
-                if(!cu.current(backend_indices[rank],context,context_error)){
-                    rank_errors[rank]=context_error;
-                    return;
-                }
-                const auto status=api.comm_init_rank(
-                    &group->comms[rank],static_cast<int>(backend_indices.size()),
-                    unique,static_cast<int>(rank));
-                if(status!=0)
-                    rank_errors[rank]=
-                        "NCCL communicator initialization failed: "+api.message(status);
-            });
-        }
-    }catch(const std::exception& exception){
-        for(auto& thread:threads)if(thread.joinable())thread.join();
-        if(api.comm_destroy)
-            for(auto comm:group->comms)if(comm)(void)api.comm_destroy(comm);
-        error=std::string("cannot start NCCL rank: ")+exception.what();
-        return {};
-    }
-    for(auto& thread:threads)thread.join();
-    for(const auto& rank_error:rank_errors){
-        if(!rank_error.empty()){
-            if(api.comm_destroy)
-                for(auto comm:group->comms)if(comm)(void)api.comm_destroy(comm);
-            error=rank_error;
-            return {};
-        }
-    }
-    state.groups.emplace(key,group);
-    return group;
-}
-
-bool nccl_check_async_for_backend(int backend_index,std::string& error) {
-    auto& api=nccl();
-    if(!api.ready||!api.get_async_error) return true;
-    auto& state=nccl_resources();
-    std::lock_guard state_lock(state.mutex);
-    for(const auto& entry:state.groups){
-        auto& group=*entry.second;
-        std::lock_guard operation_lock(group.operation_mutex);
-        for(std::size_t rank=0;rank<group.backend_indices.size();++rank){
-            if(group.backend_indices[rank]!=backend_index) continue;
-            NcclApi::Result async_status=0;
-            const auto query=api.get_async_error(group.comms[rank],&async_status);
-            if(query!=0||async_status!=0){
-                const auto status=query!=0?query:async_status;
-                error="NCCL asynchronous error: "+api.message(status);
-                return false;
-            }
-        }
-    }
-    return true;
-}
 
 struct HipApi {
     using Module = void*;
@@ -1970,16 +1792,16 @@ std::vector<Info> enumerate_devices() {
     if (h.ready) {
         int count = 0;
         if (h.get_count(&count) == 0) {
-            int version = 0;
-            if (h.runtime_version) (void)h.runtime_version(&version);
+            int hip_runtime_version = 0;
+            if (h.runtime_version) (void)h.runtime_version(&hip_runtime_version);
             for (int i = 0; i < count; ++i) {
                 char name[256]{};
                 if (!h.get_name ||
                     h.get_name(name, static_cast<int>(sizeof(name)), i) != 0)
                     std::memcpy(name, "AMD GPU", sizeof("AMD GPU"));
-                const auto runtime = version > 0
-                    ? "HIP " + std::to_string(version / 10000000) + "." +
-                          std::to_string((version / 100000) % 100)
+                const auto runtime = hip_runtime_version > 0
+                    ? "HIP " + std::to_string(hip_runtime_version / 10000000) + "." +
+                          std::to_string((hip_runtime_version / 100000) % 100)
                     : "HIP";
                 result.push_back(Info{
                     static_cast<int>(result.size()), Backend::Hip, i, name,
@@ -2427,7 +2249,6 @@ bool synchronize(int index, std::string& error) {
         }
         cuda_reap_uploads(api,info->backend_index,true);
         cuda_reap_device_blocks(api,info->backend_index,true);
-        if(!nccl_check_async_for_backend(info->backend_index,error)) return false;
         if(!consume_deferred_validations(index,error)) return false;
         return true;
     }
@@ -2998,7 +2819,7 @@ bool launch(Module* module, const char* kernel,
         }
         // Default-stream ordering preserves GPU dependencies. Host-visible reads and
         // explicit transfers are the synchronization boundaries; blocking here would
-        // serialize every elementwise/activation/optimizer kernel in a DNN chain.
+        // serialize every queued tensor kernel in a compute chain.
         return true;
     }
 
@@ -3036,143 +2857,9 @@ bool launch(Module* module, const char* kernel,
 }
 
 
-bool compute_all_reduce_sum(
-    const std::vector<Buffer*>& buffers, int dtype, std::size_t count,
-    std::string& error) {
-    if (buffers.empty()) {
-        error = "NCCL all-reduce requires at least one GPU tensor";
-        return false;
-    }
-    if (dtype != 9 && dtype != 10) {
-        error = "NCCL all-reduce requires float32 or float tensors";
-        return false;
-    }
-    const auto width = dtype == 10 ? sizeof(float) : sizeof(double);
-    if (count != 0 && width > std::numeric_limits<std::size_t>::max() / count) {
-        error = "NCCL all-reduce byte size overflow";
-        return false;
-    }
-    const auto bytes = count * width;
-    for (auto* buffer : buffers) {
-        if (!buffer || !range_ok(*buffer, 0, bytes)) {
-            error = "invalid NCCL all-reduce buffer range";
-            return false;
-        }
-    }
-    if (buffers.size() == 1) return true;
-
-#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
-    bool all_test = true;
-    for (auto* buffer : buffers) all_test &= buffer->backend == Backend::Test;
-    if (all_test) {
-        if (dtype == 10) {
-            std::vector<float> sum(count, 0.0F);
-            for (auto* buffer : buffers) {
-                for (std::size_t i = 0; i < count; ++i) {
-                    float value{};
-                    std::memcpy(&value, buffer->test_data.data() + i * sizeof(float),
-                                sizeof(float));
-                    sum[i] += value;
-                }
-            }
-            for (auto* buffer : buffers)
-                std::memcpy(buffer->test_data.data(), sum.data(), count * sizeof(float));
-        } else {
-            std::vector<double> sum(count, 0.0);
-            for (auto* buffer : buffers) {
-                for (std::size_t i = 0; i < count; ++i) {
-                    double value{};
-                    std::memcpy(&value, buffer->test_data.data() + i * sizeof(double),
-                                sizeof(double));
-                    sum[i] += value;
-                }
-            }
-            for (auto* buffer : buffers)
-                std::memcpy(buffer->test_data.data(), sum.data(), count * sizeof(double));
-        }
-        return true;
-    }
-#endif
-
-    std::unordered_map<int, bool> seen_devices;
-    for (auto* buffer : buffers) {
-        if (buffer->backend != Backend::Cuda) {
-            error = "NCCL all-reduce requires NVIDIA gpu(n) tensors";
-            return false;
-        }
-        if (!seen_devices.emplace(buffer->global_index, true).second) {
-            error = "NCCL all-reduce requires one tensor per distinct gpu(n)";
-            return false;
-        }
-    }
-
-    auto& api = nccl();
-    if (!api.ready) {
-        error = "NCCL is unavailable; configure the DNN NVIDIA library path";
-        return false;
-    }
-    if (buffers.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        error = "NCCL all-reduce rank count is too large";
-        return false;
-    }
-
-    std::vector<int> backend_indices;
-    backend_indices.reserve(buffers.size());
-    for(auto* buffer:buffers) backend_indices.push_back(buffer->backend_index);
-    auto group=nccl_group(backend_indices,error);
-    if(!group) return false;
-
-    // One communicator per device is retained for the process lifetime. Enqueue
-    // collectives onto each device's default stream and return after submission;
-    // destroying a communicator per call would otherwise force a completion wait.
-    std::lock_guard operation_lock(group->operation_mutex);
-    std::vector<std::string> rank_errors(buffers.size());
-    std::vector<std::thread> threads;
-    try {
-        threads.reserve(buffers.size());
-        for (std::size_t rank = 0; rank < buffers.size(); ++rank) {
-            threads.emplace_back([&, rank] {
-                auto* buffer = buffers[rank];
-                auto& cu = cuda();
-                CudaApi::CUcontext context = nullptr;
-                std::string context_error;
-                if (!cu.current(buffer->backend_index, context, context_error)) {
-                    rank_errors[rank] = context_error;
-                    return;
-                }
-                void* pointer = reinterpret_cast<void*>(
-                    static_cast<std::uintptr_t>(buffer->cuda_pointer));
-                constexpr int nccl_sum = 0;
-                const int nccl_dtype = dtype == 10 ? 7 : 8;
-                const auto status = api.all_reduce(
-                    pointer, pointer, count, nccl_dtype, nccl_sum,
-                    group->comms[rank], nullptr);
-                if (status != 0)
-                    rank_errors[rank] =
-                        "NCCL all-reduce launch failed: " + api.message(status);
-            });
-        }
-    } catch (const std::exception& exception) {
-        for (auto& thread : threads) if (thread.joinable()) thread.join();
-        error = std::string("cannot start NCCL rank: ") + exception.what();
-        return false;
-    }
-
-    for (auto& thread : threads) thread.join();
-    for (const auto& rank_error : rank_errors) {
-        if (!rank_error.empty()) {
-            error = rank_error;
-            return false;
-        }
-    }
-    return true;
-}
-
 #include "device_integer_compute.inc"
 #include "device_compute.inc"
-#include "device_neural_compute.inc"
+#include "device_tensor_reduce_compute.inc"
 #include "device_autograd_compute.inc"
-#include "device_training_compute.inc"
-#include "device_vision_compute.inc"
 
 } // namespace quidra::device

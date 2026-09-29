@@ -47,9 +47,24 @@ jobs:
           if not os.path.exists(path):
               raise SystemExit(0)
           data = json.load(open(path))
-          lines = ["## Representative native workload trends", "", "| workload | run median | build | artifact |", "| --- | ---: | ---: | ---: |"]
+          lines = ["## Representative native workload trends", "", "| workload | run median | peak RSS | build | artifact | output |", "| --- | ---: | ---: | ---: | ---: | --- |"]
           for name, row in data["workloads"].items():
-              lines.append(f"| {name} | {row['run_median_seconds']:.4f} s | {row['build_seconds']:.3f} s | {row['artifact_bytes']} B |")
+              rss_mib = row["peak_rss_bytes"] / (1024 * 1024)
+              lines.append(f"| {name} | {row['run_median_seconds']:.4f} s | {rss_mib:.1f} MiB | {row['build_seconds']:.3f} s | {row['artifact_bytes']} B | `{row['output_sha256'][:12]}` |")
+          fixture = data.get("file_parse_fixture", {})
+          profile = data.get("file_parse_profile", {})
+          if fixture and profile:
+              lines.extend([
+                  "",
+                  "### File parse profile",
+                  "",
+                  f"- fixture: {fixture['lines']} lines, {fixture['bytes']} bytes, checksum {fixture['checksum']}",
+                  f"- whole-file read: {profile['whole_file_read_seconds']:.4f} s",
+                  f"- whole-file split increment: {profile['whole_file_split_increment_seconds']:.4f} s",
+                  f"- whole-file parse increment: {profile['whole_file_parse_increment_seconds']:.4f} s",
+                  f"- stream line traversal: {profile['stream_line_traversal_seconds']:.4f} s",
+                  f"- stream split+parse increment: {profile['stream_split_parse_increment_seconds']:.4f} s",
+              ])
           lines.append("")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as handle:
               handle.write("\n".join(lines) + "\n")

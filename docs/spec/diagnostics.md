@@ -1,8 +1,10 @@
 # Diagnostics and Runtime Failures
 
-Compiler diagnostics have a stable code, source span, and explanatory message. `quidra check program.qui --json` is the machine-readable interface. The default diagnostic limit is 20; `--max-errors N` selects a positive limit, and JSON output reports whether additional diagnostics were suppressed.
+Compiler diagnostics have a stable code, source span, and explanatory message. `quidra check program.qui --json` is the machine-readable interface. Diagnostic JSON schema version 2 also reports the SHA-256 `source_revision` and, when the source can still be parsed and one containing source node is unambiguous, the smallest matching `node_id` and `node_kind`. Lexer/parser failures and other cases without a stable node retain `source_revision` plus the exact span and return null node fields rather than inventing an association. Span start/end include byte offsets as well as line/column.
 
-Codes are contracts for the category of failure. Message wording may become more specific without changing the code.
+The default diagnostic limit is 20; `--max-errors N` selects a positive limit, and JSON output reports whether additional diagnostics were suppressed.
+
+Codes are contracts for the category of failure. Message wording may become more specific without changing the code. Node IDs are revision-local and must be interpreted only with the reported `source_revision`.
 
 ## Diagnostic codes
 
@@ -47,7 +49,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `INDEX_SYNTAX` | A tensor index component is structurally incomplete. | Supply an integer index or a valid slice. |
 | `INTEGER_RANGE` | An integer literal exceeds `uint64`, or exceeds default `int` without an explicit wider unsigned context. | Use a representable literal; values above signed `int` maximum require an explicit `uint64` context. |
 | `INVALID_ASSIGNMENT` | The left side is not assignable storage or assignment violates its contract. | Assign to valid mutable storage. |
-| `INVALID_AUTO` | `auto` appears where inference is not supported or lacks an initializer. | Use an explicit type or initialize the local. |
+| `INVALID_AUTO` | `auto` appears where inference is not supported, lacks an initializer, or is used in an invalid union form; `auto \| error` additionally requires a fallible initializer. | Use bare `auto` for fail-fast success inference, `auto \| error` to retain failure, or an explicit type. |
 | `INVALID_CONTEXT` | A declaration or operation is used in a frontend context where it is not legal. | Move it to a supported context. |
 | `INVALID_ENUM` | A referenced enum declaration is structurally invalid. | Correct the enum declaration before using the type. |
 | `INVALID_PATCH` | Patch JSON or schema is invalid. | Follow `patch-schema.md`; the message identifies the field/schema error. |
@@ -78,7 +80,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `PATCH_HASH_MISMATCH` | A patch node changed since inspection. | Re-inspect and use the new hash. |
 | `PATCH_KIND_MISMATCH` | A patch target exists but its structural node kind differs from `expected_kind`. | Re-inspect the source and regenerate the patch against the current node kind. |
 | `PATCH_OVERLAP` | Patch operations target overlapping spans. | Split or remove overlapping replacements. |
-| `PRIVATE_MEMBER` | A private field is read, written, or addressed outside its declaring class, or a private method is called outside its declaring class. | Access the member only from a method declared by its owning class, or expose an intentional public method. Private fields may still be supplied by name during construction. |
+| `PRIVATE_MEMBER` | A private field is read, written, or addressed outside its declaring class, or a private method is called outside its declaring class. | Access the member only from a method or constructor declared by its owning class, or expose an intentional public API. |
 | `RANGE_CONTEXT` | A `range` value is used outside its supported iteration context. | Use it as the iterable of `for`. |
 | `REFERENCE_BINDING` | An address/reference target or binding form is invalid. | Use an addressable binding, field, or element with the required `&`. |
 | `RESERVED_MAIN` | Source declares the compiler-reserved native entrypoint name. | Rename it; top-level statements define program entry. |
@@ -104,7 +106,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `UNKNOWN_MODULE_MEMBER` | Imported-module member lookup failed. | Use an exported declaration from that module. |
 | `UNKNOWN_NAME` | Value/function name lookup failed. | Declare/import the name or correct the spelling. |
 | `UNKNOWN_NODE` | A source patch references a node absent from the inspected revision. | Re-inspect and use a current node id. |
-| `UNKNOWN_STANDARD_MODULE` | Standard-namespace lookup requested a name absent from the language registry. | Use one of the standard namespaces defined by the current language version. |
+| `UNKNOWN_STANDARD_MODULE` | Standard-namespace lookup requested a name absent from the language registry. | Use one of the standard namespaces defined by the current Quidra release. |
 | `UNKNOWN_TYPE` | Type name lookup failed. | Use a built-in, generic parameter, imported type, or declared class. |
 | `WRITE_CAPABILITY` | A write is attempted through a const path, reference form mismatches the parameter, authority is improperly regained, or a writable path is otherwise unsafe. | Match `&` reference contracts; use `const T &` for read-only access and `T &` only from a path that already has write authority. |
 
@@ -127,13 +129,12 @@ Deterministic runtime safety failures terminate with status `101`. They include:
 - integer casts whose runtime value is outside the destination range;
 - `math.trunc`, `math.round`, `math.floor`, and `math.ceil` results to `int` that are not finite or fall outside `int` range;
 - tensor shape, broadcasting, indexing, contiguity, and elementwise cast range violations;
-- neural operand shape and dtype mismatches, layer rank and dimension preconditions, autograd and gradient/Parameter correspondence, and optimizer moment-state validity;
-- `.quistate` save and load failures, including an invalid path, file I/O failure, and a schema, field path/type, tensor dtype/shape, version, bounds, or checksum disagreement;
+- tensor/autograd shape and dtype mismatches, invalid tracked mutations, unavailable gradients, and unsupported higher-order transforms;
 - invalid runtime text operations such as malformed UTF-8 or out-of-range string slices;
 - a zero `range` step;
 - call depth exceeding the native safety limit before host stack exhaustion.
 
-An explicit `error("message")` is instead a typed value. Numeric `Type.parse(text)` returns `error` for invalid or out-of-range text. `scan(...)` returns `error` for end of input, invalid text, or input that does not match its format, and `print`, `write`, and `io.flush` return `error` for an output failure; an expression statement that discards such an error fails fast.
+An explicit `error("message")` is instead a typed value. Numeric `Type.parse(text)` returns `error` for invalid or out-of-range text. A scalar range-checked numeric cast likewise exposes `T | error` when the runtime value may not fit; bare `auto` infers `T` and fails fast, `auto | error` preserves the failure alternative, a success-only destination also fails fast, `try` propagates it, and `match` can recover from an explicitly preserved result locally. `scan(...)` returns `error` for end of input, invalid text, or input that does not match its format, and `print`, `write`, and `io.flush` return `error` for an output failure; an expression statement that discards such an error fails fast.
 
 Floating-point exceptional values follow IEEE-754 behavior. Runtime text is canonicalized to `nan`, `inf`, and `-inf`.
 
@@ -145,10 +146,17 @@ Coded runtime safety failures use status 101 and the stable text shape:
 `Quidra runtime error[CODE] at LINE:COLUMN: message`
 
 Current coded runtime failure codes include `INDEX_BOUNDS`, `UNINITIALIZED`, `TENSOR`,
-`NEURAL`, `NEURAL_STATE`, `INTEGER_OVERFLOW`, `DIVISION_BY_ZERO`, `RANGE_STEP_ZERO`,
+`AUTOGRAD`, `INTEGER_OVERFLOW`, `DIVISION_BY_ZERO`, `RANGE_STEP_ZERO`,
 `CALL_DEPTH_LIMIT`, `NUMERIC_CAST_RANGE`, `NUMERIC_CONVERSION`, `SHIFT_COUNT`, `INVALID_SLEEP_DURATION`,
 and `INVALID_RANDOM_RANGE`.
-Source-bearing coded operations report their source location.
+Source-bearing coded operations report their source location. When the compiler can
+unambiguously associate the active statement with the public structural schema, the
+same failure line also carries a machine-stable provenance suffix with
+`source_revision`, `node_id`, `node_kind`, and `source_file`. The revision and
+node id are exactly those returned by `quidra inspect` for that source snapshot.
+Failed `test.check` / `test.equal` assertions use the same provenance contract while
+retaining test-failure status 1 instead of runtime-safety status 101. Compiler-generated
+operations with no public source node do not invent an association.
 
 Runtime-library failures that currently do not carry a source span, such as host allocation
 failure or low-level text/runtime invariant checks, use `Quidra runtime error: message`

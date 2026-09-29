@@ -998,6 +998,89 @@ long double eval_ld(const RealPtr&x,std::size_t&budget){
     return 0;
 }
 
+bool try_eval_ld(const RealPtr& x, std::size_t& budget, long double& out) {
+    if (!x || !budget--) return false;
+    long double a = 0.0L;
+    long double b = 0.0L;
+    switch (x->kind) {
+        case RealKind::Rational: {
+            try {
+                const long double n = std::stold(x->rational.num.text());
+                const long double d = std::stold(x->rational.den.text());
+                if (d == 0.0L) return false;
+                out = n / d;
+            } catch (...) {
+                return false;
+            }
+            return std::isfinite(out);
+        }
+        case RealKind::Pi:
+            out = std::acos(-1.0L);
+            return true;
+        case RealKind::E:
+            out = std::exp(1.0L);
+            return true;
+        case RealKind::Sqrt:
+            if (!try_eval_ld(x->a, budget, a) || a < 0.0L) return false;
+            out = std::sqrt(a);
+            return std::isfinite(out);
+        case RealKind::Sin:
+            if (!try_eval_ld(x->a, budget, a)) return false;
+            out = std::sin(a);
+            return std::isfinite(out);
+        case RealKind::Cos:
+            if (!try_eval_ld(x->a, budget, a)) return false;
+            out = std::cos(a);
+            return std::isfinite(out);
+        case RealKind::Tan:
+            if (!try_eval_ld(x->a, budget, a)) return false;
+            out = std::tan(a);
+            return std::isfinite(out);
+        case RealKind::Log:
+            if (!try_eval_ld(x->a, budget, a) || !(a > 0.0L)) return false;
+            out = std::log(a);
+            return std::isfinite(out);
+        case RealKind::Exp:
+            if (!try_eval_ld(x->a, budget, a)) return false;
+            out = std::exp(a);
+            return std::isfinite(out);
+        case RealKind::Pow:
+            if (!try_eval_ld(x->a, budget, a) ||
+                !try_eval_ld(x->b, budget, b)) return false;
+            out = std::pow(a, b);
+            return std::isfinite(out);
+        case RealKind::Add:
+            if (!try_eval_ld(x->a, budget, a) ||
+                !try_eval_ld(x->b, budget, b)) return false;
+            out = a + b;
+            return std::isfinite(out);
+        case RealKind::Sub:
+            if (!try_eval_ld(x->a, budget, a) ||
+                !try_eval_ld(x->b, budget, b)) return false;
+            out = a - b;
+            return std::isfinite(out);
+        case RealKind::Mul:
+            if (!try_eval_ld(x->a, budget, a) ||
+                !try_eval_ld(x->b, budget, b)) return false;
+            out = a * b;
+            return std::isfinite(out);
+        case RealKind::Div:
+            if (!try_eval_ld(x->a, budget, a) ||
+                !try_eval_ld(x->b, budget, b) || b == 0.0L) return false;
+            out = a / b;
+            return std::isfinite(out);
+        case RealKind::Neg:
+            if (!try_eval_ld(x->a, budget, a)) return false;
+            out = -a;
+            return std::isfinite(out);
+        case RealKind::Abs:
+            if (!try_eval_ld(x->a, budget, a)) return false;
+            out = std::fabs(a);
+            return std::isfinite(out);
+    }
+    return false;
+}
+
 std::string real_text(const RealPtr&x,int significant){
     if(!x)return "0.0";
     if(x->kind==RealKind::Rational)
@@ -1244,80 +1327,161 @@ extern "C" void* quidra_bigreal_from_bigint(void*p){
     if(!p)exact_fail("null bigint");
     return make_br(rr(Rational(bi(p)->value,BigInt::from_u64(1))));
 }
+bool bigint_try_i64_value(const BigInt& source,int bits,long long& out){
+    if(bits<=0||bits>64)return false;
+    const auto text=source.text();
+    char* end=nullptr;errno=0;
+    const auto value=std::strtoll(text.c_str(),&end,10);
+    if(errno==ERANGE||!end||*end!='\0')return false;
+    if(bits<64){
+        const long long low=-(1LL<<(bits-1));
+        const long long high=(1LL<<(bits-1))-1;
+        if(value<low||value>high)return false;
+    }
+    out=value;
+    return true;
+}
+bool bigint_try_u64_value(
+    const BigInt& source,int bits,unsigned long long& out){
+    if(bits<=0||bits>64||source.sign<0)return false;
+    const auto text=source.text();
+    char* end=nullptr;errno=0;
+    const auto value=std::strtoull(text.c_str(),&end,10);
+    if(errno==ERANGE||!end||*end!='\0')return false;
+    if(bits<64&&value>((1ULL<<bits)-1ULL))return false;
+    out=value;
+    return true;
+}
+
+extern "C" bool quidra_bigint_try_i64(void*p,int bits,long long*out){
+    if(!p||!out)exact_fail("null bigint conversion storage");
+    *out=0;
+    return bigint_try_i64_value(bi(p)->value,bits,*out);
+}
+extern "C" bool quidra_bigint_try_u64(
+    void*p,int bits,unsigned long long*out){
+    if(!p||!out)exact_fail("null bigint conversion storage");
+    *out=0;
+    return bigint_try_u64_value(bi(p)->value,bits,*out);
+}
+extern "C" void* quidra_bigreal_try_bigint(void*p){
+    if(!p)exact_fail("null bigreal");
+    const auto value=br(p)->value;
+    if(value->kind!=RealKind::Rational||!rat_int(value->rational))
+        return nullptr;
+    return make_bi(value->rational.num);
+}
+extern "C" bool quidra_bigreal_try_i64(void*p,int bits,long long*out){
+    if(!p||!out)exact_fail("null bigreal conversion storage");
+    *out=0;
+    const auto value=br(p)->value;
+    if(value->kind!=RealKind::Rational||!rat_int(value->rational))
+        return false;
+    return bigint_try_i64_value(value->rational.num,bits,*out);
+}
+extern "C" bool quidra_bigreal_try_u64(
+    void*p,int bits,unsigned long long*out){
+    if(!p||!out)exact_fail("null bigreal conversion storage");
+    *out=0;
+    const auto value=br(p)->value;
+    if(value->kind!=RealKind::Rational||!rat_int(value->rational))
+        return false;
+    return bigint_try_u64_value(value->rational.num,bits,*out);
+}
+
 extern "C" void* quidra_bigreal_to_bigint(
     void*p,unsigned long long line,unsigned long long column){
     if(!p)exact_fail("null bigreal",line,column);
-    const auto value=br(p)->value;
-    if(value->kind!=RealKind::Rational||!rat_int(value->rational))
-        exact_fail("bigreal is not provably an integer",line,column);
-    return make_bi(value->rational.num);
+    auto* result=quidra_bigreal_try_bigint(p);
+    if(!result)exact_fail("bigreal is not provably an integer",line,column);
+    return result;
 }
 
 extern "C" long long quidra_bigint_to_i64(
     void*p,int bits,unsigned long long line,unsigned long long column){
     if(!p)exact_fail("null bigint",line,column);
-    const auto text=bi(p)->value.text();
-    char* end=nullptr;errno=0;
-    const auto value=std::strtoll(text.c_str(),&end,10);
-    if(errno==ERANGE||!end||*end!='\0')
+    long long value=0;
+    if(!bigint_try_i64_value(bi(p)->value,bits,value))
         exact_fail("bigint is outside destination range",line,column);
-    if(bits<64){
-        const long long low=-(1LL<<(bits-1));
-        const long long high=(1LL<<(bits-1))-1;
-        if(value<low||value>high)
-            exact_fail("bigint is outside destination range",line,column);
-    }
     return value;
 }
 extern "C" unsigned long long quidra_bigint_to_u64(
     void*p,int bits,unsigned long long line,unsigned long long column){
     if(!p)exact_fail("null bigint",line,column);
-    const auto&value=bi(p)->value;
-    if(value.sign<0)
+    if(bi(p)->value.sign<0)
         exact_fail("negative bigint is outside unsigned destination range",line,column);
-    const auto text=value.text();
-    char* end=nullptr;errno=0;
-    const auto result=std::strtoull(text.c_str(),&end,10);
-    if(errno==ERANGE||!end||*end!='\0')
+    unsigned long long value=0;
+    if(!bigint_try_u64_value(bi(p)->value,bits,value))
         exact_fail("bigint is outside destination range",line,column);
-    if(bits<64&&result>((1ULL<<bits)-1ULL))
-        exact_fail("bigint is outside destination range",line,column);
-    return result;
+    return value;
+}
+extern "C" bool quidra_bigreal_try_float64(void*p,double*out){
+    if(!p||!out)exact_fail("null bigreal conversion storage");
+    *out=0.0;
+    std::size_t budget=4096;
+    long double value=0.0L;
+    if(!try_eval_ld(br(p)->value,budget,value))return false;
+    const double result=static_cast<double>(value);
+    if(!std::isfinite(result))return false;
+    *out=result;
+    return true;
+}
+extern "C" bool quidra_bigreal_try_float32(void*p,float*out){
+    if(!p||!out)exact_fail("null bigreal conversion storage");
+    *out=0.0F;
+    double value=0.0;
+    if(!quidra_bigreal_try_float64(p,&value))return false;
+    const float result=static_cast<float>(value);
+    if(!std::isfinite(result))return false;
+    *out=result;
+    return true;
+}
+extern "C" bool quidra_bigint_try_float64(void*p,double*out){
+    if(!p||!out)exact_fail("null bigint conversion storage");
+    *out=0.0;
+    long double value=0;
+    try{value=std::stold(bi(p)->value.text());}
+    catch(...){return false;}
+    const double result=static_cast<double>(value);
+    if(!std::isfinite(result))return false;
+    *out=result;
+    return true;
+}
+extern "C" bool quidra_bigint_try_float32(void*p,float*out){
+    if(!p||!out)exact_fail("null bigint conversion storage");
+    *out=0.0F;
+    double value=0.0;
+    if(!quidra_bigint_try_float64(p,&value))return false;
+    const float result=static_cast<float>(value);
+    if(!std::isfinite(result))return false;
+    *out=result;
+    return true;
 }
 extern "C" double quidra_bigreal_to_float64(
     void*p,unsigned long long line,unsigned long long column){
-    if(!p)exact_fail("null bigreal",line,column);
-    std::size_t budget=4096;
-    const auto value=eval_ld(br(p)->value,budget);
-    const double result=static_cast<double>(value);
-    if(!std::isfinite(result))
+    double result=0.0;
+    if(!quidra_bigreal_try_float64(p,&result))
         exact_fail("bigreal is outside float range",line,column);
     return result;
 }
 extern "C" float quidra_bigreal_to_float32(
     void*p,unsigned long long line,unsigned long long column){
-    const double value=quidra_bigreal_to_float64(p,line,column);
-    const float result=static_cast<float>(value);
-    if(!std::isfinite(result))
+    float result=0.0F;
+    if(!quidra_bigreal_try_float32(p,&result))
         exact_fail("bigreal is outside float32 range",line,column);
     return result;
 }
 extern "C" double quidra_bigint_to_float64(
     void*p,unsigned long long line,unsigned long long column){
-    if(!p)exact_fail("null bigint",line,column);
-    long double value=0;
-    try{value=std::stold(bi(p)->value.text());}
-    catch(...){exact_fail("bigint is outside float range",line,column);}
-    const double result=static_cast<double>(value);
-    if(!std::isfinite(result))
+    double result=0.0;
+    if(!quidra_bigint_try_float64(p,&result))
         exact_fail("bigint is outside float range",line,column);
     return result;
 }
 extern "C" float quidra_bigint_to_float32(
     void*p,unsigned long long line,unsigned long long column){
-    const double value=quidra_bigint_to_float64(p,line,column);
-    const float result=static_cast<float>(value);
-    if(!std::isfinite(result))
+    float result=0.0F;
+    if(!quidra_bigint_try_float32(p,&result))
         exact_fail("bigint is outside float32 range",line,column);
     return result;
 }

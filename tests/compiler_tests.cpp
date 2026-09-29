@@ -341,8 +341,6 @@ print(reals[1])
      "bigreal x = math.pi\n",
      "call ptr @quidra_bigreal_literal");
  bad_code("tensor<bigint> x = tensor<bigint>([1])\n", "INVALID_TYPE");
- bad_code("neural<bigreal> x = neural.track(tensor<float>([1]))\n", "INVALID_TYPE");
- bad_code("neural<bigint> x = neural.track(tensor<float>([1]))\n", "INVALID_TYPE");
  bad_code("auto x = math.sqrt(4.0)\n", "AMBIGUOUS_NUMERIC_LITERAL");
  bad_code("int x = int(math.sqrt(4.0))\n", "AMBIGUOUS_NUMERIC_LITERAL");
  good("bigreal x = math.sqrt(4.0)\nint y = int(x)\n");
@@ -527,6 +525,20 @@ for i in range(0, 1)
     int right = parse_decimal(fields[1])
     print(left + right)
 )", "call i1 @__quidra_string_parse_two_signed_fast");
+ ir_contains(R"(string line = "12 34"
+for i in range(0, 1)
+    string[] fields = line.split(" ")
+    int left = int.parse(fields[0])
+    int right = int.parse(fields[1])
+    print(left + right)
+)", "string.parse_two_signed");
+ llvm_contains(R"(string line = "12 34"
+for i in range(0, 1)
+    string[] fields = line.split(" ")
+    int left = int.parse(fields[0])
+    int right = int.parse(fields[1])
+    print(left + right)
+)", "call i1 @__quidra_string_parse_two_signed_fast");
  llvm_not_contains(R"(int parse_decimal(string text)
     match int.parse(text)
         int value
@@ -667,8 +679,11 @@ print(signed_right)
  bad_code("float a = 1.0\nfloat b = 2.0\nfloat c = a OR b\n", "TYPE_MISMATCH");
  bad_code("bigint a = 1\nbigint b = 2\nbigint c = a XOR b\n", "TYPE_MISMATCH");
  bad_code("uint8 a = 1\nuint8 b = a << 8\n", "SHIFT_COUNT");
- good(R"(class NestedState
-    neural.State<tensor<float32>> value
+ good(R"(class TensorState
+    tensor<float32> value
+
+class NestedState
+    TensorState value
 )");
 
  good("extern void scalar_abi(int8 a, int16 b, int32 c, int d, uint8 e, uint16 f, uint32 g, uint64 h, float32 i, float j, bool k) = \"scalar_abi\"\n");
@@ -692,9 +707,9 @@ print(signed_right)
  good("bin data = \"ok\".utf8()\nauto text = string.from_utf8(data)\n");
  llvm_contains("bin data = \"ok\".utf8()\nauto text = string.from_utf8(data)\n", "@quidra_bin_try_utf8");
  bad_code("auto text = string.from_utf8(\"not bin\")\n", "TYPE_MISMATCH");
- llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1.0\n", "@quidra_neural_binary_scalar");
- llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + float32(scalar)\n", "uitofp i8");
- llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + float32(scalar)\n", "sitofp i8");
+ llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\ntensor<float> value = source.track()\ntensor<float> next = value + 1.0\n", "@quidra_tensor_binary");
+ llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\ntensor<float32> value = source.track()\nuint8 scalar = 255\ntensor<float32> next = value + float32(scalar)\n", "uitofp i8");
+ llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\ntensor<float32> value = source.track()\nint8 scalar = -1\ntensor<float32> next = value + float32(scalar)\n", "sitofp i8");
 
  bad_code("extern int32 implicit_text(string text) = \"implicit_text\"\n", "FFI_REFERENCE");
  bad_code("extern int32 implicit_bytes(bin data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
@@ -886,11 +901,11 @@ print(result)
       "tensor<float32> tensor_chain = tensor_value",
       "tensor_value");
   compile_chain(
-      "tensor<float32> neural_source = tensor<float32>([1])\n"
-      "neural_source[0] = 1.0\n"
-      "neural neural_value = neural.track(neural_source)\n"
-      "neural neural_chain = neural_value",
-      "neural_value");
+      "tensor<float32> tracked_source = tensor<float32>([1])\n"
+      "tracked_source[0] = 1.0\n"
+      "tensor<float32> tracked_value = tracked_source.track()\n"
+      "tensor<float32> tracked_chain = tracked_value",
+      "tracked_value");
  }
  for(const auto& s:std::vector<std::string>{
  R"(void replace(int[] &x, int count = 3)
@@ -1119,10 +1134,7 @@ print(values[0])
     int x = 1
     int y = 2
 
-    construct()
-        return
-
-    construct(int x_value)
+    construct(int x_value = 1)
         x = x_value
 
     int sum()
@@ -1314,12 +1326,9 @@ print(model.bb)
     int x
     int y
 
-    construct(int x_value, int y_value)
+    construct(int x_value, int y_value = 0)
         x = x_value
         y = y_value
-
-    construct(int x_value)
-        x = x_value
 
 ReturnPoint choose_point(bool full)
     if full
@@ -1334,6 +1343,8 @@ print(point.x)
 
     construct(int value_value)
         value = value_value
+
+ForwardProduct inner_build();
 
 ForwardProduct outer_build()
     return inner_build()
@@ -1385,9 +1396,6 @@ print(owner.data.ys[0])
     int x
     int y
 
-    construct(int x_value)
-        x = x_value
-
     construct(int x_value, int y_value)
         x = x_value
         y = y_value
@@ -1399,7 +1407,10 @@ class ReplaceOuter
         inner = inner_value
 
     void reset()
-        inner = ReplaceInner(5)
+        ReplaceInner replacement
+        replacement.x = 5
+        replacement.y = 6
+        inner = replacement
 
 ReplaceOuter outer = ReplaceOuter(ReplaceInner(1, 2))
 outer.reset()
@@ -1408,9 +1419,6 @@ print(outer.inner.x)
  R"(class ConditionalInner
     int x
     int y
-
-    construct(int x_value)
-        x = x_value
 
     construct(int x_value, int y_value)
         x = x_value
@@ -1424,7 +1432,10 @@ class ConditionalOuter
 
     void maybe_reset(bool replace)
         if replace
-            inner = ConditionalInner(5)
+            ConditionalInner replacement
+            replacement.x = 5
+            replacement.y = 6
+            inner = replacement
 
 ConditionalOuter outer = ConditionalOuter(ConditionalInner(1, 2))
 outer.maybe_reset(false)
@@ -1433,9 +1444,6 @@ print(outer.inner.x)
  R"(class RepairInner
     int x
     int y
-
-    construct(int x_value)
-        x = x_value
 
     construct(int x_value, int y_value)
         x = x_value
@@ -1448,8 +1456,10 @@ class RepairOuter
         inner = inner_value
 
     void reset()
-        inner = RepairInner(5)
-        inner.y = 6
+        RepairInner replacement
+        replacement.x = 5
+        replacement.y = 6
+        inner = replacement
 
 RepairOuter outer = RepairOuter(RepairInner(1, 2))
 outer.reset()
@@ -1496,10 +1506,81 @@ print(x)
 )",
  "int x\nx = 4\nprint(x)\n", "auto x = int(41)\nprint(x)\n", "int end = 7\nprint(end)\n", "// comment only\nint x = 1 // trailing comment\nprint(x)\n"}) good(s);
  good("int exit = 7\nprint(exit)\n");
+ good(R"(int wide = 300
+auto | error narrowed = int8(wide)
+match narrowed
+    int8 value
+        print(value)
+    error problem
+        print(problem)
+)");
+ good(R"(int wide = 100
+int8 narrowed = int8(wide)
+print(narrowed)
+)");
+ llvm_contains(R"(int wide = 100
+int8 narrowed = int8(wide)
+)", "@quidra_managed_release");
+ llvm_contains(R"(int wide = 300
+auto | error narrowed = int8(wide)
+match narrowed
+    int8 value
+        print(value)
+    error problem
+        print(problem)
+)", "cast.error");
+ good(R"(bigint wide = 300
+auto | error narrowed = int8(wide)
+match narrowed
+    int8 value
+        print(value)
+    error problem
+        print(problem)
+)");
+ good(R"(bigreal fraction = 1.5
+auto | error exact = bigint(fraction)
+match exact
+    bigint value
+        print(value)
+    error problem
+        print(problem)
+)");
+ llvm_contains(R"(bigint wide = 300
+auto | error narrowed = int8(wide)
+match narrowed
+    int8 value
+        print(value)
+    error problem
+        print(problem)
+)", "@quidra_bigint_try_i64");
+ llvm_contains(R"(bigreal fraction = 1.5
+auto | error exact = bigint(fraction)
+match exact
+    bigint value
+        print(value)
+    error problem
+        print(problem)
+)", "@quidra_bigreal_try_bigint");
+ good(R"(bigint huge = 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+auto | error rounded = float(huge)
+match rounded
+    float value
+        print(value)
+    error problem
+        print(problem)
+)");
+ llvm_contains(R"(bigint huge = 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+auto | error rounded = float(huge)
+match rounded
+    float value
+        print(value)
+    error problem
+        print(problem)
+)", "@quidra_bigint_try_float64");
 
  ir_contains(R"(bin | error parse_bits()
     return bin.parse("01")
-auto parsed = parse_bits()
+auto | error parsed = parse_bits()
 match parsed
     bin bits
         print(bits[0])
@@ -1509,7 +1590,7 @@ match parsed
  ir_contains(R"(bool | error parse_flag()
     bin bits = try bin.parse("1")
     return bool(bits)
-auto parsed = parse_flag()
+auto | error parsed = parse_flag()
 match parsed
     bool flag
         print(flag)
@@ -1521,7 +1602,7 @@ match parsed
     bin one = try bin.parse("1")
     bits[0] = one
     return bits
-auto parsed = update_bits()
+auto | error parsed = update_bits()
 match parsed
     bin bits
         print(bits)
@@ -1530,7 +1611,7 @@ match parsed
 )", "release %");
  ir_contains(R"(bin | error parse_bits()
     return bin.parse("01")
-auto parsed = parse_bits()
+auto | error parsed = parse_bits()
 match parsed
     bin bits
         for bit in bits
@@ -1548,7 +1629,7 @@ bin | error dynamic = bin.parse(text)
 bin direct = bin.parse(text)
 )");
  bad_code("auto invalid = bin.parse(\"0102\")\n", "BIN_PARSE");
- llvm_not_contains(R"(auto parsed = bin.parse("0101")
+ llvm_not_contains(R"(auto | error parsed = bin.parse("0101")
 match parsed
     bin bits
         print(bits)
@@ -1556,7 +1637,7 @@ match parsed
         print(problem)
 )", "bin.parse.fail");
  llvm_contains(R"(string text = "0101"
-auto parsed = bin.parse(text)
+auto | error parsed = bin.parse(text)
 match parsed
     bin bits
         print(bits)
@@ -1603,7 +1684,7 @@ int | error pair_sum(bool ok)
     Pair pair = try make_pair(ok)
     return pair.a + pair.b
 
-auto result = pair_sum(true)
+auto | error result = pair_sum(true)
 match result
     int value
         print(value)
@@ -1737,9 +1818,6 @@ print(p.y)
     int x
     int y
 
-    construct(int x_value)
-        x = x_value
-
     construct(int x_value, int y_value)
         x = x_value
         y = y_value
@@ -1751,7 +1829,9 @@ class ReplaceOuterBad
         inner = inner_value
 
     void reset()
-        inner = ReplaceInnerBad(5)
+        ReplaceInnerBad replacement
+        replacement.x = 5
+        inner = replacement
 
 ReplaceOuterBad outer = ReplaceOuterBad(ReplaceInnerBad(1, 2))
 outer.reset()
@@ -1760,9 +1840,6 @@ print(outer.inner.y)
  R"(class ConditionalInnerBad
     int x
     int y
-
-    construct(int x_value)
-        x = x_value
 
     construct(int x_value, int y_value)
         x = x_value
@@ -1776,7 +1853,9 @@ class ConditionalOuterBad
 
     void maybe_reset(bool replace)
         if replace
-            inner = ConditionalInnerBad(5)
+            ConditionalInnerBad replacement
+            replacement.x = 5
+            inner = replacement
 
 ConditionalOuterBad outer = ConditionalOuterBad(ConditionalInnerBad(1, 2))
 outer.maybe_reset(false)
@@ -2240,6 +2319,186 @@ print(item.read())
 PrivateInit item = PrivateInit(other = 9)
 )", "ARGUMENT_MISMATCH");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
+ bad_code(R"(int parse(int value)
+    return value
+int parse(int value, int base)
+    return value + base
+)", "DUPLICATE_NAME");
+ bad_code(R"(int choose(int value)
+    return value
+float choose(int value)
+    return float(value)
+)", "DUPLICATE_NAME");
+ good(R"(string classify(uint8 value)
+    return "byte"
+string classify<T: floating>(T value)
+    return "floating"
+print(classify(uint8(1)))
+print(classify(float32(1.0)))
+)");
+ good(R"(int domain<T: numeric>(T value)
+    return 1
+int domain<T: floating>(T value)
+    return 2
+print(domain<int>(int(1)))
+print(domain<float32>(float32(1.0)))
+)");
+ bad_code(R"(T ambiguous<T: ordered>(T value)
+    return value
+T ambiguous<T: equatable>(T value)
+    return value
+)", "AMBIGUOUS_SPECIALIZATION");
+ good(R"(T1 pair_domain<T1: numeric, T2: integer>(T1 left, T2 right)
+    return left
+T1 pair_domain<T1: floating, T2: integer>(T1 left, T2 right)
+    return left
+float32 narrow = pair_domain(float32(2.0), int(1))
+int broad = pair_domain(int(2), int(1))
+print(narrow)
+print(broad)
+)");
+ bad_code(R"(T default_shape<T: numeric>(T value, int mode = 0)
+    return value
+T default_shape<T: floating>(T value, int mode)
+    return value
+)", "DUPLICATE_NAME");
+ bad_code(R"(T relation<T>(T left, T right)
+    return left
+T relation<T, U>(T left, U right)
+    return left
+)", "DUPLICATE_NAME");
+ bad_code(R"(int unrelated_pattern(int value)
+    return value
+int unrelated_pattern<T: floating>(tensor<T> value)
+    return 1
+)", "DUPLICATE_NAME");
+ bad_code(R"(int concrete_relation(int left, float right)
+    return left
+T concrete_relation<T: numeric>(T left, T right)
+    return left
+)", "DUPLICATE_NAME");
+ good(R"(int radius_mode(tensor<uint8> value, int radius = 1)
+    return radius
+T radius_mode<T: floating>(tensor<T> value, int radius = 1)
+    return value[0].item()
+tensor<uint8> pixels = tensor.zeros<uint8>([1])
+print(radius_mode(pixels, radius = 1))
+)");
+
+ good(R"(int signed_radius(tensor<uint8> value, int radius = 1)
+    return radius
+T signed_radius<T: floating>(tensor<T> value, int radius = 1)
+    return value[0].item()
+tensor<uint8> pixels = tensor.zeros<uint8>([1])
+print(signed_radius(pixels, radius = -1))
+)");
+
+ good(R"(int kernel_device(tensor<uint8> value, tensor<int> kernel)
+    return 1
+T kernel_device<T: floating, K: floating>(tensor<T> value, tensor<K> kernel)
+    return value[0].item()
+tensor<uint8> pixels = tensor.zeros<uint8>([1])
+tensor<int> kernel = tensor.ones<int>([1])
+print(kernel_device(pixels, kernel.gpu(0)))
+)");
+
+ good(R"(string shaped_specialization(tensor<uint8> value)
+    return "byte"
+string shaped_specialization<T: floating>(tensor<T> value)
+    return "floating"
+tensor<uint8><1, 2, 2> pixels = tensor.ones<uint8>([1, 2, 2])
+print(shaped_specialization(pixels))
+)");
+
+ good(R"(T classify_proto<T: numeric>(T value);
+T classify_proto<T: floating>(T value);
+
+T classify_proto<T: numeric>(T value)
+    return value
+T classify_proto<T: floating>(T value)
+    return value
+
+print(classify_proto<int>(int(1)))
+print(classify_proto<float32>(float32(2.0)))
+)");
+ good(R"(class MethodDomain
+    string classify(uint8 value)
+        return "byte"
+    string classify<T: floating>(T value)
+        return "floating"
+
+MethodDomain domain
+print(domain.classify(uint8(1)))
+print(domain.classify(float32(1.0)))
+)");
+
+ good(R"(class MethodPriority
+    T choose<T: numeric>(T value)
+        return value
+    T choose<T: floating>(T value)
+        return value
+
+MethodPriority priority
+print(priority.choose(int(2)))
+print(priority.choose(float32(3.0)))
+)");
+
+ bad_code(R"(class MethodArityOverload
+    int parse(int value)
+        return value
+    int parse(int value, int base)
+        return value + base
+)", "DUPLICATE_NAME");
+
+
+ good(R"(class MethodPairDomain
+    T1 combine<T1: numeric, T2: integer>(T1 left, T2 right)
+        return left
+    T1 combine<T1: floating, T2: integer>(T1 left, T2 right)
+        return left
+
+MethodPairDomain domain
+float32 narrow = domain.combine(float32(2.0), int(1))
+int broad = domain.combine(int(2), int(1))
+print(narrow)
+print(broad)
+)");
+
+ bad_code(R"(class MethodAmbiguous
+    T choose<T: ordered>(T value)
+        return value
+    T choose<T: equatable>(T value)
+        return value
+)", "AMBIGUOUS_SPECIALIZATION");
+
+ bad_code(R"(class MethodDefaultShape
+    T choose<T: numeric>(T value, int mode = 0)
+        return value
+    T choose<T: floating>(T value, int mode)
+        return value
+)", "DUPLICATE_NAME");
+
+ bad_code(R"(class MethodRelation
+    T choose<T>(T left, T right)
+        return left
+    T choose<T, U>(T left, U right)
+        return left
+)", "DUPLICATE_NAME");
+
+ bad_code(R"(class TooManyConstructors
+    int value
+    construct()
+        value = 0
+    construct(int value_value)
+        value = value_value
+)", "DUPLICATE_NAME");
+ good(R"(class DefaultConstructorParameter
+    int value
+    construct(int value_value = 7)
+        value = value_value
+DefaultConstructorParameter item = DefaultConstructorParameter()
+print(item.value)
+)");
  bad_code(R"(T identity<T>(T value)
     return value
 auto result = identity(1)
@@ -2275,7 +2534,37 @@ print(value)
     if ok
         return 7
     return error("bad")
-auto result = fallible_value(true)
+auto value = fallible_value(true)
+print(value)
+)");
+ good(R"(int | none | error maybe_value(int mode)
+    if mode < 0
+        return error("bad")
+    if mode == 0
+        return none
+    return 7
+auto value = maybe_value(0)
+match value
+    int number
+        print(number)
+    none
+        print("none")
+)");
+ bad_code(R"(int value = 7
+auto | error preserved = value
+)", "INVALID_AUTO");
+ bad_code(R"(int value = 7
+auto | error &preserved = &value
+)", "INVALID_AUTO");
+ bad_code(R"(int | error fallible_value()
+    return 7
+auto | none invalid = fallible_value()
+)", "INVALID_AUTO");
+ good(R"(int | error fallible_value(bool ok)
+    if ok
+        return 7
+    return error("bad")
+auto | error result = fallible_value(true)
 match result
     int value
         print(value)
@@ -2536,6 +2825,39 @@ ArrayPartialAssign partial = ArrayPartialAssign(1)
 ArrayPartialAssign[] values = array(1)
 values[0] = partial
 )", "UNINITIALIZED_ARGUMENT");
+ good(R"(class IndexedPoint
+    int x
+    int y
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
+    int sum()
+        return x + y
+
+IndexedPoint[] dynamic_points = [IndexedPoint(1, 2), IndexedPoint(3, 4)]
+int dynamic_index = 1
+print(dynamic_points[dynamic_index].x)
+print(dynamic_points[0].sum())
+
+IndexedPoint[2] fixed_points
+fixed_points[0] = IndexedPoint(5, 6)
+fixed_points[1] = IndexedPoint(7, 8)
+print(fixed_points[1].y)
+print(fixed_points[0].sum())
+)");
+ bad_code(R"(class IndexedPartialPoint
+    int x
+    int y
+
+    construct(int x_value)
+        x = x_value
+
+IndexedPartialPoint partial = IndexedPartialPoint(1)
+IndexedPartialPoint[] values = array(1)
+values[0] = partial
+)", "UNINITIALIZED_ARGUMENT");
  bad_code("class A\n    int x\n    construct(int start)\n        x = start\nA a = A(1)\nprint(a.y)\n", "UNKNOWN_MEMBER");
  bad_code("print(missing)\n", "UNKNOWN_NAME");
  // The text constants are capitals only; the former lowercase spellings are
@@ -2561,24 +2883,40 @@ values[0] = partial
  good("tensor<float32> grid = tensor.zeros<float32>([2, 2])\nprint(grid.shape()[0])\n");
  good(R"(tensor<int><2> a = tensor.ones<int>([2])
 tensor<int><2> b = tensor.ones<int>([2])
-bool eq = a == b
-bool ne = a != b
-bool lt = a < b
-bool le = a <= b
-bool gt = a > b
-bool ge = a >= b
+tensor<bool><2> eq = a == b
+tensor<bool><2> ne = a != b
+tensor<bool><2> lt = a < b
+tensor<bool><2> le = a <= b
+tensor<bool><2> gt = a > b
+tensor<bool><2> ge = a >= b
+bool same = eq.all()
+bool different = ne.any()
+tensor<bool><2> scalar_left = 1 < a
+tensor<bool><2> scalar_right = a >= 1
 )");
  llvm_contains(R"(tensor<int><2> a = tensor.ones<int>([2])
 tensor<int><2> b = tensor.ones<int>([2])
-bool same = a == b
-)", "@quidra_tensor_compare_all");
+tensor<bool><2> mask = a == b
+bool same = mask.all()
+)", "@quidra_tensor_compare");
+ llvm_contains(R"(tensor<int><2> a = tensor.ones<int>([2])
+bool any = (a != 1).any()
+)", "@quidra_tensor_bool_reduce");
  bad_code(R"(tensor<int><2> a = tensor.ones<int>([2])
 tensor<int><3> b = tensor.ones<int>([3])
-bool same = a == b
+tensor<bool> same = a == b
 )", "TENSOR_SHAPE");
+ good(R"(tensor<int><2> a = tensor.ones<int>([2])
+tensor<bool><2> same = a == 1
+tensor<bool><2> reverse = 1 == a
+)");
  bad_code(R"(tensor<int><2> a = tensor.ones<int>([2])
-bool same = a == 1
+tensor<bool> bad = a == int32(1)
 )", "TYPE_MISMATCH");
+ good(R"(tensor<bool> empty = tensor.zeros<bool>([0])
+bool all_empty = empty.all()
+bool any_empty = empty.any()
+)");
  bad_code("1 = 2\n", "INVALID_ASSIGNMENT");
  bad_code("void[] values = []\n", "INVALID_TYPE");
  bad_code("auto value = 1e\n", "LEX_ERROR");
@@ -2699,17 +3037,17 @@ tensor<float32><2, _> known = erase(tensor.zeros<float32>([2, 2]))
             print(rgba.shape()[0])
 )", "MATCH_CASE");
 
- // neural shares the same exact shape pattern; shape-only neural defaults to float32.
+ // Tracking preserves the tensor's exact shape contract.
  good(R"(tensor<float32> source = tensor.ones<float32>([3, 8, 8])
-neural<3, _, _> value = neural.track(source)
+tensor<float32><3, _, _> value = source.track()
 tensor<float32><3, _, _> restored = value.untrack()
 )");
  good(R"(tensor<float> source = tensor.ones<float>([2, 4])
-neural<float><2, _> value = neural.track(source)
+tensor<float><2, _> value = source.track()
 tensor<float><2, _> restored = value.untrack()
 )");
  bad_code(R"(tensor<float32> source = tensor.ones<float32>([3, 8, 8])
-neural<3, _> wrong = neural.track(source)
+tensor<float32><3, _> wrong = source.track()
 )", "TYPE_MISMATCH");
 
  // Dependent shape expressions in function signatures are checked at the boundary.
@@ -2747,9 +3085,8 @@ float[2][2] fixed_converted = float(fixed)
 tensor<int><2, 2> matrix = tensor.ones<int>([2, 2])
 tensor<float><2, 2> tensor_converted = float(matrix)
 tensor<float32><2, 2> tracked_source = tensor.ones<float32>([2, 2])
-neural<2, 2> tracked = neural.track(tracked_source)
-neural<float><2, 2> neural_converted = float(tracked)
-tensor<float><2, 2> neural_restored = neural_converted.untrack()
+tensor<float32><2, 2> tracked = tracked_source.track()
+tensor<float><2, 2> tracked_converted = float(tracked.untrack())
 )");
  bad_code("int[] values = [1, 2]\nfloat[] converted = values\n", "TYPE_MISMATCH");
  bad_code("float[] values = [1.0, 2.0]\nint[] converted = int(values)\n", "NUMERIC_CAST");

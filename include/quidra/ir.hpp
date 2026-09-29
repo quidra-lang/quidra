@@ -11,7 +11,14 @@ namespace quidra::ir {
 
 using ValueId = std::uint32_t;
 
-struct SourceLocation { std::uint32_t line{}; std::uint32_t column{}; };
+struct SourceLocation {
+    std::uint32_t line{};
+    std::uint32_t column{};
+    std::string source_file;
+    std::string source_revision;
+    std::string node_id;
+    std::string node_kind;
+};
 struct ConstantInt { ValueId out; std::string value; Type type; };
 struct ConstantFloat { ValueId out; double value; Type type; };
 struct ConstantExact { ValueId out; std::string spelling; Type type; };
@@ -90,15 +97,26 @@ struct BinSlice { ValueId out; ValueId bin; ValueId start; ValueId end; };
 struct ParseBin { ValueId out; ValueId text; Type result_type; bool success_proven{}; };
 struct BinConvert { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; bool checked_range{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct FallibleNumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct ArrayNumericCast { ValueId out; ValueId array; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorCreate { ValueId out; ValueId shape; std::optional<ValueId> gpu; Type type; int fill_mode{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorTransfer { ValueId out; ValueId tensor; std::optional<ValueId> gpu; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorReshape { ValueId out; ValueId tensor; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorTranspose { ValueId out; ValueId tensor; ValueId axis0; ValueId axis1; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct TensorContiguous { ValueId out; ValueId tensor; Type type; };
+struct TensorContiguous { ValueId out; ValueId tensor; Type type; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorGather { ValueId out; ValueId tensor; ValueId indices; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorScatter { ValueId out; ValueId tensor; ValueId indices; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorConvolve { ValueId out; ValueId tensor; ValueId kernel; ValueId stride; ValueId padding; ValueId dilation; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorShape { ValueId out; ValueId tensor; Type type; };
 struct TensorIsContiguous { ValueId out; ValueId tensor; };
+struct TensorIsTracked { ValueId out; ValueId tensor; };
+struct TensorHasGrad { ValueId out; ValueId tensor; };
+struct TensorClearGrad { ValueId tensor; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorItem { ValueId out; ValueId tensor; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorTrack { ValueId out; ValueId tensor; ValueId target{}; Type type; int mode{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorBackwardTarget { ValueId value; bool autograd_target{}; };
+struct TensorBackward { ValueId tensor; std::vector<TensorBackwardTarget> targets; ValueId autograd_targets{}; ValueId track; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorGrad { ValueId out; ValueId tensor; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorCast { ValueId out; ValueId tensor; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct ShapedConstraintCheck {
     ValueId value;
@@ -113,24 +131,7 @@ struct ExtentEqualCheck {
     std::uint32_t line{};
     std::uint32_t column{};
 };
-struct NeuralNumericCast { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralTrack { ValueId out; ValueId tensor; Type type; bool parameter{}; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralUntrack { ValueId out; ValueId value; Type type; };
-struct NeuralUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralBinary { ValueId out; std::string op; ValueId left; ValueId right; Type left_type; Type right_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralGrad { ValueId out; ValueId loss; Type loss_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralAllReduceSum { ValueId values; Type tensor_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralAffine { ValueId out; ValueId input; ValueId weight; ValueId bias; Type input_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralConvolve2D { ValueId out; ValueId input; ValueId weight; ValueId bias; ValueId stride; ValueId padding; Type input_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralParameterRef { std::string path; ValueId value; };
-struct NeuralUpdate { std::vector<NeuralParameterRef> parameters; ValueId gradients; ValueId rate; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralNormalize { ValueId out; ValueId input; ValueId scale; ValueId bias; ValueId running_mean; ValueId running_variance; ValueId momentum; ValueId epsilon; Type result_type; bool training{}; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralRandomMask { ValueId out; ValueId input; ValueId state; ValueId rate; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralMomentUpdate { std::vector<NeuralParameterRef> parameters; ValueId rate; ValueId beta1; ValueId beta2; ValueId epsilon; ValueId step; ValueId moments; ValueId gradients; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralStateValue { std::string path; ValueId value; Type type; };
-struct NeuralStateTarget { std::string path; ValueId address; Type type; };
-struct NeuralSave { ValueId path; std::string schema; std::vector<NeuralStateValue> values; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralLoad { ValueId path; std::string schema; std::vector<NeuralStateTarget> targets; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorAutogradUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct StatsMean { ValueId out; ValueId tensor; Type tensor_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct StatsReduce { ValueId out; ValueId tensor; Type element_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearMatmul { ValueId out; ValueId left; ValueId right; Type type; std::uint32_t line{}; std::uint32_t column{}; };
@@ -144,15 +145,6 @@ struct ImageRead {
     std::vector<long long> expected_shape_prefix;
 };
 struct ImageWrite { ValueId out; ValueId path; ValueId image; ValueId quality; Type result_type; };
-struct ImageTensorOp {
-    ValueId out;
-    BuiltinCallable operation;
-    std::vector<ValueId> args;
-    Type result_type;
-    Type element_type;
-    std::uint32_t line{};
-    std::uint32_t column{};
-};
 struct TensorBinary {
     ValueId out;
     std::string op;
@@ -170,7 +162,16 @@ struct TensorCompare {
     std::string op;
     ValueId left;
     ValueId right;
-    Type element_type;
+    Type left_type;
+    Type right_type;
+    Type result_type;
+    std::uint32_t line{};
+    std::uint32_t column{};
+};
+struct TensorBoolReduce {
+    ValueId out;
+    ValueId tensor;
+    bool all{};
     std::uint32_t line{};
     std::uint32_t column{};
 };
@@ -250,6 +251,10 @@ struct TaskAll { ValueId out{}; ValueId operations{}; ValueId shared{}; Type res
 struct AtomicCounterCreate { ValueId out; ValueId initial; };
 struct AtomicCounterAdd { ValueId out; ValueId counter; ValueId delta; std::uint32_t line{}; std::uint32_t column{}; };
 struct AtomicCounterLoad { ValueId out; ValueId counter; };
+struct AutogradTargetCreate { ValueId out; };
+struct AutogradTargetHasGrad { ValueId out; ValueId target; };
+struct AutogradTargetClearGrad { ValueId target; std::uint32_t line{}; std::uint32_t column{}; };
+struct AutogradTargetGradient { ValueId out; ValueId target; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct RandomGenerator { ValueId out; ValueId seed; };
 struct RandomInt { ValueId out; ValueId generator; ValueId start; ValueId end; std::uint32_t line{}; std::uint32_t column{}; };
 struct RandomFloat { ValueId out; ValueId generator; };
@@ -373,20 +378,18 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  StringBuildAppendMove, StringCanAppendMove, StringAppendMove, StringRepeat,
                                  BinAlloc, BinLength, BinGet, BinSet, BinSlice,
                                  ParseBin, BinConvert,
-                                 NumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous,
-                                 TensorShape, TensorIsContiguous, TensorItem, TensorCast,
-                                 ShapedConstraintCheck, ExtentEqualCheck, NeuralNumericCast,
-                                 NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralGrad, NeuralAllReduceSum,
-                                 NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,
-                                 NeuralRandomMask, NeuralMomentUpdate,
-                                 NeuralSave, NeuralLoad,
-                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, ImageTensorOp, TensorBinary, TensorCompare, TensorIndex, TensorSet, ParseNumber, ParseNumberDirect, NumericAbs, Sqrt, MathUnary, MathIsFinite, MathRoundInt, MathPow,
+                                 NumericConvert, FallibleNumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous, TensorGather, TensorScatter, TensorConvolve,
+                                 TensorShape, TensorIsContiguous, TensorIsTracked, TensorHasGrad, TensorClearGrad, TensorItem, TensorTrack, TensorBackward, TensorGrad, TensorCast,
+                                 ShapedConstraintCheck, ExtentEqualCheck,
+                                 TensorAutogradUnary,
+                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, TensorBinary, TensorCompare, TensorBoolReduce, TensorIndex, TensorSet, ParseNumber, ParseNumberDirect, NumericAbs, Sqrt, MathUnary, MathIsFinite, MathRoundInt, MathPow,
                                  CliArgument, CliArgumentOptional, CliOption, CliFlag, CliFinish, IoFlush,
                                  FileOpen, FileCreate, FileAppend, FileHandleRead, FileHandleReadLine, FileHandleReadBin, FileHandleWrite, FileHandleFlush, FileHandleSeek, FileHandleClose,
                                  FileRead, FileReadBin, FileWrite, FileWriteBin, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,
                                  TimeNow, TimeSince, TimeSeconds, TimeSleep, GpuSync, TaskAll,
                                  AtomicCounterCreate, AtomicCounterAdd, AtomicCounterLoad,
+                                 AutogradTargetCreate, AutogradTargetHasGrad, AutogradTargetClearGrad, AutogradTargetGradient,
                                  RandomGenerator, RandomInt, RandomFloat, RandomBool, ProcessRun, ProcessShell,
                                  JsonParse, JsonKind, JsonSize, JsonGet, JsonAt, JsonText,
                                  JsonInteger, JsonNumber, JsonBigInt, JsonBigReal, JsonBoolean, JsonEncode, JsonEqual,

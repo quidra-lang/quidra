@@ -16,6 +16,9 @@ void announce()
 
 void invoke(fn<void>() operation)
     operation()
+
+int flush()
+    return 7
 QUI
 
 expect_rejected() {
@@ -38,14 +41,26 @@ expect_rejected "bad-name"
 expect_rejected "9lives"
 expect_rejected "class"
 
+# Bare built-in names stay reserved in an executable root. The same spelling is
+# legal as an imported package export because callers reach it through a
+# namespace, e.g. package.flush().
+set +e
+"$QUIDRA" check "$TMP/source/main.qui" --json >"$TMP/root-reserved.json"
+root_reserved_rc=$?
+set -e
+[[ "$root_reserved_rc" -eq 1 ]]
+grep -q 'DUPLICATE_NAME' "$TMP/root-reserved.json"
+
 HOME="$TMP/home" "$QUIDRA" package install "$TMP/source" --name _pkg9 >/dev/null
 cat > "$TMP/use.qui" <<'QUI'
 import package = _pkg9
 print(package.answer())
 print(NL)
+print(package.flush())
+print(NL)
 package.invoke(package.announce)
 QUI
-[[ "$(HOME="$TMP/home" "$QUIDRA" "$TMP/use.qui")" == "$(printf '42\nfunction-value')" ]]
+[[ "$(HOME="$TMP/home" "$QUIDRA" "$TMP/use.qui")" == "$(printf '42\n7\nfunction-value')" ]]
 
 HOME="$TMP/home" "$QUIDRA" package install "$TMP/source" --name math >/dev/null
 cat > "$TMP/use-math.qui" <<'QUI'

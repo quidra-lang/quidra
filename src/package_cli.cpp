@@ -207,6 +207,21 @@ void require_package_source(const fs::path& source) {
     }
 }
 
+void validate_package_entrypoint(const fs::path& source) {
+    // A package entrypoint is consumed as an imported module, not as the
+    // executable root. Validate it through that same namespace boundary so
+    // qualified exports may use spellings that remain reserved as bare names.
+    // The synthetic root is source-only; its path anchors "./main.qui" without
+    // writing an installer artifact into the package tree.
+    const auto synthetic_root =
+        source / ".quidra-package-install-check.qui";
+    const std::string synthetic_source =
+        "import package_entrypoint = \"./" +
+        package_entrypoint_filename() + "\"\n";
+    (void)check_file_source(
+        synthetic_root, synthetic_source, {}, source);
+}
+
 void copy_package_tree(
     const fs::path& source, const fs::path& destination) {
     fs::create_directories(destination);
@@ -840,8 +855,7 @@ void install_remote(std::string_view raw_spec) {
     }
 
     require_package_dependencies(*selected_manifest);
-    (void)check_file(
-        selected_source / package_entrypoint_filename(), {}, selected_source);
+    validate_package_entrypoint(selected_source);
     hydrate_release_asset(*selected_manifest, selected_source);
 
     const std::string import_name(
@@ -902,8 +916,7 @@ void install_local(
             "identifier and must not be a standard namespace");
     }
 
-    (void)check_file(
-        absolute / package_entrypoint_filename(), {}, absolute);
+    validate_package_entrypoint(absolute);
 
     publish_package(
         absolute, name, force);

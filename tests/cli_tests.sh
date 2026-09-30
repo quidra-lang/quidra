@@ -3707,12 +3707,10 @@ grep -q 'FUNCTION_REFERENCE_CONTEXT' "$TMP/function-value-context.json"
 
 cat > "$TMP/task-all.qui" <<'QUI'
 void alpha()
-    print("alpha")
-    print(NL)
+    print("alpha" + NL)
 
 void beta()
-    print("beta")
-    print(NL)
+    print("beta" + NL)
 
 task.all([alpha, beta])
 QUI

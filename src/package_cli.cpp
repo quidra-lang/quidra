@@ -211,10 +211,11 @@ void validate_package_entrypoint(const fs::path& source) {
     // A package entrypoint is consumed as an imported module, not as the
     // executable root. Validate it through that same namespace boundary so
     // qualified exports may use spellings that remain reserved as bare names.
-    // The synthetic root is source-only; its path anchors "./main.qui" without
-    // writing an installer artifact into the package tree.
+    // The synthetic root is source-only; its path anchors the package
+    // entrypoint without writing an installer artifact into the package tree.
     const auto synthetic_root =
-        source / ".quidra-package-install-check.qui";
+        source /
+        (".quidra-package-install-check" + std::string(source_extension));
     const std::string synthetic_source =
         "import package_entrypoint = \"./" +
         package_entrypoint_filename() + "\"\n";

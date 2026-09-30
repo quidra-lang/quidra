@@ -79,7 +79,10 @@ jobs:
           gh label create "ai-triaged" --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Initial triage performed automatically" 2>/dev/null || true
           gh label create "needs-info" --repo "$GITHUB_REPOSITORY" --color "D4C5F9" --description "More information is needed from the reporter" 2>/dev/null || true
           gh label create "area: core" --repo "$GITHUB_REPOSITORY" --color "1D76DB" --description "Quidra core compiler/runtime/tooling" 2>/dev/null || true
+          gh label create "area: math" --repo "$GITHUB_REPOSITORY" --color "FBCA04" --description "Quidra Math" 2>/dev/null || true
+          gh label create "area: nn" --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Quidra NN" 2>/dev/null || true
           gh label create "area: vision" --repo "$GITHUB_REPOSITORY" --color "5319E7" --description "Quidra Vision" 2>/dev/null || true
+          gh label create "area: video" --repo "$GITHUB_REPOSITORY" --color "006B75" --description "Quidra Video" 2>/dev/null || true
           gh label create "area: dnn" --repo "$GITHUB_REPOSITORY" --color "B60205" --description "Quidra DNN" 2>/dev/null || true
           gh label create "bug" --repo "$GITHUB_REPOSITORY" --color "D73A4A" --description "Something is not working" 2>/dev/null || true
           gh label create "enhancement" --repo "$GITHUB_REPOSITORY" --color "A2EEEF" --description "New feature or improvement" 2>/dev/null || true

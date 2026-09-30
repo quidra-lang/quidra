@@ -28,8 +28,8 @@ ResolvedProgram resolve_source(std::string_view source, CompileOptions options) 
             "Imports require file-aware compilation so paths and module roots are well-defined.",
             first.span});
     }
-    // Standard namespaces are wired up by the module loader, so string input must
-    // go through it too; otherwise `math.sqrt(...)` and friends never resolve here.
+    // Standard namespaces are wired up by the module loader, so string input
+    // follows the same resolution path as file-aware compilation.
     return load_program_with_root_source(
         std::filesystem::path(source_filename("<memory>")), source,
         std::filesystem::current_path(), options.max_errors,
@@ -45,7 +45,7 @@ CheckedProgram finish_check(ResolvedProgram program, CompileOptions options) {
 
 Compilation finish_compile(ResolvedProgram program, CompileOptions options) {
     auto checked = finish_check(std::move(program), options);
-    auto lowered = ir::lower(checked);
+    auto lowered = ir::optimize(ir::lower(checked));
     auto llvm = emit_llvm(lowered, options.debug_info);
     return Compilation{std::move(checked), std::move(lowered), std::move(llvm)};
 }
@@ -64,7 +64,8 @@ ReplCompilation finish_repl_compile(
         }
     }
 
-    auto lowered = ir::lower(checked, repl_expression, replay_prefix_bytes);
+    auto lowered = ir::optimize(
+        ir::lower(checked, repl_expression, replay_prefix_bytes));
     auto llvm = emit_llvm(lowered);
     return ReplCompilation{
         Compilation{std::move(checked), std::move(lowered), std::move(llvm)},

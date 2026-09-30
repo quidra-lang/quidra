@@ -1,9 +1,12 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 int[] values = [10, 20, 30, 40, 50]
 int index = 5
 int element = values[index]
 print("OBS=ELEM:{element}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

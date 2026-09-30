@@ -40,7 +40,7 @@ Result workload()
         file.Handle writer = file.create(name)
         for i in range(n)
             int v = g.next_int()
-            string record = "{i} {v}{ENTER}"
+            string record = "{i} {v}{NL}"
             writer.write(record)
             nbytes = nbytes + len(record)
         writer.flush()
@@ -81,7 +81,8 @@ Result timed(int index)
     time.Duration elapsed = time.since(start)
     int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
     print("ITER {index} {elapsed_ns}")
-    io.flush()
+    print(NL)
+    flush()
     return result
 
 Result result
@@ -94,3 +95,4 @@ else
     result = workload()
 
 print("MB10 {result.sum_v} {result.chk} {result.nbytes} {result.lines}")
+print(NL)

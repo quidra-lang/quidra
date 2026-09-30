@@ -1,9 +1,12 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 int32 a = -1
 uint32 b = 1
 bool r = a < b
 print("OBS=CMP:{r}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

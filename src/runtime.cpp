@@ -1,4 +1,5 @@
 #include "device_backend.hpp"
+#include "quidra/native_extension.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -49,12 +50,37 @@
 extern "C" void* quidra_bigint_parse(const char*);
 extern "C" void* quidra_bigreal_parse(const char*);
 
-extern "C" void dnn_quidra_fast() {
-    quidra::device::set_dnn_mode(quidra::device::DnnMode::Fast);
+extern "C" void qcore_execution_policy_set(int policy) {
+    if (policy == QCORE_EXECUTION_FAST) {
+        quidra::device::set_execution_mode(quidra::device::ExecutionMode::Fast);
+        return;
+    }
+    if (policy == QCORE_EXECUTION_DETERMINISTIC) {
+        quidra::device::set_execution_mode(
+            quidra::device::ExecutionMode::Deterministic);
+        return;
+    }
+    std::fprintf(
+        stderr,
+        "Quidra runtime error[PACKAGE_EXECUTION_POLICY]: invalid package execution policy\n");
+    std::exit(101);
 }
 
-extern "C" void dnn_quidra_deterministic() {
-    quidra::device::set_dnn_mode(quidra::device::DnnMode::Deterministic);
+extern "C" int qcore_execution_policy_get() {
+    return quidra::device::execution_mode() ==
+        quidra::device::ExecutionMode::Deterministic
+        ? QCORE_EXECUTION_DETERMINISTIC
+        : QCORE_EXECUTION_FAST;
+}
+
+// Compatibility symbols for package sources created before the generic
+// execution-policy ABI was formalized.
+extern "C" void qcore_execution_fast() {
+    qcore_execution_policy_set(QCORE_EXECUTION_FAST);
+}
+
+extern "C" void qcore_execution_deterministic() {
+    qcore_execution_policy_set(QCORE_EXECUTION_DETERMINISTIC);
 }
 
 namespace {
@@ -1736,25 +1762,6 @@ extern "C" void* quidra_array_sorted(void* raw, int kind,
 
 
 namespace {
-[[noreturn]] void numeric_round_failure(unsigned long long line, unsigned long long column) {
-    std::fprintf(stderr, "Quidra runtime error[NUMERIC_CONVERSION] at %llu:%llu: rounded value is outside int range or is not finite\n", line, column);
-    std::exit(101);
-}
-long long checked_rounded_int(double value, double rounded, unsigned long long line, unsigned long long column) {
-    if (!std::isfinite(value) || !std::isfinite(rounded)) numeric_round_failure(line, column);
-    const long double result = static_cast<long double>(rounded);
-    if (result < static_cast<long double>(std::numeric_limits<long long>::min()) ||
-        result > static_cast<long double>(std::numeric_limits<long long>::max())) numeric_round_failure(line, column);
-    return static_cast<long long>(rounded);
-}
-}
-extern "C" long long quidra_math_trunc_int(double value, unsigned long long line, unsigned long long column) { return checked_rounded_int(value, std::trunc(value), line, column); }
-extern "C" long long quidra_math_round_int(double value, unsigned long long line, unsigned long long column) { return checked_rounded_int(value, std::round(value), line, column); }
-extern "C" long long quidra_math_floor_int(double value, unsigned long long line, unsigned long long column) { return checked_rounded_int(value, std::floor(value), line, column); }
-extern "C" long long quidra_math_ceil_int(double value, unsigned long long line, unsigned long long column) { return checked_rounded_int(value, std::ceil(value), line, column); }
-extern "C" bool quidra_math_is_finite(double value) { return std::isfinite(value); }
-
-namespace {
 
 struct AutogradNode;
 struct AutogradSlot;
@@ -1764,8 +1771,8 @@ std::shared_ptr<AutogradSlot> clone_autograd_slot(
 
 enum class AutogradOp {
     Leaf, Add, Sub, Mul, Div, ScalarBinary,
-    Absolute, Exponential, Logarithm, Mean, SumLast, MaxLast, MinLast,
-    Reshape, Transpose, Matmul, Gather, GatherBackward, MeanBackward, SumLastBackward
+    Reshape, Transpose, Gather, GatherBackward,
+    CustomNative
 };
 
 struct TensorStorage {
@@ -1989,7 +1996,7 @@ TensorStorage* tensor_storage_create(
 
     if (device_index < 0) {
         if (fill_mode == 1) {
-            std::fill(storage->data.begin(), storage->data.end(), 0);
+            std::fill(storage->data.begin(), storage->data.end(), std::uint8_t{0});
         } else if (fill_mode == 2) {
             try {
                 fill_ones(storage->data);
@@ -2323,7 +2330,223 @@ bool tensor_cast_from(const TensorValue& tensor, int target_dtype,
     }
 }
 
+// Package-native writable borrows use the same copy-on-write boundary as
+// source-level tensor mutation. This keeps TensorStorage private while
+// preserving independent-value semantics across package code.
+void tensor_detach_for_write(
+    TensorValue& tensor, unsigned long long line, unsigned long long column);
+
 } // namespace
+
+extern "C" unsigned int qcore_native_abi_version() {
+    return 1U;
+}
+
+extern "C" int qcore_tensor_dtype(const void* raw) {
+    if (!raw) return 0;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    return tensor->storage ? tensor->storage->dtype : 0;
+}
+
+extern "C" long long qcore_tensor_device(const void* raw) {
+    if (!raw) return -2;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    return tensor->storage ? static_cast<long long>(tensor->storage->device) : -2;
+}
+
+extern "C" unsigned long long qcore_tensor_rank(const void* raw) {
+    if (!raw) return 0;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    return static_cast<unsigned long long>(tensor->shape.size());
+}
+
+extern "C" long long qcore_tensor_extent(
+    const void* raw, unsigned long long axis) {
+    if (!raw) return -1;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    if (axis >= tensor->shape.size()) return -1;
+    return tensor->shape[static_cast<std::size_t>(axis)];
+}
+
+extern "C" unsigned long long qcore_tensor_element_count(
+    const void* raw) {
+    if (!raw) return 0;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    try {
+        return static_cast<unsigned long long>(tensor_logical_count(*tensor));
+    } catch (...) {
+        return 0;
+    }
+}
+
+extern "C" int qcore_tensor_is_contiguous(const void* raw) {
+    if (!raw) return 0;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    return tensor->storage && tensor_is_contiguous_value(*tensor) ? 1 : 0;
+}
+
+extern "C" int qcore_tensor_backend(const void* raw) {
+    if (!raw) return -1;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    if (!tensor->storage) return -1;
+    if (tensor_on_cpu(*tensor->storage)) return QCORE_BACKEND_CPU;
+    if (!tensor->storage->gpu_buffer) return -1;
+    switch (quidra::device::buffer_backend(tensor->storage->gpu_buffer)) {
+        case quidra::device::Backend::Cuda: return QCORE_BACKEND_CUDA;
+        case quidra::device::Backend::Hip: return QCORE_BACKEND_HIP;
+        case quidra::device::Backend::Metal: return QCORE_BACKEND_METAL;
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+        case quidra::device::Backend::Test: return QCORE_BACKEND_TEST;
+#endif
+    }
+    return -1;
+}
+
+extern "C" long long qcore_tensor_backend_device_index(const void* raw) {
+    if (!raw) return -1;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    if (!tensor->storage || tensor_on_cpu(*tensor->storage)) return -1;
+    const auto* info = quidra::device::find(tensor->storage->device);
+    if (!info) return -1;
+    return static_cast<long long>(info->backend_index);
+}
+
+extern "C" std::uint64_t qcore_tensor_device_handle_const(
+    const void* raw) {
+    if (!raw) return 0;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    if (!tensor->storage || tensor_on_cpu(*tensor->storage) ||
+        !tensor_is_contiguous_value(*tensor) || !tensor->storage->gpu_buffer) {
+        return 0;
+    }
+    return quidra::device::buffer_native_handle(tensor->storage->gpu_buffer);
+}
+
+extern "C" std::uint64_t qcore_tensor_device_handle(void* raw) {
+    if (!raw) return 0;
+    auto* tensor = static_cast<TensorValue*>(raw);
+    if (tensor->graph || !tensor->storage || tensor_on_cpu(*tensor->storage) ||
+        !tensor_is_contiguous_value(*tensor) || !tensor->storage->gpu_buffer) {
+        return 0;
+    }
+    tensor_detach_for_write(*tensor, 0, 0);
+    return quidra::device::buffer_native_handle(tensor->storage->gpu_buffer);
+}
+
+extern "C" std::uint64_t qcore_tensor_device_offset_bytes(
+    const void* raw) {
+    if (!raw) return 0;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    if (!tensor->storage || tensor->offset > tensor->storage->count) return 0;
+    return static_cast<std::uint64_t>(
+        tensor->offset * tensor_dtype_bytes(tensor->storage->dtype));
+}
+
+extern "C" int qcore_device_activate(long long device) {
+    if (device < 0 ||
+        device > static_cast<long long>(std::numeric_limits<int>::max())) {
+        return 0;
+    }
+    try {
+        std::string error;
+        return quidra::device::activate(static_cast<int>(device), error) ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
+}
+
+extern "C" std::uint64_t qcore_device_queue_handle(long long device) {
+    if (device < 0 ||
+        device > static_cast<long long>(std::numeric_limits<int>::max())) {
+        return 0;
+    }
+    try {
+        return quidra::device::queue_native_handle(static_cast<int>(device));
+    } catch (...) {
+        return 0;
+    }
+}
+
+extern "C" void* qcore_device_buffer_allocate(
+    long long device,std::uint64_t bytes) {
+    if(device<0 ||
+       device>static_cast<long long>(std::numeric_limits<int>::max()) ||
+       bytes>static_cast<std::uint64_t>(
+           std::numeric_limits<std::size_t>::max()))
+        return nullptr;
+    try {
+        std::string error;
+        return quidra::device::allocate(
+            static_cast<int>(device),static_cast<std::size_t>(bytes),error);
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+extern "C" std::uint64_t qcore_device_buffer_handle(const void* raw) {
+    if(!raw) return 0;
+    try {
+        return quidra::device::buffer_native_handle(
+            static_cast<const quidra::device::Buffer*>(raw));
+    } catch (...) {
+        return 0;
+    }
+}
+
+extern "C" void qcore_device_buffer_release(void* raw) {
+    if(!raw) return;
+    try {
+        quidra::device::release(
+            static_cast<quidra::device::Buffer*>(raw));
+    } catch (...) {
+    }
+}
+
+extern "C" int qcore_execution_is_deterministic() {
+    return qcore_execution_policy_get() == QCORE_EXECUTION_DETERMINISTIC ? 1 : 0;
+}
+
+extern "C" const void* qcore_tensor_cpu_data_const(
+    const void* raw) {
+    if (!raw) return nullptr;
+    const auto* tensor = static_cast<const TensorValue*>(raw);
+    if (!tensor->storage || !tensor_on_cpu(*tensor->storage) ||
+        !tensor_is_contiguous_value(*tensor)) {
+        return nullptr;
+    }
+    const auto count = tensor_logical_count(*tensor);
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto index = tensor_storage_index(*tensor, i);
+        if (index >= tensor->storage->count ||
+            !tracker_bit(tensor->storage->initialization, index)) {
+            return nullptr;
+        }
+    }
+    const auto width = tensor_dtype_bytes(tensor->storage->dtype);
+    if (tensor->offset > tensor->storage->count) return nullptr;
+    return tensor->storage->data.data() + tensor->offset * width;
+}
+
+extern "C" void* qcore_tensor_cpu_data(void* raw) {
+    if (!raw) return nullptr;
+    auto* tensor = static_cast<TensorValue*>(raw);
+    if (tensor->graph || !tensor->storage || !tensor_on_cpu(*tensor->storage) ||
+        !tensor_is_contiguous_value(*tensor)) {
+        return nullptr;
+    }
+    tensor_detach_for_write(*tensor, 0, 0);
+    const auto count = tensor_logical_count(*tensor);
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto index = tensor_storage_index(*tensor, i);
+        if (index >= tensor->storage->count ||
+            !tracker_bit(tensor->storage->initialization, index)) {
+            return nullptr;
+        }
+    }
+    const auto width = tensor_dtype_bytes(tensor->storage->dtype);
+    if (tensor->offset > tensor->storage->count) return nullptr;
+    return tensor->storage->data.data() + tensor->offset * width;
+}
 
 template <typename Src>
 bool numeric_cast_element_from(const void* source_raw, void* destination_raw,
@@ -2352,11 +2575,8 @@ bool numeric_cast_element_from(const void* source_raw, void* destination_raw,
     }
 }
 
-extern "C" void quidra_numeric_cast_element(
-    void* destination, const void* source, int source_dtype, int target_dtype,
-    unsigned long long line, unsigned long long column) {
-    if (!destination || !source) runtime_text_failure("null numeric cast storage");
-    quidra_init_check(const_cast<void*>(source), line, column);
+static bool numeric_cast_element_try(
+    const void* source, void* destination, int source_dtype, int target_dtype) {
     bool ok=false;
     switch (source_dtype) {
         case 1: ok=numeric_cast_element_from<std::int64_t>(source,destination,target_dtype); break;
@@ -2371,7 +2591,24 @@ extern "C" void quidra_numeric_cast_element(
         case 10:ok=numeric_cast_element_from<float>(source,destination,target_dtype); break;
         default: break;
     }
-    if (!ok) {
+    return ok;
+}
+
+extern "C" bool quidra_numeric_cast_element_fits(
+    const void* source, int source_dtype, int target_dtype,
+    unsigned long long line, unsigned long long column) {
+    if (!source) runtime_text_failure("null numeric cast storage");
+    quidra_init_check(const_cast<void*>(source), line, column);
+    std::array<unsigned char,8> scratch{};
+    return numeric_cast_element_try(source,scratch.data(),source_dtype,target_dtype);
+}
+
+extern "C" void quidra_numeric_cast_element(
+    void* destination, const void* source, int source_dtype, int target_dtype,
+    unsigned long long line, unsigned long long column) {
+    if (!destination || !source) runtime_text_failure("null numeric cast storage");
+    quidra_init_check(const_cast<void*>(source), line, column);
+    if (!numeric_cast_element_try(source,destination,source_dtype,target_dtype)) {
         std::fprintf(stderr,
             "Quidra runtime error[NUMERIC_CAST_RANGE] at %llu:%llu: numeric cast outside destination range\n",
             line,column);
@@ -2622,9 +2859,9 @@ extern "C" void* quidra_tensor_item_ptr(void* raw, unsigned long long line,
     return scalar.data();
 }
 
-extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
-                                      unsigned long long line,
-                                      unsigned long long column) {
+static void* tensor_cast_impl(
+    void* raw, int target_dtype, unsigned long long line,
+    unsigned long long column, bool recoverable) {
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
     tensor_require_initialized(*source, line, column);
@@ -2635,6 +2872,12 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
     }
     const auto count = tensor_logical_count(*source);
     if (!tensor_on_cpu(*source->storage)) {
+        if (recoverable) {
+            std::string pending_error;
+            if (!quidra::device::synchronize(source->storage->device,pending_error)) {
+                tensor_fail(pending_error.c_str(),line,column);
+            }
+        }
         TensorStorage* materialized = nullptr;
         const TensorStorage* input_storage = source->storage;
         std::size_t input_offset = source->offset * tensor_dtype_bytes(source->storage->dtype);
@@ -2652,11 +2895,18 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
         if (materialized) tensor_storage_release(materialized);
         if (!ok) {
             tensor_storage_release(output);
+            if (recoverable) return nullptr;
             tensor_fail(backend_error.c_str(), line, column);
         }
-        auto* result=tensor_descriptor(
+        if (recoverable) {
+            std::string validation_error;
+            if (!quidra::device::synchronize(source->storage->device,validation_error)) {
+                tensor_storage_release(output);
+                return nullptr;
+            }
+        }
+        return tensor_descriptor(
             output,source->shape,tensor_contiguous_strides(source->shape),0);
-        return result;
     }
     auto* output = tensor_storage_create(target_dtype, count, 1);
     bool exact = false;
@@ -2675,11 +2925,23 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
     }
     if (!exact) {
         tensor_storage_release(output);
+        if (recoverable) return nullptr;
         tensor_fail("tensor cast is unsupported or a value is outside the target range", line, column);
     }
-    auto* result=tensor_descriptor(
+    return tensor_descriptor(
         output,source->shape,tensor_contiguous_strides(source->shape),0);
-    return result;
+}
+
+extern "C" void* quidra_tensor_cast(
+    void* raw, int target_dtype, unsigned long long line,
+    unsigned long long column) {
+    return tensor_cast_impl(raw,target_dtype,line,column,false);
+}
+
+extern "C" void* quidra_tensor_try_cast(
+    void* raw, int target_dtype, unsigned long long line,
+    unsigned long long column) {
+    return tensor_cast_impl(raw,target_dtype,line,column,true);
 }
 
 extern "C" void quidra_tensor_rank_check(
@@ -2714,17 +2976,11 @@ TensorStorage* tensor_gpu_materialize_storage(
     unsigned long long line,
     unsigned long long column);
 
-extern "C" void* quidra_tensor_autograd_unary(
-    void* raw,int op,unsigned long long line,unsigned long long column);
 extern "C" void* quidra_tensor_unary(
     void* raw,int operation,unsigned long long line,unsigned long long column);
 extern "C" void* quidra_tensor_binary(
     void* primary_raw,void* other_raw,void* scalar,int scalar_side,
     int operation,unsigned long long line,unsigned long long column);
-
-extern "C" void* quidra_linear_matmul(
-    void* left_raw,void* right_raw,
-    unsigned long long line,unsigned long long column);
 
 
 class AutogradBuffer {
@@ -2800,6 +3056,10 @@ struct AutogradNode {
     std::shared_ptr<AutogradIdentity> target_identity;
     TensorValue* device_tensor{};
     TensorValue* device_aux{};
+    qcore_autograd_backward_fn custom_backward{};
+    qcore_autograd_backward_tracked_fn custom_backward_tracked{};
+    std::vector<TensorValue*> custom_saved;
+    std::vector<unsigned char> custom_metadata;
 
     ~AutogradNode() noexcept {
         if(device_tensor){
@@ -2810,6 +3070,11 @@ struct AutogradNode {
             release_managed_tensor(device_aux);
             device_aux=nullptr;
         }
+        for(auto*& saved:custom_saved){
+            if(saved) release_managed_tensor(saved);
+            saved=nullptr;
+        }
+        custom_saved.clear();
         // shared_ptr parent chains can otherwise recurse through destructors and
         // exhaust the native stack even though graph traversal itself is iterative.
         std::vector<std::shared_ptr<AutogradNode>> pending;
@@ -3118,136 +3383,6 @@ void autograd_require_same_shape(const AutogradNode& a,const AutogradNode& b,
 }
 
 template <typename T>
-void autograd_apply_unary_t(std::vector<T>& values,int op,const std::vector<long long>& shape,
-                          unsigned long long line,unsigned long long column) {
-    if(op==1){for(auto&v:values)v=std::abs(v);return;}
-    if(op==2){for(auto&v:values)v=std::exp(v);return;}
-    if(op==3){
-        for(auto&v:values){
-            if(!(v>T{0})||!std::isfinite(v))
-                autograd_fail("logarithm requires finite positive values",line,column);
-            v=std::log(v);
-        }
-        return;
-    }
-    if(op==4){
-        if(values.empty()) autograd_fail("mean requires at least one element",line,column);
-        T total=T{0};
-        for(const auto value:values) total=static_cast<T>(total+value);
-        const T average=static_cast<T>(total/static_cast<T>(values.size()));
-        values.clear();
-        values.push_back(average);
-        return;
-    }
-    if(op==5||op==6||op==7){
-        if(shape.empty()) autograd_fail("last-axis reduction requires rank >= 1",line,column);
-        if(shape.back()<=0) autograd_fail("last-axis reduction requires a non-empty last axis",line,column);
-        const auto width=static_cast<std::size_t>(shape.back());
-        for(std::size_t base=0;base<values.size();base+=width){
-            T reduced=op==5?T{0}:values[base];
-            for(std::size_t j=0;j<width;++j){
-                if(op==5) reduced=static_cast<T>(reduced+values[base+j]);
-                else if(op==6) reduced=std::max(reduced,values[base+j]);
-                else reduced=std::min(reduced,values[base+j]);
-            }
-            for(std::size_t j=0;j<width;++j) values[base+j]=reduced;
-        }
-        return;
-    }
-    autograd_fail("unknown autograd unary operation",line,column);
-}
-
-
-
-void autograd_apply_unary(AutogradBuffer& values,int dtype,int op,const std::vector<long long>& shape,
-                        unsigned long long line,unsigned long long column) {
-    if(dtype==10) autograd_apply_unary_t(values.typed<float>(),op,shape,line,column);
-    else if(dtype==9) autograd_apply_unary_t(values.typed<double>(),op,shape,line,column);
-    else autograd_fail("invalid autograd dtype",line,column);
-}
-TensorValue* autograd_tensor_unary_raw_gpu(
-    TensorValue& input,int op,unsigned long long line,unsigned long long column) {
-    tensor_require_initialized(input,line,column);
-    if(input.storage->dtype!=9&&input.storage->dtype!=10&&op!=6&&op!=7)
-        autograd_fail("autograd tensor unary operation requires a floating dtype",line,column);
-    if(tensor_on_cpu(*input.storage))
-        autograd_fail("internal GPU unary path received a CPU tensor",line,column);
-
-    TensorStorage* materialized=nullptr;
-    const TensorStorage* source=input.storage;
-    std::size_t source_offset=input.offset*tensor_dtype_bytes(input.storage->dtype);
-    if(!tensor_is_contiguous_value(input)){
-        materialized=tensor_gpu_materialize_storage(input,line,column);
-        source=materialized;
-        source_offset=0;
-    }
-    std::vector<long long> output_shape=input.shape;
-    std::size_t output_count=tensor_logical_count(input);
-    if(op==4){ output_shape.clear(); output_count=1; }
-    auto* output=tensor_storage_create(
-        input.storage->dtype,output_count,1,input.storage->device,line,column);
-    std::string backend_error;
-    bool ok=false;
-    if(op>=1&&op<=3){
-        const int compute_op=op==1?2:op==2?3:4;
-        ok=quidra::device::compute_unary(
-            output->gpu_buffer,source->gpu_buffer,source_offset,
-            input.storage->dtype,compute_op,tensor_logical_count(input),backend_error);
-    }else if(op==4){
-        ok=quidra::device::compute_mean_to(
-            output->gpu_buffer,source->gpu_buffer,input.storage->dtype,
-            tensor_logical_count(input),backend_error);
-    }else if(op==5||op==6||op==7){
-        if(input.shape.empty()||input.shape.back()<=0){
-            if(materialized)tensor_storage_release(materialized);
-            tensor_storage_release(output);
-            autograd_fail("last-axis reduction requires a non-empty last axis",line,column);
-        }
-        ok=quidra::device::compute_last_reduce_broadcast(
-            output->gpu_buffer,source->gpu_buffer,input.storage->dtype,
-            tensor_logical_count(input),static_cast<std::size_t>(input.shape.back()),
-            op==5?1:op==6?2:3,backend_error);
-    }else{
-        if(materialized)tensor_storage_release(materialized);
-        tensor_storage_release(output);
-        autograd_fail("unknown autograd tensor unary operation",line,column);
-    }
-    if(materialized)tensor_storage_release(materialized);
-    if(!ok){
-        tensor_storage_release(output);
-        autograd_fail(backend_error.c_str(),line,column);
-    }
-    auto output_strides=tensor_contiguous_strides(output_shape);
-    return tensor_descriptor(
-        output,std::move(output_shape),std::move(output_strides),0);
-}
-
-std::shared_ptr<AutogradNode> autograd_unary_node(const std::shared_ptr<AutogradNode>& input,int op,
-                                              unsigned long long line,unsigned long long column) {
-    auto node=std::make_shared<AutogradNode>(input->dtype);
-    node->dtype=input->dtype;
-    node->shape=input->shape;
-    node->parents={input};
-    node->op=op==1?AutogradOp::Absolute:
-        op==2?AutogradOp::Exponential:
-        op==3?AutogradOp::Logarithm:
-        op==4?AutogradOp::Mean:
-        op==5?AutogradOp::SumLast:
-        op==6?AutogradOp::MaxLast:AutogradOp::MinLast;
-    if(input->device_tensor){
-        node->device_tensor=autograd_tensor_unary_raw_gpu(
-            *input->device_tensor,op,line,column);
-        if(!node->device_tensor)
-            autograd_fail("GPU autograd unary operation returned null",line,column);
-    }else{
-        node->data=input->data;
-        autograd_apply_unary(node->data,node->dtype,op,node->shape,line,column);
-    }
-    if(op==4) node->shape={};
-    return node;
-}
-
-template <typename T>
 std::shared_ptr<AutogradNode> autograd_symbolic_binary_t(
     const std::shared_ptr<AutogradNode>& left,
     const std::shared_ptr<AutogradNode>& right,
@@ -3306,7 +3441,11 @@ std::shared_ptr<AutogradNode> autograd_symbolic_scalar_t(
         if(operation==1) values[i]=static_cast<T>(left+right);
         else if(operation==2) values[i]=static_cast<T>(left-right);
         else if(operation==3) values[i]=static_cast<T>(left*right);
-        else {
+        else if(operation==6) {
+            if(scalar_left)
+                autograd_fail("tensor power requires tensor ^ scalar",line,column);
+            values[i]=static_cast<T>(std::pow(left,right));
+        } else {
             if(right==T{0}) autograd_fail("division by zero",line,column);
             values[i]=static_cast<T>(left/right);
         }
@@ -3336,112 +3475,6 @@ std::shared_ptr<AutogradNode> autograd_symbolic_scalar(
         input,scalar,operation,scalar_left,line,column);
     autograd_fail("invalid higher-order gradient dtype",line,column);
 }
-
-std::shared_ptr<AutogradNode> autograd_symbolic_sign(
-    const std::shared_ptr<AutogradNode>& input) {
-    auto node=std::make_shared<AutogradNode>(input->dtype);
-    node->shape=input->shape;
-    node->op=AutogradOp::Leaf;
-    node->data=input->data;
-    if(input->dtype==10){
-        auto& values=node->data.typed<float>();
-        for(auto& value:values) value=value>0.0f?1.0f:value<0.0f?-1.0f:0.0f;
-    }else{
-        auto& values=node->data.typed<double>();
-        for(auto& value:values) value=value>0.0?1.0:value<0.0?-1.0:0.0;
-    }
-    return node;
-}
-
-std::shared_ptr<AutogradNode> autograd_symbolic_mean_backward(
-    const std::shared_ptr<AutogradNode>& gradient,
-    const std::vector<long long>& target_shape,
-    unsigned long long line,unsigned long long column) {
-    if(gradient->data.size()!=1)
-        autograd_fail("mean higher-order gradient requires scalar input",line,column);
-    const auto count=tensor_element_count(target_shape,line,column);
-    if(count==0) autograd_fail("mean gradient requires at least one element",line,column);
-    auto node=std::make_shared<AutogradNode>(gradient->dtype);
-    node->shape=target_shape;
-    node->parents={gradient};
-    node->op=AutogradOp::MeanBackward;
-    node->data.assign(
-        count,gradient->data.scalar_as_double(0)/static_cast<double>(count));
-    return node;
-}
-
-std::shared_ptr<AutogradNode> autograd_symbolic_sum_last_backward(
-    const std::shared_ptr<AutogradNode>& gradient,
-    const std::vector<long long>& target_shape,
-    unsigned long long line,unsigned long long column) {
-    if(target_shape.empty()||target_shape.back()<=0)
-        autograd_fail("sum_last higher-order gradient requires a non-empty last axis",line,column);
-    auto node=std::make_shared<AutogradNode>(gradient->dtype);
-    node->shape=target_shape;
-    node->parents={gradient};
-    node->op=AutogradOp::SumLastBackward;
-    node->data=gradient->data;
-    autograd_apply_unary(node->data,node->dtype,5,target_shape,line,column);
-    return node;
-}
-
-template <typename T>
-std::shared_ptr<AutogradNode> autograd_symbolic_extrema_backward_t(
-    const std::shared_ptr<AutogradNode>& gradient,
-    const std::shared_ptr<AutogradNode>& input,
-    bool maximum,
-    unsigned long long line,unsigned long long column) {
-    if(input->shape.empty()||input->shape.back()<=0)
-        autograd_fail("extrema higher-order gradient requires a non-empty last axis",line,column);
-    if(gradient->shape!=input->shape)
-        autograd_fail("extrema higher-order gradient shape mismatch",line,column);
-    const auto width=static_cast<std::size_t>(input->shape.back());
-    const auto& source=input->data.typed<T>();
-    if(source.size()!=gradient->data.size()||source.size()%width!=0)
-        autograd_fail("extrema higher-order gradient size mismatch",line,column);
-
-    std::vector<T> mask_values(source.size(),T{0});
-    for(std::size_t base=0;base<source.size();base+=width){
-        std::size_t selected=0;
-        for(std::size_t j=1;j<width;++j){
-            const bool better=maximum
-                ? source[base+j]>source[base+selected]
-                : source[base+j]<source[base+selected];
-            if(better) selected=j;
-        }
-        mask_values[base+selected]=T{1};
-    }
-
-    auto mask=std::make_shared<AutogradNode>(input->dtype);
-    mask->shape=input->shape;
-    mask->op=AutogradOp::Leaf;
-    mask->data=AutogradBuffer(std::move(mask_values));
-
-    auto summed=autograd_symbolic_sum_last_backward(
-        gradient,input->shape,line,column);
-    return autograd_symbolic_binary(summed,mask,3,line,column);
-}
-
-std::shared_ptr<AutogradNode> autograd_symbolic_extrema_backward(
-    const std::shared_ptr<AutogradNode>& gradient,
-    const std::shared_ptr<AutogradNode>& input,
-    bool maximum,
-    unsigned long long line,unsigned long long column) {
-    if(!gradient||!input)
-        autograd_fail("null extrema higher-order gradient operand",line,column);
-    if(gradient->device_tensor||input->device_tensor)
-        autograd_fail("backward(track = true) currently requires CPU tensors",line,column);
-    if(gradient->dtype!=input->dtype)
-        autograd_fail("extrema higher-order gradient dtype mismatch",line,column);
-    if(input->dtype==10)
-        return autograd_symbolic_extrema_backward_t<float>(
-            gradient,input,maximum,line,column);
-    if(input->dtype==9)
-        return autograd_symbolic_extrema_backward_t<double>(
-            gradient,input,maximum,line,column);
-    autograd_fail("invalid extrema higher-order gradient dtype",line,column);
-}
-
 
 template <typename T>
 std::vector<T> autograd_gather_values(
@@ -3483,105 +3516,10 @@ std::shared_ptr<AutogradNode> autograd_symbolic_transpose(
     std::size_t axis0,std::size_t axis1,
     unsigned long long line,unsigned long long column);
 
-template <typename T>
-AutogradBuffer autograd_matmul_values(
-    const AutogradBuffer& left,const std::vector<long long>& left_shape,
-    const AutogradBuffer& right,const std::vector<long long>& right_shape,
-    std::vector<long long>& output_shape,
-    unsigned long long line,unsigned long long column) {
-    if(left_shape.empty()||(right_shape.size()!=1&&right_shape.size()!=2))
-        autograd_fail("matmul autograd requires left rank >= 1 and right rank 1 or 2",line,column);
-    std::vector<long long> leading(left_shape.begin(),left_shape.end()-1);
-    const auto rows=tensor_element_count(leading,line,column);
-    const auto inner=static_cast<std::size_t>(left_shape.back());
-    const auto right_inner=static_cast<std::size_t>(right_shape[0]);
-    const bool right_vector=right_shape.size()==1;
-    const auto columns=right_vector?std::size_t{1}:static_cast<std::size_t>(right_shape[1]);
-    if(inner!=right_inner) autograd_fail("matmul autograd inner dimensions do not match",line,column);
-    output_shape=leading;
-    if(!right_vector) output_shape.push_back(static_cast<long long>(columns));
-    const auto& a=left.typed<T>();
-    const auto& b=right.typed<T>();
-    if(a.size()!=rows*inner||b.size()!=inner*columns)
-        autograd_fail("matmul autograd storage size mismatch",line,column);
-    std::vector<T> out(rows*columns,T{0});
-    for(std::size_t i=0;i<rows;++i)
-        for(std::size_t j=0;j<columns;++j){
-            T total=T{0};
-            for(std::size_t k=0;k<inner;++k)
-                total=static_cast<T>(total+static_cast<T>(a[i*inner+k]*b[k*columns+j]));
-            out[i*columns+j]=total;
-        }
-    return AutogradBuffer(std::move(out));
-}
 
 
-std::shared_ptr<AutogradNode> autograd_symbolic_matmul(
-    const std::shared_ptr<AutogradNode>& left,
-    const std::shared_ptr<AutogradNode>& right,
-    unsigned long long line,unsigned long long column) {
-    if(!left||!right) autograd_fail("null higher-order matmul operand",line,column);
-    autograd_require_same_node_device("matmul",*left,*right,line,column);
-    if(left->dtype!=right->dtype)
-        autograd_fail("higher-order matmul requires identical dtypes",line,column);
-    auto node=std::make_shared<AutogradNode>(left->dtype);
-    node->parents={left,right};
-    node->op=AutogradOp::Matmul;
-    if(left->device_tensor){
-        node->device_tensor=static_cast<TensorValue*>(quidra_linear_matmul(
-            left->device_tensor,right->device_tensor,line,column));
-        node->shape=node->device_tensor->shape;
-    }else if(left->dtype==10){
-        node->data=autograd_matmul_values<float>(
-            left->data,left->shape,right->data,right->shape,node->shape,line,column);
-    }else if(left->dtype==9){
-        node->data=autograd_matmul_values<double>(
-            left->data,left->shape,right->data,right->shape,node->shape,line,column);
-    }else{
-        autograd_fail("higher-order matmul requires a floating dtype",line,column);
-    }
-    return node;
-}
 
-std::shared_ptr<AutogradNode> autograd_symbolic_matmul_left_gradient(
-    const std::shared_ptr<AutogradNode>& gradient,
-    const std::shared_ptr<AutogradNode>& left,
-    const std::shared_ptr<AutogradNode>& right,
-    unsigned long long line,unsigned long long column) {
-    if(left->shape.empty()||(right->shape.size()!=1&&right->shape.size()!=2))
-        autograd_fail("invalid matmul gradient shape",line,column);
-    std::vector<long long> leading(left->shape.begin(),left->shape.end()-1);
-    const auto rows=tensor_element_count(leading,line,column);
-    const auto inner=left->shape.back();
-    const auto columns=right->shape.size()==1?1:right->shape[1];
-    auto l2=autograd_symbolic_reshape(left,{static_cast<long long>(rows),inner},line,column);
-    auto r2=right->shape.size()==1
-        ? autograd_symbolic_reshape(right,{inner,1},line,column) : right;
-    auto g2=autograd_symbolic_reshape(
-        gradient,{static_cast<long long>(rows),columns},line,column);
-    auto rt=autograd_symbolic_transpose(r2,0,1,line,column);
-    auto da2=autograd_symbolic_matmul(g2,rt,line,column);
-    return autograd_symbolic_reshape(da2,left->shape,line,column);
-}
 
-std::shared_ptr<AutogradNode> autograd_symbolic_matmul_right_gradient(
-    const std::shared_ptr<AutogradNode>& gradient,
-    const std::shared_ptr<AutogradNode>& left,
-    const std::shared_ptr<AutogradNode>& right,
-    unsigned long long line,unsigned long long column) {
-    if(left->shape.empty()||(right->shape.size()!=1&&right->shape.size()!=2))
-        autograd_fail("invalid matmul gradient shape",line,column);
-    std::vector<long long> leading(left->shape.begin(),left->shape.end()-1);
-    const auto rows=tensor_element_count(leading,line,column);
-    const auto inner=left->shape.back();
-    const auto columns=right->shape.size()==1?1:right->shape[1];
-    auto l2=autograd_symbolic_reshape(left,{static_cast<long long>(rows),inner},line,column);
-    auto g2=autograd_symbolic_reshape(
-        gradient,{static_cast<long long>(rows),columns},line,column);
-    auto lt=autograd_symbolic_transpose(l2,0,1,line,column);
-    auto db2=autograd_symbolic_matmul(lt,g2,line,column);
-    return autograd_symbolic_reshape(db2,right->shape,line,column);
-}
 
 std::shared_ptr<AutogradNode> autograd_symbolic_reshape(
     const std::shared_ptr<AutogradNode>& input,
@@ -3725,6 +3663,91 @@ void autograd_topological(const std::shared_ptr<AutogradNode>& node,
                         std::unordered_set<const AutogradNode*>& seen,
                         std::vector<std::shared_ptr<AutogradNode>>& order);
 
+std::vector<TensorValue*> autograd_custom_backward_tracked_tensors(
+    const AutogradNode& node,
+    const std::shared_ptr<AutogradNode>& gradient,
+    unsigned long long line,unsigned long long column) {
+    if(node.op!=AutogradOp::CustomNative || !node.custom_backward_tracked ||
+       node.parents.empty())
+        autograd_fail("invalid tracked custom native autograd node",line,column);
+    if(!gradient || gradient->dtype!=node.dtype || gradient->shape!=node.shape)
+        autograd_fail("tracked custom native gradient output does not match forward output",line,column);
+
+    auto* gradient_tensor=autograd_tensor_from_node(*gradient);
+    gradient_tensor->graph=gradient;
+    std::vector<TensorValue*> inputs;
+    std::vector<TensorValue*> outputs;
+    inputs.reserve(node.parents.size());
+    outputs.reserve(node.parents.size());
+    try {
+        for(const auto& parent:node.parents){
+            if(!parent || parent->dtype!=node.dtype)
+                autograd_fail("invalid tracked custom native autograd parent",line,column);
+            auto* input=autograd_tensor_from_node(*parent);
+            input->graph=parent;
+            inputs.push_back(input);
+
+            const auto count=autograd_node_count(*parent);
+            const int device=parent->device_tensor
+                ? parent->device_tensor->storage->device : -1;
+            auto* storage=tensor_storage_create(
+                node.dtype,count,1,device,line,column);
+            outputs.push_back(tensor_descriptor(
+                storage,parent->shape,tensor_contiguous_strides(parent->shape),0));
+        }
+
+        std::vector<const void*> input_borrows;
+        std::vector<const void*> saved;
+        std::vector<void*> writable;
+        input_borrows.reserve(inputs.size());
+        saved.reserve(node.custom_saved.size());
+        writable.reserve(outputs.size());
+        for(const auto* value:inputs) input_borrows.push_back(value);
+        for(const auto* value:node.custom_saved){
+            if(!value || !value->storage)
+                autograd_fail("invalid tracked custom native saved tensor",line,column);
+            saved.push_back(value);
+        }
+        for(auto* value:outputs) writable.push_back(value);
+
+        int status=-1;
+        try {
+            status=node.custom_backward_tracked(
+                input_borrows.data(),static_cast<std::uint64_t>(input_borrows.size()),
+                saved.empty()?nullptr:saved.data(),
+                static_cast<std::uint64_t>(saved.size()),
+                gradient_tensor,writable.data(),
+                static_cast<std::uint64_t>(writable.size()),
+                node.custom_metadata.empty()?nullptr:node.custom_metadata.data(),
+                static_cast<std::uint64_t>(node.custom_metadata.size()));
+        } catch (...) {
+            status=-1;
+        }
+        if(status!=0){
+            const auto message=
+                "tracked custom native autograd backward failed with status " +
+                std::to_string(status);
+            autograd_fail(message.c_str(),line,column);
+        }
+        for(const auto* value:outputs){
+            if(!value || !value->graph)
+                autograd_fail(
+                    "tracked custom native backward returned a gradient without autograd provenance",
+                    line,column);
+        }
+
+        for(auto* value:inputs) release_managed_tensor(value);
+        release_managed_tensor(gradient_tensor);
+        return outputs;
+    } catch (...) {
+        for(auto* value:inputs) release_managed_tensor(value);
+        for(auto* value:outputs) release_managed_tensor(value);
+        release_managed_tensor(gradient_tensor);
+        throw;
+    }
+}
+
+
 void autograd_add_symbolic_gradient(
     std::unordered_map<const AutogradNode*,std::shared_ptr<AutogradNode>>& gradients,
     const std::shared_ptr<AutogradNode>& target,
@@ -3810,7 +3833,16 @@ void autograd_backward_tracked(
                 g,-1.0,3,false,line,column);
             else if(operation==3) result=autograd_symbolic_scalar(
                 g,scalar,3,false,line,column);
-            else if(!scalar_left) result=autograd_symbolic_scalar(
+            else if(operation==6){
+                if(scalar_left)
+                    autograd_fail("tensor power requires tensor ^ scalar",line,column);
+                auto coefficient=autograd_symbolic_scalar(
+                    g,scalar,3,false,line,column);
+                auto power=autograd_symbolic_scalar(
+                    node->parents[0],scalar-1.0,6,false,line,column);
+                result=autograd_symbolic_binary(
+                    coefficient,power,3,line,column);
+            }else if(!scalar_left) result=autograd_symbolic_scalar(
                 g,scalar,4,false,line,column);
             else{
                 auto numerator=autograd_symbolic_scalar(g,-scalar,3,false,line,column);
@@ -3820,54 +3852,6 @@ void autograd_backward_tracked(
             }
             autograd_add_symbolic_gradient(
                 gradients,node->parents[0],std::move(result),line,column);
-        }else if(node->op==AutogradOp::Absolute){
-            auto sign=autograd_symbolic_sign(node->parents[0]);
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_symbolic_binary(g,sign,3,line,column),line,column);
-        }else if(node->op==AutogradOp::Exponential){
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_symbolic_binary(g,node,3,line,column),line,column);
-        }else if(node->op==AutogradOp::Logarithm){
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_symbolic_binary(g,node->parents[0],4,line,column),line,column);
-        }else if(node->op==AutogradOp::Mean){
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_symbolic_mean_backward(
-                    g,node->parents[0]->shape,line,column),
-                line,column);
-        }else if(node->op==AutogradOp::SumLast){
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_symbolic_sum_last_backward(
-                    g,node->parents[0]->shape,line,column),
-                line,column);
-        }else if(node->op==AutogradOp::MaxLast ||
-                 node->op==AutogradOp::MinLast){
-            if(node->parents.size()!=1)
-                autograd_fail("invalid tensor extrema graph",line,column);
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_symbolic_extrema_backward(
-                    g,node->parents[0],
-                    node->op==AutogradOp::MaxLast,line,column),
-                line,column);
-        }else if(node->op==AutogradOp::Matmul){
-            if(node->parents.size()!=2)
-                autograd_fail("invalid matmul graph",line,column);
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_symbolic_matmul_left_gradient(
-                    g,node->parents[0],node->parents[1],line,column),
-                line,column);
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[1],
-                autograd_symbolic_matmul_right_gradient(
-                    g,node->parents[0],node->parents[1],line,column),
-                line,column);
         }else if(node->op==AutogradOp::Reshape){
             if(node->parents.size()!=1)
                 autograd_fail("invalid tensor reshape graph",line,column);
@@ -3899,14 +3883,20 @@ void autograd_backward_tracked(
                 autograd_symbolic_gather(
                     g,node->parents[0]->shape,node->aux_index,line,column),
                 line,column);
-        }else if(node->op==AutogradOp::MeanBackward){
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_unary_node(g,4,line,column),line,column);
-        }else if(node->op==AutogradOp::SumLastBackward){
-            autograd_add_symbolic_gradient(
-                gradients,node->parents[0],
-                autograd_unary_node(g,5,line,column),line,column);
+        }else if(node->op==AutogradOp::CustomNative){
+            if(!node->custom_backward_tracked)
+                autograd_fail(
+                    "custom native autograd operation does not provide tracked backward",
+                    line,column);
+            auto input_gradients=autograd_custom_backward_tracked_tensors(
+                *node,g,line,column);
+            for(std::size_t index=0;index<input_gradients.size();++index){
+                auto gradient_node=input_gradients[index]->graph;
+                release_managed_tensor(input_gradients[index]);
+                autograd_add_symbolic_gradient(
+                    gradients,node->parents[index],std::move(gradient_node),
+                    line,column);
+            }
         }else{
             autograd_fail("unsupported higher-order autograd node",line,column);
         }
@@ -3950,6 +3940,124 @@ void autograd_topological(const std::shared_ptr<AutogradNode>& node,
 
 
 } // namespace
+
+extern "C" int qcore_tensor_attach_custom_autograd_with_saved_ex(
+    void* output_raw,
+    const void* const* input_raws,
+    std::uint64_t input_count,
+    const void* const* saved_raws,
+    std::uint64_t saved_count,
+    qcore_autograd_backward_fn backward,
+    qcore_autograd_backward_tracked_fn backward_tracked,
+    const void* metadata,
+    std::uint64_t metadata_size) {
+    try {
+        if(!output_raw || !input_raws || input_count==0 || !backward)
+            return -1;
+        if(saved_count!=0 && !saved_raws) return -1;
+        if(metadata_size!=0 && !metadata) return -1;
+
+        auto* output=static_cast<TensorValue*>(output_raw);
+        if(!output->storage || output->graph) return -2;
+        if(output->storage->dtype!=QCORE_DTYPE_FLOAT32 &&
+           output->storage->dtype!=QCORE_DTYPE_FLOAT64)
+            return -3;
+
+        bool tracked=false;
+        for(std::uint64_t index=0;index<input_count;++index){
+            if(!input_raws[index]) return -1;
+            const auto* input=static_cast<const TensorValue*>(input_raws[index]);
+            if(!input->storage ||
+               input->storage->dtype!=output->storage->dtype ||
+               input->storage->device!=output->storage->device)
+                return -4;
+            tracked=tracked || static_cast<bool>(input->graph);
+        }
+        if(!tracked) return 0;
+
+        auto node=std::make_shared<AutogradNode>(output->storage->dtype);
+        node->shape=output->shape;
+        node->op=AutogradOp::CustomNative;
+        node->custom_backward=backward;
+        node->custom_backward_tracked=backward_tracked;
+        node->parents.reserve(static_cast<std::size_t>(input_count));
+        node->custom_saved.reserve(static_cast<std::size_t>(saved_count));
+
+        for(std::uint64_t index=0;index<input_count;++index){
+            auto* input=const_cast<TensorValue*>(
+                static_cast<const TensorValue*>(input_raws[index]));
+            node->parents.push_back(
+                input->graph ? input->graph : autograd_constant_node(*input,0,0));
+        }
+        for(std::uint64_t index=0;index<saved_count;++index){
+            if(!saved_raws[index]) return -5;
+            const auto* saved_source=
+                static_cast<const TensorValue*>(saved_raws[index]);
+            if(!saved_source->storage) return -5;
+            // Saved state is a true forward-time value snapshot, not a storage
+            // alias or an additional graph edge. Materialize the logical view
+            // into independent contiguous storage on the same device.
+            auto* saved_storage=tensor_transfer_storage(
+                *saved_source,saved_source->storage->device,0,0);
+            auto* saved=tensor_descriptor(
+                saved_storage,saved_source->shape,
+                tensor_contiguous_strides(saved_source->shape),0);
+            node->custom_saved.push_back(saved);
+        }
+        if(metadata_size!=0){
+            const auto* bytes=static_cast<const unsigned char*>(metadata);
+            node->custom_metadata.assign(bytes,bytes+metadata_size);
+        }
+
+        if(tensor_on_cpu(*output->storage))
+            node->data=tensor_float_values(*output,0,0);
+        else
+            node->device_tensor=static_cast<TensorValue*>(
+                quidra_tensor_clone(output));
+        output->graph=std::move(node);
+        return 0;
+    } catch (...) {
+        return -9;
+    }
+}
+
+extern "C" int qcore_tensor_attach_custom_autograd_with_saved(
+    void* output_raw,
+    const void* const* input_raws,
+    std::uint64_t input_count,
+    const void* const* saved_raws,
+    std::uint64_t saved_count,
+    qcore_autograd_backward_fn backward,
+    const void* metadata,
+    std::uint64_t metadata_size) {
+    return qcore_tensor_attach_custom_autograd_with_saved_ex(
+        output_raw,input_raws,input_count,saved_raws,saved_count,
+        backward,nullptr,metadata,metadata_size);
+}
+
+extern "C" int qcore_tensor_attach_custom_autograd_ex(
+    void* output_raw,
+    const void* const* input_raws,
+    std::uint64_t input_count,
+    qcore_autograd_backward_fn backward,
+    qcore_autograd_backward_tracked_fn backward_tracked,
+    const void* metadata,
+    std::uint64_t metadata_size) {
+    return qcore_tensor_attach_custom_autograd_with_saved_ex(
+        output_raw,input_raws,input_count,input_raws,input_count,
+        backward,backward_tracked,metadata,metadata_size);
+}
+
+extern "C" int qcore_tensor_attach_custom_autograd(
+    void* output_raw,
+    const void* const* input_raws,
+    std::uint64_t input_count,
+    qcore_autograd_backward_fn backward,
+    const void* metadata,
+    std::uint64_t metadata_size) {
+    return qcore_tensor_attach_custom_autograd_ex(
+        output_raw,input_raws,input_count,backward,nullptr,metadata,metadata_size);
+}
 
 extern "C" void* quidra_tensor_track(
     void* raw,unsigned long long line,unsigned long long column) {
@@ -4178,7 +4286,7 @@ extern "C" void* quidra_tensor_scatter(
     auto* storage=tensor_storage_create(
         source.storage->dtype,output_count,1,source.storage->device,line,column);
     if(tensor_on_cpu(*source.storage)){
-        std::fill(storage->data.begin(),storage->data.end(),0);
+        std::fill(storage->data.begin(), storage->data.end(), static_cast<unsigned char>(0));
         const auto scatter_typed=[&](auto tag){
             using T=decltype(tag);
             for(std::size_t i=0;i<source_count;++i){
@@ -4263,390 +4371,6 @@ extern "C" void* quidra_tensor_scatter(
     return result;
 }
 
-extern "C" void* quidra_tensor_convolve(
-    void* raw,void* kernel_raw,long long stride_raw,long long padding_raw,
-    long long dilation_raw,unsigned long long line,unsigned long long column) {
-    if(!raw||!kernel_raw)
-        tensor_fail("tensor.convolve received a null tensor",line,column);
-    auto& source=*static_cast<TensorValue*>(raw);
-    auto& kernel=*static_cast<TensorValue*>(kernel_raw);
-    if(source.storage->dtype!=kernel.storage->dtype)
-        tensor_fail(
-            "tensor.convolve requires input and kernel element types to match",
-            line,column);
-    if(source.storage->dtype<1||source.storage->dtype>10)
-        tensor_fail(
-            "tensor.convolve requires a numeric tensor element type",
-            line,column);
-    if(source.storage->device!=kernel.storage->device)
-        tensor_fail(
-            "tensor.convolve input and kernel are on different devices; transfer them explicitly",
-            line,column);
-    if(stride_raw<=0||dilation_raw<=0||padding_raw<0)
-        tensor_fail(
-            "tensor.convolve requires stride > 0, dilation > 0, and padding >= 0",
-            line,column);
-    if(kernel.shape.empty())
-        tensor_fail("tensor.convolve kernel rank must be at least 1",line,column);
-    if(kernel.shape.size()>source.shape.size())
-        tensor_fail("tensor.convolve kernel rank cannot exceed input rank",line,column);
-
-    tensor_require_initialized(source,line,column);
-    tensor_require_initialized(kernel,line,column);
-
-    const auto stride=static_cast<std::size_t>(stride_raw);
-    const auto padding=static_cast<std::size_t>(padding_raw);
-    const auto dilation=static_cast<std::size_t>(dilation_raw);
-    const auto rank=source.shape.size();
-    const auto kernel_rank=kernel.shape.size();
-    const auto leading_rank=rank-kernel_rank;
-    std::vector<long long> output_shape=source.shape;
-    for(std::size_t axis=0;axis<kernel_rank;++axis){
-        const auto input_extent=source.shape[leading_rank+axis];
-        const auto kernel_extent=kernel.shape[axis];
-        if(input_extent<=0||kernel_extent<=0)
-            tensor_fail(
-                "tensor.convolve requires positive extents on convolved axes",
-                line,column);
-        const auto input_size=static_cast<std::size_t>(input_extent);
-        const auto kernel_size=static_cast<std::size_t>(kernel_extent);
-        if(kernel_size-1>
-           (std::numeric_limits<std::size_t>::max()-1)/dilation)
-            tensor_fail("tensor.convolve effective kernel size overflow",line,column);
-        const auto effective=std::size_t{1}+(kernel_size-1)*dilation;
-        if(padding>(std::numeric_limits<std::size_t>::max()-input_size)/2)
-            tensor_fail("tensor.convolve padded size overflow",line,column);
-        const auto padded=input_size+padding*2;
-        if(effective>padded)
-            tensor_fail(
-                "tensor.convolve effective kernel is larger than the padded input",
-                line,column);
-        const auto output_extent=(padded-effective)/stride+1;
-        if(output_extent>
-           static_cast<std::size_t>(std::numeric_limits<long long>::max()))
-            tensor_fail("tensor.convolve output extent overflow",line,column);
-        output_shape[leading_rank+axis]=static_cast<long long>(output_extent);
-    }
-
-    const auto output_count=tensor_element_count(output_shape,line,column);
-    const auto kernel_count=tensor_logical_count(kernel);
-    std::vector<long long> expanded_shape=output_shape;
-    expanded_shape.insert(
-        expanded_shape.end(),kernel.shape.begin(),kernel.shape.end());
-    const auto expanded_count=tensor_element_count(expanded_shape,line,column);
-    if(kernel_count!=0&&output_count>
-       std::numeric_limits<std::size_t>::max()/kernel_count)
-        tensor_fail("tensor.convolve expanded size overflow",line,column);
-    if(expanded_count!=output_count*kernel_count)
-        tensor_fail("tensor.convolve expanded size mismatch",line,column);
-
-    std::vector<std::size_t> source_indices;
-    std::vector<std::size_t> kernel_indices;
-    std::vector<unsigned char> valid_mask;
-    try{
-        source_indices.resize(expanded_count);
-        kernel_indices.resize(expanded_count);
-        valid_mask.assign(expanded_count,1);
-    }catch(...){
-        runtime_allocation_failure();
-    }
-
-    std::vector<std::size_t> output_coordinates(rank);
-    std::vector<std::size_t> kernel_coordinates(kernel_rank);
-    bool has_padding_gap=false;
-    for(std::size_t linear=0;linear<expanded_count;++linear){
-        const auto kernel_linear=kernel_count==0?0:linear%kernel_count;
-        auto remaining_kernel=kernel_linear;
-        for(std::size_t axis=kernel_rank;axis-- >0;){
-            const auto extent=static_cast<std::size_t>(kernel.shape[axis]);
-            kernel_coordinates[axis]=remaining_kernel%extent;
-            remaining_kernel/=extent;
-        }
-
-        auto remaining_output=kernel_count==0?0:linear/kernel_count;
-        for(std::size_t axis=rank;axis-- >0;){
-            const auto extent=static_cast<std::size_t>(output_shape[axis]);
-            if(extent==0){
-                output_coordinates[axis]=0;
-            }else{
-                output_coordinates[axis]=remaining_output%extent;
-                remaining_output/=extent;
-            }
-        }
-
-        std::size_t source_linear=0;
-        bool valid=true;
-        for(std::size_t axis=0;axis<rank;++axis){
-            const auto input_extent=
-                static_cast<std::size_t>(source.shape[axis]);
-            std::size_t coordinate=output_coordinates[axis];
-            if(axis>=leading_rank){
-                const auto kernel_axis=axis-leading_rank;
-                const auto kernel_extent=
-                    static_cast<std::size_t>(kernel.shape[kernel_axis]);
-                const auto reversed=
-                    (kernel_extent-1-kernel_coordinates[kernel_axis])*dilation;
-                const auto padded_coordinate=
-                    output_coordinates[axis]*stride+reversed;
-                if(padded_coordinate<padding){
-                    valid=false;
-                }else{
-                    coordinate=padded_coordinate-padding;
-                    if(coordinate>=input_extent) valid=false;
-                }
-            }
-            if(!valid) break;
-            source_linear=source_linear*input_extent+coordinate;
-        }
-        source_indices[linear]=valid?source_linear:0;
-        kernel_indices[linear]=kernel_linear;
-        if(!valid){
-            valid_mask[linear]=0;
-            has_padding_gap=true;
-        }
-    }
-
-    auto* gathered_source=tensor_gather_logical_indices(
-        source,std::move(source_indices),expanded_shape,line,column);
-    auto* gathered_kernel=tensor_gather_logical_indices(
-        kernel,std::move(kernel_indices),expanded_shape,line,column);
-    auto* current=static_cast<TensorValue*>(
-        quidra_tensor_binary(
-            gathered_source,gathered_kernel,nullptr,0,3,line,column));
-    release_managed_tensor(gathered_source);
-    release_managed_tensor(gathered_kernel);
-
-    if(has_padding_gap){
-        const auto width=tensor_dtype_bytes(source.storage->dtype);
-        if(expanded_count>std::numeric_limits<std::size_t>::max()/width){
-            release_managed_tensor(current);
-            tensor_fail("tensor.convolve mask size overflow",line,column);
-        }
-        std::vector<unsigned char> mask_bytes;
-        try{
-            mask_bytes.resize(expanded_count*width);
-        }catch(...){
-            release_managed_tensor(current);
-            runtime_allocation_failure();
-        }
-        const auto store_mask_value=[&](std::size_t index,auto value){
-            std::memcpy(
-                mask_bytes.data()+index*width,&value,sizeof(value));
-        };
-        for(std::size_t i=0;i<expanded_count;++i){
-            const bool valid=valid_mask[i]!=0;
-            switch(source.storage->dtype){
-                case 1: store_mask_value(i,std::int64_t(valid?1:0)); break;
-                case 2: store_mask_value(i,std::int8_t(valid?1:0)); break;
-                case 3: store_mask_value(i,std::int16_t(valid?1:0)); break;
-                case 4: store_mask_value(i,std::int32_t(valid?1:0)); break;
-                case 5: store_mask_value(i,std::uint8_t(valid?1:0)); break;
-                case 6: store_mask_value(i,std::uint16_t(valid?1:0)); break;
-                case 7: store_mask_value(i,std::uint32_t(valid?1:0)); break;
-                case 8: store_mask_value(i,std::uint64_t(valid?1:0)); break;
-                case 9: store_mask_value(i,valid?1.0:0.0); break;
-                case 10: store_mask_value(i,valid?1.0f:0.0f); break;
-                default:
-                    release_managed_tensor(current);
-                    tensor_fail(
-                        "tensor.convolve requires a numeric tensor element type",
-                        line,column);
-            }
-        }
-        auto* mask_storage=tensor_storage_create(
-            source.storage->dtype,expanded_count,1,source.storage->device,
-            line,column);
-        if(tensor_on_cpu(*source.storage)){
-            if(!mask_bytes.empty())
-                std::memcpy(
-                    mask_storage->data.data(),mask_bytes.data(),mask_bytes.size());
-        }else{
-            std::string backend_error;
-            if(!mask_bytes.empty()&&!quidra::device::copy_from_host(
-                    mask_storage->gpu_buffer,0,mask_bytes.data(),
-                    mask_bytes.size(),backend_error)){
-                tensor_storage_release(mask_storage);
-                release_managed_tensor(current);
-                tensor_fail(backend_error.c_str(),line,column);
-            }
-        }
-        auto* mask=tensor_descriptor(
-            mask_storage,expanded_shape,
-            tensor_contiguous_strides(expanded_shape),0);
-        auto* masked=static_cast<TensorValue*>(
-            quidra_tensor_binary(current,mask,nullptr,0,3,line,column));
-        release_managed_tensor(current);
-        release_managed_tensor(mask);
-        current=masked;
-    }
-
-    auto reduction_shape=expanded_shape;
-    for(std::size_t reduced=0;reduced<kernel_rank;++reduced){
-        const auto width=static_cast<std::size_t>(reduction_shape.back());
-        reduction_shape.pop_back();
-        const auto collapsed_count=
-            tensor_element_count(reduction_shape,line,column);
-        if(source.storage->dtype==9||source.storage->dtype==10){
-            auto* summed=static_cast<TensorValue*>(
-                quidra_tensor_autograd_unary(current,5,line,column));
-            release_managed_tensor(current);
-            std::vector<std::size_t> collapsed_indices;
-            try{
-                collapsed_indices.resize(collapsed_count);
-            }catch(...){
-                release_managed_tensor(summed);
-                runtime_allocation_failure();
-            }
-            for(std::size_t i=0;i<collapsed_count;++i)
-                collapsed_indices[i]=i*width;
-            current=tensor_gather_logical_indices(
-                *summed,std::move(collapsed_indices),reduction_shape,line,column);
-            release_managed_tensor(summed);
-            continue;
-        }
-
-        TensorValue* summed=nullptr;
-        for(std::size_t offset=0;offset<width;++offset){
-            std::vector<std::size_t> indices;
-            try{
-                indices.resize(collapsed_count);
-            }catch(...){
-                if(summed) release_managed_tensor(summed);
-                release_managed_tensor(current);
-                runtime_allocation_failure();
-            }
-            for(std::size_t i=0;i<collapsed_count;++i)
-                indices[i]=i*width+offset;
-            auto* slice=tensor_gather_logical_indices(
-                *current,std::move(indices),reduction_shape,line,column);
-            if(!summed){
-                summed=slice;
-                continue;
-            }
-            auto* next=static_cast<TensorValue*>(
-                quidra_tensor_binary(summed,slice,nullptr,0,1,line,column));
-            release_managed_tensor(summed);
-            release_managed_tensor(slice);
-            summed=next;
-        }
-        release_managed_tensor(current);
-        current=summed;
-    }
-    return current;
-}
-
-template <typename T>
-TensorValue* tensor_max_last_cpu(
-    const TensorValue& input,unsigned long long line,unsigned long long column) {
-    if(input.shape.empty()||input.shape.back()<=0)
-        tensor_fail("max_last requires a non-empty last axis",line,column);
-    const auto count=tensor_logical_count(input);
-    const auto width=static_cast<std::size_t>(input.shape.back());
-    auto* storage=tensor_storage_create(input.storage->dtype,count,1,-1,line,column);
-    for(std::size_t base=0;base<count;base+=width){
-        const auto first_index=tensor_storage_index(input,base);
-        T reduced{};
-        std::memcpy(&reduced,input.storage->data.data()+first_index*sizeof(T),sizeof(T));
-        for(std::size_t j=1;j<width;++j){
-            const auto source_index=tensor_storage_index(input,base+j);
-            T value{};
-            std::memcpy(&value,input.storage->data.data()+source_index*sizeof(T),sizeof(T));
-            if(value>reduced) reduced=value;
-        }
-        for(std::size_t j=0;j<width;++j)
-            std::memcpy(storage->data.data()+(base+j)*sizeof(T),&reduced,sizeof(T));
-    }
-    return tensor_descriptor(
-        storage,input.shape,tensor_contiguous_strides(input.shape),0);
-}
-
-TensorValue* tensor_numeric_max_last(
-    const TensorValue& input,unsigned long long line,unsigned long long column) {
-    tensor_require_initialized(input,line,column);
-    if(input.graph)
-        autograd_fail("tracked max_last requires a floating dtype",line,column);
-    if(!tensor_on_cpu(*input.storage))
-        return autograd_tensor_unary_raw_gpu(
-            const_cast<TensorValue&>(input),6,line,column);
-    switch(input.storage->dtype){
-        case 1:return tensor_max_last_cpu<std::int64_t>(input,line,column);
-        case 2:return tensor_max_last_cpu<std::int8_t>(input,line,column);
-        case 3:return tensor_max_last_cpu<std::int16_t>(input,line,column);
-        case 4:return tensor_max_last_cpu<std::int32_t>(input,line,column);
-        case 5:return tensor_max_last_cpu<std::uint8_t>(input,line,column);
-        case 6:return tensor_max_last_cpu<std::uint16_t>(input,line,column);
-        case 7:return tensor_max_last_cpu<std::uint32_t>(input,line,column);
-        case 8:return tensor_max_last_cpu<std::uint64_t>(input,line,column);
-        default: autograd_fail("max_last requires a numeric tensor dtype",line,column);
-    }
-}
-
-template <typename T>
-TensorValue* tensor_min_last_cpu(
-    const TensorValue& input,unsigned long long line,unsigned long long column) {
-    if(input.shape.empty()||input.shape.back()<=0)
-        tensor_fail("min_last requires a non-empty last axis",line,column);
-    const auto count=tensor_logical_count(input);
-    const auto width=static_cast<std::size_t>(input.shape.back());
-    auto* storage=tensor_storage_create(input.storage->dtype,count,1,-1,line,column);
-    for(std::size_t base=0;base<count;base+=width){
-        const auto first_index=tensor_storage_index(input,base);
-        T reduced{};
-        std::memcpy(&reduced,input.storage->data.data()+first_index*sizeof(T),sizeof(T));
-        for(std::size_t j=1;j<width;++j){
-            const auto source_index=tensor_storage_index(input,base+j);
-            T value{};
-            std::memcpy(&value,input.storage->data.data()+source_index*sizeof(T),sizeof(T));
-            if(value<reduced) reduced=value;
-        }
-        for(std::size_t j=0;j<width;++j)
-            std::memcpy(storage->data.data()+(base+j)*sizeof(T),&reduced,sizeof(T));
-    }
-    return tensor_descriptor(
-        storage,input.shape,tensor_contiguous_strides(input.shape),0);
-}
-
-TensorValue* tensor_numeric_min_last(
-    const TensorValue& input,unsigned long long line,unsigned long long column) {
-    tensor_require_initialized(input,line,column);
-    if(input.graph)
-        autograd_fail("tracked min_last is not supported; call untrack() explicitly",line,column);
-    if(!tensor_on_cpu(*input.storage))
-        return autograd_tensor_unary_raw_gpu(
-            const_cast<TensorValue&>(input),7,line,column);
-    switch(input.storage->dtype){
-        case 1:return tensor_min_last_cpu<std::int64_t>(input,line,column);
-        case 2:return tensor_min_last_cpu<std::int8_t>(input,line,column);
-        case 3:return tensor_min_last_cpu<std::int16_t>(input,line,column);
-        case 4:return tensor_min_last_cpu<std::int32_t>(input,line,column);
-        case 5:return tensor_min_last_cpu<std::uint8_t>(input,line,column);
-        case 6:return tensor_min_last_cpu<std::uint16_t>(input,line,column);
-        case 7:return tensor_min_last_cpu<std::uint32_t>(input,line,column);
-        case 8:return tensor_min_last_cpu<std::uint64_t>(input,line,column);
-        default: autograd_fail("min_last requires a numeric tensor dtype",line,column);
-    }
-}
-
-extern "C" void* quidra_tensor_autograd_unary(void* raw,int op,unsigned long long line,unsigned long long column) {
-    if(!raw)autograd_fail("null tensor",line,column);
-    auto& input=*static_cast<TensorValue*>(raw);
-    if(input.storage->dtype!=9&&input.storage->dtype!=10){
-        if(op==6) return tensor_numeric_max_last(input,line,column);
-        if(op==7) return tensor_numeric_min_last(input,line,column);
-        autograd_fail("autograd tensor unary operation requires a floating dtype",line,column);
-    }
-    const auto base=input.graph?input.graph:autograd_constant_node(input,line,column);
-    const auto transformed=autograd_unary_node(base,op,line,column);
-    auto* result=autograd_tensor_from_node(*transformed);
-    if(input.graph) result->graph=transformed;
-    return result;
-}
-
-
-
-
-
-
 class AutogradDeviceDenseInput {
 public:
     AutogradDeviceDenseInput()=default;
@@ -4687,35 +4411,32 @@ private:
 };
 
 
-TensorValue* autograd_device_reshape_view(
-    TensorValue* source,const std::vector<long long>& shape,
-    unsigned long long line,unsigned long long column) {
-    if(!source||!source->storage)
-        autograd_fail("invalid GPU matmul reshape operand",line,column);
-    if(tensor_element_count(shape,line,column)!=tensor_logical_count(*source))
-        autograd_fail("GPU matmul reshape cannot change element count",line,column);
-    if(!tensor_is_contiguous_value(*source))
-        autograd_fail("GPU matmul reshape requires contiguous storage",line,column);
-    if(source->storage->owners==std::numeric_limits<std::size_t>::max())
-        runtime_text_failure("tensor storage owner overflow");
-    ++source->storage->owners;
-    return tensor_descriptor(
-        source->storage,shape,tensor_contiguous_strides(shape),source->offset);
-}
 
-TensorValue* autograd_device_transpose_view(
-    TensorValue* source,unsigned long long line,unsigned long long column) {
-    if(!source||source->shape.size()!=2)
-        autograd_fail("GPU matmul transpose requires rank-2 tensor",line,column);
-    return static_cast<TensorValue*>(
-        quidra_tensor_transpose(source,0,1,line,column));
-}
 
 TensorValue* autograd_device_binary_tensor(
     TensorValue* left,TensorValue* right,int operation,
     unsigned long long line,unsigned long long column) {
     return static_cast<TensorValue*>(
         quidra_tensor_binary(left,right,nullptr,0,operation,line,column));
+}
+
+TensorValue* autograd_device_scalar_tensor(
+    TensorValue* input,double scalar,int operation,bool scalar_left,
+    unsigned long long line,unsigned long long column) {
+    if(!input||!input->storage)
+        autograd_fail("null GPU autograd scalar operand",line,column);
+    const int side=scalar_left?1:2;
+    if(input->storage->dtype==10){
+        float value=static_cast<float>(scalar);
+        return static_cast<TensorValue*>(
+            quidra_tensor_binary(input,nullptr,&value,side,operation,line,column));
+    }
+    if(input->storage->dtype==9){
+        double value=scalar;
+        return static_cast<TensorValue*>(
+            quidra_tensor_binary(input,nullptr,&value,side,operation,line,column));
+    }
+    autograd_fail("invalid GPU autograd scalar dtype",line,column);
 }
 
 void autograd_device_binary_backward(
@@ -4826,6 +4547,67 @@ TensorValue* autograd_device_filled_like(
     return tensor_descriptor(storage,node.shape,std::move(strides),0);
 }
 
+std::vector<TensorValue*> autograd_custom_backward_tensors(
+    const AutogradNode& node,TensorValue* gradient,
+    unsigned long long line,unsigned long long column) {
+    if(node.op!=AutogradOp::CustomNative || !node.custom_backward ||
+       node.parents.empty())
+        autograd_fail("invalid custom native autograd node",line,column);
+    if(!gradient || !gradient->storage || gradient->storage->dtype!=node.dtype ||
+       gradient->shape!=node.shape)
+        autograd_fail("custom native gradient output does not match forward output",line,column);
+
+    std::vector<TensorValue*> outputs;
+    outputs.reserve(node.parents.size());
+    try {
+        for(const auto& parent:node.parents){
+            if(!parent || parent->dtype!=node.dtype)
+                autograd_fail("invalid custom native autograd parent",line,column);
+            const auto count=autograd_node_count(*parent);
+            const int device=parent->device_tensor
+                ? parent->device_tensor->storage->device : -1;
+            auto* storage=tensor_storage_create(
+                node.dtype,count,1,device,line,column);
+            outputs.push_back(tensor_descriptor(
+                storage,parent->shape,tensor_contiguous_strides(parent->shape),0));
+        }
+
+        std::vector<const void*> saved;
+        std::vector<void*> writable;
+        saved.reserve(node.custom_saved.size());
+        writable.reserve(outputs.size());
+        for(const auto* value:node.custom_saved){
+            if(!value || !value->storage)
+                autograd_fail("invalid custom native saved tensor",line,column);
+            saved.push_back(value);
+        }
+        for(auto* value:outputs) writable.push_back(value);
+
+        int status=-1;
+        try {
+            status=node.custom_backward(
+                saved.empty()?nullptr:saved.data(),
+                static_cast<std::uint64_t>(saved.size()),
+                gradient,writable.data(),
+                static_cast<std::uint64_t>(writable.size()),
+                node.custom_metadata.empty()?nullptr:node.custom_metadata.data(),
+                static_cast<std::uint64_t>(node.custom_metadata.size()));
+        } catch (...) {
+            status=-1;
+        }
+        if(status!=0){
+            const auto message=
+                "custom native autograd backward failed with status " +
+                std::to_string(status);
+            autograd_fail(message.c_str(),line,column);
+        }
+        return outputs;
+    } catch (...) {
+        for(auto* value:outputs) release_managed_tensor(value);
+        throw;
+    }
+}
+
 void autograd_grad_device(
     const std::shared_ptr<AutogradNode>& loss,
     const std::vector<std::shared_ptr<AutogradSlot>>& selected,
@@ -4865,7 +4647,14 @@ void autograd_grad_device(
             continue;
         }
 
-        if(node->op==AutogradOp::Add||node->op==AutogradOp::Sub||
+        if(node->op==AutogradOp::CustomNative){
+            auto input_gradients=autograd_custom_backward_tensors(
+                *node,g,line,column);
+            for(std::size_t index=0;index<input_gradients.size();++index)
+                autograd_add_device_gradient(
+                    gradients,node->parents[index],input_gradients[index],
+                    line,column);
+        }else if(node->op==AutogradOp::Add||node->op==AutogradOp::Sub||
            node->op==AutogradOp::Mul||node->op==AutogradOp::Div){
             if(node->parents.size()!=2 ||
                !node->parents[0]->device_tensor ||
@@ -4918,12 +4707,24 @@ void autograd_grad_device(
             const auto& input=node->parents[0];
             const auto operation=static_cast<int>(node->aux_index[0]);
             const bool scalar_left=node->aux_index[1]!=0;
+            const auto scalar=node->aux.scalar_as_double(0);
             TensorValue* result=nullptr;
             if(operation==1||(operation==2&&!scalar_left)){
                 result=g;
                 g=nullptr;
             }else if(operation==2){
                 result=autograd_device_negate_tensor(g,line,column);
+            }else if(operation==6){
+                if(scalar_left)
+                    autograd_fail("tensor power requires tensor ^ scalar",line,column);
+                auto* coefficient=autograd_device_scalar_tensor(
+                    g,scalar,3,false,line,column);
+                auto* power=autograd_device_scalar_tensor(
+                    input->device_tensor,scalar-1.0,6,false,line,column);
+                result=autograd_device_binary_tensor(
+                    coefficient,power,3,line,column);
+                release_managed_tensor(coefficient);
+                release_managed_tensor(power);
             }else{
                 AutogradDeviceDenseInput gd(*g,line,column);
                 AutogradDeviceDenseInput xd;
@@ -4951,140 +4752,6 @@ void autograd_grad_device(
             }
             autograd_add_device_gradient(
                 gradients,input,result,line,column);
-        }else if(node->op==AutogradOp::Absolute){
-            const auto& input=node->parents[0];
-            AutogradDeviceDenseInput gd(*g,line,column);
-            AutogradDeviceDenseInput xd(*input->device_tensor,line,column);
-            const auto count=tensor_logical_count(*xd.get());
-            auto* storage=tensor_storage_create(
-                node->dtype,count,1,xd->storage->device,line,column);
-            auto strides=tensor_contiguous_strides(input->shape);
-            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
-            std::string backend_error;
-            const bool ok=quidra::device::compute_abs_backward(
-                storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
-                node->dtype,count,backend_error);
-            if(!ok){
-                release_managed_tensor(result);
-                autograd_fail(backend_error.c_str(),line,column);
-            }
-            autograd_add_device_gradient(
-                gradients,input,result,line,column);
-        }else if(node->op==AutogradOp::Exponential){
-            auto* result=autograd_device_binary_tensor(
-                g,node->device_tensor,3,line,column);
-            autograd_add_device_gradient(
-                gradients,node->parents[0],result,line,column);
-        }else if(node->op==AutogradOp::Logarithm){
-            auto* result=autograd_device_binary_tensor(
-                g,node->parents[0]->device_tensor,4,line,column);
-            autograd_add_device_gradient(
-                gradients,node->parents[0],result,line,column);
-        }else if(node->op==AutogradOp::Mean){
-            const auto& input=node->parents[0];
-            const auto count=autograd_node_count(*input);
-            AutogradDeviceDenseInput gd(*g,line,column);
-            auto* storage=tensor_storage_create(
-                node->dtype,count,1,input->device_tensor->storage->device,line,column);
-            auto strides=tensor_contiguous_strides(input->shape);
-            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
-            std::string backend_error;
-            const bool ok=quidra::device::compute_mean_backward(
-                storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,count,backend_error);
-            if(!ok){
-                release_managed_tensor(result);
-                autograd_fail(backend_error.c_str(),line,column);
-            }
-            autograd_add_device_gradient(
-                gradients,input,result,line,column);
-        }else if(node->op==AutogradOp::SumLast){
-            const auto& input=node->parents[0];
-            const auto count=autograd_node_count(*input);
-            const auto width=static_cast<std::size_t>(input->shape.back());
-            AutogradDeviceDenseInput gd(*g,line,column);
-            auto* storage=tensor_storage_create(
-                node->dtype,count,1,input->device_tensor->storage->device,line,column);
-            auto strides=tensor_contiguous_strides(input->shape);
-            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
-            std::string backend_error;
-            const bool ok=quidra::device::compute_last_reduce_broadcast(
-                storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
-                count,width,1,backend_error);
-            if(!ok){
-                release_managed_tensor(result);
-                autograd_fail(backend_error.c_str(),line,column);
-            }
-            autograd_add_device_gradient(
-                gradients,input,result,line,column);
-        }else if(node->op==AutogradOp::MaxLast || node->op==AutogradOp::MinLast){
-            const auto& input=node->parents[0];
-            const auto count=autograd_node_count(*input);
-            const auto width=static_cast<std::size_t>(input->shape.back());
-            AutogradDeviceDenseInput gd(*g,line,column);
-            AutogradDeviceDenseInput xd(*input->device_tensor,line,column);
-            auto* storage=tensor_storage_create(
-                node->dtype,count,1,input->device_tensor->storage->device,line,column);
-            auto strides=tensor_contiguous_strides(input->shape);
-            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
-            std::string backend_error;
-            const bool ok=node->op==AutogradOp::MaxLast
-                ? quidra::device::compute_max_last_backward(
-                    storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
-                    node->dtype,count,width,backend_error)
-                : quidra::device::compute_min_last_backward(
-                    storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
-                    node->dtype,count,width,backend_error);
-            if(!ok){
-                release_managed_tensor(result);
-                autograd_fail(backend_error.c_str(),line,column);
-            }
-            autograd_add_device_gradient(
-                gradients,input,result,line,column);
-        }else if(node->op==AutogradOp::Matmul){
-            if(node->parents.size()!=2||
-               !node->parents[0]->device_tensor||!node->parents[1]->device_tensor)
-                autograd_fail("invalid GPU matmul graph",line,column);
-            auto* left=node->parents[0]->device_tensor;
-            auto* right=node->parents[1]->device_tensor;
-            if(left->shape.empty()||(right->shape.size()!=1&&right->shape.size()!=2))
-                autograd_fail("invalid GPU matmul shape",line,column);
-            std::vector<long long> leading(left->shape.begin(),left->shape.end()-1);
-            const auto rows=tensor_element_count(leading,line,column);
-            const auto inner=left->shape.back();
-            const auto columns=right->shape.size()==1?1:right->shape[1];
-
-            AutogradDeviceDenseInput ld(*left,line,column);
-            AutogradDeviceDenseInput rd(*right,line,column);
-            AutogradDeviceDenseInput gd(*g,line,column);
-            auto* l2=autograd_device_reshape_view(
-                const_cast<TensorValue*>(ld.get()),
-                {static_cast<long long>(rows),inner},line,column);
-            auto* r2=autograd_device_reshape_view(
-                const_cast<TensorValue*>(rd.get()),{inner,columns},line,column);
-            auto* g2=autograd_device_reshape_view(
-                const_cast<TensorValue*>(gd.get()),
-                {static_cast<long long>(rows),columns},line,column);
-
-            auto* rt=autograd_device_transpose_view(r2,line,column);
-            auto* da2=static_cast<TensorValue*>(
-                quidra_linear_matmul(g2,rt,line,column));
-            auto* da=autograd_device_reshape_view(da2,left->shape,line,column);
-            auto* lt=autograd_device_transpose_view(l2,line,column);
-            auto* db2=static_cast<TensorValue*>(
-                quidra_linear_matmul(lt,g2,line,column));
-            auto* db=autograd_device_reshape_view(db2,right->shape,line,column);
-
-            release_managed_tensor(l2);
-            release_managed_tensor(r2);
-            release_managed_tensor(g2);
-            release_managed_tensor(rt);
-            release_managed_tensor(lt);
-            release_managed_tensor(da2);
-            release_managed_tensor(db2);
-            autograd_add_device_gradient(
-                gradients,node->parents[0],da,line,column);
-            autograd_add_device_gradient(
-                gradients,node->parents[1],db,line,column);
         }else if(node->op==AutogradOp::Reshape){
             if(node->parents.size()!=1||!node->parents[0]->device_tensor)
                 autograd_fail("invalid GPU tensor reshape graph",line,column);
@@ -5205,7 +4872,6 @@ void autograd_grad_t(
         const auto found=gradients.find(node.get());
         if(found==gradients.end()) continue;
         const auto& g=found->second;
-        const auto& node_values=node->data.typed<T>();
 
         if(node->target_identity){
             for(const auto& slot:selected){
@@ -5224,7 +4890,24 @@ void autograd_grad_t(
             continue;
         }
 
-        if(node->op==AutogradOp::Add||node->op==AutogradOp::Sub||
+        if(node->op==AutogradOp::CustomNative){
+            auto gradient_tensor=autograd_tensor_from_values(
+                node->dtype,node->shape,
+                AutogradBuffer(std::vector<T>(g.begin(),g.end())));
+            auto input_gradients=autograd_custom_backward_tensors(
+                *node,gradient_tensor,line,column);
+            release_managed_tensor(gradient_tensor);
+            for(std::size_t index=0;index<input_gradients.size();++index){
+                auto values=tensor_float_values(
+                    *input_gradients[index],line,column);
+                std::vector<T> next(
+                    values.template typed<T>().begin(),
+                    values.template typed<T>().end());
+                release_managed_tensor(input_gradients[index]);
+                autograd_add_gradient(
+                    gradients,node->parents[index],std::move(next));
+            }
+        }else if(node->op==AutogradOp::Add||node->op==AutogradOp::Sub||
            node->op==AutogradOp::Mul||node->op==AutogradOp::Div){
             const auto& a=node->parents[0]->data.typed<T>();
             const auto& b=node->parents[1]->data.typed<T>();
@@ -5299,7 +4982,13 @@ void autograd_grad_t(
                     input_gradient[i]=scalar_left?static_cast<T>(-gradient):gradient;
                 else if(operation==3)
                     input_gradient[i]=static_cast<T>(gradient*scalar_value);
-                else if(scalar_left){
+                else if(operation==6){
+                    if(scalar_left)
+                        autograd_fail("tensor power requires tensor ^ scalar",line,column);
+                    input_gradient[i]=static_cast<T>(
+                        gradient*scalar_value*
+                        std::pow(input[i],static_cast<T>(scalar_value-T{1})));
+                }else if(scalar_left){
                     const T gs=static_cast<T>(gradient*scalar_value);
                     const T xx=static_cast<T>(input[i]*input[i]);
                     input_gradient[i]=static_cast<T>(-static_cast<T>(gs/xx));
@@ -5309,89 +4998,6 @@ void autograd_grad_t(
             }
             autograd_add_gradient(
                 gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==AutogradOp::Absolute||
-                 node->op==AutogradOp::Exponential||
-                 node->op==AutogradOp::Logarithm){
-            const auto& input=node->parents[0]->data.typed<T>();
-            std::vector<T> input_gradient=std::move(found->second);
-            for(std::size_t i=0;i<input_gradient.size();++i){
-                const T gradient=input_gradient[i];
-                if(node->op==AutogradOp::Absolute)
-                    input_gradient[i]=input[i]>T{0}?gradient:
-                        input[i]<T{0}?static_cast<T>(-gradient):T{0};
-                else if(node->op==AutogradOp::Exponential)
-                    input_gradient[i]=static_cast<T>(gradient*node_values[i]);
-                else
-                    input_gradient[i]=static_cast<T>(gradient/input[i]);
-            }
-            autograd_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==AutogradOp::Mean){
-            const auto count=node->parents[0]->data.size();
-            if(count==0) autograd_fail("mean gradient requires at least one element",line,column);
-            std::vector<T> input_gradient(count,static_cast<T>(g[0]/static_cast<T>(count)));
-            autograd_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==AutogradOp::MeanBackward){
-            if(g.empty()) autograd_fail("mean backward higher-order gradient is empty",line,column);
-            T total=T{0};
-            for(const auto value:g) total=static_cast<T>(total+value);
-            autograd_add_gradient(
-                gradients,node->parents[0],
-                std::vector<T>{static_cast<T>(total/static_cast<T>(g.size()))});
-        }else if(node->op==AutogradOp::SumLast||
-                  node->op==AutogradOp::SumLastBackward||
-                  node->op==AutogradOp::MaxLast||
-                  node->op==AutogradOp::MinLast){
-            const auto& input=node->parents[0]->data.typed<T>();
-            const auto width=static_cast<std::size_t>(node->shape.back());
-            std::vector<T> input_gradient=std::move(found->second);
-            for(std::size_t base=0;base<input_gradient.size();base+=width){
-                T total=T{0};
-                for(std::size_t j=0;j<width;++j)
-                    total=static_cast<T>(total+input_gradient[base+j]);
-                if(node->op==AutogradOp::SumLast ||
-                   node->op==AutogradOp::SumLastBackward){
-                    for(std::size_t j=0;j<width;++j) input_gradient[base+j]=total;
-                }else{
-                    std::size_t selected_index=0;
-                    for(std::size_t j=1;j<width;++j)
-                        if(node->op==AutogradOp::MaxLast
-                               ? input[base+j]>input[base+selected_index]
-                               : input[base+j]<input[base+selected_index])
-                            selected_index=j;
-                    for(std::size_t j=0;j<width;++j)
-                        input_gradient[base+j]=j==selected_index?total:T{0};
-                }
-            }
-            autograd_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==AutogradOp::Matmul){
-            if(node->parents.size()!=2)
-                autograd_fail("invalid matmul graph",line,column);
-            const auto& left=node->parents[0];
-            const auto& right=node->parents[1];
-            if(left->shape.empty()||(right->shape.size()!=1&&right->shape.size()!=2))
-                autograd_fail("invalid matmul shape",line,column);
-            const auto& a=left->data.typed<T>();
-            const auto& b=right->data.typed<T>();
-            std::vector<long long> leading(left->shape.begin(),left->shape.end()-1);
-            const auto rows=tensor_element_count(leading,line,column);
-            const auto inner=static_cast<std::size_t>(left->shape.back());
-            const auto columns=right->shape.size()==1
-                ?std::size_t{1}:static_cast<std::size_t>(right->shape[1]);
-            if(g.size()!=rows*columns||a.size()!=rows*inner||b.size()!=inner*columns)
-                autograd_fail("matmul backward size mismatch",line,column);
-            std::vector<T> da(a.size(),T{0}),db(b.size(),T{0});
-            for(std::size_t i=0;i<rows;++i)
-                for(std::size_t j=0;j<columns;++j){
-                    const T grad=g[i*columns+j];
-                    for(std::size_t k=0;k<inner;++k){
-                        da[i*inner+k]=static_cast<T>(
-                            da[i*inner+k]+static_cast<T>(grad*b[k*columns+j]));
-                        db[k*columns+j]=static_cast<T>(
-                            db[k*columns+j]+static_cast<T>(a[i*inner+k]*grad));
-                    }
-                }
-            autograd_add_gradient(gradients,left,std::move(da));
-            autograd_add_gradient(gradients,right,std::move(db));
         }else if(node->op==AutogradOp::Reshape){
             if(node->parents.size()!=1)
                 autograd_fail("invalid tensor reshape graph",line,column);
@@ -5713,6 +5319,26 @@ bool tensor_mul_checked(T a, T b, T& out) {
 }
 
 template <typename T>
+bool integer_power_checked(T base, std::uint64_t exponent, T& out) {
+    out = T{1};
+    T factor = base;
+    while (exponent != 0) {
+        if ((exponent & 1U) != 0) {
+            T next{};
+            if (!tensor_mul_checked(out, factor, next)) return false;
+            out = next;
+        }
+        exponent >>= 1U;
+        if (exponent != 0) {
+            T next{};
+            if (!tensor_mul_checked(factor, factor, next)) return false;
+            factor = next;
+        }
+    }
+    return true;
+}
+
+template <typename T>
 bool tensor_apply_operator(T left, T right, int operation, T& out) {
     switch (operation) {
         case 1: return tensor_add_checked(left, right, out);
@@ -5740,6 +5366,17 @@ bool tensor_apply_operator(T left, T right, int operation, T& out) {
                 return true;
             } else {
                 return false;
+            }
+        case 6:
+            if constexpr (std::is_integral_v<T>) {
+                if constexpr (std::is_signed_v<T>) {
+                    if (right < 0) return false;
+                }
+                return integer_power_checked(
+                    left, static_cast<std::uint64_t>(right), out);
+            } else {
+                out = static_cast<T>(std::pow(left, right));
+                return true;
             }
         default:
             return false;
@@ -5793,7 +5430,9 @@ void tensor_binary_typed(const TensorValue& primary, const TensorValue* other,
         if (!tensor_apply_operator(left, right, operation, result)) {
             tensor_fail(operation == 4 || operation == 5
                             ? "invalid tensor division/remainder or integer overflow"
-                            : "tensor integer arithmetic overflow",
+                            : operation == 6
+                                ? "invalid tensor power domain or integer overflow"
+                                : "tensor integer arithmetic overflow",
                         line, column);
         }
         std::memcpy(output.data.data() + logical * sizeof(T), &result, sizeof(T));
@@ -5802,6 +5441,63 @@ void tensor_binary_typed(const TensorValue& primary, const TensorValue* other,
 
 } // namespace
 
+[[noreturn]] void scalar_power_failure(
+    const char* code, const char* message,
+    unsigned long long line, unsigned long long column) {
+    std::fprintf(stderr, "Quidra runtime error[%s] at %llu:%llu: %s\n",
+                 code, line, column, message);
+    std::exit(101);
+}
+
+template <typename T>
+long long scalar_signed_power(
+    long long base, unsigned long long exponent,
+    unsigned long long line, unsigned long long column) {
+    T result{};
+    if (!integer_power_checked(static_cast<T>(base), exponent, result))
+        scalar_power_failure("INTEGER_OVERFLOW", "integer overflow", line, column);
+    return static_cast<long long>(result);
+}
+
+template <typename T>
+unsigned long long scalar_unsigned_power(
+    unsigned long long base, unsigned long long exponent,
+    unsigned long long line, unsigned long long column) {
+    T result{};
+    if (!integer_power_checked(static_cast<T>(base), exponent, result))
+        scalar_power_failure("INTEGER_OVERFLOW", "integer overflow", line, column);
+    return static_cast<unsigned long long>(result);
+}
+
+extern "C" long long quidra_integer_pow_signed(
+    long long base, long long exponent, int bits,
+    unsigned long long line, unsigned long long column) {
+    if (exponent < 0)
+        scalar_power_failure(
+            "POWER_DOMAIN", "integer exponent must be non-negative", line, column);
+    const auto power = static_cast<unsigned long long>(exponent);
+    switch (bits) {
+        case 8: return scalar_signed_power<std::int8_t>(base, power, line, column);
+        case 16: return scalar_signed_power<std::int16_t>(base, power, line, column);
+        case 32: return scalar_signed_power<std::int32_t>(base, power, line, column);
+        case 64: return scalar_signed_power<std::int64_t>(base, power, line, column);
+        default:
+            scalar_power_failure("POWER_DOMAIN", "invalid integer power width", line, column);
+    }
+}
+
+extern "C" unsigned long long quidra_integer_pow_unsigned(
+    unsigned long long base, unsigned long long exponent, int bits,
+    unsigned long long line, unsigned long long column) {
+    switch (bits) {
+        case 8: return scalar_unsigned_power<std::uint8_t>(base, exponent, line, column);
+        case 16: return scalar_unsigned_power<std::uint16_t>(base, exponent, line, column);
+        case 32: return scalar_unsigned_power<std::uint32_t>(base, exponent, line, column);
+        case 64: return scalar_unsigned_power<std::uint64_t>(base, exponent, line, column);
+        default:
+            scalar_power_failure("POWER_DOMAIN", "invalid integer power width", line, column);
+    }
+}
 
 extern "C" void* quidra_tensor_unary(void* raw, int operation,
                                       unsigned long long line,
@@ -6083,6 +5779,9 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
     if (!other && scalar_side != 1 && scalar_side != 2) {
         tensor_fail("invalid tensor scalar operand side", line, column);
     }
+    if (operation == 6 && (other || scalar_side != 2)) {
+        tensor_fail("tensor power requires tensor ^ scalar", line, column);
+    }
     if (other && primary->storage->dtype != other->storage->dtype) {
         tensor_fail("tensor operands must have identical element types", line, column);
     }
@@ -6176,549 +5875,12 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
 
 namespace {
 
-template <typename T>
-long double tensor_sum_typed(const TensorValue& value,
-                             unsigned long long line,
-                             unsigned long long column) {
-    const auto count = tensor_logical_count(value);
-    long double sum = 0.0L;
-    for (std::size_t i = 0; i < count; ++i) {
-        const auto storage_index = tensor_storage_index(value, i);
-        if (storage_index >= value.storage->count ||
-            !tracker_bit(value.storage->initialization, storage_index)) {
-            runtime_uninitialized_failure(line, column);
-        }
-        T element{};
-        std::memcpy(&element,
-                    value.storage->data.data() + storage_index * sizeof(T),
-                    sizeof(T));
-        sum += static_cast<long double>(element);
-    }
-    return sum;
-}
-
-template <typename T>
-bool tensor_dense_initialized_bytes(
-    const TensorValue& value, const unsigned char*& output) {
-    if (!value.storage || !tensor_is_contiguous_value(value) ||
-        !value.storage->initialization.fully_initialized ||
-        tensor_dtype_bytes(value.storage->dtype) != sizeof(T)) {
-        return false;
-    }
-    const auto count = tensor_logical_count(value);
-    if (value.offset > value.storage->count ||
-        count > value.storage->count - value.offset) {
-        return false;
-    }
-    output = value.storage->data.data();
-    if (count != 0) output += value.offset * sizeof(T);
-    return true;
-}
-
-template <typename T>
-T tensor_dense_load(const unsigned char* data, std::size_t index) {
-    T value{};
-    std::memcpy(&value, data + index * sizeof(T), sizeof(T));
-    return value;
-}
-
-template <typename T>
-void tensor_matmul_typed(const TensorValue& left, const TensorValue& right,
-                         TensorStorage& output,
-                         std::size_t m,std::size_t k,std::size_t n,
-                         unsigned long long line,
-                         unsigned long long column) {
-    if constexpr (std::is_floating_point_v<T>) {
-        const unsigned char* left_dense{};
-        const unsigned char* right_dense{};
-        if (tensor_dense_initialized_bytes<T>(left, left_dense) &&
-            tensor_dense_initialized_bytes<T>(right, right_dense)) {
-            std::vector<T> dense_output(output.count,T{});
-            for (std::size_t row=0;row<m;++row)
-                for (std::size_t inner=0;inner<k;++inner) {
-                    const T a=tensor_dense_load<T>(left_dense,row*k+inner);
-                    for(std::size_t column_index=0;column_index<n;++column_index){
-                        const auto oi=row*n+column_index;
-                        T product{},next{};
-                        (void)tensor_mul_checked(
-                            a,tensor_dense_load<T>(
-                                right_dense,inner*n+column_index),product);
-                        (void)tensor_add_checked(dense_output[oi],product,next);
-                        dense_output[oi]=next;
-                    }
-                }
-            if(!dense_output.empty())
-                std::memcpy(output.data.data(),dense_output.data(),
-                            dense_output.size()*sizeof(T));
-            return;
-        }
-    }
-    for(std::size_t row=0;row<m;++row)
-        for(std::size_t column_index=0;column_index<n;++column_index){
-            T accumulator{};
-            for(std::size_t inner=0;inner<k;++inner){
-                const auto li=tensor_storage_index(left,row*k+inner);
-                const auto rlogical=right.shape.size()==1
-                    ?inner:inner*n+column_index;
-                const auto ri=tensor_storage_index(right,rlogical);
-                if(li>=left.storage->count||ri>=right.storage->count||
-                   !tracker_bit(left.storage->initialization,li)||
-                   !tracker_bit(right.storage->initialization,ri))
-                    runtime_uninitialized_failure(line,column);
-                T a{},b{},product{},next{};
-                std::memcpy(&a,left.storage->data.data()+li*sizeof(T),sizeof(T));
-                std::memcpy(&b,right.storage->data.data()+ri*sizeof(T),sizeof(T));
-                if(!tensor_mul_checked(a,b,product)||
-                   !tensor_add_checked(accumulator,product,next))
-                    tensor_fail("linear.matmul integer arithmetic overflow",line,column);
-                accumulator=next;
-            }
-            std::memcpy(output.data.data()+(row*n+column_index)*sizeof(T),
-                        &accumulator,sizeof(T));
-        }
-}
-
-
-template <typename T>
-T tensor_dot_typed(const TensorValue& left, const TensorValue& right,
-                   unsigned long long line, unsigned long long column) {
-    const auto count = static_cast<std::size_t>(left.shape[0]);
-
-    if constexpr (std::is_floating_point_v<T>) {
-        const unsigned char* left_dense{};
-        const unsigned char* right_dense{};
-        if (tensor_dense_initialized_bytes<T>(left, left_dense) &&
-            tensor_dense_initialized_bytes<T>(right, right_dense)) {
-            T accumulator{};
-            for (std::size_t logical = 0; logical < count; ++logical) {
-                T product{};
-                T next{};
-                (void)tensor_mul_checked(
-                    tensor_dense_load<T>(left_dense, logical),
-                    tensor_dense_load<T>(right_dense, logical), product);
-                (void)tensor_add_checked(accumulator, product, next);
-                accumulator = next;
-            }
-            return accumulator;
-        }
-    }
-
-    T accumulator{};
-    for (std::size_t logical = 0; logical < count; ++logical) {
-        const auto left_index = tensor_storage_index(left, logical);
-        const auto right_index = tensor_storage_index(right, logical);
-        if (left_index >= left.storage->count ||
-            right_index >= right.storage->count ||
-            !tracker_bit(left.storage->initialization, left_index) ||
-            !tracker_bit(right.storage->initialization, right_index)) {
-            runtime_uninitialized_failure(line, column);
-        }
-        T a{};
-        T b{};
-        std::memcpy(&a, left.storage->data.data() + left_index * sizeof(T), sizeof(T));
-        std::memcpy(&b, right.storage->data.data() + right_index * sizeof(T), sizeof(T));
-        T product{};
-        T next{};
-        if (!tensor_mul_checked(a, b, product) ||
-            !tensor_add_checked(accumulator, product, next)) {
-            tensor_fail("linear.dot integer arithmetic overflow", line, column);
-        }
-        accumulator = next;
-    }
-    return accumulator;
-}
-
-void validate_linear_dot(const TensorValue& left, const TensorValue& right,
-                         int dtype, unsigned long long line,
-                         unsigned long long column) {
-    if (left.storage->dtype != dtype || right.storage->dtype != dtype) {
-        tensor_fail("linear.dot requires identical expected element types", line, column);
-    }
-    if (left.storage->device != right.storage->device) {
-        tensor_fail("linear.dot operands are on different devices; transfer them explicitly",
-                    line, column);
-    }
-    if (left.shape.size() != 1 || right.shape.size() != 1) {
-        tensor_fail("linear.dot requires rank-1 tensors", line, column);
-    }
-    if (left.shape[0] != right.shape[0]) {
-        tensor_fail("linear.dot requires equal vector lengths", line, column);
-    }
-}
-
 } // namespace
 
 
-extern "C" unsigned long long quidra_linear_dot_integer(
-    void* left_raw, void* right_raw, int dtype,
-    unsigned long long line, unsigned long long column) {
-    if (!left_raw || !right_raw) tensor_fail("linear.dot received a null tensor", line, column);
-    auto& left = *static_cast<TensorValue*>(left_raw);
-    auto& right = *static_cast<TensorValue*>(right_raw);
-    validate_linear_dot(left, right, dtype, line, column);
-    if (!tensor_on_cpu(*left.storage)) {
-        tensor_require_initialized(left, line, column);
-        tensor_require_initialized(right, line, column);
-        TensorStorage* left_materialized = nullptr;
-        TensorStorage* right_materialized = nullptr;
-        const TensorStorage* left_storage = left.storage;
-        const TensorStorage* right_storage = right.storage;
-        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
-            left_materialized = tensor_gpu_materialize_storage(left, line, column);
-            left_storage = left_materialized;
-        }
-        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
-            right_materialized = tensor_gpu_materialize_storage(right, line, column);
-            right_storage = right_materialized;
-        }
-        std::array<unsigned char, 8> scalar{};
-        std::string backend_error;
-        const bool ok = quidra::device::compute_dot(
-            left_storage->gpu_buffer, right_storage->gpu_buffer,
-            dtype, static_cast<std::size_t>(left.shape[0]),
-            scalar.data(), backend_error);
-        if (left_materialized) tensor_storage_release(left_materialized);
-        if (right_materialized) tensor_storage_release(right_materialized);
-        if (!ok) tensor_fail(backend_error.c_str(), line, column);
-        switch (dtype) {
-            case 1: { std::int64_t v{}; std::memcpy(&v, scalar.data(), 8);
-                      return static_cast<unsigned long long>(v); }
-            case 2: { std::int8_t v{}; std::memcpy(&v, scalar.data(), 1);
-                      return static_cast<unsigned long long>(v); }
-            case 3: { std::int16_t v{}; std::memcpy(&v, scalar.data(), 2);
-                      return static_cast<unsigned long long>(v); }
-            case 4: { std::int32_t v{}; std::memcpy(&v, scalar.data(), 4);
-                      return static_cast<unsigned long long>(v); }
-            case 5: { std::uint8_t v{}; std::memcpy(&v, scalar.data(), 1);
-                      return static_cast<unsigned long long>(v); }
-            case 6: { std::uint16_t v{}; std::memcpy(&v, scalar.data(), 2);
-                      return static_cast<unsigned long long>(v); }
-            case 7: { std::uint32_t v{}; std::memcpy(&v, scalar.data(), 4);
-                      return static_cast<unsigned long long>(v); }
-            case 8: { std::uint64_t v{}; std::memcpy(&v, scalar.data(), 8); return v; }
-            default:
-                tensor_fail("linear.dot integer runtime received a non-integer dtype", line, column);
-        }
-    }
-    switch (dtype) {
-        case 1: return static_cast<unsigned long long>(
-            tensor_dot_typed<std::int64_t>(left, right, line, column));
-        case 2: return static_cast<unsigned long long>(
-            tensor_dot_typed<std::int8_t>(left, right, line, column));
-        case 3: return static_cast<unsigned long long>(
-            tensor_dot_typed<std::int16_t>(left, right, line, column));
-        case 4: return static_cast<unsigned long long>(
-            tensor_dot_typed<std::int32_t>(left, right, line, column));
-        case 5: return static_cast<unsigned long long>(
-            tensor_dot_typed<std::uint8_t>(left, right, line, column));
-        case 6: return static_cast<unsigned long long>(
-            tensor_dot_typed<std::uint16_t>(left, right, line, column));
-        case 7: return static_cast<unsigned long long>(
-            tensor_dot_typed<std::uint32_t>(left, right, line, column));
-        case 8: return tensor_dot_typed<std::uint64_t>(left, right, line, column);
-        default:
-            tensor_fail("linear.dot integer runtime received a non-integer dtype", line, column);
-    }
-}
-
-extern "C" float quidra_linear_dot_float32(
-    void* left_raw, void* right_raw,
-    unsigned long long line, unsigned long long column) {
-    if (!left_raw || !right_raw) tensor_fail("linear.dot received a null tensor", line, column);
-    auto& left = *static_cast<TensorValue*>(left_raw);
-    auto& right = *static_cast<TensorValue*>(right_raw);
-    validate_linear_dot(left, right, 10, line, column);
-    if (!tensor_on_cpu(*left.storage)) {
-        tensor_require_initialized(left, line, column);
-        tensor_require_initialized(right, line, column);
-        TensorStorage* left_materialized = nullptr;
-        TensorStorage* right_materialized = nullptr;
-        const TensorStorage* left_storage = left.storage;
-        const TensorStorage* right_storage = right.storage;
-        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
-            left_materialized = tensor_gpu_materialize_storage(left, line, column);
-            left_storage = left_materialized;
-        }
-        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
-            right_materialized = tensor_gpu_materialize_storage(right, line, column);
-            right_storage = right_materialized;
-        }
-        float result{};
-        std::string backend_error;
-        const bool ok = quidra::device::compute_dot(
-            left_storage->gpu_buffer, right_storage->gpu_buffer,
-            10, static_cast<std::size_t>(left.shape[0]), &result, backend_error);
-        if (left_materialized) tensor_storage_release(left_materialized);
-        if (right_materialized) tensor_storage_release(right_materialized);
-        if (!ok) tensor_fail(backend_error.c_str(), line, column);
-        return result;
-    }
-    return tensor_dot_typed<float>(left, right, line, column);
-}
-
-extern "C" double quidra_linear_dot_float64(
-    void* left_raw, void* right_raw,
-    unsigned long long line, unsigned long long column) {
-    if (!left_raw || !right_raw) tensor_fail("linear.dot received a null tensor", line, column);
-    auto& left = *static_cast<TensorValue*>(left_raw);
-    auto& right = *static_cast<TensorValue*>(right_raw);
-    validate_linear_dot(left, right, 9, line, column);
-    if (!tensor_on_cpu(*left.storage)) {
-        tensor_require_initialized(left, line, column);
-        tensor_require_initialized(right, line, column);
-        TensorStorage* left_materialized = nullptr;
-        TensorStorage* right_materialized = nullptr;
-        const TensorStorage* left_storage = left.storage;
-        const TensorStorage* right_storage = right.storage;
-        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
-            left_materialized = tensor_gpu_materialize_storage(left, line, column);
-            left_storage = left_materialized;
-        }
-        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
-            right_materialized = tensor_gpu_materialize_storage(right, line, column);
-            right_storage = right_materialized;
-        }
-        double result{};
-        std::string backend_error;
-        const bool ok = quidra::device::compute_dot(
-            left_storage->gpu_buffer, right_storage->gpu_buffer,
-            9, static_cast<std::size_t>(left.shape[0]), &result, backend_error);
-        if (left_materialized) tensor_storage_release(left_materialized);
-        if (right_materialized) tensor_storage_release(right_materialized);
-        if (!ok) tensor_fail(backend_error.c_str(), line, column);
-        return result;
-    }
-    return tensor_dot_typed<double>(left, right, line, column);
-}
 
 
-extern "C" void* quidra_stats_reduce_ptr(
-    void* raw, int dtype, int operation,
-    unsigned long long line, unsigned long long column) {
-    if (!raw || operation < 1 || operation > 3) {
-        tensor_fail("invalid stats reduction", line, column);
-    }
-    auto& value = *static_cast<TensorValue*>(raw);
-    if (value.storage->dtype != dtype) {
-        tensor_fail("stats reduction dtype mismatch", line, column);
-    }
-    const auto count = tensor_logical_count(value);
-    if (count == 0 && operation != 1) {
-        tensor_fail(
-            operation == 2
-                ? "stats.min is undefined for an empty tensor"
-                : "stats.max is undefined for an empty tensor",
-            line, column);
-    }
-    tensor_require_initialized(value, line, column);
-    static thread_local std::array<unsigned char, 8> result{};
-    std::fill(result.begin(), result.end(), 0);
 
-    if (!tensor_on_cpu(*value.storage)) {
-        TensorStorage* materialized = nullptr;
-        const TensorStorage* input = value.storage;
-        if (!tensor_is_contiguous_value(value) || value.offset != 0) {
-            materialized = tensor_gpu_materialize_storage(value, line, column);
-            input = materialized;
-        }
-        std::string backend_error;
-        const bool ok = quidra::device::compute_reduce(
-            input->gpu_buffer, dtype, operation, count,
-            result.data(), backend_error);
-        if (materialized) tensor_storage_release(materialized);
-        if (!ok) tensor_fail(backend_error.c_str(), line, column);
-        return result.data();
-    }
-
-    auto run = [&](auto tag) {
-        using T = decltype(tag);
-        T reduced{};
-        if (operation != 1 && count != 0) {
-            const auto first_index = tensor_storage_index(value, 0);
-            std::memcpy(
-                &reduced,
-                value.storage->data.data() + first_index * sizeof(T),
-                sizeof(T));
-        }
-        const std::size_t start = operation == 1 ? 0 : 1;
-        for (std::size_t i = start; i < count; ++i) {
-            const auto storage_index = tensor_storage_index(value, i);
-            T element{};
-            std::memcpy(
-                &element,
-                value.storage->data.data() + storage_index * sizeof(T),
-                sizeof(T));
-            if (operation == 1) {
-                T next{};
-                if (!tensor_add_checked(reduced, element, next)) {
-                    tensor_fail("stats.sum integer arithmetic overflow", line, column);
-                }
-                reduced = next;
-            } else if (operation == 2) {
-                if (element < reduced) reduced = element;
-            } else {
-                if (element > reduced) reduced = element;
-            }
-        }
-        std::memcpy(result.data(), &reduced, sizeof(T));
-    };
-
-    switch (dtype) {
-        case 1: run(std::int64_t{}); break;
-        case 2: run(std::int8_t{}); break;
-        case 3: run(std::int16_t{}); break;
-        case 4: run(std::int32_t{}); break;
-        case 5: run(std::uint8_t{}); break;
-        case 6: run(std::uint16_t{}); break;
-        case 7: run(std::uint32_t{}); break;
-        case 8: run(std::uint64_t{}); break;
-        case 9: run(double{}); break;
-        case 10:run(float{}); break;
-        default:
-            tensor_fail("stats reduction received an unsupported tensor dtype", line, column);
-    }
-    return result.data();
-}
-
-extern "C" double quidra_stats_mean(void* raw,
-                                      unsigned long long line,
-                                      unsigned long long column) {
-    if (!raw) tensor_fail("stats.mean received a null tensor", line, column);
-    auto& value = *static_cast<TensorValue*>(raw);
-    const auto count = tensor_logical_count(value);
-    if (count == 0) tensor_fail("stats.mean is undefined for an empty tensor", line, column);
-    if (!tensor_on_cpu(*value.storage)) {
-        tensor_require_initialized(value, line, column);
-        TensorStorage* materialized = nullptr;
-        const TensorStorage* input = value.storage;
-        if (!tensor_is_contiguous_value(value) || value.offset != 0) {
-            materialized = tensor_gpu_materialize_storage(value, line, column);
-            input = materialized;
-        }
-        double result{};
-        std::string backend_error;
-        const bool ok = quidra::device::compute_mean(
-            input->gpu_buffer, value.storage->dtype, count, result, backend_error);
-        if (materialized) tensor_storage_release(materialized);
-        if (!ok) tensor_fail(backend_error.c_str(), line, column);
-        return result;
-    }
-    long double sum = 0.0L;
-    switch (value.storage->dtype) {
-        case 1: sum=tensor_sum_typed<std::int64_t>(value,line,column); break;
-        case 2: sum=tensor_sum_typed<std::int8_t>(value,line,column); break;
-        case 3: sum=tensor_sum_typed<std::int16_t>(value,line,column); break;
-        case 4: sum=tensor_sum_typed<std::int32_t>(value,line,column); break;
-        case 5: sum=tensor_sum_typed<std::uint8_t>(value,line,column); break;
-        case 6: sum=tensor_sum_typed<std::uint16_t>(value,line,column); break;
-        case 7: sum=tensor_sum_typed<std::uint32_t>(value,line,column); break;
-        case 8: sum=tensor_sum_typed<std::uint64_t>(value,line,column); break;
-        case 9: sum=tensor_sum_typed<double>(value,line,column); break;
-        case 10:sum=tensor_sum_typed<float>(value,line,column); break;
-        default: tensor_fail("stats.mean received an unsupported tensor dtype", line, column);
-    }
-    return static_cast<double>(sum / static_cast<long double>(count));
-}
-
-
-void tensor_attach_matmul_graph(
-    TensorValue* result,TensorValue& left,TensorValue& right,
-    unsigned long long line,unsigned long long column) {
-    if(!result||(!left.graph&&!right.graph)) return;
-    if(left.storage->dtype!=9&&left.storage->dtype!=10){
-        release_managed_tensor(result);
-        autograd_fail("tracked tensor matmul requires float32 or float tensors",line,column);
-    }
-    auto node=std::make_shared<AutogradNode>(left.storage->dtype);
-    node->shape=result->shape;
-    node->op=AutogradOp::Matmul;
-    node->parents={
-        left.graph?left.graph:autograd_constant_node(left,line,column),
-        right.graph?right.graph:autograd_constant_node(right,line,column)};
-    if(tensor_on_cpu(*result->storage))
-        node->data=tensor_float_values(*result,line,column);
-    else
-        node->device_tensor=static_cast<TensorValue*>(quidra_tensor_clone(result));
-    result->graph=std::move(node);
-}
-
-extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
-                                       unsigned long long line,
-                                       unsigned long long column) {
-    if(!left_raw||!right_raw)
-        tensor_fail("linear.matmul received a null tensor",line,column);
-    auto& left=*static_cast<TensorValue*>(left_raw);
-    auto& right=*static_cast<TensorValue*>(right_raw);
-    if(left.storage->dtype!=right.storage->dtype)
-        tensor_fail("linear.matmul requires identical element types",line,column);
-    if(left.storage->device!=right.storage->device)
-        tensor_fail("linear.matmul operands are on different devices; transfer them explicitly",
-                    line,column);
-    if(left.shape.empty()||(right.shape.size()!=1&&right.shape.size()!=2))
-        tensor_fail(
-            "linear.matmul requires left rank >= 1 and right rank 1 or 2",
-            line,column);
-
-    std::vector<long long> leading(left.shape.begin(),left.shape.end()-1);
-    const auto rows=tensor_element_count(leading,line,column);
-    const auto inner=static_cast<std::size_t>(left.shape.back());
-    const auto right_inner=static_cast<std::size_t>(right.shape[0]);
-    const bool right_vector=right.shape.size()==1;
-    const auto columns=right_vector?std::size_t{1}:
-        static_cast<std::size_t>(right.shape[1]);
-    if(inner!=right_inner)
-        tensor_fail("linear.matmul inner dimensions do not match",line,column);
-    auto shape=leading;
-    if(!right_vector) shape.push_back(static_cast<long long>(columns));
-    const auto count=tensor_element_count(shape,line,column);
-
-    if(!tensor_on_cpu(*left.storage)){
-        tensor_require_initialized(left,line,column);
-        tensor_require_initialized(right,line,column);
-        TensorStorage* lm=nullptr;
-        TensorStorage* rm=nullptr;
-        const TensorStorage* ls=left.storage;
-        const TensorStorage* rs=right.storage;
-        if(!tensor_is_contiguous_value(left)||left.offset!=0){
-            lm=tensor_gpu_materialize_storage(left,line,column);ls=lm;
-        }
-        if(!tensor_is_contiguous_value(right)||right.offset!=0){
-            rm=tensor_gpu_materialize_storage(right,line,column);rs=rm;
-        }
-        auto* output=tensor_storage_create(
-            left.storage->dtype,count,1,left.storage->device,line,column);
-        std::string backend_error;
-        const bool ok=quidra::device::compute_matmul(
-            output->gpu_buffer,ls->gpu_buffer,rs->gpu_buffer,
-            left.storage->dtype,rows,inner,columns,backend_error);
-        if(lm) tensor_storage_release(lm);
-        if(rm) tensor_storage_release(rm);
-        if(!ok){tensor_storage_release(output);tensor_fail(backend_error.c_str(),line,column);}
-        auto* result=tensor_descriptor(
-            output,shape,tensor_contiguous_strides(shape),0);
-        tensor_attach_matmul_graph(result,left,right,line,column);
-        return result;
-    }
-
-    auto* output=tensor_storage_create(left.storage->dtype,count,1);
-    switch(left.storage->dtype){
-        case 1:tensor_matmul_typed<std::int64_t>(left,right,*output,rows,inner,columns,line,column);break;
-        case 2:tensor_matmul_typed<std::int8_t>(left,right,*output,rows,inner,columns,line,column);break;
-        case 3:tensor_matmul_typed<std::int16_t>(left,right,*output,rows,inner,columns,line,column);break;
-        case 4:tensor_matmul_typed<std::int32_t>(left,right,*output,rows,inner,columns,line,column);break;
-        case 5:tensor_matmul_typed<std::uint8_t>(left,right,*output,rows,inner,columns,line,column);break;
-        case 6:tensor_matmul_typed<std::uint16_t>(left,right,*output,rows,inner,columns,line,column);break;
-        case 7:tensor_matmul_typed<std::uint32_t>(left,right,*output,rows,inner,columns,line,column);break;
-        case 8:tensor_matmul_typed<std::uint64_t>(left,right,*output,rows,inner,columns,line,column);break;
-        case 9:tensor_matmul_typed<double>(left,right,*output,rows,inner,columns,line,column);break;
-        case 10:tensor_matmul_typed<float>(left,right,*output,rows,inner,columns,line,column);break;
-        default:delete output;tensor_fail("linear.matmul received an unsupported tensor dtype",line,column);
-    }
-    auto* result=tensor_descriptor(
-        output,shape,tensor_contiguous_strides(shape),0);
-    tensor_attach_matmul_graph(result,left,right,line,column);
-    return result;
-}
 
 namespace {
 
@@ -6877,159 +6039,6 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
     tracker_set(tensor->storage->initialization, storage_index);
 }
 
-
-extern "C" void* quidra_tensor_from_chw(const void* data,
-                                          int dtype,
-                                          unsigned long long channels,
-                                          unsigned long long height,
-                                          unsigned long long width) {
-    if (dtype < 1 || dtype > 10 ||
-        (channels != 1 && channels != 3 && channels != 4) ||
-        channels > static_cast<unsigned long long>(std::numeric_limits<long long>::max()) ||
-        height > static_cast<unsigned long long>(std::numeric_limits<long long>::max()) ||
-        width > static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
-        return nullptr;
-    }
-    std::vector<long long> shape{
-        static_cast<long long>(channels),
-        static_cast<long long>(height),
-        static_cast<long long>(width)};
-    std::size_t count = 0;
-    try {
-        count = tensor_element_count(shape, 0, 0);
-    } catch (...) {
-        return nullptr;
-    }
-    if (count != 0 && !data) return nullptr;
-    auto* storage = tensor_storage_create(dtype, count, 1);
-    const auto sample_bytes = tensor_dtype_bytes(dtype);
-    if (count != 0) {
-        std::memcpy(storage->data.data(), data, count * sample_bytes);
-    }
-    auto strides = tensor_contiguous_strides(shape);
-    return tensor_descriptor(storage, std::move(shape), std::move(strides), 0);
-}
-
-extern "C" long long quidra_tensor_device_index(void* raw) {
-    if (!raw) return -2;
-    const auto* tensor = static_cast<TensorValue*>(raw);
-    if (!tensor->storage) return -2;
-    return static_cast<long long>(tensor->storage->device);
-}
-
-extern "C" int quidra_tensor_chw_info(void* raw,
-                                        unsigned long long* channels,
-                                        unsigned long long* height,
-                                        unsigned long long* width) {
-    if (!raw || !channels || !height || !width) return 0;
-    const auto& tensor = *static_cast<TensorValue*>(raw);
-    if (!tensor.storage || tensor.storage->dtype < 1 || tensor.storage->dtype > 10 ||
-        tensor.shape.size() != 3 ||
-        (tensor.shape[0] != 1 && tensor.shape[0] != 3 && tensor.shape[0] != 4) ||
-        tensor.shape[1] < 0 || tensor.shape[2] < 0) {
-        return 0;
-    }
-    *channels = static_cast<unsigned long long>(tensor.shape[0]);
-    *height = static_cast<unsigned long long>(tensor.shape[1]);
-    *width = static_cast<unsigned long long>(tensor.shape[2]);
-    return tensor.storage->dtype;
-}
-
-extern "C" bool quidra_tensor_chw_copy(void* raw,
-                                        void* output,
-                                        unsigned long long count) {
-    if (!raw) return false;
-    const auto& tensor = *static_cast<TensorValue*>(raw);
-    if (!tensor.storage || !tensor_on_cpu(*tensor.storage) ||
-        tensor.storage->dtype < 1 || tensor.storage->dtype > 10 ||
-        tensor.shape.size() != 3) {
-        return false;
-    }
-    const auto logical = tensor_logical_count(tensor);
-    if (logical != static_cast<std::size_t>(count) || (logical != 0 && !output)) {
-        return false;
-    }
-    const auto sample_bytes = tensor_dtype_bytes(tensor.storage->dtype);
-    auto* destination = static_cast<unsigned char*>(output);
-    for (std::size_t i = 0; i < logical; ++i) {
-        const auto storage_index = tensor_storage_index(tensor, i);
-        if (storage_index >= tensor.storage->count ||
-            !tracker_bit(tensor.storage->initialization, storage_index)) {
-            return false;
-        }
-        std::memcpy(destination + i * sample_bytes,
-                    tensor.storage->data.data() + storage_index * sample_bytes,
-                    sample_bytes);
-    }
-    return true;
-}
-
-extern "C" void* quidra_tensor_from_u8_chw(const unsigned char* data,
-                                             unsigned long long channels,
-                                             unsigned long long height,
-                                             unsigned long long width) {
-    if ((channels != 1 && channels != 3 && channels != 4) ||
-        channels > static_cast<unsigned long long>(std::numeric_limits<long long>::max()) ||
-        height > static_cast<unsigned long long>(std::numeric_limits<long long>::max()) ||
-        width > static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
-        return nullptr;
-    }
-    std::vector<long long> shape{
-        static_cast<long long>(channels),
-        static_cast<long long>(height),
-        static_cast<long long>(width)};
-    std::size_t count = 0;
-    try {
-        count = tensor_element_count(shape, 0, 0);
-    } catch (...) {
-        return nullptr;
-    }
-    if (count != 0 && !data) return nullptr;
-    auto* storage = tensor_storage_create(5, count, 1);
-    if (count != 0) std::memcpy(storage->data.data(), data, count);
-    auto strides = tensor_contiguous_strides(shape);
-    return tensor_descriptor(storage, std::move(shape), std::move(strides), 0);
-}
-
-extern "C" bool quidra_tensor_u8_chw_info(void* raw,
-                                            unsigned long long* channels,
-                                            unsigned long long* height,
-                                            unsigned long long* width) {
-    if (!raw || !channels || !height || !width) return false;
-    const auto& tensor = *static_cast<TensorValue*>(raw);
-    if (!tensor.storage || tensor.storage->dtype != 5 || tensor.shape.size() != 3) return false;
-    if (tensor.shape[0] != 1 && tensor.shape[0] != 3 && tensor.shape[0] != 4) return false;
-    if (tensor.shape[1] < 0 || tensor.shape[2] < 0) return false;
-    *channels = static_cast<unsigned long long>(tensor.shape[0]);
-    *height = static_cast<unsigned long long>(tensor.shape[1]);
-    *width = static_cast<unsigned long long>(tensor.shape[2]);
-    return true;
-}
-
-extern "C" bool quidra_tensor_u8_chw_copy(void* raw,
-                                            unsigned char* output,
-                                            unsigned long long count) {
-    if (!raw) return false;
-    const auto& tensor = *static_cast<TensorValue*>(raw);
-    if (!tensor.storage || !tensor_on_cpu(*tensor.storage) ||
-        tensor.storage->dtype != 5 || tensor.shape.size() != 3) return false;
-    std::size_t logical = 0;
-    try {
-        logical = tensor_logical_count(tensor);
-    } catch (...) {
-        return false;
-    }
-    if (logical != static_cast<std::size_t>(count) || (logical != 0 && !output)) return false;
-    for (std::size_t i = 0; i < logical; ++i) {
-        const auto storage_index = tensor_storage_index(tensor, i);
-        if (storage_index >= tensor.storage->count ||
-            !tracker_bit(tensor.storage->initialization, storage_index)) {
-            return false;
-        }
-        output[i] = tensor.storage->data[storage_index];
-    }
-    return true;
-}
 
 extern "C" char* quidra_string_index(const char* text, long long index,
                                       unsigned long long line,

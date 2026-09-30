@@ -126,6 +126,7 @@ EOF_MANIFEST
 cat > "$TMP/dependency-use.qui" <<'QUI'
 import app = app_pkg
 print(app.answer())
+print(NL)
 QUI
 
 set +e

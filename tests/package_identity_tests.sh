@@ -9,8 +9,13 @@ IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
 NEXT_MINOR="$MAJOR.$((MINOR + 1)).0"
 
 cat > "$TMP/package/main.qui" <<'QUI'
+const int meaning = 6 * 7
+
 int answer()
     return 42
+
+string write(string value)
+    return value
 QUI
 cat > "$TMP/package/quidra.package" <<EOF
 name = named_pkg
@@ -48,12 +53,17 @@ PY
 cat > "$TMP/project/main.qui" <<'QUI'
 import package = named_pkg
 print(package.answer())
+print(NL)
+print(package.meaning)
+print(NL)
+print(package.write("write-ok"))
+print(NL)
 QUI
 (
   cd "$TMP/project"
   HOME="$TMP/home" "$QUIDRA" package lock main.qui >/dev/null
   HOME="$TMP/home" "$QUIDRA" package lock main.qui --check
-  [[ "$(HOME="$TMP/home" "$QUIDRA" main.qui)" == "42" ]]
+  [[ "$(HOME="$TMP/home" "$QUIDRA" main.qui)" == "$(printf '42\n42\nwrite-ok')" ]]
 )
 HOME="$TMP/home" "$QUIDRA" package remove quidra-named >/dev/null
 [[ -z "$(HOME="$TMP/home" "$QUIDRA" package list)" ]]

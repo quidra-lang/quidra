@@ -1,4 +1,6 @@
 #include "quidra/compiler.hpp"
+#include "quidra/frontend.hpp"
+#include "quidra/package_manifest.hpp"
 #include "quidra/formatter.hpp"
 #include "quidra/ir.hpp"
 #include "quidra/language.hpp"
@@ -188,6 +190,33 @@ std::size_t parse_max_errors(const std::string& text) {
     return static_cast<std::size_t>(value);
 }
 
+struct PackageNativeBuildInputs {
+    std::vector<fs::path> files;
+    std::vector<std::string> pkg_config_modules;
+};
+
+PackageNativeBuildInputs package_native_build_inputs(const fs::path& source) {
+    PackageNativeBuildInputs result;
+    const auto packages =
+        quidra::resolve_package_dependencies(source, fs::current_path());
+    for (const auto& [name, package_main] : packages) {
+        (void)name;
+        const auto root = package_main.parent_path();
+        const auto manifest = quidra::try_read_package_manifest(root);
+        if (!manifest) continue;
+        if (const auto native =
+                quidra::package_native_library_path(root, *manifest)) {
+            result.files.push_back(*native);
+        }
+        const auto sources =
+            quidra::package_native_source_paths(root, *manifest);
+        result.files.insert(result.files.end(), sources.begin(), sources.end());
+        for (const auto& [_, module] : manifest->native_pkg_config)
+            result.pkg_config_modules.push_back(module);
+    }
+    return result;
+}
+
 int build_native(const fs::path& source, const fs::path& output, bool keep_llvm = false,
                  std::size_t max_errors = 20, bool debug = false,
                  const std::vector<fs::path>& link_inputs = {}) {
@@ -198,8 +227,13 @@ int build_native(const fs::path& source, const fs::path& output, bool keep_llvm 
     ll += ".ll";
     write_file(ll, result.llvm);
 
+    auto native_inputs = package_native_build_inputs(source);
+    native_inputs.files.insert(
+        native_inputs.files.end(), link_inputs.begin(), link_inputs.end());
+
     const auto rc = quidra::native::link_llvm(
-        ll, output, quidra::native::LinkOptions{debug, true, link_inputs});
+        ll, output, quidra::native::LinkOptions{
+            debug, true, native_inputs.files, native_inputs.pkg_config_modules});
     if (!keep_llvm) {
         std::error_code ec;
         fs::remove(ll, ec);
@@ -232,6 +266,8 @@ void usage(std::ostream& out) {
         << "  " << cli << " remove NAME                remove an installed package\n"
         << "  " << cli << " list                       list installed packages and versions\n"
         << "  " << cli << " package-info NAME [--json] show installed package metadata\n"
+        << "  " << cli << " package sync [DIR]        regenerate quidra.package from project.toml\n"
+        << "  " << cli << " package validate [DIR]    verify package metadata agreement\n"
         << "  " << cli << " lock " << source << " [--check]    write or verify "
         << quidra::package_lock_filename << "\n"
         << "  " << cli << " package-path               print the default package store path\n"

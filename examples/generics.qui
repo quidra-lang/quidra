@@ -2,3 +2,4 @@ T identity<T>(T value)
     return value
 
 print(identity<int>(7))
+print(NL)

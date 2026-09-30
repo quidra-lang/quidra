@@ -30,14 +30,17 @@ void | error consume(string path)
     file.Handle handle = try file.open(path)
     string text = try handle.read()
     print(text)
+    print(NL)
     return void
 
 auto | error result = consume("$TMP/file-handle-cleanup.txt")
 match result
     void
         print("done")
+        print(NL)
     error problem
         print(problem)
+        print(NL)
 QUI
 "$QUIDRA" llvm "$TMP/file-handle-cleanup.qui" > "$TMP/file-handle-cleanup.ll"
 "$OPT" -passes=verify -disable-output "$TMP/file-handle-cleanup.ll"
@@ -54,6 +57,7 @@ file.Handle create_file(string path)
             return handle
         error problem
             print("create failed")
+            print(NL)
             process.exit(1)
 
 void go()
@@ -62,11 +66,12 @@ void go()
     string[] buffer = []
     for i in range(0, 3)
         state = (state * 48271) % 2147483647
-        string[] fields = [i.string(), " ", state.string(), ENTER]
+        string[] fields = [i.string(), " ", state.string(), NL]
         string line = fields.join("")
         buffer = buffer.append(line)
     string joined = buffer.join("|")
     print("RESULT {joined.trim()}")
+    print(NL)
     w.close()
     return
 
@@ -86,12 +91,15 @@ cat > "$TMP/short-circuit.qui" <<'QUI'
 int a = 4
 if a % 2 == 0 and a % 4 == 0
     print("mod")
+    print(NL)
 
 if a + 1 == 5 and 12 / a == 3
     print("arith")
+    print(NL)
 
 if a == 4 or 10 / a == 0
     print("or")
+    print(NL)
 QUI
 verify_and_run short-circuit "$(printf 'mod\narith\nor')"
 
@@ -109,12 +117,19 @@ int8 small = 5
 int8 sum = small + 100
 
 print(x)
+print(NL)
 print(y)
+print(NL)
 print(xs[2])
+print(NL)
 print(half(3.0))
+print(NL)
 print(negative)
+print(NL)
 print(mixed)
+print(NL)
 print(sum)
+print(NL)
 QUI
 verify_and_run contextual-literals "$(printf '3.0\n2.0\n3.0\n1.5\n-3.0\n6.0\n105')"
 
@@ -122,19 +137,28 @@ cat > "$TMP/bitwise.qui" <<'QUI'
 uint8 a = 240
 uint8 b = 204
 print(a AND b)
+print(NL)
 print(a OR b)
+print(NL)
 print(a XOR b)
+print(NL)
 print(NOT a)
+print(NL)
 uint8 small = 3
 print(small << 2)
+print(NL)
 uint8 high = 128
 print(high >> 7)
+print(NL)
 int8 signed_value = -8
 print(signed_value >> 2)
+print(NL)
 int8 signed_zero = 0
 print(NOT signed_zero)
+print(NL)
 int8 signed_left = 64
 print(signed_left << 1)
+print(NL)
 QUI
 verify_and_run bitwise "$(printf '192\n252\n60\n15\n12\n1\n-2\n-1\n-128')"
 
@@ -142,6 +166,7 @@ cat > "$TMP/shift-count-runtime.qui" <<'QUI'
 uint8 value = 1
 uint8 count = 8
 print(value << count)
+print(NL)
 QUI
 set +e
 "$QUIDRA" run "$TMP/shift-count-runtime.qui" >"$TMP/shift-count-runtime.out" 2>"$TMP/shift-count-runtime.err"
@@ -157,6 +182,7 @@ while i < 200000
     text = "a" + "b"
     i += 1
 print(text)
+print(NL)
 QUI
 "$QUIDRA" llvm "$TMP/string-concat-loop.qui" > "$TMP/string-concat-loop.ll"
 "$OPT" -passes=verify -disable-output "$TMP/string-concat-loop.ll"
@@ -175,6 +201,7 @@ while i < 20
     string joined = "x" + "y"
     i += 1
 print(values[0].item())
+print(NL)
 QUI
 "$QUIDRA" llvm "$TMP/frame-scratch-loop.qui" > "$TMP/frame-scratch-loop.ll"
 "$OPT" -passes=verify -disable-output "$TMP/frame-scratch-loop.ll"
@@ -190,7 +217,9 @@ float32 rounded = 0.000001
 float source = 0.1
 float32 narrowed = float32(source)
 print(rounded > 0.0000009 and rounded < 0.0000011)
+print(NL)
 print(narrowed > 0.099 and narrowed < 0.101)
+print(NL)
 QUI
 verify_and_run float32-rounding "$(printf 'true\ntrue')"
 
@@ -198,6 +227,7 @@ cat > "$TMP/float32-range-error.qui" <<'QUI'
 float source = 1.0e100
 float32 narrowed = float32(source)
 print(narrowed)
+print(NL)
 QUI
 set +e
 ASAN_OPTIONS=detect_leaks=0 "$QUIDRA" run "$TMP/float32-range-error.qui" >"$TMP/float32-range-error.out" 2>"$TMP/float32-range-error.err"
@@ -228,8 +258,10 @@ auto | error result = sum(true)
 match result
     int value
         print(value)
+        print(NL)
     error problem
         print(problem)
+        print(NL)
 QUI
 verify_and_run try-class "5"
 
@@ -241,6 +273,7 @@ cat > "$TMP/source-provenance-pointer.qui" <<'QUI'
 int[] values = [1]
 int index = 2
 print(values[index])
+print(NL)
 QUI
 "$QUIDRA" llvm "$TMP/source-provenance-pointer.qui" > "$TMP/source-provenance-pointer.ll"
 "$OPT" -passes=verify -disable-output "$TMP/source-provenance-pointer.ll"

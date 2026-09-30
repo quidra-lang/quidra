@@ -43,7 +43,10 @@ CATEGORY_LABELS = {
 }
 AREA_LABELS = {
     "core": "area: core",
+    "math": "area: math",
+    "nn": "area: nn",
     "vision": "area: vision",
+    "video": "area: video",
     "dnn": "area: dnn",
 }
 ALLOWED_CATEGORIES = tuple(CATEGORY_LABELS) + ("other",)
@@ -104,13 +107,16 @@ Classification meanings:
 - category=question: the issue is mainly a usage/design question
 - category=other: none of the above can be selected reliably
 - area=core: quidra-lang/quidra compiler, runtime, core libraries, or tooling
-- area=vision: quidra-lang/vision
-- area=dnn: quidra-lang/dnn
+- area=math: quidra-lang/math generic mathematical semantics
+- area=nn: quidra-lang/nn reusable neural-network semantics and optimization
+- area=vision: quidra-lang/vision image/computer-vision semantics
+- area=video: quidra-lang/video video/temporal-media semantics
+- area=dnn: quidra-lang/dnn concrete deep-model architecture semantics
 - area=unknown: insufficient evidence
 - needs_info=true only when more reporter information is materially needed before useful investigation can proceed
 
-If the issue appears to belong to Vision or DNN, say so politely, but do not claim it
-was moved. Do not decide duplicate, invalid, wontfix, priority, severity, assignment,
+If the issue appears to belong to Math, NN, Vision, Video, or DNN, say so politely,
+but do not claim it was moved. Do not decide duplicate, invalid, wontfix, priority, severity, assignment,
 closure, milestone, good-first-issue, or help-wanted status.
 """
 

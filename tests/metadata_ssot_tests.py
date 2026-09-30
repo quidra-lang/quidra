@@ -268,6 +268,24 @@ def check_no_source_extension_literals(project: dict) -> None:
     )
 
 
+def check_first_party_repositories(project: dict) -> None:
+    repos = project["repos"]
+    expected_names = {"core", "math", "nn", "vision", "video", "dnn"}
+    check(
+        set(repos) == expected_names,
+        "project.toml [repos] must list exactly the first-party semantic package graph: "
+        + ", ".join(sorted(expected_names)),
+    )
+    base = project["package_manager"]["official_repository_base"]
+    for name in sorted(expected_names):
+        repository_name = "quidra" if name == "core" else name
+        expected = base + repository_name
+        check(
+            repos.get(name) == expected,
+            f"project.toml [repos].{name} must be {expected}",
+        )
+
+
 def check_installer_repository(project: dict) -> None:
     expected = project["repos"]["core"].removeprefix("https://github.com/")
     installer = read(ROOT / "scripts" / "install-ubuntu.sh")
@@ -358,6 +376,7 @@ def main() -> int:
     check_lockfile_schema_ownership(project)
     check_package_store_ownership(project)
     check_no_source_extension_literals(project)
+    check_first_party_repositories(project)
     check_installer_repository(project)
     check_generated_header_placeholders()
     check_no_second_version_definition(project)

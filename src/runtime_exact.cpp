@@ -1,4 +1,5 @@
 #include "runtime_internal.hpp"
+#include "quidra/native_extension.h"
 
 #include <algorithm>
 #include <array>
@@ -12,7 +13,9 @@
 #include <iomanip>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <new>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -36,6 +39,37 @@ namespace {
         std::fprintf(stderr,"Quidra runtime error [EXACT_NUMERIC]: %s\n",message);
     std::fflush(stderr);
     std::exit(101);
+}
+
+std::unordered_map<std::string,qcore_exact_real_atom_decimal_fn>& exact_atom_providers(){
+    static std::unordered_map<std::string,qcore_exact_real_atom_decimal_fn> providers;
+    return providers;
+}
+struct ExactUnaryProvider {
+    qcore_exact_real_unary_float64_fn evaluate{};
+    qcore_exact_real_unary_flags_fn flags{};
+};
+std::unordered_map<std::string,ExactUnaryProvider>& exact_unary_providers(){
+    static std::unordered_map<std::string,ExactUnaryProvider> providers;
+    return providers;
+}
+std::mutex& exact_atom_provider_mutex(){
+    static std::mutex mutex;
+    return mutex;
+}
+std::optional<std::string> exact_atom_decimal(
+    const std::string& provider,std::uint32_t opcode){
+    qcore_exact_real_atom_decimal_fn callback=nullptr;
+    {
+        std::lock_guard<std::mutex> lock(exact_atom_provider_mutex());
+        const auto found=exact_atom_providers().find(provider);
+        if(found==exact_atom_providers().end())return std::nullopt;
+        callback=found->second;
+    }
+    if(!callback)return std::nullopt;
+    const char* text=callback(opcode);
+    if(!text||!*text)return std::nullopt;
+    return std::string(text);
 }
 
 constexpr std::uint32_t LIMB_BASE=1000000000U;
@@ -279,73 +313,6 @@ BigInt pow10(std::size_t n){
     return result;
 }
 
-// Decimal helpers are used only by the certified integer-square-root formatter.
-std::string trim_dec(std::string value){
-    const auto p=value.find_first_not_of('0');
-    return p==std::string::npos?"0":value.substr(p);
-}
-int cmp_dec(const std::string&a0,const std::string&b0){
-    const auto a=trim_dec(a0),b=trim_dec(b0);
-    if(a.size()!=b.size())return a.size()<b.size()?-1:1;
-    return a==b?0:(a<b?-1:1);
-}
-std::string add_dec(const std::string&a,const std::string&b){
-    std::string out;int carry=0;std::size_t i=a.size(),j=b.size();
-    while(i||j||carry){
-        int v=carry;
-        if(i)v+=a[--i]-'0';
-        if(j)v+=b[--j]-'0';
-        out.push_back(static_cast<char>('0'+v%10));carry=v/10;
-    }
-    std::reverse(out.begin(),out.end());return trim_dec(out);
-}
-std::string sub_dec(const std::string&a,const std::string&b){
-    std::string out;int borrow=0;std::size_t i=a.size(),j=b.size();
-    while(i){
-        int v=(a[--i]-'0')-borrow-(j?b[--j]-'0':0);
-        if(v<0){v+=10;borrow=1;}else borrow=0;
-        out.push_back(static_cast<char>('0'+v));
-    }
-    while(out.size()>1&&out.back()=='0')out.pop_back();
-    std::reverse(out.begin(),out.end());return trim_dec(out);
-}
-std::string mul_dec_digit(const std::string&a,int d){
-    if(d==0||trim_dec(a)=="0")return "0";
-    std::string out;int carry=0;
-    for(std::size_t i=a.size();i;){
-        int v=(a[--i]-'0')*d+carry;
-        out.push_back(static_cast<char>('0'+v%10));carry=v/10;
-    }
-    while(carry){out.push_back(static_cast<char>('0'+carry%10));carry/=10;}
-    std::reverse(out.begin(),out.end());return trim_dec(out);
-}
-std::string isqrt_decimal(std::string input){
-    input=trim_dec(std::move(input));
-    if(input=="0")return "0";
-    if(input.size()%2)input="0"+input;
-    std::string root="0",rem="0";
-    for(std::size_t i=0;i<input.size();i+=2){
-        const int pair=(input[i]-'0')*10+(input[i+1]-'0');
-        rem=add_dec(mul_dec_digit(rem,100),std::to_string(pair));
-        const auto twenty=mul_dec_digit(root,20);
-        int chosen=0;std::string term="0";
-        for(int d=9;d>=0;--d){
-            auto candidate=mul_dec_digit(add_dec(twenty,std::to_string(d)),d);
-            if(cmp_dec(candidate,rem)<=0){chosen=d;term=std::move(candidate);break;}
-        }
-        rem=sub_dec(rem,term);
-        root=add_dec(mul_dec_digit(root,10),std::to_string(chosen));
-    }
-    return trim_dec(root);
-}
-bool perfect_square(const BigInt&value,BigInt&root){
-    if(value.sign<0)return false;
-    const auto r=isqrt_decimal(value.text());
-    bool ok=false;auto candidate=BigInt::parse(r,ok);
-    if(!ok||cmp(mul(candidate,candidate),value)!=0)return false;
-    root=std::move(candidate);return true;
-}
-
 struct Rational{
     BigInt num;
     BigInt den{BigInt::from_u64(1)};
@@ -443,13 +410,15 @@ Rational exact_double(double value){
 }
 
 enum class RealKind{
-    Rational,Pi,E,Sqrt,Sin,Cos,Tan,Log,Exp,Pow,Add,Sub,Mul,Div,Neg,Abs
+    Rational,Atom,ProviderUnary,Pow,Add,Sub,Mul,Div,Neg
 };
 struct Real;
 using RealPtr=std::shared_ptr<Real>;
 struct Real{
     RealKind kind{RealKind::Rational};
     Rational rational;
+    std::string provider;
+    std::uint32_t opcode{};
     RealPtr a,b;
 };
 
@@ -461,6 +430,11 @@ std::string real_key(const RealPtr&value,std::size_t&budget){
     if(!budget--)exact_fail("bigreal canonicalization budget exhausted");
     if(value->kind==RealKind::Rational)
         return "q:"+value->rational.num.text()+"/"+value->rational.den.text();
+    if(value->kind==RealKind::Atom)
+        return "atom:"+value->provider+":"+std::to_string(value->opcode);
+    if(value->kind==RealKind::ProviderUnary)
+        return "unary:"+value->provider+":"+std::to_string(value->opcode)+
+               "("+real_key(value->a,budget)+")";
     const auto tag=std::to_string(static_cast<int>(value->kind));
     return tag+"("+real_key(value->a,budget)+","+real_key(value->b,budget)+")";
 }
@@ -485,9 +459,31 @@ RealPtr rr(Rational rational){
     value->kind=RealKind::Rational;value->rational=std::move(rational);
     return intern_real(std::move(value));
 }
-RealPtr special(RealKind kind){
-    auto value=std::make_shared<Real>();value->kind=kind;
+RealPtr atom(std::string provider,std::uint32_t opcode){
+    auto value=std::make_shared<Real>();
+    value->kind=RealKind::Atom;
+    value->provider=std::move(provider);
+    value->opcode=opcode;
     return intern_real(std::move(value));
+}
+RealPtr provider_unary(std::string provider,std::uint32_t opcode,RealPtr input){
+    auto value=std::make_shared<Real>();
+    value->kind=RealKind::ProviderUnary;
+    value->provider=std::move(provider);
+    value->opcode=opcode;
+    value->a=std::move(input);
+    return intern_real(std::move(value));
+}
+std::optional<ExactUnaryProvider> exact_unary_provider(const std::string& provider){
+    std::lock_guard<std::mutex> lock(exact_atom_provider_mutex());
+    const auto found=exact_unary_providers().find(provider);
+    if(found==exact_unary_providers().end())return std::nullopt;
+    return found->second;
+}
+std::uint32_t exact_unary_flags(const RealPtr& value){
+    if(!value||value->kind!=RealKind::ProviderUnary)return 0;
+    const auto provider=exact_unary_provider(value->provider);
+    return provider&&provider->flags?provider->flags(value->opcode):0;
 }
 RealPtr unary(RealKind kind,RealPtr a){
     auto value=std::make_shared<Real>();value->kind=kind;value->a=std::move(a);
@@ -511,6 +507,41 @@ bool is_one(const RealPtr&x){
         x->rational.num.limbs[0]==1;
 }
 
+bool atom_bounds(const RealPtr& x,Rational& low,Rational& high){
+    if(!x||x->kind!=RealKind::Atom)return false;
+    const auto decimal=exact_atom_decimal(x->provider,x->opcode);
+    if(!decimal||!parse_decimal(*decimal,low))return false;
+
+    std::string text=*decimal;
+    const auto ep=text.find_first_of("eE");
+    long long exponent=0;
+    if(ep!=std::string::npos){
+        const auto exponent_text=text.substr(ep+1);
+        char* end=nullptr;
+        errno=0;
+        exponent=std::strtoll(exponent_text.c_str(),&end,10);
+        if(errno==ERANGE||!end||*end!='\0')return false;
+        text.resize(ep);
+    }
+    const auto dot=text.find('.');
+    const long long fraction=
+        dot==std::string::npos?0:
+        static_cast<long long>(text.size()-dot-1);
+    const long long power=exponent-fraction;
+    Rational unit;
+    if(power>=0){
+        unit=Rational(
+            pow10(static_cast<std::size_t>(power)),
+            BigInt::from_u64(1));
+    }else{
+        unit=Rational(
+            BigInt::from_u64(1),
+            pow10(static_cast<std::size_t>(-power)));
+    }
+    high=rat_add(low,unit);
+    return true;
+}
+
 enum class ProvenSign { Negative, Zero, Positive, NonNegative, NonPositive, Unknown };
 
 ProvenSign invert_sign(ProvenSign sign){
@@ -530,25 +561,28 @@ ProvenSign proven_sign(const RealPtr&x,std::size_t&budget){
             return x->rational.num.sign<0?ProvenSign::Negative:
                    x->rational.num.sign>0?ProvenSign::Positive:
                                           ProvenSign::Zero;
-        case RealKind::Pi:
-        case RealKind::E:
-        case RealKind::Exp:
-            return ProvenSign::Positive;
+        case RealKind::Atom:{
+            Rational low,high;
+            if(!atom_bounds(x,low,high))return ProvenSign::Unknown;
+            const Rational zero{};
+            if(rat_cmp(low,zero)>0)return ProvenSign::Positive;
+            if(rat_cmp(high,zero)<0)return ProvenSign::Negative;
+            if(rat_cmp(low,zero)==0&&rat_cmp(high,zero)>0)
+                return ProvenSign::NonNegative;
+            if(rat_cmp(low,zero)<0&&rat_cmp(high,zero)==0)
+                return ProvenSign::NonPositive;
+            return ProvenSign::Unknown;
+        }
+        case RealKind::ProviderUnary:{
+            const auto flags=exact_unary_flags(x);
+            if(flags&QCORE_EXACT_UNARY_RESULT_POSITIVE)
+                return ProvenSign::Positive;
+            if(flags&QCORE_EXACT_UNARY_RESULT_NONNEGATIVE)
+                return ProvenSign::NonNegative;
+            return ProvenSign::Unknown;
+        }
         case RealKind::Neg:
             return invert_sign(proven_sign(x->a,budget));
-        case RealKind::Abs:{
-            const auto child=proven_sign(x->a,budget);
-            if(child==ProvenSign::Zero)return ProvenSign::Zero;
-            if(child==ProvenSign::Negative||child==ProvenSign::Positive)
-                return ProvenSign::Positive;
-            return ProvenSign::NonNegative;
-        }
-        case RealKind::Sqrt:{
-            const auto child=proven_sign(x->a,budget);
-            if(child==ProvenSign::Zero)return ProvenSign::Zero;
-            if(child==ProvenSign::Positive)return ProvenSign::Positive;
-            return ProvenSign::NonNegative;
-        }
         case RealKind::Mul:
         case RealKind::Div:{
             const auto left=proven_sign(x->a,budget);
@@ -591,48 +625,38 @@ ProvenSign proven_sign(const RealPtr&x,std::size_t&budget){
                     ?ProvenSign::Negative:ProvenSign::NonPositive;
             return ProvenSign::Unknown;
         }
-        case RealKind::Log:{
-            if(x->a&&x->a->kind==RealKind::Rational){
-                const auto one=Rational(BigInt::from_u64(1),BigInt::from_u64(1));
-                const auto compared=rat_cmp(x->a->rational,one);
-                return compared<0?ProvenSign::Negative:
-                       compared>0?ProvenSign::Positive:ProvenSign::Zero;
-            }
-            return ProvenSign::Unknown;
-        }
-        default:
+        case RealKind::Pow:
             return ProvenSign::Unknown;
     }
+    return ProvenSign::Unknown;
 }
 bool provably_defined(const RealPtr&x,std::size_t&budget){
     if(!x||!budget--)return false;
     switch(x->kind){
         case RealKind::Rational:
-        case RealKind::Pi:
-        case RealKind::E:
             return true;
-        case RealKind::Sin:
-        case RealKind::Cos:
-        case RealKind::Exp:
-        case RealKind::Neg:
-        case RealKind::Abs:
-            return provably_defined(x->a,budget);
-        case RealKind::Sqrt:{
+        case RealKind::Atom:{
+            Rational low,high;
+            return atom_bounds(x,low,high);
+        }
+        case RealKind::ProviderUnary:{
             if(!provably_defined(x->a,budget))return false;
+            const auto provider=exact_unary_provider(x->provider);
+            if(!provider||!provider->evaluate||!provider->flags)return false;
+            const auto flags=provider->flags(x->opcode);
+            if(flags&QCORE_EXACT_UNARY_TOTAL)return true;
             std::size_t sign_budget=4096;
             const auto sign=proven_sign(x->a,sign_budget);
-            return sign==ProvenSign::Zero||sign==ProvenSign::Positive||
-                   sign==ProvenSign::NonNegative;
-        }
-        case RealKind::Log:{
-            if(!provably_defined(x->a,budget))return false;
-            std::size_t sign_budget=4096;
-            return proven_sign(x->a,sign_budget)==ProvenSign::Positive;
-        }
-        case RealKind::Tan:
-            // tan has poles. Keep symbolic tan out of algebraic cancellation
-            // unless a future exact pole proof is added.
+            if(flags&QCORE_EXACT_UNARY_DOMAIN_POSITIVE)
+                return sign==ProvenSign::Positive;
+            if(flags&QCORE_EXACT_UNARY_DOMAIN_NONNEGATIVE)
+                return sign==ProvenSign::Zero||
+                       sign==ProvenSign::Positive||
+                       sign==ProvenSign::NonNegative;
             return false;
+        }
+        case RealKind::Neg:
+            return provably_defined(x->a,budget);
         case RealKind::Add:
         case RealKind::Sub:
         case RealKind::Mul:
@@ -660,28 +684,13 @@ bool structurally_equal(const RealPtr&a,const RealPtr&b,std::size_t&budget){
     if(!a||!b||!budget--)return false;
     if(a->kind!=b->kind)return false;
     if(a->kind==RealKind::Rational)return rat_cmp(a->rational,b->rational)==0;
+    if(a->kind==RealKind::Atom)
+        return a->provider==b->provider&&a->opcode==b->opcode;
+    if(a->kind==RealKind::ProviderUnary &&
+       (a->provider!=b->provider||a->opcode!=b->opcode))
+        return false;
     return structurally_equal(a->a,b->a,budget)&&
            structurally_equal(a->b,b->b,budget);
-}
-
-std::pair<BigInt,BigInt> extract_small_square(BigInt input){
-    input=absbi(std::move(input));
-    BigInt outside=BigInt::from_u64(1);
-    BigInt residual=BigInt::from_u64(1);
-    static constexpr std::array<std::uint32_t,25> primes{
-        2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97};
-    for(auto prime:primes){
-        unsigned count=0;
-        while(input.sign){
-            auto qr=div_small(input,prime);
-            if(qr.second)break;
-            input=std::move(qr.first);++count;
-        }
-        for(unsigned i=0;i<count/2;++i)outside=mul_small(outside,prime);
-        if(count%2)residual=mul_small(residual,prime);
-    }
-    residual=mul(residual,input);
-    return {std::move(outside),std::move(residual)};
 }
 
 RealPtr real_neg(RealPtr a){
@@ -709,22 +718,6 @@ RealPtr real_sub(RealPtr a,RealPtr b){
     }
     return binary(RealKind::Sub,std::move(a),std::move(b));
 }
-bool sqrt_term(const RealPtr&x,Rational&coefficient,RealPtr&radicand){
-    coefficient=Rational(BigInt::from_u64(1),BigInt::from_u64(1));
-    if(x->kind==RealKind::Sqrt){radicand=x->a;return true;}
-    if(x->kind==RealKind::Mul){
-        if(x->a&&x->a->kind==RealKind::Rational&&
-           x->b&&x->b->kind==RealKind::Sqrt){
-            coefficient=x->a->rational;radicand=x->b->a;return true;
-        }
-        if(x->b&&x->b->kind==RealKind::Rational&&
-           x->a&&x->a->kind==RealKind::Sqrt){
-            coefficient=x->b->rational;radicand=x->a->a;return true;
-        }
-    }
-    return false;
-}
-
 RealPtr real_mul(RealPtr a,RealPtr b){
     if(a->kind==RealKind::Rational&&b->kind==RealKind::Rational)
         return rr(rat_mul(a->rational,b->rational));
@@ -738,21 +731,6 @@ RealPtr real_mul(RealPtr a,RealPtr b){
     }
     if(is_one(a))return b;
     if(is_one(b))return a;
-    Rational ca,cb;RealPtr ra,rb;
-    if(sqrt_term(a,ca,ra)&&sqrt_term(b,cb,rb)){
-        std::size_t budget=4096;
-        if(structurally_equal(ra,rb,budget)){
-            std::size_t defined_budget=4096;
-            std::size_t sign_budget=4096;
-            const auto sign=proven_sign(ra,sign_budget);
-            if(provably_defined(ra,defined_budget)&&
-               (sign==ProvenSign::Zero||sign==ProvenSign::Positive||
-                sign==ProvenSign::NonNegative)){
-                auto coefficient=rr(rat_mul(ca,cb));
-                return real_mul(std::move(coefficient),std::move(ra));
-            }
-        }
-    }
     return binary(RealKind::Mul,std::move(a),std::move(b));
 }
 RealPtr real_div(RealPtr a,RealPtr b){
@@ -779,67 +757,6 @@ RealPtr real_div(RealPtr a,RealPtr b){
     }
     return binary(RealKind::Div,std::move(a),std::move(b));
 }
-RealPtr real_abs(RealPtr a){
-    if(a->kind==RealKind::Rational){
-        auto r=a->rational;r.num=absbi(std::move(r.num));return rr(std::move(r));
-    }
-    return unary(RealKind::Abs,std::move(a));
-}
-RealPtr simplify_sqrt(RealPtr x){
-    if(!x)return x;
-    {
-        std::size_t budget=4096;
-        if(proven_sign(x,budget)==ProvenSign::Negative)
-            exact_fail("sqrt is undefined for negative bigreal");
-    }
-    if(x->kind==RealKind::Rational){
-        if(x->rational.num.sign<0)
-            exact_fail("sqrt is undefined for negative bigreal");
-        BigInt rn,rd;
-        if(perfect_square(absbi(x->rational.num),rn)&&
-           perfect_square(x->rational.den,rd))
-            return rr(Rational(std::move(rn),std::move(rd)));
-
-        auto [on,rn2]=extract_small_square(x->rational.num);
-        auto [od,rd2]=extract_small_square(x->rational.den);
-        const bool extracted=
-            cmp(on,BigInt::from_u64(1))!=0||cmp(od,BigInt::from_u64(1))!=0;
-        if(extracted){
-            auto outside=rr(Rational(std::move(on),std::move(od)));
-            auto residual=rr(Rational(std::move(rn2),std::move(rd2)));
-            return real_mul(std::move(outside),unary(RealKind::Sqrt,std::move(residual)));
-        }
-    }
-    return unary(RealKind::Sqrt,std::move(x));
-}
-RealPtr real_math(RealKind kind,RealPtr a){
-    if(kind==RealKind::Sin&&(is_zero(a)||a->kind==RealKind::Pi))return rr({});
-    if(kind==RealKind::Cos&&is_zero(a))
-        return rr(Rational(BigInt::from_u64(1),BigInt::from_u64(1)));
-    if(kind==RealKind::Cos&&a->kind==RealKind::Pi)
-        return rr(Rational(BigInt::from_i64(-1),BigInt::from_u64(1)));
-    if(kind==RealKind::Tan&&(is_zero(a)||a->kind==RealKind::Pi))return rr({});
-    if(kind==RealKind::Log&&is_one(a))return rr({});
-    if(kind==RealKind::Log&&a->kind==RealKind::E)
-        return rr(Rational(BigInt::from_u64(1),BigInt::from_u64(1)));
-    if(kind==RealKind::Exp&&is_zero(a))
-        return rr(Rational(BigInt::from_u64(1),BigInt::from_u64(1)));
-    if(kind==RealKind::Exp&&is_one(a))return special(RealKind::E);
-    if(kind==RealKind::Exp&&a->kind==RealKind::Log){
-        std::size_t budget=4096;
-        if(proven_sign(a->a,budget)==ProvenSign::Positive)return a->a;
-    }
-    if(kind==RealKind::Log&&a->kind==RealKind::Exp)return a->a;
-    if(kind==RealKind::Log){
-        std::size_t budget=4096;
-        const auto sign=proven_sign(a,budget);
-        if(sign==ProvenSign::Negative||sign==ProvenSign::Zero||
-           sign==ProvenSign::NonPositive)
-            exact_fail("log requires a positive bigreal");
-    }
-    return unary(kind,std::move(a));
-}
-
 struct BigIntValue{BigInt value;};
 struct BigRealValue{RealPtr value;};
 
@@ -899,68 +816,6 @@ std::string rational_decimal(const Rational&r,int significant){
     return (negative?"-":"")+whole+"."+fraction;
 }
 
-std::string sqrt_rational_decimal(const Rational&r,int significant){
-    if(r.num.sign<0)exact_fail("sqrt is undefined for negative bigreal");
-    if(!r.num.sign)return "0.0";
-    const int sig=significant>0?significant:34;
-    const auto whole=divmod(r.num,r.den).first;
-    const auto whole_root=isqrt_decimal(whole.text());
-    const int integer_digits=whole_root=="0"?1:static_cast<int>(whole_root.size());
-    const int fraction_digits=std::max(1,sig-integer_digits)+2;
-    auto scaled=mul(r.num,pow10(static_cast<std::size_t>(2*fraction_digits)));
-    const auto quotient=divmod(scaled,r.den).first;
-    auto root=isqrt_decimal(quotient.text());
-    if(static_cast<int>(root.size())<=fraction_digits)
-        root=std::string(static_cast<std::size_t>(fraction_digits+1-root.size()),'0')+root;
-    std::string integer=root.substr(
-        0,root.size()-static_cast<std::size_t>(fraction_digits));
-    std::string fraction=root.substr(
-        root.size()-static_cast<std::size_t>(fraction_digits));
-    const int keep=std::max(1,sig-static_cast<int>(integer=="0"?0:integer.size()));
-    if(static_cast<int>(fraction.size())>keep){
-        const bool up=fraction[static_cast<std::size_t>(keep)]>='5';
-        fraction.resize(static_cast<std::size_t>(keep));
-        if(up){
-            int i=static_cast<int>(fraction.size())-1;
-            while(i>=0&&fraction[static_cast<std::size_t>(i)]=='9'){
-                fraction[static_cast<std::size_t>(i)]='0';--i;
-            }
-            if(i>=0)++fraction[static_cast<std::size_t>(i)];
-            else{
-                bool ok=false;auto w=BigInt::parse(integer,ok);
-                integer=add(w,BigInt::from_u64(1)).text();
-            }
-        }
-    }
-    while(fraction.size()>1&&fraction.back()=='0')fraction.pop_back();
-    return integer+"."+fraction;
-}
-
-const std::string PI_DIGITS=
-"3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852";
-const std::string E_DIGITS=
-"2.71828182845904523536028747135266249775724709369995957496696762772407663035354759457138217852516642742746639193200305992181741359662904357290033429526059563073813232862794349";
-
-std::string constant_text(const std::string&digits,int significant){
-    const int sig=significant>0?significant:34;
-    const auto dot=digits.find('.');
-    if(dot==std::string::npos)return digits;
-    const int keep=std::max(1,sig-1);
-    if(dot+1+static_cast<std::size_t>(keep)>=digits.size())return digits;
-    return digits.substr(0,dot+1+static_cast<std::size_t>(keep));
-}
-Rational constant_bound(const std::string&digits,bool upper){
-    std::string raw=digits;
-    const auto dot=raw.find('.');
-    const std::size_t fraction=raw.size()-dot-1;
-    raw.erase(dot,1);
-    bool ok=false;auto n=BigInt::parse(raw,ok);
-    if(!ok)exact_fail("internal constant bound failure");
-    auto d=pow10(fraction);
-    if(upper)n=add(n,BigInt::from_u64(1));
-    return Rational(std::move(n),std::move(d));
-}
-
 long double eval_ld(const RealPtr&x,std::size_t&budget){
     if(!x||!budget--)exact_fail("bigreal evaluation budget exhausted");
     switch(x->kind){
@@ -971,29 +826,28 @@ long double eval_ld(const RealPtr&x,std::size_t&budget){
                 return n/d;
             }catch(...){exact_fail("bigreal magnitude exceeds display evaluator range");}
         }
-        case RealKind::Pi:return std::acos(-1.0L);
-        case RealKind::E:return std::exp(1.0L);
-        case RealKind::Sqrt:{
-            const auto value=eval_ld(x->a,budget);
-            if(value<0.0L)exact_fail("sqrt is undefined for negative bigreal");
-            return std::sqrt(value);
+        case RealKind::Atom:{
+            const auto decimal=exact_atom_decimal(x->provider,x->opcode);
+            if(!decimal)exact_fail("exact-real provider atom is unavailable");
+            try{return std::stold(*decimal);}
+            catch(...){exact_fail("exact-real provider atom exceeds display evaluator range");}
         }
-        case RealKind::Sin:return std::sin(eval_ld(x->a,budget));
-        case RealKind::Cos:return std::cos(eval_ld(x->a,budget));
-        case RealKind::Tan:return std::tan(eval_ld(x->a,budget));
-        case RealKind::Log:{
-            const auto value=eval_ld(x->a,budget);
-            if(!(value>0.0L))exact_fail("log requires a positive bigreal");
-            return std::log(value);
+        case RealKind::ProviderUnary:{
+            const auto provider=exact_unary_provider(x->provider);
+            if(!provider||!provider->evaluate)
+                exact_fail("exact-real provider unary operation is unavailable");
+            const double input=static_cast<double>(eval_ld(x->a,budget));
+            double output=0.0;
+            if(!provider->evaluate(x->opcode,input,&output)||!std::isfinite(output))
+                exact_fail("exact-real provider unary evaluation failed");
+            return static_cast<long double>(output);
         }
-        case RealKind::Exp:return std::exp(eval_ld(x->a,budget));
         case RealKind::Pow:return std::pow(eval_ld(x->a,budget),eval_ld(x->b,budget));
         case RealKind::Add:return eval_ld(x->a,budget)+eval_ld(x->b,budget);
         case RealKind::Sub:return eval_ld(x->a,budget)-eval_ld(x->b,budget);
         case RealKind::Mul:return eval_ld(x->a,budget)*eval_ld(x->b,budget);
         case RealKind::Div:return eval_ld(x->a,budget)/eval_ld(x->b,budget);
         case RealKind::Neg:return -eval_ld(x->a,budget);
-        case RealKind::Abs:return std::fabs(eval_ld(x->a,budget));
     }
     return 0;
 }
@@ -1014,36 +868,25 @@ bool try_eval_ld(const RealPtr& x, std::size_t& budget, long double& out) {
             }
             return std::isfinite(out);
         }
-        case RealKind::Pi:
-            out = std::acos(-1.0L);
+        case RealKind::Atom: {
+            const auto decimal=exact_atom_decimal(x->provider,x->opcode);
+            if(!decimal)return false;
+            try{out=std::stold(*decimal);}
+            catch(...){return false;}
+            return std::isfinite(out);
+        }
+        case RealKind::ProviderUnary: {
+            const auto provider=exact_unary_provider(x->provider);
+            if(!provider||!provider->evaluate)return false;
+            if(!try_eval_ld(x->a,budget,a))return false;
+            double evaluated=0.0;
+            if(!provider->evaluate(
+                    x->opcode,static_cast<double>(a),&evaluated)||
+               !std::isfinite(evaluated))
+                return false;
+            out=static_cast<long double>(evaluated);
             return true;
-        case RealKind::E:
-            out = std::exp(1.0L);
-            return true;
-        case RealKind::Sqrt:
-            if (!try_eval_ld(x->a, budget, a) || a < 0.0L) return false;
-            out = std::sqrt(a);
-            return std::isfinite(out);
-        case RealKind::Sin:
-            if (!try_eval_ld(x->a, budget, a)) return false;
-            out = std::sin(a);
-            return std::isfinite(out);
-        case RealKind::Cos:
-            if (!try_eval_ld(x->a, budget, a)) return false;
-            out = std::cos(a);
-            return std::isfinite(out);
-        case RealKind::Tan:
-            if (!try_eval_ld(x->a, budget, a)) return false;
-            out = std::tan(a);
-            return std::isfinite(out);
-        case RealKind::Log:
-            if (!try_eval_ld(x->a, budget, a) || !(a > 0.0L)) return false;
-            out = std::log(a);
-            return std::isfinite(out);
-        case RealKind::Exp:
-            if (!try_eval_ld(x->a, budget, a)) return false;
-            out = std::exp(a);
-            return std::isfinite(out);
+        }
         case RealKind::Pow:
             if (!try_eval_ld(x->a, budget, a) ||
                 !try_eval_ld(x->b, budget, b)) return false;
@@ -1073,10 +916,6 @@ bool try_eval_ld(const RealPtr& x, std::size_t& budget, long double& out) {
             if (!try_eval_ld(x->a, budget, a)) return false;
             out = -a;
             return std::isfinite(out);
-        case RealKind::Abs:
-            if (!try_eval_ld(x->a, budget, a)) return false;
-            out = std::fabs(a);
-            return std::isfinite(out);
     }
     return false;
 }
@@ -1085,10 +924,20 @@ std::string real_text(const RealPtr&x,int significant){
     if(!x)return "0.0";
     if(x->kind==RealKind::Rational)
         return rational_decimal(x->rational,significant);
-    if(x->kind==RealKind::Pi)return constant_text(PI_DIGITS,significant);
-    if(x->kind==RealKind::E)return constant_text(E_DIGITS,significant);
-    if(x->kind==RealKind::Sqrt&&x->a&&x->a->kind==RealKind::Rational)
-        return sqrt_rational_decimal(x->a->rational,significant);
+    if(x->kind==RealKind::Atom){
+        const auto decimal=exact_atom_decimal(x->provider,x->opcode);
+        if(!decimal)exact_fail("exact-real provider atom is unavailable");
+        const int sig=significant>0?significant:34;
+        const auto dot=decimal->find('.');
+        if(dot==std::string::npos)return *decimal;
+        const std::size_t integer_digits=
+            (!decimal->empty()&&((*decimal)[0]=='-'||(*decimal)[0]=='+'))
+                ?dot-1:dot;
+        const std::size_t keep_fraction=
+            static_cast<std::size_t>(std::max(1,sig-static_cast<int>(integer_digits)));
+        const auto keep=dot+1+keep_fraction;
+        return keep<decimal->size()?decimal->substr(0,keep):*decimal;
+    }
     const int display_digits=std::min(significant>0?significant:18,18);
     std::size_t budget=4096;
     const auto value=eval_ld(x,budget);
@@ -1101,14 +950,6 @@ std::string real_text(const RealPtr&x,int significant){
     return out;
 }
 
-int compare_constant_to_rational(RealKind kind,const Rational&r){
-    const auto&digits=kind==RealKind::Pi?PI_DIGITS:E_DIGITS;
-    const auto low=constant_bound(digits,false);
-    const auto high=constant_bound(digits,true);
-    if(rat_cmp(high,r)<0)return -1;
-    if(rat_cmp(low,r)>0)return 1;
-    exact_fail("bigreal comparison needs more certified constant digits");
-}
 int real_compare(const RealPtr&a,const RealPtr&b,
                  unsigned long long line,unsigned long long column){
     std::size_t budget=8192;
@@ -1121,46 +962,117 @@ int real_compare(const RealPtr&a,const RealPtr&b,
     }
     if(a->kind==RealKind::Rational&&b->kind==RealKind::Rational)
         return rat_cmp(a->rational,b->rational);
-    if((a->kind==RealKind::Pi||a->kind==RealKind::E)&&
-       b->kind==RealKind::Rational)
-        return compare_constant_to_rational(a->kind,b->rational);
-    if((b->kind==RealKind::Pi||b->kind==RealKind::E)&&
-       a->kind==RealKind::Rational)
-        return -compare_constant_to_rational(b->kind,a->rational);
-    if(a->kind==RealKind::Pi&&b->kind==RealKind::E)return 1;
-    if(a->kind==RealKind::E&&b->kind==RealKind::Pi)return -1;
-    if(a->kind==RealKind::Sqrt&&a->a&&a->a->kind==RealKind::Rational&&
-       b->kind==RealKind::Rational&&b->rational.num.sign>=0)
-        return rat_cmp(a->a->rational,rat_mul(b->rational,b->rational));
-    if(b->kind==RealKind::Sqrt&&b->a&&b->a->kind==RealKind::Rational&&
-       a->kind==RealKind::Rational&&a->rational.num.sign>=0)
-        return -rat_cmp(b->a->rational,rat_mul(a->rational,a->rational));
+    const auto atom_vs_rational=[](const RealPtr& atom_value,
+                                   const Rational& rational)->std::optional<int>{
+        Rational low,high;
+        if(!atom_bounds(atom_value,low,high))return std::nullopt;
+        if(rat_cmp(high,rational)<0)return -1;
+        if(rat_cmp(low,rational)>0)return 1;
+        return std::nullopt;
+    };
+    if(a->kind==RealKind::Atom&&b->kind==RealKind::Rational){
+        if(const auto compared=atom_vs_rational(a,b->rational))return *compared;
+    }
+    if(b->kind==RealKind::Atom&&a->kind==RealKind::Rational){
+        if(const auto compared=atom_vs_rational(b,a->rational))return -*compared;
+    }
+    if(a->kind==RealKind::Atom&&b->kind==RealKind::Atom){
+        Rational al,ah,bl,bh;
+        if(atom_bounds(a,al,ah)&&atom_bounds(b,bl,bh)){
+            if(rat_cmp(ah,bl)<0)return -1;
+            if(rat_cmp(al,bh)>0)return 1;
+        }
+    }
     exact_fail("bigreal comparison could not be proven within the finite proof budget",
                line,column);
 }
 
-BigInt round_real(const RealPtr&x,int operation,
-                  unsigned long long line,unsigned long long column){
-    if(!x||x->kind!=RealKind::Rational)
-        exact_fail("bigreal rounding could not be proven exactly",line,column);
-    const auto&r=x->rational;
-    auto qr=divmod(r.num,r.den);
-    auto q=std::move(qr.first);auto rem=std::move(qr.second);
-    if(!rem.sign)return q;
-    // 1=trunc, 2=round half away from zero, 3=floor, 4=ceil
-    if(operation==1)return q;
-    if(operation==3&&r.num.sign<0)return sub(q,BigInt::from_u64(1));
-    if(operation==4&&r.num.sign>0)return add(q,BigInt::from_u64(1));
-    if(operation==2){
-        const auto twice=mul_small(absbi(rem),2);
-        if(cmp(twice,r.den)>=0)
-            return r.num.sign<0?sub(q,BigInt::from_u64(1))
-                               :add(q,BigInt::from_u64(1));
+} // namespace
+
+extern "C" int qcore_exact_real_provider_register(
+    const char* provider,
+    qcore_exact_real_atom_decimal_fn atom_decimal) {
+    if(!provider||!*provider||!atom_decimal)return 0;
+    try{
+        const std::string name(provider);
+        std::lock_guard<std::mutex> lock(exact_atom_provider_mutex());
+        auto& providers=exact_atom_providers();
+        const auto found=providers.find(name);
+        if(found!=providers.end())
+            return found->second==atom_decimal?1:0;
+        providers.emplace(name,atom_decimal);
+        return 1;
+    }catch(...){
+        return 0;
     }
-    return q;
 }
 
-} // namespace
+extern "C" int qcore_exact_real_provider_register_unary(
+    const char* provider,
+    qcore_exact_real_unary_float64_fn evaluate,
+    qcore_exact_real_unary_flags_fn flags) {
+    if(!provider||!*provider||!evaluate||!flags)return 0;
+    try{
+        const std::string name(provider);
+        std::lock_guard<std::mutex> lock(exact_atom_provider_mutex());
+        auto& providers=exact_unary_providers();
+        const auto found=providers.find(name);
+        if(found!=providers.end())
+            return found->second.evaluate==evaluate&&found->second.flags==flags?1:0;
+        providers.emplace(name,ExactUnaryProvider{evaluate,flags});
+        return 1;
+    }catch(...){
+        return 0;
+    }
+}
+
+extern "C" void* qcore_exact_real_unary(
+    const char* provider,std::uint32_t opcode,const void* input){
+    if(!provider||!*provider||!input)
+        exact_fail("invalid exact-real unary provider call");
+    const std::string name(provider);
+    const auto registered=exact_unary_provider(name);
+    if(!registered||!registered->evaluate||!registered->flags)
+        exact_fail("exact-real unary provider is unavailable");
+    const auto flags=registered->flags(opcode);
+    const auto source=br(const_cast<void*>(input))->value;
+    std::size_t sign_budget=4096;
+    const auto sign=proven_sign(source,sign_budget);
+    if((flags&QCORE_EXACT_UNARY_DOMAIN_POSITIVE)&&
+       (sign==ProvenSign::Negative||sign==ProvenSign::Zero||
+        sign==ProvenSign::NonPositive))
+        exact_fail("exact-real unary input is outside the provider domain");
+    if((flags&QCORE_EXACT_UNARY_DOMAIN_NONNEGATIVE)&&
+       sign==ProvenSign::Negative)
+        exact_fail("exact-real unary input is outside the provider domain");
+    return make_br(provider_unary(name,opcode,source));
+}
+
+extern "C" void* qcore_exact_real_atom(
+    const char* provider,std::uint32_t opcode){
+    if(!provider||!*provider)exact_fail("invalid exact-real provider");
+    const std::string name(provider);
+    Rational low,high;
+    auto value=atom(name,opcode);
+    if(!atom_bounds(value,low,high))
+        exact_fail("exact-real provider or atom opcode is unavailable");
+    return make_br(std::move(value));
+}
+
+extern "C" double qcore_exact_real_atom_float64(
+    const char* provider,std::uint32_t opcode){
+    if(!provider||!*provider)exact_fail("invalid exact-real provider");
+    const auto decimal=exact_atom_decimal(provider,opcode);
+    if(!decimal)exact_fail("exact-real provider or atom opcode is unavailable");
+    try{
+        const double value=std::stod(*decimal);
+        if(!std::isfinite(value))
+            exact_fail("exact-real provider atom is not finite");
+        return value;
+    }catch(...){
+        exact_fail("exact-real provider atom cannot be observed as float");
+    }
+}
 
 extern "C" void quidra_bigint_drop(void*p){
     if(p)bi(p)->~BigIntValue();
@@ -1180,8 +1092,6 @@ extern "C" void* quidra_bigint_parse(const char*text){
 }
 extern "C" void* quidra_bigreal_literal(const char*text){
     if(!text)exact_fail("invalid bigreal literal");
-    if(std::strcmp(text,"$pi")==0)return make_br(special(RealKind::Pi));
-    if(std::strcmp(text,"$e")==0)return make_br(special(RealKind::E));
     Rational rational;
     if(!parse_decimal(text,rational))exact_fail("invalid bigreal literal");
     return make_br(rr(std::move(rational)));
@@ -1205,11 +1115,6 @@ extern "C" void* quidra_bigint_neg(
     if(!p)exact_fail("null bigint",line,column);
     return make_bi(neg(bi(p)->value));
 }
-extern "C" void* quidra_bigint_abs(
-    void*p,unsigned long long line,unsigned long long column){
-    if(!p)exact_fail("null bigint",line,column);
-    return make_bi(absbi(bi(p)->value));
-}
 extern "C" void* quidra_bigint_binary(
     void*left,void*right,int operation,
     unsigned long long line,unsigned long long column){
@@ -1224,6 +1129,22 @@ extern "C" void* quidra_bigint_binary(
         default:exact_fail("invalid bigint operation",line,column);
     }
 }
+extern "C" void* quidra_bigint_pow(
+    void*left,void*right,unsigned long long line,unsigned long long column){
+    if(!left||!right)exact_fail("null bigint power operand",line,column);
+    auto base=bi(left)->value;
+    auto exponent=bi(right)->value;
+    if(exponent.sign<0)
+        exact_fail("bigint exponent must be non-negative",line,column);
+    auto result=BigInt::from_u64(1);
+    while(exponent.sign){
+        auto quotient=div_small(exponent,2);
+        if((quotient.second&1U)!=0)result=mul(result,base);
+        exponent=std::move(quotient.first);
+        if(exponent.sign)base=mul(base,base);
+    }
+    return make_bi(std::move(result));
+}
 extern "C" int quidra_bigint_compare(void*left,void*right){
     if(!left||!right)exact_fail("null bigint comparison");
     return cmp(bi(left)->value,bi(right)->value);
@@ -1233,11 +1154,6 @@ extern "C" void* quidra_bigreal_neg(
     void*p,unsigned long long line,unsigned long long column){
     if(!p)exact_fail("null bigreal",line,column);
     return make_br(real_neg(br(p)->value));
-}
-extern "C" void* quidra_bigreal_abs(
-    void*p,unsigned long long line,unsigned long long column){
-    if(!p)exact_fail("null bigreal",line,column);
-    return make_br(real_abs(br(p)->value));
 }
 extern "C" void* quidra_bigreal_binary(
     void*left,void*right,int operation,
@@ -1256,25 +1172,6 @@ extern "C" int quidra_bigreal_compare(
     void*left,void*right,unsigned long long line,unsigned long long column){
     if(!left||!right)exact_fail("null bigreal comparison",line,column);
     return real_compare(br(left)->value,br(right)->value,line,column);
-}
-extern "C" void* quidra_bigreal_sqrt(
-    void*p,unsigned long long line,unsigned long long column){
-    if(!p)exact_fail("null bigreal",line,column);
-    return make_br(simplify_sqrt(br(p)->value));
-}
-extern "C" void* quidra_bigreal_math_unary(
-    void*p,int operation,unsigned long long line,unsigned long long column){
-    if(!p)exact_fail("null bigreal",line,column);
-    RealKind kind=RealKind::Sin;
-    switch(operation){
-        case 1:kind=RealKind::Sin;break;
-        case 2:kind=RealKind::Cos;break;
-        case 3:kind=RealKind::Tan;break;
-        case 4:kind=RealKind::Log;break;
-        case 5:kind=RealKind::Exp;break;
-        default:exact_fail("invalid bigreal math operation",line,column);
-    }
-    return make_br(real_math(kind,br(p)->value));
 }
 extern "C" void* quidra_bigreal_pow(
     void*left,void*right,unsigned long long line,unsigned long long column){
@@ -1302,12 +1199,6 @@ extern "C" void* quidra_bigreal_pow(
     }
     return make_br(binary(RealKind::Pow,std::move(base),std::move(exponent)));
 }
-extern "C" void* quidra_bigreal_round(
-    void*p,int operation,unsigned long long line,unsigned long long column){
-    if(!p)exact_fail("null bigreal",line,column);
-    return make_bi(round_real(br(p)->value,operation,line,column));
-}
-
 extern "C" void* quidra_bigint_from_i64(long long value){
     return make_bi(BigInt::from_i64(value));
 }
@@ -1457,6 +1348,45 @@ extern "C" bool quidra_bigint_try_float32(void*p,float*out){
     *out=result;
     return true;
 }
+extern "C" bool quidra_exact_numeric_cast_fits(
+    void* p,int source_kind,int target_kind,int bits){
+    if(!p)exact_fail("null exact numeric conversion storage");
+    if(source_kind!=1&&source_kind!=2)return false;
+    if(target_kind==1){
+        if(source_kind==1)return true;
+        const auto value=br(p)->value;
+        return value->kind==RealKind::Rational&&rat_int(value->rational);
+    }
+    if(target_kind==2)return true;
+    if(target_kind==3){
+        long long out=0;
+        if(source_kind==1)return bigint_try_i64_value(bi(p)->value,bits,out);
+        const auto value=br(p)->value;
+        return value->kind==RealKind::Rational&&rat_int(value->rational)&&
+            bigint_try_i64_value(value->rational.num,bits,out);
+    }
+    if(target_kind==4){
+        unsigned long long out=0;
+        if(source_kind==1)return bigint_try_u64_value(bi(p)->value,bits,out);
+        const auto value=br(p)->value;
+        return value->kind==RealKind::Rational&&rat_int(value->rational)&&
+            bigint_try_u64_value(value->rational.num,bits,out);
+    }
+    if(target_kind==5){
+        float out=0.0F;
+        return source_kind==1
+            ? quidra_bigint_try_float32(p,&out)
+            : quidra_bigreal_try_float32(p,&out);
+    }
+    if(target_kind==6){
+        double out=0.0;
+        return source_kind==1
+            ? quidra_bigint_try_float64(p,&out)
+            : quidra_bigreal_try_float64(p,&out);
+    }
+    return false;
+}
+
 extern "C" double quidra_bigreal_to_float64(
     void*p,unsigned long long line,unsigned long long column){
     double result=0.0;

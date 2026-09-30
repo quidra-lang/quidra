@@ -107,7 +107,8 @@ Result timed(int index)
     time.Duration elapsed = time.since(start)
     int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
     print("ITER {index} {elapsed_ns}")
-    io.flush()
+    print(NL)
+    flush()
     return result
 
 Result result
@@ -120,3 +121,4 @@ else
     result = workload()
 
 print("MB08 {result.acc} {result.length} {result.cnt_ab} {result.cnt_w}")
+print(NL)

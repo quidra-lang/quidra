@@ -1,5 +1,6 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 string read_input_line()
     string line = ""
     void | error read = scan(&line)
@@ -19,6 +20,8 @@ for i in range(1, 3)
         best = x
 bool selfeq = m == m
 print("OBS=MAX:{best:frac=6}|SELFEQ:{selfeq}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

@@ -53,6 +53,12 @@ int main() {
             << "homepage = https://example.invalid/sample\n"
             << "asset.linux-x86_64 = https://example.invalid/sample-linux.tar.xz\n"
             << "asset.default = https://example.invalid/sample-portable.tar.gz\n"
+            << "native.linux-x86_64 = native/libsample-linux.so\n"
+            << "native.default = native/libsample-portable.so\n"
+            << "native.source.bridge = native/bridge.cpp\n"
+            << "native.source.macos-arm64.metal = native/metal.mm\n"
+            << "native.source.linux-x86_64.cuda = native/cuda.cu\n"
+            << "native.pkg.compression = zlib\n"
             << "requires.quidra = >=0.2.0 <0.3.0\n"
             << "requires.vision = >=0.1.0 <0.2.0\n";
     }
@@ -74,6 +80,51 @@ int main() {
         manifest.assets.at("default") ==
         "https://example.invalid/sample-portable.tar.gz");
     assert(
+        manifest.native_libraries.at("linux-x86_64") ==
+        "native/libsample-linux.so");
+    assert(
+        manifest.native_libraries.at("default") ==
+        "native/libsample-portable.so");
+    assert(manifest.native_sources.at("bridge") == "native/bridge.cpp");
+    assert(manifest.native_platform_sources.at("macos-arm64").at("metal") == "native/metal.mm");
+    assert(manifest.native_platform_sources.at("linux-x86_64").at("cuda") == "native/cuda.cu");
+    assert(manifest.native_pkg_config.at("compression") == "zlib");
+
+    fs::create_directories(root / "native");
+    {
+        std::ofstream out(root / "native" / "libsample-linux.so");
+        out << "fixture";
+    }
+    {
+        std::ofstream out(root / "native" / "libsample-portable.so");
+        out << "fixture";
+    }
+    {
+        std::ofstream out(root / "native" / "bridge.cpp");
+        out << "extern \"C\" int bridge(){return 7;}\n";
+    }
+    if (const auto platform = package_host_platform()) {
+        if (*platform == "macos-arm64") {
+            std::ofstream out(root / "native" / "metal.mm");
+            out << "extern \"C\" int metal_source(){return 1;}\n";
+        } else if (*platform == "linux-x86_64") {
+            std::ofstream out(root / "native" / "cuda.cu");
+            out << "extern \"C\" int cuda_source(){return 1;}\n";
+        }
+    }
+    const auto native_sources = package_native_source_paths(root, manifest);
+    const auto host_platform = package_host_platform();
+    const std::size_t expected_native_sources =
+        host_platform && (*host_platform == "macos-arm64" || *host_platform == "linux-x86_64") ? 2 : 1;
+    assert(native_sources.size() == expected_native_sources);
+    assert(
+        native_sources.front() ==
+        (fs::absolute(root) / "native" / "bridge.cpp").lexically_normal());
+    const auto native_path = package_native_library_path(root, manifest);
+    assert(native_path);
+    assert(fs::is_regular_file(*native_path));
+
+    assert(
         manifest.requirements.at("quidra")
             .matches(parse_semantic_version("0.2.5")));
     assert(
@@ -84,6 +135,12 @@ int main() {
     // optional and older packages predate the file.
     assert(!manifest.project);
 
+    fs::create_directories(root / "compiler");
+    {
+        std::ofstream out(root / "compiler" / "optimize.toml");
+        out << "[extension]\n"
+            << "version = 1\n";
+    }
     {
         std::ofstream out(root / "project.toml");
         out << "[package]\n"
@@ -95,7 +152,10 @@ int main() {
             << "\n"
             << "[requires]\n"
             << "quidra = \">=0.2.0 <0.3.0\"\n"
-            << "abi = 1\n";
+            << "abi = 1\n"
+            << "\n"
+            << "[compiler.extension]\n"
+            << "optimize = \"compiler/optimize.toml\"\n";
     }
 
     const auto described = read_package_manifest(root);
@@ -111,6 +171,13 @@ int main() {
     assert(!is_distribution_package_name("Quidra Sample"));
     assert(described.project->abi_requirement &&
            *described.project->abi_requirement == 1);
+    assert(described.project->compiler_extensions.at("optimize") ==
+           "compiler/optimize.toml");
+    const auto compiler_extensions =
+        package_compiler_extension_paths(root, described);
+    assert(compiler_extensions.size() == 1);
+    assert(compiler_extensions.at("optimize") ==
+           (fs::absolute(root) / "compiler" / "optimize.toml").lexically_normal());
 
     // quidra.package is generated from project.toml, so a disagreement means
     // one of them was hand-edited.

@@ -93,6 +93,7 @@ bool spaced_operator(TokenKind kind) {
         case TokenKind::Star:
         case TokenKind::Slash:
         case TokenKind::Percent:
+        case TokenKind::Caret:
         case TokenKind::Pipe:
             return true;
         default:

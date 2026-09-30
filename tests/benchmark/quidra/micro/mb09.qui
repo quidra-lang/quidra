@@ -125,7 +125,8 @@ Result timed(int index)
     time.Duration elapsed = time.since(start)
     int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
     print("ITER {index} {elapsed_ns}")
-    io.flush()
+    print(NL)
+    flush()
     return result
 
 Result result
@@ -138,3 +139,4 @@ else
     result = workload()
 
 print("MB09 mean={result.mean:sig=17} var={result.var:sig=17} sd={result.sd:sig=17} min={result.mn:sig=17} max={result.mx:sig=17} mad={result.mad:sig=17} pearson={result.pearson:sig=17} hist_chk={result.hist_chk}")
+print(NL)

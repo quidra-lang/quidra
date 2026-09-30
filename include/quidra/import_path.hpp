@@ -48,8 +48,6 @@ inline constexpr bool is_importable_package_name(std::string_view name) {
         return false;
     }
 
-    // Standard namespaces are always visible and are deliberately not package
-    // imports, so accepting one here would install an unreachable package.
     return !is_standard_module(name);
 }
 

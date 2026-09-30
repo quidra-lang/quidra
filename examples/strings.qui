@@ -1,15 +1,24 @@
 auto name = "Quidra"
 int n = 42
 auto ready = true
-string separator = TAB
+string separator = HT
 
 print("Hello, {name}")
+print(NL)
 print("n = {n}; ready = {ready}")
+print(NL)
 print("first line
 second line")
-print("first{ENTER}second")
+print(NL)
+print("first{NL}second")
+print(NL)
 print("A{separator}B")
-print("{QUOTE}quoted{QUOTE}")
+print(NL)
+print("{DQ}quoted{DQ}")
+print(NL)
 print("C:\Users\data\image.png")
+print(NL)
 print("nested {error("value")}")
+print(NL)
 print("Hello, " + name == "Hello, Quidra")
+print(NL)

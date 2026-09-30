@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
-#include <filesystem>
 #include <functional>
 #include <iterator>
 #include <limits>
@@ -641,597 +640,6 @@ bool cuda_copy_from_host_async(CudaApi& api,int backend_index,
     return true;
 }
 
-template <std::size_t N>
-bool open_dnn_nvidia_library(DynamicLibrary& library,
-                             const std::array<const char*, N>& names) {
-    std::string configured_root;
-    std::string managed_root;
-    bool allow_system_libraries = false;
-#ifdef _WIN32
-    char* root_buffer = nullptr;
-    std::size_t root_size = 0;
-    if (_dupenv_s(&root_buffer, &root_size,
-                  "QUIDRA_DNN_NVIDIA_LIBRARY_PATH") == 0 &&
-        root_buffer && *root_buffer) {
-        configured_root.assign(root_buffer);
-    }
-    std::free(root_buffer);
-
-    char* home_buffer = nullptr;
-    std::size_t home_size = 0;
-    if (_dupenv_s(&home_buffer, &home_size, "USERPROFILE") == 0 &&
-        home_buffer && *home_buffer) {
-        managed_root =
-            (std::filesystem::path(home_buffer) /
-             std::filesystem::path(std::string(package_store_relative)) /
-             "dnn" / "nvidia" / "lib")
-                .string();
-    }
-    std::free(home_buffer);
-
-    char* allow_buffer = nullptr;
-    std::size_t allow_size = 0;
-    if (_dupenv_s(&allow_buffer, &allow_size,
-                  "QUIDRA_DNN_ALLOW_SYSTEM_NVIDIA_LIBS") == 0 &&
-        allow_buffer) {
-        allow_system_libraries = std::string_view(allow_buffer) == "1";
-    }
-    std::free(allow_buffer);
-#else
-    if (const char* root = std::getenv("QUIDRA_DNN_NVIDIA_LIBRARY_PATH");
-        root && *root) {
-        configured_root.assign(root);
-    }
-    if (const char* home = std::getenv("HOME"); home && *home) {
-        managed_root =
-            (std::filesystem::path(home) /
-             std::filesystem::path(std::string(package_store_relative)) /
-             "dnn" / "nvidia" / "lib")
-                .string();
-    }
-    if (const char* allow_system =
-            std::getenv("QUIDRA_DNN_ALLOW_SYSTEM_NVIDIA_LIBS");
-        allow_system) {
-        allow_system_libraries = std::string_view(allow_system) == "1";
-    }
-#endif
-
-    const auto open_root = [&](const std::string& root) {
-        if (root.empty()) return false;
-        std::string prefix = root;
-        if (prefix.back() != '/' && prefix.back() != '\\') prefix.push_back('/');
-        for (const char* name : names) {
-            const auto candidate = prefix + name;
-            if (library.open(candidate.c_str())) return true;
-        }
-        return false;
-    };
-
-    // An explicit override is strict: a typo must fail instead of silently
-    // loading a different system library. Without an override, prefer the
-    // managed DNN package bundle before any opt-in system fallback.
-    if (!configured_root.empty()) return open_root(configured_root);
-    if (open_root(managed_root)) return true;
-
-    if (!allow_system_libraries) return false;
-    for (const char* name : names) {
-        if (library.open(name)) return true;
-    }
-    return false;
-}
-
-
-struct CublasApi {
-    using Handle = void*;
-    using Status = int;
-    using Operation = int;
-    using AtomicsMode = int;
-
-    DynamicLibrary library;
-    Status (*create)(Handle*){};
-    Status (*destroy)(Handle){};
-    Status (*set_atomics_mode)(Handle, AtomicsMode){};
-    Status (*sgemm)(Handle, Operation, Operation, int, int, int,
-                    const float*, const float*, int, const float*, int,
-                    const float*, float*, int){};
-    Status (*dgemm)(Handle, Operation, Operation, int, int, int,
-                    const double*, const double*, int, const double*, int,
-                    const double*, double*, int){};
-    std::vector<Handle> handles;
-    std::vector<std::shared_ptr<std::mutex>> operation_mutexes;
-    std::mutex mutex;
-    bool ready{};
-
-    CublasApi() {
-#ifdef _WIN32
-        constexpr std::array names{
-            "cublas64_13.dll", "cublas64_12.dll", "cublas64_11.dll"};
-#else
-        constexpr std::array names{
-            "libcublas.so.13", "libcublas.so.12", "libcublas.so.11",
-            "libcublas.so"};
-#endif
-        if (!open_dnn_nvidia_library(library, names)) return;
-        create = load_symbol<decltype(create)>(library, "cublasCreate_v2");
-        destroy = load_symbol<decltype(destroy)>(library, "cublasDestroy_v2");
-        set_atomics_mode =
-            load_symbol<decltype(set_atomics_mode)>(library, "cublasSetAtomicsMode");
-        sgemm = load_symbol<decltype(sgemm)>(library, "cublasSgemm_v2");
-        dgemm = load_symbol<decltype(dgemm)>(library, "cublasDgemm_v2");
-        ready = create && destroy && sgemm && dgemm;
-    }
-
-    ~CublasApi() {
-        if (!destroy) return;
-        for (auto handle : handles) {
-            if (handle) (void)destroy(handle);
-        }
-    }
-
-    Handle handle(int backend_index, std::string& error) {
-        if (!ready) return nullptr;
-        auto& cu = cuda();
-        CudaApi::CUcontext context = nullptr;
-        if (!cu.current(backend_index, context, error)) return nullptr;
-        std::lock_guard lock(mutex);
-        int count = 0;
-        if (cu.device_count(&count) != 0 || backend_index < 0 ||
-            backend_index >= count) {
-            error = "NVIDIA GPU index is unavailable";
-            return nullptr;
-        }
-        if (handles.size() < static_cast<std::size_t>(count))
-            handles.resize(static_cast<std::size_t>(count), nullptr);
-        if (operation_mutexes.size() < static_cast<std::size_t>(count))
-            operation_mutexes.resize(static_cast<std::size_t>(count));
-        auto& operation = operation_mutexes[static_cast<std::size_t>(backend_index)];
-        if (!operation) operation = std::make_shared<std::mutex>();
-        auto& result = handles[static_cast<std::size_t>(backend_index)];
-        if (!result && create(&result) != 0) {
-            result = nullptr;
-            error = "cuBLAS handle creation failed";
-            return nullptr;
-        }
-        return result;
-    }
-
-    std::shared_ptr<std::mutex> operation_mutex(int backend_index) {
-        std::lock_guard lock(mutex);
-        return operation_mutexes.at(static_cast<std::size_t>(backend_index));
-    }
-};
-
-[[maybe_unused]] CublasApi& cublas() {
-    static CublasApi api;
-    return api;
-}
-
-
-struct CudnnApi {
-    using Handle = void*;
-    using TensorDescriptor = void*;
-    using FilterDescriptor = void*;
-    using ConvolutionDescriptor = void*;
-    using Status = int;
-
-    struct FwdPerf {
-        int algo{};
-        int status{};
-        float time{};
-        std::size_t memory{};
-        int determinism{};
-        int math_type{};
-        int reserved[3]{};
-    };
-    using BwdDataPerf = FwdPerf;
-    using BwdFilterPerf = FwdPerf;
-
-    struct ConvDescriptors {
-        TensorDescriptor input{};
-        TensorDescriptor output{};
-        TensorDescriptor bias{};
-        FilterDescriptor weight{};
-        ConvolutionDescriptor convolution{};
-    };
-
-    DynamicLibrary library;
-    Status (*create)(Handle*){};
-    Status (*destroy)(Handle){};
-    Status (*create_tensor)(TensorDescriptor*){};
-    Status (*destroy_tensor)(TensorDescriptor){};
-    Status (*set_tensor4d)(TensorDescriptor,int,int,int,int,int,int){};
-    Status (*create_filter)(FilterDescriptor*){};
-    Status (*destroy_filter)(FilterDescriptor){};
-    Status (*set_filter4d)(FilterDescriptor,int,int,int,int,int,int){};
-    Status (*create_convolution)(ConvolutionDescriptor*){};
-    Status (*destroy_convolution)(ConvolutionDescriptor){};
-    Status (*set_convolution2d)(ConvolutionDescriptor,int,int,int,int,int,int,int,int){};
-    Status (*set_convolution_math_type)(ConvolutionDescriptor,int){};
-    Status (*get_fwd_algorithms)(Handle,TensorDescriptor,FilterDescriptor,
-                                 ConvolutionDescriptor,TensorDescriptor,
-                                 int,int*,FwdPerf*){};
-    Status (*find_fwd_algorithms)(Handle,TensorDescriptor,FilterDescriptor,
-                                  ConvolutionDescriptor,TensorDescriptor,
-                                  int,int*,FwdPerf*){};
-    Status (*get_fwd_workspace)(Handle,TensorDescriptor,FilterDescriptor,
-                                ConvolutionDescriptor,TensorDescriptor,int,
-                                std::size_t*){};
-    Status (*convolution_forward)(Handle,const void*,TensorDescriptor,const void*,
-                                  FilterDescriptor,const void*,ConvolutionDescriptor,
-                                  int,void*,std::size_t,const void*,
-                                  TensorDescriptor,void*){};
-    Status (*add_tensor)(Handle,const void*,TensorDescriptor,const void*,
-                         const void*,TensorDescriptor,void*){};
-    Status (*get_bwd_data_algorithms)(Handle,FilterDescriptor,TensorDescriptor,
-                                      ConvolutionDescriptor,TensorDescriptor,
-                                      int,int*,BwdDataPerf*){};
-    Status (*find_bwd_data_algorithms)(Handle,FilterDescriptor,TensorDescriptor,
-                                       ConvolutionDescriptor,TensorDescriptor,
-                                       int,int*,BwdDataPerf*){};
-    Status (*get_bwd_data_workspace)(Handle,FilterDescriptor,TensorDescriptor,
-                                     ConvolutionDescriptor,TensorDescriptor,int,
-                                     std::size_t*){};
-    Status (*convolution_backward_data)(Handle,const void*,FilterDescriptor,const void*,
-                                        TensorDescriptor,const void*,ConvolutionDescriptor,
-                                        int,void*,std::size_t,const void*,
-                                        TensorDescriptor,void*){};
-    Status (*get_bwd_filter_algorithms)(Handle,TensorDescriptor,TensorDescriptor,
-                                        ConvolutionDescriptor,FilterDescriptor,
-                                        int,int*,BwdFilterPerf*){};
-    Status (*find_bwd_filter_algorithms)(Handle,TensorDescriptor,TensorDescriptor,
-                                         ConvolutionDescriptor,FilterDescriptor,
-                                         int,int*,BwdFilterPerf*){};
-    Status (*get_bwd_filter_workspace)(Handle,TensorDescriptor,TensorDescriptor,
-                                       ConvolutionDescriptor,FilterDescriptor,int,
-                                       std::size_t*){};
-    Status (*convolution_backward_filter)(Handle,const void*,TensorDescriptor,const void*,
-                                          TensorDescriptor,const void*,ConvolutionDescriptor,
-                                          int,void*,std::size_t,const void*,
-                                          FilterDescriptor,void*){};
-    Status (*convolution_backward_bias)(Handle,const void*,TensorDescriptor,const void*,
-                                        const void*,TensorDescriptor,void*){};
-    std::vector<Handle> handles;
-    std::vector<std::shared_ptr<std::mutex>> operation_mutexes;
-    // Reusable per-device cuDNN scratch. A device's operation mutex serializes
-    // access, so steady-state convolution does not need per-call allocation.
-    std::vector<CudaApi::CUdeviceptr> workspaces;
-    std::vector<std::size_t> workspace_sizes;
-    struct CachedConvDescriptors {
-        std::unique_ptr<ConvDescriptors> descriptors;
-        int backend_index{-1};
-        std::uint64_t last_use{};
-    };
-    struct RetiredConvDescriptors {
-        int backend_index{-1};
-        CudaApi::CUevent event{};
-        std::unique_ptr<ConvDescriptors> descriptors;
-    };
-    // Descriptors are immutable after configuration. Keep a bounded LRU per
-    // NVIDIA device; evicted sets are retired behind a CUDA event so an
-    // asynchronous cuDNN call can finish before host descriptors are destroyed.
-    static constexpr std::size_t descriptor_cache_limit_per_device=256;
-    std::unordered_map<std::string,CachedConvDescriptors> convolution_descriptor_cache;
-    std::vector<RetiredConvDescriptors> retired_descriptor_sets;
-    std::vector<std::unique_ptr<ConvDescriptors>> fallback_retired_descriptor_sets;
-    std::uint64_t descriptor_clock{};
-    std::mutex descriptor_mutex;
-    std::mutex mutex;
-    bool ready{};
-
-    CudnnApi() {
-        // Construct CUDA before this singleton so CUDA remains alive while the
-        // cuDNN destructor drains/free its process-lifetime device scratch.
-        (void)cuda();
-#ifdef _WIN32
-        constexpr std::array names{"cudnn64_9.dll", "cudnn64_8.dll"};
-#else
-        constexpr std::array names{
-            "libcudnn.so.9", "libcudnn.so.8", "libcudnn.so"};
-#endif
-        if (!open_dnn_nvidia_library(library, names)) return;
-        create=load_symbol<decltype(create)>(library,"cudnnCreate");
-        destroy=load_symbol<decltype(destroy)>(library,"cudnnDestroy");
-        create_tensor=load_symbol<decltype(create_tensor)>(library,"cudnnCreateTensorDescriptor");
-        destroy_tensor=load_symbol<decltype(destroy_tensor)>(library,"cudnnDestroyTensorDescriptor");
-        set_tensor4d=load_symbol<decltype(set_tensor4d)>(library,"cudnnSetTensor4dDescriptor");
-        create_filter=load_symbol<decltype(create_filter)>(library,"cudnnCreateFilterDescriptor");
-        destroy_filter=load_symbol<decltype(destroy_filter)>(library,"cudnnDestroyFilterDescriptor");
-        set_filter4d=load_symbol<decltype(set_filter4d)>(library,"cudnnSetFilter4dDescriptor");
-        create_convolution=load_symbol<decltype(create_convolution)>(library,"cudnnCreateConvolutionDescriptor");
-        destroy_convolution=load_symbol<decltype(destroy_convolution)>(library,"cudnnDestroyConvolutionDescriptor");
-        set_convolution2d=load_symbol<decltype(set_convolution2d)>(library,"cudnnSetConvolution2dDescriptor");
-        set_convolution_math_type=load_symbol<decltype(set_convolution_math_type)>(library,"cudnnSetConvolutionMathType");
-        get_fwd_algorithms=load_symbol<decltype(get_fwd_algorithms)>(library,"cudnnGetConvolutionForwardAlgorithm_v7");
-        find_fwd_algorithms=load_symbol<decltype(find_fwd_algorithms)>(library,"cudnnFindConvolutionForwardAlgorithm");
-        get_fwd_workspace=load_symbol<decltype(get_fwd_workspace)>(library,"cudnnGetConvolutionForwardWorkspaceSize");
-        convolution_forward=load_symbol<decltype(convolution_forward)>(library,"cudnnConvolutionForward");
-        add_tensor=load_symbol<decltype(add_tensor)>(library,"cudnnAddTensor");
-        get_bwd_data_algorithms=load_symbol<decltype(get_bwd_data_algorithms)>(library,"cudnnGetConvolutionBackwardDataAlgorithm_v7");
-        find_bwd_data_algorithms=load_symbol<decltype(find_bwd_data_algorithms)>(library,"cudnnFindConvolutionBackwardDataAlgorithm");
-        get_bwd_data_workspace=load_symbol<decltype(get_bwd_data_workspace)>(library,"cudnnGetConvolutionBackwardDataWorkspaceSize");
-        convolution_backward_data=load_symbol<decltype(convolution_backward_data)>(library,"cudnnConvolutionBackwardData");
-        get_bwd_filter_algorithms=load_symbol<decltype(get_bwd_filter_algorithms)>(library,"cudnnGetConvolutionBackwardFilterAlgorithm_v7");
-        find_bwd_filter_algorithms=load_symbol<decltype(find_bwd_filter_algorithms)>(library,"cudnnFindConvolutionBackwardFilterAlgorithm");
-        get_bwd_filter_workspace=load_symbol<decltype(get_bwd_filter_workspace)>(library,"cudnnGetConvolutionBackwardFilterWorkspaceSize");
-        convolution_backward_filter=load_symbol<decltype(convolution_backward_filter)>(library,"cudnnConvolutionBackwardFilter");
-        convolution_backward_bias=load_symbol<decltype(convolution_backward_bias)>(library,"cudnnConvolutionBackwardBias");
-        ready=create&&destroy&&create_tensor&&destroy_tensor&&set_tensor4d&&
-              create_filter&&destroy_filter&&set_filter4d&&create_convolution&&
-              destroy_convolution&&set_convolution2d&&get_fwd_algorithms&&
-              get_fwd_workspace&&convolution_forward&&add_tensor&&
-              get_bwd_data_algorithms&&get_bwd_data_workspace&&
-              convolution_backward_data&&get_bwd_filter_algorithms&&
-              get_bwd_filter_workspace&&convolution_backward_filter&&
-              convolution_backward_bias;
-    }
-
-    void destroy_descriptor_set(ConvDescriptors& descriptors) {
-        if(descriptors.input&&destroy_tensor)(void)destroy_tensor(descriptors.input);
-        if(descriptors.output&&destroy_tensor)(void)destroy_tensor(descriptors.output);
-        if(descriptors.bias&&destroy_tensor)(void)destroy_tensor(descriptors.bias);
-        if(descriptors.weight&&destroy_filter)(void)destroy_filter(descriptors.weight);
-        if(descriptors.convolution&&destroy_convolution)
-            (void)destroy_convolution(descriptors.convolution);
-        descriptors={};
-    }
-
-    void reap_descriptor_sets_locked(int backend_index,bool completed) {
-        auto& cu=cuda();
-        CudaApi::CUcontext context=nullptr;
-        std::string ignored;
-        const bool current=cu.current(backend_index,context,ignored);
-        auto out=retired_descriptor_sets.begin();
-        for(auto it=retired_descriptor_sets.begin();
-            it!=retired_descriptor_sets.end();++it){
-            if(it->backend_index!=backend_index){
-                if(out!=it)*out=std::move(*it);
-                ++out;
-                continue;
-            }
-            const bool event_ready=completed||
-                (current&&cu.event_query&&it->event&&cu.event_query(it->event)==0);
-            if(!event_ready){
-                if(out!=it)*out=std::move(*it);
-                ++out;
-                continue;
-            }
-            if(it->event&&cu.event_destroy)(void)cu.event_destroy(it->event);
-            if(it->descriptors) destroy_descriptor_set(*it->descriptors);
-        }
-        retired_descriptor_sets.erase(out,retired_descriptor_sets.end());
-    }
-
-    void retire_descriptor_set_locked(
-        int backend_index,std::unique_ptr<ConvDescriptors> descriptors) {
-        if(!descriptors) return;
-        auto& cu=cuda();
-        CudaApi::CUcontext context=nullptr;
-        std::string ignored;
-        CudaApi::CUevent event=nullptr;
-        constexpr unsigned disable_timing=2;
-        const bool tracked=
-            cu.current(backend_index,context,ignored)&&
-            cu.event_create&&cu.event_record&&cu.event_destroy&&
-            cu.event_create(&event,disable_timing)==0&&event&&
-            cu.event_record(event,nullptr)==0;
-        if(tracked){
-            retired_descriptor_sets.push_back(
-                RetiredConvDescriptors{
-                    backend_index,event,std::move(descriptors)});
-            return;
-        }
-        if(event&&cu.event_destroy)(void)cu.event_destroy(event);
-        // If event tracking is unavailable, keep the descriptor alive until
-        // process teardown rather than risking use-after-free.
-        fallback_retired_descriptor_sets.push_back(std::move(descriptors));
-    }
-
-    ~CudnnApi() {
-        auto& cu=cuda();
-        // Synchronize every device before destroying handles, cached
-        // descriptors, or event-retired descriptor sets.
-        for(std::size_t i=0;i<handles.size();++i){
-            const bool has_workspace=i<workspaces.size()&&workspaces[i]!=0;
-            if(handles[i]||has_workspace){
-                std::string ignored;
-                CudaApi::CUcontext context=nullptr;
-                if(cu.current(static_cast<int>(i),context,ignored)){
-                    if(cu.ctx_synchronize)(void)cu.ctx_synchronize();
-                    if(has_workspace&&cu.mem_free)(void)cu.mem_free(workspaces[i]);
-                    std::lock_guard descriptor_lock(descriptor_mutex);
-                    reap_descriptor_sets_locked(static_cast<int>(i),true);
-                }
-            }
-            if(handles[i]&&destroy)(void)destroy(handles[i]);
-        }
-
-        std::lock_guard descriptor_lock(descriptor_mutex);
-        for(auto& entry:convolution_descriptor_cache)
-            if(entry.second.descriptors)
-                destroy_descriptor_set(*entry.second.descriptors);
-        convolution_descriptor_cache.clear();
-        for(auto& descriptors:fallback_retired_descriptor_sets)
-            if(descriptors) destroy_descriptor_set(*descriptors);
-        fallback_retired_descriptor_sets.clear();
-        for(auto& retired:retired_descriptor_sets){
-            if(retired.event&&cu.event_destroy)(void)cu.event_destroy(retired.event);
-            if(retired.descriptors) destroy_descriptor_set(*retired.descriptors);
-        }
-        retired_descriptor_sets.clear();
-    }
-
-    ConvDescriptors* convolution_descriptors(
-        int backend_index,int dtype,DnnMode mode,
-        std::size_t batches,std::size_t channels_in,std::size_t height,
-        std::size_t width,std::size_t channels_out,std::size_t kernel_h,
-        std::size_t kernel_w,std::size_t output_h,std::size_t output_w,
-        std::size_t stride,std::size_t padding,std::string& error) {
-        std::ostringstream key_stream;
-        key_stream<<backend_index<<':'<<dtype<<':'<<static_cast<int>(mode)<<':'
-                  <<batches<<':'<<channels_in<<':'<<height<<':'<<width<<':'
-                  <<channels_out<<':'<<kernel_h<<':'<<kernel_w<<':'
-                  <<output_h<<':'<<output_w<<':'<<stride<<':'<<padding;
-        const auto key=key_stream.str();
-
-        std::lock_guard lock(descriptor_mutex);
-        reap_descriptor_sets_locked(backend_index,false);
-        if(const auto found=convolution_descriptor_cache.find(key);
-           found!=convolution_descriptor_cache.end()){
-            found->second.last_use=++descriptor_clock;
-            return found->second.descriptors.get();
-        }
-
-        std::size_t same_device_entries=0;
-        auto oldest=convolution_descriptor_cache.end();
-        for(auto it=convolution_descriptor_cache.begin();
-            it!=convolution_descriptor_cache.end();++it){
-            if(it->second.backend_index!=backend_index) continue;
-            ++same_device_entries;
-            if(oldest==convolution_descriptor_cache.end()||
-               it->second.last_use<oldest->second.last_use)
-                oldest=it;
-        }
-        if(same_device_entries>=descriptor_cache_limit_per_device&&
-           oldest!=convolution_descriptor_cache.end()){
-            auto retired=std::move(oldest->second.descriptors);
-            convolution_descriptor_cache.erase(oldest);
-            retire_descriptor_set_locked(backend_index,std::move(retired));
-        }
-
-        auto descriptors=std::make_unique<ConvDescriptors>();
-        const auto cleanup=[&]{
-            if(descriptors->input)destroy_tensor(descriptors->input);
-            if(descriptors->output)destroy_tensor(descriptors->output);
-            if(descriptors->bias)destroy_tensor(descriptors->bias);
-            if(descriptors->weight)destroy_filter(descriptors->weight);
-            if(descriptors->convolution)destroy_convolution(descriptors->convolution);
-        };
-        if(create_tensor(&descriptors->input)!=0||
-           create_tensor(&descriptors->output)!=0||
-           create_tensor(&descriptors->bias)!=0||
-           create_filter(&descriptors->weight)!=0||
-           create_convolution(&descriptors->convolution)!=0){
-            cleanup();
-            error="cuDNN convolution descriptor creation failed";
-            return nullptr;
-        }
-
-        constexpr int nchw=0,cross_correlation=1;
-        const int data_type=dtype==10?0:1;
-        if(set_tensor4d(descriptors->input,nchw,data_type,static_cast<int>(batches),
-                        static_cast<int>(channels_in),static_cast<int>(height),
-                        static_cast<int>(width))!=0||
-           set_tensor4d(descriptors->output,nchw,data_type,static_cast<int>(batches),
-                        static_cast<int>(channels_out),static_cast<int>(output_h),
-                        static_cast<int>(output_w))!=0||
-           set_tensor4d(descriptors->bias,nchw,data_type,1,
-                        static_cast<int>(channels_out),1,1)!=0||
-           set_filter4d(descriptors->weight,data_type,nchw,
-                        static_cast<int>(channels_out),static_cast<int>(channels_in),
-                        static_cast<int>(kernel_h),static_cast<int>(kernel_w))!=0||
-           set_convolution2d(descriptors->convolution,
-                             static_cast<int>(padding),static_cast<int>(padding),
-                             static_cast<int>(stride),static_cast<int>(stride),
-                             1,1,cross_correlation,data_type)!=0){
-            cleanup();
-            error="cuDNN convolution descriptor configuration failed";
-            return nullptr;
-        }
-        if(set_convolution_math_type){
-            constexpr int default_math=0,fma_math=3;
-            (void)set_convolution_math_type(
-                descriptors->convolution,
-                mode==DnnMode::Deterministic?fma_math:default_math);
-        }
-
-        auto* result=descriptors.get();
-        convolution_descriptor_cache.emplace(
-            key,CachedConvDescriptors{
-                std::move(descriptors),backend_index,++descriptor_clock});
-        return result;
-    }
-
-    Handle handle(int backend_index,std::string& error) {
-        if(!ready)return nullptr;
-        auto& cu=cuda();
-        CudaApi::CUcontext context=nullptr;
-        if(!cu.current(backend_index,context,error))return nullptr;
-        std::lock_guard lock(mutex);
-        int count=0;
-        if(cu.device_count(&count)!=0||backend_index<0||backend_index>=count){
-            error="NVIDIA GPU index is unavailable";return nullptr;
-        }
-        if(handles.size()<static_cast<std::size_t>(count))
-            handles.resize(static_cast<std::size_t>(count),nullptr);
-        if(operation_mutexes.size()<static_cast<std::size_t>(count))
-            operation_mutexes.resize(static_cast<std::size_t>(count));
-        if(workspaces.size()<static_cast<std::size_t>(count)){
-            workspaces.resize(static_cast<std::size_t>(count),0);
-            workspace_sizes.resize(static_cast<std::size_t>(count),0);
-        }
-        auto& operation=operation_mutexes[static_cast<std::size_t>(backend_index)];
-        if(!operation)operation=std::make_shared<std::mutex>();
-        auto& result=handles[static_cast<std::size_t>(backend_index)];
-        if(!result&&create(&result)!=0){
-            result=nullptr;error="cuDNN handle creation failed";return nullptr;
-        }
-        return result;
-    }
-
-    std::shared_ptr<std::mutex> operation_mutex(int backend_index) {
-        std::lock_guard lock(mutex);
-        return operation_mutexes.at(static_cast<std::size_t>(backend_index));
-    }
-
-    CudaApi::CUdeviceptr workspace(
-        int backend_index,std::size_t bytes,std::string& error) {
-        if(bytes==0)return 0;
-        if(backend_index<0||
-           static_cast<std::size_t>(backend_index)>=workspaces.size()){
-            error="invalid cuDNN workspace device";
-            return 0;
-        }
-        auto& cu=cuda();
-        CudaApi::CUcontext context=nullptr;
-        if(!cu.current(backend_index,context,error))return 0;
-        const auto index=static_cast<std::size_t>(backend_index);
-        if(workspaces[index]&&workspace_sizes[index]>=bytes)
-            return workspaces[index];
-
-        // Retire old scratch behind an event before growing it. The regular
-        // device pool can reuse it as soon as prior GPU work completes, without
-        // forcing a host synchronization.
-        const auto previous=workspaces[index];
-        const auto previous_bytes=workspace_sizes[index];
-        workspaces[index]=0;
-        workspace_sizes[index]=0;
-        if(previous)
-            cuda_return_device_block(backend_index,previous_bytes,previous);
-
-        CudaApi::CUdeviceptr replacement=0;
-        if(!cuda_take_device_block(backend_index,bytes,replacement)){
-            if(!cu.mem_alloc||cu.mem_alloc(&replacement,bytes)!=0||replacement==0){
-                // If the driver reports OOM, release only completed/free pooled
-                // blocks and retry. Pending blocks remain event-protected.
-                cuda_release_free_device_blocks(cu,backend_index);
-                replacement=0;
-                if(!cu.mem_alloc||cu.mem_alloc(&replacement,bytes)!=0||replacement==0){
-                    error="cuDNN workspace allocation failed";
-                    return 0;
-                }
-            }
-        }
-        workspaces[index]=replacement;
-        workspace_sizes[index]=bytes;
-        return replacement;
-    }
-};
-
-[[maybe_unused]] CudnnApi& cudnn() {
-    static CudnnApi api;
-    return api;
-}
-
 
 struct HipApi {
     using Module = void*;
@@ -1813,7 +1221,7 @@ std::vector<Info> enumerate_devices() {
     return result;
 }
 
-std::atomic<int> dnn_mode_value{static_cast<int>(DnnMode::Fast)};
+std::atomic<int> execution_mode_value{static_cast<int>(ExecutionMode::Fast)};
 std::mutex gpu_usage_mutex;
 std::vector<int> used_gpu_indices;
 
@@ -2300,13 +1708,13 @@ bool synchronize_all(std::string& error) {
     return true;
 }
 
-void set_dnn_mode(DnnMode mode) {
-    dnn_mode_value.store(static_cast<int>(mode), std::memory_order_relaxed);
+void set_execution_mode(ExecutionMode mode) {
+    execution_mode_value.store(static_cast<int>(mode), std::memory_order_relaxed);
 }
 
-DnnMode dnn_mode() {
-    return static_cast<DnnMode>(
-        dnn_mode_value.load(std::memory_order_relaxed));
+ExecutionMode execution_mode() {
+    return static_cast<ExecutionMode>(
+        execution_mode_value.load(std::memory_order_relaxed));
 }
 
 std::string backend_display_name(Backend backend) {
@@ -2653,6 +2061,58 @@ int buffer_device(const Buffer* buffer) {
     return buffer ? buffer->global_index : -1;
 }
 
+Backend buffer_backend(const Buffer* buffer) {
+    return buffer ? buffer->backend : Backend::Cuda;
+}
+
+std::uint64_t buffer_native_handle(const Buffer* buffer) {
+    if (!buffer) return 0;
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (buffer->backend == Backend::Test) {
+        return reinterpret_cast<std::uint64_t>(
+            buffer->test_data.empty() ? nullptr :
+            const_cast<unsigned char*>(buffer->test_data.data()));
+    }
+#endif
+    if (buffer->backend == Backend::Cuda) return buffer->cuda_pointer;
+    if (buffer->backend == Backend::Hip)
+        return reinterpret_cast<std::uint64_t>(buffer->pointer);
+#ifdef __APPLE__
+    if (buffer->backend == Backend::Metal)
+        return reinterpret_cast<std::uint64_t>((__bridge void*)buffer->metal_buffer);
+#endif
+    return 0;
+}
+
+bool activate(int index, std::string& error) {
+    const auto* info = find(index);
+    if (!info) {
+        error = "gpu(" + std::to_string(index) + ") is not available";
+        return false;
+    }
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (info->backend == Backend::Test) return true;
+#endif
+    if (info->backend == Backend::Cuda) {
+        CudaApi::CUcontext context = nullptr;
+        return cuda().current(info->backend_index, context, error);
+    }
+    if (info->backend == Backend::Hip) {
+        auto& api = hip();
+        if (!api.ready || !api.set_device ||
+            api.set_device(info->backend_index) != 0) {
+            error = "failed to select AMD GPU";
+            return false;
+        }
+        return true;
+    }
+#ifdef __APPLE__
+    if (info->backend == Backend::Metal) return true;
+#endif
+    error = "GPU backend activation is unavailable";
+    return false;
+}
+
 Module* load_ptx(int index, const std::string& ptx, std::string& error) {
     const auto* info = find(index);
     if (!info) {
@@ -2859,7 +2319,6 @@ bool launch(Module* module, const char* kernel,
 
 #include "device_integer_compute.inc"
 #include "device_compute.inc"
-#include "device_tensor_reduce_compute.inc"
 #include "device_autograd_compute.inc"
 
 } // namespace quidra::device

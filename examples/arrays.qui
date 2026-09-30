@@ -6,3 +6,4 @@ int[] values = [1, 2, 3]
 double_all(&values)
 for value in values
     print(value)
+    print(NL)

@@ -15,6 +15,18 @@ jobs:
     steps:
       - name: Check out Quidra
         uses: actions/checkout@v4
+      - name: Check out math
+        uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/math
+          ref: develop
+          path: packages/math
+      - name: Check out nn
+        uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/nn
+          ref: develop
+          path: packages/nn
       - name: Check out vision
         uses: actions/checkout@v4
         with:
@@ -27,6 +39,12 @@ jobs:
           repository: quidra-lang/dnn
           ref: develop
           path: packages/dnn
+      - name: Check out video
+        uses: actions/checkout@v4
+        with:
+          repository: quidra-lang/video
+          ref: develop
+          path: packages/video
       - name: Restore compiler cache
         uses: actions/cache@v4
         with:
@@ -34,25 +52,56 @@ jobs:
           key: ccache-${{ runner.os }}-first-party-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
           restore-keys: |
             ccache-${{ runner.os }}-first-party-
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y ccache llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+      - name: Install Core build dependencies
+        run: sudo apt-get update && sudo apt-get install -y ccache llvm libcurl4-openssl-dev
+      - name: Install Vision native dependencies
+        run: bash packages/vision/scripts/install-linux-native-deps.sh
+      - name: Install Video native dependencies
+        run: bash packages/video/scripts/install-linux-native-deps.sh
+      - name: Enforce package native ABI boundary
+        run: python3 tests/package_native_boundary_tests.py packages/math packages/nn packages/vision packages/video packages/dnn
+      - name: Enforce first-party package layer boundary
+        run: python3 tests/first_party_layer_tests.py packages/math packages/nn packages/vision packages/video packages/dnn
       - name: Build Quidra
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && cmake --build build --parallel
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON && cmake --build build --parallel
+      - name: Smoke-test local first-party installs
+        env:
+          HOME: ${{ runner.temp }}/quidra-install-home
+        run: |
+          build/quidra install packages/math
+          build/quidra install packages/nn
+          build/quidra install packages/vision
+          build/quidra install packages/video
+          build/quidra install packages/dnn
+      - name: Test math against this Quidra
+        run: bash packages/math/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test Math fake-GPU contract against this Quidra
+        run: bash packages/math/tests/device.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test NN against this Quidra
+        run: bash packages/nn/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test NN compiler optimization against this Quidra
+        run: bash packages/nn/tests/compiler_optimization.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test NN persistence failure atomicity against this Quidra
+        run: bash packages/nn/tests/persistence_failures.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test NN fake-GPU device contracts against this Quidra
+        run: bash packages/nn/tests/device.sh "$GITHUB_WORKSPACE/build/quidra"
       - name: Test vision against this Quidra
         run: bash packages/vision/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test Vision dtype contracts against this Quidra
+        run: bash packages/vision/tests/dtypes.sh "$GITHUB_WORKSPACE/build/quidra"
       - name: Test Vision tensor autograd against this Quidra
         run: bash packages/vision/tests/develop_autograd.sh "$GITHUB_WORKSPACE/build/quidra"
       - name: Test Vision boundary contracts against this Quidra
         run: bash packages/vision/tests/boundary.sh "$GITHUB_WORKSPACE/build/quidra"
+      - name: Test Vision fake-GPU device contracts against this Quidra
+        run: bash packages/vision/tests/device.sh "$GITHUB_WORKSPACE/build/quidra"
       - name: Check Vision example against this Quidra
         env:
           QUIDRA_PACKAGE_PATH: ${{ github.workspace }}/packages
         run: build/quidra check packages/vision/examples/process.qui
+      - name: Test video against this Quidra
+        run: bash packages/video/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
       - name: Test dnn against this Quidra
         run: bash packages/dnn/tests/integration.sh "$GITHUB_WORKSPACE/build/quidra"
       - name: Test DNN contracts against this Quidra
         run: bash packages/dnn/tests/contracts.sh "$GITHUB_WORKSPACE/build/quidra"
-      - name: Check DNN example against this Quidra
-        env:
-          QUIDRA_PACKAGE_PATH: ${{ github.workspace }}/packages
-        run: build/quidra check packages/dnn/examples/training.qui

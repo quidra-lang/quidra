@@ -82,6 +82,7 @@ private:
     ExprPtr term();
     ExprPtr factor();
     ExprPtr unary();
+    ExprPtr power();
     ExprPtr postfix();
     ExprPtr primary();
     ExprPtr make_binary(ExprPtr left, const Token& op, ExprPtr right);

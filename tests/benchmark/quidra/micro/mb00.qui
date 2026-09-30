@@ -1,2 +1,3 @@
 // MB-00 - Startup probe: the minimal conforming program that prints HELLO.
 print("HELLO")
+print(NL)

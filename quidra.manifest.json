@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "language": "Quidra",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "tagline": "Programming with maximum meaning per token.",
   "source_extension": ".qui",
   "source_version_header": false,
@@ -63,21 +63,21 @@
   ],
   "current_builtins": [
     "print",
-    "write",
+    "flush",
     "scan",
     "range",
     "array",
     "tensor",
     "error",
     "len",
-    "ENTER",
-    "TAB",
-    "HOME",
-    "QUOTE",
-    "BACKSPACE",
-    "PAGE",
-    "VTAB",
-    "BELL"
+    "NL",
+    "HT",
+    "CR",
+    "DQ",
+    "BS",
+    "FF",
+    "VT",
+    "BL"
   ],
   "binding_model": "typed optional initializer with definite initialization; const T requires an initializer and removes write authority through that binding; fixed arrays allocate storage immediately with per-element initialization tracking; class fields may be partially initialized; bare auto requires an initializer and infers the non-error success side with fail-fast error handling; auto | error explicitly retains the inferred failure channel",
   "call_style": "positional arguments must precede named name = value arguments; each parameter may be supplied exactly once; unknown names, excess positional arguments, and missing required parameters are rejected with parameter-specific diagnostics; typed default parameters; reference parameters use & at the call site whether read/write or const-readonly",
@@ -116,8 +116,6 @@
   "cli_model": "one declarative cli binding per root source; argument() is a required positional value, argument(default = value) is a trailing optional positional value, option(default = value) maps the field name to --name, and flag() maps the field name to a bool flag; required positional fields precede optional positional fields; scalar CLI values support string, int, float, bigint, bigreal, and bool, with exact numeric text parsed directly for bigint/bigreal; typed values are validated before normal execution; functions do not implicitly capture the top-level cli binding",
   "file_model": "standard file module with whole-text read/write and whole-binary read_bin/write_bin plus exists/is_directory/remove/copy/move/mkdir and deterministic sorted list; file.open returns a read-only value-semantic Handle, while file.create/file.append return writable Handles with independent logical positions and read_line/write/write_line/flush/seek/close operations; copied handles preserve the originally opened resource identity rather than reopening by pathname; text reads require valid UTF-8 without NUL; binary I/O preserves arbitrary byte-aligned bin payloads exactly; operational or text-representation failures are returned through error unions",
   "standard_modules": [
-    "math",
-    "io",
     "cli",
     "file",
     "environment",
@@ -135,12 +133,8 @@
     "set",
     "json",
     "http",
-    "stats",
-    "linear",
-    "signal",
-    "image",
-    "video",
-    "tensor"
+    "tensor",
+    "exact"
   ],
   "environment_model": "environment.get(name) returns string | none; environment.has(name) returns bool; absence is normal none; invalid host text fails deterministically rather than entering string storage",
   "test_model": "test.check requires bool; test.equal reuses ordinary value equality; assertion failure exits with status 1",
@@ -158,7 +152,7 @@
   "import_cycles_allowed": false,
   "numeric_model": "int/int64 are signed 64-bit; float/float64 are IEEE-754 binary64; fixed-width signed/unsigned integers and float32 are explicit; bigint is an exact arbitrary-precision integer; bigreal stores exact rationals and exact symbolic real expressions without NaN or infinity",
   "numeric_implicit_conversion_model": "already-typed numeric values never change representation implicitly; integer-family literals materialize only under a unique integer-family context and real-family literals only under a unique real-family context; auto and generic inference never choose a numeric concrete type from a bare literal",
-  "numeric_explicit_cast_model": "T(value) is the single explicit numeric cast form: for a scalar it changes that value, for nested numeric arrays it preserves every array dimension while recursively changing numeric leaves, and for untracked tensors it preserves rank/shape constraints and inferred facts while changing element dtype; tracked tensors must be explicitly untracked before dtype conversion so graph detachment is never silent; scalar range-checked narrowing exposes T | error and never wraps; bare auto infers the success type and fails fast while auto | error preserves the failure channel; integer-to-float and float-to-float permit deterministic IEEE-754 rounding; float-to-integer requires math.trunc/math.round/math.floor/math.ceil; container-specific cast methods are not part of the language",
+  "numeric_explicit_cast_model": "T(value) is the single explicit numeric cast form: for a scalar it changes that value, for nested numeric arrays it preserves every array dimension while recursively changing numeric leaves, and for untracked tensors it preserves rank/shape constraints and inferred facts while changing element dtype; tracked tensors must be explicitly untracked before dtype conversion so graph detachment is never silent; every range-checked conversion exposes converted-type | error and never wraps, with arrays and tensors using the whole converted container as one atomic success alternative; bare auto infers the success type and fails fast while auto | error preserves the failure channel; integer-to-float and float-to-float permit deterministic IEEE-754 rounding; float-to-integer requires math.trunc/math.round/math.floor/math.ceil; container-specific cast methods are not part of the language",
   "numeric_text_model": "numeric Type.parse(string) returns T | error; scalar value.string() returns the standard textual representation",
   "bin_model": "mutable packed raw bit sequence; bin.fill(n, bit) allocates bits, bin.parse(text) parses written bits, bin(value) is explicit representation conversion; indexing returns one-bit bin, slicing/iteration operate on bits, len counts bits, and equality compares values",
   "value_copy_optimization_model": "ordinary = has independent value semantics; unobservable storage sharing, copy-on-write, copy elision, moves and reference counting are permitted; tensor views/copies currently use COW; & introduces observable aliasing",
@@ -207,7 +201,7 @@
     "Windows"
   ],
   "name_resolution_model": "absolute reservation plus monotonic visibility: user code may never reuse a language-reserved identifier in any declaration position, including fields and methods; non-reserved names may not shadow currently visible declarations but may be reused in disjoint scopes where the earlier name is not visible; standard-library internal generated declarations are the implementation-owned exception",
-  "tensor_model": "tensor<T> is a first-class dense numeric value with mandatory static element dtype and unrestricted rank/shape; tensor<T><D0, D1, ...> adds an exact-rank shape pattern whose axis entries are _ wildcards or integer expressions; the number of pattern axes is the required rank, _ means that axis exists but its extent is unrestricted, compile-time expressions are folded, and runtime expressions are evaluated once and captured when the binding is created; dtype/shape are deliberately separated into distinct angle groups; captured constraints survive reassignment while inferred rank/known-shape facts are flow-sensitive and may weaken; shape() returns int[N] when rank is known and int[] otherwise; item(), linear.dot, linear.matmul, and image APIs exploit these facts for static rejection or runtime constraint checks",
+  "tensor_model": "tensor<T> is a first-class dense numeric value with mandatory static element dtype and unrestricted rank/shape; tensor<T><D0, D1, ...> adds an exact-rank shape pattern whose axis entries are _ wildcards or integer expressions; the number of pattern axes is the required rank, _ means that axis exists but its extent is unrestricted, compile-time expressions are folded, and runtime expressions are evaluated once and captured when the binding is created; dtype/shape are deliberately separated into distinct angle groups; captured constraints survive reassignment while inferred rank/known-shape facts are flow-sensitive and may weaken; shape() returns int[N] when rank is known and int[] otherwise; item() and tensor structural operations exploit these facts for static rejection or runtime constraint checks",
   "tensor_initialization_model": "tensor<T>(shape) creates per-element uninitialized storage; tensor.zeros<T>(shape) and tensor.ones<T>(shape) are fully initialized; tensor.zeros()/tensor.ones() may derive dtype and allocation shape from a fully specified expected exact shape but reject unconstrained rank or _ extents; shape knowledge never implies value initialization; uninitialized reads fail deterministically",
   "tensor_value_model": "tensor copies and slices preserve source-level independent value semantics; internal storage sharing is permitted and mutation detaches with copy-on-write; gradient destination state is also per tensor value and is never shared by ordinary assignment; slice assignment and writable tensor-element references are not exposed",
   "autograd_model": "floating tensors are untracked by default; track starts a graph, untrack disconnects, retrack cuts prior provenance; backward requires one or more explicit writable destinations and accumulates only into matching logical autograd identities; targetless backward is invalid; physical tensor/COW storage identity is not gradient identity; autograd.Target is the generic explicit destination handle used by higher-level abstractions without introducing Parameter/model/optimizer concepts into Core",
@@ -221,7 +215,7 @@
       "system_cuda_toolkit": false,
       "nvcc": false,
       "cuda_home": false,
-      "managed_component_lock": "official dnn release assets pin managed NVIDIA user-space components by exact version, immutable artifact identity, and SHA256; Core discovers the installed dnn bundle without requiring a system CUDA toolkit"
+      "managed_component_lock": "none; Core owns CUDA Driver API execution only and does not resolve package-owned vendor Math/NN libraries"
     },
     "hip": {
       "driver_api": "OS/AMD-driver supplied HIP runtime",
@@ -231,19 +225,13 @@
     "metal": {
       "runtime": "OS Metal framework",
       "logical_placement_preserved_on_unified_memory": true
-    },
-    "dnn_acceleration_owner": "official dnn package owns the public DNN accelerator policy and release contract; the current native cuDNN/cuBLAS/NCCL loader/ABI bridge remains compiled into the Quidra runtime as an implementation boundary",
-    "dnn_native_bridge_owner": "Quidra core runtime in the current source-package architecture",
-    "dnn_public_surface_owner": "official dnn package"
+    }
   },
   "standard_namespace_model": "standard namespaces themselves are reserved identifiers everywhere in user code; their qualified member names are resolved inside the namespace and do not automatically become global reserved identifiers; only referenced standard implementations are linked",
   "package_model": "unquoted non-standard imports resolve installed packages from configured package paths and never fall back to the current source directory",
-  "stats_model": "stats.mean(tensor) returns a float mean and rejects empty or uninitialized tensor input",
-  "linear_model": "linear.dot(a,b) performs checked rank-1 dot product and returns the preserved scalar element type; linear.matmul(a,b) supports vector-matrix, matrix-vector, and matrix-matrix multiplication for tensors with identical element types; dimensions must be compatible and integer multiplication/accumulation overflow remains checked",
-  "image_model": "image.read(path) preserves decoded CHW dtype/channels; an expected tensor dtype/exact-rank shape pattern such as tensor<uint8><3, _, _> is a non-converting acceptance constraint; channel = 1|3|4 explicitly converts channel layout and type = numeric_type explicitly converts sample representation without normalization; RGB-to-gray uses 0.299R+0.587G+0.114B, alpha removal occurs only under an explicit channel conversion, and image.read results have compiler-known rank 3; image.write preserves dtype exactly and rejects unsupported codec representations",
   "named_writable_argument_model": "for read/write T & parameters, positional arguments use &value and named arguments use &name = &value",
   "named_reference_argument_model": "positional reference arguments use &value; named reference arguments use &name = &value; the callee parameter T & versus const T & determines read/write versus read-only authority",
-  "console_io_model": "print/write/io.flush return void | error and do not imply flushing; scan reads one line against a format of {&target} placeholders and returns void | error; an expression statement whose value can be error fails fast",
+  "console_io_model": "print and flush return void | error; print never appends a newline, flush explicitly flushes standard output, and there is no console write API or io namespace; scan reads one line against a format of {&target} placeholders and returns void | error; an expression statement whose value can be error fails fast",
   "enum_model": "nominal named enums with qualified payload/no-payload variants and exhaustive match; enum representation reuses checked tagged-union storage without dynamic dispatch or implicit conversion to structural unions",
   "concurrency_model": "task.all accepts capture-free fn<void>()[] for effect-only work and fn<int>()[] / fn<float>()[] for ordered scalar results; task.all(operations, counter) accepts fn<void>(atomic.Counter)[] and explicitly passes independently owned handles to one shared sequentially-consistent atomic int64 cell; workers are bounded, every started operation is joined, result placement follows operation index independently of completion order, ordinary managed values are not implicitly shared, and detached tasks/cancellation remain unavailable",
   "atomic_model": "atomic.counter(initial) creates an explicit shared signed-64-bit synchronization resource; Counter copies share one atomic cell, load is sequentially consistent, add is a checked sequentially-consistent read-modify-write, and overflow fails rather than wrapping",
@@ -259,5 +247,6 @@
     "store_relative": ".quidra/packages",
     "official_distribution_prefix": "quidra-",
     "official_repository_base": "https://github.com/quidra-lang/"
-  }
+  },
+  "math_package_model": "generic mathematical semantics, reductions, linear algebra, FFT/decompositions, mathematical autograd, and Math-specific native/GPU/compiler policy are owned by the explicit first-party math package; Core provides tensor/device/autograd/compiler-extension mechanisms and basic language operators but no Math namespace or numerical-library compatibility surface"
 }

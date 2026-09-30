@@ -1,6 +1,8 @@
 #include "repl_cli.hpp"
 
 #include "quidra/compiler.hpp"
+#include "quidra/frontend.hpp"
+#include "quidra/package_manifest.hpp"
 #include "quidra/lexer.hpp"
 #include "quidra/parser.hpp"
 #include "quidra/types.hpp"
@@ -62,6 +64,40 @@ void write_file(const fs::path& path, std::string_view text) {
     out << text;
 }
 
+struct PackageNativeJitInputs {
+    std::vector<fs::path> libraries;
+    std::vector<fs::path> sources;
+    std::vector<std::string> pkg_config_modules;
+
+    bool empty() const {
+        return libraries.empty() && sources.empty() &&
+               pkg_config_modules.empty();
+    }
+};
+
+PackageNativeJitInputs package_native_jit_inputs(
+    const fs::path& source_path,
+    std::string_view source,
+    const fs::path& working_directory) {
+    PackageNativeJitInputs result;
+    const auto packages = resolve_package_dependencies_source(
+        source_path, source, working_directory);
+    for (const auto& [name, package_main] : packages) {
+        (void)name;
+        const auto root = package_main.parent_path();
+        const auto manifest = read_package_manifest(root);
+        if (const auto native = package_native_library_path(root, manifest)) {
+            result.libraries.push_back(*native);
+        }
+        auto sources = package_native_source_paths(root, manifest);
+        result.sources.insert(
+            result.sources.end(), sources.begin(), sources.end());
+        for (const auto& [_, module] : manifest.native_pkg_config)
+            result.pkg_config_modules.push_back(module);
+    }
+    return result;
+}
+
 class ReplFiles {
 public:
     ReplFiles() {
@@ -110,10 +146,15 @@ struct NativeResult {
 };
 
 NativeResult run_external_jit(
-    const Compilation& compilation, const ReplFiles& files) {
+    const Compilation& compilation, const ReplFiles& files,
+    const PackageNativeJitInputs& native_inputs = {}) {
     write_file(files.llvm(), compilation.llvm);
     const auto rc = native::run_llvm_jit(
-        files.llvm(), {}, native::JitOptions{false, "<repl>"},
+        files.llvm(), {},
+        native::JitOptions{
+            false, "<repl>",
+            native_inputs.libraries, native_inputs.sources,
+            native_inputs.pkg_config_modules},
         files.stdout_file(), files.stderr_file());
 
     NativeResult result;
@@ -132,7 +173,14 @@ public:
 
     ~PersistentReplJit() { stop(); }
 
-    NativeResult run(const Compilation& compilation) {
+    NativeResult run(
+        const Compilation& compilation,
+        const PackageNativeJitInputs& native_inputs = {}) {
+        // Package-owned native components must enter the JIT before extern
+        // resolution. Keep the persistent no-native fast path unchanged;
+        // native submissions use lli with explicit libraries/objects.
+        if (!native_inputs.empty())
+            return run_external_jit(compilation, files_, native_inputs);
         if (disabled_)
             return external_fallback(compilation);
 
@@ -408,8 +456,10 @@ private:
 class PersistentReplJit {
 public:
     explicit PersistentReplJit(const ReplFiles& files) : files_(files) {}
-    NativeResult run(const Compilation& compilation) {
-        return run_external_jit(compilation, files_);
+    NativeResult run(
+        const Compilation& compilation,
+        const PackageNativeJitInputs& native_inputs = {}) {
+        return run_external_jit(compilation, files_, native_inputs);
     }
 private:
     const ReplFiles& files_;
@@ -513,7 +563,7 @@ bool replay_barrier_instruction(const ir::Instruction& instruction) {
             std::is_same_v<T, ir::CliOption> ||
             std::is_same_v<T, ir::CliFlag> ||
             std::is_same_v<T, ir::CliFinish> ||
-            std::is_same_v<T, ir::IoFlush> ||
+            std::is_same_v<T, ir::Flush> ||
             std::is_same_v<T, ir::FileOpen> ||
             std::is_same_v<T, ir::FileCreate> ||
             std::is_same_v<T, ir::FileAppend> ||
@@ -547,12 +597,7 @@ bool replay_barrier_instruction(const ir::Instruction& instruction) {
             std::is_same_v<T, ir::RandomBool> ||
             std::is_same_v<T, ir::ProcessRun> ||
             std::is_same_v<T, ir::ProcessShell> ||
-            std::is_same_v<T, ir::HttpGet> ||
-            std::is_same_v<T, ir::VideoOpen> ||
-            std::is_same_v<T, ir::VideoRead> ||
-            std::is_same_v<T, ir::VideoSeek> ||
-            std::is_same_v<T, ir::ImageRead> ||
-            std::is_same_v<T, ir::ImageWrite>;
+            std::is_same_v<T, ir::HttpGet>;
     }, instruction);
 }
 
@@ -731,7 +776,9 @@ public:
             // before launch and keep it even when the candidate is not accepted.
             if (candidate_replay_barrier) replay_barrier_ = true;
 
-            auto native = jit_.run(compiled.compilation);
+            const auto native_inputs = package_native_jit_inputs(
+                files_.source(), candidate, working_directory_);
+            auto native = jit_.run(compiled.compilation, native_inputs);
             auto output = split_repl_output(native.stdout_text);
 
             std::cout << output.normal;

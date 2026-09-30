@@ -8,10 +8,12 @@
 #include "quidra/package_lock.hpp"
 #include "quidra/package_manifest.hpp"
 #include "quidra/project.hpp"
+#include "quidra/toml_subset.hpp"
 
 #include "nesting_budget.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <fstream>
@@ -66,10 +68,99 @@ struct Exports {
     std::unordered_map<std::string, std::string> enums;
     std::unordered_map<std::string, std::string> functions;
     std::unordered_map<std::string, std::string> values;
+    // Imported immutable top-level constants are side-effect-free expressions
+    // cloned at qualified use sites. Packages own their values; Core owns only
+    // this generic module/export mechanism.
+    std::unordered_map<std::string, std::shared_ptr<Expr>> constants;
     // `public import alias = ...` re-exports the target under `alias`, so an
     // importer reaches its declarations as `module.alias.name`.
     std::unordered_map<std::string, std::shared_ptr<Exports>> namespaces;
 };
+
+ExprPtr clone_package_constant_expression(const Expr& source, SourceSpan use_span) {
+    auto result = std::make_unique<Expr>();
+    result->span = use_span;
+    result->contextual_default_type = source.contextual_default_type;
+    if (const auto* value = std::get_if<IntegerExpr>(&source.data)) {
+        result->data = *value;
+        return result;
+    }
+    if (const auto* value = std::get_if<FloatExpr>(&source.data)) {
+        result->data = *value;
+        return result;
+    }
+    if (const auto* value = std::get_if<StringExpr>(&source.data)) {
+        result->data = *value;
+        return result;
+    }
+    if (const auto* value = std::get_if<BoolExpr>(&source.data)) {
+        result->data = *value;
+        return result;
+    }
+    if (std::holds_alternative<NoneExpr>(source.data)) {
+        result->data = NoneExpr{};
+        return result;
+    }
+    if (const auto* unary = std::get_if<UnaryExpr>(&source.data)) {
+        result->data = UnaryExpr{
+            unary->op,
+            clone_package_constant_expression(*unary->operand, use_span)};
+        return result;
+    }
+    if (const auto* binary = std::get_if<BinaryExpr>(&source.data)) {
+        result->data = BinaryExpr{
+            binary->op,
+            clone_package_constant_expression(*binary->left, use_span),
+            clone_package_constant_expression(*binary->right, use_span)};
+        return result;
+    }
+    if (const auto* call = std::get_if<CallExpr>(&source.data)) {
+        static constexpr std::array<std::string_view, 13> numeric_casts{{
+            "int8", "int16", "int32", "int", "int64",
+            "uint8", "uint16", "uint32", "uint64", "bigint",
+            "float32", "float", "bigreal"}};
+        const bool scalar_numeric_cast =
+            std::find(numeric_casts.begin(), numeric_casts.end(), call->callee) !=
+            numeric_casts.end();
+        if (scalar_numeric_cast && call->type_arguments.empty() &&
+            call->args.size() == 1 && !call->args[0].writable) {
+            std::vector<CallArg> args;
+            args.push_back(CallArg{
+                call->args[0].name,
+                false,
+                clone_package_constant_expression(*call->args[0].value, use_span),
+                use_span});
+            result->data = CallExpr{call->callee, std::move(args), {}};
+            return result;
+        }
+    }
+    if (const auto* call = std::get_if<MethodCallExpr>(&source.data)) {
+        const auto* receiver = std::get_if<NameExpr>(&call->receiver->data);
+        if (receiver && receiver->name == "exact" && call->method == "atom" &&
+            call->type_arguments.empty() && call->args.size() == 2 &&
+            !call->args[0].writable && !call->args[1].writable) {
+            auto cloned_receiver = std::make_unique<Expr>();
+            cloned_receiver->span = use_span;
+            cloned_receiver->data = NameExpr{"exact"};
+            std::vector<CallArg> args;
+            args.reserve(2);
+            for (const auto& argument : call->args) {
+                args.push_back(CallArg{
+                    argument.name,
+                    false,
+                    clone_package_constant_expression(*argument.value, use_span),
+                    use_span});
+            }
+            result->data = MethodCallExpr{
+                std::move(cloned_receiver), "atom", std::move(args), {}};
+            return result;
+        }
+    }
+    frontend_error(
+        "PACKAGE_CONST",
+        "Imported top-level const initializers must be side-effect-free scalar constant expressions.",
+        source.span);
+}
 
 void insert_class_export(
     Exports& exports,
@@ -91,7 +182,8 @@ void insert_class_export(
     const auto head = name.substr(0, dot);
     const auto tail = name.substr(dot + 1);
     if (exports.classes.contains(head) || exports.enums.contains(head) ||
-        exports.functions.contains(head) || exports.values.contains(head)) {
+        exports.functions.contains(head) || exports.values.contains(head) ||
+        exports.constants.contains(head)) {
         frontend_error(
             "DUPLICATE_NAME",
             "Namespace '" + head + "' conflicts with another exported declaration.",
@@ -128,16 +220,7 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
                        span);
     }
     Exports exports;
-    if (module == "math") {
-        for (const char* name : {"abs", "sqrt", "min", "max", "sin", "cos", "tan", "log", "exp", "pow", "trunc", "round", "floor", "ceil", "is_finite"}) {
-            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
-        }
-        for (const char* name : {"pi", "e"}) {
-            exports.values.emplace(name, std::string(*standard_value_target(module, name)));
-        }
-    } else if (module == "io") {
-        exports.functions.emplace("flush", std::string(*standard_function_target(module, "flush")));
-    } else if (module == "file") {
+    if (module == "file") {
         exports.classes.emplace("Handle", "$std.file.Handle");
         for (const char* name : {"open", "create", "append", "read", "write", "read_bin", "write_bin", "exists", "is_directory", "remove", "copy", "move", "mkdir", "list"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
@@ -169,7 +252,9 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
     } else if (module == "ref") {
         exports.classes.emplace("Cell", "$std.ref.Cell");
     } else if (module == "reflect") {
-        exports.functions.emplace("collect", std::string(*standard_function_target(module, "collect")));
+        for (const char* name : {"collect", "paths", "type_name"}) {
+            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
+        }
     } else if (module == "random") {
         exports.classes.emplace("Generator", "$std.random.Generator");
         exports.functions.emplace("generator", std::string(*standard_function_target(module, "generator")));
@@ -188,23 +273,12 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
     } else if (module == "http") {
         exports.classes.emplace("Response", "$std.http.Response");
         exports.functions.emplace("get", std::string(*standard_function_target(module, "get")));
-    } else if (module == "video") {
-        exports.classes.emplace("Reader", "$std.video.Reader");
-        exports.functions.emplace("open", std::string(*standard_function_target(module, "open")));
     } else if (module == "tensor") {
         exports.functions.emplace("zeros", std::string(*standard_function_target(module, "zeros")));
         exports.functions.emplace("ones", std::string(*standard_function_target(module, "ones")));
-    } else if (module == "stats") {
-        for (const auto name : {"sum", "mean", "min", "max"}) {
-            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
-        }
-    } else if (module == "linear") {
-        exports.functions.emplace("dot", std::string(*standard_function_target(module, "dot")));
-        exports.functions.emplace("matmul", std::string(*standard_function_target(module, "matmul")));
-    } else if (module == "image") {
-        for (const char* name : {"read", "write"}) {
-            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
-        }
+    } else if (module == "exact") {
+        exports.functions.emplace("atom", std::string(*standard_function_target(module, "atom")));
+        exports.functions.emplace("unary", std::string(*standard_function_target(module, "unary")));
     }
     return exports;
 }
@@ -618,12 +692,6 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             standard_union_type({"string", "none"}),
             standard_call("$std.http.header", std::move(header_arguments))));
         declarations.push_back(std::move(response));
-    } else if (module == "video") {
-        ClassDecl reader;
-        reader.name = "$std.video.Reader";
-        reader.span = standard_span();
-        reader.fields.push_back(standard_field("$handle", "uint64"));
-        declarations.push_back(std::move(reader));
     } else if (module == "json") {
         ClassDecl value;
         value.name = "$std.json.Value";
@@ -983,6 +1051,18 @@ void rename_expr(
     if (auto* node = std::get_if<MemberExpr>(&expression.data)) {
         std::string module_spelling;
         if (const auto* module = expression_namespace(*node->base, imports, module_spelling)) {
+            if (const auto constant = module->constants.find(node->name);
+                constant != module->constants.end()) {
+                auto replacement =
+                    clone_package_constant_expression(*constant->second, expression.span);
+                expression.data = std::move(replacement->data);
+                expression.contextual_default_type =
+                    std::move(replacement->contextual_default_type);
+                rename_expr(
+                    expression, ns, local_classes, local_functions, imports,
+                    type_parameters);
+                return;
+            }
             if (const auto value = module->values.find(node->name);
                 value != module->values.end()) {
                 expression.data = NameExpr{value->second};
@@ -1638,12 +1718,14 @@ public:
         fs::path cwd, std::size_t max_errors,
         std::optional<std::string> root_source = std::nullopt,
         std::map<std::string, fs::path>* resolved_packages = nullptr,
-        bool enforce_package_lock = true)
+        bool enforce_package_lock = true,
+        std::vector<CompilerExtensionRegistration>* compiler_extensions = nullptr)
         : cwd_(fs::absolute(std::move(cwd)).lexically_normal()),
           max_errors_(max_errors ? max_errors : 1),
           root_source_(std::move(root_source)),
           resolved_packages_(resolved_packages),
-          enforce_package_lock_(enforce_package_lock) {}
+          enforce_package_lock_(enforce_package_lock),
+          compiler_extensions_(compiler_extensions) {}
 
     Program load(const fs::path& root) {
         Program merged;
@@ -1683,6 +1765,7 @@ private:
     std::optional<std::string> root_source_;
     std::map<std::string, fs::path>* resolved_packages_{};
     bool enforce_package_lock_{true};
+    std::vector<CompilerExtensionRegistration>* compiler_extensions_{};
     bool package_lock_loaded_{};
     std::optional<PackageLockEntries> package_lock_;
     std::unordered_map<std::string, std::string> package_hash_cache_;
@@ -1801,6 +1884,217 @@ private:
             throw;
         } catch (const std::exception& error) {
             frontend_error("PACKAGE_MANIFEST", error.what(), span);
+        }
+
+        if (inserted && manifest && compiler_extensions_) {
+            try {
+                for (const auto& [extension_name, descriptor_path] :
+                     package_compiler_extension_paths(
+                         normalized.parent_path(), *manifest)) {
+                    const auto descriptor = read_text(descriptor_path);
+                    const auto document = parse_toml_subset(
+                        descriptor, descriptor_path.string());
+                    const auto* extension_version =
+                        document.find("extension", "version");
+                    const auto* phase =
+                        document.find("extension", "phase");
+                    if (!extension_version || *extension_version != "1") {
+                        throw std::runtime_error(
+                            "compiler extension descriptor requires "
+                            "[extension] version = 1: " +
+                            descriptor_path.string());
+                    }
+                    if (!phase || *phase != "tensor-region") {
+                        throw std::runtime_error(
+                            "compiler extension descriptor has unsupported "
+                            "phase; expected 'tensor-region': " +
+                            descriptor_path.string());
+                    }
+                    std::unordered_set<std::string> operation_ids;
+                    for (const auto& [table_name, fields] :
+                         document.tables) {
+                        if (!table_name.starts_with("operation.")) continue;
+                        const auto operation_id = table_name.substr(
+                            std::string("operation.").size());
+                        if (operation_id.empty()) {
+                            throw std::runtime_error(
+                                "compiler extension operation table requires "
+                                "a non-empty id: " +
+                                descriptor_path.string());
+                        }
+                        const auto function = fields.find("function");
+                        if (function == fields.end() ||
+                            function->second.empty()) {
+                            throw std::runtime_error(
+                                "compiler extension operation '" +
+                                operation_id +
+                                "' requires a non-empty function: " +
+                                descriptor_path.string());
+                        }
+                        operation_ids.insert(operation_id);
+                    }
+
+                    std::unordered_set<std::string> execution_policy_ids;
+                    for (const auto& [table_name, fields] :
+                         document.tables) {
+                        if (!table_name.starts_with(
+                                "execution_policy.")) {
+                            continue;
+                        }
+                        const auto policy_id = table_name.substr(
+                            std::string("execution_policy.").size());
+                        const auto function = fields.find("function");
+                        if (policy_id.empty() ||
+                            function == fields.end() ||
+                            function->second.empty()) {
+                            throw std::runtime_error(
+                                "compiler extension execution policy table "
+                                "requires a non-empty id and function: " +
+                                descriptor_path.string());
+                        }
+                        execution_policy_ids.insert(policy_id);
+                    }
+
+                    for (const auto& [table_name, fields] :
+                         document.tables) {
+                        if (!table_name.starts_with("fusion.")) continue;
+                        const auto fusion_id = table_name.substr(
+                            std::string("fusion.").size());
+                        const auto configured = fields.find("operations");
+                        if (fusion_id.empty() ||
+                            configured == fields.end() ||
+                            configured->second.empty()) {
+                            throw std::runtime_error(
+                                "compiler extension fusion table requires "
+                                "a non-empty id and operations list: " +
+                                descriptor_path.string());
+                        }
+
+                        std::size_t start = 0;
+                        while (start <= configured->second.size()) {
+                            const auto comma =
+                                configured->second.find(',', start);
+                            const auto end =
+                                comma == std::string::npos
+                                    ? configured->second.size()
+                                    : comma;
+                            auto operation = configured->second.substr(
+                                start, end - start);
+                            const auto first =
+                                operation.find_first_not_of(" \t\r");
+                            const auto last =
+                                operation.find_last_not_of(" \t\r");
+                            if (first == std::string::npos) {
+                                throw std::runtime_error(
+                                    "compiler extension fusion '" +
+                                    fusion_id +
+                                    "' contains an empty operation id: " +
+                                    descriptor_path.string());
+                            }
+                            operation =
+                                operation.substr(first, last - first + 1);
+                            if (!operation_ids.contains(operation)) {
+                                throw std::runtime_error(
+                                    "compiler extension fusion '" +
+                                    fusion_id +
+                                    "' references unknown operation '" +
+                                    operation + "': " +
+                                    descriptor_path.string());
+                            }
+                            if (comma == std::string::npos) break;
+                            start = comma + 1;
+                        }
+
+                        if (const auto replacement =
+                                fields.find("replacement");
+                            replacement != fields.end()) {
+                            if (replacement->second.empty() ||
+                                !operation_ids.contains(replacement->second)) {
+                                throw std::runtime_error(
+                                    "compiler extension fusion '" +
+                                    fusion_id +
+                                    "' references unknown replacement operation '" +
+                                    replacement->second + "': " +
+                                    descriptor_path.string());
+                            }
+                        }
+                    }
+                    for (const auto& [table_name, fields] :
+                         document.tables) {
+                        std::string rule_kind;
+                        std::string rule_prefix;
+                        if (table_name.starts_with("specialization.")) {
+                            rule_kind = "specialization";
+                            rule_prefix = "specialization.";
+                        } else if (table_name.starts_with("backend.")) {
+                            rule_kind = "backend";
+                            rule_prefix = "backend.";
+                        } else if (table_name.starts_with("memory.")) {
+                            rule_kind = "memory";
+                            rule_prefix = "memory.";
+                        } else {
+                            continue;
+                        }
+
+                        const auto rule_id =
+                            table_name.substr(rule_prefix.size());
+                        const auto operation = fields.find("operation");
+                        const auto replacement = fields.find("replacement");
+                        if (rule_id.empty() ||
+                            operation == fields.end() ||
+                            operation->second.empty() ||
+                            replacement == fields.end() ||
+                            replacement->second.empty()) {
+                            throw std::runtime_error(
+                                "compiler extension " + rule_kind +
+                                " table requires a non-empty id, operation, "
+                                "and replacement: " +
+                                descriptor_path.string());
+                        }
+                        if (!operation_ids.contains(operation->second)) {
+                            throw std::runtime_error(
+                                "compiler extension " + rule_kind + " '" +
+                                rule_id +
+                                "' references unknown operation '" +
+                                operation->second + "': " +
+                                descriptor_path.string());
+                        }
+                        if (!operation_ids.contains(replacement->second)) {
+                            throw std::runtime_error(
+                                "compiler extension " + rule_kind + " '" +
+                                rule_id +
+                                "' references unknown replacement operation '" +
+                                replacement->second + "': " +
+                                descriptor_path.string());
+                        }
+                        if (const auto policy = fields.find("policy");
+                            policy != fields.end()) {
+                            if (policy->second.empty() ||
+                                !execution_policy_ids.contains(
+                                    policy->second)) {
+                                throw std::runtime_error(
+                                    "compiler extension " + rule_kind + " '" +
+                                    rule_id +
+                                    "' references unknown execution policy '" +
+                                    policy->second + "': " +
+                                    descriptor_path.string());
+                            }
+                        }
+                    }
+                    compiler_extensions_->push_back(
+                        CompilerExtensionRegistration{
+                            name,
+                            extension_name,
+                            normalized.parent_path().string(),
+                            descriptor_path.string(),
+                            descriptor,
+                            *phase,
+                            document.tables});
+                }
+            } catch (const std::exception& error) {
+                frontend_error(
+                    "PACKAGE_COMPILER_EXTENSION", error.what(), span);
+            }
         }
 
         if (!enforce_package_lock_) return;
@@ -1938,12 +2232,12 @@ private:
         }
 
         for (const auto& enum_decl : program.enums) {
-            if (is_reserved_value_name(enum_decl.name) || enum_decl.name == "main")
+            if ((root && is_reserved_value_name(enum_decl.name)) || enum_decl.name == "main")
                 frontend_error("DUPLICATE_NAME", "Enum name '" + enum_decl.name + "' is reserved.", enum_decl.span);
         }
         for (const auto& class_decl : program.classes) {
             if (class_decl.name.rfind("$cli.", 0) == 0) continue;
-            if (is_reserved_value_name(class_decl.name) || class_decl.name == "main") {
+            if ((root && is_reserved_value_name(class_decl.name)) || class_decl.name == "main") {
                 frontend_error(
                     "DUPLICATE_NAME",
                     "Class name '" + class_decl.name + "' is reserved.",
@@ -1951,7 +2245,7 @@ private:
             }
         }
         for (const auto& function : program.functions) {
-            if (is_reserved_value_name(function.name) || function.name == "main") {
+            if ((root && is_reserved_value_name(function.name)) || function.name == "main") {
                 frontend_error(
                     function.name == "main" ? "RESERVED_MAIN" : "DUPLICATE_NAME",
                     "Function name '" + function.name + "' is reserved.",
@@ -1961,11 +2255,17 @@ private:
 
         if (!root) {
             for (const auto& statement : program.statements) {
-                if (!std::holds_alternative<MainGuardStmt>(statement->data)) {
-                    frontend_error("IMPORT_TOP_LEVEL",
-                                   "Imported modules may contain declarations and 'if main' guards only; other top-level executable statements belong in the root file.",
-                                   statement->span);
+                if (std::holds_alternative<MainGuardStmt>(statement->data)) continue;
+                if (const auto* binding = std::get_if<BindingStmt>(&statement->data);
+                    binding && binding->is_const && !binding->reference && binding->value) {
+                    (void)clone_package_constant_expression(
+                        *binding->value, binding->value->span);
+                    continue;
                 }
+                frontend_error(
+                    "IMPORT_TOP_LEVEL",
+                    "Imported modules may contain declarations, immutable compile-time const bindings, and 'if main' guards only; other top-level executable statements belong in the root file.",
+                    statement->span);
             }
         }
         for (auto& statement : program.statements) {
@@ -1977,9 +2277,16 @@ private:
 
         std::unordered_set<std::string> local_classes;
         std::unordered_set<std::string> local_functions;
+        std::unordered_set<std::string> local_constants;
         for (const auto& class_decl : program.classes) local_classes.insert(class_decl.name);
         for (const auto& enum_decl : program.enums) local_classes.insert(enum_decl.name);
         for (const auto& function : program.functions) local_functions.insert(function.name);
+        for (const auto& statement : program.statements) {
+            if (const auto* binding = std::get_if<BindingStmt>(&statement->data);
+                binding && binding->is_const) {
+                local_constants.insert(binding->name);
+            }
+        }
 
         Exports exports;
         for (const auto& class_decl : program.classes)
@@ -1988,6 +2295,31 @@ private:
         for (const auto& enum_decl : program.enums)
             exports.enums[enum_decl.name] = qualify(ns, enum_decl.name);
         for (const auto& name : local_functions) exports.functions[name] = qualify(ns, name);
+        if (!root) {
+            for (const auto& statement : program.statements) {
+                const auto* binding = std::get_if<BindingStmt>(&statement->data);
+                if (!binding || !binding->is_const || !binding->value) continue;
+                if (exports.classes.contains(binding->name) ||
+                    exports.enums.contains(binding->name) ||
+                    exports.functions.contains(binding->name) ||
+                    exports.values.contains(binding->name) ||
+                    exports.namespaces.contains(binding->name) ||
+                    exports.constants.contains(binding->name)) {
+                    frontend_error(
+                        "DUPLICATE_NAME",
+                        "Const export '" + binding->name +
+                            "' conflicts with another exported declaration.",
+                        statement->span);
+                }
+                auto value = clone_package_constant_expression(
+                    *binding->value, binding->value->span);
+                if (binding->declared_type.name != "auto") {
+                    value->contextual_default_type = binding->declared_type;
+                }
+                exports.constants.emplace(
+                    binding->name, std::shared_ptr<Expr>(value.release()));
+            }
+        }
 
         std::unordered_map<std::string, ImportBinding> imports;
         std::unordered_set<std::string> aliases;
@@ -2016,7 +2348,8 @@ private:
                         "' is always available and cannot be imported.",
                     import_decl.span);
             }
-            if (is_reserved_value_name(import_decl.alias) || import_decl.alias == "main") {
+            if (is_reserved_value_name(import_decl.alias) ||
+                import_decl.alias == "main") {
                 stack_.pop_back();
                 frontend_error(
                     "SHADOWING",
@@ -2025,7 +2358,8 @@ private:
             }
             if (!aliases.insert(import_decl.alias).second ||
                 local_classes.contains(import_decl.alias) ||
-                local_functions.contains(import_decl.alias)) {
+                local_functions.contains(import_decl.alias) ||
+                local_constants.contains(import_decl.alias)) {
                 stack_.pop_back();
                 frontend_error("DUPLICATE_IMPORT_ALIAS",
                                "Import alias '" + import_decl.alias + "' conflicts with another visible declaration.",
@@ -2482,8 +2816,7 @@ private:
         if (type.name == "$std.json.Value" ||
             type.name == "$std.http.Response" ||
             type.name == "$std.file.Handle" ||
-            type.name == "$std.atomic.Counter" ||
-            type.name == "$std.video.Reader") {
+            type.name == "$std.atomic.Counter") {
             return false;
         }
         const auto* declaration = constraint_class(type.name);
@@ -2893,9 +3226,16 @@ private:
             const bool standard_generated =
                 class_decl.name.rfind("$std.", 0) == 0 ||
                 class_decl.name.rfind("__quidra_gc__std_", 0) == 0;
+            // Imported package classes are namespace-scoped. Their members are
+            // never introduced as bare names in the importing program, so a
+            // package can preserve natural qualified member APIs
+            // without weakening reservation for root user declarations.
+            const bool namespace_scoped =
+                standard_generated ||
+                class_decl.name.find('.') != std::string::npos;
             std::unordered_set<std::string> member_names;
             for (const auto& field : class_decl.fields) {
-                if (!standard_generated && is_reserved_value_name(field.name)) {
+                if (!namespace_scoped && is_reserved_value_name(field.name)) {
                     frontend_error("SHADOWING",
                                    "Class field name '" + field.name + "' is reserved.",
                                    field.span);
@@ -2922,7 +3262,7 @@ private:
                     validate_constructor(class_decl, method);
                     continue;
                 }
-                if (!standard_generated && is_reserved_value_name(method.name)) {
+                if (!namespace_scoped && is_reserved_value_name(method.name)) {
                     frontend_error("SHADOWING",
                                    "Class method name '" + method.name + "' is reserved.",
                                    method.span);
@@ -3107,6 +3447,12 @@ private:
             result.span = expression.span;
             return std::optional<TypeName>{std::move(result)};
         };
+        if (expression.contextual_default_type &&
+            expression.contextual_default_type->name != "auto") {
+            auto result = clone_type(*expression.contextual_default_type);
+            result.span = expression.span;
+            return result;
+        }
         // Numeric literals carry only a family until a surrounding concrete type
         // determines their representation. Generic inference must not invent
         // default int/float types for them.
@@ -3151,6 +3497,49 @@ private:
             return result;
         }
 
+        if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
+            if (binary->op != "+" && binary->op != "-" &&
+                binary->op != "*" && binary->op != "/" &&
+                binary->op != "%" && binary->op != "^") {
+                return std::nullopt;
+            }
+            auto left = infer_expression_type(*binary->left, current_class);
+            auto right = infer_expression_type(*binary->right, current_class);
+            const auto numeric_literal = [](const Expr& value) {
+                return std::holds_alternative<IntegerExpr>(value.data) ||
+                       std::holds_alternative<FloatExpr>(value.data);
+            };
+            const auto with_span = [&](TypeName value) {
+                value.span = expression.span;
+                return std::optional<TypeName>{std::move(value)};
+            };
+            if (left && right) {
+                if (canonical_type(*left) == canonical_type(*right))
+                    return with_span(clone_type(*left));
+                const auto tensor_scalar = [&](const TypeName& tensor,
+                                               const TypeName& scalar)
+                    -> std::optional<TypeName> {
+                    if (tensor.name != "tensor" ||
+                        tensor.arguments.size() != 1 ||
+                        canonical_type(tensor.arguments.front()) !=
+                            canonical_type(scalar)) {
+                        return std::nullopt;
+                    }
+                    return with_span(clone_type(tensor));
+                };
+                if (const auto result = tensor_scalar(*left, *right))
+                    return result;
+                if (const auto result = tensor_scalar(*right, *left))
+                    return result;
+                return std::nullopt;
+            }
+            if (left && numeric_literal(*binary->right))
+                return with_span(clone_type(*left));
+            if (right && numeric_literal(*binary->left))
+                return with_span(clone_type(*right));
+            return std::nullopt;
+        }
+
         if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
             if ((call->callee == "tensor" || call->callee == "$std.tensor.zeros" ||
                  call->callee == "$std.tensor.ones") &&
@@ -3174,7 +3563,9 @@ private:
                     {"int", "int"}, {"int64", "int"},
                     {"uint8", "uint8"}, {"uint16", "uint16"},
                     {"uint32", "uint32"}, {"uint64", "uint64"},
-                    {"float32", "float32"}, {"float", "float"}, {"float64", "float"}};
+                    {"bigint", "bigint"},
+                    {"float32", "float32"}, {"float", "float"}, {"float64", "float"},
+                    {"bigreal", "bigreal"}};
             if (const auto scalar = numeric_cast_result_types.find(call->callee);
                 scalar != numeric_cast_result_types.end()) {
                 return simple_type(scalar->second);
@@ -3198,6 +3589,11 @@ private:
         if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
             const auto base = infer_expression_type(*member->base, current_class);
             if (!base || !base->dimensions.empty()) return std::nullopt;
+            if (base->name == "tensor" && member->name == "grad") {
+                auto result = clone_type(*base);
+                result.span = expression.span;
+                return result;
+            }
             if (const auto* field = output_field(base->name, member->name)) {
                 return clone_type(field->type);
             }
@@ -3249,21 +3645,16 @@ private:
                     (call->method == "gpu" && call->args.size() == 1)) {
                     return receiver;
                 }
-                if ((call->method == "contiguous" || call->method == "track" ||
-                     call->method == "untrack" || call->method == "retrack" ||
-                     call->method == "abs" || call->method == "exp" ||
-                     call->method == "log" || call->method == "sum_last" ||
-                     call->method == "max_last" || call->method == "min_last") &&
-                    call->args.empty()) {
-                    return receiver;
-                }
-                if (call->method == "mean" && call->args.empty()) {
-                    auto result = clone_type(*receiver);
-                    result.tensor_rank = 0;
-                    result.tensor_shape_prefix.clear();
-                    result.tensor_known_shape_prefix.clear();
+                if (call->method == "device" && call->args.empty()) {
+                    TypeName result;
+                    result.name = "int";
                     result.span = expression.span;
                     return result;
+                }
+                if ((call->method == "contiguous" || call->method == "track" ||
+                     call->method == "untrack" || call->method == "retrack") &&
+                    call->args.empty()) {
+                    return receiver;
                 }
                 if (call->method == "shape" && call->args.empty()) {
                     TypeName result;
@@ -3288,22 +3679,14 @@ private:
                     result.span = expression.span;
                     return result;
                 }
-                if (call->method == "matmul" && call->args.size() == 1) {
+                if (call->method == "transpose" && call->args.size() == 2) {
                     auto result = clone_type(*receiver);
+                    // Transpose preserves tensor dtype and rank. Axis values may
+                    // not be statically available during specialization-family
+                    // selection, so discard extent facts rather than returning
+                    // an unknown type or inventing a permuted shape.
                     result.tensor_shape_prefix.clear();
                     result.tensor_known_shape_prefix.clear();
-                    const auto right =
-                        infer_expression_type(*call->args[0].value, current_class);
-                    if (receiver->tensor_rank && right && right->name == "tensor" &&
-                        right->tensor_rank &&
-                        (*right->tensor_rank == 1 || *right->tensor_rank == 2) &&
-                        *receiver->tensor_rank >= 1) {
-                        result.tensor_rank = *right->tensor_rank == 1
-                            ? *receiver->tensor_rank - 1
-                            : *receiver->tensor_rank;
-                    } else {
-                        result.tensor_rank.reset();
-                    }
                     result.span = expression.span;
                     return result;
                 }
@@ -3334,14 +3717,6 @@ private:
                         shape->dimensions.front() >= 0) {
                         result.tensor_rank = shape->dimensions.front();
                     }
-                    result.span = expression.span;
-                    return result;
-                }
-                if (call->method == "convolve" &&
-                    !call->args.empty() && call->args.size() <= 4) {
-                    auto result = clone_type(*receiver);
-                    result.tensor_shape_prefix.clear();
-                    result.tensor_known_shape_prefix.clear();
                     result.span = expression.span;
                     return result;
                 }
@@ -3813,6 +4188,9 @@ private:
             clone_depth_, nesting::max_ast_clone_depth, source.span, "Expression");
         auto out = std::make_unique<Expr>();
         out->span = source.span;
+        if (source.contextual_default_type) {
+            out->contextual_default_type = clone_type(*source.contextual_default_type);
+        }
 
         if (const auto* node = std::get_if<IntegerExpr>(&source.data)) out->data = *node;
         else if (const auto* node = std::get_if<FloatExpr>(&source.data)) out->data = *node;
@@ -3875,7 +4253,8 @@ private:
             if (!type_arguments.empty() && !deferred_call) {
                 if (copy.callee == "tensor" || copy.callee == "$std.tensor.zeros" ||
                     copy.callee == "$std.tensor.ones" ||
-                    copy.callee == "$std.reflect.collect") {
+                    copy.callee == "$std.reflect.collect" ||
+                    copy.callee == "$std.reflect.paths") {
                     copy.type_arguments = std::move(type_arguments);
                 } else if (class_templates_.contains(copy.callee)) {
                     copy.callee = instantiate_class(copy.callee, type_arguments);
@@ -4682,7 +5061,13 @@ ResolvedProgram load_program_with_modules(
     const std::filesystem::path& root_file,
     const std::filesystem::path& command_working_directory,
     std::size_t max_errors) {
-    return ResolvedProgram{ModuleLoader(command_working_directory, max_errors).load(root_file)};
+    std::vector<CompilerExtensionRegistration> compiler_extensions;
+    auto program = ModuleLoader(
+        command_working_directory, max_errors, std::nullopt, nullptr, true,
+        &compiler_extensions)
+        .load(root_file);
+    return ResolvedProgram{
+        std::move(program), std::move(compiler_extensions)};
 }
 
 ResolvedProgram load_program_with_root_source(
@@ -4691,11 +5076,13 @@ ResolvedProgram load_program_with_root_source(
     const std::filesystem::path& command_working_directory,
     std::size_t max_errors,
     bool enforce_package_lock) {
+    std::vector<CompilerExtensionRegistration> compiler_extensions;
+    auto program = ModuleLoader(
+        command_working_directory, max_errors, std::string(root_source),
+        nullptr, enforce_package_lock, &compiler_extensions)
+        .load(root_file);
     return ResolvedProgram{
-        ModuleLoader(
-            command_working_directory, max_errors, std::string(root_source),
-            nullptr, enforce_package_lock)
-            .load(root_file)};
+        std::move(program), std::move(compiler_extensions)};
 }
 
 std::map<std::string, fs::path> resolve_package_dependencies(
@@ -4709,8 +5096,23 @@ std::map<std::string, fs::path> resolve_package_dependencies(
     return packages;
 }
 
+std::map<std::string, fs::path> resolve_package_dependencies_source(
+    const std::filesystem::path& root_file,
+    std::string_view root_source,
+    const std::filesystem::path& command_working_directory,
+    std::size_t max_errors) {
+    std::map<std::string, fs::path> packages;
+    (void)ModuleLoader(
+        command_working_directory, max_errors, std::string(root_source),
+        &packages, false)
+        .load(root_file);
+    return packages;
+}
+
 ConcreteProgram expand_generics(ResolvedProgram program) {
-    return ConcreteProgram{GenericExpander(std::move(program.program)).run()};
+    return ConcreteProgram{
+        GenericExpander(std::move(program.program)).run(),
+        std::move(program.compiler_extensions)};
 }
 
 } // namespace quidra

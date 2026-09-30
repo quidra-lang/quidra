@@ -87,15 +87,15 @@ extern "C" void quidra_test_assert(bool condition) {
     std::fputc('\n', stderr);
     std::exit(1);
 }
-// io.flush() returns void | error: 0 here is success, anything else becomes
+// flush() returns void | error: 0 here is success, anything else becomes
 // the error alternative, which fails fast when the statement discards it.
-extern "C" int quidra_io_flush() {
+extern "C" int quidra_flush() {
     if (std::fflush(stdout) == 0 && !std::ferror(stdout)) return 0;
     return 1;
 }
-// print and write report the standard output stream's error state after
-// writing. The flag is sticky, so a failed write is never silently lost: the
-// next output statement, or io.flush(), reports it.
+// print reports the standard output stream's error state after writing. The
+// flag is sticky, so a failed write is never silently lost: the next print or
+// flush() reports it.
 extern "C" int quidra_output_status() {
     return std::ferror(stdout) ? 1 : 0;
 }

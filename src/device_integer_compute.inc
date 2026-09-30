@@ -286,74 +286,6 @@ std::string ptx_integer_cast_source(int source_dtype,int target_dtype) {
     return o.str();
 }
 
-std::string ptx_integer_matmul_source(int dtype) {
-    const auto bits=gpu_integer_bits(dtype);
-    std::ostringstream o;
-    o<<".version 6.0\n.target sm_30\n.address_size 64\n.visible .entry q_kernel("
-      ".param .u64 p_out,.param .u64 p_left,.param .u64 p_right,.param .u64 p_m,"
-      ".param .u64 p_k,.param .u64 p_n,.param .u64 p_status){"
-      ".reg .pred %p<16>;.reg .b32 %r<16>;.reg .b64 %rd<64>;"
-      "ld.param.u64 %rd1,[p_out];ld.param.u64 %rd2,[p_left];ld.param.u64 %rd3,[p_right];"
-      "ld.param.u64 %rd4,[p_m];ld.param.u64 %rd5,[p_k];ld.param.u64 %rd6,[p_n];ld.param.u64 %rd19,[p_status];"
-      "mov.u32 %r1,%ctaid.x;mov.u32 %r2,%ntid.x;mov.u32 %r3,%tid.x;mad.lo.s32 %r4,%r1,%r2,%r3;"
-      "cvt.u64.u32 %rd7,%r4;mul.lo.u64 %rd8,%rd4,%rd6;setp.ge.u64 %p1,%rd7,%rd8;@%p1 bra DONE;"
-      "div.u64 %rd9,%rd7,%rd6;rem.u64 %rd10,%rd7,%rd6;mov.u64 %rd30,0;mov.u64 %rd11,0;"
-      "LOOP:setp.ge.u64 %p2,%rd11,%rd5;@%p2 bra STORE;mul.lo.u64 %rd12,%rd9,%rd5;add.u64 %rd12,%rd12,%rd11;"
-      <<"mul.lo.u64 %rd13,%rd12,"<<(bits/8)<<";add.u64 %rd14,%rd2,%rd13;"
-      "mul.lo.u64 %rd15,%rd11,%rd6;add.u64 %rd15,%rd15,%rd10;"
-      <<"mul.lo.u64 %rd16,%rd15,"<<(bits/8)<<";add.u64 %rd17,%rd3,%rd16;";
-    o<<ptx_load_integer_global(dtype,"%rd14","%rd20","%r5")
-     <<ptx_load_integer_global(dtype,"%rd17","%rd21","%r6")
-     <<ptx_checked_mul(dtype,"%rd20","%rd21","%rd31","BAD")
-     <<ptx_checked_add(dtype,"%rd30","%rd31","%rd30","BAD","MM");
-    o<<"add.u64 %rd11,%rd11,1;bra LOOP;STORE:mul.lo.u64 %rd18,%rd7,"<<(bits/8)
-     <<";add.u64 %rd18,%rd1,%rd18;"<<ptx_store_integer_global(dtype,"%rd18","%rd30","%r7")
-     <<"bra DONE;BAD:mov.u32 %r10,1;atom.global.exch.b32 %r11,[%rd19],%r10;DONE:ret;}";
-    return o.str();
-}
-
-std::string ptx_integer_dot_source(int dtype) {
-    const auto bits=gpu_integer_bits(dtype);
-    std::ostringstream o;
-    o<<".version 6.0\n.target sm_30\n.address_size 64\n.visible .entry q_kernel("
-      ".param .u64 p_out,.param .u64 p_left,.param .u64 p_right,.param .u64 p_count,.param .u64 p_status){"
-      ".reg .pred %p<16>;.reg .b32 %r<16>;.reg .b64 %rd<64>;"
-      "ld.param.u64 %rd1,[p_out];ld.param.u64 %rd2,[p_left];ld.param.u64 %rd3,[p_right];"
-      "ld.param.u64 %rd5,[p_count];ld.param.u64 %rd19,[p_status];mov.u64 %rd7,0;mov.u64 %rd30,0;"
-      "LOOP:setp.ge.u64 %p1,%rd7,%rd5;@%p1 bra STORE;mul.lo.u64 %rd8,%rd7,"<<(bits/8)
-     <<";add.u64 %rd9,%rd2,%rd8;add.u64 %rd10,%rd3,%rd8;";
-    o<<ptx_load_integer_global(dtype,"%rd9","%rd20","%r5")
-     <<ptx_load_integer_global(dtype,"%rd10","%rd21","%r6")
-     <<ptx_checked_mul(dtype,"%rd20","%rd21","%rd31","BAD")
-     <<ptx_checked_add(dtype,"%rd30","%rd31","%rd30","BAD","DOT");
-    o<<"add.u64 %rd7,%rd7,1;bra LOOP;STORE:"<<ptx_store_integer_global(dtype,"%rd1","%rd30","%r7")
-     <<"bra DONE;BAD:mov.u32 %r10,1;atom.global.exch.b32 %r11,[%rd19],%r10;DONE:ret;}";
-    return o.str();
-}
-
-std::string ptx_integer_reduce_source(int dtype,int operation) {
-    const auto bits=gpu_integer_bits(dtype);
-    const bool sign=gpu_integer_signed(dtype);
-    std::ostringstream o;
-    o<<".version 6.0\n.target sm_30\n.address_size 64\n.visible .entry q_kernel("
-      ".param .u64 p_out,.param .u64 p_in,.param .u64 p_count,.param .u64 p_status){"
-      ".reg .pred %p<16>;.reg .b32 %r<16>;.reg .b64 %rd<64>;"
-      "ld.param.u64 %rd1,[p_out];ld.param.u64 %rd2,[p_in];ld.param.u64 %rd5,[p_count];ld.param.u64 %rd19,[p_status];";
-    if(operation==1)o<<"mov.u64 %rd30,0;mov.u64 %rd7,0;";
-    else{
-        o<<ptx_load_integer_global(dtype,"%rd2","%rd30","%r5")<<"mov.u64 %rd7,1;";
-    }
-    o<<"LOOP:setp.ge.u64 %p1,%rd7,%rd5;@%p1 bra STORE;mul.lo.u64 %rd8,%rd7,"<<(bits/8)
-     <<";add.u64 %rd9,%rd2,%rd8;"<<ptx_load_integer_global(dtype,"%rd9","%rd20","%r6");
-    if(operation==1)o<<ptx_checked_add(dtype,"%rd30","%rd20","%rd30","BAD","RED");
-    else{
-        o<<"setp."<<(operation==2?"lt":"gt")<<"."<<(sign?"s64":"u64")
-         <<" %p2,%rd20,%rd30;@%p2 mov.b64 %rd30,%rd20;";
-    }
-    o<<"add.u64 %rd7,%rd7,1;bra LOOP;STORE:"<<ptx_store_integer_global(dtype,"%rd1","%rd30","%r7")
-     <<"bra DONE;BAD:mov.u32 %r10,1;atom.global.exch.b32 %r11,[%rd19],%r10;DONE:ret;}";
-    return o.str();
-}
 
 
 std::string ptx_integer_gather_backward_source(int dtype) {
@@ -384,24 +316,6 @@ std::string ptx_integer_gather_backward_source(int dtype) {
       <<ptx_store_integer_global(dtype,"%rd19","%rd30","%r7")
       <<" bra DONE;\nBAD:\n mov.u32 %r10,1;\n"
         " atom.global.exch.b32 %r11,[%rd6],%r10;\nDONE:\n ret;\n}\n";
-    return o.str();
-}
-
-std::string ptx_integer_mean_source(int dtype) {
-    const auto bits=gpu_integer_bits(dtype);
-    const bool sign=gpu_integer_signed(dtype);
-    std::ostringstream o;
-    o<<".version 6.0\n.target sm_30\n.address_size 64\n.visible .entry q_kernel("
-      ".param .u64 p_out,.param .u64 p_in,.param .u64 p_count){"
-      ".reg .pred %p<4>;.reg .b32 %r<12>;.reg .b64 %rd<32>;.reg .f64 %fd<8>;"
-      "ld.param.u64 %rd1,[p_out];ld.param.u64 %rd2,[p_in];ld.param.u64 %rd5,[p_count];"
-      "mov.u64 %rd7,0;mov.f64 %fd1,0d0000000000000000;"
-      "LOOP:setp.ge.u64 %p1,%rd7,%rd5;@%p1 bra STORE;mul.lo.u64 %rd8,%rd7,"<<(bits/8)
-     <<";add.u64 %rd9,%rd2,%rd8;";
-    o<<ptx_load_integer_global(dtype,"%rd9","%rd20","%r5");
-    o<<"cvt.rn.f64."<<(sign?"s64":"u64")<<" %fd2,%rd20;add.f64 %fd1,%fd1,%fd2;"
-      "add.u64 %rd7,%rd7,1;bra LOOP;STORE:cvt.rn.f64.u64 %fd3,%rd5;"
-      "div.f64 %fd4,%fd1,%fd3;st.global.f64 [%rd1],%fd4;ret;}";
     return o.str();
 }
 
@@ -512,52 +426,6 @@ std::string msl_integer_cast_source(int source_dtype,int target_dtype) {
     }
     o<<"out[i]=("<<dst<<")v;}\n";return o.str();
 }
-std::string msl_integer_matmul_source(int dtype) {
-    const auto t=msl_integer_type(dtype);
-    return "#include <metal_stdlib>\nusing namespace metal;\n"+msl_integer_helpers(dtype)+
-      "kernel void q_kernel(device "+t+"* out [[buffer(0)]],const device "+t+"* left [[buffer(1)]],"
-      "const device "+t+"* right [[buffer(2)]],constant ulong& m [[buffer(3)]],constant ulong& k [[buffer(4)]],"
-      "constant ulong& n [[buffer(5)]],device atomic_uint* status [[buffer(6)]],uint gid [[thread_position_in_grid]]){"
-      "ulong g=ulong(gid);if(g>=m*n)return;ulong row=g/n,col=g%n;"+t+" total=0;"
-      "for(ulong i=0;i<k;++i){"+t+" p=0,next=0;if(q_mul(left[row*k+i],right[i*n+col],p)||q_add(total,p,next)){"
-      "atomic_store_explicit(status,1u,memory_order_relaxed);return;}total=next;}out[g]=total;}\n";
-}
-std::string msl_integer_dot_source(int dtype) {
-    const auto t=msl_integer_type(dtype);
-    return "#include <metal_stdlib>\nusing namespace metal;\n"+msl_integer_helpers(dtype)+
-      "kernel void q_kernel(device "+t+"* out [[buffer(0)]],const device "+t+"* left [[buffer(1)]],"
-      "const device "+t+"* right [[buffer(2)]],constant ulong& count [[buffer(3)]],device atomic_uint* status [[buffer(4)]],"
-      "uint gid [[thread_position_in_grid]]){if(gid!=0)return;"+t+" total=0;"
-      "for(ulong i=0;i<count;++i){"+t+" p=0,next=0;if(q_mul(left[i],right[i],p)||q_add(total,p,next)){"
-      "atomic_store_explicit(status,1u,memory_order_relaxed);return;}total=next;}out[0]=total;}\n";
-}
-std::string msl_integer_mean_source(int dtype) {
-    const auto t=msl_integer_type(dtype);
-    const bool sign=gpu_integer_signed(dtype);
-    std::ostringstream o;
-    o<<"#include <metal_stdlib>\nusing namespace metal;\n"
-     <<"kernel void q_kernel(device "<<(sign?"long":"ulong")
-     <<"* out [[buffer(0)]],const device "<<t
-     <<"* in [[buffer(1)]],constant ulong& count [[buffer(2)]],"
-       "uint gid [[thread_position_in_grid]]){if(gid!=0)return;";
-    if(sign){
-        o<<"long n=long(count),q=0,r=0;"
-          "for(ulong i=0;i<count;++i){long x=long(in[i]);long xq=x/n,xr=x%n;"
-          "q+=xq;"
-          "if(xr>0&&r>=n-xr){r-=n-xr;q+=1;}"
-          "else if(xr<0&&r<=-n-xr){r+=n;q-=1;}"
-          "else r+=xr;}"
-          "out[0]=q;out[1]=r;}";
-    }else{
-        o<<"ulong n=count,q=0,r=0;"
-          "for(ulong i=0;i<count;++i){ulong x=ulong(in[i]);ulong xq=x/n,xr=x%n;"
-          "q+=xq;"
-          "if(xr!=0&&r>=n-xr){r-=n-xr;q+=1;}else r+=xr;}"
-          "out[0]=q;out[1]=r;}";
-    }
-    o<<"\n";
-    return o.str();
-}
 
 std::string msl_integer_gather_backward_source(int dtype) {
     const auto t=msl_integer_type(dtype);
@@ -575,20 +443,6 @@ std::string msl_integer_gather_backward_source(int dtype) {
     return o.str();
 }
 
-std::string msl_integer_reduce_source(int dtype,int operation) {
-    const auto t=msl_integer_type(dtype);
-    std::ostringstream o;
-    o<<"#include <metal_stdlib>\nusing namespace metal;\n"<<msl_integer_helpers(dtype)
-     <<"kernel void q_kernel(device "<<t<<"* out [[buffer(0)]],const device "<<t
-     <<"* in [[buffer(1)]],constant ulong& count [[buffer(2)]],device atomic_uint* status [[buffer(3)]],"
-       "uint gid [[thread_position_in_grid]]){if(gid!=0)return;"<<t<<" result=";
-    if(operation==1)o<<"0;ulong start=0;";else o<<"in[0];ulong start=1;";
-    o<<"for(ulong i=start;i<count;++i){";
-    if(operation==1)o<<t<<" next=0;if(q_add(result,in[i],next)){atomic_store_explicit(status,1u,memory_order_relaxed);return;}result=next;";
-    else if(operation==2)o<<"if(in[i]<result)result=in[i];";
-    else o<<"if(in[i]>result)result=in[i];";
-    o<<"}out[0]=result;}\n";return o.str();
-}
 #endif
 
 } // namespace

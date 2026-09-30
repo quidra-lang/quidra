@@ -40,6 +40,7 @@ struct CallResolution {
     std::string target;
     std::optional<BuiltinCallable> builtin;
     Type type{Type::simple(TypeKind::Void)};
+    std::optional<Type> reflected_target{};
 };
 
 struct FunctionType {
@@ -101,6 +102,7 @@ struct ScanFormat {
 
 struct CheckedProgram {
     Program program;
+    std::vector<CompilerExtensionRegistration> compiler_extensions;
     std::unordered_map<std::string, FunctionType> functions;
     std::unordered_map<std::string, ClassTypeInfo> classes;
     std::unordered_map<const Expr*, Type> expr_types;

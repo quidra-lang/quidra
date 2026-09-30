@@ -1,7 +1,9 @@
 #include "native_build.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cerrno>
+#include <chrono>
 #include <cstdlib>
 #include <cstdint>
 #include <fstream>
@@ -9,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <optional>
+#include <random>
 #include <system_error>
 #include <vector>
 
@@ -199,33 +202,49 @@ fs::path executable_path() {
 #endif
 }
 
-bool command_available(const char* candidate) {
+std::optional<fs::path> command_path(std::string_view candidate) {
 #ifdef _WIN32
     const auto wide = utf8_to_wide(candidate);
     std::wstring buffer(32768, L'\0');
     const DWORD length = SearchPathW(
         nullptr, wide.c_str(), nullptr, static_cast<DWORD>(buffer.size()),
         buffer.data(), nullptr);
-    return length > 0 && length < buffer.size();
+    if (length == 0 || length >= buffer.size()) return std::nullopt;
+    buffer.resize(length);
+    return fs::path(buffer);
 #else
     const fs::path requested(candidate);
-    if (requested.has_parent_path()) return ::access(candidate, X_OK) == 0;
+    if (requested.has_parent_path()) {
+        if (::access(requested.c_str(), X_OK) != 0) return std::nullopt;
+        std::error_code error;
+        const auto canonical = fs::weakly_canonical(requested, error);
+        return error ? fs::absolute(requested).lexically_normal() : canonical;
+    }
     const char* raw_path = std::getenv("PATH");
-    if (!raw_path) return false;
+    if (!raw_path) return std::nullopt;
     std::string_view path(raw_path);
     std::size_t start = 0;
     while (start <= path.size()) {
         const auto end = path.find(':', start);
         const auto part = path.substr(
             start, end == std::string_view::npos ? path.size() - start : end - start);
-        const fs::path directory = part.empty() ? fs::path(".") : fs::path(std::string(part));
-        const auto executable = directory / candidate;
-        if (::access(executable.c_str(), X_OK) == 0) return true;
+        const fs::path directory =
+            part.empty() ? fs::path(".") : fs::path(std::string(part));
+        const auto executable = directory / requested;
+        if (::access(executable.c_str(), X_OK) == 0) {
+            std::error_code error;
+            const auto canonical = fs::weakly_canonical(executable, error);
+            return error ? fs::absolute(executable).lexically_normal() : canonical;
+        }
         if (end == std::string_view::npos) break;
         start = end + 1;
     }
-    return false;
+    return std::nullopt;
 #endif
+}
+
+bool command_available(const char* candidate) {
+    return command_path(candidate).has_value();
 }
 
 
@@ -306,6 +325,89 @@ std::string clang_driver() {
         if (command_available(candidate)) return candidate;
     }
     throw std::runtime_error("Clang++ 15 or newer is required for native code generation");
+}
+
+std::string cuda_driver() {
+    if (const auto configured = environment_value("QUIDRA_NVCC");
+        configured && !configured->empty()) {
+        if (!command_path(*configured)) {
+            throw std::runtime_error(
+                "QUIDRA_NVCC is not executable or not on PATH: " + *configured);
+        }
+        return *configured;
+    }
+#ifdef _WIN32
+    for (const char* candidate : {"nvcc.exe"}) {
+#else
+    for (const char* candidate : {"nvcc"}) {
+#endif
+        if (command_available(candidate)) return candidate;
+    }
+    throw std::runtime_error(
+        "package-owned .cu sources require NVIDIA nvcc; install the CUDA toolkit "
+        "or set QUIDRA_NVCC");
+}
+
+fs::path cuda_toolkit_root() {
+    for (const char* name : {"QUIDRA_CUDA_HOME", "CUDA_HOME", "CUDA_PATH"}) {
+        if (const auto configured = environment_value(name);
+            configured && !configured->empty()) {
+            const auto root = fs::absolute(*configured).lexically_normal();
+            if (!fs::is_directory(root)) {
+                throw std::runtime_error(
+                    std::string(name) + " does not name a CUDA toolkit directory: " +
+                    root.string());
+            }
+            return root;
+        }
+    }
+    const auto driver = command_path(cuda_driver());
+    if (!driver) {
+        throw std::runtime_error(
+            "cannot locate nvcc to derive the CUDA toolkit root");
+    }
+    const auto root = driver->parent_path().parent_path().lexically_normal();
+    if (!fs::is_directory(root)) {
+        throw std::runtime_error(
+            "cannot derive the CUDA toolkit root from nvcc: " + driver->string());
+    }
+    return root;
+}
+
+fs::path cuda_runtime_library_directory() {
+    const auto root = cuda_toolkit_root();
+#ifdef _WIN32
+    const std::vector<fs::path> candidates{
+        root / "lib" / "x64",
+        root / "lib64",
+        root / "lib"
+    };
+    const std::vector<std::string> names{"cudart.lib"};
+#elif defined(__APPLE__)
+    const std::vector<fs::path> candidates{
+        root / "lib64",
+        root / "lib"
+    };
+    const std::vector<std::string> names{"libcudart.dylib", "libcudart.a"};
+#else
+    const std::vector<fs::path> candidates{
+        root / "lib64",
+        root / "lib",
+        root / "targets" / "x86_64-linux" / "lib",
+        root / "targets" / "aarch64-linux" / "lib"
+    };
+    const std::vector<std::string> names{"libcudart.so", "libcudart_static.a"};
+#endif
+    for (const auto& directory : candidates) {
+        for (const auto& name : names) {
+            std::error_code error;
+            if (fs::is_regular_file(directory / name, error) && !error)
+                return fs::absolute(directory).lexically_normal();
+        }
+    }
+    throw std::runtime_error(
+        "CUDA runtime library was not found under " + root.string() +
+        "; set QUIDRA_CUDA_HOME to the toolkit root");
 }
 
 std::string jit_driver() {
@@ -504,6 +606,163 @@ fs::path jit_runtime_library() {
         "cannot locate the Quidra JIT runtime library; set QUIDRA_JIT_RUNTIME_LIBRARY explicitly");
 }
 
+std::optional<fs::path> native_extension_include_directory() {
+    if (const auto configured = environment_value("QUIDRA_NATIVE_INCLUDE_DIR");
+        configured && !configured->empty()) {
+        fs::path root = fs::absolute(*configured).lexically_normal();
+        if (fs::is_regular_file(root / "quidra" / "native_extension.h"))
+            return root;
+        throw std::runtime_error(
+            "QUIDRA_NATIVE_INCLUDE_DIR must contain quidra/native_extension.h: " +
+            root.string());
+    }
+
+    const auto bin = executable_path().parent_path();
+    const std::array<fs::path, 3> candidates{{
+        (bin / "../include").lexically_normal(),
+        (bin / "../../include").lexically_normal(),
+        (bin / "include").lexically_normal(),
+    }};
+    for (const auto& root : candidates) {
+        std::error_code error;
+        if (fs::is_regular_file(
+                root / "quidra" / "native_extension.h", error) && !error)
+            return fs::absolute(root).lexically_normal();
+    }
+    return std::nullopt;
+}
+
+class TemporaryJitNativeObjects {
+public:
+    TemporaryJitNativeObjects() {
+        const auto base = fs::temp_directory_path();
+        std::random_device random;
+        const auto now = static_cast<unsigned long long>(
+            std::chrono::high_resolution_clock::now().time_since_epoch().count());
+        for (unsigned attempt = 0; attempt < 64; ++attempt) {
+            const auto nonce =
+                (static_cast<unsigned long long>(random()) << 32U) ^
+                random() ^ now ^ attempt;
+            root_ = base / ("quidra-jit-native-" + std::to_string(nonce));
+            std::error_code error;
+            if (fs::create_directory(root_, error)) return;
+        }
+        throw std::runtime_error(
+            "cannot create temporary directory for JIT native sources");
+    }
+
+    TemporaryJitNativeObjects(const TemporaryJitNativeObjects&) = delete;
+    TemporaryJitNativeObjects& operator=(const TemporaryJitNativeObjects&) = delete;
+
+    ~TemporaryJitNativeObjects() {
+        std::error_code error;
+        fs::remove_all(root_, error);
+    }
+
+    fs::path object(std::size_t index) const {
+#ifdef _WIN32
+        return root_ / ("native-" + std::to_string(index) + ".obj");
+#else
+        return root_ / ("native-" + std::to_string(index) + ".o");
+#endif
+    }
+
+    fs::path library() const {
+#ifdef _WIN32
+        return root_ / "native-package.dll";
+#elif defined(__APPLE__)
+        return root_ / "libnative-package.dylib";
+#else
+        return root_ / "libnative-package.so";
+#endif
+    }
+
+private:
+    fs::path root_;
+};
+
+bool cuda_native_source(const fs::path& source) {
+    auto extension = source.extension().string();
+    std::transform(
+        extension.begin(), extension.end(), extension.begin(),
+        [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return extension == ".cu";
+}
+
+std::vector<std::string> native_source_language_flags(
+    const fs::path& source) {
+    const auto original_extension = source.extension().string();
+    auto extension = original_extension;
+    std::transform(
+        extension.begin(), extension.end(), extension.begin(),
+        [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    if (extension == ".c") return {"-x", "c", "-std=c17"};
+    if (extension == ".cc" || extension == ".cpp" ||
+        extension == ".cxx" || extension == ".c++") {
+        return {"-x", "c++", "-std=c++20"};
+    }
+#ifdef __APPLE__
+    if (extension == ".mm")
+        return {"-x", "objective-c++", "-std=c++20"};
+#endif
+    if (original_extension == ".S") return {"-x", "assembler-with-cpp"};
+    if (extension == ".s") return {"-x", "assembler"};
+    return {};
+}
+
+bool directly_compilable_native_source(const fs::path& source) {
+    return cuda_native_source(source) ||
+           !native_source_language_flags(source).empty();
+}
+
+void compile_jit_native_source(
+    const fs::path& source,
+    const fs::path& object,
+    bool optimize,
+    const std::vector<std::string>& extra_compile_flags = {}) {
+    if (!fs::is_regular_file(source)) {
+        throw std::runtime_error(
+            "JIT native source is not a regular file: " + source.string());
+    }
+
+    std::vector<std::string> arguments;
+    arguments.emplace_back(optimize ? "-O2" : "-O0");
+    const bool cuda = cuda_native_source(source);
+    if (cuda) {
+        arguments.emplace_back("-std=c++20");
+#ifndef _WIN32
+        arguments.emplace_back("-Xcompiler=-fPIC");
+#endif
+    } else {
+#ifndef _WIN32
+        arguments.emplace_back("-fPIC");
+#endif
+        const auto language_flags = native_source_language_flags(source);
+        if (language_flags.empty()) {
+            throw std::runtime_error(
+                "unsupported package native source type: " + source.string());
+        }
+        arguments.insert(
+            arguments.end(), language_flags.begin(), language_flags.end());
+    }
+    if (const auto include = native_extension_include_directory()) {
+        arguments.emplace_back("-I" + include->string());
+    }
+    arguments.insert(
+        arguments.end(), extra_compile_flags.begin(), extra_compile_flags.end());
+    arguments.emplace_back("-c");
+    arguments.emplace_back(fs::absolute(source).lexically_normal().string());
+    arguments.emplace_back("-o");
+    arguments.emplace_back(object.string());
+
+    const auto compiler = cuda ? cuda_driver() : clang_driver();
+    if (run_program(fs::path(compiler), arguments) != 0 ||
+        !fs::is_regular_file(object)) {
+        throw std::runtime_error(
+            "failed to compile package native source: " + source.string());
+    }
+}
+
 bool llvm_calls_symbol_prefix(const fs::path& llvm, std::string_view prefix) {
     std::ifstream in(llvm, std::ios::binary);
     if (!in) throw std::runtime_error("cannot inspect generated LLVM IR: " + llvm.string());
@@ -519,14 +778,6 @@ bool llvm_calls_symbol_prefix(const fs::path& llvm, std::string_view prefix) {
 
 bool llvm_uses_http(const fs::path& llvm) {
     return llvm_calls_symbol_prefix(llvm, "@quidra_http_");
-}
-
-bool llvm_uses_image(const fs::path& llvm) {
-    return llvm_calls_symbol_prefix(llvm, "@quidra_image_");
-}
-
-bool llvm_uses_video(const fs::path& llvm) {
-    return llvm_calls_symbol_prefix(llvm, "@quidra_video_");
 }
 
 int system_status(int status) {
@@ -552,6 +803,147 @@ int run_program(
     return windows_process(program, wide_arguments, stdout_path, stderr_path);
 #else
     return posix_process(program, arguments, stdout_path, stderr_path);
+#endif
+}
+
+std::vector<std::string> split_native_flags(std::string_view text) {
+    std::vector<std::string> result;
+    std::string current;
+    bool single = false;
+    bool quoted = false;
+    bool escaped = false;
+    const auto flush = [&]() {
+        if (!current.empty()) {
+            result.push_back(current);
+            current.clear();
+        }
+    };
+    for (const char ch : text) {
+        if (escaped) {
+            current.push_back(ch);
+            escaped = false;
+            continue;
+        }
+        if (ch == '\\' && !single) {
+            escaped = true;
+            continue;
+        }
+        if (ch == '\'' && !quoted) {
+            single = !single;
+            continue;
+        }
+        if (ch == '"' && !single) {
+            quoted = !quoted;
+            continue;
+        }
+        if (!single && !quoted &&
+            (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n')) {
+            flush();
+            continue;
+        }
+        current.push_back(ch);
+    }
+    if (escaped || single || quoted)
+        throw std::runtime_error("pkg-config returned malformed quoting");
+    flush();
+    return result;
+}
+
+std::vector<std::string> pkg_config_query(
+    const std::vector<std::string>& modules,
+    std::string_view option) {
+    if (modules.empty()) return {};
+    const auto configured = environment_value("QUIDRA_PKG_CONFIG");
+    const std::string program =
+        configured && !configured->empty() ? *configured : "pkg-config";
+    if (!command_available(program.c_str()) &&
+        !fs::is_regular_file(fs::path(program))) {
+        throw std::runtime_error(
+            "package native dependencies require pkg-config; install it or set QUIDRA_PKG_CONFIG");
+    }
+
+    const auto base = fs::temp_directory_path();
+    std::random_device random;
+    const auto output = base /
+        ("quidra-pkg-config-" + std::to_string(random()) + ".txt");
+    std::vector<std::string> arguments;
+    arguments.emplace_back(option);
+    arguments.insert(arguments.end(), modules.begin(), modules.end());
+    const int status = run_program(fs::path(program), arguments, output);
+    std::ifstream in(output, std::ios::binary);
+    std::ostringstream contents;
+    contents << in.rdbuf();
+    std::error_code error;
+    fs::remove(output, error);
+    if (status != 0) {
+        throw std::runtime_error(
+            "pkg-config failed for package native dependencies");
+    }
+    return split_native_flags(contents.str());
+}
+
+void compile_jit_native_library(
+    const std::vector<fs::path>& sources,
+    const fs::path& output,
+    bool optimize,
+    const std::vector<std::string>& compile_flags,
+    const std::vector<std::string>& link_flags) {
+#ifdef _WIN32
+    (void)sources;
+    (void)output;
+    (void)optimize;
+    (void)compile_flags;
+    (void)link_flags;
+    throw std::runtime_error(
+        "pkg-config native dependencies are not yet supported by the Windows REPL JIT; use AOT run/build");
+#else
+    std::vector<std::string> arguments;
+    arguments.emplace_back(optimize ? "-O2" : "-O0");
+    arguments.emplace_back("-shared");
+    arguments.emplace_back("-fPIC");
+#ifdef __APPLE__
+    arguments.emplace_back("-Wl,-undefined,dynamic_lookup");
+#endif
+    if (const auto include = native_extension_include_directory())
+        arguments.emplace_back("-I" + include->string());
+
+    std::vector<fs::path> objects;
+    objects.reserve(sources.size());
+    for (std::size_t index = 0; index < sources.size(); ++index) {
+        const auto& source = sources[index];
+        if (!fs::is_regular_file(source))
+            throw std::runtime_error(
+                "JIT native source is not a regular file: " + source.string());
+#ifdef _WIN32
+        const auto object =
+            output.parent_path() / ("pkg-" + std::to_string(index) + ".obj");
+#else
+        const auto object =
+            output.parent_path() / ("pkg-" + std::to_string(index) + ".o");
+#endif
+        compile_jit_native_source(
+            source, object, optimize, compile_flags);
+        objects.push_back(object);
+    }
+    for (const auto& object : objects)
+        arguments.push_back(fs::absolute(object).lexically_normal().string());
+    arguments.insert(arguments.end(), link_flags.begin(), link_flags.end());
+    const bool uses_cuda = std::any_of(
+        sources.begin(), sources.end(),
+        [](const fs::path& source) { return cuda_native_source(source); });
+    if (uses_cuda) {
+        const auto cuda_library = cuda_runtime_library_directory();
+        arguments.emplace_back("-L" + cuda_library.string());
+        arguments.emplace_back("-Wl,-rpath," + cuda_library.string());
+        arguments.emplace_back("-lcudart");
+    }
+    arguments.emplace_back("-o");
+    arguments.emplace_back(output.string());
+    if (run_program(fs::path(clang_driver()), arguments) != 0 ||
+        !fs::is_regular_file(output)) {
+        throw std::runtime_error(
+            "failed to build JIT package native library");
+    }
 #endif
 }
 
@@ -585,6 +977,57 @@ int run_llvm_jit(
 #endif
     jit_arguments.emplace_back(options.optimize ? "-O2" : "-O0");
     jit_arguments.emplace_back("--dlopen=" + jit_runtime_library().string());
+
+    for (const auto& library : options.libraries) {
+        if (!fs::is_regular_file(library)) {
+            throw std::runtime_error(
+                "JIT native library is not a regular file: " + library.string());
+        }
+        jit_arguments.emplace_back(
+            "--dlopen=" + fs::absolute(library).lexically_normal().string());
+    }
+
+    std::optional<TemporaryJitNativeObjects> native_objects;
+    if (!options.sources.empty()) {
+        native_objects.emplace();
+        const auto compile_flags =
+            pkg_config_query(options.pkg_config_modules, "--cflags");
+#ifdef _WIN32
+        const bool uses_cuda = std::any_of(
+            options.sources.begin(), options.sources.end(),
+            [](const fs::path& source) { return cuda_native_source(source); });
+        // Windows still uses direct ORC objects for dependency-free native
+        // sources; the shared-library helper does not yet support that host.
+        const bool link_native_library =
+            !options.pkg_config_modules.empty() || uses_cuda;
+#else
+        // POSIX package-native C/C++ translation units may contain ordinary
+        // platform TLS and C++ runtime relocations that ORC does not support
+        // when a raw object is injected with --extra-object. Link them as a
+        // shared library so the platform dynamic loader owns TLS/runtime
+        // relocation while Core remains unaware of package semantics.
+        const bool link_native_library = true;
+#endif
+        if (!link_native_library) {
+            for (std::size_t index = 0; index < options.sources.size(); ++index) {
+                const auto object = native_objects->object(index);
+                compile_jit_native_source(
+                    options.sources[index], object, options.optimize, compile_flags);
+                jit_arguments.emplace_back(
+                    "--extra-object=" + fs::absolute(object).lexically_normal().string());
+            }
+        } else {
+            const auto library = native_objects->library();
+            const auto link_flags =
+                pkg_config_query(options.pkg_config_modules, "--libs");
+            compile_jit_native_library(
+                options.sources, library, options.optimize,
+                compile_flags, link_flags);
+            jit_arguments.emplace_back(
+                "--dlopen=" + fs::absolute(library).lexically_normal().string());
+        }
+    }
+
     jit_arguments.emplace_back("--fake-argv0=" + options.argv0);
     jit_arguments.emplace_back(llvm.string());
     jit_arguments.insert(jit_arguments.end(), arguments.begin(), arguments.end());
@@ -594,6 +1037,33 @@ int run_llvm_jit(
 }
 
 int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options) {
+    const auto pkg_compile_flags =
+        pkg_config_query(options.pkg_config_modules, "--cflags");
+    const auto pkg_link_flags =
+        pkg_config_query(options.pkg_config_modules, "--libs");
+
+    // Package-owned C/C++ sources are compiled as translation units before the
+    // final LLVM link. This gives native packages a stable language standard
+    // independent of the host compiler default and keeps mixed C/C++ packages
+    // valid. Prebuilt objects/libraries continue through unchanged.
+    std::optional<TemporaryJitNativeObjects> native_objects;
+    std::vector<fs::path> link_inputs;
+    link_inputs.reserve(options.inputs.size());
+    std::size_t source_index = 0;
+    bool uses_cuda = false;
+    for (const auto& input : options.inputs) {
+        if (!directly_compilable_native_source(input)) {
+            link_inputs.push_back(input);
+            continue;
+        }
+        if (!native_objects) native_objects.emplace();
+        uses_cuda = uses_cuda || cuda_native_source(input);
+        const auto object = native_objects->object(source_index++);
+        compile_jit_native_source(
+            input, object, options.optimize && !options.debug,
+            pkg_compile_flags);
+        link_inputs.push_back(object);
+    }
 #ifdef _WIN32
     std::vector<std::wstring> arguments{
         (options.debug || !options.optimize) ? L"-O0" : L"-O3",
@@ -608,7 +1078,12 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
         L"none",
         runtime_library().native(),
     };
-    for (const auto& input : options.inputs) {
+    if (const auto include = native_extension_include_directory()) {
+        arguments.emplace_back(L"-I" + include->native());
+    }
+    for (const auto& flag : pkg_compile_flags)
+        arguments.emplace_back(utf8_to_wide(flag));
+    for (const auto& input : link_inputs) {
         if (!fs::is_regular_file(input))
             throw std::runtime_error("--link input is not a regular file: " + input.string());
         arguments.push_back(input.native());
@@ -630,37 +1105,14 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
     arguments.emplace_back(L"-fsanitize=address,undefined");
     arguments.emplace_back(L"-fno-omit-frame-pointer");
 #endif
+    for (const auto& flag : pkg_link_flags)
+        arguments.emplace_back(utf8_to_wide(flag));
+    if (uses_cuda) {
+        const auto cuda_library = cuda_runtime_library_directory();
+        arguments.emplace_back(L"-L" + cuda_library.native());
+        arguments.emplace_back(L"-lcudart");
+    }
     if (llvm_uses_http(llvm)) arguments.emplace_back(L"-lcurl");
-    if (llvm_uses_image(llvm)) {
-        if (const auto configured = environment_value("QUIDRA_IMAGE_LIBRARY_PATH");
-            configured && !configured->empty()) {
-            arguments.emplace_back(L"-L" + utf8_to_wide(*configured));
-        } else if (const auto vcpkg = environment_value("VCPKG_INSTALLATION_ROOT");
-                   vcpkg && !vcpkg->empty()) {
-            const auto library_dir =
-                fs::path(*vcpkg) / "installed" / "x64-windows" / "lib";
-            arguments.emplace_back(L"-L" + library_dir.native());
-        }
-        arguments.emplace_back(L"-lpng16");
-        arguments.emplace_back(L"-ljpeg");
-        arguments.emplace_back(L"-ltiff");
-        arguments.emplace_back(L"-lwebp");
-    }
-    if (llvm_uses_video(llvm)) {
-        if (const auto configured = environment_value("QUIDRA_VIDEO_LIBRARY_PATH");
-            configured && !configured->empty()) {
-            arguments.emplace_back(L"-L" + utf8_to_wide(*configured));
-        } else if (const auto vcpkg = environment_value("VCPKG_INSTALLATION_ROOT");
-                   vcpkg && !vcpkg->empty()) {
-            const auto library_dir =
-                fs::path(*vcpkg) / "installed" / "x64-windows" / "lib";
-            arguments.emplace_back(L"-L" + library_dir.native());
-        }
-        arguments.emplace_back(L"-lavformat");
-        arguments.emplace_back(L"-lavcodec");
-        arguments.emplace_back(L"-lavutil");
-        arguments.emplace_back(L"-lswscale");
-    }
     return windows_process(fs::path(clang_driver()), arguments);
 #else
     std::vector<std::string> arguments{
@@ -673,10 +1125,33 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
         "none",
         runtime_library().string(),
     };
-    for (const auto& input : options.inputs) {
+    if (const auto include = native_extension_include_directory()) {
+        arguments.push_back("-I" + include->string());
+    }
+    arguments.insert(
+        arguments.end(), pkg_compile_flags.begin(), pkg_compile_flags.end());
+    std::vector<fs::path> runtime_library_dirs;
+    for (const auto& input : link_inputs) {
         if (!fs::is_regular_file(input))
             throw std::runtime_error("--link input is not a regular file: " + input.string());
         arguments.push_back(input.string());
+        const auto filename = input.filename().string();
+        const bool shared =
+#ifdef __APPLE__
+            input.extension() == ".dylib";
+#else
+            input.extension() == ".so" || filename.find(".so.") != std::string::npos;
+#endif
+        if (shared) {
+            const auto directory = fs::absolute(input.parent_path()).lexically_normal();
+            if (std::find(runtime_library_dirs.begin(), runtime_library_dirs.end(),
+                          directory) == runtime_library_dirs.end()) {
+                runtime_library_dirs.push_back(directory);
+            }
+        }
+    }
+    for (const auto& directory : runtime_library_dirs) {
+        arguments.push_back("-Wl,-rpath," + directory.string());
     }
     arguments.insert(arguments.end(), {
         "-o",
@@ -689,6 +1164,8 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
     arguments.emplace_back("Foundation");
     arguments.emplace_back("-framework");
     arguments.emplace_back("Metal");
+    arguments.emplace_back("-framework");
+    arguments.emplace_back("MetalPerformanceShaders");
 #else
     arguments.emplace_back("-ldl");
 #endif
@@ -706,55 +1183,15 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
     arguments.emplace_back("-fsanitize=address,undefined");
     arguments.emplace_back("-fno-omit-frame-pointer");
 #endif
+    arguments.insert(
+        arguments.end(), pkg_link_flags.begin(), pkg_link_flags.end());
+    if (uses_cuda) {
+        const auto cuda_library = cuda_runtime_library_directory();
+        arguments.emplace_back("-L" + cuda_library.string());
+        arguments.emplace_back("-Wl,-rpath," + cuda_library.string());
+        arguments.emplace_back("-lcudart");
+    }
     if (llvm_uses_http(llvm)) arguments.emplace_back("-lcurl");
-    if (llvm_uses_image(llvm)) {
-        if (const char* configured = std::getenv("QUIDRA_IMAGE_LIBRARY_PATH");
-            configured && *configured) {
-            arguments.emplace_back(std::string("-L") + configured);
-        } else {
-#ifdef __APPLE__
-            for (const auto& directory : {
-                     fs::path("/opt/homebrew/lib"),
-                     fs::path("/usr/local/lib"),
-                     fs::path("/opt/homebrew/opt/libpng/lib"),
-                     fs::path("/opt/homebrew/opt/jpeg-turbo/lib"),
-                     fs::path("/opt/homebrew/opt/libtiff/lib"),
-                     fs::path("/opt/homebrew/opt/webp/lib"),
-                     fs::path("/usr/local/opt/libpng/lib"),
-                     fs::path("/usr/local/opt/jpeg-turbo/lib"),
-                     fs::path("/usr/local/opt/libtiff/lib"),
-                     fs::path("/usr/local/opt/webp/lib")}) {
-                if (fs::is_directory(directory)) {
-                    arguments.emplace_back("-L" + directory.string());
-                }
-            }
-#endif
-        }
-        arguments.emplace_back("-lpng");
-        arguments.emplace_back("-ljpeg");
-        arguments.emplace_back("-ltiff");
-        arguments.emplace_back("-lwebp");
-    }
-    if (llvm_uses_video(llvm)) {
-        if (const char* configured = std::getenv("QUIDRA_VIDEO_LIBRARY_PATH");
-            configured && *configured) {
-            arguments.emplace_back(std::string("-L") + configured);
-        } else {
-#ifdef __APPLE__
-            for (const auto& directory : {
-                     fs::path("/opt/homebrew/opt/ffmpeg/lib"),
-                     fs::path("/usr/local/opt/ffmpeg/lib")}) {
-                if (fs::is_directory(directory)) {
-                    arguments.emplace_back("-L" + directory.string());
-                }
-            }
-#endif
-        }
-        arguments.emplace_back("-lavformat");
-        arguments.emplace_back("-lavcodec");
-        arguments.emplace_back("-lavutil");
-        arguments.emplace_back("-lswscale");
-    }
     return posix_process(fs::path(clang_driver()), arguments);
 #endif
 }

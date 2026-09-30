@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Frozen generators for the Quidra adversarial sources that are produced, not hand-written.
+"""Generators for the Quidra adversarial sources that are produced, not hand-written.
 
-ADV-21 (parser nesting) and the two ADV-22 mutations are defined byte-for-byte by
-benchmark/template/methodology-assets/language_quality/adversarial_cases.json
-(frozen_generators). This script regenerates them from the case-set rules, and
+ADV-21 (parser nesting) and the two ADV-22 mutations follow the frozen case-set
+rules in benchmark/template/methodology-assets/language_quality/adversarial_cases.json.
+The generated Quidra surface syntax tracks the current language while preserving
+those case shapes, markers, nesting depths, and mutation rules.
 tests/benchmark_programs.sh verifies that the committed files are exactly what
-it produces.
+this generator produces.
 """
 from __future__ import annotations
 
@@ -13,8 +14,8 @@ from pathlib import Path
 import sys
 
 HERE = Path(__file__).resolve().parent
-PROLOGUE = 'print("ADV-START")\nio.flush()\n'
-EPILOGUE = 'io.flush()\nprint("ADV-END")\nio.flush()\n'
+PROLOGUE = 'print("ADV-START")\nprint(NL)\nflush()\n'
+EPILOGUE = 'print(NL)\nflush()\nprint("ADV-END")\nprint(NL)\nflush()\n'
 
 
 def nesting(depth: int) -> str:

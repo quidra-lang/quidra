@@ -6,6 +6,7 @@
 #include "quidra/package_lock.hpp"
 #include "quidra/package_manifest.hpp"
 #include "quidra/project.hpp"
+#include "quidra/toml_subset.hpp"
 #include "native_build.hpp"
 
 #include <algorithm>
@@ -1017,6 +1018,45 @@ void package_info(std::string_view raw_name, bool json) {
                           << json_escape(url) << "\"";
             }
         }
+        std::cout << "},\"native\":{";
+        if (manifest) {
+            bool first = true;
+            for (const auto& [platform, path] : manifest->native_libraries) {
+                if (!first) std::cout << ',';
+                first = false;
+                std::cout << "\"" << json_escape(platform) << "\":\""
+                          << json_escape(path) << "\"";
+            }
+        }
+        std::cout << "},\"native_source\":{";
+        if (manifest) {
+            bool first = true;
+            for (const auto& [name, path] : manifest->native_sources) {
+                if (!first) std::cout << ',';
+                first = false;
+                std::cout << "\"" << json_escape(name) << "\":\""
+                          << json_escape(path) << "\"";
+            }
+            for (const auto& [platform, sources] :
+                 manifest->native_platform_sources) {
+                for (const auto& [name, path] : sources) {
+                    if (!first) std::cout << ',';
+                    first = false;
+                    std::cout << "\"" << json_escape(platform + "." + name)
+                              << "\":\"" << json_escape(path) << "\"";
+                }
+            }
+        }
+        std::cout << "},\"native_pkg\":{";
+        if (manifest) {
+            bool first = true;
+            for (const auto& [name, module] : manifest->native_pkg_config) {
+                if (!first) std::cout << ',';
+                first = false;
+                std::cout << "\"" << json_escape(name) << "\":\""
+                          << json_escape(module) << "\"";
+            }
+        }
         std::cout << "},\"requirements\":{";
         if (manifest) {
             bool first = true;
@@ -1043,6 +1083,16 @@ void package_info(std::string_view raw_name, bool json) {
         if (manifest->repository) std::cout << "repository = " << *manifest->repository << "\n";
         for (const auto& [platform, url] : manifest->assets)
             std::cout << "asset." << platform << " = " << url << "\n";
+        for (const auto& [platform, path] : manifest->native_libraries)
+            std::cout << "native." << platform << " = " << path << "\n";
+        for (const auto& [name, path] : manifest->native_sources)
+            std::cout << "native.source." << name << " = " << path << "\n";
+        for (const auto& [platform, sources] : manifest->native_platform_sources)
+            for (const auto& [name, path] : sources)
+                std::cout << "native.source." << platform << "." << name
+                          << " = " << path << "\n";
+        for (const auto& [name, module] : manifest->native_pkg_config)
+            std::cout << "native.pkg." << name << " = " << module << "\n";
         for (const auto& [dependency, requirement] : manifest->requirements)
             std::cout << "requires." << dependency << " = " << requirement.text << "\n";
     } else {
@@ -1094,6 +1144,132 @@ bool looks_like_local_path(std::string_view source) {
            (source.size() >= 2 && source[1] == ':');
 }
 
+const std::string& project_required(
+    const TomlDocument& document, std::string_view table,
+    std::string_view key, const fs::path& path) {
+    if (const auto* value = document.find(table, key)) return *value;
+    throw std::runtime_error(
+        "project.toml requires '" + std::string(table) + "." +
+        std::string(key) + "': " + path.string());
+}
+
+std::string render_compat_package_manifest(const fs::path& root) {
+    const auto project_path =
+        root / std::string(package_project_filename);
+    const auto document = try_read_toml_subset(project_path);
+    if (!document) {
+        throw std::runtime_error(
+            "package sync requires project.toml: " + project_path.string());
+    }
+
+    const auto& distribution =
+        project_required(*document, "package", "name", project_path);
+    const auto& import_name =
+        project_required(*document, "package", "import", project_path);
+    const auto& package_version =
+        project_required(*document, "package", "version", project_path);
+    const auto& repository =
+        project_required(*document, "package", "repository", project_path);
+    (void)parse_semantic_version(package_version);
+    if (!is_distribution_package_name(distribution)) {
+        throw std::runtime_error(
+            "project.toml package.name is not a valid distribution name");
+    }
+    if (!valid_package_name(import_name)) {
+        throw std::runtime_error(
+            "project.toml package.import is not a valid Quidra package name");
+    }
+
+    std::ostringstream output;
+    output << "name = " << import_name << "\n"
+           << "version = " << package_version << "\n"
+           << "repository = " << repository << "\n";
+
+    for (const auto key : {"description", "license", "homepage"}) {
+        if (const auto* value = document->find("package", key))
+            output << key << " = " << *value << "\n";
+    }
+
+    if (const auto assets = document->tables.find("assets");
+        assets != document->tables.end()) {
+        for (const auto& [platform, filename] : assets->second) {
+            output << "asset." << platform << " = "
+                   << repository << "/releases/download/v"
+                   << package_version << "/" << filename << "\n";
+        }
+    }
+    if (const auto native = document->tables.find("native");
+        native != document->tables.end()) {
+        for (const auto& [platform, path] : native->second)
+            output << "native." << platform << " = " << path << "\n";
+    }
+    if (const auto sources = document->tables.find("native.source");
+        sources != document->tables.end()) {
+        for (const auto& [name, path] : sources->second)
+            output << "native.source." << name << " = " << path << "\n";
+    }
+    for (const auto& [table, fields] : document->tables) {
+        constexpr std::string_view prefix = "native.source.";
+        if (!std::string_view(table).starts_with(prefix)) continue;
+        const auto platform = table.substr(prefix.size());
+        if (platform.empty()) continue;
+        for (const auto& [name, path] : fields)
+            output << "native.source." << platform << "." << name
+                   << " = " << path << "\n";
+    }
+    if (const auto packages = document->tables.find("native.pkg");
+        packages != document->tables.end()) {
+        for (const auto& [name, module] : packages->second)
+            output << "native.pkg." << name << " = " << module << "\n";
+    }
+
+    const auto requirements = document->tables.find("requires");
+    if (requirements == document->tables.end() ||
+        !requirements->second.contains("quidra")) {
+        throw std::runtime_error(
+            "project.toml requires 'requires.quidra': " +
+            project_path.string());
+    }
+    output << "requires.quidra = "
+           << requirements->second.at("quidra") << "\n";
+    for (const auto& [name, requirement] : requirements->second) {
+        if (name == "abi" || name == "quidra") continue;
+        output << "requires." << name << " = " << requirement << "\n";
+    }
+    return output.str();
+}
+
+int sync_package_manifest(
+    const fs::path& requested_root, bool check_only) {
+    const auto root = fs::absolute(requested_root).lexically_normal();
+    std::error_code error;
+    if (!fs::is_directory(root, error) || error) {
+        throw std::runtime_error(
+            "package metadata root must be a directory: " + root.string());
+    }
+
+    const auto expected = render_compat_package_manifest(root);
+    const auto path = root / std::string(package_manifest_filename);
+    const auto actual = read_text_file(path);
+    if (actual != expected) {
+        if (check_only) {
+            std::cerr
+                << "quidra: quidra.package is missing or out of date; "
+                   "run 'quidra package sync "
+                << root.string() << "'\n";
+            return 1;
+        }
+        write_lock_file(path, expected);
+        std::cout << "updated " << path.string() << "\n";
+    }
+
+    // Reuse the compiler's canonical parser after generation. This verifies
+    // project/manifest identity, requirement syntax and the closed compatibility
+    // manifest key set rather than maintaining a second validator in the CLI.
+    (void)read_package_manifest(root);
+    return 0;
+}
+
 void usage() {
     const std::string cli(cli_name);
     const std::string source = "FILE" + std::string(source_extension);
@@ -1107,6 +1283,8 @@ void usage() {
         << "  " << cli << " remove NAME\n"
         << "  " << cli << " list\n"
         << "  " << cli << " package-info NAME [--json]\n"
+        << "  " << cli << " package sync [DIR] [--check]\n"
+        << "  " << cli << " package validate [DIR]\n"
         << "  " << cli << " package-path\n";
 }
 
@@ -1120,6 +1298,27 @@ int run_package_cli(int argc, char** argv) {
         }
 
         const std::string command = argv[0];
+
+        if (command == "sync" || command == "validate") {
+            fs::path root = fs::current_path();
+            bool check_only = command == "validate";
+            bool root_set = false;
+            for (int index = 1; index < argc; ++index) {
+                const std::string argument = argv[index];
+                if (argument == "--check" && command == "sync") {
+                    check_only = true;
+                    continue;
+                }
+                if (!root_set && !argument.starts_with("--")) {
+                    root = argument;
+                    root_set = true;
+                    continue;
+                }
+                throw std::runtime_error(
+                    "unknown package " + command + " argument: " + argument);
+            }
+            return sync_package_manifest(root, check_only);
+        }
 
         if (command == "list") {
             if (argc != 1) {

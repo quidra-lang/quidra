@@ -18,6 +18,7 @@ struct LinkOptions {
     bool debug{};
     bool optimize{true};
     std::vector<std::filesystem::path> inputs;
+    std::vector<std::string> pkg_config_modules;
 };
 
 std::string debugger_driver();
@@ -31,6 +32,9 @@ int run_program(
 struct JitOptions {
     bool optimize{true};
     std::string argv0{"quidra"};
+    std::vector<std::filesystem::path> libraries;
+    std::vector<std::filesystem::path> sources;
+    std::vector<std::string> pkg_config_modules;
 };
 
 int run_llvm_jit(

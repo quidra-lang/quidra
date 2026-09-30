@@ -1,4 +1,6 @@
 bin data = bin.fill(8, 0)
 data[1] = bin.fill(1, 1)
 print(len(data))
+print(NL)
 print(data)
+print(NL)

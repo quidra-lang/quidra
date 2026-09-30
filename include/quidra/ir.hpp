@@ -1,6 +1,7 @@
 #pragma once
 #include "quidra/checker.hpp"
 #include "quidra/types.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -98,7 +99,7 @@ struct ParseBin { ValueId out; ValueId text; Type result_type; bool success_prov
 struct BinConvert { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; bool checked_range{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct FallibleNumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct ArrayNumericCast { ValueId out; ValueId array; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct ArrayNumericCast { ValueId out; ValueId array; Type source_type; Type target_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorCreate { ValueId out; ValueId shape; std::optional<ValueId> gpu; Type type; int fill_mode{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorTransfer { ValueId out; ValueId tensor; std::optional<ValueId> gpu; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorReshape { ValueId out; ValueId tensor; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
@@ -106,8 +107,8 @@ struct TensorTranspose { ValueId out; ValueId tensor; ValueId axis0; ValueId axi
 struct TensorContiguous { ValueId out; ValueId tensor; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorGather { ValueId out; ValueId tensor; ValueId indices; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorScatter { ValueId out; ValueId tensor; ValueId indices; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct TensorConvolve { ValueId out; ValueId tensor; ValueId kernel; ValueId stride; ValueId padding; ValueId dilation; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorShape { ValueId out; ValueId tensor; Type type; };
+struct TensorDevice { ValueId out; ValueId tensor; };
 struct TensorIsContiguous { ValueId out; ValueId tensor; };
 struct TensorIsTracked { ValueId out; ValueId tensor; };
 struct TensorHasGrad { ValueId out; ValueId tensor; };
@@ -117,7 +118,7 @@ struct TensorTrack { ValueId out; ValueId tensor; ValueId target{}; Type type; i
 struct TensorBackwardTarget { ValueId value; bool autograd_target{}; };
 struct TensorBackward { ValueId tensor; std::vector<TensorBackwardTarget> targets; ValueId autograd_targets{}; ValueId track; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorGrad { ValueId out; ValueId tensor; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct TensorCast { ValueId out; ValueId tensor; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorCast { ValueId out; ValueId tensor; Type source_type; Type target_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct ShapedConstraintCheck {
     ValueId value;
     TypeKind kind{TypeKind::Tensor};
@@ -131,20 +132,6 @@ struct ExtentEqualCheck {
     std::uint32_t line{};
     std::uint32_t column{};
 };
-struct TensorAutogradUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
-struct StatsMean { ValueId out; ValueId tensor; Type tensor_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct StatsReduce { ValueId out; ValueId tensor; Type element_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
-struct LinearMatmul { ValueId out; ValueId left; ValueId right; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct LinearDot { ValueId out; ValueId left; ValueId right; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct ImageRead {
-    ValueId out;
-    ValueId path;
-    Type result_type;
-    std::optional<Type> target_dtype;
-    std::optional<ValueId> target_channels;
-    std::vector<long long> expected_shape_prefix;
-};
-struct ImageWrite { ValueId out; ValueId path; ValueId image; ValueId quality; Type result_type; };
 struct TensorBinary {
     ValueId out;
     std::string op;
@@ -206,18 +193,25 @@ struct ParseNumberDirect {
     ValueId text;
     Type target_type;
 };
-struct NumericAbs { ValueId out; ValueId value; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct Sqrt { ValueId out; ValueId value; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct MathUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; };
-struct MathIsFinite { ValueId out; ValueId value; Type type; };
-struct MathRoundInt { ValueId out; ValueId value; Type source_type; Type result_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
-struct MathPow { ValueId out; ValueId base; ValueId exponent; Type type; };
+struct ExactAtom {
+    ValueId out;
+    std::string provider;
+    std::uint32_t opcode{};
+    Type type;
+};
+struct ExactUnary {
+    ValueId out;
+    std::string provider;
+    std::uint32_t opcode{};
+    ValueId input;
+    Type type;
+};
 struct CliArgument { ValueId out; ValueId name; ValueId index; Type type; };
 struct CliArgumentOptional { ValueId out; ValueId name; ValueId index; ValueId default_value; Type type; };
 struct CliOption { ValueId out; ValueId name; ValueId default_value; Type type; };
 struct CliFlag { ValueId out; ValueId name; };
 struct CliFinish {};
-struct IoFlush { ValueId out; Type result_type; };
+struct Flush { ValueId out; Type result_type; };
 struct FileOpen { ValueId out; ValueId path; Type result_type; };
 struct FileCreate { ValueId out; ValueId path; Type result_type; };
 struct FileAppend { ValueId out; ValueId path; Type result_type; };
@@ -276,16 +270,6 @@ struct JsonEncode { ValueId out; ValueId value; };
 struct JsonEqual { ValueId out; ValueId left; ValueId right; };
 struct HttpGet { ValueId out; ValueId url; Type result_type; };
 struct HttpHeader { ValueId out; ValueId response; ValueId name; Type result_type; };
-struct VideoOpen { ValueId out; ValueId path; Type result_type; };
-struct VideoRead { ValueId out; ValueId reader; Type result_type; std::optional<Type> target_dtype; std::optional<ValueId> target_channels; std::vector<long long> expected_shape_prefix; };
-struct VideoWidth { ValueId out; ValueId reader; };
-struct VideoHeight { ValueId out; ValueId reader; };
-struct VideoFps { ValueId out; ValueId reader; Type result_type; };
-struct VideoFrames { ValueId out; ValueId reader; Type result_type; };
-struct VideoDuration { ValueId out; ValueId reader; Type result_type; };
-struct VideoPosition { ValueId out; ValueId reader; };
-struct VideoSeek { ValueId out; ValueId reader; ValueId frame; Type result_type; };
-struct NumericMinMax { ValueId out; ValueId left; ValueId right; Type type; bool maximum{}; };
 struct ArrayInitializationComplete { ValueId out; ValueId array; };
 struct ArrayGet { ValueId out; ValueId array; ValueId index; Type element_type; std::uint32_t line{}; std::uint32_t column{}; bool initialization_proven{}; bool bounds_proven{}; std::optional<ValueId> initialization_guard{}; std::optional<ValueId> bounds_guard{}; };
 struct ArraySet { ValueId array; ValueId index; ValueId value; Type element_type; std::uint32_t line{}; std::uint32_t column{}; bool initialization_proven{}; bool bounds_proven{}; std::optional<ValueId> initialization_guard{}; std::optional<ValueId> bounds_guard{}; };
@@ -346,10 +330,9 @@ struct Call {
 struct VariantMake { ValueId out; int tag; ValueId payload; Type container_type; Type payload_type; };
 struct VariantTag { ValueId out; ValueId container; };
 struct VariantPayload { ValueId out; ValueId container; Type payload_type; };
-// print/write/io.flush report output failure as an error alternative: the
-// result is void | error, and a discarded error fails fast at the statement.
+// print/flush report output failure as an error alternative: the result is
+// void | error, and a discarded error fails fast at the statement.
 struct Print { ValueId value; Type type; ValueId out; Type result_type; };
-struct Write { ValueId value; Type type; ValueId out; Type result_type; };
 struct ReplDisplay {
     ValueId value;
     Type type;
@@ -378,12 +361,11 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  StringBuildAppendMove, StringCanAppendMove, StringAppendMove, StringRepeat,
                                  BinAlloc, BinLength, BinGet, BinSet, BinSlice,
                                  ParseBin, BinConvert,
-                                 NumericConvert, FallibleNumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous, TensorGather, TensorScatter, TensorConvolve,
-                                 TensorShape, TensorIsContiguous, TensorIsTracked, TensorHasGrad, TensorClearGrad, TensorItem, TensorTrack, TensorBackward, TensorGrad, TensorCast,
+                                 NumericConvert, FallibleNumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous, TensorGather, TensorScatter, 
+                                 TensorShape, TensorDevice, TensorIsContiguous, TensorIsTracked, TensorHasGrad, TensorClearGrad, TensorItem, TensorTrack, TensorBackward, TensorGrad, TensorCast,
                                  ShapedConstraintCheck, ExtentEqualCheck,
-                                 TensorAutogradUnary,
-                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, TensorBinary, TensorCompare, TensorBoolReduce, TensorIndex, TensorSet, ParseNumber, ParseNumberDirect, NumericAbs, Sqrt, MathUnary, MathIsFinite, MathRoundInt, MathPow,
-                                 CliArgument, CliArgumentOptional, CliOption, CliFlag, CliFinish, IoFlush,
+                                 TensorBinary, TensorCompare, TensorBoolReduce, TensorIndex, TensorSet, ParseNumber, ParseNumberDirect, ExactAtom, ExactUnary,
+                                 CliArgument, CliArgumentOptional, CliOption, CliFlag, CliFinish, Flush,
                                  FileOpen, FileCreate, FileAppend, FileHandleRead, FileHandleReadLine, FileHandleReadBin, FileHandleWrite, FileHandleFlush, FileHandleSeek, FileHandleClose,
                                  FileRead, FileReadBin, FileWrite, FileWriteBin, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,
@@ -394,14 +376,38 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  JsonParse, JsonKind, JsonSize, JsonGet, JsonAt, JsonText,
                                  JsonInteger, JsonNumber, JsonBigInt, JsonBigReal, JsonBoolean, JsonEncode, JsonEqual,
                                  HttpGet, HttpHeader,
-                                 VideoOpen, VideoRead, VideoWidth, VideoHeight, VideoFps,
-                                 VideoFrames, VideoDuration, VideoPosition, VideoSeek,
-                                 NumericMinMax, ArrayGet, ArraySet, Clone, Retain, Release,
+                                 ArrayGet, ArraySet, Clone, Retain, Release,
                                  Unary, Binary, ToString, FormatNumber, LoadLocal, StoreLocal,
                                  FunctionRef, IndirectCall, Call, VariantMake, VariantTag, VariantPayload,
-                                 Print, Write, ReplDisplay, ReplReplayMode, Input, Exit, FailError, RangeCheckStep, Return, ReturnVoid, Jump, Branch>;
+                                 Print, ReplDisplay, ReplReplayMode, Input, Exit, FailError, RangeCheckStep, Return, ReturnVoid, Jump, Branch>;
 
 struct Block { std::string label; std::vector<Instruction> instructions; };
+struct TensorRegionLocation {
+    std::size_t block{};
+    std::size_t instruction{};
+};
+struct TensorRegion {
+    // Candidate computation region only. It carries no source-visible semantics
+    // and does not authorize reordering across explicit placement/tracking/effect
+    // boundaries. Later fusion/AD passes may refine a region conservatively.
+    std::vector<TensorRegionLocation> instructions;
+    std::vector<ValueId> external_inputs;
+    std::vector<ValueId> values;
+    bool reaches_backward{};
+    bool may_require_higher_order{};
+    std::vector<std::string> compiler_extensions;
+    // Fully qualified descriptor table references (extension:table). Core
+    // schedules these generically; package-owned compiler logic interprets
+    // their domain semantics.
+    std::vector<std::string> compiler_extension_tables;
+    // Opaque package operation IDs in region execution order. Core never
+    // assigns domain meaning to these IDs.
+    std::vector<std::string> compiler_operations;
+    // Descriptor-owned fusion tables whose opaque operation sequence matches
+    // this region. These are candidates only; package policy owns validity and
+    // lowering.
+    std::vector<std::string> compiler_fusion_candidates;
+};
 struct Parameter {
     std::string name;
     Type type;
@@ -417,6 +423,7 @@ struct Function {
     std::vector<Parameter> parameters;
     Type result{Type::simple(TypeKind::Void)};
     std::vector<Block> blocks;
+    std::vector<TensorRegion> tensor_regions;
     bool entrypoint{};
     std::optional<std::string> external_symbol;
 };
@@ -428,12 +435,14 @@ struct ClassLayout {
 struct Module {
     std::vector<ClassLayout> classes;
     std::vector<Function> functions;
+    std::vector<CompilerExtensionRegistration> compiler_extensions;
 };
 
 Module lower(
     const CheckedProgram& checked,
     const Expr* repl_expression = nullptr,
     std::size_t replay_prefix_bytes = 0);
+Module optimize(Module module);
 std::string dump(const Module& module);
 
 } // namespace quidra::ir

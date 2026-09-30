@@ -4,5 +4,8 @@ cli args
     bool verbose = flag()
 
 print(args.source)
+print(NL)
 print(args.count)
+print(NL)
 print(args.verbose)
+print(NL)

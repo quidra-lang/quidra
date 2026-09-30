@@ -23,10 +23,6 @@ inline NumericLiteralFamily numeric_literal_family(const Expr& expression) {
     if (std::holds_alternative<FloatExpr>(expression.data)) {
         return NumericLiteralFamily::Real;
     }
-    if (const auto* name = std::get_if<NameExpr>(&expression.data);
-        name && is_standard_real_constant(name->name)) {
-        return NumericLiteralFamily::Real;
-    }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
         unary && (unary->op == "-" || unary->op == "NOT")) {
         return numeric_literal_family(*unary->operand);
@@ -49,10 +45,6 @@ inline NumericLiteralFamily direct_numeric_literal_family(const Expr& expression
         return NumericLiteralFamily::Integer;
     }
     if (std::holds_alternative<FloatExpr>(expression.data)) {
-        return NumericLiteralFamily::Real;
-    }
-    if (const auto* name = std::get_if<NameExpr>(&expression.data);
-        name && is_standard_real_constant(name->name)) {
         return NumericLiteralFamily::Real;
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);

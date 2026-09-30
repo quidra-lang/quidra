@@ -58,7 +58,8 @@ Result timed(int index)
     time.Duration elapsed = time.since(start)
     int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
     print("ITER {index} {elapsed_ns}")
-    io.flush()
+    print(NL)
+    flush()
     return result
 
 Result result
@@ -71,3 +72,4 @@ else
     result = workload()
 
 print("MB06 sumC={result.sum_c:sig=17} c_first={result.c_first:sig=17} c_last={result.c_last:sig=17}")
+print(NL)

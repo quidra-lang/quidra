@@ -11,5 +11,7 @@ auto | error r = doubled(true)
 match r
     int
         print(r)
+        print(NL)
     error
         print(r)
+        print(NL)

@@ -86,33 +86,6 @@ int main() {
     require(added == std::vector<float>({5.0F, 5.0F, 5.0F, 5.0F}),
             "float32 binary kernel result mismatch");
 
-    float reduced = 0.0F;
-    require(
-        quidra::device::compute_reduce(
-            output.get(), 10, 1, 4, &reduced, error),
-        error);
-    require(reduced == 20.0F, "reduction kernel result mismatch");
-
-    double mean = 0.0;
-    require(quidra::device::compute_mean(output.get(), 10, 4, mean, error), error);
-    require(mean == 5.0, "mean kernel result mismatch");
-
-    auto matrix_left = buffer(gpu0, 4 * sizeof(float), error);
-    auto matrix_right = buffer(gpu0, 4 * sizeof(float), error);
-    auto matrix_output = buffer(gpu0, 4 * sizeof(float), error);
-    require(matrix_left && matrix_right && matrix_output, error);
-    upload<float>(matrix_left.get(), {1.0F, 2.0F, 3.0F, 4.0F}, error);
-    upload<float>(matrix_right.get(), {1.0F, 0.0F, 0.0F, 1.0F}, error);
-    require(
-        quidra::device::compute_matmul(
-            matrix_output.get(), matrix_left.get(), matrix_right.get(),
-            10, 2, 2, 2, error),
-        error);
-    require(
-        download<float>(matrix_output.get(), 4, error) ==
-            std::vector<float>({1.0F, 2.0F, 3.0F, 4.0F}),
-        "matmul kernel result mismatch");
-
     auto int_left = buffer(gpu0, sizeof(std::int8_t), error);
     auto int_output = buffer(gpu0, sizeof(std::int8_t), error);
     require(int_left && int_output, error);

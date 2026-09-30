@@ -26,6 +26,23 @@ class IssueTriageTests(unittest.TestCase):
             result["labels"], ["ai-triaged", "bug", "area: dnn", "needs-info"]
         )
 
+    def test_all_first_party_semantic_areas_are_managed(self) -> None:
+        self.assertEqual(
+            set(issue_triage.AREA_LABELS),
+            {"core", "math", "nn", "vision", "video", "dnn"},
+        )
+        result = issue_triage.normalize_result(
+            {"category": "bug", "area": "nn", "needs_info": False, "reply": "Thanks"}
+        )
+        self.assertEqual(result["labels"], ["ai-triaged", "bug", "area: nn"])
+
+    def test_workflow_creates_every_managed_area_label(self) -> None:
+        workflow = (
+            ROOT / ".github" / "workflows" / "issue-ai-triage.yml"
+        ).read_text(encoding="utf-8")
+        for label in issue_triage.AREA_LABELS.values():
+            self.assertIn(f'gh label create "{label}"', workflow)
+
     def test_reply_sanitizes_mentions_and_reserved_markers(self) -> None:
         reply = issue_triage.sanitize_reply(
             "Thanks @octocat. mail@example.com "

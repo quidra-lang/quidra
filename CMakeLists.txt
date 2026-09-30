@@ -68,8 +68,8 @@ option(QUIDRA_ENABLE_TEST_GPU_BACKEND "Compile the deterministic test-only fake 
 
 # The browser frontend needs the parser, checker, formatter, typed IR, source
 # inspection and source patching -- all of which live in quidra_core, which has
-# no third-party dependencies. Everything that pulls CURL/PNG/JPEG/TIFF/WebP/
-# FFmpeg/Metal belongs to the generated-program runtime and the native CLI, so a
+# no third-party dependencies. Everything that pulls CURL/Metal belongs to
+# the generated-program runtime and the native CLI, so a
 # frontend-only build simply omits those targets. Emscripten implies it.
 option(QUIDRA_BUILD_WASM_FRONTEND
     "Build only the dependency-free compiler frontend and its WebAssembly bridge" OFF)
@@ -123,25 +123,6 @@ target_include_directories(quidra_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR
 if(NOT QUIDRA_BUILD_WASM_FRONTEND)
 
 find_package(CURL REQUIRED)
-find_package(PNG REQUIRED)
-find_package(JPEG REQUIRED)
-find_package(TIFF REQUIRED)
-find_path(WEBP_INCLUDE_DIR NAMES webp/decode.h)
-find_library(WEBP_LIBRARY NAMES webp libwebp)
-if(NOT WEBP_INCLUDE_DIR OR NOT WEBP_LIBRARY)
-  message(FATAL_ERROR "libwebp headers and library are required.")
-endif()
-
-find_path(FFMPEG_INCLUDE_DIR NAMES libavformat/avformat.h)
-find_library(AVFORMAT_LIBRARY NAMES avformat)
-find_library(AVCODEC_LIBRARY NAMES avcodec)
-find_library(AVUTIL_LIBRARY NAMES avutil)
-find_library(SWSCALE_LIBRARY NAMES swscale)
-if(NOT FFMPEG_INCLUDE_DIR OR NOT AVFORMAT_LIBRARY OR NOT AVCODEC_LIBRARY OR
-   NOT AVUTIL_LIBRARY OR NOT SWSCALE_LIBRARY)
-  message(FATAL_ERROR "FFmpeg libavformat/libavcodec/libavutil/libswscale development files are required.")
-endif()
-
 add_library(quidra_runtime STATIC
     src/runtime.cpp
     src/runtime_exact.cpp
@@ -150,8 +131,6 @@ add_library(quidra_runtime STATIC
     src/runtime_process.cpp
     src/runtime_json.cpp
     src/runtime_http.cpp
-    src/runtime_image.cpp
-    src/runtime_video.cpp
     src/device_backend.cpp
 )
 
@@ -166,14 +145,10 @@ add_library(quidra_runtime_jit SHARED
     src/runtime_process.cpp
     src/runtime_json.cpp
     src/runtime_http.cpp
-    src/runtime_image.cpp
-    src/runtime_video.cpp
     src/device_backend.cpp
 )
-target_include_directories(quidra_runtime_jit PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIR})
-target_link_libraries(quidra_runtime_jit PRIVATE
-    CURL::libcurl PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY}
-    ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY} ${SWSCALE_LIBRARY})
+target_include_directories(quidra_runtime_jit PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS})
+target_link_libraries(quidra_runtime_jit PRIVATE CURL::libcurl)
 if(CMAKE_DL_LIBS)
   target_link_libraries(quidra_runtime_jit PRIVATE ${CMAKE_DL_LIBS})
 endif()
@@ -218,10 +193,7 @@ if(WIN32)
   set_target_properties(quidra_runtime_jit PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
   target_compile_definitions(quidra_runtime_jit PRIVATE NOMINMAX)
 endif()
-target_include_directories(quidra_runtime PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIR})
-target_link_libraries(quidra_runtime PRIVATE
-    PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY}
-    ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY} ${SWSCALE_LIBRARY})
+target_include_directories(quidra_runtime PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS})
 if(CMAKE_DL_LIBS)
   target_link_libraries(quidra_runtime PRIVATE ${CMAKE_DL_LIBS})
 endif()
@@ -372,6 +344,7 @@ install(TARGETS quidra_runtime ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/quidr
 install(TARGETS quidra_runtime_jit
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/quidra)
+install(FILES include/quidra/native_extension.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/quidra)
 install(FILES README.md LICENSE quidra.manifest.json DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(DIRECTORY docs/spec/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/spec)
 install(DIRECTORY examples/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
@@ -384,8 +357,9 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   add_executable(quidra_tests tests/compiler_tests.cpp)
   target_link_libraries(quidra_tests PRIVATE quidra_core)
   if(MSVC)
-    # Compiler tests execute the same recursive lowering as the CLI, so they
-    # need the same Windows stack reserve instead of the 1 MiB executable default.
+    # Compiler tests execute the same recursive lowering as the CLI and have
+    # grown beyond COFF's default section limit on MSVC.
+    target_compile_options(quidra_tests PRIVATE /bigobj)
     target_link_options(quidra_tests PRIVATE /STACK:8388608)
   endif()
   add_test(NAME quidra_tests COMMAND quidra_tests)
@@ -425,11 +399,12 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     add_test(NAME quidra_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_package_names COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_name_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_package_identity COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_identity_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_package_native COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_native_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_package_releases COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_release_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_package_metadata_sync COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_metadata_sync_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
+    add_test(NAME quidra_container_casts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/container_cast_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_tensor_autograd_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/tensor_autograd_foundation_tests.sh $<TARGET_FILE:quidra>)
-    add_test(NAME quidra_image_dtype COMMAND bash ${CMAKE_SOURCE_DIR}/tests/image_dtype_tests.sh $<TARGET_FILE:quidra>)
-    add_test(NAME quidra_video COMMAND bash ${CMAKE_SOURCE_DIR}/tests/video_tests.sh $<TARGET_FILE:quidra>)
     if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
       add_executable(quidra_device_backend_tests tests/device_backend_tests.cpp)
       target_include_directories(quidra_device_backend_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -486,11 +461,11 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       quidra_cli
       quidra_package_names
       quidra_package_identity
+      quidra_package_native
       quidra_package_releases
+      quidra_package_metadata_sync
       quidra_stdlib
       quidra_tensor_autograd_foundation
-      quidra_image_dtype
-      quidra_video
       quidra_native_smoke
       PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
     )
@@ -549,7 +524,7 @@ elseif(APPLE)
 else()
   set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
   set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-  set(CPACK_DEBIAN_PACKAGE_DEPENDS "clang-15, llvm-15, git, curl, xz-utils, libcurl4-openssl-dev, libpng-dev, libjpeg-dev, libtiff-dev, libwebp-dev, libavformat-dev, libavcodec-dev, libavutil-dev, libswscale-dev")
+  set(CPACK_DEBIAN_PACKAGE_DEPENDS "clang-15, llvm-15, git, curl, xz-utils, libcurl4-openssl-dev")
   set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
   set(CPACK_ARCHIVE_FILE_NAME "quidra-${PROJECT_VERSION}-linux-${CMAKE_SYSTEM_PROCESSOR}")
   set(CPACK_GENERATOR "DEB;TGZ")

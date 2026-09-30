@@ -4,11 +4,75 @@ Quidra packages are source packages with a `main.qui` entrypoint. Released
 packages additionally carry a `quidra.package` manifest and are installed from
 immutable release tags.
 
+## First-party dependency layers
+
+Quidra's official computational packages follow a strict dependency-layer model.
+A higher layer may depend on lower layers; a lower layer must not depend on a
+higher layer. Sibling repositories in the same layer are independent by
+default and must not import one another merely to reuse domain semantics.
+
+Core, Math, NN, Vision, Video, and DNN also use one synchronized release-train
+version. On `develop`, every first-party package's `package.version` must equal
+Core's `project.version`. A coordinated release publishes the same immutable
+`vX.Y.Z` across all six repositories; package versions do not advance
+independently. Dependency ranges may remain compatibility ranges, but they must
+admit that same shared version, and release validation uses same-version
+dependency tags.
+
+```text
+Layer 4:  DNN
+          |
+Layer 3:  NN    Vision    Video
+           \      |      /
+Layer 2:         Math
+                  |
+Layer 1:         Core
+```
+
+The layers define semantic ownership, not implementation technology:
+
+| Layer | Repository | Ownership |
+| --- | --- | --- |
+| 1 | Core | Language/compiler, tensor and autograd substrate, devices, execution, package/native-extension mechanisms, and domain-neutral optimization infrastructure. Core provides mechanisms, not package semantics. |
+| 2 | Math | Generic mathematical semantics, including numerical operations, exact mathematical semantics, native implementations, autograd rules, and Math-owned compiler optimizations. |
+| 3 | NN | Architecture-independent neural-network mechanisms: modules/layers, losses, optimizers, parameter/training semantics, and NN-owned rewrites or fused kernels such as Conv + BatchNorm + ReLU. |
+| 3 | Vision | Image and computer-vision semantics such as resize, crop, color/image transforms, image codecs, and Vision-owned kernels or optimizations. |
+| 3 | Video | Video/temporal media semantics such as frame/video transforms, sampling, codecs, and Video-owned kernels or optimizations. |
+| 4 | DNN | Concrete deep-neural-network model compositions such as ResNet, ViT, UNet, YOLO, and multimodal/video models. DNN may compose NN, Vision, and Video without forcing those Layer-3 packages to depend on one another. |
+
+The allowed dependency direction for these packages is:
+
+```text
+Layer 4 packages -> Layer 3 packages / Math / Core as needed
+Layer 3 packages -> Math / Core
+Math             -> Core
+Core             -> no higher first-party layer
+```
+
+This is an upper bound, not a declaration that every allowed edge exists.
+The current DNN manifest depends on NN and Math (with Core as the substrate);
+it does not depend on Vision or Video.
+
+Layer-3 sibling dependencies are forbidden by default. For example, NN does
+not import Vision, Vision does not import NN, and Video does not import either
+sibling just to reuse domain semantics. Cross-domain composition belongs in
+Layer 4 or another explicitly higher-level package.
+
+Optimization follows the same ownership boundary. Core may provide typed IR,
+pattern/rewrite registration, graph analysis, dispatch, native-kernel hooks,
+and other generic compiler mechanisms. The package that owns the semantics
+owns the actual rewrite rules, numerical validity conditions, native/CUDA/Metal
+implementation, and backend policy. Thus Conv + BatchNorm + ReLU fusion belongs
+to NN, while a model-specific ResNet rewrite belongs to DNN and mathematical
+kernels or rewrites belong to Math. Being performance-critical,
+compiler-visible, differentiable, or GPU-backed is never by itself a reason to
+move semantics into Core.
+
 ## Commands
 
 ```text
 quidra install quidra-dnn
-quidra install quidra-dnn@0.4.0
+quidra install quidra-dnn@0.5.0
 quidra install owner/repository
 quidra install https://github.com/owner/repository.git@1.2.3
 quidra install ./local-package
@@ -16,6 +80,9 @@ quidra remove quidra-dnn
 quidra list
 quidra package-info quidra-dnn
 quidra package-info quidra-dnn --json
+quidra package sync ./my-package
+quidra package sync ./my-package --check
+quidra package validate ./my-package
 quidra package-path
 quidra lock program.qui
 quidra lock program.qui --check
@@ -59,24 +126,30 @@ Released packages contain `quidra.package` at the repository root:
 
 ```text
 name = dnn
-version = 0.4.0
+version = 0.5.0
 repository = https://github.com/quidra-lang/dnn
-description = DNN layers and optimizers for Quidra
+description = Deep neural network models for Quidra
 license = MIT
 homepage = https://github.com/quidra-lang/dnn
-requires.quidra = >=0.4.0 <0.5.0
+requires.quidra = >=0.5.0 <0.6.0
+requires.math = >=0.5.0 <0.6.0
+requires.nn = >=0.5.0 <0.6.0
 ```
 
-Package-to-package requirements use the same form:
-
-```text
-requires.vision = >=0.4.0 <0.5.0
-```
+Package-to-package requirements use the same `requires.<import>` form. The
+DNN example above follows the current layer graph: DNN depends on Math and NN,
+not on sibling Layer-3 packages such as Vision or Video.
 
 Versions use exact `MAJOR.MINOR.PATCH` Semantic Versioning. Requirement terms
 are conjunctive and support `=`, `<`, `<=`, `>`, and `>=`. A released
 package must declare `requires.quidra`. Its manifest version must exactly match
 the release tag.
+
+Official first-party computational packages are versioned in lockstep with
+Core. Math, NN, Vision, Video, and DNN must carry the exact same
+`MAJOR.MINOR.PATCH` value as the corresponding Core release, including when a
+repository has no code change in that release. Their release workflows check
+out first-party dependencies at that same version tag and reject divergence.
 
 `description`, `license`, and `homepage` are optional descriptive metadata. `asset.<platform>` entries are optional immutable release payload URLs and are selected only for the running platform (or `asset.default` when present).
 They do not participate in dependency resolution or execute any behavior.
@@ -87,6 +160,48 @@ For a dependency other than Quidra, the current installer requires an already
 installed compatible package and reports the required range when it is missing
 or incompatible. Dependency resolution can become more automatic later without
 changing the manifest format.
+
+### Package-owned native sources
+
+A package may keep native implementation beside its Quidra source. The manifest
+uses named `native.source.*` entries and optional `native.pkg.*` pkg-config
+dependencies. Sources may be common to every host or scoped to one canonical
+host platform:
+
+```toml
+[native.source]
+cpu = "native/cpu.cpp"
+
+[native.source.macos-arm64]
+metal = "native/metal.mm"
+
+[native.source.linux-x86_64]
+cuda = "native/kernels.cu"
+
+[native.pkg]
+codec = "libexample"
+```
+
+The generated `quidra.package` flattens platform sources as
+`native.source.<platform>.<name> = path`. Only sources matching the current
+host platform are compiled; common `native.source.*` inputs are always used.
+Core treats these as build inputs, not as domain semantics. C, C++, and
+`.s`/`.S` assembly sources use the host Clang toolchain; Objective-C++ `.mm`
+is accepted on Apple hosts, and `.cu` sources use NVIDIA `nvcc`. `QUIDRA_NVCC` can select the CUDA compiler explicitly.
+The CUDA toolkit root is resolved from `QUIDRA_CUDA_HOME`, `CUDA_HOME`,
+`CUDA_PATH`, or the selected `nvcc` location so the package-owned object can
+link the CUDA runtime. AOT and REPL/JIT use the same package source declarations.
+
+This mechanism is intentionally domain-neutral: NN, DNN, Vision, Video,
+scientific, and other packages own their kernels and third-party backend policy. Core only
+compiles, links, caches, and loads the declared native inputs.
+
+Package kernels that need to share Core's same-device asynchronous ordering may
+query the borrowed backend-native queue/stream with
+`qcore_device_queue_handle(device)`. Metal exposes Core's
+`MTLCommandQueue`; CUDA/HIP use their backend default stream, represented by
+native handle 0. The execution handle is mechanism only: packages still own
+operation semantics, kernels, and backend policy.
 
 ### Package `project.toml`
 
@@ -100,12 +215,15 @@ optional `project.toml` next to it, which older compilers simply never open:
 name = "quidra-dnn"
 import = "dnn"
 display_name = "Quidra DNN"
-version = "0.4.0"
+version = "0.5.0"
 repository = "https://github.com/quidra-lang/dnn"
 
 [requires]
-quidra = ">=0.4.0 <0.5.0"
+quidra = ">=0.5.0 <0.6.0"
 abi = 1
+
+[compiler.extension]
+graph = "compiler/graph.toml"
 ```
 
 It separates four identities that `quidra.package`'s single `name` cannot carry
@@ -134,6 +252,38 @@ it or does not.
 When `project.toml` is present the compiler reads it alongside `quidra.package`
 and rejects the package if the two disagree on the import name or the version,
 which is what makes `quidra.package` safe to generate from it.
+
+`quidra package sync [DIR]` is the canonical generator for the compatibility
+manifest. It derives `quidra.package` from `project.toml`, including package
+identity, release asset URLs, native sources/pkg-config dependencies and package
+requirements. `--check` verifies the generated file without writing;
+`quidra package validate [DIR]` is the equivalent validation-only command.
+Package repositories therefore do not need a second TOML parser merely to keep
+these two metadata files synchronized.
+
+The optional `[compiler.extension]` table maps a package-owned logical extension
+name to a package-relative declarative descriptor. Core validates that each
+descriptor stays inside the package and exists as a regular file. A descriptor
+starts with `[extension]`, `version = 1`, and the generic
+`phase = "tensor-region"`. Core snapshots descriptor contents during import,
+carries them through specialization/checking into typed IR, and routes candidate
+tensor regions by the source package that owns each function. Import aliases do
+not affect ownership. Regions also expose whether they reach backward and
+whether they may require higher-order backward, allowing package policy to
+conservatively avoid a first-order-only implementation. Descriptors are data,
+not in-process native compiler plugins; domain patterns and backend policy remain
+package-owned. Core validates only the descriptor structure required by this
+generic substrate: every `[operation.*]` table has a non-empty function target,
+and every `[fusion.*]` sequence references declared operation IDs without empty
+entries. A fusion may optionally name `replacement = "operation_id"`; that id
+must name another declared operation in the same extension. Core may apply such
+a replacement only through a domain-neutral call contract. The initial rewrite
+requires a same-basic-block pure tensor chain, unary tail operations, no
+observable use of eliminated intermediate SSA values, a replacement parameter
+contract identical to the first operation, and a result type identical to the
+last operation. If any condition is not proven, the fusion remains analysis
+metadata only. Domain meaning, the replacement implementation, backend policy,
+and numerical validity stay with the owning package.
 
 Local directory installation remains available for package development:
 
@@ -164,8 +314,8 @@ transitive package reached by the program's import graph records both identities
 
 ```text
 quidra-lock-v3
-quidra-dnn dnn 0.4.0 <sha256>
-quidra-vision vision 0.4.0 <sha256>
+quidra-dnn dnn 0.5.0 <sha256>
+quidra-vision vision 0.5.0 <sha256>
 ```
 
 The columns are distribution name, import name, version and content hash.

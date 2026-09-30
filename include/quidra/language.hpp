@@ -59,28 +59,14 @@ inline constexpr std::optional<std::string_view> canonical_builtin_type_name(std
 
 enum class BuiltinCallable {
     Print,
-    Write,
     Scan,
-    IoFlush,
+    Flush,
     Exit,
     Range,
     Array,
     Len,
-    Abs,
-    Sqrt,
-    Min,
-    Max,
-    MathSin,
-    MathCos,
-    MathTan,
-    MathLog,
-    MathExp,
-    MathPow,
-    MathTrunc,
-    MathRound,
-    MathFloor,
-    MathCeil,
-    MathIsFinite,
+    ExactAtom,
+    ExactUnary,
     CliArgument,
     CliArgumentOptional,
     CliOption,
@@ -133,30 +119,12 @@ enum class BuiltinCallable {
     JsonEqual,
     HttpGet,
     HttpHeader,
-    VideoOpen,
-    VideoRead,
-    VideoWidth,
-    VideoHeight,
-    VideoFps,
     TensorCreate,
     TensorZeros,
     TensorOnes,
-    StatsSum,
-    StatsMean,
-    StatsMin,
-    StatsMax,
-    LinearMatmul,
-    LinearDot,
-    ImageRead,
-    ImageWrite,
     ReflectCollect,
-    TensorAbsolute,
-    TensorExponential,
-    TensorLogarithm,
-    TensorMean,
-    TensorSumLast,
-    TensorMaxLast,
-    TensorMinLast,
+    ReflectPaths,
+    ReflectTypeName,
 };
 
 struct BuiltinCallableInfo {
@@ -170,7 +138,7 @@ struct BuiltinCallableInfo {
 // Prefer namespaced standard-library functions or value methods for new APIs.
 inline constexpr std::array<BuiltinCallableInfo, 7> builtin_callables{{
     {"print", BuiltinCallable::Print},
-    {"write", BuiltinCallable::Write},
+    {"flush", BuiltinCallable::Flush},
     {"scan", BuiltinCallable::Scan},
     {"range", BuiltinCallable::Range},
     {"array", BuiltinCallable::Array},
@@ -178,23 +146,7 @@ inline constexpr std::array<BuiltinCallableInfo, 7> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 100> intrinsic_callables{{
-    {"$std.math.abs", BuiltinCallable::Abs},
-    {"$std.math.sqrt", BuiltinCallable::Sqrt},
-    {"$std.math.min", BuiltinCallable::Min},
-    {"$std.math.max", BuiltinCallable::Max},
-    {"$std.math.sin", BuiltinCallable::MathSin},
-    {"$std.math.cos", BuiltinCallable::MathCos},
-    {"$std.math.tan", BuiltinCallable::MathTan},
-    {"$std.math.log", BuiltinCallable::MathLog},
-    {"$std.math.exp", BuiltinCallable::MathExp},
-    {"$std.math.pow", BuiltinCallable::MathPow},
-    {"$std.math.trunc", BuiltinCallable::MathTrunc},
-    {"$std.math.round", BuiltinCallable::MathRound},
-    {"$std.math.floor", BuiltinCallable::MathFloor},
-    {"$std.math.ceil", BuiltinCallable::MathCeil},
-    {"$std.math.is_finite", BuiltinCallable::MathIsFinite},
-    {"$std.io.flush", BuiltinCallable::IoFlush},
+inline constexpr std::array<BuiltinCallableInfo, 60> intrinsic_callables{{
     {"$std.cli.argument", BuiltinCallable::CliArgument},
     {"$std.cli.argument_optional", BuiltinCallable::CliArgumentOptional},
     {"$std.cli.option", BuiltinCallable::CliOption},
@@ -248,22 +200,13 @@ inline constexpr std::array<BuiltinCallableInfo, 100> intrinsic_callables{{
     {"$std.json.equal", BuiltinCallable::JsonEqual},
     {"$std.http.get", BuiltinCallable::HttpGet},
     {"$std.http.header", BuiltinCallable::HttpHeader},
-    {"$std.video.open", BuiltinCallable::VideoOpen},
-    {"$std.video.read", BuiltinCallable::VideoRead},
-    {"$std.video.width", BuiltinCallable::VideoWidth},
-    {"$std.video.height", BuiltinCallable::VideoHeight},
-    {"$std.video.fps", BuiltinCallable::VideoFps},
     {"$std.tensor.zeros", BuiltinCallable::TensorZeros},
     {"$std.tensor.ones", BuiltinCallable::TensorOnes},
-    {"$std.stats.sum", BuiltinCallable::StatsSum},
-    {"$std.stats.mean", BuiltinCallable::StatsMean},
-    {"$std.stats.min", BuiltinCallable::StatsMin},
-    {"$std.stats.max", BuiltinCallable::StatsMax},
-    {"$std.linear.matmul", BuiltinCallable::LinearMatmul},
-    {"$std.linear.dot", BuiltinCallable::LinearDot},
-    {"$std.image.read", BuiltinCallable::ImageRead},
-    {"$std.image.write", BuiltinCallable::ImageWrite},
+    {"$std.exact.atom", BuiltinCallable::ExactAtom},
+    {"$std.exact.unary", BuiltinCallable::ExactUnary},
     {"$std.reflect.collect", BuiltinCallable::ReflectCollect},
+    {"$std.reflect.paths", BuiltinCallable::ReflectPaths},
+    {"$std.reflect.type_name", BuiltinCallable::ReflectTypeName},
 }};
 
 inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_view name) {
@@ -276,9 +219,9 @@ inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_vie
     return std::nullopt;
 }
 
-inline constexpr std::array<std::string_view, 25> standard_modules{{
-    "math", "io", "cli", "file", "environment", "test", "time", "gpu", "task", "atomic", "autograd", "ref", "reflect", "random", "process",
-    "map", "set", "json", "http", "stats", "linear", "signal", "image", "video", "tensor"
+inline constexpr std::array<std::string_view, 19> standard_modules{{
+    "cli", "file", "environment", "test", "time", "gpu", "task", "atomic", "autograd", "ref", "reflect", "random", "process",
+    "map", "set", "json", "http", "tensor", "exact"
 }};
 
 inline constexpr bool is_standard_module(std::string_view name) {
@@ -300,10 +243,6 @@ inline std::string standard_modules_json() {
 
 inline constexpr std::optional<std::string_view> standard_function_target(
     std::string_view module, std::string_view member) {
-    if (module == "io") {
-        if (member == "flush") return "$std.io.flush";
-        return std::nullopt;
-    }
     if (module == "environment") {
         if (member == "get") return "$std.environment.get";
         if (member == "has") return "$std.environment.has";
@@ -339,6 +278,8 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     }
     if (module == "reflect") {
         if (member == "collect") return "$std.reflect.collect";
+        if (member == "paths") return "$std.reflect.paths";
+        if (member == "type_name") return "$std.reflect.type_name";
         return std::nullopt;
     }
     if (module == "random") {
@@ -359,30 +300,14 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         if (member == "get") return "$std.http.get";
         return std::nullopt;
     }
-    if (module == "video") {
-        if (member == "open") return "$std.video.open";
-        return std::nullopt;
-    }
     if (module == "tensor") {
         if (member == "zeros") return "$std.tensor.zeros";
         if (member == "ones") return "$std.tensor.ones";
         return std::nullopt;
     }
-    if (module == "stats") {
-        if (member == "sum") return "$std.stats.sum";
-        if (member == "mean") return "$std.stats.mean";
-        if (member == "min") return "$std.stats.min";
-        if (member == "max") return "$std.stats.max";
-        return std::nullopt;
-    }
-    if (module == "linear") {
-        if (member == "matmul") return "$std.linear.matmul";
-        if (member == "dot") return "$std.linear.dot";
-        return std::nullopt;
-    }
-    if (module == "image") {
-        if (member == "read") return "$std.image.read";
-        if (member == "write") return "$std.image.write";
+    if (module == "exact") {
+        if (member == "atom") return "$std.exact.atom";
+        if (member == "unary") return "$std.exact.unary";
         return std::nullopt;
     }
     if (module == "file") {
@@ -402,40 +327,6 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         if (member == "list") return "$std.file.list";
         return std::nullopt;
     }
-    if (module != "math") return std::nullopt;
-    if (member == "abs") return "$std.math.abs";
-    if (member == "sqrt") return "$std.math.sqrt";
-    if (member == "min") return "$std.math.min";
-    if (member == "max") return "$std.math.max";
-    if (member == "sin") return "$std.math.sin";
-    if (member == "cos") return "$std.math.cos";
-    if (member == "tan") return "$std.math.tan";
-    if (member == "log") return "$std.math.log";
-    if (member == "exp") return "$std.math.exp";
-    if (member == "pow") return "$std.math.pow";
-    if (member == "trunc") return "$std.math.trunc";
-    if (member == "round") return "$std.math.round";
-    if (member == "floor") return "$std.math.floor";
-    if (member == "ceil") return "$std.math.ceil";
-    if (member == "is_finite") return "$std.math.is_finite";
-    return std::nullopt;
-}
-
-inline constexpr std::optional<std::string_view> standard_value_target(
-    std::string_view module, std::string_view member) {
-    if (module != "math") return std::nullopt;
-    if (member == "pi") return "$std.math.pi";
-    if (member == "e") return "$std.math.e";
-    return std::nullopt;
-}
-
-inline constexpr bool is_standard_real_constant(std::string_view name) {
-    return name == "$std.math.pi" || name == "$std.math.e";
-}
-
-inline constexpr std::optional<double> standard_float_constant(std::string_view name) {
-    if (name == "$std.math.pi") return 3.141592653589793238462643383279502884;
-    if (name == "$std.math.e") return 2.718281828459045235360287471352662498;
     return std::nullopt;
 }
 
@@ -444,14 +335,14 @@ inline constexpr bool is_builtin_callable(std::string_view name) {
 }
 
 inline constexpr std::array<std::pair<std::string_view, std::string_view>, 8> builtin_text_constants{{
-    {"ENTER", "\n"},
-    {"TAB", "\t"},
-    {"HOME", "\r"},
-    {"QUOTE", "\""},
-    {"BACKSPACE", "\b"},
-    {"PAGE", "\f"},
-    {"VTAB", "\v"},
-    {"BELL", "\a"},
+    {"NL", "\n"},
+    {"HT", "\t"},
+    {"CR", "\r"},
+    {"DQ", "\""},
+    {"BS", "\b"},
+    {"FF", "\f"},
+    {"VT", "\v"},
+    {"BL", "\a"},
 }};
 
 inline constexpr bool is_builtin_text_constant(std::string_view name) {

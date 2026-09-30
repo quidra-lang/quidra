@@ -3,6 +3,7 @@ name: native-performance
 on:
   workflow_dispatch:
   push:
+    branches: [develop]
     paths:
       - ".github/workflows/native-performance.yml"
       - "src/**"
@@ -31,9 +32,9 @@ jobs:
             ccache-${{ runner.os }}-${{ github.workflow }}-
 
       - name: Install native dependencies
-        run: brew install ccache llvm curl libpng jpeg-turbo libtiff webp ffmpeg
+        run: brew install ccache llvm curl
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl);$(brew --prefix libpng);$(brew --prefix jpeg-turbo);$(brew --prefix libtiff);$(brew --prefix webp);$(brew --prefix ffmpeg)" -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl)" -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build Quidra
         run: cmake --build build --parallel
       - name: Measure representative native workloads

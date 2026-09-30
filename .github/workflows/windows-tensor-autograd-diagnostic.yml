@@ -24,7 +24,7 @@ jobs:
         run: New-Item -ItemType Directory -Force -Path .vcpkg-binary-cache | Out-Null
       - name: Install native dependencies
         shell: pwsh
-        run: vcpkg install curl:x64-windows libpng:x64-windows libjpeg-turbo:x64-windows tiff:x64-windows libwebp:x64-windows ffmpeg:x64-windows
+        run: vcpkg install curl:x64-windows
       - name: Configure
         shell: pwsh
         run: >
@@ -45,13 +45,15 @@ jobs:
           float32 before = state.weight[0].item()
 
           state.weight = state.weight.track()
-          tensor<float32> loss = (state.weight * state.weight).mean()
+          tensor<float32> loss = (state.weight * state.weight).reshape([])
           loss.backward(&state.weight)
           print(state.weight.has_grad())
+          print(NL)
           tensor<float32> gradient = state.weight.grad
           state.weight.clear_grad()
           state.weight = state.weight.untrack() - gradient * float32(0.1)
           print(state.weight[0].item() < before and not state.weight.has_grad())
+          print(NL)
           '@
           & build/Release/quidra.exe check build/autograd-smoke.qui
           $checkExit = $LASTEXITCODE

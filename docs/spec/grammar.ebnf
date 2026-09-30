@@ -3,7 +3,7 @@
    Bracketed newlines are insignificant. String backslashes are literal;
    physical CRLF inside a string literal is normalized to LF, so checkout
    line-ending style does not change string data. Control characters use
-   ENTER, TAB, HOME, QUOTE, BACKSPACE, PAGE, VTAB, and BELL. *)
+   NL, HT, CR, DQ, BS, FF, VT, and BL. *)
 
 program          = { NEWLINE | import_decl | extern_decl | cli_decl | enum_decl | class_decl | function_decl | main_guard | statement }, EOF ;
 
@@ -56,7 +56,6 @@ integer_term     = integer_factor, { ( "*" | "/" | "%" ), integer_factor } ;
 integer_factor   = ( "+" | "-" ), integer_factor
                  | integer | identifier | "(", integer_expression, ")" ;
 type_arguments   = "<", type, { ",", type }, ">" ;
-qualified_identifier = identifier, { ".", identifier } ;
 
 suite            = NEWLINE, INDENT, statement, { statement | NEWLINE }, DEDENT ;
 main_guard       = "if", "main", suite ;
@@ -90,7 +89,8 @@ bit_and_expr     = shift_expr, { "AND", shift_expr } ;
 shift_expr       = term, { ( "<<" | ">>" ), term } ;
 term             = factor, { ( "+" | "-" ), factor } ;
 factor           = unary, { ( "*" | "/" | "%" ), unary } ;
-unary            = ( "try" | "not" | "NOT" | "-" | "&" ), unary | postfix ;
+unary            = ( "try" | "not" | "NOT" | "-" | "&" ), unary | power ;
+power            = postfix, [ "^", unary ] ;
 postfix          = primary, { generic_call | direct_call | index_suffix | member_suffix } ;
 generic_call     = type_arguments, "(", [ arguments ], ")" ;
 direct_call      = "(", [ arguments ], ")" ;
@@ -158,13 +158,13 @@ statement_end    = NEWLINE | EOF ;
    - class members are public by default. private is a class-member-only prefix, valid on
      constructors too; private access is restricted to methods declared by the owning class;
    - a string literal placeholder `{&storage}` is an input target and is valid only as
-     the format of scan(...); print, write, io.flush and scan return void | error, and an
+     the format of scan(...); print, flush and scan return void | error, and an
      expression statement whose value can be error fails fast on error;
    - `public import` re-exports the imported alias as a nested namespace of the module;
    - safe address targets, exhaustive cases, field-level initialization, fixed shapes,
      argument ordering, value equality, and
      no-shadowing are checked statically.
-   '&' forms safe storage addresses. print/write may observe the current raw machine
+   '&' forms safe storage addresses. print may observe the current raw machine
      address, and ==/!= may compare address identity; addresses are otherwise non-storable
      and do not support conversion, arithmetic, ordering, or dereference;
    - const removes write authority through that binding/reference path. const value

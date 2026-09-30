@@ -1,8 +1,11 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 const int value = 10
 value = 20
 print("OBS=V:{value}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

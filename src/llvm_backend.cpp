@@ -64,6 +64,7 @@ std::string c_abi_parameter_attribute(const Type& type, bool readonly_buffer=tru
         case TypeKind::String:
             return " nocapture nonnull readonly";
         case TypeKind::Bin:
+        case TypeKind::Tensor:
             return readonly_buffer
                 ? " nocapture nonnull readonly"
                 : " nocapture nonnull";
@@ -171,6 +172,7 @@ int tensor_binary_opcode(std::string_view op) {
     if (op == "*") return 3;
     if (op == "/") return 4;
     if (op == "%") return 5;
+    if (op == "^") return 6;
     throw std::logic_error("unsupported tensor binary operator");
 }
 
@@ -335,6 +337,7 @@ struct StringPool {
 
 std::string clone_name(const Type&t){return "@quidra_clone_"+type_id(t);}
 std::string array_cast_name(const Type&from,const Type&to){return "@quidra_array_cast_"+type_id(from)+"_to_"+type_id(to);}
+std::string array_cast_validate_name(const Type&from,const Type&to){return "@quidra_array_cast_validate_"+type_id(from)+"_to_"+type_id(to);}
 std::string drop_name(const Type&t){return "@quidra_drop_"+type_id(t);}
 std::string equality_name(const Type&t){return "@quidra_equal_"+type_id(t);}
 
@@ -694,9 +697,6 @@ struct FunctionEmitter {
         if (type.kind == TypeKind::Class && type.class_name == "$std.autograd.Target") {
             return "@quidra_autograd_target_drop";
         }
-        if (type.kind == TypeKind::Class && type.class_name == "$std.video.Reader") {
-            return "@quidra_video_reader_drop";
-        }
         return has_drop_helper(type) ? drop_name(type) : "null";
     }
 
@@ -706,7 +706,7 @@ struct FunctionEmitter {
             << ", ptr " << drop_callback(type) << ")\n";
     }
 
-    // The void | error result of print, write and io.flush: `status` is a
+    // The void | error result of print and flush: `status` is a
     // nonzero i32 when the stream has failed.
     void emit_output_result(ir::ValueId out_id, const Type& result_type, const std::string& status) {
         values[out_id]=result_type;
@@ -758,6 +758,8 @@ struct FunctionEmitter {
                 if(const auto* r=std::get_if<ir::DeclareReference>(&i)) references[r->name]=r->type;
                 if(const auto* literal=std::get_if<ir::ConstantString>(&i)) pool.intern(literal->value);
                 if(const auto* exact=std::get_if<ir::ConstantExact>(&i)) pool.intern(exact->spelling);
+                if(const auto* atom=std::get_if<ir::ExactAtom>(&i)) pool.intern(atom->provider);
+                if(const auto* unary=std::get_if<ir::ExactUnary>(&i)) pool.intern(unary->provider);
                 if(const auto* concat=std::get_if<ir::StringConcat>(&i))
                     plan_scratch(i,"["+std::to_string(concat->values.size())+" x ptr]");
                 if(const auto* build=std::get_if<ir::StringBuild>(&i)){
@@ -825,11 +827,6 @@ struct FunctionEmitter {
                     else if(parse->target_type.kind==TypeKind::Float32) plan_scratch(i,"float");
                     else if(parse->target_type.kind==TypeKind::Float) plan_scratch(i,"double");
                 }
-                if(std::holds_alternative<ir::ImageRead>(i)) plan_scratch(i,"i32");
-                if(std::holds_alternative<ir::VideoRead>(i)){
-                    plan_scratch(i,"ptr");
-                    plan_scratch(i,"i32");
-                }
                 if(std::holds_alternative<ir::ReplDisplay>(i)) plan_scratch(i,"i64");
                 if(std::holds_alternative<ir::Input>(i)) plan_scratch(i,"ptr");
                 if(std::holds_alternative<ir::FileHandleReadLine>(i)) plan_scratch(i,"ptr");
@@ -839,7 +836,7 @@ struct FunctionEmitter {
 
     void emit_repl_text(const std::string& text) {
         const auto literal = pool.intern(text);
-        out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr @" << literal << ")\n";
+        out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr @" << literal << ")\n";
     }
 
     bool repl_path_initialized(const std::vector<std::string>& initialized_paths,
@@ -860,7 +857,7 @@ struct FunctionEmitter {
                     << llvm_type(type) << " " << raw_value << " to i64\n";
             }
             out << "  call i32 (ptr, ...) @printf(ptr "
-                << (is_signed_integer(type) ? "@.fmt.int.write" : "@.fmt.uint.write")
+                << (is_signed_integer(type) ? "@.fmt.int.raw" : "@.fmt.uint.raw")
                 << ", i64 " << widened << ")\n";
             return;
         }
@@ -870,7 +867,7 @@ struct FunctionEmitter {
                 out << "  " << text << " = call ptr @quidra_bigint_text(ptr " << raw_value << ")\n";
             else
                 out << "  " << text << " = call ptr @quidra_bigreal_text(ptr " << raw_value << ", i32 34)\n";
-            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr " << text << ")\n";
+            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr " << text << ")\n";
             out << "  call void @quidra_managed_release(ptr " << text << ", ptr null)\n";
             return;
         }
@@ -882,7 +879,7 @@ struct FunctionEmitter {
             }
             const auto text = temp("repl.float.text");
             out << "  " << text << " = call ptr @quidra_float_text(double " << widened << ")\n";
-            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr " << text << ")\n";
+            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr " << text << ")\n";
             out << "  call void @quidra_managed_release(ptr " << text << ", ptr null)\n";
             return;
         }
@@ -890,11 +887,11 @@ struct FunctionEmitter {
             const auto text = temp("repl.bool");
             out << "  " << text << " = select i1 " << raw_value
                 << ", ptr @.bool.true, ptr @.bool.false\n";
-            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr " << text << ")\n";
+            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr " << text << ")\n";
             return;
         }
         if (type.kind == TypeKind::Address) {
-            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.address.write, ptr "
+            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.address.raw, ptr "
                 << raw_value << ")\n";
             return;
         }
@@ -915,7 +912,7 @@ struct FunctionEmitter {
         if (type.kind == TypeKind::Bin) {
             const auto text = temp("repl.bin");
             out << "  " << text << " = call ptr @quidra_bin_string(ptr " << raw_value << ")\n";
-            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr " << text << ")\n";
+            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr " << text << ")\n";
             out << "  call void @quidra_managed_release(ptr " << text << ", ptr null)\n";
             return;
         }
@@ -1063,6 +1060,31 @@ struct FunctionEmitter {
             const auto g=pool.intern(n.spelling);
             out<<"  "<<value(n.out)<<" = call ptr @"<<(n.type.kind==TypeKind::BigInt?"quidra_bigint_literal":"quidra_bigreal_literal")
                <<"(ptr @"<<g<<")\n";
+        }
+        if constexpr(std::is_same_v<T,ir::ExactAtom>){
+            values[n.out]=n.type;
+            const auto provider=pool.intern(n.provider);
+            if(n.type.kind==TypeKind::BigReal){
+                out<<"  "<<value(n.out)
+                   <<" = call ptr @qcore_exact_real_atom(ptr @"<<provider
+                   <<", i32 "<<n.opcode<<")\n";
+            }else{
+                const auto evaluated=temp("exact.atom.f64");
+                out<<"  "<<evaluated
+                   <<" = call double @qcore_exact_real_atom_float64(ptr @"
+                   <<provider<<", i32 "<<n.opcode<<")\n";
+                if(n.type.kind==TypeKind::Float32)
+                    out<<"  "<<value(n.out)<<" = fptrunc double "<<evaluated<<" to float\n";
+                else
+                    out<<"  "<<value(n.out)<<" = fadd double 0.000000e+00, "<<evaluated<<"\n";
+            }
+        }
+        if constexpr(std::is_same_v<T,ir::ExactUnary>){
+            values[n.out]=n.type;
+            const auto provider=pool.intern(n.provider);
+            out<<"  "<<value(n.out)
+               <<" = call ptr @qcore_exact_real_unary(ptr @"<<provider
+               <<", i32 "<<n.opcode<<", ptr "<<value(n.input)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::ConstantBool>){values[n.out]=Type::simple(TypeKind::Bool);out<<"  "<<value(n.out)<<" = xor i1 false, "<<(n.value?"true":"false")<<"\n";}
         if constexpr(std::is_same_v<T,ir::ConstantString>){values[n.out]=Type::simple(TypeKind::String);const auto g=pool.intern(n.value);out<<"  "<<value(n.out)<<" = getelementptr inbounds ["<<(n.value.size()+1)<<" x i8], ptr @"<<g<<", i64 0, i64 0\n";}
@@ -1482,9 +1504,39 @@ struct FunctionEmitter {
                <<", i64 "<<value(n.start)<<", i64 "<<value(n.end)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::ArrayNumericCast>){
-            values[n.out]=n.target_type;
-            out<<"  "<<value(n.out)<<" = call ptr "<<array_cast_name(n.source_type,n.target_type)
-               <<"(ptr "<<value(n.array)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            const bool fallible =
+                n.result_type.kind==TypeKind::Union && n.result_type.union_name.empty() &&
+                case_index(n.result_type,Type::simple(TypeKind::Error))>=0;
+            if(!fallible){
+                values[n.out]=n.target_type;
+                out<<"  "<<value(n.out)<<" = call ptr "<<array_cast_name(n.source_type,n.target_type)
+                   <<"(ptr "<<value(n.array)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else{
+                values[n.out]=n.result_type;
+                const auto result=value(n.out);
+                const auto ok=temp("array.cast.ok");
+                const auto yes=unique_label("array.cast.value");
+                const auto bad=unique_label("array.cast.error");
+                const auto done=unique_label("array.cast.done");
+                out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+                out<<"  "<<ok<<" = call i1 "<<array_cast_validate_name(n.source_type,n.target_type)
+                   <<"(ptr "<<value(n.array)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
+                out<<yes<<":\n";
+                const auto converted=temp("array.cast.value");
+                out<<"  "<<converted<<" = call ptr "<<array_cast_name(n.source_type,n.target_type)
+                   <<"(ptr "<<value(n.array)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                out<<"  store i64 "<<case_index(n.result_type,n.target_type)<<", ptr "<<result<<"\n";
+                const auto payload=temp("array.cast.payload");
+                out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+                   <<"  store ptr "<<converted<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
+                out<<bad<<":\n  store i64 "
+                   <<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+                const auto error_payload=temp("array.cast.error.payload");
+                out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+                   <<"  store ptr @.msg.numeric.cast, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+                out<<done<<":\n";
+            }
         }
         if constexpr(std::is_same_v<T,ir::TensorCreate>){
             values[n.out]=n.type;
@@ -1520,15 +1572,6 @@ struct FunctionEmitter {
                <<", ptr "<<value(n.indices)<<", ptr "<<value(n.shape)
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::TensorConvolve>){
-            values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_convolve(ptr "<<value(n.tensor)
-               <<", ptr "<<value(n.kernel)
-               <<", i64 "<<value(n.stride)
-               <<", i64 "<<value(n.padding)
-               <<", i64 "<<value(n.dilation)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
         if constexpr(std::is_same_v<T,ir::TensorTranspose>){
             values[n.out]=n.type;
             out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_transpose(ptr "<<value(n.tensor)
@@ -1546,6 +1589,10 @@ struct FunctionEmitter {
                    <<", i64 "<<n.type.length<<")\n";
             else
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_shape(ptr "<<value(n.tensor)<<")\n";
+        }
+        if constexpr(std::is_same_v<T,ir::TensorDevice>){
+            values[n.out]=Type::simple(TypeKind::Int);
+            out<<"  "<<value(n.out)<<" = call i64 @qcore_tensor_device(ptr "<<value(n.tensor)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::TensorIsContiguous>){
             values[n.out]=Type::simple(TypeKind::Bool);
@@ -1622,10 +1669,40 @@ struct FunctionEmitter {
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::TensorCast>){
-            values[n.out]=n.target_type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_cast(ptr "<<value(n.tensor)
-               <<", i32 "<<tensor_dtype_code(*n.target_type.first)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            const bool fallible =
+                n.result_type.kind==TypeKind::Union && n.result_type.union_name.empty() &&
+                case_index(n.result_type,Type::simple(TypeKind::Error))>=0;
+            if(!fallible){
+                values[n.out]=n.target_type;
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_cast(ptr "<<value(n.tensor)
+                   <<", i32 "<<tensor_dtype_code(*n.target_type.first)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else{
+                values[n.out]=n.result_type;
+                const auto raw=temp("tensor.cast.raw");
+                out<<"  "<<raw<<" = call ptr @quidra_tensor_try_cast(ptr "<<value(n.tensor)
+                   <<", i32 "<<tensor_dtype_code(*n.target_type.first)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                const auto ok=temp("tensor.cast.ok");
+                out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
+                const auto result=value(n.out);
+                out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+                const auto yes=unique_label("tensor.cast.value");
+                const auto bad=unique_label("tensor.cast.error");
+                const auto done=unique_label("tensor.cast.done");
+                out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
+                out<<yes<<":\n  store i64 "<<case_index(n.result_type,n.target_type)
+                   <<", ptr "<<result<<"\n";
+                const auto payload=temp("tensor.cast.payload");
+                out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+                   <<"  store ptr "<<raw<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
+                out<<bad<<":\n  store i64 "
+                   <<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+                const auto error_payload=temp("tensor.cast.error.payload");
+                out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+                   <<"  store ptr @.msg.numeric.cast, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+                out<<done<<":\n";
+            }
         }
         if constexpr(std::is_same_v<T,ir::ShapedConstraintCheck>){
             out<<"  call void @quidra_tensor_rank_check(ptr "<<value(n.value)
@@ -1643,58 +1720,6 @@ struct FunctionEmitter {
             const auto bad=temp("extent.mismatch");
             out<<"  "<<bad<<" = icmp ne i64 "<<value(n.actual)<<", "<<value(n.expected)<<"\n";
             fail_if(bad,"@.code.shape","@.msg.shape","shape.extent",n.line,n.column);
-        }
-        if constexpr(std::is_same_v<T,ir::TensorAutogradUnary>){
-            values[n.out]=n.type;
-            int op=n.operation==BuiltinCallable::TensorAbsolute?1:
-                n.operation==BuiltinCallable::TensorExponential?2:
-                n.operation==BuiltinCallable::TensorLogarithm?3:
-                n.operation==BuiltinCallable::TensorMean?4:
-                n.operation==BuiltinCallable::TensorSumLast?5:
-                n.operation==BuiltinCallable::TensorMaxLast?6:7;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_autograd_unary(ptr "<<value(n.value)<<", i32 "<<op<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::StatsMean>){
-            values[n.out]=Type::simple(TypeKind::Float);
-            out<<"  "<<value(n.out)<<" = call double @quidra_stats_mean(ptr "<<value(n.tensor)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::StatsReduce>){
-            values[n.out]=n.element_type;
-            const int operation =
-                n.operation==BuiltinCallable::StatsSum ? 1 :
-                n.operation==BuiltinCallable::StatsMin ? 2 : 3;
-            const auto raw=temp("stats.reduce");
-            out<<"  "<<raw<<" = call ptr @quidra_stats_reduce_ptr(ptr "<<value(n.tensor)
-               <<", i32 "<<tensor_dtype_code(n.element_type)
-               <<", i32 "<<operation<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            out<<"  "<<value(n.out)<<" = load "<<llvm_type(n.element_type)
-               <<", ptr "<<raw<<", align 1\n";
-        }
-        if constexpr(std::is_same_v<T,ir::LinearMatmul>){
-            values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_linear_matmul(ptr "<<value(n.left)
-               <<", ptr "<<value(n.right)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::LinearDot>){
-            values[n.out]=n.element_type;
-            if(is_integer(n.element_type)){
-                const auto raw=temp("linear.dot.int");
-                out<<"  "<<raw<<" = call i64 @quidra_linear_dot_integer(ptr "<<value(n.left)
-                   <<", ptr "<<value(n.right)<<", i32 "<<tensor_dtype_code(n.element_type)
-                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-                const auto ty=llvm_type(n.element_type);
-                if(integer_width(n.element_type)==64)
-                    out<<"  "<<value(n.out)<<" = add i64 0, "<<raw<<"\n";
-                else
-                    out<<"  "<<value(n.out)<<" = trunc i64 "<<raw<<" to "<<ty<<"\n";
-            }else if(n.element_type.kind==TypeKind::Float32){
-                out<<"  "<<value(n.out)<<" = call float @quidra_linear_dot_float32(ptr "<<value(n.left)
-                   <<", ptr "<<value(n.right)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            }else{
-                out<<"  "<<value(n.out)<<" = call double @quidra_linear_dot_float64(ptr "<<value(n.left)
-                   <<", ptr "<<value(n.right)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            }
         }
         if constexpr(std::is_same_v<T,ir::TensorCompare>){
             values[n.out]=n.result_type;
@@ -2334,120 +2359,6 @@ struct FunctionEmitter {
             out<<"  "<<value(n.error_out)
                <<" = getelementptr inbounds [21 x i8], ptr @.err.parse, i64 0, i64 0\n";
         }
-        if constexpr(std::is_same_v<T,ir::NumericAbs>){
-            values[n.out]=n.type;
-            const auto ty=llvm_type(n.type);
-            if(n.type.kind==TypeKind::BigInt){
-                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigint_abs(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            }else if(n.type.kind==TypeKind::BigReal){
-                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_abs(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            }else if(is_integer(n.type)){
-                if(!is_signed_integer(n.type)){
-                    out<<"  "<<value(n.out)<<" = add "<<ty<<" "<<value(n.value)<<", 0\n";
-                }else{
-                    const auto width=integer_width(n.type);
-                    const auto pair=temp("abs.pair"),neg=temp("abs.neg"),overflow=temp("abs.overflow"),negative=temp("abs.negative");
-                    out<<"  "<<pair<<" = call { "<<ty<<", i1 } @llvm.ssub.with.overflow.i"<<width<<"("<<ty<<" 0, "<<ty<<" "<<value(n.value)<<")\n";
-                    out<<"  "<<neg<<" = extractvalue { "<<ty<<", i1 } "<<pair<<", 0\n";
-                    out<<"  "<<overflow<<" = extractvalue { "<<ty<<", i1 } "<<pair<<", 1\n";
-                    fail_if(overflow,"@.code.overflow","@.msg.overflow","abs",n.line,n.column);
-                    out<<"  "<<negative<<" = icmp slt "<<ty<<" "<<value(n.value)<<", 0\n";
-                    out<<"  "<<value(n.out)<<" = select i1 "<<negative<<", "<<ty<<" "<<neg<<", "<<ty<<" "<<value(n.value)<<"\n";
-                }
-            }else{
-                out<<"  "<<value(n.out)<<" = call "<<ty<<" @llvm.fabs."<<(n.type.kind==TypeKind::Float32?"f32":"f64")<<"("<<ty<<" "<<value(n.value)<<")\n";
-            }
-        }
-        if constexpr(std::is_same_v<T,ir::Sqrt>){
-            const auto source=n.type;
-            values[n.out]=source;
-            if(source.kind==TypeKind::BigReal)
-                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_sqrt(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            else{
-                const auto ty=llvm_type(source);
-                out<<"  "<<value(n.out)<<" = call "<<ty<<" @llvm.sqrt."<<(source.kind==TypeKind::Float32?"f32":"f64")<<"("<<ty<<" "<<value(n.value)<<")\n";
-            }
-        }
-        if constexpr(std::is_same_v<T,ir::MathUnary>){
-            values[n.out]=n.type;
-            const auto ty=llvm_type(n.type);
-            if(n.type.kind==TypeKind::BigReal){
-                int opcode=0;
-                switch(n.operation){
-                    case BuiltinCallable::MathSin: opcode=1; break;
-                    case BuiltinCallable::MathCos: opcode=2; break;
-                    case BuiltinCallable::MathTan: opcode=3; break;
-                    case BuiltinCallable::MathLog: opcode=4; break;
-                    case BuiltinCallable::MathExp: opcode=5; break;
-                    default: throw std::logic_error("invalid exact unary math operation");
-                }
-                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_math_unary(ptr "<<value(n.value)
-                   <<", i32 "<<opcode<<", i64 0, i64 0)\n";
-                return;
-            }
-            const char* base="";
-            switch(n.operation){
-                case BuiltinCallable::MathSin: base="sin"; break;
-                case BuiltinCallable::MathCos: base="cos"; break;
-                case BuiltinCallable::MathTan: base="tan"; break;
-                case BuiltinCallable::MathLog: base="log"; break;
-                case BuiltinCallable::MathExp: base="exp"; break;
-                default: throw std::logic_error("invalid unary math operation");
-            }
-            out<<"  "<<value(n.out)<<" = call "<<ty<<" @"<<base<<(n.type.kind==TypeKind::Float32?"f":"")
-               <<"("<<ty<<" "<<value(n.value)<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::MathIsFinite>){
-            values[n.out]=Type::simple(TypeKind::Bool);
-            if(n.type.kind==TypeKind::BigReal){
-                out<<"  "<<value(n.out)<<" = add i1 false, true\n";
-            }else{
-                std::string input=value(n.value);
-                if(n.type.kind==TypeKind::Float32){
-                    const auto widened=temp("math.is_finite.widen");
-                    out<<"  "<<widened<<" = fpext float "<<input<<" to double\n";
-                    input=widened;
-                }
-                out<<"  "<<value(n.out)<<" = call i1 @quidra_math_is_finite(double "<<input<<")\n";
-            }
-        }
-        if constexpr(std::is_same_v<T,ir::MathRoundInt>){
-            values[n.out]=n.result_type;
-            if(n.source_type.kind==TypeKind::BigReal){
-                int opcode=0;
-                switch(n.operation){
-                    case BuiltinCallable::MathTrunc: opcode=1; break;
-                    case BuiltinCallable::MathRound: opcode=2; break;
-                    case BuiltinCallable::MathFloor: opcode=3; break;
-                    case BuiltinCallable::MathCeil: opcode=4; break;
-                    default: throw std::logic_error("invalid exact rounding operation");
-                }
-                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_round(ptr "<<value(n.value)
-                   <<", i32 "<<opcode<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-                return;
-            }
-            std::string input=value(n.value);
-            if(n.source_type.kind==TypeKind::Float32){const auto widened=temp("math.round.widen");out<<"  "<<widened<<" = fpext float "<<input<<" to double\n";input=widened;}
-            const char* function="@quidra_math_trunc_int";
-            switch(n.operation){
-                case BuiltinCallable::MathTrunc: function="@quidra_math_trunc_int"; break;
-                case BuiltinCallable::MathRound: function="@quidra_math_round_int"; break;
-                case BuiltinCallable::MathFloor: function="@quidra_math_floor_int"; break;
-                case BuiltinCallable::MathCeil: function="@quidra_math_ceil_int"; break;
-                default: throw std::logic_error("invalid integer rounding operation");
-            }
-            out<<"  "<<value(n.out)<<" = call i64 "<<function<<"(double "<<input<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::MathPow>){
-            values[n.out]=n.type;
-            if(n.type.kind==TypeKind::BigReal)
-                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_pow(ptr "<<value(n.base)<<", ptr "<<value(n.exponent)<<", i64 0, i64 0)\n";
-            else{
-                const auto ty=llvm_type(n.type);
-                out<<"  "<<value(n.out)<<" = call "<<ty<<" @pow"<<(n.type.kind==TypeKind::Float32?"f":"")
-                   <<"("<<ty<<" "<<value(n.base)<<", "<<ty<<" "<<value(n.exponent)<<")\n";
-            }
-        }
         if constexpr(std::is_same_v<T,ir::CliArgument>){
             values[n.out]=n.type;
             const auto raw=temp("cli.argument.raw");
@@ -2516,9 +2427,9 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::CliFinish>){
             out<<"  call void @quidra_cli_finish()\n";
         }
-        if constexpr(std::is_same_v<T,ir::IoFlush>){
+        if constexpr(std::is_same_v<T,ir::Flush>){
             const auto status=temp("flush.status");
-            out<<"  "<<status<<" = call i32 @quidra_io_flush()\n";
+            out<<"  "<<status<<" = call i32 @quidra_flush()\n";
             emit_output_result(n.out,n.result_type,status);
         }
         if constexpr(std::is_same_v<T,ir::FileOpen>){
@@ -3098,105 +3009,6 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = call i1 @quidra_json_equal(ptr "<<value(n.left)
                <<", ptr "<<value(n.right)<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::ImageRead>){
-            values[n.out]=n.result_type;
-            const std::vector<Type> image_elements{
-                Type::simple(TypeKind::Int8), Type::simple(TypeKind::Int16),
-                Type::simple(TypeKind::Int32), Type::simple(TypeKind::Int),
-                Type::simple(TypeKind::UInt8), Type::simple(TypeKind::UInt16),
-                Type::simple(TypeKind::UInt32), Type::simple(TypeKind::UInt64),
-                Type::simple(TypeKind::Float32), Type::simple(TypeKind::Float)};
-            std::vector<std::pair<int,Type>> image_cases;
-            for(const auto& element:image_elements){
-                for(const auto& image_type:n.result_type.cases){
-                    if(image_type.kind==TypeKind::Tensor && image_type.first &&
-                       *image_type.first==element){
-                        image_cases.push_back({tensor_dtype_code(element),image_type});
-                        break;
-                    }
-                }
-            }
-            if(image_cases.empty()) throw std::logic_error("image.read result has no tensor case");
-            const int target_dtype=n.target_dtype?tensor_dtype_code(*n.target_dtype):0;
-            const int expected_dtype=
-                target_dtype==0 && image_cases.size()==1?image_cases.front().first:0;
-            const long long expected_channels=
-                n.expected_shape_prefix.size()>0?n.expected_shape_prefix[0]:-1;
-            const long long expected_height=
-                n.expected_shape_prefix.size()>1?n.expected_shape_prefix[1]:-1;
-            const long long expected_width=
-                n.expected_shape_prefix.size()>2?n.expected_shape_prefix[2]:-1;
-            const auto& dtype_slot=scratch(ins);
-            const auto raw=temp("image.read.raw"),ok=temp("image.read.ok"),result=value(n.out);
-            out<<"  store i32 0, ptr "<<dtype_slot<<"\n";
-            out<<"  "<<raw<<" = call ptr @quidra_image_read(ptr "<<value(n.path)
-               <<", i32 "<<expected_dtype
-               <<", i32 "<<target_dtype
-               <<", i64 "<<(n.target_channels ? value(*n.target_channels) : "0")
-               <<", i64 "<<expected_channels
-               <<", i64 "<<expected_height
-               <<", i64 "<<expected_width
-               <<", ptr "<<dtype_slot<<")\n";
-            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
-            out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
-            const auto yes=unique_label("image.read.ok"),bad=unique_label("image.read.error"),done=unique_label("image.read.done");
-            out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
-            out<<yes<<":\n";
-            const auto actual_dtype=temp("image.read.dtype");
-            out<<"  "<<actual_dtype<<" = load i32, ptr "<<dtype_slot<<"\n";
-            std::vector<std::string> case_labels;
-            case_labels.reserve(image_cases.size());
-            for(std::size_t i=0;i<image_cases.size();++i)
-                case_labels.push_back(unique_label("image.read.dtype"));
-            out<<"  switch i32 "<<actual_dtype<<", label %"<<bad<<" [\n";
-            for(std::size_t i=0;i<image_cases.size();++i)
-                out<<"    i32 "<<image_cases[i].first<<", label %"<<case_labels[i]<<"\n";
-            out<<"  ]\n";
-            for(std::size_t i=0;i<image_cases.size();++i){
-                out<<case_labels[i]<<":\n";
-                out<<"  store i64 "<<case_index(n.result_type,image_cases[i].second)
-                   <<", ptr "<<result<<"\n";
-                const auto payload=temp("image.read.payload");
-                out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
-                out<<"  store ptr "<<raw<<", ptr "<<payload<<"\n";
-                out<<"  br label %"<<done<<"\n";
-            }
-            out<<bad<<":\n";
-            out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))
-               <<", ptr "<<result<<"\n";
-            const auto message=temp("image.read.message"),error_payload=temp("image.read.error.payload");
-            out<<"  "<<message<<" = call ptr @quidra_image_last_error_copy()\n";
-            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
-            out<<"  store ptr "<<message<<", ptr "<<error_payload<<"\n";
-            out<<"  br label %"<<done<<"\n";
-            out<<done<<":\n";
-        }
-        if constexpr(std::is_same_v<T,ir::ImageWrite>){
-            values[n.out]=n.result_type;
-            const auto image_type=values.at(n.image);
-            if(image_type.kind!=TypeKind::Tensor || !image_type.first || !is_numeric(*image_type.first))
-                throw std::logic_error("image.write IR requires numeric tensor input");
-            const auto ok=temp("image.write.ok"),result=value(n.out);
-            out<<"  "<<ok<<" = call i1 @quidra_image_write(ptr "<<value(n.path)
-               <<", ptr "<<value(n.image)<<", i32 "<<tensor_dtype_code(*image_type.first)
-               <<", i64 "<<value(n.quality)<<")\n";
-            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
-            const auto yes=unique_label("image.write.ok"),bad=unique_label("image.write.error"),done=unique_label("image.write.done");
-            out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
-            out<<yes<<":\n";
-            out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Void))
-               <<", ptr "<<result<<"\n";
-            out<<"  br label %"<<done<<"\n";
-            out<<bad<<":\n";
-            out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))
-               <<", ptr "<<result<<"\n";
-            const auto message=temp("image.write.message"),error_payload=temp("image.write.error.payload");
-            out<<"  "<<message<<" = call ptr @quidra_image_last_error_copy()\n";
-            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
-            out<<"  store ptr "<<message<<", ptr "<<error_payload<<"\n";
-            out<<"  br label %"<<done<<"\n";
-            out<<done<<":\n";
-        }
         if constexpr(std::is_same_v<T,ir::HttpGet>){
             values[n.out]=n.result_type;
             const auto raw=temp("http.get.raw"),ok=temp("http.get.ok"),result=value(n.out);
@@ -3232,172 +3044,6 @@ struct FunctionEmitter {
             out<<missing<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::None))<<", ptr "<<result<<"\n"
                <<"  br label %"<<done<<"\n";
             out<<done<<":\n";
-        }
-        if constexpr(std::is_same_v<T,ir::VideoOpen>){
-            values[n.out]=n.result_type;
-            const auto raw=temp("video.open.raw"),ok=temp("video.open.ok"),result=value(n.out);
-            out<<"  "<<raw<<" = call ptr @quidra_video_open_raw(ptr "<<value(n.path)<<")\n";
-            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
-            out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
-            const auto yes=unique_label("video.open.ok"),bad=unique_label("video.open.error"),done=unique_label("video.open.done");
-            out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
-            out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::class_type("$std.video.Reader"))<<", ptr "<<result<<"\n";
-            const auto good_payload=temp("video.open.reader");
-            out<<"  "<<good_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store ptr "<<raw<<", ptr "<<good_payload<<"\n  br label %"<<done<<"\n";
-            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
-            const auto message=temp("video.open.message"),error_payload=temp("video.open.error.payload");
-            out<<"  "<<message<<" = call ptr @quidra_video_last_error_copy()\n";
-            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store ptr "<<message<<", ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
-            out<<done<<":\n";
-        }
-        if constexpr(std::is_same_v<T,ir::VideoRead>){
-            values[n.out]=n.result_type;
-            const std::vector<Type> elements{
-                Type::simple(TypeKind::Int8), Type::simple(TypeKind::Int16),
-                Type::simple(TypeKind::Int32), Type::simple(TypeKind::Int),
-                Type::simple(TypeKind::UInt8), Type::simple(TypeKind::UInt16),
-                Type::simple(TypeKind::UInt32), Type::simple(TypeKind::UInt64),
-                Type::simple(TypeKind::Float32), Type::simple(TypeKind::Float)};
-            std::vector<std::pair<int,Type>> cases;
-            for(const auto& element:elements){
-                for(const auto& frame_type:n.result_type.cases){
-                    if(frame_type.kind==TypeKind::Tensor && frame_type.first &&
-                       *frame_type.first==element){
-                        cases.push_back({tensor_dtype_code(element),frame_type});
-                        break;
-                    }
-                }
-            }
-            if(cases.empty()) throw std::logic_error("video.read result has no tensor case");
-            const int target_dtype=n.target_dtype?tensor_dtype_code(*n.target_dtype):0;
-            const int expected_dtype=target_dtype==0 && cases.size()==1?cases.front().first:0;
-            const long long expected_channels=n.expected_shape_prefix.size()>0?n.expected_shape_prefix[0]:-1;
-            const long long expected_height=n.expected_shape_prefix.size()>1?n.expected_shape_prefix[1]:-1;
-            const long long expected_width=n.expected_shape_prefix.size()>2?n.expected_shape_prefix[2]:-1;
-            const auto& tensor_slot=scratch(ins,0);
-            const auto& dtype_slot=scratch(ins,1);
-            const auto status=temp("video.read.status"),result=value(n.out);
-            out<<"  store ptr null, ptr "<<tensor_slot<<"\n"
-               <<"  store i32 0, ptr "<<dtype_slot<<"\n";
-            out<<"  "<<status<<" = call i32 @quidra_video_read(ptr "<<value(n.reader)
-               <<", i32 "<<expected_dtype<<", i32 "<<target_dtype
-               <<", i64 "<<(n.target_channels?value(*n.target_channels):"0")
-               <<", i64 "<<expected_channels<<", i64 "<<expected_height
-               <<", i64 "<<expected_width<<", ptr "<<tensor_slot<<", ptr "<<dtype_slot<<")\n";
-            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
-            const auto frame=unique_label("video.read.frame"),eof=unique_label("video.read.eof"),bad=unique_label("video.read.error"),done=unique_label("video.read.done");
-            out<<"  switch i32 "<<status<<", label %"<<bad
-               <<" [ i32 1, label %"<<frame<<" i32 0, label %"<<eof<<" ]\n";
-            out<<frame<<":\n";
-            const auto raw=temp("video.read.frame.value"),actual_dtype=temp("video.read.dtype");
-            out<<"  "<<raw<<" = load ptr, ptr "<<tensor_slot<<"\n"
-               <<"  "<<actual_dtype<<" = load i32, ptr "<<dtype_slot<<"\n";
-            std::vector<std::string> labels;
-            for(std::size_t i=0;i<cases.size();++i) labels.push_back(unique_label("video.read.dtype"));
-            out<<"  switch i32 "<<actual_dtype<<", label %"<<bad<<" [\n";
-            for(std::size_t i=0;i<cases.size();++i)
-                out<<"    i32 "<<cases[i].first<<", label %"<<labels[i]<<"\n";
-            out<<"  ]\n";
-            for(std::size_t i=0;i<cases.size();++i){
-                out<<labels[i]<<":\n  store i64 "<<case_index(n.result_type,cases[i].second)<<", ptr "<<result<<"\n";
-                const auto payload=temp("video.read.frame.payload");
-                out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-                   <<"  store ptr "<<raw<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
-            }
-            out<<eof<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::None))<<", ptr "<<result<<"\n"
-               <<"  br label %"<<done<<"\n";
-            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
-            const auto message=temp("video.read.message"),error_payload=temp("video.read.error.payload");
-            out<<"  "<<message<<" = call ptr @quidra_video_last_error_copy()\n"
-               <<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store ptr "<<message<<", ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
-            out<<done<<":\n";
-        }
-        if constexpr(std::is_same_v<T,ir::VideoWidth>){
-            values[n.out]=Type::simple(TypeKind::Int);
-            out<<"  "<<value(n.out)<<" = call i64 @quidra_video_width(ptr "<<value(n.reader)<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::VideoHeight>){
-            values[n.out]=Type::simple(TypeKind::Int);
-            out<<"  "<<value(n.out)<<" = call i64 @quidra_video_height(ptr "<<value(n.reader)<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::VideoPosition>){
-            values[n.out]=Type::simple(TypeKind::Int);
-            out<<"  "<<value(n.out)<<" = call i64 @quidra_video_position(ptr "<<value(n.reader)<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::VideoFps> || std::is_same_v<T,ir::VideoDuration>){
-            values[n.out]=n.result_type;
-            const bool fps=std::is_same_v<T,ir::VideoFps>;
-            const auto raw=temp(fps?"video.fps.raw":"video.duration.raw"),present=temp("video.meta.present"),result=value(n.out);
-            out<<"  "<<raw<<" = call double @"<<(fps?"quidra_video_fps":"quidra_video_duration")
-               <<"(ptr "<<value(n.reader)<<")\n";
-            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n"
-               <<"  "<<present<<" = fcmp oge double "<<raw<<", 0.000000e+00\n";
-            const auto yes=unique_label("video.meta.value"),missing=unique_label("video.meta.none"),done=unique_label("video.meta.done");
-            out<<"  br i1 "<<present<<", label %"<<yes<<", label %"<<missing<<"\n";
-            out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Float))<<", ptr "<<result<<"\n";
-            const auto payload=temp("video.meta.payload");
-            out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store double "<<raw<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
-            out<<missing<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::None))<<", ptr "<<result<<"\n"
-               <<"  br label %"<<done<<"\n";
-            out<<done<<":\n";
-        }
-        if constexpr(std::is_same_v<T,ir::VideoFrames>){
-            values[n.out]=n.result_type;
-            const auto raw=temp("video.frames.raw"),present=temp("video.frames.present"),result=value(n.out);
-            out<<"  "<<raw<<" = call i64 @quidra_video_frames(ptr "<<value(n.reader)<<")\n"
-               <<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n"
-               <<"  "<<present<<" = icmp sge i64 "<<raw<<", 0\n";
-            const auto yes=unique_label("video.frames.value"),missing=unique_label("video.frames.none"),done=unique_label("video.frames.done");
-            out<<"  br i1 "<<present<<", label %"<<yes<<", label %"<<missing<<"\n";
-            out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Int))<<", ptr "<<result<<"\n";
-            const auto payload=temp("video.frames.payload");
-            out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store i64 "<<raw<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
-            out<<missing<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::None))<<", ptr "<<result<<"\n"
-               <<"  br label %"<<done<<"\n";
-            out<<done<<":\n";
-        }
-        if constexpr(std::is_same_v<T,ir::VideoSeek>){
-            values[n.out]=n.result_type;
-            const auto ok=temp("video.seek.ok"),result=value(n.out);
-            out<<"  "<<ok<<" = call i1 @quidra_video_seek(ptr "<<value(n.reader)<<", i64 "<<value(n.frame)<<")\n"
-               <<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
-            const auto yes=unique_label("video.seek.ok"),bad=unique_label("video.seek.error"),done=unique_label("video.seek.done");
-            out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
-            out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Void))<<", ptr "<<result<<"\n"
-               <<"  br label %"<<done<<"\n";
-            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
-            const auto message=temp("video.seek.message"),payload=temp("video.seek.error.payload");
-            out<<"  "<<message<<" = call ptr @quidra_video_last_error_copy()\n"
-               <<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store ptr "<<message<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
-            out<<done<<":\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NumericMinMax>){
-            values[n.out]=n.type;
-            const auto ty=llvm_type(n.type),cmp=temp("num.cmp");
-            if(n.type.kind==TypeKind::BigInt||n.type.kind==TypeKind::BigReal){
-                if(n.type.kind==TypeKind::BigInt)
-                    out<<"  "<<cmp<<" = call i32 @quidra_bigint_compare(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";
-                else
-                    out<<"  "<<cmp<<" = call i32 @quidra_bigreal_compare(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<", i64 0, i64 0)\n";
-                const auto choose=temp("num.exact.choose");
-                out<<"  "<<choose<<" = icmp "<<(n.maximum?"sgt":"slt")<<" i32 "<<cmp<<", 0\n";
-                out<<"  "<<value(n.out)<<" = select i1 "<<choose<<", ptr "<<value(n.left)<<", ptr "<<value(n.right)<<"\n";
-                out<<"  call void @quidra_managed_retain(ptr "<<value(n.out)<<")\n";
-                return;
-            }
-            if(is_integer(n.type)){
-                const auto pred=is_signed_integer(n.type)?(n.maximum?"sgt":"slt"):(n.maximum?"ugt":"ult");
-                out<<"  "<<cmp<<" = icmp "<<pred<<" "<<ty<<" "<<value(n.left)<<", "<<value(n.right)<<"\n";
-            }else{
-                out<<"  "<<cmp<<" = fcmp "<<(n.maximum?"ogt":"olt")<<" "<<ty<<" "<<value(n.left)<<", "<<value(n.right)<<"\n";
-            }
-            out<<"  "<<value(n.out)<<" = select i1 "<<cmp<<", "<<ty<<" "<<value(n.left)<<", "<<ty<<" "<<value(n.right)<<"\n";
         }
         if constexpr(std::is_same_v<T,ir::ArrayInitializationComplete>){
             values[n.out]=Type::simple(TypeKind::Bool);
@@ -3574,6 +3220,13 @@ struct FunctionEmitter {
             if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::Bin||ot.kind==TypeKind::Array||ot.kind==TypeKind::Class)){auto eq="%deep.eq."+std::to_string(n.out);out<<"  "<<eq<<" = call i1 "<<equality_name(ot)<<"(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";if(n.op=="==")out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", false\n";else out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", true\n";return;}
             if(ot.kind==TypeKind::BigInt||ot.kind==TypeKind::BigReal){
                 const bool bigint=ot.kind==TypeKind::BigInt;
+                if(n.op=="^"){
+                    out<<"  "<<value(n.out)<<" = call ptr @"
+                       <<(bigint?"quidra_bigint_pow":"quidra_bigreal_pow")
+                       <<"(ptr "<<value(n.left)<<", ptr "<<value(n.right)
+                       <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                    return;
+                }
                 if(n.op=="+"||n.op=="-"||n.op=="*"||n.op=="/"||(bigint&&n.op=="%")){
                     int opcode=n.op=="+"?1:n.op=="-"?2:n.op=="*"?3:n.op=="/"?4:5;
                     out<<"  "<<value(n.out)<<" = call ptr @"<<(bigint?"quidra_bigint_binary":"quidra_bigreal_binary")
@@ -3622,6 +3275,28 @@ struct FunctionEmitter {
                        <<value(n.left)<<", "<<value(n.right)<<"\n";
                     return;
                 }
+                if(n.op=="^"){
+                    std::string base=value(n.left), exponent=value(n.right);
+                    if(width<64){
+                        const auto wide_base=temp("power.base");
+                        const auto wide_exponent=temp("power.exponent");
+                        const auto extension=is_signed_integer(ot)?"sext":"zext";
+                        out<<"  "<<wide_base<<" = "<<extension<<" "<<ty<<" "<<base<<" to i64\n";
+                        out<<"  "<<wide_exponent<<" = "<<extension<<" "<<ty<<" "<<exponent<<" to i64\n";
+                        base=wide_base;
+                        exponent=wide_exponent;
+                    }
+                    const auto wide_result=temp("power.result");
+                    out<<"  "<<wide_result<<" = call i64 @"
+                       <<(is_signed_integer(ot)?"quidra_integer_pow_signed":"quidra_integer_pow_unsigned")
+                       <<"(i64 "<<base<<", i64 "<<exponent<<", i32 "<<width
+                       <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                    if(width<64)
+                        out<<"  "<<value(n.out)<<" = trunc i64 "<<wide_result<<" to "<<ty<<"\n";
+                    else
+                        out<<"  "<<value(n.out)<<" = add i64 "<<wide_result<<", 0\n";
+                    return;
+                }
                 if(n.op=="+"||n.op=="-"||n.op=="*"){
                     const auto opname=n.op=="+"?"add":n.op=="-"?"sub":"mul";
                     if(n.overflow_proven){
@@ -3668,6 +3343,8 @@ struct FunctionEmitter {
                 else if(n.op=="-")out<<"  "<<value(n.out)<<" = fsub "<<ty<<" "<<value(n.left)<<", "<<value(n.right)<<"\n";
                 else if(n.op=="*")out<<"  "<<value(n.out)<<" = fmul "<<ty<<" "<<value(n.left)<<", "<<value(n.right)<<"\n";
                 else if(n.op=="/")out<<"  "<<value(n.out)<<" = fdiv "<<ty<<" "<<value(n.left)<<", "<<value(n.right)<<"\n";
+                else if(n.op=="^")out<<"  "<<value(n.out)<<" = call "<<ty<<" @"<<(ot.kind==TypeKind::Float32?"powf":"pow")
+                                      <<"("<<ty<<" "<<value(n.left)<<", "<<ty<<" "<<value(n.right)<<")\n";
                 else{std::string p;if(n.op=="==")p="oeq";else if(n.op=="!=")p="une";else if(n.op=="<")p="olt";else if(n.op=="<=")p="ole";else if(n.op==">")p="ogt";else p="oge";out<<"  "<<value(n.out)<<" = fcmp "<<p<<" "<<ty<<" "<<value(n.left)<<", "<<value(n.right)<<"\n";}
                 return;
             }
@@ -3757,12 +3434,16 @@ struct FunctionEmitter {
             call_values.reserve(n.args.size());
             for(std::size_t i=0;i<n.args.size();++i){
                 const auto& parameter=sig.parameters[i];
-                const bool ffi_borrowed_buffer=external&&
-                    (parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin);
+                const bool ffi_borrowed_managed=external&&
+                    (parameter.type.kind==TypeKind::String||
+                     parameter.type.kind==TypeKind::Bin||
+                     parameter.type.kind==TypeKind::Tensor);
+                const bool ffi_borrowed_buffer=ffi_borrowed_managed&&
+                    parameter.type.kind!=TypeKind::Tensor;
                 std::string argument;
-                if(ffi_borrowed_buffer){
+                if(ffi_borrowed_managed){
                     if(!n.args[i].writable_address)
-                        throw std::logic_error("external borrowed buffer is missing its typed storage address");
+                        throw std::logic_error("external borrowed managed value is missing its typed storage address");
                     const auto borrowed=temp("ffi.borrowed.value");
                     out<<"  "<<borrowed<<" = load ptr, ptr "<<value(*n.args[i].writable_address)<<"\n";
                     argument=borrowed;
@@ -3813,9 +3494,14 @@ struct FunctionEmitter {
                 const auto& parameter=sig.parameters[i];
                 const bool ffi_borrowed_buffer=external&&
                     (parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin);
+                const bool ffi_borrowed_tensor=external&&
+                    parameter.type.kind==TypeKind::Tensor;
                 if(ffi_borrowed_buffer){
                     out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const)
                        <<" "<<call_values[i]<<", i64 "<<ffi_lengths[i];
+                }else if(ffi_borrowed_tensor){
+                    out<<"ptr"<<c_abi_parameter_attribute(parameter.type,parameter.is_const)
+                       <<" "<<call_values[i];
                 }else if(parameter.writable){
                     out<<"ptr "<<value(*n.args[i].writable_address);
                 }else{
@@ -3838,48 +3524,44 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::ReplReplayMode>){
             out<<"  store i1 "<<(n.active?"true":"false")<<", ptr @.quidra.repl.replaying\n";
         }
-        if constexpr(std::is_same_v<T,ir::Print>||std::is_same_v<T,ir::Write>){
+        if constexpr(std::is_same_v<T,ir::Print>){
             const auto replay=temp("repl.output.replay");
             const auto emit_label=unique_label("repl.output.emit");
             const auto done_label=unique_label("repl.output.done");
             out<<"  "<<replay<<" = load i1, ptr @.quidra.repl.replaying\n"
                <<"  br i1 "<<replay<<", label %"<<done_label<<", label %"<<emit_label<<"\n"
                <<emit_label<<":\n";
-            const bool newline=std::is_same_v<T,ir::Print>;
             if(is_integer(n.type)){
                 std::string widened=value(n.value);
                 if(integer_width(n.type)<64){widened=temp("print.int");out<<"  "<<widened<<" = "<<(is_signed_integer(n.type)?"sext":"zext")<<" "<<llvm_type(n.type)<<" "<<value(n.value)<<" to i64\n";}
-                out<<"  call i32 (ptr, ...) @printf(ptr "<<(is_signed_integer(n.type)?(newline?"@.fmt.int":"@.fmt.int.write"):(newline?"@.fmt.uint":"@.fmt.uint.write"))<<", i64 "<<widened<<")\n";
+                out<<"  call i32 (ptr, ...) @printf(ptr "<<(is_signed_integer(n.type)?"@.fmt.int.raw":"@.fmt.uint.raw")<<", i64 "<<widened<<")\n";
             }else if(n.type.kind==TypeKind::BigInt||n.type.kind==TypeKind::BigReal){
                 auto text=temp("print.exact.text");
                 if(n.type.kind==TypeKind::BigInt)
                     out<<"  "<<text<<" = call ptr @quidra_bigint_text(ptr "<<value(n.value)<<")\n";
                 else
                     out<<"  "<<text<<" = call ptr @quidra_bigreal_text(ptr "<<value(n.value)<<", i32 34)\n";
-                if(newline)out<<"  call i32 @puts(ptr "<<text<<")\n";
-                else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<text<<")\n";
+                out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr "<<text<<")\n";
                 out<<"  call void @quidra_managed_release(ptr "<<text<<", ptr null)\n";
             }else if(is_float(n.type)){
                 std::string widened=value(n.value);
                 if(n.type.kind==TypeKind::Float32){widened=temp("print.float");out<<"  "<<widened<<" = fpext float "<<value(n.value)<<" to double\n";}
                 auto text=temp("print.float.text");
                 out<<"  "<<text<<" = call ptr @quidra_float_text(double "<<widened<<")\n";
-                if(newline)out<<"  call i32 @puts(ptr "<<text<<")\n";
-                else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<text<<")\n";
+                out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr "<<text<<")\n";
                 out<<"  call void @quidra_managed_release(ptr "<<text<<", ptr null)\n";
             }else if(n.type.kind==TypeKind::Bool){
                 auto t=temp("print.bool");out<<"  "<<t<<" = select i1 "<<value(n.value)<<", ptr @.bool.true, ptr @.bool.false\n";
-                if(newline)out<<"  call i32 @puts(ptr "<<t<<")\n";else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<t<<")\n";
+                out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr "<<t<<")\n";
             }else if(n.type.kind==TypeKind::Address){
-                out<<"  call i32 (ptr, ...) @printf(ptr "<<(newline?"@.fmt.address":"@.fmt.address.write")<<", ptr "<<value(n.value)<<")\n";
+                out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.address.raw, ptr "<<value(n.value)<<")\n";
             }else if(n.type.kind==TypeKind::Bin){
                 auto text=temp("print.bin");
                 out<<"  "<<text<<" = call ptr @quidra_bin_string(ptr "<<value(n.value)<<")\n";
-                if(newline)out<<"  call i32 @puts(ptr "<<text<<")\n";
-                else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<text<<")\n";
+                out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr "<<text<<")\n";
                 out<<"  call void @quidra_managed_release(ptr "<<text<<", ptr null)\n";
             }else{
-                if(newline)out<<"  call i32 @puts(ptr "<<value(n.value)<<")\n";else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<value(n.value)<<")\n";
+                out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.raw, ptr "<<value(n.value)<<")\n";
             }
             out<<"  br label %"<<done_label<<"\n"<<done_label<<":\n";
             const auto status=temp("output.status");
@@ -3994,6 +3676,107 @@ std::map<std::string,ArrayCastPair> collect_array_cast_pairs(const ir::Module& m
                 if (const auto* cast = std::get_if<ir::ArrayNumericCast>(&instruction))
                     collect_array_cast_pair(cast->source_type, cast->target_type, pairs);
     return pairs;
+}
+
+std::string emit_array_cast_validator(const Type& source, const Type& target,
+                                      const ArrayLayoutPolicy& array_layout) {
+    if (source.kind != TypeKind::Array || target.kind != TypeKind::Array ||
+        source.length != target.length) {
+        throw std::logic_error("invalid array numeric cast validator types");
+    }
+    const auto& source_element = *source.first;
+    const auto& target_element = *target.first;
+    const bool nested = source_element.kind == TypeKind::Array;
+    if (nested != (target_element.kind == TypeKind::Array))
+        throw std::logic_error("array numeric cast validator nesting mismatch");
+    const bool source_fixed = is_fixed_array(source);
+    const bool target_fixed = is_fixed_array(target);
+    if (source_fixed != target_fixed)
+        throw std::logic_error("array numeric cast validator must preserve static dimensions");
+
+    const auto source_stride = array_element_stride(source,array_layout);
+    const auto source_offset = source_fixed ? 0 : 8;
+    std::ostringstream o;
+    o << "define i1 " << array_cast_validate_name(source,target)
+      << "(ptr %src, i64 %line, i64 %column) {\n"
+      << "entry:\n"
+      << "  %null = icmp eq ptr %src, null\n"
+      << "  br i1 %null, label %fail, label %validate.body\n"
+      << "validate.body:\n";
+    if (source_fixed) o << "  %len = add i64 0, " << source.length << "\n";
+    else o << "  %len = load i64, ptr %src, align 1\n";
+    o << "  br label %cond\n"
+      << "cond:\n"
+      << "  %i = phi i64 [ 0, %validate.body ], [ %i.next, %advance ]\n"
+      << "  %more = icmp slt i64 %i, %len\n"
+      << "  br i1 %more, label %body, label %done\n"
+      << "body:\n"
+      << "  %src.off0 = mul i64 %i, " << source_stride << "\n"
+      << "  %src.off = add i64 %src.off0, " << source_offset << "\n"
+      << "  %src.slot = getelementptr inbounds i8, ptr %src, i64 %src.off\n";
+
+    if (nested) {
+        const bool source_inline =
+            source_fixed && array_layout.inline_fixed_child(source);
+        if (source_inline) {
+            o << "  %child.src = getelementptr inbounds i8, ptr %src.slot, i64 0\n";
+        } else {
+            o << "  call void @quidra_init_check(ptr %src.slot, i64 %line, i64 %column)\n"
+              << "  %child.src = load ptr, ptr %src.slot, align 1\n";
+        }
+        o << "  %child.ok = call i1 "
+          << array_cast_validate_name(source_element,target_element)
+          << "(ptr %child.src, i64 %line, i64 %column)\n"
+          << "  br i1 %child.ok, label %advance, label %fail\n";
+    } else {
+        if (!is_numeric(source_element) || !is_numeric(target_element))
+            throw std::logic_error("array numeric cast validator leaf must be numeric");
+        const auto policy = numeric_conversion_policy(source_element,target_element);
+        if (is_tensor_numeric(source_element) && is_tensor_numeric(target_element)) {
+            if (policy == NumericConversionPolicy::ExplicitRangeCheck) {
+                o << "  %leaf.ok = call i1 @quidra_numeric_cast_element_fits(ptr %src.slot, i32 "
+                  << tensor_dtype_code(source_element) << ", i32 "
+                  << tensor_dtype_code(target_element)
+                  << ", i64 %line, i64 %column)\n"
+                  << "  br i1 %leaf.ok, label %advance, label %fail\n";
+            } else {
+                o << "  call void @quidra_init_check(ptr %src.slot, i64 %line, i64 %column)\n"
+                  << "  br label %advance\n";
+            }
+        } else {
+            o << "  call void @quidra_init_check(ptr %src.slot, i64 %line, i64 %column)\n";
+            if (policy == NumericConversionPolicy::ExplicitRangeCheck) {
+                if (source_element.kind != TypeKind::BigInt &&
+                    source_element.kind != TypeKind::BigReal) {
+                    throw std::logic_error("unsupported fallible exact array cast source");
+                }
+                int target_kind=0;
+                int bits=0;
+                if (target_element.kind == TypeKind::BigInt) target_kind=1;
+                else if (target_element.kind == TypeKind::BigReal) target_kind=2;
+                else if (is_integer(target_element)) {
+                    target_kind=is_signed_integer(target_element)?3:4;
+                    bits=static_cast<int>(integer_width(target_element));
+                } else if (target_element.kind == TypeKind::Float32) target_kind=5;
+                else if (target_element.kind == TypeKind::Float) target_kind=6;
+                else throw std::logic_error("unsupported fallible exact array cast target");
+                const auto source_kind=source_element.kind==TypeKind::BigInt?1:2;
+                o << "  %exact.src = load ptr, ptr %src.slot, align 1\n"
+                  << "  %leaf.ok = call i1 @quidra_exact_numeric_cast_fits(ptr %exact.src, i32 "
+                  << source_kind << ", i32 " << target_kind << ", i32 " << bits << ")\n"
+                  << "  br i1 %leaf.ok, label %advance, label %fail\n";
+            } else {
+                o << "  br label %advance\n";
+            }
+        }
+    }
+    o << "advance:\n"
+      << "  %i.next = add i64 %i, 1\n"
+      << "  br label %cond\n"
+      << "fail:\n  ret i1 false\n"
+      << "done:\n  ret i1 true\n"
+      << "}\n\n";
+    return o.str();
 }
 
 std::string emit_array_cast_helper(const Type& source, const Type& target,
@@ -4253,13 +4036,6 @@ std::string emit_clone_helper(const Type&t,const std::unordered_map<std::string,
      <<"  ret ptr %dst\n}\n\n";
     return o.str();
  }
- if(t.kind==TypeKind::Class && t.class_name=="$std.video.Reader"){
-    std::ostringstream o;
-    o<<"define ptr "<<clone_name(t)<<"(ptr %src) {\nentry:\n"
-     <<"  %dst = call ptr @quidra_video_reader_clone(ptr %src)\n"
-     <<"  ret ptr %dst\n}\n\n";
-    return o.str();
- }
  if(t.kind==TypeKind::Bin){
     std::ostringstream o;
     o<<"define ptr "<<clone_name(t)<<"(ptr %src) {\nentry:\n"
@@ -4374,8 +4150,7 @@ void collect_drop_type(const Type& type, std::map<std::string,Type>& types,
           type.class_name == "$std.http.Response" ||
           type.class_name == "$std.file.Handle" ||
           type.class_name == "$std.atomic.Counter" ||
-          type.class_name == "$std.autograd.Target" ||
-          type.class_name == "$std.video.Reader"))) return;
+          type.class_name == "$std.autograd.Target"))) return;
     if (type.kind == TypeKind::Class && !layouts.contains(type.class_name)) return;
     const auto id = type_id(type);
     if (types.contains(id)) return;
@@ -4433,9 +4208,6 @@ std::string drop_callback_for(const Type& type,
     }
     if (type.kind == TypeKind::Class && type.class_name == "$std.autograd.Target") {
         return "@quidra_autograd_target_drop";
-    }
-    if (type.kind == TypeKind::Class && type.class_name == "$std.video.Reader") {
-        return "@quidra_video_reader_drop";
     }
     if (type.kind == TypeKind::Bin || type.kind == TypeKind::Array ||
         type.kind == TypeKind::Tensor ||
@@ -4723,22 +4495,21 @@ declare ptr @quidra_bigint_literal(ptr)
 declare ptr @quidra_bigint_parse(ptr)
 declare ptr @quidra_bigreal_literal(ptr)
 declare ptr @quidra_bigreal_parse(ptr)
+declare ptr @qcore_exact_real_atom(ptr, i32)
+declare double @qcore_exact_real_atom_float64(ptr, i32)
+declare ptr @qcore_exact_real_unary(ptr, i32, ptr)
 declare void @quidra_bigint_drop(ptr)
 declare void @quidra_bigreal_drop(ptr)
 declare ptr @quidra_bigint_text(ptr)
 declare ptr @quidra_bigreal_text(ptr, i32)
 declare ptr @quidra_bigint_neg(ptr, i64, i64)
-declare ptr @quidra_bigint_abs(ptr, i64, i64)
 declare ptr @quidra_bigint_binary(ptr, ptr, i32, i64, i64)
+declare ptr @quidra_bigint_pow(ptr, ptr, i64, i64)
 declare i32 @quidra_bigint_compare(ptr, ptr)
 declare ptr @quidra_bigreal_neg(ptr, i64, i64)
-declare ptr @quidra_bigreal_abs(ptr, i64, i64)
 declare ptr @quidra_bigreal_binary(ptr, ptr, i32, i64, i64)
 declare i32 @quidra_bigreal_compare(ptr, ptr, i64, i64)
-declare ptr @quidra_bigreal_sqrt(ptr, i64, i64)
-declare ptr @quidra_bigreal_math_unary(ptr, i32, i64, i64)
 declare ptr @quidra_bigreal_pow(ptr, ptr, i64, i64)
-declare ptr @quidra_bigreal_round(ptr, i32, i64, i64)
 declare ptr @quidra_bigint_from_i64(i64)
 declare ptr @quidra_bigint_from_u64(i64)
 declare ptr @quidra_bigreal_from_i64(i64)
@@ -4753,6 +4524,7 @@ declare i1 @quidra_bigreal_try_i64(ptr, i32, ptr)
 declare i1 @quidra_bigreal_try_u64(ptr, i32, ptr)
 declare i1 @quidra_bigint_try_float64(ptr, ptr)
 declare i1 @quidra_bigint_try_float32(ptr, ptr)
+declare i1 @quidra_exact_numeric_cast_fits(ptr, i32, i32, i32)
 declare i1 @quidra_bigreal_try_float64(ptr, ptr)
 declare i1 @quidra_bigreal_try_float32(ptr, ptr)
 declare i64 @quidra_bigint_to_i64(ptr, i32, i64, i64)
@@ -4932,7 +4704,7 @@ declare double @quidra_cli_parse_float(ptr)
 declare ptr @quidra_cli_parse_bigint(ptr)
 declare ptr @quidra_cli_parse_bigreal(ptr)
 declare i1 @quidra_cli_parse_bool(ptr)
-declare i32 @quidra_io_flush()
+declare i32 @quidra_flush()
 declare i32 @quidra_output_status()
 declare ptr @quidra_file_open_raw(ptr)
 declare ptr @quidra_file_create_raw(ptr)
@@ -5007,21 +4779,6 @@ declare ptr @quidra_http_last_error_copy()
 declare ptr @quidra_http_header(ptr, ptr)
 declare ptr @quidra_http_response_clone(ptr)
 declare void @quidra_http_response_drop(ptr)
-declare ptr @quidra_video_open_raw(ptr)
-declare i32 @quidra_video_read(ptr, i32, i32, i64, i64, i64, i64, ptr, ptr)
-declare i64 @quidra_video_width(ptr)
-declare i64 @quidra_video_height(ptr)
-declare double @quidra_video_fps(ptr)
-declare i64 @quidra_video_frames(ptr)
-declare double @quidra_video_duration(ptr)
-declare i64 @quidra_video_position(ptr)
-declare i1 @quidra_video_seek(ptr, i64)
-declare ptr @quidra_video_last_error_copy()
-declare ptr @quidra_video_reader_clone(ptr)
-declare void @quidra_video_reader_drop(ptr)
-declare ptr @quidra_image_read(ptr, i32, i32, i64, i64, i64, i64, ptr)
-declare i1 @quidra_image_write(ptr, ptr, i32, i64)
-declare ptr @quidra_image_last_error_copy()
 declare i32 @printf(ptr, ...)
 declare i32 @puts(ptr nocapture nonnull readonly)
 declare i64 @strlen(ptr nocapture nonnull readonly)
@@ -5043,6 +4800,7 @@ declare i1 @quidra_array_can_append_move(ptr)
 declare ptr @quidra_array_grow_move(ptr, i64)
 declare ptr @quidra_array_sorted(ptr, i32, i64, i64, i64)
 declare void @quidra_numeric_cast_element(ptr, ptr, i32, i32, i64, i64)
+declare i1 @quidra_numeric_cast_element_fits(ptr, i32, i32, i64, i64)
 declare ptr @quidra_tensor_create(ptr, i32, i32, i1, i64, i64, i64)
 declare ptr @quidra_tensor_to_gpu(ptr, i64, i64, i64)
 declare ptr @quidra_tensor_to_cpu(ptr, i64, i64)
@@ -5051,11 +4809,11 @@ declare void @quidra_tensor_drop(ptr)
 declare ptr @quidra_tensor_reshape(ptr, ptr, i64, i64)
 declare ptr @quidra_tensor_gather(ptr, ptr, ptr, i64, i64)
 declare ptr @quidra_tensor_scatter(ptr, ptr, ptr, i64, i64)
-declare ptr @quidra_tensor_convolve(ptr, ptr, i64, i64, i64, i64, i64)
 declare ptr @quidra_tensor_transpose(ptr, i64, i64, i64, i64)
 declare ptr @quidra_tensor_contiguous(ptr, i64, i64)
 declare ptr @quidra_tensor_shape(ptr)
 declare ptr @quidra_tensor_shape_fixed(ptr, i64)
+declare i64 @qcore_tensor_device(ptr)
 declare i1 @quidra_tensor_is_contiguous(ptr)
 declare i1 @quidra_tensor_is_tracked(ptr)
 declare i1 @quidra_tensor_has_grad(ptr)
@@ -5069,20 +4827,9 @@ declare void @quidra_tensor_backward_many(ptr, ptr, ptr, i64, i1, i64, i64)
 declare void @quidra_tensor_backward_many_with_autograd_targets(ptr, ptr, ptr, i64, ptr, i1, i64, i64)
 declare ptr @quidra_tensor_grad(ptr, i64, i64)
 declare ptr @quidra_tensor_cast(ptr, i32, i64, i64)
+declare ptr @quidra_tensor_try_cast(ptr, i32, i64, i64)
 declare void @quidra_tensor_rank_check(ptr, i64, i64, i64)
 declare void @quidra_tensor_extent_check(ptr, i64, i64, i64, i64)
-declare ptr @quidra_tensor_autograd_unary(ptr, i32, i64, i64)
-declare i64 @quidra_math_trunc_int(double, i64, i64)
-declare i64 @quidra_math_round_int(double, i64, i64)
-declare i64 @quidra_math_floor_int(double, i64, i64)
-declare i64 @quidra_math_ceil_int(double, i64, i64)
-declare i1 @quidra_math_is_finite(double)
-declare double @quidra_stats_mean(ptr, i64, i64)
-declare ptr @quidra_stats_reduce_ptr(ptr, i32, i32, i64, i64)
-declare ptr @quidra_linear_matmul(ptr, ptr, i64, i64)
-declare i64 @quidra_linear_dot_integer(ptr, ptr, i32, i64, i64)
-declare float @quidra_linear_dot_float32(ptr, ptr, i64, i64)
-declare double @quidra_linear_dot_float64(ptr, ptr, i64, i64)
 declare ptr @quidra_tensor_unary(ptr, i32, i64, i64)
 declare ptr @quidra_tensor_binary(ptr, ptr, ptr, i32, i32, i64, i64)
 declare ptr @quidra_tensor_compare(ptr, ptr, ptr, i32, i32, i64, i64)
@@ -5101,18 +4848,10 @@ declare i32 @snprintf(ptr, i64, ptr, ...)
 declare i32 @fflush(ptr)
 declare void @exit(i32)
 declare void @_Exit(i32)
-declare double @sin(double)
-declare float @sinf(float)
-declare double @cos(double)
-declare float @cosf(float)
-declare double @tan(double)
-declare float @tanf(float)
-declare double @log(double)
-declare float @logf(float)
-declare double @exp(double)
-declare float @expf(float)
 declare double @pow(double, double)
 declare float @powf(float, float)
+declare i64 @quidra_integer_pow_signed(i64, i64, i32, i64, i64)
+declare i64 @quidra_integer_pow_unsigned(i64, i64, i32, i64, i64)
 declare { i64, i1 } @llvm.sadd.with.overflow.i64(i64, i64)
 declare { i64, i1 } @llvm.ssub.with.overflow.i64(i64, i64)
 declare { i64, i1 } @llvm.smul.with.overflow.i64(i64, i64)
@@ -5137,10 +4876,6 @@ declare { i8, i1 } @llvm.umul.with.overflow.i8(i8, i8)
 declare { i16, i1 } @llvm.umul.with.overflow.i16(i16, i16)
 declare { i32, i1 } @llvm.umul.with.overflow.i32(i32, i32)
 declare { i64, i1 } @llvm.umul.with.overflow.i64(i64, i64)
-declare float @llvm.fabs.f32(float)
-declare double @llvm.fabs.f64(double)
-declare double @llvm.sqrt.f64(double)
-declare float @llvm.sqrt.f32(float)
 declare i8 @llvm.fptosi.sat.i8.f32(float)
 declare i16 @llvm.fptosi.sat.i16.f32(float)
 declare i32 @llvm.fptosi.sat.i32.f32(float)
@@ -5459,6 +5194,7 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
     }
 
     std::vector<std::string> funcs;
+    std::unordered_map<std::string, std::string> emitted_external_declarations;
     for (std::size_t i=0;i<module.functions.size();++i) {
         const auto& f=module.functions[i];
         const auto debug_file=
@@ -5473,6 +5209,18 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
             debug_file,
             debug_info?&debug_variables:nullptr}.emit();
         if(debug_locations[i]) emitted=attach_debug_location(std::move(emitted),*debug_locations[i]);
+        if (f.external_symbol) {
+            const auto [existing, inserted] =
+                emitted_external_declarations.emplace(*f.external_symbol, emitted);
+            if (!inserted) {
+                if (existing->second != emitted) {
+                    throw std::logic_error(
+                        "conflicting LLVM declarations for external C symbol '" +
+                        *f.external_symbol + "'");
+                }
+                continue;
+            }
+        }
         funcs.push_back(std::move(emitted));
     }
     const auto array_cast_pairs = collect_array_cast_pairs(module);
@@ -5488,15 +5236,12 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
     if(!debug_variables.empty())
         out << "declare void @llvm.dbg.declare(metadata, metadata, metadata)\n";
     out << "@.quidra.repl.replaying = internal global i1 false\n";
-    out << "@.fmt.int = private unnamed_addr constant [6 x i8] c\"%lld\\0A\\00\"\n";
-out<<"@.fmt.int.write = private unnamed_addr constant [5 x i8] c\"%lld\\00\"\n";
-out<<"@.fmt.uint = private unnamed_addr constant [6 x i8] c\"%llu\\0A\\00\"\n";
-out<<"@.fmt.uint.write = private unnamed_addr constant [5 x i8] c\"%llu\\00\"\n";
+out<<"@.fmt.int.raw = private unnamed_addr constant [5 x i8] c\"%lld\\00\"\n";
+out<<"@.fmt.uint.raw = private unnamed_addr constant [5 x i8] c\"%llu\\00\"\n";
 out<<"@.fmt.int.text = private unnamed_addr constant [5 x i8] c\"%lld\\00\"\n";
 out<<"@.fmt.uint.text = private unnamed_addr constant [5 x i8] c\"%llu\\00\"\n";
-out<<"@.fmt.address = private unnamed_addr constant [4 x i8] c\"%p\\0A\\00\"\n";
-out<<"@.fmt.address.write = private unnamed_addr constant [3 x i8] c\"%p\\00\"\n";
-out<<"@.fmt.string.write = private unnamed_addr constant [3 x i8] c\"%s\\00\"\n";
+out<<"@.fmt.address.raw = private unnamed_addr constant [3 x i8] c\"%p\\00\"\n";
+out<<"@.fmt.string.raw = private unnamed_addr constant [3 x i8] c\"%s\\00\"\n";
 out<<"@.fmt.repl.string = private unnamed_addr constant [5 x i8] c\"\\22%s\\22\\00\"\n";
 out<<"@.fmt.repl.error = private unnamed_addr constant [12 x i8] c\"error(\\22%s\\22)\\00\"\n";out<<"@.bool.true = private unnamed_addr constant [5 x i8] c\"true\\00\"\n@.bool.false = private unnamed_addr constant [6 x i8] c\"false\\00\"\n";out<<"@.fmt.runtime.error = private unnamed_addr constant [43 x i8] c\"Quidra runtime error[%s] at %lld:%lld: %s\\0A\\00\"\n";
 out<<"@.code.overflow = private unnamed_addr constant [17 x i8] c\"INTEGER_OVERFLOW\\00\"\n@.msg.overflow = private unnamed_addr constant [17 x i8] c\"integer overflow\\00\"\n";
@@ -5527,8 +5272,10 @@ for (const auto& provenance : pool.provenance_entries) {
         << ", i64 " << provenance.line << ", i64 " << provenance.column << " }\n";
 }
 out << "\n";
-for (const auto& [_, pair] : array_cast_pairs)
+for (const auto& [_, pair] : array_cast_pairs) {
+    out << emit_array_cast_validator(pair.source,pair.target,array_layout);
     out << emit_array_cast_helper(pair.source,pair.target,array_layout);
+}
 for (const auto& [_, type] : clone_types) out << emit_clone_helper(type, layouts, array_layout);
 std::map<std::string, Type> drop_types;
 collect_drop_types(module, drop_types, layouts);

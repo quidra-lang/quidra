@@ -11,7 +11,7 @@ never reuses it across commits from the template or from a previous run.
 micro/mb00.qui .. mb11.qui          the frozen micro suite (workloads/micro.md)
 adversarial/ADV-*.qui               the frozen adversarial case set (37 scored
                                     programs, ADV-22-valid, ADV-21 depth probes)
-adversarial/generate.py             the frozen generators for ADV-21 and ADV-22a/b
+adversarial/generate.py             generators preserving the frozen ADV-21/22 case rules
 quidra_type_binding_amendment.json  the Quidra rows of the case set's type-binding
                                     table, with citations and TM3 branches
 representation.json                 the representation/API pins for the micro suite

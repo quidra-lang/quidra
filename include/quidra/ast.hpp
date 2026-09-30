@@ -1,5 +1,6 @@
 #pragma once
 #include "quidra/diagnostic.hpp"
+#include "quidra/compiler_extension.hpp"
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -96,6 +97,10 @@ struct Expr {
                               CallExpr, MethodCallExpr, TryExpr>;
     Data data;
     SourceSpan span{};
+    // Imported package constants preserve their declaration type as a fallback
+    // context. A surrounding explicit context still takes precedence, which
+    // keeps context-sensitive constant expressions generic and package-owned.
+    std::optional<TypeName> contextual_default_type;
 };
 
 struct Stmt;
@@ -214,10 +219,12 @@ struct Program {
 
 struct ResolvedProgram {
     Program program;
+    std::vector<CompilerExtensionRegistration> compiler_extensions;
 };
 
 struct ConcreteProgram {
     Program program;
+    std::vector<CompilerExtensionRegistration> compiler_extensions;
 };
 
 } // namespace quidra

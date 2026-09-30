@@ -1,5 +1,6 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 string read_input_line()
     string line = ""
     void | error read = scan(&line)
@@ -12,6 +13,8 @@ uint32 a = uint32.parse(read_input_line())
 uint32 b = uint32.parse(read_input_line())
 uint32 r = a - b
 print("OBS=SUB:{r}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

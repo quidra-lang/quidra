@@ -3,6 +3,7 @@
 #include "quidra/toml_subset.hpp"
 #include "quidra/project.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <cctype>
 #include <fstream>
@@ -122,6 +123,34 @@ std::optional<PackageProject> read_package_project(
     if (const auto* abi = document->find("requires", "abi")) {
         project.abi_requirement = parse_component(*abi);
     }
+
+    if (const auto table = document->tables.find("compiler.extension");
+        table != document->tables.end()) {
+        for (const auto& [name, configured] : table->second) {
+            if (name.empty() ||
+                std::any_of(name.begin(), name.end(), [](unsigned char ch) {
+                    return !(std::isalnum(ch) || ch == '_' || ch == '-');
+                })) {
+                throw std::runtime_error(
+                    "project.toml compiler extension name contains an invalid "
+                    "character: " + name + ": " + path.string());
+            }
+            fs::path relative(configured);
+            if (relative.empty() || relative.is_absolute()) {
+                throw std::runtime_error(
+                    "project.toml compiler extension path must be "
+                    "package-relative: " + configured + ": " + path.string());
+            }
+            for (const auto& component : relative) {
+                if (component == "..") {
+                    throw std::runtime_error(
+                        "project.toml compiler extension path may not escape "
+                        "the package root: " + configured + ": " + path.string());
+                }
+            }
+            project.compiler_extensions.emplace(name, configured);
+        }
+    }
     return project;
 }
 
@@ -149,6 +178,179 @@ std::string_view package_import_name(const PackageManifest& manifest) {
 std::string_view package_display_name(const PackageManifest& manifest) {
     return manifest.project ? std::string_view(manifest.project->display_name)
                             : package_distribution_name(manifest);
+}
+
+std::optional<std::string> package_host_platform() {
+#ifdef _WIN32
+#  if defined(_M_X64) || defined(__x86_64__)
+    return "windows-x86_64";
+#  elif defined(_M_ARM64) || defined(__aarch64__)
+    return "windows-arm64";
+#  else
+    return std::nullopt;
+#  endif
+#elif defined(__APPLE__)
+#  if defined(__aarch64__)
+    return "macos-arm64";
+#  elif defined(__x86_64__)
+    return "macos-x86_64";
+#  else
+    return std::nullopt;
+#  endif
+#elif defined(__linux__)
+#  if defined(__x86_64__)
+    return "linux-x86_64";
+#  elif defined(__aarch64__)
+    return "linux-arm64";
+#  else
+    return std::nullopt;
+#  endif
+#else
+    return std::nullopt;
+#endif
+}
+
+std::optional<fs::path> package_native_library_path(
+    const fs::path& package_root,
+    const PackageManifest& manifest) {
+    const std::string* configured = nullptr;
+    if (const auto platform = package_host_platform()) {
+        if (const auto found = manifest.native_libraries.find(*platform);
+            found != manifest.native_libraries.end()) {
+            configured = &found->second;
+        }
+    }
+    if (!configured) {
+        if (const auto fallback = manifest.native_libraries.find("default");
+            fallback != manifest.native_libraries.end()) {
+            configured = &fallback->second;
+        }
+    }
+    if (!configured) return std::nullopt;
+
+    fs::path relative(*configured);
+    if (relative.empty() || relative.is_absolute()) {
+        throw std::runtime_error(
+            "package native library path must be package-relative: " +
+            *configured);
+    }
+    for (const auto& component : relative) {
+        if (component == "..") {
+            throw std::runtime_error(
+                "package native library path may not escape the package root: " +
+                *configured);
+        }
+    }
+
+    const auto root = fs::absolute(package_root).lexically_normal();
+    const auto resolved = fs::absolute(root / relative).lexically_normal();
+    const auto inside = resolved.lexically_relative(root);
+    if (inside.empty() || inside.is_absolute() ||
+        (!inside.empty() && *inside.begin() == "..")) {
+        throw std::runtime_error(
+            "package native library path may not escape the package root: " +
+            *configured);
+    }
+
+    std::error_code error;
+    if (!fs::is_regular_file(resolved, error) || error) {
+        throw std::runtime_error(
+            "package native library is missing or is not a regular file: " +
+            resolved.string());
+    }
+    return resolved;
+}
+
+std::vector<fs::path> package_native_source_paths(
+    const fs::path& package_root,
+    const PackageManifest& manifest) {
+    const auto root = fs::absolute(package_root).lexically_normal();
+    std::vector<fs::path> result;
+    result.reserve(manifest.native_sources.size());
+    const auto append_source = [&](const std::string& configured) {
+        fs::path relative(configured);
+        if (relative.empty() || relative.is_absolute()) {
+            throw std::runtime_error(
+                "package native source path must be package-relative: " + configured);
+        }
+        for (const auto& component : relative) {
+            if (component == "..") {
+                throw std::runtime_error(
+                    "package native source path may not escape the package root: " +
+                    configured);
+            }
+        }
+        const auto resolved = fs::absolute(root / relative).lexically_normal();
+        const auto inside = resolved.lexically_relative(root);
+        if (inside.empty() || inside.is_absolute() ||
+            (!inside.empty() && *inside.begin() == "..")) {
+            throw std::runtime_error(
+                "package native source path may not escape the package root: " +
+                configured);
+        }
+        std::error_code error;
+        if (!fs::is_regular_file(resolved, error) || error) {
+            throw std::runtime_error(
+                "package native source is missing or is not a regular file: " +
+                resolved.string());
+        }
+        result.push_back(resolved);
+    };
+    for (const auto& [name, configured] : manifest.native_sources) {
+        (void)name;
+        append_source(configured);
+    }
+    if (const auto platform = package_host_platform()) {
+        if (const auto found = manifest.native_platform_sources.find(*platform);
+            found != manifest.native_platform_sources.end()) {
+            for (const auto& [name, configured] : found->second) {
+                (void)name;
+                append_source(configured);
+            }
+        }
+    }
+    return result;
+}
+
+std::map<std::string, fs::path> package_compiler_extension_paths(
+    const fs::path& package_root,
+    const PackageManifest& manifest) {
+    std::map<std::string, fs::path> result;
+    if (!manifest.project) return result;
+
+    const auto root = fs::absolute(package_root).lexically_normal();
+    for (const auto& [name, configured] :
+         manifest.project->compiler_extensions) {
+        fs::path relative(configured);
+        if (relative.empty() || relative.is_absolute()) {
+            throw std::runtime_error(
+                "package compiler extension path must be package-relative: " +
+                configured);
+        }
+        for (const auto& component : relative) {
+            if (component == "..") {
+                throw std::runtime_error(
+                    "package compiler extension path may not escape the package "
+                    "root: " + configured);
+            }
+        }
+        const auto resolved = fs::absolute(root / relative).lexically_normal();
+        const auto inside = resolved.lexically_relative(root);
+        if (inside.empty() || inside.is_absolute() ||
+            (!inside.empty() && *inside.begin() == "..")) {
+            throw std::runtime_error(
+                "package compiler extension path may not escape the package "
+                "root: " + configured);
+        }
+        std::error_code error;
+        if (!fs::is_regular_file(resolved, error) || error) {
+            throw std::runtime_error(
+                "package compiler extension descriptor is missing or is not a "
+                "regular file: " + resolved.string());
+        }
+        result.emplace(name, resolved);
+    }
+    return result;
 }
 
 std::string SemanticVersion::str() const {
@@ -303,6 +505,113 @@ PackageManifest read_package_manifest(const fs::path& package_root) {
                 }
             }
             manifest.assets.emplace(platform, value);
+            continue;
+        }
+
+        constexpr std::string_view native_source_prefix = "native.source.";
+        if (std::string_view(key).starts_with(native_source_prefix)) {
+            if (key.size() == native_source_prefix.size()) {
+                throw std::runtime_error(
+                    "quidra.package native source key is missing a name");
+            }
+            const auto source_key = key.substr(native_source_prefix.size());
+            const auto separator = source_key.find('.');
+            const auto platform = separator == std::string::npos
+                ? std::string{} : source_key.substr(0, separator);
+            const auto source_name = separator == std::string::npos
+                ? source_key : source_key.substr(separator + 1);
+            const auto validate_component = [&](const std::string& component,
+                                                const char* label) {
+                if (component.empty())
+                    throw std::runtime_error(
+                        std::string("quidra.package native source ") + label +
+                        " is empty");
+                for (const unsigned char ch : component)
+                    if (!(std::isalnum(ch) || ch == '-' || ch == '_'))
+                        throw std::runtime_error(
+                            std::string("quidra.package native source ") + label +
+                            " contains an invalid character: " + component);
+            };
+            if (!platform.empty()) validate_component(platform, "platform");
+            validate_component(source_name, "name");
+            fs::path source_path(value);
+            if (source_path.empty() || source_path.is_absolute()) {
+                throw std::runtime_error(
+                    "quidra.package native source path must be package-relative: " +
+                    value);
+            }
+            for (const auto& component : source_path) {
+                if (component == "..") {
+                    throw std::runtime_error(
+                        "quidra.package native source path may not escape the package root: " +
+                        value);
+                }
+            }
+            if (platform.empty())
+                manifest.native_sources.emplace(source_name, value);
+            else
+                manifest.native_platform_sources[platform].emplace(source_name, value);
+            continue;
+        }
+
+        constexpr std::string_view native_pkg_prefix = "native.pkg.";
+        if (std::string_view(key).starts_with(native_pkg_prefix)) {
+            if (key.size() == native_pkg_prefix.size()) {
+                throw std::runtime_error(
+                    "quidra.package native pkg key is missing a name");
+            }
+            const auto dependency_name = key.substr(native_pkg_prefix.size());
+            for (const unsigned char ch : dependency_name) {
+                if (!(std::isalnum(ch) || ch == '-' || ch == '_')) {
+                    throw std::runtime_error(
+                        "quidra.package native pkg name contains an invalid character: " +
+                        dependency_name);
+                }
+            }
+            if (value.empty()) {
+                throw std::runtime_error(
+                    "quidra.package native pkg module must not be empty");
+            }
+            for (const unsigned char ch : value) {
+                if (!(std::isalnum(ch) || ch == '-' || ch == '_' ||
+                      ch == '.' || ch == '+')) {
+                    throw std::runtime_error(
+                        "quidra.package native pkg module contains an invalid character: " +
+                        value);
+                }
+            }
+            manifest.native_pkg_config.emplace(dependency_name, value);
+            continue;
+        }
+
+        constexpr std::string_view native_prefix = "native.";
+        if (std::string_view(key).starts_with(native_prefix)) {
+            if (key.size() == native_prefix.size()) {
+                throw std::runtime_error(
+                    "quidra.package native key is missing a platform");
+            }
+            const auto platform = key.substr(native_prefix.size());
+            for (const unsigned char c : platform) {
+                if (!(std::isalnum(c) || c == '-' || c == '_')) {
+                    throw std::runtime_error(
+                        "quidra.package native platform contains an invalid character: " +
+                        platform);
+                }
+            }
+            fs::path native_path(value);
+            if (native_path.empty() || native_path.is_absolute()) {
+                throw std::runtime_error(
+                    "quidra.package native path must be package-relative: " +
+                    value);
+            }
+            for (const auto& component : native_path) {
+                if (component == "..") {
+                    throw std::runtime_error(
+                        "quidra.package native path may not escape the package root: " +
+                        value);
+                }
+            }
+            manifest.native_libraries.emplace(platform, value);
             continue;
         }
 

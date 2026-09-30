@@ -23,7 +23,7 @@
 name = "Quidra"
 cli = "quidra"
 extension = ".qui"
-version = "0.4.0"
+version = "0.5.0"
 tagline = "Programming with maximum meaning per token."
 
 # Format versions, deliberately independent of [project] version. A value here
@@ -48,7 +48,10 @@ official_repository_base = "https://github.com/quidra-lang/"
 
 [repos]
 core = "https://github.com/quidra-lang/quidra"
+math = "https://github.com/quidra-lang/math"
+nn = "https://github.com/quidra-lang/nn"
 vision = "https://github.com/quidra-lang/vision"
+video = "https://github.com/quidra-lang/video"
 dnn = "https://github.com/quidra-lang/dnn"
 
 # `id` is the canonical machine-readable backend identifier and is the only

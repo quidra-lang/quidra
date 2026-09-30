@@ -14,7 +14,7 @@ enum class TokenKind {
     KwBitNot, KwBitAnd, KwBitOr, KwBitXor,
     LParen, RParen, LBracket, RBracket, Colon, Comma, Semicolon, Dot,
     Assign, PlusAssign, MinusAssign, StarAssign, SlashAssign, PercentAssign,
-    Plus, Minus, Star, Slash, Percent,
+    Plus, Minus, Star, Slash, Percent, Caret,
     EqEq, NotEq, Less, LessEq, Greater, GreaterEq
 };
 

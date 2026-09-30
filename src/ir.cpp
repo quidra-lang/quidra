@@ -4,9 +4,11 @@
 #include "operator_policy.hpp"
 #include "nesting_budget.hpp"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <limits>
 #include <functional>
+#include <filesystem>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -1061,11 +1063,6 @@ struct Lowerer {
                      node->method == "seek" || node->method == "close")) {
                     return true;
                 }
-                if (receiver_type.kind == TypeKind::Class &&
-                    receiver_type.class_name == "$std.video.Reader" &&
-                    (node->method == "read" || node->method == "seek")) {
-                    return true;
-                }
                 if (const auto call = checked.method_calls.find(&expression); call != checked.method_calls.end()) {
                     const auto signature = checked.functions.find(call->second.internal_name);
                     if (signature != checked.functions.end()) {
@@ -1512,7 +1509,7 @@ struct Lowerer {
 
     void for_each_collected_array_element(
         ValueId array,const Type& array_type,const std::string& prefix,
-        const std::function<void(ValueId,const Type&)>& visit) {
+        const std::function<void(ValueId,const Type&,ValueId)>& visit) {
         if(array_type.kind!=TypeKind::Array||!array_type.first) return;
         auto count=fresh();
         block->instructions.push_back(ArrayLength{count,array});
@@ -1541,7 +1538,7 @@ struct Lowerer {
         block->instructions.push_back(ArrayGet{
             child,array,index,*array_type.first,0,0,
             array_type.length>=0,true});
-        visit(child,*array_type.first);
+        visit(child,*array_type.first,index);
         auto next=fresh();
         block->instructions.push_back(Binary{
             next,"+",index,const_int(1),Type::simple(TypeKind::Int),
@@ -1579,6 +1576,88 @@ struct Lowerer {
         return false;
     }
 
+    ValueId reflected_index_path(ValueId prefix,ValueId index) {
+        const auto string_type=Type::simple(TypeKind::String);
+        auto open=fresh();
+        auto close=fresh();
+        auto separator=fresh();
+        block->instructions.push_back(ConstantString{open,"["});
+        block->instructions.push_back(ConstantString{close,"]"});
+        block->instructions.push_back(ConstantString{separator,""});
+        auto out=fresh();
+        block->instructions.push_back(StringBuild{
+            out,
+            {
+                StringBuildPart{prefix,string_type,false},
+                StringBuildPart{open,string_type,true},
+                StringBuildPart{index,Type::simple(TypeKind::Int),false},
+                StringBuildPart{close,string_type,true},
+            },
+            separator});
+        return out;
+    }
+
+    ValueId reflected_field_path(
+        ValueId prefix,bool prefix_empty,const std::string& field_name) {
+        if(prefix_empty){
+            auto out=fresh();
+            block->instructions.push_back(ConstantString{out,field_name});
+            return out;
+        }
+        auto suffix=fresh();
+        block->instructions.push_back(ConstantString{suffix,"."+field_name});
+        auto out=fresh();
+        block->instructions.push_back(StringConcat{out,{prefix,suffix}});
+        return out;
+    }
+
+    void collect_reflected_paths(
+        ValueId object,const Type& type,const Type& target,
+        ValueId prefix,bool prefix_empty,const std::string& destination,
+        std::unordered_set<std::string>& active) {
+        if(type==target){
+            append_collected_value(
+                destination,Type::simple(TypeKind::String),prefix);
+            return;
+        }
+        if(type.kind==TypeKind::Array){
+            for_each_collected_array_element(
+                object,type,"reflect.paths",
+                [&](ValueId child,const Type& child_type,ValueId index) {
+                    auto child_prefix=reflected_index_path(prefix,index);
+                    collect_reflected_paths(
+                        child,child_type,target,child_prefix,false,destination,active);
+                    block->instructions.push_back(
+                        Release{child_prefix,Type::simple(TypeKind::String)});
+                });
+            return;
+        }
+        if(type.kind!=TypeKind::Class) return;
+        if(!active.insert(type.class_name).second) return;
+        const auto ci=checked.classes.find(type.class_name);
+        if(ci==checked.classes.end()){
+            active.erase(type.class_name);
+            return;
+        }
+        for(const auto& field:ci->second.fields){
+            if(field.is_private) continue;
+            std::unordered_set<std::string> probe=active;
+            if(!reflected_type_contains(field.type,target,probe)) continue;
+            auto child=fresh();
+            block->instructions.push_back(
+                FieldGet{child,object,field.index,field.type});
+            auto child_prefix=reflected_field_path(
+                prefix,prefix_empty,field.name);
+            collect_reflected_paths(
+                child,field.type,target,child_prefix,false,destination,active);
+            if(!prefix_empty){
+                block->instructions.push_back(
+                    Release{child_prefix,Type::simple(TypeKind::String)});
+            }
+        }
+        active.erase(type.class_name);
+    }
+
     void collect_reflected_values(
         ValueId object,const Type& type,const Type& target,
         const std::string& destination,
@@ -1590,7 +1669,7 @@ struct Lowerer {
         if(type.kind==TypeKind::Array){
             for_each_collected_array_element(
                 object,type,"reflect.collect",
-                [&](ValueId child,const Type& child_type) {
+                [&](ValueId child,const Type& child_type,ValueId) {
                     collect_reflected_values(
                         child,child_type,target,destination,active);
                 });
@@ -1652,7 +1731,7 @@ struct Lowerer {
         if(type.kind==TypeKind::Array){
             for_each_collected_array_element(
                 object,type,"backward.targets",
-                [&](ValueId child,const Type& child_type) {
+                [&](ValueId child,const Type& child_type,ValueId) {
                     collect_autograd_targets(
                         child,child_type,destination,active);
                 });
@@ -1709,11 +1788,8 @@ struct Lowerer {
         if (std::holds_alternative<StringExpr>(expression.data)) {
             return false;
         }
-        if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-            // Ordinary names borrow local/reference storage, but exact standard
-            // real constants materialize a fresh managed bigreal value.
-            return type.kind == TypeKind::BigReal &&
-                   standard_float_constant(name->name).has_value();
+        if (std::holds_alternative<NameExpr>(expression.data)) {
+            return false;
         }
         if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
             // Tensor .grad materializes a fresh tensor clone. Treat it as an owned
@@ -2375,15 +2451,6 @@ struct Lowerer {
         }
         if (const auto* n=std::get_if<NameExpr>(&e.data)) {
             if(is_builtin_text_constant(n->name)){auto out=fresh();block->instructions.push_back(ConstantString{out,std::string(builtin_text_constant(n->name))});return out;}
-            if(const auto constant=standard_float_constant(n->name)){
-                auto out=fresh(); const auto type=checked.raw_types.at(&e);
-                if(type.kind==TypeKind::BigReal)
-                    block->instructions.push_back(ConstantExact{
-                        out,n->name=="$std.math.pi"?"$pi":"$e",type});
-                else
-                    block->instructions.push_back(ConstantFloat{out,*constant,type});
-                return out;
-            }
             if(const auto it=checked.field_accesses.find(&e);it!=checked.field_accesses.end()){
                 auto object=receiver_value(),out=fresh();block->instructions.push_back(FieldGet{out,object,it->second.index,it->second.type});return out;
             }
@@ -2913,67 +2980,6 @@ struct Lowerer {
                     return finish(0);
                 }
             }
-            if(receiver_type.kind==TypeKind::Class &&
-               receiver_type.class_name=="$std.video.Reader"){
-                auto reader=expr(*n->receiver);
-                const bool owned=expression_owns_result(*n->receiver);
-                const auto finish=[&](ValueId result){
-                    if(owned) block->instructions.push_back(Release{reader,receiver_type});
-                    return result;
-                };
-                if(n->method=="width"){
-                    auto out=fresh();block->instructions.push_back(VideoWidth{out,reader});return finish(out);
-                }
-                if(n->method=="height"){
-                    auto out=fresh();block->instructions.push_back(VideoHeight{out,reader});return finish(out);
-                }
-                if(n->method=="fps"){
-                    auto out=fresh();block->instructions.push_back(VideoFps{out,reader,checked.raw_types.at(&e)});return finish(out);
-                }
-                if(n->method=="frames"){
-                    auto out=fresh();block->instructions.push_back(VideoFrames{out,reader,checked.raw_types.at(&e)});return finish(out);
-                }
-                if(n->method=="duration"){
-                    auto out=fresh();block->instructions.push_back(VideoDuration{out,reader,checked.raw_types.at(&e)});return finish(out);
-                }
-                if(n->method=="position"){
-                    auto out=fresh();block->instructions.push_back(VideoPosition{out,reader});return finish(out);
-                }
-                if(n->method=="seek"){
-                    auto frame=expr(*n->args[0].value),out=fresh();
-                    block->instructions.push_back(VideoSeek{out,reader,frame,checked.raw_types.at(&e)});
-                    return finish(out);
-                }
-                if(n->method=="read"){
-                    std::optional<Type> target_dtype;
-                    std::optional<ValueId> target_channels;
-                    for(const auto& argument:n->args){
-                        if(!argument.name) continue;
-                        if(*argument.name=="channel"){
-                            target_channels=expr(*argument.value);
-                        }else if(*argument.name=="type"){
-                            if(const auto* name=std::get_if<NameExpr>(&argument.value->data))
-                                target_dtype=builtin_scalar_type(name->name);
-                        }
-                    }
-                    const auto result_type=checked.raw_types.at(&e);
-                    std::vector<long long> expected_shape_prefix;
-                    if(result_type.kind==TypeKind::Union){
-                        for(const auto& candidate:result_type.cases){
-                            if(candidate.kind!=TypeKind::Tensor) continue;
-                            if(expected_shape_prefix.empty())
-                                expected_shape_prefix=candidate.tensor_shape_prefix;
-                            else if(expected_shape_prefix!=candidate.tensor_shape_prefix)
-                                expected_shape_prefix.clear();
-                        }
-                    }
-                    auto out=fresh();
-                    block->instructions.push_back(VideoRead{
-                        out,reader,result_type,target_dtype,target_channels,
-                        std::move(expected_shape_prefix)});
-                    return finish(out);
-                }
-            }
             if(receiver_type.kind==TypeKind::String){
                 auto receiver=expr(*n->receiver);
                 if(n->method=="string") return receiver;
@@ -3103,24 +3109,6 @@ struct Lowerer {
                     if(receiver_owned) block->instructions.push_back(Release{receiver,receiver_type});
                     return 0;
                 }
-                if(n->method=="abs" || n->method=="exp" || n->method=="log" ||
-                   n->method=="mean" || n->method=="sum_last" ||
-                   n->method=="max_last" || n->method=="min_last"){
-                    auto out=fresh();
-                    const auto operation=
-                        n->method=="abs"?BuiltinCallable::TensorAbsolute:
-                        n->method=="exp"?BuiltinCallable::TensorExponential:
-                        n->method=="log"?BuiltinCallable::TensorLogarithm:
-                        n->method=="mean"?BuiltinCallable::TensorMean:
-                        n->method=="sum_last"?BuiltinCallable::TensorSumLast:
-                        n->method=="max_last"?BuiltinCallable::TensorMaxLast:
-                        BuiltinCallable::TensorMinLast;
-                    block->instructions.push_back(TensorAutogradUnary{
-                        out,receiver,type_of(e),operation,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return finish(out);
-                }
                 if(n->method=="gpu"){
                     auto gpu=expr(*n->args[0].value),out=fresh();
                     block->instructions.push_back(TensorTransfer{
@@ -3133,6 +3121,24 @@ struct Lowerer {
                     auto out=fresh();
                     block->instructions.push_back(TensorTransfer{
                         out,receiver,std::nullopt,receiver_type,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
+                if(n->method=="transpose"){
+                    auto axis0=expr(*n->args[0].value);
+                    auto axis1=expr(*n->args[1].value);
+                    auto out=fresh();
+                    block->instructions.push_back(TensorTranspose{
+                        out,receiver,axis0,axis1,type_of(e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
+                if(n->method=="contiguous"){
+                    auto out=fresh();
+                    block->instructions.push_back(TensorContiguous{
+                        out,receiver,receiver_type,
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
                     return finish(out);
@@ -3173,68 +3179,14 @@ struct Lowerer {
                     release_temporary(*n->args[1].value,shape);
                     return finish(out);
                 }
-                if(n->method=="convolve"){
-                    std::optional<ValueId> kernel;
-                    std::optional<ValueId> stride;
-                    std::optional<ValueId> padding;
-                    std::optional<ValueId> dilation;
-                    std::vector<std::pair<std::size_t,ValueId>> evaluated;
-                    std::size_t positional_slot=0;
-                    for(std::size_t index=0;index<n->args.size();++index){
-                        const auto value_id=expr(*n->args[index].value);
-                        evaluated.emplace_back(index,value_id);
-                        std::size_t slot=0;
-                        if(n->args[index].name){
-                            const auto& name=*n->args[index].name;
-                            slot=name=="kernel"?0:name=="stride"?1:name=="padding"?2:3;
-                        }else slot=positional_slot++;
-                        auto* target=slot==0?&kernel:slot==1?&stride:slot==2?&padding:&dilation;
-                        *target=value_id;
-                    }
-                    auto out=fresh();
-                    block->instructions.push_back(TensorConvolve{
-                        out,receiver,*kernel,
-                        stride.value_or(const_int(1)),
-                        padding.value_or(const_int(0)),
-                        dilation.value_or(const_int(1)),
-                        type_of(e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    for(const auto& [index,value_id]:evaluated)
-                        release_temporary(*n->args[index].value,value_id);
-                    return finish(out);
-                }
-                if(n->method=="matmul"){
-                    auto right=expr(*n->args[0].value);
-                    auto out=fresh();
-                    block->instructions.push_back(LinearMatmul{
-                        out,receiver,right,type_of(e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_temporary(*n->args[0].value,right);
-                    return finish(out);
-                }
-                if(n->method=="transpose"){
-                    auto axis0=expr(*n->args[0].value);
-                    auto axis1=expr(*n->args[1].value);
-                    auto out=fresh();
-                    block->instructions.push_back(TensorTranspose{
-                        out,receiver,axis0,axis1,type_of(e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return finish(out);
-                }
-                if(n->method=="contiguous"){
-                    auto out=fresh();
-                    block->instructions.push_back(TensorContiguous{
-                        out,receiver,receiver_type,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return finish(out);
-                }
                 if(n->method=="shape"){
                     auto out=fresh();
                     block->instructions.push_back(TensorShape{out,receiver,type_of(e)});
+                    return finish(out);
+                }
+                if(n->method=="device"){
+                    auto out=fresh();
+                    block->instructions.push_back(TensorDevice{out,receiver});
                     return finish(out);
                 }
                 if(n->method=="is_contiguous"){
@@ -3423,17 +3375,26 @@ struct Lowerer {
             auto value=expr(*n.args[0].value),out=fresh();
             const auto source=type_of(*n.args[0].value);
             const auto scalar_target=builtin_scalar_type(resolution.target);
-            // Container conversion IR carries the complete container target
-            // type. Only a scalar numeric cast can have a source-visible
-            // T | error result that differs from its scalar conversion target.
+            const auto result_type=checked.raw_types.at(&e);
+            auto success_type=result_type;
+            if(result_type.kind==TypeKind::Union && result_type.union_name.empty() &&
+               case_index(result_type,Type::simple(TypeKind::Error))>=0){
+                std::vector<Type> success_cases;
+                for(const auto& candidate:result_type.cases)
+                    if(candidate.kind!=TypeKind::Error) success_cases.push_back(candidate);
+                if(success_cases.empty())
+                    throw std::logic_error("numeric cast error union has no success alternative");
+                success_type=Type::union_of(std::move(success_cases));
+            }
+            // A fallible container cast carries its whole converted container
+            // on the success side of T | error. Element unions are never formed.
             const bool container_source =
                 source.kind==TypeKind::Array || source.kind==TypeKind::Tensor ||
                 source.kind==TypeKind::Bin;
             const auto target =
                 !container_source && scalar_target && is_numeric(*scalar_target)
                     ? *scalar_target
-                    : resolution.type;
-            const auto result_type=checked.raw_types.at(&e);
+                    : success_type;
             if(source.kind==TypeKind::Bin){
                 block->instructions.push_back(BinConvert{
                     out,value,source,target,
@@ -3442,13 +3403,13 @@ struct Lowerer {
                 release_temporary(*n.args[0].value,value);
             }else if(source.kind==TypeKind::Tensor){
                 block->instructions.push_back(TensorCast{
-                    out,value,source,target,
+                    out,value,source,target,result_type,
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
                 release_temporary(*n.args[0].value,value);
             }else if(source.kind==TypeKind::Array){
                 block->instructions.push_back(ArrayNumericCast{
-                    out,value,source,target,
+                    out,value,source,target,result_type,
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
                 release_temporary(*n.args[0].value,value);
@@ -3547,18 +3508,6 @@ struct Lowerer {
                     release_arg(0,v);
                     return out;
                 }
-                case BuiltinCallable::Write: {
-                    const auto argument_type=type_of(*n.args[0].value);
-                    const bool fail_fast_argument =
-                        checked.fail_fast_expressions.contains(n.args[0].value.get());
-                    auto v=fail_fast_argument
-                        ? destination_value(*n.args[0].value,argument_type)
-                        : expr(*n.args[0].value);
-                    auto out=fresh();
-                    block->instructions.push_back(Write{v,argument_type,out,checked.raw_types.at(&e)});
-                    release_arg(0,v);
-                    return out;
-                }
                 case BuiltinCallable::Scan: {
                     return lower_scan(e);
                 }
@@ -3567,82 +3516,45 @@ struct Lowerer {
                     block->instructions.push_back(Exit{v});
                     return 0;
                 }
-                case BuiltinCallable::ReflectCollect: {
+                case BuiltinCallable::ReflectTypeName: {
+                    auto object=expr(*n.args[0].value);
+                    auto out=fresh();
+                    block->instructions.push_back(
+                        ConstantString{out,type_name(type_of(*n.args[0].value))});
+                    release_arg(0,object);
+                    return out;
+                }
+                case BuiltinCallable::ReflectCollect:
+                case BuiltinCallable::ReflectPaths: {
                     auto object=expr(*n.args[0].value);
                     const auto result_type=checked.raw_types.at(&e);
                     if(result_type.kind!=TypeKind::Array||!result_type.first)
-                        throw std::logic_error("reflect.collect result is not an array");
+                        throw std::logic_error("reflection collection result is not an array");
+                    const bool path_query=
+                        *resolution.builtin==BuiltinCallable::ReflectPaths;
                     const auto destination=collected_array_local(
-                        *result_type.first,"reflect.collect.result");
+                        *result_type.first,
+                        path_query?"reflect.paths.result":"reflect.collect.result");
                     std::unordered_set<std::string> active;
-                    collect_reflected_values(
-                        object,type_of(*n.args[0].value),*result_type.first,
-                        destination,active);
+                    if(path_query){
+                        if(!resolution.reflected_target)
+                            throw std::logic_error("reflect.paths missing target type");
+                        auto root_prefix=fresh();
+                        block->instructions.push_back(
+                            ConstantString{root_prefix,""});
+                        collect_reflected_paths(
+                            object,type_of(*n.args[0].value),
+                            *resolution.reflected_target,root_prefix,true,
+                            destination,active);
+                    }else{
+                        collect_reflected_values(
+                            object,type_of(*n.args[0].value),*result_type.first,
+                            destination,active);
+                    }
                     auto out=fresh();
                     block->instructions.push_back(
                         LoadLocal{out,destination,result_type});
                     release_arg(0,object);
-                    return out;
-                }
-                case BuiltinCallable::TensorAbsolute:
-                case BuiltinCallable::TensorExponential:
-                case BuiltinCallable::TensorLogarithm:
-                case BuiltinCallable::TensorMean:
-                case BuiltinCallable::TensorSumLast:
-                case BuiltinCallable::TensorMaxLast: {
-                    auto input=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(TensorAutogradUnary{
-                        out,input,checked.raw_types.at(&e),*resolution.builtin,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,input);
-                    return out;
-                }
-                case BuiltinCallable::TensorMinLast:
-                    throw std::logic_error("TensorMinLast is method-only and cannot be lowered as a builtin.");
-                case BuiltinCallable::StatsMean: {
-                    auto input=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(StatsMean{
-                        out,input,type_of(*n.args[0].value),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,input);
-                    return out;
-                }
-                case BuiltinCallable::StatsSum:
-                case BuiltinCallable::StatsMin:
-                case BuiltinCallable::StatsMax: {
-                    auto input=expr(*n.args[0].value),out=fresh();
-                    const auto tensor_type=type_of(*n.args[0].value);
-                    block->instructions.push_back(StatsReduce{
-                        out,input,*tensor_type.first,*resolution.builtin,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,input);
-                    return out;
-                }
-                case BuiltinCallable::LinearMatmul: {
-                    auto left=expr(*n.args[0].value);
-                    auto right=expr(*n.args[1].value);
-                    auto out=fresh();
-                    block->instructions.push_back(LinearMatmul{
-                        out,left,right,checked.raw_types.at(&e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,left);
-                    release_arg(1,right);
-                    return out;
-                }
-                case BuiltinCallable::LinearDot: {
-                    auto left=expr(*n.args[0].value);
-                    auto right=expr(*n.args[1].value);
-                    auto out=fresh();
-                    block->instructions.push_back(LinearDot{
-                        out,left,right,checked.raw_types.at(&e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,left);
-                    release_arg(1,right);
                     return out;
                 }
                 case BuiltinCallable::TensorCreate:
@@ -3737,72 +3649,47 @@ struct Lowerer {
                     release_arg(0,value);
                     return out;
                 }
-                case BuiltinCallable::Abs: {
-                    auto value=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(
-                        NumericAbs{out,value,type_of(*n.args[0].value),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,value);
+                case BuiltinCallable::ExactAtom: {
+                    const auto* provider =
+                        std::get_if<StringExpr>(&n.args[0].value->data);
+                    const auto* opcode =
+                        std::get_if<IntegerExpr>(&n.args[1].value->data);
+                    if (!provider || !opcode || !opcode->fits_u64 ||
+                        opcode->value >
+                            std::numeric_limits<std::uint32_t>::max()) {
+                        throw std::logic_error(
+                            "checked exact.atom lost its literal contract");
+                    }
+                    auto out = fresh();
+                    block->instructions.push_back(ExactAtom{
+                        out, provider->value,
+                        static_cast<std::uint32_t>(opcode->value),
+                        checked.raw_types.at(&e)});
                     return out;
                 }
-                case BuiltinCallable::Sqrt: {
-                    auto value=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(Sqrt{
-                        out,value,type_of(*n.args[0].value),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,value);
-                    return out;
-                }
-                case BuiltinCallable::Min:
-                case BuiltinCallable::Max: {
-                    auto left=expr(*n.args[0].value),right=expr(*n.args[1].value),out=fresh();
-                    block->instructions.push_back(NumericMinMax{
-                        out,left,right,type_of(*n.args[0].value),
-                        *resolution.builtin==BuiltinCallable::Max});
-                    release_arg(0,left);
-                    release_arg(1,right);
-                    return out;
-                }
-                case BuiltinCallable::MathSin:
-                case BuiltinCallable::MathCos:
-                case BuiltinCallable::MathTan:
-                case BuiltinCallable::MathLog:
-                case BuiltinCallable::MathExp: {
-                    auto value=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(MathUnary{
-                        out,value,type_of(*n.args[0].value),*resolution.builtin});
-                    release_arg(0,value);
-                    return out;
-                }
-                case BuiltinCallable::MathIsFinite: {
-                    auto value=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(MathIsFinite{out,value,type_of(*n.args[0].value)});
-                    release_arg(0,value);
-                    return out;
-                }
-                case BuiltinCallable::MathTrunc:
-                case BuiltinCallable::MathRound:
-                case BuiltinCallable::MathFloor:
-                case BuiltinCallable::MathCeil: {
-                    auto input=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(MathRoundInt{
-                        out,input,type_of(*n.args[0].value),checked.raw_types.at(&e),
-                        *resolution.builtin,static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,input);
-                    return out;
-                }
-                case BuiltinCallable::MathPow: {
-                    auto base=expr(*n.args[0].value),exponent=expr(*n.args[1].value),out=fresh();
-                    block->instructions.push_back(MathPow{
-                        out,base,exponent,type_of(*n.args[0].value)});
-                    release_arg(0,base);
-                    release_arg(1,exponent);
-                    return out;
-                }
-                case BuiltinCallable::IoFlush: {
+                case BuiltinCallable::ExactUnary: {
+                    const auto* provider =
+                        std::get_if<StringExpr>(&n.args[0].value->data);
+                    const auto* opcode =
+                        std::get_if<IntegerExpr>(&n.args[1].value->data);
+                    if (!provider || !opcode || !opcode->fits_u64 ||
+                        opcode->value >
+                            std::numeric_limits<std::uint32_t>::max()) {
+                        throw std::logic_error(
+                            "checked exact.unary lost its literal contract");
+                    }
+                    auto input=expr(*n.args[2].value);
                     auto out=fresh();
-                    block->instructions.push_back(IoFlush{out,checked.raw_types.at(&e)});
+                    block->instructions.push_back(ExactUnary{
+                        out,provider->value,
+                        static_cast<std::uint32_t>(opcode->value),
+                        input,checked.raw_types.at(&e)});
+                    release_arg(2,input);
+                    return out;
+                }
+                case BuiltinCallable::Flush: {
+                    auto out=fresh();
+                    block->instructions.push_back(Flush{out,checked.raw_types.at(&e)});
                     return out;
                 }
                 case BuiltinCallable::CliArgument: {
@@ -4109,55 +3996,6 @@ struct Lowerer {
                     release_arg(0,right);
                     return out;
                 }
-                case BuiltinCallable::ImageRead: {
-                    auto path=expr(*n.args[0].value),out=fresh();
-                    std::optional<Type> target_dtype;
-                    std::optional<ValueId> target_channels;
-                    for(std::size_t i=1;i<n.args.size();++i){
-                        if(!n.args[i].name) continue;
-                        if(*n.args[i].name=="channel"){
-                            target_channels=expr(*n.args[i].value);
-                        }else if(*n.args[i].name=="type"){
-                            if(const auto* name=std::get_if<NameExpr>(&n.args[i].value->data))
-                                target_dtype=builtin_scalar_type(name->name);
-                        }
-                    }
-                    const auto result_type=checked.raw_types.at(&e);
-                    std::vector<long long> expected_shape_prefix;
-                    if(result_type.kind==TypeKind::Union){
-                        for(const auto& candidate:result_type.cases){
-                            if(candidate.kind!=TypeKind::Tensor) continue;
-                            if(expected_shape_prefix.empty())
-                                expected_shape_prefix=candidate.tensor_shape_prefix;
-                            else if(expected_shape_prefix!=candidate.tensor_shape_prefix)
-                                expected_shape_prefix.clear();
-                        }
-                    }
-                    block->instructions.push_back(
-                        ImageRead{out,path,result_type,target_dtype,target_channels,
-                                  std::move(expected_shape_prefix)});
-                    release_arg(0,path);
-                    return out;
-                }
-                case BuiltinCallable::ImageWrite: {
-                    auto path=expr(*n.args[0].value);
-                    auto image=expr(*n.args[1].value);
-                    ValueId quality;
-                    if(n.args.size()==3){
-                        quality=expr(*n.args[2].value);
-                    }else{
-                        quality=fresh();
-                        block->instructions.push_back(
-                            ConstantInt{quality,"95",Type::simple(TypeKind::Int)});
-                    }
-                    auto out=fresh();
-                    block->instructions.push_back(
-                        ImageWrite{out,path,image,quality,checked.raw_types.at(&e)});
-                    release_arg(0,path);
-                    release_arg(1,image);
-                    if(n.args.size()==3) release_arg(2,quality);
-                    return out;
-                }
                 case BuiltinCallable::HttpGet: {
                     auto url=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(HttpGet{out,url,checked.raw_types.at(&e)});
@@ -4168,32 +4006,6 @@ struct Lowerer {
                     auto response=receiver_value(),name=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(HttpHeader{out,response,name,checked.raw_types.at(&e)});
                     release_arg(0,name);
-                    return out;
-                }
-                case BuiltinCallable::VideoOpen: {
-                    auto path=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(VideoOpen{out,path,checked.raw_types.at(&e)});
-                    release_arg(0,path);
-                    return out;
-                }
-                case BuiltinCallable::VideoRead: {
-                    auto reader=receiver_value(),out=fresh();
-                    block->instructions.push_back(VideoRead{out,reader,checked.raw_types.at(&e),std::nullopt,std::nullopt,{3,-1,-1}});
-                    return out;
-                }
-                case BuiltinCallable::VideoWidth: {
-                    auto reader=receiver_value(),out=fresh();
-                    block->instructions.push_back(VideoWidth{out,reader});
-                    return out;
-                }
-                case BuiltinCallable::VideoHeight: {
-                    auto reader=receiver_value(),out=fresh();
-                    block->instructions.push_back(VideoHeight{out,reader});
-                    return out;
-                }
-                case BuiltinCallable::VideoFps: {
-                    auto reader=receiver_value(),out=fresh();
-                    block->instructions.push_back(VideoFps{out,reader,checked.raw_types.at(&e)});
                     return out;
                 }
             }
@@ -6635,7 +6447,6 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,BinGet>)out<<"%"<<n.out<<" = bin.get %"<<n.bin<<", %"<<n.index;
     if constexpr(std::is_same_v<T,BinSet>)out<<"bin.set %"<<n.bin<<", %"<<n.index<<", %"<<n.value;
     if constexpr(std::is_same_v<T,ParseBin>)out<<"%"<<n.out<<" = bin.parse %"<<n.text<<" : "<<type_name(n.result_type)<<(n.success_proven?" success-proven":"");
-    if constexpr(std::is_same_v<T,MathRoundInt>)out<<"%"<<n.out<<" = math.round-int %"<<n.value;
     if constexpr(std::is_same_v<T,NumericConvert>)out<<"%"<<n.out<<" = convert %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type)<<(n.checked_range?" checked":"");
     if constexpr(std::is_same_v<T,FallibleNumericConvert>)out<<"%"<<n.out<<" = convert.fallible %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones")<<(n.gpu?" gpu=%"+std::to_string(*n.gpu):" cpu");
@@ -6645,8 +6456,8 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,TensorContiguous>)out<<"%"<<n.out<<" = tensor.contiguous %"<<n.tensor<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorGather>)out<<"%"<<n.out<<" = tensor.gather %"<<n.tensor<<", %"<<n.indices<<", %"<<n.shape<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorScatter>)out<<"%"<<n.out<<" = tensor.scatter %"<<n.tensor<<", %"<<n.indices<<", %"<<n.shape<<" : "<<type_name(n.type);
-    if constexpr(std::is_same_v<T,TensorConvolve>)out<<"%"<<n.out<<" = tensor.convolve %"<<n.tensor<<", %"<<n.kernel<<", stride %"<<n.stride<<", padding %"<<n.padding<<", dilation %"<<n.dilation<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorShape>)out<<"%"<<n.out<<" = tensor.shape %"<<n.tensor<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,TensorDevice>)out<<"%"<<n.out<<" = tensor.device %"<<n.tensor;
     if constexpr(std::is_same_v<T,TensorIsContiguous>)out<<"%"<<n.out<<" = tensor.is_contiguous %"<<n.tensor;
     if constexpr(std::is_same_v<T,TensorIsTracked>)out<<"%"<<n.out<<" = tensor.is_tracked %"<<n.tensor;
     if constexpr(std::is_same_v<T,TensorHasGrad>)out<<"%"<<n.out<<" = tensor.has_grad %"<<n.tensor;
@@ -6655,126 +6466,31 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,TensorTrack>)out<<"%"<<n.out<<" = tensor."<<(n.mode==0?"untrack":n.mode==1?"track":"retrack")<<" %"<<n.tensor<<(n.target?" target %"+std::to_string(n.target):"");
     if constexpr(std::is_same_v<T,TensorBackward>){out<<"tensor.backward %"<<n.tensor;for(const auto&target:n.targets)out<<" "<<(target.autograd_target?"target":"tensor")<<" %"<<target.value;}
     if constexpr(std::is_same_v<T,TensorGrad>)out<<"%"<<n.out<<" = tensor.grad %"<<n.tensor;
-    if constexpr(std::is_same_v<T,TensorAutogradUnary>)out<<"%"<<n.out<<" = tensor.autograd.unary %"<<n.value;
+    if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,TensorIndex>){
+        out<<"%"<<n.out<<" = tensor.index %"<<n.tensor;
+        for(const auto& item:n.items){
+            if(item.slice){
+                out<<" [";
+                if(item.start)out<<"%"<<*item.start;
+                out<<":";
+                if(item.stop)out<<"%"<<*item.stop;
+                if(item.step)out<<":%"<<*item.step;
+                out<<"]";
+            }else if(item.index){
+                out<<" %"<<*item.index;
+            }
+        }
+        out<<" : "<<type_name(n.type);
+    }
     if constexpr(std::is_same_v<T,ArrayNumericCast>)out<<"%"<<n.out<<" = array.numeric_cast %"<<n.array<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
     if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.numeric_cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
     if constexpr(std::is_same_v<T,ShapedConstraintCheck>)out<<"shape.constraint %"<<n.value<<" rank="<<n.extents.size();
     if constexpr(std::is_same_v<T,ExtentEqualCheck>)out<<"extent.check %"<<n.actual<<", %"<<n.expected;
-    if constexpr(std::is_same_v<T,StatsMean>)out<<"%"<<n.out<<" = stats.mean %"<<n.tensor;
-    if constexpr(std::is_same_v<T,StatsReduce>)out<<"%"<<n.out<<" = stats.reduce %"<<n.tensor;
-    if constexpr(std::is_same_v<T,LinearMatmul>)out<<"%"<<n.out<<" = linear.matmul %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.type);
-    if constexpr(std::is_same_v<T,LinearDot>)out<<"%"<<n.out<<" = linear.dot %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.element_type);
-    if constexpr(std::is_same_v<T,ImageRead>){
-        out<<"%"<<n.out<<" = image.read %"<<n.path;
-        if(n.target_channels) out<<", channel=%"<<*n.target_channels;
-        if(n.target_dtype) out<<", type="<<type_name(*n.target_dtype);
-        out<<" : "<<type_name(n.result_type);
-    }
-    if constexpr(std::is_same_v<T,ImageWrite>)out<<"%"<<n.out<<" = image.write %"<<n.path<<", %"<<n.image<<", quality %"<<n.quality<<" : "<<type_name(n.result_type);
-    if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
-    if constexpr(std::is_same_v<T,TensorCompare>)out<<"%"<<n.out<<" = tensor.compare "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
-    if constexpr(std::is_same_v<T,TensorBoolReduce>)out<<"%"<<n.out<<" = tensor."<<(n.all?"all":"any")<<" %"<<n.tensor;
-    if constexpr(std::is_same_v<T,TensorIndex>){
-        out<<"%"<<n.out<<" = tensor.index %"<<n.tensor<<" [";
-        for(std::size_t i=0;i<n.items.size();++i){
-            if(i)out<<", ";
-            const auto& item=n.items[i];
-            if(!item.slice){if(item.index)out<<"%"<<*item.index;else out<<"?";continue;}
-            if(item.start)out<<"%"<<*item.start;
-            out<<":";
-            if(item.stop)out<<"%"<<*item.stop;
-            if(item.step){out<<":%"<<*item.step;}
-        }
-        out<<"] : "<<type_name(n.type);
-    }
-    if constexpr(std::is_same_v<T,TensorSet>){
-        out<<"tensor.set %"<<n.tensor<<" [";
-        for(std::size_t i=0;i<n.indices.size();++i){if(i)out<<", ";out<<"%"<<n.indices[i];}
-        out<<"], %"<<n.value<<" : "<<type_name(n.element_type);
-    }
-    if constexpr(std::is_same_v<T,ParseNumber>)out<<"%"<<n.out<<" = parse %"<<n.text<<" as "<<type_name(n.target_type);
-    if constexpr(std::is_same_v<T,ParseNumberDirect>)out<<"%"<<n.value_out<<", %"<<n.ok_out<<", %"<<n.error_out<<" = parse.direct %"<<n.text<<" as "<<type_name(n.target_type);
-    if constexpr(std::is_same_v<T,NumericAbs>)out<<"%"<<n.out<<" = abs %"<<n.value;
-    if constexpr(std::is_same_v<T,Sqrt>)out<<"%"<<n.out<<" = sqrt %"<<n.value;
-    if constexpr(std::is_same_v<T,MathUnary>)out<<"%"<<n.out<<" = math.unary %"<<n.value;
-    if constexpr(std::is_same_v<T,MathIsFinite>)out<<"%"<<n.out<<" = math.is_finite %"<<n.value;
-    if constexpr(std::is_same_v<T,MathPow>)out<<"%"<<n.out<<" = math.pow %"<<n.base<<", %"<<n.exponent;
-    if constexpr(std::is_same_v<T,CliArgument>)out<<"%"<<n.out<<" = cli.argument %"<<n.index;
-    if constexpr(std::is_same_v<T,CliArgumentOptional>)out<<"%"<<n.out<<" = cli.argument.optional %"<<n.index;
-    if constexpr(std::is_same_v<T,CliOption>)out<<"%"<<n.out<<" = cli.option %"<<n.name;
-    if constexpr(std::is_same_v<T,CliFlag>)out<<"%"<<n.out<<" = cli.flag %"<<n.name;
-    if constexpr(std::is_same_v<T,CliFinish>)out<<"cli.finish";
-    if constexpr(std::is_same_v<T,IoFlush>)out<<"%"<<n.out<<" = io.flush : "<<type_name(n.result_type);
-    if constexpr(std::is_same_v<T,FileOpen>)out<<"%"<<n.out<<" = file.open %"<<n.path;
-    if constexpr(std::is_same_v<T,FileCreate>)out<<"%"<<n.out<<" = file.create %"<<n.path;
-    if constexpr(std::is_same_v<T,FileAppend>)out<<"%"<<n.out<<" = file.append %"<<n.path;
-    if constexpr(std::is_same_v<T,FileHandleRead>)out<<"%"<<n.out<<" = file.handle.read %"<<n.handle;
-    if constexpr(std::is_same_v<T,FileHandleReadLine>)out<<"%"<<n.out<<" = file.handle.read_line %"<<n.handle;
-    if constexpr(std::is_same_v<T,FileHandleReadBin>)out<<"%"<<n.out<<" = file.handle.read_bin %"<<n.handle;
-    if constexpr(std::is_same_v<T,FileHandleWrite>)out<<"%"<<n.out<<" = file.handle."<<(n.line?"write_line":"write")<<" %"<<n.handle<<", %"<<n.text;
-    if constexpr(std::is_same_v<T,FileHandleFlush>)out<<"%"<<n.out<<" = file.handle.flush %"<<n.handle;
-    if constexpr(std::is_same_v<T,FileHandleSeek>)out<<"%"<<n.out<<" = file.handle.seek %"<<n.handle<<", %"<<n.position;
-    if constexpr(std::is_same_v<T,FileHandleClose>)out<<"file.handle.close %"<<n.handle;
-    if constexpr(std::is_same_v<T,FileRead>)out<<"%"<<n.out<<" = file.read %"<<n.path;
-    if constexpr(std::is_same_v<T,FileReadBin>)out<<"%"<<n.out<<" = file.read_bin %"<<n.path;
-    if constexpr(std::is_same_v<T,FileWrite>)out<<"%"<<n.out<<" = file.write %"<<n.path<<", %"<<n.text;
-    if constexpr(std::is_same_v<T,FileWriteBin>)out<<"%"<<n.out<<" = file.write_bin %"<<n.path<<", %"<<n.bin;
-    if constexpr(std::is_same_v<T,FileExists>)out<<"%"<<n.out<<" = file.exists %"<<n.path;
-    if constexpr(std::is_same_v<T,FileIsDirectory>)out<<"%"<<n.out<<" = file.is_directory %"<<n.path;
-    if constexpr(std::is_same_v<T,FileRemove>)out<<"%"<<n.out<<" = file.remove %"<<n.path;
-    if constexpr(std::is_same_v<T,FileCopy>)out<<"%"<<n.out<<" = file.copy %"<<n.source<<", %"<<n.destination;
-    if constexpr(std::is_same_v<T,FileMove>)out<<"%"<<n.out<<" = file.move %"<<n.source<<", %"<<n.destination;
-    if constexpr(std::is_same_v<T,FileMkdir>)out<<"%"<<n.out<<" = file.mkdir %"<<n.path;
-    if constexpr(std::is_same_v<T,FileList>)out<<"%"<<n.out<<" = file.list %"<<n.path<<", recursive %"<<n.recursive;
-    if constexpr(std::is_same_v<T,EnvironmentGet>)out<<"%"<<n.out<<" = environment.get %"<<n.name;
-    if constexpr(std::is_same_v<T,EnvironmentHas>)out<<"%"<<n.out<<" = environment.has %"<<n.name;
-    if constexpr(std::is_same_v<T,TestAssert>)out<<"test.assert %"<<n.condition;
-    if constexpr(std::is_same_v<T,TimeNow>)out<<"%"<<n.out<<" = time.now sync %"<<n.sync;
-    if constexpr(std::is_same_v<T,TimeSince>)out<<"%"<<n.out<<" = time.since %"<<n.start<<", sync %"<<n.sync;
-    if constexpr(std::is_same_v<T,TimeSeconds>)out<<"%"<<n.out<<" = time.seconds %"<<n.seconds;
-    if constexpr(std::is_same_v<T,TimeSleep>)out<<"time.sleep %"<<n.duration;
-    if constexpr(std::is_same_v<T,AtomicCounterCreate>)out<<"%"<<n.out<<" = atomic.counter %"<<n.initial;
-    if constexpr(std::is_same_v<T,AtomicCounterAdd>)out<<"%"<<n.out<<" = atomic.counter.add %"<<n.counter<<", %"<<n.delta;
-    if constexpr(std::is_same_v<T,AtomicCounterLoad>)out<<"%"<<n.out<<" = atomic.counter.load %"<<n.counter;
-    if constexpr(std::is_same_v<T,AutogradTargetCreate>)out<<"%"<<n.out<<" = autograd.target.create";
-    if constexpr(std::is_same_v<T,AutogradTargetHasGrad>)out<<"%"<<n.out<<" = autograd.target.has_grad %"<<n.target;
-    if constexpr(std::is_same_v<T,AutogradTargetClearGrad>)out<<"autograd.target.clear_grad %"<<n.target;
-    if constexpr(std::is_same_v<T,AutogradTargetGradient>)out<<"%"<<n.out<<" = autograd.target.gradient %"<<n.target;
-    if constexpr(std::is_same_v<T,TaskAll>){
-        if(n.result_type.kind==TypeKind::Void) out<<"task.all %"<<n.operations;
-        else out<<"%"<<n.out<<" = task.all %"<<n.operations;
-    }
-    if constexpr(std::is_same_v<T,RandomGenerator>)out<<"%"<<n.out<<" = random.generator %"<<n.seed;
-    if constexpr(std::is_same_v<T,RandomInt>)out<<"%"<<n.out<<" = random.int %"<<n.start<<", %"<<n.end;
-    if constexpr(std::is_same_v<T,RandomFloat>)out<<"%"<<n.out<<" = random.float";
-    if constexpr(std::is_same_v<T,RandomBool>)out<<"%"<<n.out<<" = random.bool";
-    if constexpr(std::is_same_v<T,ProcessRun>)out<<"%"<<n.out<<" = process.run %"<<n.program<<", %"<<n.args;
-    if constexpr(std::is_same_v<T,ProcessShell>)out<<"%"<<n.out<<" = process.shell %"<<n.command;
-    if constexpr(std::is_same_v<T,JsonParse>)out<<"%"<<n.out<<" = json.parse %"<<n.text;
-    if constexpr(std::is_same_v<T,JsonKind>)out<<"%"<<n.out<<" = json.kind";
-    if constexpr(std::is_same_v<T,JsonSize>)out<<"%"<<n.out<<" = json.size";
-    if constexpr(std::is_same_v<T,JsonGet>)out<<"%"<<n.out<<" = json.get %"<<n.key;
-    if constexpr(std::is_same_v<T,JsonAt>)out<<"%"<<n.out<<" = json.at %"<<n.index;
-    if constexpr(std::is_same_v<T,JsonText>)out<<"%"<<n.out<<" = json.text";
-    if constexpr(std::is_same_v<T,JsonInteger>)out<<"%"<<n.out<<" = json.integer";
-    if constexpr(std::is_same_v<T,JsonNumber>)out<<"%"<<n.out<<" = json.number";
-    if constexpr(std::is_same_v<T,JsonBigInt>)out<<"%"<<n.out<<" = json.bigint";
-    if constexpr(std::is_same_v<T,JsonBigReal>)out<<"%"<<n.out<<" = json.bigreal";
-    if constexpr(std::is_same_v<T,JsonBoolean>)out<<"%"<<n.out<<" = json.boolean";
-    if constexpr(std::is_same_v<T,JsonEncode>)out<<"%"<<n.out<<" = json.encode";
-    if constexpr(std::is_same_v<T,JsonEqual>)out<<"%"<<n.out<<" = json.equal";
-    if constexpr(std::is_same_v<T,HttpGet>)out<<"%"<<n.out<<" = http.get %"<<n.url;
-    if constexpr(std::is_same_v<T,HttpHeader>)out<<"%"<<n.out<<" = http.header %"<<n.name;
-    if constexpr(std::is_same_v<T,VideoOpen>)out<<"%"<<n.out<<" = video.open %"<<n.path;
-    if constexpr(std::is_same_v<T,VideoRead>)out<<"%"<<n.out<<" = video.read";
-    if constexpr(std::is_same_v<T,VideoWidth>)out<<"%"<<n.out<<" = video.width";
-    if constexpr(std::is_same_v<T,VideoHeight>)out<<"%"<<n.out<<" = video.height";
-    if constexpr(std::is_same_v<T,VideoFps>)out<<"%"<<n.out<<" = video.fps";
-    if constexpr(std::is_same_v<T,VideoFrames>)out<<"%"<<n.out<<" = video.frames";
-    if constexpr(std::is_same_v<T,VideoDuration>)out<<"%"<<n.out<<" = video.duration";
-    if constexpr(std::is_same_v<T,VideoPosition>)out<<"%"<<n.out<<" = video.position";
-    if constexpr(std::is_same_v<T,VideoSeek>)out<<"%"<<n.out<<" = video.seek %"<<n.frame;
-    if constexpr(std::is_same_v<T,NumericMinMax>)out<<"%"<<n.out<<" = "<<(n.maximum?"max ":"min ")<<"%"<<n.left<<", %"<<n.right;
+    if constexpr(std::is_same_v<T,ParseNumber>)out<<"%"<<n.out<<" = parse %"<<n.text<<" : "<<type_name(n.target_type)<<" -> "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,ParseNumberDirect>)out<<"%"<<n.value_out<<", %"<<n.ok_out<<", %"<<n.error_out<<" = parse.direct %"<<n.text<<" : "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,ExactAtom>)out<<"%"<<n.out<<" = exact.atom "<<n.provider<<":"<<n.opcode<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,ExactUnary>)out<<"%"<<n.out<<" = exact.unary "<<n.provider<<":"<<n.opcode<<" %"<<n.input<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ArrayInitializationComplete>)out<<"%"<<n.out<<" = array.initialization.complete %"<<n.array;
     if constexpr(std::is_same_v<T,ArrayGet>)out<<"%"<<n.out<<" = array.get %"<<n.array<<", %"<<n.index<<(n.bounds_guard?" bounds-guard %"+std::to_string(*n.bounds_guard):"");
     if constexpr(std::is_same_v<T,ArraySet>)out<<"array.set %"<<n.array<<", %"<<n.index<<", %"<<n.value<<(n.bounds_guard?" bounds-guard %"+std::to_string(*n.bounds_guard):"");
@@ -6814,7 +6530,6 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,VariantTag>)out<<"%"<<n.out<<" = variant.tag %"<<n.container;
     if constexpr(std::is_same_v<T,VariantPayload>)out<<"%"<<n.out<<" = variant.payload %"<<n.container;
     if constexpr(std::is_same_v<T,Print>)out<<"%"<<n.out<<" = print %"<<n.value<<" : "<<type_name(n.type);
-    if constexpr(std::is_same_v<T,Write>)out<<"%"<<n.out<<" = write %"<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ReplDisplay>)out<<"repl.display %"<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ReplReplayMode>)out<<"repl.replay "<<(n.active?"on":"off");
     if constexpr(std::is_same_v<T,Input>)out<<"%"<<n.out<<" = input";
@@ -6827,12 +6542,239 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,Branch>)out<<"branch %"<<n.condition<<", "<<n.if_true<<", "<<n.if_false;
 },i);return out.str();}
 
+
+struct TensorRegionNode {
+    TensorRegionLocation location;
+    ValueId out{};
+    std::vector<ValueId> inputs;
+    std::vector<std::string> compiler_extensions;
+    std::vector<std::string> compiler_operations;
+};
+
+std::optional<TensorRegionNode> tensor_region_node(
+    const Instruction& instruction, std::size_t block_index,
+    std::size_t instruction_index,
+    const std::unordered_map<std::string, std::vector<std::string>>&
+        call_extensions,
+    const std::unordered_map<std::string, std::vector<std::string>>&
+        call_operations) {
+    return std::visit(
+        [&](const auto& n) -> std::optional<TensorRegionNode> {
+            using T = std::decay_t<decltype(n)>;
+            TensorRegionNode node{
+                TensorRegionLocation{block_index, instruction_index},
+                0, {}, {}, {}};
+
+            if constexpr (std::is_same_v<T, TensorReshape>) {
+                node.out = n.out;
+                node.inputs = {n.tensor, n.shape};
+            } else if constexpr (std::is_same_v<T, TensorTranspose>) {
+                node.out = n.out;
+                node.inputs = {n.tensor, n.axis0, n.axis1};
+            } else if constexpr (std::is_same_v<T, TensorContiguous>) {
+                node.out = n.out;
+                node.inputs = {n.tensor};
+            } else if constexpr (std::is_same_v<T, TensorGather>) {
+                node.out = n.out;
+                node.inputs = {n.tensor, n.indices, n.shape};
+            } else if constexpr (std::is_same_v<T, TensorScatter>) {
+                node.out = n.out;
+                node.inputs = {n.tensor, n.indices, n.shape};            } else if constexpr (std::is_same_v<T, TensorCast>) {
+                node.out = n.out;
+                node.inputs = {n.tensor};
+            } else if constexpr (std::is_same_v<T, TensorBinary>) {
+                node.out = n.out;
+                node.inputs = {n.left, n.right};
+            } else if constexpr (std::is_same_v<T, TensorCompare>) {
+                node.out = n.out;
+                node.inputs = {n.left, n.right};
+            } else if constexpr (std::is_same_v<T, TensorIndex>) {
+                node.out = n.out;
+                node.inputs.push_back(n.tensor);
+                for (const auto& item : n.items) {
+                    if (item.index) node.inputs.push_back(*item.index);
+                    if (item.start) node.inputs.push_back(*item.start);
+                    if (item.stop) node.inputs.push_back(*item.stop);
+                    if (item.step) node.inputs.push_back(*item.step);
+                }
+            } else if constexpr (std::is_same_v<T, Call>) {
+                const auto extension = call_extensions.find(n.callee);
+                if (n.result.kind != TypeKind::Tensor ||
+                    extension == call_extensions.end() ||
+                    std::any_of(
+                        n.args.begin(), n.args.end(),
+                        [](const auto& argument) {
+                            return argument.writable_address.has_value();
+                        })) {
+                    return std::nullopt;
+                }
+                node.out = n.out;
+                for (const auto& argument : n.args) {
+                    if (argument.value != 0) node.inputs.push_back(argument.value);
+                }
+                node.compiler_extensions = extension->second;
+                if (const auto operations = call_operations.find(n.callee);
+                    operations != call_operations.end()) {
+                    node.compiler_operations = operations->second;
+                }
+            } else {
+                return std::nullopt;
+            }
+            return node;
+        },
+        instruction);
+}
+
+void plan_tensor_regions(
+    Function& function,
+    const std::unordered_map<std::string, std::vector<std::string>>&
+        call_extensions,
+    const std::unordered_map<std::string, std::vector<std::string>>&
+        call_operations) {
+    function.tensor_regions.clear();
+
+    std::unordered_map<ValueId, bool> bool_constants;
+    for (const auto& block : function.blocks) {
+        for (const auto& instruction : block.instructions) {
+            if (const auto* constant = std::get_if<ConstantBool>(&instruction))
+                bool_constants.emplace(constant->out, constant->value);
+        }
+    }
+
+    std::vector<TensorRegionNode> nodes;
+    std::unordered_map<ValueId, std::size_t> producers;
+    for (std::size_t block_index = 0; block_index < function.blocks.size();
+         ++block_index) {
+        const auto& block = function.blocks[block_index];
+        for (std::size_t instruction_index = 0;
+             instruction_index < block.instructions.size();
+             ++instruction_index) {
+            auto node = tensor_region_node(
+                block.instructions[instruction_index], block_index,
+                instruction_index, call_extensions, call_operations);
+            if (!node) continue;
+            producers[node->out] = nodes.size();
+            nodes.push_back(std::move(*node));
+        }
+    }
+    if (nodes.empty()) return;
+
+    std::vector<std::vector<std::size_t>> adjacency(nodes.size());
+    for (std::size_t index = 0; index < nodes.size(); ++index) {
+        for (const auto input : nodes[index].inputs) {
+            const auto found = producers.find(input);
+            if (found == producers.end()) continue;
+            adjacency[index].push_back(found->second);
+            adjacency[found->second].push_back(index);
+        }
+    }
+
+    std::vector<int> component(nodes.size(), -1);
+    int component_count = 0;
+    for (std::size_t start = 0; start < nodes.size(); ++start) {
+        if (component[start] >= 0) continue;
+        std::vector<std::size_t> stack{start};
+        component[start] = component_count;
+        while (!stack.empty()) {
+            const auto current = stack.back();
+            stack.pop_back();
+            for (const auto next : adjacency[current]) {
+                if (component[next] >= 0) continue;
+                component[next] = component_count;
+                stack.push_back(next);
+            }
+        }
+        ++component_count;
+    }
+
+    std::vector<std::vector<std::size_t>> members(
+        static_cast<std::size_t>(component_count));
+    for (std::size_t index = 0; index < nodes.size(); ++index)
+        members[static_cast<std::size_t>(component[index])].push_back(index);
+
+    for (auto& group : members) {
+        std::sort(
+            group.begin(), group.end(),
+            [&](std::size_t left, std::size_t right) {
+                const auto& a = nodes[left].location;
+                const auto& b = nodes[right].location;
+                if (a.block != b.block) return a.block < b.block;
+                return a.instruction < b.instruction;
+            });
+        bool has_package_extension = false;
+        for (const auto index : group) {
+            if (!nodes[index].compiler_extensions.empty()) {
+                has_package_extension = true;
+                break;
+            }
+        }
+        if (group.size() < 2 && !has_package_extension) continue;
+
+        TensorRegion region;
+        std::unordered_set<ValueId> region_values;
+        std::unordered_set<std::string> region_extensions;
+        for (const auto index : group) {
+            region.instructions.push_back(nodes[index].location);
+            region.values.push_back(nodes[index].out);
+            region_values.insert(nodes[index].out);
+            region_extensions.insert(
+                nodes[index].compiler_extensions.begin(),
+                nodes[index].compiler_extensions.end());
+            region.compiler_operations.insert(
+                region.compiler_operations.end(),
+                nodes[index].compiler_operations.begin(),
+                nodes[index].compiler_operations.end());
+        }
+        region.compiler_extensions.assign(
+            region_extensions.begin(), region_extensions.end());
+
+        std::unordered_set<ValueId> external_inputs;
+        for (const auto index : group) {
+            for (const auto input : nodes[index].inputs) {
+                if (input != 0 && !region_values.contains(input))
+                    external_inputs.insert(input);
+            }
+        }
+        region.external_inputs.assign(
+            external_inputs.begin(), external_inputs.end());
+
+        for (const auto& block : function.blocks) {
+            for (const auto& instruction : block.instructions) {
+                if (const auto* backward =
+                        std::get_if<TensorBackward>(&instruction);
+                    backward && region_values.contains(backward->tensor)) {
+                    region.reaches_backward = true;
+                    const auto tracking = bool_constants.find(backward->track);
+                    if (tracking == bool_constants.end() || tracking->second)
+                        region.may_require_higher_order = true;
+                }
+            }
+        }
+
+        std::sort(
+            region.instructions.begin(), region.instructions.end(),
+            [](const TensorRegionLocation& left,
+               const TensorRegionLocation& right) {
+                if (left.block != right.block)
+                    return left.block < right.block;
+                return left.instruction < right.instruction;
+            });
+        std::sort(region.external_inputs.begin(), region.external_inputs.end());
+        std::sort(region.values.begin(), region.values.end());
+        std::sort(
+            region.compiler_extensions.begin(),
+            region.compiler_extensions.end());
+        function.tensor_regions.push_back(std::move(region));
+    }
+}
+
 } // namespace
 
 Module lower(
     const CheckedProgram& checked, const Expr* repl_expression,
     std::size_t replay_prefix_bytes) {
     Lowerer l(checked, repl_expression, replay_prefix_bytes);
+    l.module.compiler_extensions = checked.compiler_extensions;
     for(const auto& [name,info]:checked.classes){ClassLayout layout;layout.name=name;for(const auto& field:info.fields){layout.field_names.push_back(field.name);layout.fields.push_back(field.type);}l.module.classes.push_back(std::move(layout));}
     for(const auto&f:checked.program.functions)l.lower_function(f);
     for(const auto&c:checked.program.classes){
@@ -6849,6 +6791,1730 @@ Module lower(
     }
     l.lower_main(checked.program.statements);return std::move(l.module);
 }
-std::string dump(const Module& module){std::ostringstream out;out<<"quidra-ir "<<ir_version<<"\n";for(const auto&c:module.classes){out<<"class "<<c.name<<"\n";}for(const auto&fn:module.functions){out<<"function "<<fn.name<<"(";for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto&p=fn.parameters[i];if(p.is_const)out<<"const ";out<<type_name(p.type)<<" "<<(p.writable?"&":"")<<p.name;}out<<") -> "<<type_name(fn.result);if(fn.external_symbol)out<<" = \""<<*fn.external_symbol<<"\"";out<<"\n";for(const auto&b:fn.blocks){out<<b.label<<":\n";for(const auto&i:b.instructions){if(std::holds_alternative<SourceLocation>(i))continue;out<<"  "<<instr_text(i)<<"\n";}}out<<"end\n";}return out.str();}
+
+bool source_belongs_to_package(
+    const std::string& source_file, const std::string& package_root) {
+    if (source_file.empty() || package_root.empty()) return false;
+    const auto source =
+        std::filesystem::path(source_file).lexically_normal();
+    const auto root =
+        std::filesystem::path(package_root).lexically_normal();
+    const auto relative = source.lexically_relative(root);
+    if (relative.empty() || relative.is_absolute()) return false;
+    return *relative.begin() != "..";
+}
+
+bool descriptor_trait(
+    const std::string& traits, const std::string& expected) {
+    std::size_t start = 0;
+    while (start <= traits.size()) {
+        const auto comma = traits.find(',', start);
+        const auto end =
+            comma == std::string::npos ? traits.size() : comma;
+        auto first = start;
+        auto last = end;
+        while (first < last &&
+               (traits[first] == ' ' || traits[first] == '\t' ||
+                traits[first] == '\r')) ++first;
+        while (last > first &&
+               (traits[last - 1] == ' ' || traits[last - 1] == '\t' ||
+                traits[last - 1] == '\r')) --last;
+        if (traits.substr(first, last - first) == expected) return true;
+        if (comma == std::string::npos) break;
+        start = comma + 1;
+    }
+    return false;
+}
+
+std::vector<std::string> descriptor_traits(const std::string& traits) {
+    std::vector<std::string> result;
+    std::size_t start = 0;
+    while (start <= traits.size()) {
+        const auto comma = traits.find(',', start);
+        const auto end =
+            comma == std::string::npos ? traits.size() : comma;
+        auto first = start;
+        auto last = end;
+        while (first < last &&
+               (traits[first] == ' ' || traits[first] == '\t' ||
+                traits[first] == '\r')) ++first;
+        while (last > first &&
+               (traits[last - 1] == ' ' || traits[last - 1] == '\t' ||
+                traits[last - 1] == '\r')) --last;
+        if (first < last)
+            result.push_back(traits.substr(first, last - first));
+        if (comma == std::string::npos) break;
+        start = comma + 1;
+    }
+    return result;
+}
+
+bool compiler_safety_trait(const std::string& trait) {
+    return trait == "differentiable" ||
+           trait == "higher-order" ||
+           trait.ends_with("-sensitive") ||
+           trait.starts_with("effect:");
+}
+
+std::string compiler_safe_name(std::string name) {
+    for (auto& c : name) {
+        const bool alphanumeric =
+            (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9');
+        if (!alphanumeric && c != '_') c = '_';
+    }
+    return name;
+}
+
+bool compiler_operation_matches(
+    const Function& function,
+    const CompilerExtensionRegistration& extension,
+    const std::string& configured) {
+    if (configured.empty()) return false;
+
+    // Package imports may be aliased by the consumer, so compiled names cannot
+    // be keyed to the manifest package name. Ownership is already proven by
+    // source_belongs_to_package(); match the descriptor's source-relative
+    // declaration spelling after removing optional compiler/package prefixes.
+    std::string relative = configured;
+    for (const auto& prefix :
+         {std::string("$method."), std::string("$construct.")}) {
+        if (relative.starts_with(prefix)) {
+            relative.erase(0, prefix.size());
+            break;
+        }
+    }
+    const auto package_prefix = extension.package + ".";
+    if (relative.starts_with(package_prefix))
+        relative.erase(0, package_prefix.size());
+    if (relative.empty()) return false;
+
+    if (function.name == configured ||
+        function.name.ends_with("." + relative))
+        return true;
+
+    // Generic/overload specializations retain the sanitized source spelling
+    // inside their generated name. Restricting candidates to the extension's
+    // package root above prevents cross-package collisions.
+    const auto marker = "_" + compiler_safe_name(relative) + "_";
+    return function.name.find(marker) != std::string::npos;
+}
+
+Module optimize(Module module) {
+    struct ExecutionPolicySetter {
+        std::string extension;
+        std::string value;
+    };
+
+    std::unordered_map<std::string, std::vector<std::string>> call_extensions;
+    std::unordered_map<std::string, std::vector<std::string>> call_operations;
+    std::unordered_map<std::string, std::vector<std::string>> operation_functions;
+    std::unordered_map<std::string, std::string> operation_traits;
+    std::unordered_map<std::string, std::vector<ExecutionPolicySetter>>
+        execution_policy_setters;
+    for (const auto& extension : module.compiler_extensions) {
+        if (extension.phase != "tensor-region") continue;
+        const auto identity = extension.package + "." + extension.name;
+        for (const auto& [table, fields] : extension.tables) {
+            if (table.starts_with("execution_policy.")) {
+                const auto policy =
+                    table.substr(std::string("execution_policy.").size());
+                const auto configured = fields.find("function");
+                if (policy.empty() || configured == fields.end() ||
+                    configured->second.empty()) {
+                    continue;
+                }
+                for (const auto& function : module.functions) {
+                    if (!source_belongs_to_package(
+                            function.source_file, extension.package_root) ||
+                        !compiler_operation_matches(
+                            function, extension, configured->second)) {
+                        continue;
+                    }
+                    execution_policy_setters[function.name].push_back(
+                        ExecutionPolicySetter{identity, policy});
+                }
+                continue;
+            }
+            if (!table.starts_with("operation.")) continue;
+            const auto configured = fields.find("function");
+            const auto traits = fields.find("traits");
+            if (configured == fields.end() || configured->second.empty() ||
+                traits == fields.end() ||
+                !descriptor_trait(traits->second, "pure") ||
+                !descriptor_trait(traits->second, "tensor") ||
+                descriptor_trait(traits->second, "stateful")) {
+                continue;
+            }
+            const auto operation =
+                table.substr(std::string("operation.").size());
+            if (operation.empty()) continue;
+
+            for (const auto& function : module.functions) {
+                if (function.result.kind != TypeKind::Tensor ||
+                    !source_belongs_to_package(
+                        function.source_file, extension.package_root) ||
+                    !compiler_operation_matches(
+                        function, extension, configured->second)) {
+                    continue;
+                }
+                const auto reference = identity + ":" + operation;
+                operation_traits[reference] = traits->second;
+                call_extensions[function.name].push_back(identity);
+                call_operations[function.name].push_back(reference);
+                operation_functions[reference].push_back(function.name);
+            }
+        }
+    }
+    for (auto& [_, identities] : call_extensions) {
+        std::sort(identities.begin(), identities.end());
+        identities.erase(
+            std::unique(identities.begin(), identities.end()),
+            identities.end());
+    }
+    for (auto& [_, operations] : call_operations) {
+        std::sort(operations.begin(), operations.end());
+        operations.erase(
+            std::unique(operations.begin(), operations.end()),
+            operations.end());
+    }
+    for (auto& [_, functions] : operation_functions) {
+        std::sort(functions.begin(), functions.end());
+        functions.erase(
+            std::unique(functions.begin(), functions.end()),
+            functions.end());
+    }
+
+    for (auto& function : module.functions) {
+        plan_tensor_regions(function, call_extensions, call_operations);
+        for (const auto& extension : module.compiler_extensions) {
+            if (extension.phase != "tensor-region" ||
+                !source_belongs_to_package(
+                    function.source_file, extension.package_root))
+                continue;
+            const auto identity =
+                extension.package + "." + extension.name;
+            for (auto& region : function.tensor_regions) {
+                if (std::find(
+                        region.compiler_extensions.begin(),
+                        region.compiler_extensions.end(),
+                        identity) == region.compiler_extensions.end()) {
+                    region.compiler_extensions.push_back(identity);
+                    std::sort(
+                        region.compiler_extensions.begin(),
+                        region.compiler_extensions.end());
+                }
+            }
+        }
+    }
+
+    struct FusionPattern {
+        std::string reference;
+        std::vector<std::string> operations;
+        std::optional<std::string> replacement;
+    };
+    struct RegionOperationOccurrence {
+        std::string reference;
+        ValueId output{};
+        std::vector<ValueId> inputs;
+    };
+    const auto split_operation_list = [](const std::string& text) {
+        std::vector<std::string> result;
+        std::size_t start = 0;
+        while (start <= text.size()) {
+            const auto comma = text.find(',', start);
+            const auto end =
+                comma == std::string::npos ? text.size() : comma;
+            auto token = text.substr(start, end - start);
+            const auto first = token.find_first_not_of(" \t\r");
+            const auto last = token.find_last_not_of(" \t\r");
+            if (first != std::string::npos)
+                result.push_back(token.substr(first, last - first + 1));
+            if (comma == std::string::npos) break;
+            start = comma + 1;
+        }
+        return result;
+    };
+
+    std::unordered_map<std::string, std::vector<std::string>>
+        extension_tables;
+    std::unordered_map<std::string, std::vector<FusionPattern>>
+        extension_fusions;
+    for (const auto& extension : module.compiler_extensions) {
+        const auto identity = extension.package + "." + extension.name;
+        auto& tables = extension_tables[identity];
+        for (const auto& [table, fields] : extension.tables) {
+            if (table == "extension") continue;
+            tables.push_back(table);
+            if (!table.starts_with("fusion.")) continue;
+            const auto operations = fields.find("operations");
+            if (operations == fields.end()) continue;
+            auto names = split_operation_list(operations->second);
+            if (names.empty()) continue;
+            FusionPattern pattern;
+            pattern.reference = identity + ":" + table;
+            for (const auto& name : names)
+                pattern.operations.push_back(identity + ":" + name);
+            if (const auto replacement = fields.find("replacement");
+                replacement != fields.end() &&
+                !replacement->second.empty()) {
+                pattern.replacement =
+                    identity + ":" + replacement->second;
+            }
+            extension_fusions[identity].push_back(std::move(pattern));
+        }
+        std::sort(tables.begin(), tables.end());
+        tables.erase(std::unique(tables.begin(), tables.end()), tables.end());
+    }
+    // Prefer the longest package-declared chain. A shorter prefix must not
+    // consume a graph before a more specific fusion has a chance to match.
+    for (auto& [_, patterns] : extension_fusions) {
+        std::sort(
+            patterns.begin(), patterns.end(),
+            [](const FusionPattern& left, const FusionPattern& right) {
+                if (left.operations.size() != right.operations.size())
+                    return left.operations.size() > right.operations.size();
+                return left.reference < right.reference;
+            });
+    }
+
+    for (auto& function : module.functions) {
+        for (auto& region : function.tensor_regions) {
+            region.compiler_extension_tables.clear();
+            for (const auto& identity : region.compiler_extensions) {
+                const auto found = extension_tables.find(identity);
+                if (found == extension_tables.end()) continue;
+                for (const auto& table : found->second) {
+                    region.compiler_extension_tables.push_back(
+                        identity + ":" + table);
+                }
+            }
+            std::sort(
+                region.compiler_extension_tables.begin(),
+                region.compiler_extension_tables.end());
+            region.compiler_extension_tables.erase(
+                std::unique(
+                    region.compiler_extension_tables.begin(),
+                    region.compiler_extension_tables.end()),
+                region.compiler_extension_tables.end());
+
+            std::vector<RegionOperationOccurrence> occurrences;
+            for (const auto& location : region.instructions) {
+                if (location.block >= function.blocks.size() ||
+                    location.instruction >=
+                        function.blocks[location.block].instructions.size()) {
+                    continue;
+                }
+                const auto* call = std::get_if<Call>(
+                    &function.blocks[location.block]
+                         .instructions[location.instruction]);
+                if (!call) continue;
+                const auto found = call_operations.find(call->callee);
+                if (found == call_operations.end()) continue;
+
+                std::vector<ValueId> inputs;
+                for (const auto& argument : call->args) {
+                    if (argument.value != 0)
+                        inputs.push_back(argument.value);
+                }
+                for (const auto& operation : found->second) {
+                    occurrences.push_back(
+                        RegionOperationOccurrence{
+                            operation, call->out, inputs});
+                }
+            }
+
+            region.compiler_fusion_candidates.clear();
+            for (const auto& [identity, patterns] : extension_fusions) {
+                const auto prefix = identity + ":";
+                for (const auto& pattern : patterns) {
+                    if (pattern.operations.size() < 2) continue;
+
+                    std::vector<std::size_t> frontier;
+                    for (std::size_t index = 0;
+                         index < occurrences.size(); ++index) {
+                        if (occurrences[index].reference ==
+                            pattern.operations.front()) {
+                            frontier.push_back(index);
+                        }
+                    }
+
+                    for (std::size_t position = 1;
+                         position < pattern.operations.size() &&
+                         !frontier.empty();
+                         ++position) {
+                        std::vector<std::size_t> next;
+                        for (const auto current : frontier) {
+                            for (std::size_t candidate = 0;
+                                 candidate < occurrences.size();
+                                 ++candidate) {
+                                if (!occurrences[candidate].reference.starts_with(
+                                        prefix) ||
+                                    occurrences[candidate].reference !=
+                                        pattern.operations[position] ||
+                                    std::find(
+                                        occurrences[candidate].inputs.begin(),
+                                        occurrences[candidate].inputs.end(),
+                                        occurrences[current].output) ==
+                                        occurrences[candidate].inputs.end()) {
+                                    continue;
+                                }
+                                next.push_back(candidate);
+                            }
+                        }
+                        std::sort(next.begin(), next.end());
+                        next.erase(
+                            std::unique(next.begin(), next.end()),
+                            next.end());
+                        frontier = std::move(next);
+                    }
+
+                    if (!frontier.empty())
+                        region.compiler_fusion_candidates.push_back(
+                            pattern.reference);
+                }
+            }
+            std::sort(
+                region.compiler_fusion_candidates.begin(),
+                region.compiler_fusion_candidates.end());
+            region.compiler_fusion_candidates.erase(
+                std::unique(
+                    region.compiler_fusion_candidates.begin(),
+                    region.compiler_fusion_candidates.end()),
+                region.compiler_fusion_candidates.end());
+        }
+    }
+    // A package may name an operation-id replacement for a fusion pattern.
+    // Core interprets only generic SSA/call contracts: it never assigns domain
+    // meaning to operation ids. A same-block chain may carry immutable side
+    // inputs on later calls. Those side inputs are captured in chain order and
+    // prepended to the first call's original arguments. The replacement is
+    // emitted at the final call site so side-input evaluation order is preserved.
+    // Only a narrow set of pure value-producing bridge instructions may appear
+    // between calls, and writable side inputs are deliberately excluded.
+    const auto call_has_operation =
+        [&](const Call& call, const std::string& operation) {
+            const auto found = call_operations.find(call.callee);
+            return found != call_operations.end() &&
+                   std::find(
+                       found->second.begin(), found->second.end(),
+                       operation) != found->second.end();
+        };
+    const auto find_function =
+        [&](const std::string& name) -> const Function* {
+            const auto found = std::find_if(
+                module.functions.begin(), module.functions.end(),
+                [&](const Function& function) {
+                    return function.name == name;
+                });
+            return found == module.functions.end() ? nullptr : &*found;
+        };
+    const auto same_parameter_contract =
+        [](const Parameter& replacement, const Parameter& original) {
+            // A replacement may require strictly less authority than the
+            // original call. In particular, an implicit method receiver is a
+            // non-writable borrowed value but is not source-spelled const;
+            // forwarding it to a package replacement's `const T &` side input
+            // is safe. The reverse direction (dropping const) remains illegal.
+            const bool const_compatible =
+                replacement.is_const || !original.is_const;
+            return replacement.type == original.type &&
+                   replacement.writable == original.writable &&
+                   replacement.borrowed == original.borrowed &&
+                   const_compatible;
+        };
+    const auto replacement_result_compatible =
+        [](const Type& declared, const Type& refined) {
+            if (declared == refined) return true;
+            if (declared.kind != TypeKind::Tensor ||
+                refined.kind != TypeKind::Tensor ||
+                !declared.first || !refined.first ||
+                *declared.first != *refined.first) {
+                return false;
+            }
+            if (declared.length >= 0 && refined.length >= 0 &&
+                declared.length != refined.length) {
+                return false;
+            }
+            const auto known = std::min(
+                declared.tensor_known_shape_prefix.size(),
+                refined.tensor_known_shape_prefix.size());
+            for (std::size_t axis = 0; axis < known; ++axis) {
+                if (declared.tensor_known_shape_prefix[axis] !=
+                    refined.tensor_known_shape_prefix[axis]) {
+                    return false;
+                }
+            }
+            return true;
+        };
+    const auto instruction_mentions_value =
+        [](const Instruction& instruction, ValueId value) {
+            const auto rendered = instr_text(instruction);
+            const auto token = "%" + std::to_string(value);
+            std::size_t position = 0;
+            while ((position = rendered.find(token, position)) !=
+                   std::string::npos) {
+                const auto end = position + token.size();
+                if (end == rendered.size() ||
+                    rendered[end] < '0' || rendered[end] > '9') {
+                    return true;
+                }
+                position = end;
+            }
+            return false;
+        };
+    const auto fusion_bridge_instruction =
+        [](const Instruction& instruction) {
+            return std::holds_alternative<SourceLocation>(instruction) ||
+                   std::holds_alternative<LoadLocal>(instruction) ||
+                   std::holds_alternative<LoadReference>(instruction) ||
+                   std::holds_alternative<FieldGet>(instruction) ||
+                   std::holds_alternative<Clone>(instruction) ||
+                   std::holds_alternative<Retain>(instruction);
+        };
+
+    const auto apply_one_replacement = [&]() {
+        for (auto& function : module.functions) {
+            for (const auto& [identity, patterns] : extension_fusions) {
+                (void)identity;
+                for (const auto& pattern : patterns) {
+                    if (!pattern.replacement ||
+                        pattern.operations.size() < 2) {
+                        continue;
+                    }
+                    const auto replacement_functions =
+                        operation_functions.find(*pattern.replacement);
+                    if (replacement_functions == operation_functions.end() ||
+                        replacement_functions->second.empty()) {
+                        continue;
+                    }
+                    const auto replacement_traits =
+                        operation_traits.find(*pattern.replacement);
+                    if (replacement_traits == operation_traits.end()) continue;
+
+                    std::unordered_set<std::string> required_safety_traits;
+                    bool complete_safety_contract = true;
+                    for (const auto& operation : pattern.operations) {
+                        const auto source_traits = operation_traits.find(operation);
+                        if (source_traits == operation_traits.end()) {
+                            complete_safety_contract = false;
+                            break;
+                        }
+                        for (const auto& trait :
+                             descriptor_traits(source_traits->second)) {
+                            if (compiler_safety_trait(trait))
+                                required_safety_traits.insert(trait);
+                        }
+                    }
+                    if (!complete_safety_contract) continue;
+                    bool preserves_safety = true;
+                    for (const auto& trait : required_safety_traits) {
+                        if (!descriptor_trait(
+                                replacement_traits->second, trait)) {
+                            preserves_safety = false;
+                            break;
+                        }
+                    }
+                    if (!preserves_safety) continue;
+                    // Never rewrite the package-owned fallback implementation
+                    // into a call to itself.
+                    if (std::find(
+                            replacement_functions->second.begin(),
+                            replacement_functions->second.end(),
+                            function.name) !=
+                        replacement_functions->second.end()) {
+                        continue;
+                    }
+
+                    for (auto& block : function.blocks) {
+                        for (std::size_t start = 0;
+                             start < block.instructions.size(); ++start) {
+                            auto* first_call =
+                                std::get_if<Call>(&block.instructions[start]);
+                            if (!first_call ||
+                                !call_has_operation(
+                                    *first_call,
+                                    pattern.operations.front())) {
+                                continue;
+                            }
+
+                            const auto* first_definition =
+                                find_function(first_call->callee);
+                            if (!first_definition ||
+                                first_definition->parameters.size() !=
+                                    first_call->args.size()) {
+                                continue;
+                            }
+
+                            std::vector<std::size_t> call_indices{start};
+                            std::vector<ValueId> eliminated_values;
+                            std::vector<CallArgument> captured_arguments;
+                            std::vector<Parameter> captured_parameters;
+                            std::vector<std::size_t> deferred_release_indices;
+                            std::vector<Release> deferred_releases;
+                            std::unordered_set<ValueId> first_argument_values;
+                            for (const auto& argument : first_call->args) {
+                                if (argument.value != 0)
+                                    first_argument_values.insert(argument.value);
+                                if (argument.writable_address)
+                                    first_argument_values.insert(
+                                        *argument.writable_address);
+                            }
+
+                            const Call* current = first_call;
+                            bool chain_matches = true;
+                            for (std::size_t position = 1;
+                                 position < pattern.operations.size();
+                                 ++position) {
+                                std::size_t next = call_indices.back() + 1;
+                                for (; next < block.instructions.size(); ++next) {
+                                    const auto& bridge =
+                                        block.instructions[next];
+                                    if (const auto* release =
+                                            std::get_if<Release>(&bridge);
+                                        release &&
+                                        (first_argument_values.contains(
+                                             release->value) ||
+                                         std::find(
+                                             eliminated_values.begin(),
+                                             eliminated_values.end(),
+                                             release->value) !=
+                                             eliminated_values.end())) {
+                                        deferred_release_indices.push_back(next);
+                                        deferred_releases.push_back(*release);
+                                        continue;
+                                    }
+                                    if (!fusion_bridge_instruction(bridge))
+                                        break;
+                                    if (!std::holds_alternative<SourceLocation>(
+                                            bridge) &&
+                                        instruction_mentions_value(
+                                            bridge, current->out)) {
+                                        chain_matches = false;
+                                        break;
+                                    }
+                                }
+                                if (!chain_matches ||
+                                    next >= block.instructions.size()) {
+                                    chain_matches = false;
+                                    break;
+                                }
+
+                                const auto* next_call =
+                                    std::get_if<Call>(
+                                        &block.instructions[next]);
+                                if (!next_call ||
+                                    !call_has_operation(
+                                        *next_call,
+                                        pattern.operations[position])) {
+                                    chain_matches = false;
+                                    break;
+                                }
+                                const auto* next_definition =
+                                    find_function(next_call->callee);
+                                if (!next_definition ||
+                                    next_definition->parameters.size() !=
+                                        next_call->args.size()) {
+                                    chain_matches = false;
+                                    break;
+                                }
+
+                                std::optional<std::size_t> chain_argument;
+                                for (std::size_t argument_index = 0;
+                                     argument_index < next_call->args.size();
+                                     ++argument_index) {
+                                    const auto& argument =
+                                        next_call->args[argument_index];
+                                    if (!argument.writable_address &&
+                                        argument.value == current->out) {
+                                        if (chain_argument) {
+                                            chain_matches = false;
+                                            break;
+                                        }
+                                        chain_argument = argument_index;
+                                    }
+                                }
+                                if (!chain_matches || !chain_argument) {
+                                    chain_matches = false;
+                                    break;
+                                }
+
+                                for (std::size_t argument_index = 0;
+                                     argument_index < next_call->args.size();
+                                     ++argument_index) {
+                                    if (argument_index == *chain_argument)
+                                        continue;
+                                    const auto& argument =
+                                        next_call->args[argument_index];
+                                    const auto& parameter =
+                                        next_definition->parameters[
+                                            argument_index];
+                                    if (argument.writable_address ||
+                                        parameter.writable ||
+                                        argument.value == 0) {
+                                        chain_matches = false;
+                                        break;
+                                    }
+                                    captured_arguments.push_back(argument);
+                                    captured_parameters.push_back(parameter);
+                                }
+                                if (!chain_matches) break;
+
+                                eliminated_values.push_back(current->out);
+                                call_indices.push_back(next);
+                                current = next_call;
+                            }
+                            if (!chain_matches) continue;
+
+                            const auto final_call =
+                                *std::get_if<Call>(
+                                    &block.instructions[
+                                        call_indices.back()]);
+
+                            const Function* replacement_target = nullptr;
+                            std::size_t compatible_targets = 0;
+                            for (const auto& candidate_name :
+                                 replacement_functions->second) {
+                                const auto* candidate =
+                                    find_function(candidate_name);
+                                if (!candidate ||
+                                    candidate->parameters.size() !=
+                                        captured_parameters.size() +
+                                            first_definition->parameters.size() ||
+                                    !replacement_result_compatible(
+                                        candidate->result,
+                                        final_call.result)) {
+                                    continue;
+                                }
+                                bool compatible = true;
+                                std::size_t parameter_index = 0;
+                                for (const auto& expected :
+                                     captured_parameters) {
+                                    if (!same_parameter_contract(
+                                            candidate->parameters[
+                                                parameter_index++],
+                                            expected)) {
+                                        compatible = false;
+                                        break;
+                                    }
+                                }
+                                if (compatible) {
+                                    for (const auto& expected :
+                                         first_definition->parameters) {
+                                        if (!same_parameter_contract(
+                                                candidate->parameters[
+                                                    parameter_index++],
+                                                expected)) {
+                                            compatible = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (!compatible) continue;
+                                replacement_target = candidate;
+                                ++compatible_targets;
+                            }
+                            if (compatible_targets != 1 ||
+                                !replacement_target) {
+                                continue;
+                            }
+
+                            bool externally_used = false;
+                            for (const auto value : eliminated_values) {
+                                for (std::size_t block_index = 0;
+                                     block_index < function.blocks.size();
+                                     ++block_index) {
+                                    const auto& inspected_block =
+                                        function.blocks[block_index];
+                                    for (std::size_t instruction_index = 0;
+                                         instruction_index <
+                                             inspected_block.instructions.size();
+                                         ++instruction_index) {
+                                        if (&inspected_block == &block &&
+                                            std::find(
+                                                call_indices.begin(),
+                                                call_indices.end(),
+                                                instruction_index) !=
+                                                call_indices.end()) {
+                                            continue;
+                                        }
+                                        if (const auto* release =
+                                                std::get_if<Release>(
+                                                    &inspected_block.instructions[
+                                                        instruction_index]);
+                                            release &&
+                                            release->value == value) {
+                                            continue;
+                                        }
+                                        if (instruction_mentions_value(
+                                                inspected_block.instructions[
+                                                    instruction_index],
+                                                value)) {
+                                            externally_used = true;
+                                            break;
+                                        }
+                                    }
+                                    if (externally_used) break;
+                                }
+                                if (externally_used) break;
+                            }
+                            if (externally_used) continue;
+
+                            Call replacement = *first_call;
+                            replacement.out = final_call.out;
+                            replacement.callee =
+                                replacement_target->name;
+                            replacement.result = final_call.result;
+                            replacement.line = final_call.line;
+                            replacement.column = final_call.column;
+                            replacement.args.clear();
+                            replacement.args.insert(
+                                replacement.args.end(),
+                                captured_arguments.begin(),
+                                captured_arguments.end());
+                            replacement.args.insert(
+                                replacement.args.end(),
+                                first_call->args.begin(),
+                                first_call->args.end());
+
+                            const auto final_index = call_indices.back();
+                            std::unordered_set<std::size_t> removed_indices;
+                            for (std::size_t index = 0;
+                                 index + 1 < call_indices.size(); ++index) {
+                                removed_indices.insert(call_indices[index]);
+                            }
+                            removed_indices.insert(
+                                deferred_release_indices.begin(),
+                                deferred_release_indices.end());
+
+                            std::vector<Instruction> rewritten_instructions;
+                            rewritten_instructions.reserve(
+                                block.instructions.size() -
+                                removed_indices.size() +
+                                deferred_releases.size());
+                            for (std::size_t instruction_index = 0;
+                                 instruction_index < block.instructions.size();
+                                 ++instruction_index) {
+                                if (removed_indices.contains(
+                                        instruction_index)) {
+                                    continue;
+                                }
+                                if (instruction_index == final_index) {
+                                    rewritten_instructions.push_back(
+                                        std::move(replacement));
+                                    for (const auto& release :
+                                         deferred_releases) {
+                                        rewritten_instructions.push_back(
+                                            release);
+                                    }
+                                    continue;
+                                }
+                                rewritten_instructions.push_back(
+                                    std::move(
+                                        block.instructions[
+                                            instruction_index]));
+                            }
+                            block.instructions =
+                                std::move(rewritten_instructions);
+
+                            for (auto& cleanup_block :
+                                 function.blocks) {
+                                cleanup_block.instructions.erase(
+                                    std::remove_if(
+                                        cleanup_block.instructions.begin(),
+                                        cleanup_block.instructions.end(),
+                                        [&](const Instruction& instruction) {
+                                            const auto* release =
+                                                std::get_if<Release>(
+                                                    &instruction);
+                                            return release &&
+                                                std::find(
+                                                    eliminated_values.begin(),
+                                                    eliminated_values.end(),
+                                                    release->value) !=
+                                                    eliminated_values.end();
+                                        }),
+                                    cleanup_block.instructions.end());
+                            }
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    bool rewritten = false;
+    while (apply_one_replacement()) rewritten = true;
+    if (rewritten) {
+        // Rebuild regions/candidates from the rewritten graph so all published
+        // optimization metadata describes the executable IR, not the
+        // pre-rewrite candidate graph.
+        return optimize(std::move(module));
+    }
+
+    // Package descriptors may provide executable single-operation replacement
+    // rules. Core evaluates only generic tensor facts and call contracts;
+    // operation ids and replacement semantics remain package-owned.
+    //
+    //   [specialization.<id>]  shape/dtype/layout/tracking refinement
+    //   [backend.<id>]         device/layout backend selection
+    //   [memory.<id>]          last-use/ownership guarded reuse target
+    //
+    // Optional constraints are dtype, rank, shape, device, layout, tracked,
+    // last_use, and owned. An unknown fact never satisfies a constraint.
+    enum class StaticDevice { Unknown, Cpu, Gpu };
+    struct StaticTensorFacts {
+        Type type{Type::simple(TypeKind::Invalid)};
+        bool has_type{};
+        StaticDevice device{StaticDevice::Unknown};
+        std::optional<bool> contiguous;
+        std::optional<bool> tracked;
+        bool owns_storage{};
+    };
+    struct ConditionalRule {
+        int stage{};
+        std::string reference;
+        std::string extension;
+        std::string operation;
+        std::string replacement;
+        std::optional<std::string> policy;
+        std::optional<std::string> dtype;
+        std::optional<long long> rank;
+        std::vector<long long> shape;
+        std::optional<StaticDevice> device;
+        std::optional<bool> contiguous;
+        std::optional<bool> tracked;
+        std::optional<bool> last_use;
+        std::optional<bool> owned;
+    };
+
+    const auto field_value =
+        [](const auto& fields, const std::string& name)
+            -> std::optional<std::string> {
+            const auto found = fields.find(name);
+            if (found == fields.end() || found->second.empty())
+                return std::nullopt;
+            return found->second;
+        };
+    const auto parse_shape = [](const std::string& text) {
+        std::vector<long long> shape;
+        std::size_t start = 0;
+        while (start <= text.size()) {
+            const auto comma = text.find(',', start);
+            const auto end =
+                comma == std::string::npos ? text.size() : comma;
+            auto token = text.substr(start, end - start);
+            const auto first = token.find_first_not_of(" \t\r");
+            const auto last = token.find_last_not_of(" \t\r");
+            if (first == std::string::npos) return std::vector<long long>{};
+            token = token.substr(first, last - first + 1);
+            try {
+                shape.push_back(std::stoll(token));
+            } catch (...) {
+                return std::vector<long long>{};
+            }
+            if (comma == std::string::npos) break;
+            start = comma + 1;
+        }
+        return shape;
+    };
+
+    std::vector<ConditionalRule> conditional_rules;
+    for (const auto& extension : module.compiler_extensions) {
+        if (extension.phase != "tensor-region") continue;
+        const auto identity = extension.package + "." + extension.name;
+        for (const auto& [table, fields] : extension.tables) {
+            int stage = -1;
+            if (table.starts_with("specialization."))
+                stage = 0;
+            else if (table.starts_with("backend."))
+                stage = 1;
+            else if (table.starts_with("memory."))
+                stage = 2;
+            else
+                continue;
+
+            const auto source = field_value(fields, "operation");
+            const auto target = field_value(fields, "replacement");
+            if (!source || !target) continue;
+
+            ConditionalRule rule;
+            rule.stage = stage;
+            rule.reference = identity + ":" + table;
+            rule.extension = identity;
+            rule.operation = identity + ":" + *source;
+            rule.replacement = identity + ":" + *target;
+            rule.policy = field_value(fields, "policy");
+            rule.dtype = field_value(fields, "dtype");
+            if (const auto rank = field_value(fields, "rank")) {
+                try {
+                    rule.rank = std::stoll(*rank);
+                } catch (...) {
+                    continue;
+                }
+            }
+            if (const auto shape = field_value(fields, "shape")) {
+                rule.shape = parse_shape(*shape);
+                if (rule.shape.empty() && !shape->empty()) continue;
+            }
+            if (const auto device = field_value(fields, "device")) {
+                if (*device == "cpu")
+                    rule.device = StaticDevice::Cpu;
+                else if (*device == "gpu")
+                    rule.device = StaticDevice::Gpu;
+                else
+                    continue;
+            }
+            if (const auto layout = field_value(fields, "layout")) {
+                if (*layout == "contiguous")
+                    rule.contiguous = true;
+                else if (*layout == "strided")
+                    rule.contiguous = false;
+                else
+                    continue;
+            }
+            if (const auto tracked = field_value(fields, "tracked")) {
+                if (*tracked == "true")
+                    rule.tracked = true;
+                else if (*tracked == "false")
+                    rule.tracked = false;
+                else
+                    continue;
+            }
+            if (const auto last_use = field_value(fields, "last_use")) {
+                if (*last_use == "true")
+                    rule.last_use = true;
+                else if (*last_use == "false")
+                    rule.last_use = false;
+                else
+                    continue;
+            }
+            if (const auto owned = field_value(fields, "owned")) {
+                if (*owned == "true")
+                    rule.owned = true;
+                else if (*owned == "false")
+                    rule.owned = false;
+                else
+                    continue;
+            }
+            conditional_rules.push_back(std::move(rule));
+        }
+    }
+    std::sort(
+        conditional_rules.begin(), conditional_rules.end(),
+        [](const ConditionalRule& left, const ConditionalRule& right) {
+            if (left.stage != right.stage) return left.stage < right.stage;
+            return left.reference < right.reference;
+        });
+
+    const auto collect_static_facts =
+        [&](const Function& function) {
+            std::unordered_map<ValueId, StaticTensorFacts> facts;
+            const auto inherited =
+                [&](ValueId value) -> StaticTensorFacts {
+                    const auto found = facts.find(value);
+                    return found == facts.end()
+                        ? StaticTensorFacts{}
+                        : found->second;
+                };
+            for (const auto& block : function.blocks) {
+                // Keep local flow facts block-local. Crossing a CFG edge would
+                // require dominance/merge reasoning; unknown is safer than a
+                // speculative specialization.
+                std::unordered_map<std::string, StaticTensorFacts> locals;
+                for (const auto& instruction : block.instructions) {
+                    std::visit(
+                        [&](const auto& node) {
+                            using T = std::decay_t<decltype(node)>;
+                            if constexpr (std::is_same_v<T, StoreLocal>) {
+                                if (node.type.kind != TypeKind::Tensor) return;
+                                const auto found = facts.find(node.value);
+                                if (found == facts.end())
+                                    locals.erase(node.name);
+                                else
+                                    locals[node.name] = found->second;
+                            } else if constexpr (
+                                std::is_same_v<T, LoadLocal>) {
+                                if (node.type.kind != TypeKind::Tensor) return;
+                                StaticTensorFacts fact;
+                                if (const auto found = locals.find(node.name);
+                                    found != locals.end()) {
+                                    fact = found->second;
+                                }
+                                fact.type = node.type;
+                                fact.has_type = true;
+                                // A local owns its value; loading the local does
+                                // not transfer that ownership to the SSA value.
+                                // Treat the load as an alias unless an explicit
+                                // Clone creates independent storage.
+                                fact.owns_storage = false;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, Clone>) {
+                                if (node.type.kind != TypeKind::Tensor) return;
+                                auto fact = inherited(node.value);
+                                fact.type = node.type;
+                                fact.has_type = true;
+                                // Tensor values are independent at the language
+                                // level, but Clone currently shares the underlying
+                                // TensorStorage (the runtime increments its owner
+                                // count). Never use a cloned descriptor as proof
+                                // that package code may mutate storage in place.
+                                fact.owns_storage = false;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, TensorCreate>) {
+                                StaticTensorFacts fact;
+                                fact.type = node.type;
+                                fact.has_type =
+                                    node.type.kind == TypeKind::Tensor;
+                                fact.device = node.gpu
+                                    ? StaticDevice::Gpu
+                                    : StaticDevice::Cpu;
+                                fact.contiguous = true;
+                                fact.tracked = false;
+                                fact.owns_storage = true;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, TensorTransfer>) {
+                                auto fact = inherited(node.tensor);
+                                fact.type = node.type;
+                                fact.has_type =
+                                    node.type.kind == TypeKind::Tensor;
+                                fact.device = node.gpu
+                                    ? StaticDevice::Gpu
+                                    : StaticDevice::Cpu;
+                                // Transfers materialize a fresh dense tensor
+                                // on the destination backend. The runtime rebuilds
+                                // canonical contiguous strides, so backend rules
+                                // may rely on this layout fact.
+                                fact.contiguous = true;
+                                fact.owns_storage = true;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, TensorContiguous>) {
+                                auto fact = inherited(node.tensor);
+                                fact.type = node.type;
+                                fact.has_type =
+                                    node.type.kind == TypeKind::Tensor;
+                                fact.contiguous = true;
+                                // contiguous() may return a value-semantic
+                                // clone that shares already-contiguous storage.
+                                // Without a compile-time uniqueness proof this
+                                // result cannot authorize package in-place
+                                // memory reuse.
+                                fact.owns_storage = false;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, TensorReshape>) {
+                                auto fact = inherited(node.tensor);
+                                fact.type = node.type;
+                                fact.has_type =
+                                    node.type.kind == TypeKind::Tensor;
+                                fact.owns_storage = false;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, TensorTranspose>) {
+                                auto fact = inherited(node.tensor);
+                                fact.type = node.type;
+                                fact.has_type =
+                                    node.type.kind == TypeKind::Tensor;
+                                fact.contiguous = false;
+                                fact.owns_storage = false;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, TensorGather> ||
+                                std::is_same_v<T, TensorScatter>) {
+                                auto fact = inherited(node.tensor);
+                                fact.type = node.type;
+                                fact.has_type =
+                                    node.type.kind == TypeKind::Tensor;
+                                fact.contiguous = true;
+                                fact.owns_storage = true;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, TensorTrack>) {
+                                auto fact = inherited(node.tensor);
+                                fact.type = node.type;
+                                fact.has_type =
+                                    node.type.kind == TypeKind::Tensor;
+                                fact.tracked = node.mode != 0;
+                                fact.owns_storage = false;
+                                facts[node.out] = std::move(fact);
+                            } else if constexpr (
+                                std::is_same_v<T, TensorCast>) {
+                                auto fact = inherited(node.tensor);
+                                fact.type = node.target_type;
+                                fact.has_type =
+                                    node.target_type.kind == TypeKind::Tensor;
+                                fact.contiguous = true;
+                                fact.tracked = false;
+                                fact.owns_storage = true;
+                                facts[node.out] = std::move(fact);
+                            }
+                        },
+                        instruction);
+                }
+            }
+            return facts;
+        };
+
+    const auto has_later_or_cross_block_use =
+        [&](const Function& function, const Instruction* current,
+            ValueId value) {
+            const Block* current_block = nullptr;
+            std::size_t current_index = 0;
+            for (const auto& block : function.blocks) {
+                for (std::size_t index = 0;
+                     index < block.instructions.size(); ++index) {
+                    if (&block.instructions[index] == current) {
+                        current_block = &block;
+                        current_index = index;
+                        break;
+                    }
+                }
+                if (current_block) break;
+            }
+            if (!current_block) return true;
+
+            for (std::size_t index = current_index + 1;
+                 index < current_block->instructions.size(); ++index) {
+                const auto& instruction =
+                    current_block->instructions[index];
+                if (const auto* release =
+                        std::get_if<Release>(&instruction);
+                    release && release->value == value) {
+                    continue;
+                }
+                if (instruction_mentions_value(instruction, value))
+                    return true;
+            }
+            // Without a CFG liveness proof, any cross-block reference keeps the
+            // value live. This is deliberately conservative for reuse rules.
+            for (const auto& block : function.blocks) {
+                if (&block == current_block) continue;
+                for (const auto& instruction : block.instructions) {
+                    if (const auto* release =
+                            std::get_if<Release>(&instruction);
+                        release && release->value == value) {
+                        continue;
+                    }
+                    if (instruction_mentions_value(instruction, value))
+                        return true;
+                }
+            }
+            return false;
+        };
+
+    const auto transferable_release =
+        [&](const Block& block, const Instruction* current, ValueId value)
+            -> std::optional<std::size_t> {
+            std::optional<std::size_t> current_index;
+            for (std::size_t index = 0; index < block.instructions.size();
+                 ++index) {
+                if (&block.instructions[index] == current) {
+                    current_index = index;
+                    break;
+                }
+            }
+            if (!current_index) return std::nullopt;
+            for (std::size_t index = *current_index + 1;
+                 index < block.instructions.size(); ++index) {
+                if (const auto* release =
+                        std::get_if<Release>(&block.instructions[index]);
+                    release && release->value == value) {
+                    return index;
+                }
+            }
+            return std::nullopt;
+        };
+
+    const auto next_rewrite_value =
+        [&](const Function& function) -> std::optional<ValueId> {
+            std::uint64_t maximum = 0;
+            for (const auto& block : function.blocks) {
+                for (const auto& instruction : block.instructions) {
+                    const auto rendered = instr_text(instruction);
+                    std::size_t position = 0;
+                    while ((position = rendered.find('%', position)) !=
+                           std::string::npos) {
+                        std::size_t cursor = position + 1;
+                        if (cursor >= rendered.size() ||
+                            rendered[cursor] < '0' ||
+                            rendered[cursor] > '9') {
+                            position = cursor;
+                            continue;
+                        }
+                        std::uint64_t parsed = 0;
+                        while (cursor < rendered.size() &&
+                               rendered[cursor] >= '0' &&
+                               rendered[cursor] <= '9') {
+                            parsed =
+                                parsed * 10 +
+                                static_cast<std::uint64_t>(
+                                    rendered[cursor] - '0');
+                            ++cursor;
+                        }
+                        maximum = std::max(maximum, parsed);
+                        position = cursor;
+                    }
+                }
+            }
+            if (maximum >=
+                std::numeric_limits<ValueId>::max()) {
+                return std::nullopt;
+            }
+            return static_cast<ValueId>(maximum + 1);
+        };
+
+    const auto apply_one_conditional_replacement = [&]() {
+        if (conditional_rules.empty()) return false;
+        for (auto& function : module.functions) {
+            const auto facts = collect_static_facts(function);
+            for (auto& block : function.blocks) {
+                // Package execution policy is mutable process state. Treat it
+                // as static only after an explicit package-declared setter in
+                // this basic block; CFG/function boundaries reset to unknown.
+                std::unordered_map<std::string, std::string>
+                    execution_policies;
+                for (auto& instruction : block.instructions) {
+                    auto* call = std::get_if<Call>(&instruction);
+                    if (!call) continue;
+                    if (const auto setters =
+                            execution_policy_setters.find(call->callee);
+                        setters != execution_policy_setters.end()) {
+                        for (const auto& setter : setters->second)
+                            execution_policies[setter.extension] =
+                                setter.value;
+                        continue;
+                    }
+
+                    // The current call observes policy state established before
+                    // it runs. Unless the call itself is a declared setter,
+                    // conservatively forget that state afterwards: an opaque
+                    // callee may change process-wide execution policy.
+                    const auto active_execution_policies =
+                        execution_policies;
+                    execution_policies.clear();
+
+                    const auto* source_definition =
+                        find_function(call->callee);
+                    if (!source_definition ||
+                        source_definition->parameters.size() !=
+                            call->args.size()) {
+                        continue;
+                    }
+
+                    std::size_t tensor_argument =
+                        source_definition->parameters.size();
+                    for (std::size_t index = 0;
+                         index < source_definition->parameters.size();
+                         ++index) {
+                        if (source_definition->parameters[index].type.kind ==
+                                TypeKind::Tensor &&
+                            call->args[index].value != 0) {
+                            tensor_argument = index;
+                            break;
+                        }
+                    }
+                    if (tensor_argument ==
+                        source_definition->parameters.size()) {
+                        continue;
+                    }
+
+                    const auto value =
+                        call->args[tensor_argument].value;
+                    StaticTensorFacts fact;
+                    if (const auto found = facts.find(value);
+                        found != facts.end()) {
+                        fact = found->second;
+                    }
+                    if (!fact.has_type) {
+                        fact.type =
+                            source_definition->parameters[
+                                tensor_argument].type;
+                        fact.has_type =
+                            fact.type.kind == TypeKind::Tensor;
+                    }
+
+                    for (const auto& rule : conditional_rules) {
+                        if (!call_has_operation(*call, rule.operation))
+                            continue;
+                        if (rule.policy) {
+                            const auto selected =
+                                active_execution_policies.find(
+                                    rule.extension);
+                            if (selected ==
+                                    active_execution_policies.end() ||
+                                selected->second != *rule.policy) {
+                                continue;
+                            }
+                        }
+                        if (rule.dtype &&
+                            (!fact.has_type || !fact.type.first ||
+                             type_name(*fact.type.first) != *rule.dtype)) {
+                            continue;
+                        }
+                        if (rule.rank &&
+                            (!fact.has_type ||
+                             fact.type.length != *rule.rank)) {
+                            continue;
+                        }
+                        if (!rule.shape.empty()) {
+                            if (!fact.has_type ||
+                                fact.type.length !=
+                                    static_cast<long long>(
+                                        rule.shape.size()) ||
+                                fact.type.tensor_known_shape_prefix.size() <
+                                    rule.shape.size()) {
+                                continue;
+                            }
+                            bool matches = true;
+                            for (std::size_t axis = 0;
+                                 axis < rule.shape.size(); ++axis) {
+                                if (fact.type
+                                        .tensor_known_shape_prefix[axis] !=
+                                    rule.shape[axis]) {
+                                    matches = false;
+                                    break;
+                                }
+                            }
+                            if (!matches) continue;
+                        }
+                        if (rule.device &&
+                            fact.device != *rule.device) {
+                            continue;
+                        }
+                        if (rule.contiguous.has_value() &&
+                            (!fact.contiguous ||
+                             *fact.contiguous != *rule.contiguous)) {
+                            continue;
+                        }
+                        if (rule.tracked.has_value() &&
+                            (!fact.tracked ||
+                             *fact.tracked != *rule.tracked)) {
+                            continue;
+                        }
+                        if (rule.owned.has_value() &&
+                            fact.owns_storage != *rule.owned) {
+                            continue;
+                        }
+                        if (rule.last_use.has_value()) {
+                            const bool last =
+                                !has_later_or_cross_block_use(
+                                    function, &instruction, value);
+                            if (last != *rule.last_use) continue;
+                        }
+
+                        const auto replacement_functions =
+                            operation_functions.find(rule.replacement);
+                        if (replacement_functions ==
+                                operation_functions.end() ||
+                            replacement_functions->second.empty()) {
+                            continue;
+                        }
+                        const auto source_traits =
+                            operation_traits.find(rule.operation);
+                        const auto replacement_traits =
+                            operation_traits.find(rule.replacement);
+                        if (source_traits == operation_traits.end() ||
+                            replacement_traits ==
+                                operation_traits.end()) {
+                            continue;
+                        }
+                        bool preserves_safety = true;
+                        for (const auto& trait :
+                             descriptor_traits(source_traits->second)) {
+                            if (compiler_safety_trait(trait) &&
+                                !descriptor_trait(
+                                    replacement_traits->second,
+                                    trait)) {
+                                preserves_safety = false;
+                                break;
+                            }
+                        }
+                        if (!preserves_safety) continue;
+
+                        const Function* replacement_target = nullptr;
+                        std::optional<std::size_t> ownership_release;
+                        std::vector<std::pair<ValueId, Type>>
+                            borrowed_argument_releases;
+                        std::vector<std::pair<std::size_t, Type>>
+                            owned_argument_clones;
+                        std::size_t compatible_targets = 0;
+                        for (const auto& candidate_name :
+                             replacement_functions->second) {
+                            const auto* candidate =
+                                find_function(candidate_name);
+                            if (!candidate ||
+                                candidate->parameters.size() !=
+                                    source_definition->parameters.size() ||
+                                !replacement_result_compatible(
+                                    candidate->result, call->result)) {
+                                continue;
+                            }
+
+                            bool compatible = true;
+                            std::optional<std::size_t> candidate_release;
+                            std::vector<std::pair<ValueId, Type>>
+                                candidate_borrowed_releases;
+                            std::vector<std::pair<std::size_t, Type>>
+                                candidate_owned_clones;
+                            for (std::size_t index = 0;
+                                 index < candidate->parameters.size();
+                                 ++index) {
+                                if (same_parameter_contract(
+                                        candidate->parameters[index],
+                                        source_definition->parameters[index])) {
+                                    continue;
+                                }
+
+                                const auto& replacement_parameter =
+                                    candidate->parameters[index];
+                                const auto& source_parameter =
+                                    source_definition->parameters[index];
+
+                                // Borrowing is a lowering optimization inferred
+                                // from each function body, not part of the
+                                // source-level package operation signature. A
+                                // replacement may therefore borrow a value that
+                                // the original callee consumed by value. The
+                                // already-lowered caller still owns that
+                                // argument, so preserve its original lifetime by
+                                // releasing it after the borrowed replacement
+                                // returns. The reverse direction remains unsafe:
+                                // a replacement may not consume an argument that
+                                // the original call only borrowed.
+                                const bool ownership_relaxation =
+                                    !source_parameter.borrowed &&
+                                    replacement_parameter.borrowed &&
+                                    replacement_parameter.type ==
+                                        source_parameter.type &&
+                                    replacement_parameter.writable ==
+                                        source_parameter.writable &&
+                                    (replacement_parameter.is_const ||
+                                     !source_parameter.is_const) &&
+                                    index < call->args.size() &&
+                                    call->args[index].value != 0;
+                                if (ownership_relaxation) {
+                                    candidate_borrowed_releases.push_back(
+                                        {call->args[index].value,
+                                         source_parameter.type});
+                                    continue;
+                                }
+
+                                // The opposite inferred-borrowing mismatch is
+                                // also source-signature-compatible. The lowered
+                                // caller only borrowed the original argument, so
+                                // give a by-value replacement its own clone to
+                                // consume and release. This mirrors normal call
+                                // lowering without changing package semantics.
+                                const bool ownership_clone =
+                                    rule.stage != 2 &&
+                                    source_parameter.borrowed &&
+                                    !replacement_parameter.borrowed &&
+                                    replacement_parameter.type ==
+                                        source_parameter.type &&
+                                    replacement_parameter.writable ==
+                                        source_parameter.writable &&
+                                    (replacement_parameter.is_const ||
+                                     !source_parameter.is_const) &&
+                                    requires_value_clone(
+                                        source_parameter.type) &&
+                                    index < call->args.size() &&
+                                    call->args[index].value != 0 &&
+                                    !call->args[index].writable_address;
+                                if (ownership_clone) {
+                                    candidate_owned_clones.push_back(
+                                        {index, source_parameter.type});
+                                    continue;
+                                }
+
+                                // Memory-reuse targets may consume an owned
+                                // temporary that the original pure call only
+                                // borrowed. Lowering emits a post-call Release
+                                // for such a borrowed temporary. Moving that
+                                // release into the replacement callee converts
+                                // the already-owned temporary into the target's
+                                // by-value ownership without cloning or changing
+                                // source-visible value semantics.
+                                const bool ownership_transfer =
+                                    rule.stage == 2 &&
+                                    index == tensor_argument &&
+                                    rule.last_use.value_or(false) &&
+                                    rule.owned.value_or(false) &&
+                                    fact.owns_storage &&
+                                    source_parameter.borrowed &&
+                                    !replacement_parameter.borrowed &&
+                                    replacement_parameter.type ==
+                                        source_parameter.type &&
+                                    replacement_parameter.writable ==
+                                        source_parameter.writable &&
+                                    replacement_parameter.is_const ==
+                                        source_parameter.is_const;
+                                if (!ownership_transfer) {
+                                    compatible = false;
+                                    break;
+                                }
+                                candidate_release =
+                                    transferable_release(
+                                        block, &instruction, value);
+                                if (!candidate_release) {
+                                    compatible = false;
+                                    break;
+                                }
+                            }
+                            if (!compatible) continue;
+                            replacement_target = candidate;
+                            ownership_release = candidate_release;
+                            borrowed_argument_releases =
+                                std::move(candidate_borrowed_releases);
+                            owned_argument_clones =
+                                std::move(candidate_owned_clones);
+                            ++compatible_targets;
+                        }
+                        if (compatible_targets != 1 ||
+                            !replacement_target ||
+                            replacement_target->name == call->callee) {
+                            continue;
+                        }
+
+                        const auto call_index =
+                            static_cast<std::size_t>(
+                                &instruction -
+                                block.instructions.data());
+                        std::vector<Instruction> argument_clones;
+                        if (!owned_argument_clones.empty()) {
+                            const auto first_fresh =
+                                next_rewrite_value(function);
+                            if (!first_fresh ||
+                                owned_argument_clones.size() >
+                                    static_cast<std::size_t>(
+                                        std::numeric_limits<ValueId>::max() -
+                                        *first_fresh + 1)) {
+                                continue;
+                            }
+                            auto fresh = *first_fresh;
+                            argument_clones.reserve(
+                                owned_argument_clones.size());
+                            for (const auto& [argument_index, type] :
+                                 owned_argument_clones) {
+                                const auto original =
+                                    call->args[argument_index].value;
+                                const auto cloned = fresh++;
+                                argument_clones.push_back(
+                                    Clone{cloned, original, type});
+                                call->args[argument_index].value = cloned;
+                            }
+                        }
+
+                        call->callee = replacement_target->name;
+                        if (ownership_release) {
+                            block.instructions.erase(
+                                block.instructions.begin() +
+                                static_cast<std::ptrdiff_t>(
+                                    *ownership_release));
+                        }
+                        if (!borrowed_argument_releases.empty()) {
+                            std::vector<Instruction> releases;
+                            releases.reserve(
+                                borrowed_argument_releases.size());
+                            for (const auto& [argument, type] :
+                                 borrowed_argument_releases) {
+                                releases.push_back(
+                                    Release{argument, type});
+                            }
+                            block.instructions.insert(
+                                block.instructions.begin() +
+                                    static_cast<std::ptrdiff_t>(
+                                        call_index + 1),
+                                std::make_move_iterator(releases.begin()),
+                                std::make_move_iterator(releases.end()));
+                        }
+                        if (!argument_clones.empty()) {
+                            block.instructions.insert(
+                                block.instructions.begin() +
+                                    static_cast<std::ptrdiff_t>(
+                                        call_index),
+                                std::make_move_iterator(
+                                    argument_clones.begin()),
+                                std::make_move_iterator(
+                                    argument_clones.end()));
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    if (apply_one_conditional_replacement())
+        return optimize(std::move(module));
+
+    return module;
+}
+
+std::string dump(const Module& module) {
+    std::ostringstream out;
+    const auto emit_names = [&](std::string_view label,
+                                const std::vector<std::string>& names) {
+        if (names.empty()) return;
+        out << " " << label << "=";
+        for (std::size_t index = 0; index < names.size(); ++index) {
+            if (index != 0) out << ",";
+            out << names[index];
+        }
+    };
+
+    out << "quidra-ir " << ir_version << "\n";
+    for (const auto& extension : module.compiler_extensions)
+        out << "compiler-extension " << extension.package << "."
+            << extension.name << "\n";
+    for (const auto& c : module.classes)
+        out << "class " << c.name << "\n";
+
+    for (const auto& fn : module.functions) {
+        out << "function " << fn.name << "(";
+        for (std::size_t index = 0; index < fn.parameters.size(); ++index) {
+            if (index != 0) out << ", ";
+            const auto& parameter = fn.parameters[index];
+            if (parameter.is_const) out << "const ";
+            out << type_name(parameter.type) << " "
+                << (parameter.writable ? "&" : "") << parameter.name;
+        }
+        out << ") -> " << type_name(fn.result);
+        if (fn.external_symbol) out << " = \"" << *fn.external_symbol << "\"";
+        out << "\n";
+
+        for (const auto& block : fn.blocks) {
+            out << block.label << ":\n";
+            for (const auto& instruction : block.instructions) {
+                if (std::holds_alternative<SourceLocation>(instruction))
+                    continue;
+                out << "  " << instr_text(instruction) << "\n";
+            }
+        }
+
+        // Tensor-region metadata is compiler-owned introspection only. Package
+        // operation IDs and tables remain opaque strings; exposing them here
+        // lets package integration tests prove registration/matching without
+        // teaching Core any domain semantics.
+        for (const auto& region : fn.tensor_regions) {
+            out << "  tensor-region";
+            emit_names("extensions", region.compiler_extensions);
+            emit_names("operations", region.compiler_operations);
+            emit_names("tables", region.compiler_extension_tables);
+            emit_names("fusion-candidates", region.compiler_fusion_candidates);
+            if (region.reaches_backward) out << " reaches-backward";
+            if (region.may_require_higher_order) out << " higher-order";
+            out << "\n";
+        }
+        out << "end\n";
+    }
+    return out.str();
+}
 
 } // namespace quidra::ir

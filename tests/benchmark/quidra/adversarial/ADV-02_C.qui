@@ -1,8 +1,11 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 int x = 9223372036854775807
 int s = x + 3
 print("OBS=V:{s}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

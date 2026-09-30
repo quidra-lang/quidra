@@ -862,8 +862,8 @@ FunctionDecl Parser::external_function_decl() {
     const auto start=consume(TokenKind::Identifier,"Expected extern.").span.start;
     auto result=type_name();
     const auto name=consume(TokenKind::Identifier,"Expected external function name.");
-    if(at(TokenKind::Less))
-        error(peek(),"External C functions cannot be generic.");
+    std::vector<std::string> type_constraints;
+    auto type_parameters=type_parameter_list(&type_constraints);
     consume(TokenKind::LParen,"Expected '(' after external function name.");
     std::vector<Parameter> parameters;
     while(!at(TokenKind::RParen)) {
@@ -887,6 +887,8 @@ FunctionDecl Parser::external_function_decl() {
     declaration.parameters=std::move(parameters);
     declaration.return_type=std::move(result);
     declaration.span={start,symbol.span.end};
+    declaration.type_parameters=std::move(type_parameters);
+    declaration.type_constraints=std::move(type_constraints);
     declaration.external_symbol=symbol.text;
     return declaration;
 }
@@ -1314,7 +1316,16 @@ ExprPtr Parser::unary() {
         const auto op=previous(); auto operand=unary(); auto e=std::make_unique<Expr>();
         e->span=SourceSpan{op.span.start,operand->span.end}; e->data=UnaryExpr{op.text,std::move(operand)}; return e;
     }
-    return postfix();
+    return power();
+}
+
+ExprPtr Parser::power() {
+    auto e = postfix();
+    if (match(TokenKind::Caret)) {
+        const auto op = previous();
+        e = make_binary(std::move(e), op, unary());
+    }
+    return e;
 }
 
 ExprPtr Parser::postfix() {

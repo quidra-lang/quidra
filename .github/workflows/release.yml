@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install packaging dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang-15 llvm-15 cmake ninja-build git curl xz-utils libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+        run: sudo apt-get update && sudo apt-get install -y clang-15 llvm-15 cmake ninja-build git curl xz-utils libcurl4-openssl-dev
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build
@@ -85,9 +85,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install packaging dependencies
-        run: brew install llvm curl libpng jpeg-turbo libtiff webp ffmpeg
+        run: brew install llvm curl
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix curl);$(brew --prefix libpng);$(brew --prefix jpeg-turbo);$(brew --prefix libtiff);$(brew --prefix webp);$(brew --prefix ffmpeg)"
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix curl)"
       - name: Build
         run: cmake --build build --parallel
       - name: Test
@@ -127,7 +127,7 @@ jobs:
         run: New-Item -ItemType Directory -Force -Path .vcpkg-binary-cache | Out-Null
       - name: Install packaging dependencies
         shell: pwsh
-        run: vcpkg install curl:x64-windows libpng:x64-windows libjpeg-turbo:x64-windows tiff:x64-windows libwebp:x64-windows ffmpeg:x64-windows
+        run: vcpkg install curl:x64-windows
       - name: Ensure LLVM JIT runner
         shell: pwsh
         run: |

@@ -67,7 +67,7 @@ print(values.size())
 print(len(text))
 """,
     "file_split_whole": """string text = file.read("parse-input.txt")
-string[] rows = text.split(ENTER)
+string[] rows = text.split(NL)
 int lines = 0
 for line in rows
     if line != ""
@@ -110,7 +110,7 @@ reader.close()
 print("{lines} {checksum}")
 """,
     "file_parse_whole": """string text = file.read("parse-input.txt")
-string[] rows = text.split(ENTER)
+string[] rows = text.split(NL)
 int lines = 0
 int checksum = 0
 for line in rows

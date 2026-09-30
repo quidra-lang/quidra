@@ -164,8 +164,8 @@ Tensor device placement is explicit. A later GPU use is not permission to move
 earlier work. Floating tensors are untracked by default; `.track()`,
 `.untrack()`, and `.retrack()` visibly control autograd provenance.
 
-The same principle applies to mutation in DNN code: the model being changed is
-named at the gradient and optimizer operations.
+The same principle applies to mutation in NN/DNN training code: the model being
+changed is named at the gradient and optimizer operations.
 
 ### Machine-readable by design
 
@@ -301,10 +301,12 @@ Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `
 string name = "Quidra"
 string repeated = string.repeat("a", 6)
 print("Hello, {name}")
-print("first{ENTER}second")
+print(NL)
+print("first{NL}second")
+print(NL)
 ```
 
-Backslash is literal rather than an escape introducer. Named immutable values such as `ENTER`, `TAB`, `HOME`, and `QUOTE` represent control characters.
+Backslash is literal rather than an escape introducer. The eight two-letter uppercase immutable values `NL`, `HT`, `CR`, `DQ`, `BS`, `FF`, `VT`, and `BL` represent the built-in control characters.
 
 Immutable backing storage may be shared internally because that sharing cannot change observable value semantics. For the same reason, `text = text + piece` in a loop is linear overall rather than quadratic: when the target is the sole owner of its storage, the append reuses it with geometric growth instead of copying the accumulated prefix each time.
 
@@ -317,7 +319,9 @@ int add(int a, int b = 1)
     return a + b
 
 print(add(41)) // output: 42
+print(NL)
 print(add(a = 40, b = 2)) // output: 42
+print(NL)
 ```
 
 Positional arguments come before named arguments. Parameters can have defaults; defaults are evaluated afresh when omitted. Ordinary function overloading is not supported: one function name has one ordinary definition, including argument-count and return-type variants. Optional call forms use default parameters.
@@ -338,6 +342,7 @@ class Point
 
 Point point = Point(3.0, 4.0)
 print(point.length_squared())
+print(NL)
 
 Point origin
 origin.x = 0.0
@@ -364,11 +369,19 @@ Class equality is value equality and requires compared fields to be definitely i
 
 ### Modules
 
-Standard namespaces are always visible and cannot be imported or aliased:
+Core standard namespaces are always visible and cannot be imported or aliased:
 
 ```quidra
-print(math.sqrt(float(16.0)))
 auto home_path = environment.get("HOME")
+```
+
+Generic mathematical semantics live in the installed `math` package and require
+an explicit import:
+
+```quidra
+import math
+print(math.sqrt(float(16.0)))
+print(NL)
 ```
 
 Local source modules use explicit quoted paths, while unquoted non-standard imports denote installed packages:
@@ -381,9 +394,9 @@ import plot = plotting
 geometry.Point point = geometry.Point(2, 3)
 ```
 
-Relative quoted paths resolve from the importing file. `@/` resolves from the command working directory. Installed packages never silently fall back to a same-named file in the working directory. A module's own imports stay private unless it writes `public import mode = "./mode.qui"`, which re-exports the target as a nested namespace such as `dnn.mode.fast()`.
+Relative quoted paths resolve from the importing file. `@/` resolves from the command working directory. Installed packages never silently fall back to a same-named file in the working directory. A module's own imports stay private unless it writes `public import mode = "./mode.qui"`, which re-exports the target as a nested namespace such as `nn.mode.fast()`.
 
-Imported modules contain declarations only. Executable top-level statements belong to the root program. Import cycles are rejected.
+Imported modules may export declarations and immutable compile-time `const` bindings. Other executable top-level statements belong to the root program. Import cycles are rejected.
 
 ### Generics
 
@@ -402,6 +415,7 @@ T first<T>(T[] values)
 
 Box<int> box = Box<int>(7)
 print(first<int>([4, 5]))
+print(NL)
 ```
 
 Generic class type arguments are explicit. Generic function and method type arguments are inferred when every generic parameter is uniquely determined by the call arguments; otherwise they must be written explicitly. Concrete instances are deterministically monomorphized before static checking and native code generation.
@@ -415,14 +429,18 @@ bool condition = false
 
 void work()
     print("work")
+    print(NL)
 
 if condition
     print("yes")
+    print(NL)
 else
     print("no")
+    print(NL)
 
 for i in range(0, 10)
     print(i)
+    print(NL)
 
 while condition
     work()
@@ -436,17 +454,22 @@ Use `elif` for flat conditional chains:
 int score = 85
 if score >= 90
     print("A")
+    print(NL)
 elif score >= 80
     print("B")
+    print(NL)
 else
     print("C")
+    print(NL)
 ```
 
 ### Basic I/O
 
 ```quidra
 print("line")
-write("prompt: ")
+print(NL)
+print("prompt: ")
+flush()
 
 string line
 scan(&line)
@@ -456,7 +479,7 @@ int m
 scan("{&n} {&m}")
 ```
 
-`print` appends a newline. `write` does not. Both return `void | error`, so an output failure fails fast when the call is a statement. `scan` reads one line: `scan(&x)` reads a single value into `x`, and a format such as `"{&name},{&age}"` splits the line at its literal text and parses each `{&target}` by the target's type; a `string` target takes the text as it is. End of input, invalid text, and leftover input are `error`, which fails fast for a statement and can be handled through `void | error read = scan(...)`.
+`print` writes exactly the supplied value and never appends a newline; output a separate `NL` when line termination is wanted. `flush()` explicitly flushes standard output. Both `print` and `flush` return `void | error`, so an output failure fails fast when the call is a statement. There is no console `write` API and no `io` namespace. `scan` reads one line: `scan(&x)` reads a single value into `x`, and a format such as `"{&name},{&age}"` splits the line at its literal text and parses each `{&target}` by the target's type; a `string` target takes the text as it is. End of input, invalid text, and leftover input are `error`, which fails fast for a statement and can be handled through `void | error read = scan(...)`.
 
 ## Tensors and explicit devices
 
@@ -536,32 +559,35 @@ handle for abstractions that need a stable gradient identity without turning the
 tensor value itself into shared mutable state. Optional static shape contracts
 remain ordinary tensor contracts such as `tensor<float32><3, _, _>`.
 
-The official `dnn` package owns learnable parameters, layers, losses, and
-optimizers as ordinary Quidra source classes:
+The official `nn` package owns architecture-independent learnable parameters,
+layers, losses, optimizers, and training semantics as ordinary
+Quidra source abstractions. The upper `dnn` package composes those mechanisms
+into concrete deep-neural-network model families.
 
 ```quidra
-import dnn
+import nn
+import math
 
 class Scale
-    dnn.Parameter<float32> value
+    nn.Parameter<float32> value
 
 Scale model
-model.value = dnn.Parameter<float32>(value = tensor.ones([1]))
-dnn.Adam optimizer = dnn.Adam()
+model.value = nn.Parameter<float32>(value = tensor.ones([1]))
+nn.Adam optimizer = nn.Adam()
 tensor<float32> prediction = model.value.track() * float32(2)
-tensor<float32> loss = (prediction * prediction).mean()
+tensor<float32> loss = math.mean(prediction * prediction)
 
 optimizer.zero_grad(&model)
 loss.backward(&model)
 optimizer.step(&model)
 ```
 
-`dnn.Parameter<T>` is implemented by the package with ordinary tensor values
-plus a private Core `autograd.Target`; its gradient state is therefore DNN-owned
-rather than hidden in the Parameter value tensor. `dnn.State<T>` has no gradient
-destination. Neither abstraction is a compiler-special type. DNN optimizer state
-and update equations likewise live in the package. `dnn.mode.fast()` and
-`dnn.mode.deterministic()` select the DNN execution mode.
+`nn.Parameter<T>` is implemented by the package with ordinary tensor values
+plus a private Core `autograd.Target`; its gradient state is therefore NN-owned
+rather than hidden in the Parameter value tensor. `nn.State<T>` has no gradient
+destination. Neither abstraction is a compiler-special type. NN optimizer state,
+update equations, reusable layer kernels, and NN execution policy likewise live
+in the NN package. DNN may depend on NN but not the reverse.
 
 
 ## Safety model
@@ -586,7 +612,7 @@ The native runtime checks invariant and safety failures that depend on runtime v
 - invalid allocation sizes,
 - zero range steps.
 
-These runtime safety failures terminate deterministically with status `101`. A scalar range-checked numeric cast is different: an out-of-range value produces the cast's typed `error` alternative. It terminates only when a success-only context deliberately consumes that alternative via the ordinary fail-fast rule.
+These runtime safety failures terminate deterministically with status `101`. A range-checked numeric cast is different: an out-of-range value produces the cast's typed `error` alternative. Arrays and tensors use the whole converted container as the success alternative and expose no partial conversion when one leaf fails. The cast terminates only when a success-only context deliberately consumes that alternative via the ordinary fail-fast rule.
 
 Floating-point arithmetic follows IEEE-754 behavior for its width.
 
@@ -633,9 +659,7 @@ The current implementation includes:
 - explicit safe storage references with pinned substorage lifetime,
 - monotonic bare-name resolution and always-visible standard namespaces,
 - local modules, installed-package resolution, explicit generics, and monomorphization,
-- dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, reductions, transpose views, and vector/matrix multiplication,
-- PNG/JPEG/BMP/TIFF/WebP image I/O through `image`,
-- streaming video decode through `video.Reader` with tensor-native RGB frames,
+- dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, transpose views, and autograd/device substrate operations,
 - deterministic `file.Handle` resources with automatic lifetime-bound close independent of GC timing, value-semantic copies, incremental read/write/seek/flush, and optional explicit early `close()`,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
@@ -645,21 +669,23 @@ The source extension is `.qui`.
 
 ## Playground
 
-Quidra includes a local browser playground backed by the real compiler. After building Quidra:
+The official Playground is a separate product and repository:
+<https://github.com/quidra-lang/playground>. Core does not own its UI,
+deployment, runner policy, or release lifecycle.
+
+For compiler development only, Core keeps a small loopback test UI under
+`tools/compiler-ui/`. It is a developer harness, not a second Playground
+product:
 
 ```bash
-python3 playground/server.py --quidra ./build/quidra
+python3 tools/compiler-ui/server.py --quidra ./build/quidra
 ```
 
-The playground opens on `http://127.0.0.1:8787/` and provides **Run**, **Check**, **Format**, **Quidra IR**, and **LLVM IR** views. If `quidra` is already on `PATH`, `--quidra` can be omitted.
-
-The included server is deliberately loopback-only and intended for local development. Each execution uses a fresh temporary working directory, a wall-clock timeout, a small concurrency limit, a reduced child-process environment, and a per-session request token. A public multi-user deployment must execute user programs inside a separately hardened sandbox; this local server is not a multi-tenant security boundary.
-
+The harness shells out to the real `quidra` binary and exposes **Run**,
+**Check**, **Format**, **Quidra IR**, and **LLVM IR** locally. It is deliberately
+loopback-only and is not a multi-tenant security boundary.
 
 ### Public Playground (WebAssembly + native runner)
-
-The local server above is the developer-facing playground: it shells out to the
-real `quidra` binary, so it can offer **Run** and **LLVM IR**.
 
 The public playground at **<https://quidra-lang.github.io/playground/>**
 ([source](https://github.com/quidra-lang/playground)) keeps frontend tooling in
@@ -690,9 +716,9 @@ node tests/wasm_api_tests.mjs build-wasm
 ```
 
 `QUIDRA_BUILD_WASM_FRONTEND` (implied by Emscripten) restricts the build to
-`quidra_core` and `src/wasm_api.cpp`. That configuration needs no CURL, PNG,
-JPEG, TIFF, WebP, FFmpeg, GPU backend or native runtime, because those belong to
-the generated-program runtime and the CLI rather than to the frontend.
+`quidra_core` and `src/wasm_api.cpp`. That configuration needs no CURL, GPU
+backend, native runtime, or package-owned native dependencies because those are
+outside the browser frontend.
 
 ## Build
 
@@ -703,12 +729,10 @@ Requirements:
 - LLVM 15+ with `lli` for ORC JIT execution in the REPL
 - Clang 15+ for AOT native code generation via `quidra FILE.qui`, `quidra run`, and `quidra build` (the current distribution intentionally does not bundle the backend toolchain)
 - libcurl development files (for the `http` standard module and native linking)
-- libpng, libjpeg, libtiff, and libwebp development files (for `image`)
-- FFmpeg libavformat/libavcodec/libavutil/libswscale development files (for `video`)
 - Python 3 for documentation verification
 - Bash for the full Unix test suite
 
-The runtime archive is built with these native dependencies, while generated programs link HTTP, image, or video libraries only when their generated LLVM IR actually calls those runtimes.
+Core's runtime archive links the dependencies required by Core standard facilities such as `http`. Image/video codecs and other domain-native dependencies belong to their packages and are not Core build requirements.
 
 Linux and macOS:
 
@@ -719,7 +743,7 @@ ctest --test-dir build --output-on-failure
 ./build/quidra run examples/hello.qui
 ```
 
-Windows (PowerShell, with CMake-visible libcurl/libpng/libjpeg/libtiff/libwebp/FFmpeg installations; the project CI uses vcpkg):
+Windows (PowerShell, with a CMake-visible libcurl installation; the project CI uses vcpkg):
 
 ```powershell
 cmake -S . -B build -A x64
@@ -745,7 +769,7 @@ Run `quidra` with no arguments from a terminal to start the native REPL. REPL su
 
 ```text
 $ quidra
-Quidra 0.4.0
+Quidra 0.5.0
 >>> int(1) + 2
 3
 >>> int x = 5
@@ -766,7 +790,7 @@ Quidra 0.4.0
 
 Accepted declarations, bindings, functions, classes, generic declarations, and imports remain available for later submissions. Each candidate submission is parsed, specialized, checked, lowered to typed Quidra IR and LLVM IR, compiled natively, and executed. A compile error rejects only that candidate; the previously accepted session remains intact. A standalone expression uses a dedicated typed REPL-display IR operation rather than a source rewrite to `print(...)`.
 
-The current REPL still recompiles accumulated accepted source, but the growing root source is compiled from an in-memory overlay instead of being written and read back through a temporary source file on every submission. Its stable virtual source path still drives relative imports, lock checking, and diagnostics. It does not silently replay observable effects. During reconstruction, prior `print` / `write` operations are suppressed, including output reached through user-function calls. If a submission may execute external or nondeterministic operations such as file/environment access, input, time, random, process, HTTP/image I/O, CLI reads, the session arms a conservative replay barrier before native execution. Further submissions are rejected with `REPL_REPLAY_UNSAFE` until `:reset`, even when the effectful submission later fails at runtime, because the external effect may already have happened.
+The current REPL still recompiles accumulated accepted source, but the growing root source is compiled from an in-memory overlay instead of being written and read back through a temporary source file on every submission. Its stable virtual source path still drives relative imports, lock checking, and diagnostics. It does not silently replay observable effects. During reconstruction, prior `print` operations are suppressed, including output reached through user-function calls. If a submission may execute external or nondeterministic operations such as file/environment access, input, time, random, process, HTTP or package-native I/O, CLI reads, the session arms a conservative replay barrier before native execution. Further submissions are rejected with `REPL_REPLAY_UNSAFE` until `:reset`, even when the effectful submission later fails at runtime, because the external effect may already have happened.
 
 `:help` lists REPL commands, `:type expression` prints the statically checked type, `:reset` clears accepted session state and the replay barrier, and `:quit` or `:exit` exits. Ctrl-D exits normally; Ctrl-C cancels the current input and keeps the session.
 
@@ -779,9 +803,12 @@ The core C FFI is intentionally narrow and explicit:
 ```quidra
 extern int c_abs(int value) = "llabs"
 print(c_abs(-42))
+print(NL)
 ```
 
-Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Capture-free `fn` values can cross as explicit callback pointers when their signature uses only the ABI-stable callback scalar subset (`int32`, `uint32`, `int`, `uint64`, `float32`, `float`) and `void` where applicable; there is no hidden closure environment or callback allocation. Managed text/binary input uses explicit storage borrows: `const string &` and `const bin &` are read-only, while `bin &` is an explicit mutable byte borrow. Each borrow is passed with `&storage` and lowers to a `(data pointer, uint64 byte length)` C ABI pair only for the duration of the call. A borrowed `bin` must be byte-aligned (`len(value) % 8 == 0`); otherwise the call fails deterministically. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Foreign code must not mutate or retain a borrowed pointer; APIs with a different contract need an explicit C wrapper. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
+Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Capture-free `fn` values can cross as explicit callback pointers when their signature uses only the ABI-stable callback scalar subset (`int32`, `uint32`, `int`, `uint64`, `float32`, `float`) and `void` where applicable; there is no hidden closure environment or callback allocation. Managed text/binary input uses explicit storage borrows: `const string &` and `const bin &` are read-only, while `bin &` is an explicit mutable byte borrow. Tensor input uses the same explicit authority model: `const tensor<T> &` is a read-only opaque tensor borrow and `tensor<T> &` is a mutable opaque tensor borrow. String/bin borrows lower to a `(data pointer, uint64 byte length)` pair; tensor borrows lower to one opaque handle defined by `quidra/native_extension.h`. Native code must not retain a borrowed pointer or tensor handle after the call. Mutation is permitted only through a mutable borrow and the corresponding native-extension API; tracked tensors deliberately reject raw mutable CPU access so native code cannot bypass autograd silently. A borrowed `bin` must be byte-aligned (`len(value) % 8 == 0`); otherwise the call fails deterministically. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
+
+Packages may own native implementation components instead of moving performance-sensitive domain code into Core. Package metadata can declare package-owned native sources and a platform-selected native library; AOT/direct/run build paths consume them automatically, while REPL/JIT loads package native libraries and compiles declared native sources to temporary objects before resolving package externs. Native package code uses the installed `quidra/native_extension.h` API and treats Quidra tensor handles as opaque. Core-private runtime/device structs are not a package ABI.
 
 ## CLI
 
@@ -796,6 +823,8 @@ quidra remove quidra-dnn
 quidra list
 quidra package-info quidra-dnn
 quidra package-info quidra-dnn --json
+quidra package sync ./my-package
+quidra package validate ./my-package
 quidra lock program.qui
 quidra lock program.qui --check
 quidra package-path
@@ -855,7 +884,7 @@ unstable global names. They are reserved, always visible, and are not imported.
 Source-file imports stay explicit: quoted targets are source modules and
 unquoted non-standard targets are installed packages.
 
-The reserved standard namespaces are `math`, `io`, `cli`, `file`, `environment`, `test`, `time`, `gpu`, `task`, `atomic`, `autograd`, `ref`, `reflect`, `random`, `process`, `map`, `set`, `json`, `http`, `stats`, `linear`, `signal`, `image`, `video`, `tensor`.
+The reserved standard namespaces are `cli`, `file`, `environment`, `test`, `time`, `gpu`, `task`, `atomic`, `autograd`, `ref`, `reflect`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `exact`. Generic mathematical semantics are provided by the explicit `math` package and therefore require `import math`.
 
 Only referenced standard implementations are linked into a program. The
 namespaces are grouped by semantic role rather than exposed as unrelated global
@@ -863,11 +892,10 @@ functions:
 
 | Area | Namespaces |
 | --- | --- |
-| Numeric foundations | `math`, `stats`, `linear`, `signal` |
 | Tensor execution | `tensor`, `autograd`, `gpu` |
+| Exact numeric extension | `exact` |
 | Structured data | `map`, `set`, `json`, `ref` |
-| I/O and host interaction | `io`, `file`, `environment`, `process`, `http` |
-| Media | `image`, `video` |
+| I/O and host interaction | `file`, `environment`, `process`, `http` |
 | Explicit state and coordination | `random`, `time`, `task`, `atomic` |
 | Tooling and program structure | `cli`, `test`, `reflect` |
 
@@ -876,21 +904,28 @@ is named by its owning namespace, representation changes stay explicit, and
 fallible calls can use the ordinary fail-fast success context unless the program
 deliberately retains the `error` channel.
 
-Core intentionally stops below domain frameworks:
+Core intentionally stops below domain frameworks and general numerical
+libraries:
 
 ```text
 Quidra Core
-├── tensor / autograd    numeric storage, devices, primitives, gradients
-├── image / video        tensor-native media I/O
+├── tensor / autograd / device   storage, layout, generic execution mechanics, gradients
 └── standard foundations
 
 Official source packages
-├── dnn                  Parameter/State, layers, losses, optimizers
-└── vision               differentiable image processing and computer vision
+├── math                mathematical functions, reductions, linear algebra, and numerical algorithms
+├── nn                  architecture-independent neural-network mechanisms, layers, losses, optimizers, and training semantics
+├── vision              image codecs, image processing, computer vision
+├── video               video decoding and video processing
+└── dnn                 concrete deep-neural-network model compositions built on NN and Math
 ```
 
-`dnn` and `vision` use the ordinary package system and receive no
-compiler-specific name handling.
+Core, Math, NN, Vision, Video, and DNN use one lockstep `MAJOR.MINOR.PATCH`
+version. A first-party package release never advances independently of Core.
+
+These packages use the ordinary package/native-extension system and receive no
+compiler-specific name handling. Their C++/CUDA/vendor-backend implementations
+remain package-owned.
 
 For the complete standard-library contracts and examples, see
 [Language semantics](docs/spec/language.md).

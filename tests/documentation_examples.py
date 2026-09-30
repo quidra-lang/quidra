@@ -93,7 +93,43 @@ def fixtures(directory: Path) -> None:
     plotting = packages / "plotting"
     plotting.mkdir(parents=True)
     (plotting / "main.qui").write_text(
-        "int placeholder()\n    return 0\n", encoding="utf-8"
+        "const int answer = 42\n\nint placeholder()\n    return 0\n",
+        encoding="utf-8",
+    )
+
+    nn = packages / "nn"
+    nn.mkdir()
+    (nn / "main.qui").write_text(
+        """class Parameter<T: floating>
+    tensor<T> stored
+    private autograd.Target gradient_state
+
+    construct(tensor<T> value)
+        stored = value
+        gradient_state = autograd.target()
+
+    tensor<T> track()
+        return stored.track(&gradient_state)
+
+class State<T: floating>
+    tensor<T> stored
+
+    construct(tensor<T> value)
+        stored = value
+
+class Adam
+    int marker = 0
+
+    Adam | error construct()
+        marker = 1
+
+    void zero_grad<M>(M &model)
+        return
+
+    void step<M>(M &model)
+        return
+""",
+        encoding="utf-8",
     )
 
     dnn = packages / "dnn"
@@ -136,6 +172,23 @@ class Adam
         "void fast()\n    return\n\nvoid deterministic()\n    return\n", encoding="utf-8"
     )
 
+    math = packages / "math"
+    math.mkdir()
+    (math / "main.qui").write_text(
+        """const bigreal pi = bigreal(3.141592653589793)
+
+float sqrt(float value)
+    return value ^ 0.5
+
+tensor<T> mean<T: floating>(tensor<T> value)
+    return value
+
+tensor<T> matmul<T: numeric>(tensor<T> left, tensor<T> right)
+    return left * right
+""",
+        encoding="utf-8",
+    )
+
 
 def command_environment(cwd: Path | None) -> dict[str, str]:
     environment = os.environ.copy()
@@ -157,6 +210,21 @@ def run_tool(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess
 
 
 def verify_machine_tooling(tmp: Path, failures: list[str]) -> None:
+    package_constant = tmp / "package-constant.qui"
+    package_constant.write_text(
+        "import plotting\nprint(plotting.answer)\n", encoding="utf-8"
+    )
+    package_constant_result = run_tool("run", str(package_constant), cwd=tmp)
+    if (
+        package_constant_result.returncode != 0
+        or package_constant_result.stdout.rstrip("\n") != "42"
+    ):
+        failures.append(
+            "installed packages must export immutable top-level const values generically\n"
+            + package_constant_result.stdout
+            + package_constant_result.stderr
+        )
+
     grammar = run_tool("describe", "grammar", cwd=tmp)
     expected_grammar = (ROOT / "docs/spec/grammar.ebnf").read_text(encoding="utf-8")
     if grammar.returncode != 0 or grammar.stdout.rstrip("\n") != expected_grammar.rstrip("\n"):
@@ -250,7 +318,7 @@ def verify_machine_tooling(tmp: Path, failures: list[str]) -> None:
                 "node_id": answer_statement["node_id"],
                 "expected_hash": answer_statement["source_hash"],
                 "expected_kind": answer_statement["kind"],
-                "replacement": 'print("inserted")\n',
+                "replacement": 'print("inserted")\nprint(NL)\n',
             },
         ],
     }

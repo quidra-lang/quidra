@@ -1,5 +1,6 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 string read_input_line()
     string line = ""
     void | error read = scan(&line)
@@ -13,6 +14,8 @@ int[] big = array(n, fill = 0)
 big[0] = 1
 int first = big[0]
 print("OBS=ALLOC:{len(big)}|FIRST:{first}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

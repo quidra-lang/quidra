@@ -1,6 +1,7 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 int value = 1
 int doubled = value + value
 int halved = doubled / 2
-int total = ha
+int total = halved *

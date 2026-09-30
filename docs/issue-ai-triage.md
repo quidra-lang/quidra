@@ -47,7 +47,10 @@ The workflow may create and apply:
 - `documentation`
 - `question`
 - `area: core`
+- `area: math`
+- `area: nn`
 - `area: vision`
+- `area: video`
 - `area: dnn`
 
 It does not automatically decide `duplicate`, `invalid`, `wontfix`, priority, severity, assignment, closure, milestones, `good first issue`, or `help wanted`.

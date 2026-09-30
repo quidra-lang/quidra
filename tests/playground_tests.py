@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import importlib.util,json,os,stat,sys,tempfile,threading,urllib.error,urllib.request
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[1]; SERVER=ROOT/"playground"/"server.py"
+ROOT=Path(__file__).resolve().parents[1]; UI=ROOT/"tools"/"compiler-ui"; SERVER=UI/"server.py"
 spec=importlib.util.spec_from_file_location("quidra_playground",SERVER); assert spec and spec.loader
 mod=importlib.util.module_from_spec(spec); sys.modules[spec.name]=mod; spec.loader.exec_module(mod)
 
@@ -9,7 +9,7 @@ def fake_quidra(root:Path)->Path:
     path=root/"quidra"; path.write_text("#!/usr/bin/env python3\nimport json,pathlib,sys\nif sys.argv[1:]==['--version']: print('quidra test');raise SystemExit()\nm=sys.argv[1];p=pathlib.Path(sys.argv[2]);t=p.read_text()\nif m=='fmt':p.write_text(t.rstrip()+chr(10))\nelif m=='check':print(json.dumps({'ok':True,'diagnostics':[]}))\nelif m=='run':print('run:'+t.strip())\nelif m=='ir':print('typed-ir')\nelif m=='llvm':print('; llvm-ir')\nelse:raise SystemExit(2)\n"); path.chmod(path.stat().st_mode|stat.S_IXUSR); return path
 
 def main()->int:
-    for name in ("index.html","styles.css","app.js"): assert (ROOT/"playground"/"static"/name).is_file()
+    for name in ("index.html","styles.css","app.js"): assert (UI/"static"/name).is_file()
     with tempfile.TemporaryDirectory() as tmp:
         backend=mod.Backend(fake_quidra(Path(tmp)),2); assert backend.version=="quidra test"
         assert json.loads(backend.execute("check",'print("x")\n')["stdout"])["ok"]

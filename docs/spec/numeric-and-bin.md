@@ -105,6 +105,28 @@ print(int(1))  // valid
 
 There are no display-only, interpolation-only, or other special exceptions for numeric-family literals.
 
+## Exponentiation
+
+`^` is Quidra's basic exponentiation operator. It is right-associative and binds
+more tightly than multiplication and division:
+
+```quidra
+int base = 2
+int exponent = 10
+int value = base ^ exponent
+
+float x = 4.0
+float root = x ^ 0.5
+```
+
+Fixed-width integer and `bigint` exponentiation require a non-negative integer
+exponent. Fixed-width results retain the language's checked-overflow semantics.
+Floating and `bigreal` operands support real exponents. The operands have the
+same concrete numeric type; `^` does not introduce implicit numeric conversion.
+
+Bitwise XOR is deliberately separate and continues to use the uppercase `XOR`
+operator.
+
 ## Fixed-width bitwise operations
 
 Bitwise operations are defined only for the fixed-width integer types `int8`, `int16`, `int32`, `int`/`int64`, `uint8`, `uint16`, `uint32`, and `uint64`.
@@ -135,13 +157,15 @@ These operations are representation operations rather than arithmetic conversion
 
 `bigint` arithmetic `+`, `-`, `*`, integer `/`, and `%` is exact and does not overflow because storage grows with the value. The source type never changes as the value grows.
 
-`bigreal` is not a configurable-precision floating type. Exact decimals are rationals; values such as `math.pi`, `math.e`, and `math.sqrt(2.0)` may remain symbolic. Algebraic simplification is valid only when it preserves the represented mathematical value. For example, an implementation may prove `math.sqrt(2.0) * math.sqrt(8.0) == 4.0` without approximating either square root.
+`bigreal` is not a configurable-precision floating type. Exact decimals are rationals; values such as `math.pi`, `math.e`, and `math.sqrt(bigreal(2))` may remain symbolic. Algebraic simplification is valid only when it preserves the represented mathematical value. For example, an implementation may prove `math.sqrt(bigreal(2)) * math.sqrt(bigreal(8)) == 4.0` without approximating either square root.
 
 Equality and ordering of exact symbolic values must not silently fall back to rounded IEEE guesses. If a result cannot be established within the runtime's finite proof budget, evaluation fails deterministically instead of returning an unproved Boolean. Decimal formatting is an observation of the exact stored value and does not mutate it.
 
 `math.pi` and `math.e` are real-family constants whose concrete representation comes from context:
 
 ```quidra
+import math
+
 float fast_pi = math.pi
 bigreal exact_pi = math.pi
 ```
@@ -167,7 +191,7 @@ int value = 100
 int8 checked = int8(value)
 ```
 
-Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. A scalar conversion that can fail because the runtime value is outside that range exposes `T | error`: bare `auto` infers `T` and fails fast on error, `auto | error` keeps the error alternative, a success-only `T` destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Integer widening whose source range is fully contained in the destination is infallible.
+Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. Any conversion that can fail because a runtime value is outside that range exposes `converted-type | error`: for a scalar the success type is `T`; for an array or tensor the success type is the whole converted container with its structure, rank, and shape facts preserved. Container conversion is atomic: if any numeric leaf is out of range, no partial converted container is exposed. Bare `auto` infers the success type and fails fast on error, `auto | error` keeps the error alternative, a success-only destination also fails fast, `try` propagates it, and `match` may recover from an explicitly preserved result locally. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity. Integer widening whose source range is fully contained in the destination is infallible.
 
 IEEE floating-point to an integer-family type is not a generic cast because a rounding policy is required; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
 
@@ -178,7 +202,7 @@ Exact conversions follow these rules:
 - `float32`/`float` -> `bigreal`: exact conversion of the stored IEEE value, not reinterpretation of the original decimal spelling;
 - `bigint` -> fixed-width integer: explicit and range-checked;
 - `bigreal` -> integer-family type: accepted only when the mathematical value is provably integral, then range-checked when the destination is fixed-width;
-- `bigint`/`bigreal` -> IEEE float: explicit, with finite destination-range checking through the same `T | error` scalar conversion channel.
+- `bigint`/`bigreal` -> IEEE float: explicit, with finite destination-range checking through the same whole-value `converted-type | error` conversion channel.
 
 In short: **an explicit conversion may discard precision when the destination representation requires it, but it may not discard range or invent an integer rounding policy**.
 

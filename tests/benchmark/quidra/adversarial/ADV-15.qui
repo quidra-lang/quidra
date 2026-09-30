@@ -1,5 +1,6 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 int[] values = [1, 2, 3, 4, 5]
 int iterations = 0
 for v in values
@@ -7,6 +8,8 @@ for v in values
     if v == 2
         values = values.append(99)
 print("OBS=ITERS:{iterations}|LEN:{len(values)}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

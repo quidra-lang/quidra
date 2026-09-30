@@ -9,7 +9,8 @@ inline bool is_short_circuit(std::string_view op) {
 }
 
 inline bool is_arithmetic(std::string_view op) {
-    return op == "+" || op == "-" || op == "*" || op == "/" || op == "%";
+    return op == "+" || op == "-" || op == "*" || op == "/" || op == "%" ||
+           op == "^";
 }
 
 inline bool is_bitwise_logic(std::string_view op) {

@@ -1,5 +1,6 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 string read_input_line()
     string line = ""
     void | error read = scan(&line)
@@ -14,6 +15,8 @@ float h = a / b
 float mean = (1.0 + h + 3.0) / 3.0
 float diff = h - h
 print("OBS=MEAN:{mean:frac=6}|DIFF:{diff:frac=6}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

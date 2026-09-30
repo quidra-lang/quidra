@@ -1,5 +1,6 @@
 print("ADV-START")
-io.flush()
+print(NL)
+flush()
 string read_input_line()
     string line = ""
     void | error read = scan(&line)
@@ -11,6 +12,8 @@ string read_input_line()
 int x = int.parse(read_input_line())
 int s = x + 3
 print("OBS=V:{s}")
-io.flush()
+print(NL)
+flush()
 print("ADV-END")
-io.flush()
+print(NL)
+flush()

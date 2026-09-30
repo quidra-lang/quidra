@@ -434,7 +434,7 @@ std::string run_ir(const std::string& source, const RequestReader& request) {
         // IR is only meaningful for a program that checks, so the checker runs
         // first and its diagnostics are what a failing request reports.
         auto checked = quidra::check(source, options_from(request));
-        const auto module = quidra::ir::lower(checked);
+        const auto module = quidra::ir::optimize(quidra::ir::lower(checked));
         return success("ir", std::string("\"text\":") + json_string(quidra::ir::dump(module)) +
                                  ",\"ir_version\":" + json_string(quidra::ir_version));
     } catch (const quidra::CompileErrors& errors) {

@@ -1,0 +1,24 @@
+// The command-line binding with a value of every scalar type it accepts, as
+// a required argument, an optional argument and an option.
+cli args
+    int count = argument()
+    real64 ratio = argument()
+    int whole = argument()
+    real precise = argument()
+    bool enabled = argument()
+    string name = argument()
+    real64 spare_ratio = argument(default = 0.5)
+    int spare_whole = argument(default = 7)
+    real spare_precise = argument(default = 0.25)
+    bool spare_enabled = argument(default = false)
+    int limit = option(default = 3)
+    real64 scale = option(default = 1.5)
+    int seed = option(default = 11)
+    real step = option(default = 0.125)
+    bool strict = option(default = true)
+    string label = option(default = "x")
+    bool verbose = flag()
+
+print("{args.count} {args.ratio} {args.whole} {args.precise} {args.enabled} {args.name}{NL}")
+print("{args.spare_ratio} {args.spare_whole} {args.spare_precise} {args.spare_enabled}{NL}")
+print("{args.limit} {args.scale} {args.seed} {args.step} {args.strict} {args.label} {args.verbose}{NL}")

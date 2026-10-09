@@ -1,0 +1,7 @@
+// Integer division by a zero computed at run time.
+int numerator = 42
+int divisor = numerator - 42
+print("{numerator / 6}")
+print(NL)
+print("{numerator / divisor}")
+print(NL)

@@ -1,6 +1,11 @@
 #include "jit.hpp"
 
-#include "native_build.hpp"
+#include "jit_protocol.hpp"
+#include "platform/environment.hpp"
+#include "platform/file_descriptor.hpp"
+#include "quidra/abi/symbols.hpp"
+#include "toolchain/installation_layout.hpp"
+#include "toolchain/llvm_discovery.hpp"
 
 #include <cerrno>
 #include <cstdint>
@@ -81,53 +86,8 @@ private:
 #endif
 };
 
-std::optional<std::string> environment_value(const char* name) {
-#ifdef _WIN32
-    char* raw = nullptr;
-    std::size_t size = 0;
-    if (_dupenv_s(&raw, &size, name) != 0 || !raw) return std::nullopt;
-    std::string value(raw, size > 0 ? size - 1 : 0);
-    std::free(raw);
-    return value;
-#else
-    if (const char* raw = std::getenv(name)) return std::string(raw);
-    return std::nullopt;
-#endif
-}
-
-std::vector<fs::path> llvm_library_candidates() {
-    std::vector<fs::path> result;
-    if (const auto configured = environment_value("QUIDRA_LLVM_LIBRARY");
-        configured && !configured->empty()) {
-        result.emplace_back(*configured);
-    }
-#ifdef _WIN32
-    result.emplace_back("LLVM-C.dll");
-    result.emplace_back("LLVM.dll");
-    result.emplace_back(R"(C:\Program Files\LLVM\bin\LLVM-C.dll)");
-    result.emplace_back(R"(C:\Program Files\LLVM\bin\LLVM.dll)");
-#elif defined(__APPLE__)
-    result.emplace_back("libLLVM.dylib");
-    result.emplace_back("/opt/homebrew/opt/llvm/lib/libLLVM.dylib");
-    result.emplace_back("/usr/local/opt/llvm/lib/libLLVM.dylib");
-    for (int llvm_major = 24; llvm_major >= 15; --llvm_major) {
-        result.emplace_back("/opt/homebrew/opt/llvm@" + std::to_string(llvm_major) + "/lib/libLLVM.dylib");
-        result.emplace_back("/usr/local/opt/llvm@" + std::to_string(llvm_major) + "/lib/libLLVM.dylib");
-    }
-#else
-    result.emplace_back("libLLVM.so");
-    for (int llvm_major = 24; llvm_major >= 15; --llvm_major) {
-        result.emplace_back("libLLVM-" + std::to_string(llvm_major) + ".so");
-        result.emplace_back("libLLVM-" + std::to_string(llvm_major) + ".so.1");
-        result.emplace_back("/usr/lib/llvm-" + std::to_string(llvm_major) + "/lib/libLLVM.so");
-        result.emplace_back("/usr/lib/llvm-" + std::to_string(llvm_major) + "/lib/libLLVM.so.1");
-    }
-#endif
-    return result;
-}
-
 std::unique_ptr<DynamicLibrary> load_llvm_library() {
-    for (const auto& candidate : llvm_library_candidates()) {
+    for (const auto& candidate : toolchain::llvm_library_candidates()) {
         if (auto library = DynamicLibrary::open(candidate)) return library;
     }
     throw std::runtime_error(
@@ -275,7 +235,7 @@ public:
 
 #ifdef _WIN32
         Ref runtime_generator = nullptr;
-        const auto runtime_text = native::runtime_library().string();
+        const auto runtime_text = toolchain::runtime_library().string();
         ErrorRef runtime_error = nullptr;
         if (api_.create_static_generator_v21) {
             runtime_error = api_.create_static_generator_v21(
@@ -296,11 +256,11 @@ public:
         // it globally lets ORC's process generator resolve quidra_* symbols
         // without extracting broad static-archive objects into every module.
         runtime_library_ =
-            DynamicLibrary::open(native::jit_runtime_library(), true);
+            DynamicLibrary::open(toolchain::jit_runtime_library(), true);
         if (!runtime_library_) {
             throw std::runtime_error(
                 "cannot load the Quidra JIT runtime library: " +
-                native::jit_runtime_library().string());
+                toolchain::jit_runtime_library().string());
         }
 #endif
 
@@ -403,7 +363,8 @@ public:
 
             ExecutorAddress address = 0;
             api_.check(
-                api_.lljit_lookup(jit_, &address, "main"),
+                api_.lljit_lookup(
+                    jit_, &address, std::string(abi::symbol_namespace::entry).c_str()),
                 "looking up JIT entrypoint");
             if (!address)
                 throw std::runtime_error("LLVM ORC returned a null entrypoint");
@@ -448,21 +409,6 @@ private:
 
 #ifndef _WIN32
 namespace {
-
-bool fd_write_all(int fd, std::string_view text) {
-    std::size_t offset = 0;
-    while (offset < text.size()) {
-        const auto written = ::write(
-            fd, text.data() + offset, text.size() - offset);
-        if (written < 0) {
-            if (errno == EINTR) continue;
-            return false;
-        }
-        if (written == 0) return false;
-        offset += static_cast<std::size_t>(written);
-    }
-    return true;
-}
 
 bool redirect_jit_output(
     const fs::path& stdout_path, const fs::path& stderr_path,
@@ -529,32 +475,34 @@ int run_server(
 
     try {
         Jit jit;
-        if (!fd_write_all(protocol_stdout, "READY\n"))
+        if (!platform::write_all(protocol_stdout, std::string(jit_protocol::ready) + "\n"))
             return 1;
 
         std::string header;
         while (std::getline(std::cin, header)) {
             if (header.empty()) continue;
-            if (header == "QUIT") break;
-            if (header.rfind("RUN ", 0) != 0) {
+            if (header == jit_protocol::quit) break;
+            if (header.rfind(jit_protocol::run, 0) != 0) {
                 const std::string message = "invalid persistent JIT request";
-                fd_write_all(
+                platform::write_all(
                     protocol_stdout,
-                    "ERR " + std::to_string(message.size()) + "\n" + message);
+                    std::string(jit_protocol::error) + std::to_string(message.size()) +
+                        "\n" + message);
                 continue;
             }
 
             std::size_t count = 0;
             try {
-                const auto parsed = std::stoull(header.substr(4));
+                const auto parsed = std::stoull(header.substr(jit_protocol::run.size()));
                 if (parsed > std::numeric_limits<std::size_t>::max())
                     throw std::out_of_range("request too large");
                 count = static_cast<std::size_t>(parsed);
             } catch (...) {
                 const std::string message = "invalid persistent JIT request length";
-                fd_write_all(
+                platform::write_all(
                     protocol_stdout,
-                    "ERR " + std::to_string(message.size()) + "\n" + message);
+                    std::string(jit_protocol::error) + std::to_string(message.size()) +
+                        "\n" + message);
                 continue;
             }
 
@@ -572,9 +520,10 @@ int run_server(
                     protocol_stdout, protocol_stderr,
                     output_fd, error_fd)) {
                 const std::string message = "cannot redirect persistent JIT output";
-                fd_write_all(
+                platform::write_all(
                     protocol_stdout,
-                    "ERR " + std::to_string(message.size()) + "\n" + message);
+                    std::string(jit_protocol::error) + std::to_string(message.size()) +
+                        "\n" + message);
                 continue;
             }
 
@@ -584,16 +533,16 @@ int run_server(
                     jit.run(llvm_ir, "<repl>", {}, &entry_started);
                 restore_jit_output(
                     protocol_stdout, protocol_stderr, output_fd, error_fd);
-                if (!fd_write_all(
+                if (!platform::write_all(
                         protocol_stdout,
-                        "OK " + std::to_string(status) + "\n"))
+                        std::string(jit_protocol::ok) + std::to_string(status) + "\n"))
                     break;
             } catch (const std::exception& error) {
                 restore_jit_output(
                     protocol_stdout, protocol_stderr, output_fd, error_fd);
                 const std::string message = error.what();
-                const auto tag = entry_started ? "POSTERR " : "ERR ";
-                if (!fd_write_all(
+                const auto tag = entry_started ? jit_protocol::post_error : jit_protocol::error;
+                if (!platform::write_all(
                         protocol_stdout,
                         std::string(tag) + std::to_string(message.size()) +
                             "\n" + message))
@@ -602,9 +551,10 @@ int run_server(
         }
     } catch (const std::exception& error) {
         const std::string message = error.what();
-        fd_write_all(
+        platform::write_all(
             protocol_stdout,
-            "STARTERR " + std::to_string(message.size()) + "\n" + message);
+            std::string(jit_protocol::start_error) + std::to_string(message.size()) +
+                "\n" + message);
         ::close(protocol_stdout);
         ::close(protocol_stderr);
         return 1;

@@ -1,5 +1,9 @@
 #pragma once
+#include "quidra/abi/layout.hpp"
 #include "quidra/language.hpp"
+#include "quidra/numeric_types.hpp"
+#include "quidra/standard_classes.hpp"
+#include "quidra/type_kind.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <cstddef>
@@ -12,37 +16,6 @@
 #include <vector>
 
 namespace quidra {
-
-enum class TypeKind {
-    Int,
-    Int8,
-    Int16,
-    Int32,
-    UInt8,
-    UInt16,
-    UInt32,
-    UInt64,
-    BigInt,
-    Float,
-    Float32,
-    BigReal,
-    Bool,
-    String,
-    Bin,
-    Void,
-    Never,
-    Error,
-    None,
-    Array,
-    Tensor,
-    Union,
-    Class,
-    Address,
-    Function,
-    Auto,
-    Range,
-    Invalid
-};
 
 struct Type {
     TypeKind kind{TypeKind::Void};
@@ -127,19 +100,8 @@ struct Type {
 };
 
 inline std::string type_name(const Type& type) {
+    if (const auto* numeric = numeric_kind_info(type.kind)) return std::string(numeric->spelling);
     switch (type.kind) {
-        case TypeKind::Int: return "int";
-        case TypeKind::Int8: return "int8";
-        case TypeKind::Int16: return "int16";
-        case TypeKind::Int32: return "int32";
-        case TypeKind::UInt8: return "uint8";
-        case TypeKind::UInt16: return "uint16";
-        case TypeKind::UInt32: return "uint32";
-        case TypeKind::UInt64: return "uint64";
-        case TypeKind::BigInt: return "bigint";
-        case TypeKind::Float: return "float";
-        case TypeKind::Float32: return "float32";
-        case TypeKind::BigReal: return "bigreal";
         case TypeKind::Bool: return "bool";
         case TypeKind::String: return "string";
         case TypeKind::Bin: return "bin";
@@ -194,6 +156,8 @@ inline std::string type_name(const Type& type) {
             }
             return result;
         }
+        default:
+            break;
     }
     return "?";
 }
@@ -223,132 +187,105 @@ inline bool is_storable(const Type& type) {
            type.kind != TypeKind::Range && type.kind != TypeKind::Address;
 }
 
-inline bool is_integer(const Type& type) {
-    switch (type.kind) {
-        case TypeKind::Int:
-        case TypeKind::Int8:
-        case TypeKind::Int16:
-        case TypeKind::Int32:
-        case TypeKind::UInt8:
-        case TypeKind::UInt16:
-        case TypeKind::UInt32:
-        case TypeKind::UInt64:
-            return true;
-        default:
-            return false;
-    }
+// The table row of a numeric type, or nullptr (quidra/numeric_types.hpp).
+inline const NumericKindInfo* numeric_info(const Type& type) {
+    return numeric_kind_info(type.kind);
+}
+
+inline bool is_fixed_integer(const Type& type) {
+    const auto* numeric = numeric_info(type);
+    return numeric && numeric->width != 0 &&
+           (numeric->family == NumericFamily::Integer || numeric->family == NumericFamily::Natural);
 }
 
 inline bool is_signed_integer(const Type& type) {
-    return type.kind == TypeKind::Int || type.kind == TypeKind::Int8 ||
-           type.kind == TypeKind::Int16 || type.kind == TypeKind::Int32;
+    const auto* numeric = numeric_info(type);
+    return numeric && numeric->width != 0 && numeric->family == NumericFamily::Integer;
 }
 
-inline bool is_bigint(const Type& type) {
-    return type.kind == TypeKind::BigInt;
+// int and nat: arbitrary-precision integers, held as words
+// (abi::bare_integer_layout).
+inline bool is_bare_integer(const Type& type) {
+    const auto* numeric = numeric_info(type);
+    return numeric && numeric->width == 0 &&
+           (numeric->family == NumericFamily::Integer || numeric->family == NumericFamily::Natural);
 }
 
 inline bool is_integer_family_type(const Type& type) {
-    return is_integer(type) || is_bigint(type);
+    const auto* numeric = numeric_info(type);
+    return numeric &&
+           (numeric->family == NumericFamily::Integer || numeric->family == NumericFamily::Natural);
 }
 
-inline bool is_float(const Type& type) {
-    return type.kind == TypeKind::Float || type.kind == TypeKind::Float32;
+inline bool is_fixed_real(const Type& type) {
+    const auto* numeric = numeric_info(type);
+    return numeric && numeric->width != 0 && numeric->family == NumericFamily::Real;
 }
 
-inline bool is_bigreal(const Type& type) {
-    return type.kind == TypeKind::BigReal;
+inline bool is_exact_real(const Type& type) {
+    const auto* numeric = numeric_info(type);
+    return numeric && numeric->width == 0 && numeric->family == NumericFamily::Real;
 }
 
 inline bool is_real(const Type& type) {
-    return is_float(type) || is_bigreal(type);
+    const auto* numeric = numeric_info(type);
+    return numeric && numeric->family == NumericFamily::Real;
 }
 
 inline bool is_numeric(const Type& type) {
-    return is_integer_family_type(type) || is_real(type);
+    return numeric_info(type) != nullptr;
+}
+
+// A numeric kind without a fixed width: its values are boxed and shared.
+inline bool is_arbitrary_precision(const Type& type) {
+    const auto* numeric = numeric_info(type);
+    return numeric && numeric->width == 0;
 }
 
 inline bool is_tensor_numeric(const Type& type) {
-    return is_integer(type) || is_float(type);
+    const auto* numeric = numeric_info(type);
+    return numeric && numeric->tensor_element;
 }
 
 inline int integer_width(const Type& type) {
-    switch (type.kind) {
-        case TypeKind::Int8:
-        case TypeKind::UInt8:
-            return 8;
-        case TypeKind::Int16:
-        case TypeKind::UInt16:
-            return 16;
-        case TypeKind::Int32:
-        case TypeKind::UInt32:
-            return 32;
-        case TypeKind::Int:
-        case TypeKind::UInt64:
-            return 64;
-        default:
-            return 0;
-    }
+    return is_fixed_integer(type) ? static_cast<int>(numeric_info(type)->width) : 0;
 }
 
 inline int float_precision_bits(const Type& type) {
-    switch (type.kind) {
-        case TypeKind::Float32: return 24;
-        case TypeKind::Float: return 53;
-        default: return 0;
-    }
+    const auto* numeric = numeric_info(type);
+    return numeric ? ieee_precision_bits(numeric->format) : 0;
+}
+
+// The smallest and largest value of a fixed-width integer type of `width`
+// bits, as the two's complement or unsigned range of that width.
+inline long long signed_integer_min(int width) {
+    return width >= 64 ? std::numeric_limits<long long>::min() : -(1LL << (width - 1));
+}
+
+inline long long signed_integer_max(int width) {
+    return width >= 64 ? std::numeric_limits<long long>::max() : (1LL << (width - 1)) - 1;
+}
+
+inline unsigned long long unsigned_integer_max(int width) {
+    return width >= 64 ? std::numeric_limits<unsigned long long>::max() : (1ULL << width) - 1ULL;
 }
 
 inline bool integer_value_fits(long long value, const Type& type) {
-    switch (type.kind) {
-        case TypeKind::Int8:
-            return value >= std::numeric_limits<std::int8_t>::min() &&
-                   value <= std::numeric_limits<std::int8_t>::max();
-        case TypeKind::Int16:
-            return value >= std::numeric_limits<std::int16_t>::min() &&
-                   value <= std::numeric_limits<std::int16_t>::max();
-        case TypeKind::Int32:
-            return value >= std::numeric_limits<std::int32_t>::min() &&
-                   value <= std::numeric_limits<std::int32_t>::max();
-        case TypeKind::Int:
-            return true;
-        case TypeKind::UInt8:
-            return value >= 0 &&
-                   static_cast<unsigned long long>(value) <= std::numeric_limits<std::uint8_t>::max();
-        case TypeKind::UInt16:
-            return value >= 0 &&
-                   static_cast<unsigned long long>(value) <= std::numeric_limits<std::uint16_t>::max();
-        case TypeKind::UInt32:
-            return value >= 0 &&
-                   static_cast<unsigned long long>(value) <= std::numeric_limits<std::uint32_t>::max();
-        case TypeKind::UInt64:
-            return value >= 0;
-        default:
-            return false;
+    if (!is_fixed_integer(type)) return false;
+    const auto width = integer_width(type);
+    if (is_signed_integer(type)) {
+        return value >= signed_integer_min(width) && value <= signed_integer_max(width);
     }
+    return value >= 0 && static_cast<unsigned long long>(value) <= unsigned_integer_max(width);
 }
 
 inline bool integer_literal_value_fits(unsigned long long value, const Type& type) {
-    switch (type.kind) {
-        case TypeKind::Int8:
-            return value <= static_cast<unsigned long long>(std::numeric_limits<std::int8_t>::max());
-        case TypeKind::Int16:
-            return value <= static_cast<unsigned long long>(std::numeric_limits<std::int16_t>::max());
-        case TypeKind::Int32:
-            return value <= static_cast<unsigned long long>(std::numeric_limits<std::int32_t>::max());
-        case TypeKind::Int:
-            return value <= static_cast<unsigned long long>(std::numeric_limits<std::int64_t>::max());
-        case TypeKind::UInt8:
-            return value <= std::numeric_limits<std::uint8_t>::max();
-        case TypeKind::UInt16:
-            return value <= std::numeric_limits<std::uint16_t>::max();
-        case TypeKind::UInt32:
-            return value <= std::numeric_limits<std::uint32_t>::max();
-        case TypeKind::UInt64:
-            return true;
-        default:
-            return false;
+    if (!is_fixed_integer(type)) return false;
+    const auto width = integer_width(type);
+    if (is_signed_integer(type)) {
+        return value <= static_cast<unsigned long long>(signed_integer_max(width));
     }
+    return value <= unsigned_integer_max(width);
 }
 
 inline bool negative_integer_literal_value_fits(unsigned long long magnitude, const Type& type) {
@@ -360,51 +297,35 @@ inline bool negative_integer_literal_value_fits(unsigned long long magnitude, co
 }
 
 inline bool float_value_fits_exactly(double value, const Type& type) {
-    if (type.kind == TypeKind::Float) return true;
-    if (type.kind != TypeKind::Float32) return false;
+    const auto* numeric = numeric_info(type);
+    if (!numeric) return false;
+    if (numeric->format == IeeeFormat::Binary64) return true;
+    if (numeric->format != IeeeFormat::Binary32) return false;
     const auto narrowed = static_cast<float>(value);
     return static_cast<double>(narrowed) == value;
 }
 
 inline bool float_value_fits_range(double value, const Type& type) {
-    if (!is_float(type) || !std::isfinite(value)) return false;
-    if (type.kind == TypeKind::Float) return true;
-    if (type.kind != TypeKind::Float32) return false;
+    if (!is_fixed_real(type) || !std::isfinite(value)) return false;
+    const auto format = numeric_info(type)->format;
+    if (format == IeeeFormat::Binary64) return true;
+    if (format != IeeeFormat::Binary32) return false;
     return std::isfinite(static_cast<float>(value));
 }
 
 inline bool float_value_fits_exactly_in_integer(double value, const Type& type) {
-    if (!is_integer(type) || !std::isfinite(value) || std::trunc(value) != value) return false;
+    if (!is_fixed_integer(type) || !std::isfinite(value) || std::trunc(value) != value) return false;
     const long double exact = static_cast<long double>(value);
-    switch (type.kind) {
-        case TypeKind::Int8:
-            return exact >= std::numeric_limits<std::int8_t>::min() &&
-                   exact <= std::numeric_limits<std::int8_t>::max();
-        case TypeKind::Int16:
-            return exact >= std::numeric_limits<std::int16_t>::min() &&
-                   exact <= std::numeric_limits<std::int16_t>::max();
-        case TypeKind::Int32:
-            return exact >= std::numeric_limits<std::int32_t>::min() &&
-                   exact <= std::numeric_limits<std::int32_t>::max();
-        case TypeKind::Int:
-            return exact >= static_cast<long double>(std::numeric_limits<std::int64_t>::min()) &&
-                   exact <= static_cast<long double>(std::numeric_limits<std::int64_t>::max());
-        case TypeKind::UInt8:
-            return exact >= 0.0L && exact <= std::numeric_limits<std::uint8_t>::max();
-        case TypeKind::UInt16:
-            return exact >= 0.0L && exact <= std::numeric_limits<std::uint16_t>::max();
-        case TypeKind::UInt32:
-            return exact >= 0.0L && exact <= std::numeric_limits<std::uint32_t>::max();
-        case TypeKind::UInt64:
-            return exact >= 0.0L &&
-                   exact <= static_cast<long double>(std::numeric_limits<std::uint64_t>::max());
-        default:
-            return false;
+    const auto width = integer_width(type);
+    if (is_signed_integer(type)) {
+        return exact >= static_cast<long double>(signed_integer_min(width)) &&
+               exact <= static_cast<long double>(signed_integer_max(width));
     }
+    return exact >= 0.0L && exact <= static_cast<long double>(unsigned_integer_max(width));
 }
 
 inline bool integer_value_fits_exactly_in_float(long long value, const Type& type) {
-    if (!is_float(type)) return false;
+    if (!is_fixed_real(type)) return false;
     auto magnitude = value < 0
         ? static_cast<unsigned long long>(-(value + 1)) + 1ULL
         : static_cast<unsigned long long>(value);
@@ -419,7 +340,7 @@ inline bool integer_value_fits_exactly_in_float(long long value, const Type& typ
 }
 
 inline bool integer_literal_fits_exactly_in_float(unsigned long long value, const Type& type) {
-    if (!is_float(type)) return false;
+    if (!is_fixed_real(type)) return false;
     auto magnitude = value;
     if (magnitude == 0) return true;
     while ((magnitude & 1ULL) == 0) magnitude >>= 1;
@@ -432,15 +353,15 @@ inline bool integer_literal_fits_exactly_in_float(unsigned long long value, cons
 }
 
 inline int scalar_storage_bits(const Type& type) {
-    if (is_integer(type)) return integer_width(type);
-    if (type.kind == TypeKind::Float32) return 32;
-    if (type.kind == TypeKind::Float) return 64;
+    if (const auto* numeric = numeric_info(type); numeric && numeric->width != 0) {
+        return static_cast<int>(numeric->width);
+    }
     if (type.kind == TypeKind::Bool) return 1;
     return 0;
 }
 
 inline bool integer_range_contained(const Type& from, const Type& to) {
-    if (!is_integer(from) || !is_integer(to)) return false;
+    if (!is_fixed_integer(from) || !is_fixed_integer(to)) return false;
 
     const auto from_width = integer_width(from);
     const auto to_width = integer_width(to);
@@ -454,7 +375,7 @@ inline bool integer_range_contained(const Type& from, const Type& to) {
 }
 
 inline bool integer_range_exact_in_float(const Type& from, const Type& to) {
-    if (!is_integer(from) || !is_float(to)) return false;
+    if (!is_fixed_integer(from) || !is_fixed_real(to)) return false;
 
     const auto required_bits =
         integer_width(from) - (is_signed_integer(from) ? 1 : 0);
@@ -467,7 +388,7 @@ inline bool explicit_numeric_cast_supported(const Type& from, const Type& to) {
     // IEEE real -> integer is a rounding operation, not a representation
     // conversion. Exact bigreal -> integer is allowed only when runtime proof
     // establishes that the mathematical value is integral.
-    if (is_float(from) && is_integer_family_type(to)) return false;
+    if (is_fixed_real(from) && is_integer_family_type(to)) return false;
     return true;
 }
 
@@ -481,17 +402,22 @@ enum class NumericConversionPolicy {
 inline NumericConversionPolicy numeric_conversion_policy(const Type& from, const Type& to) {
     if (from == to) return NumericConversionPolicy::Identity;
     if (!explicit_numeric_cast_supported(from, to)) return NumericConversionPolicy::Forbidden;
-    if (is_integer(from) && is_integer(to)) {
+    if (is_fixed_integer(from) && is_fixed_integer(to)) {
         return integer_range_contained(from, to)
             ? NumericConversionPolicy::ExplicitDeterministic
             : NumericConversionPolicy::ExplicitRangeCheck;
     }
-    if ((is_bigint(from) && is_integer(to)) ||
-        (is_bigreal(from) && is_integer_family_type(to)) ||
-        ((is_bigint(from) || is_bigreal(from)) && is_float(to))) {
+    // nat holds no negative value: a signed source is checked.
+    if (to.kind == TypeKind::Nat && (from.kind == TypeKind::Int || is_signed_integer(from))) {
         return NumericConversionPolicy::ExplicitRangeCheck;
     }
-    if (from.kind == TypeKind::Float && to.kind == TypeKind::Float32) {
+    if ((is_bare_integer(from) && is_fixed_integer(to)) ||
+        (is_exact_real(from) && is_integer_family_type(to)) ||
+        ((is_bare_integer(from) || is_exact_real(from)) && is_fixed_real(to))) {
+        return NumericConversionPolicy::ExplicitRangeCheck;
+    }
+    if (is_fixed_real(from) && is_fixed_real(to) &&
+        numeric_info(to)->width < numeric_info(from)->width) {
         return NumericConversionPolicy::ExplicitRangeCheck;
     }
     return NumericConversionPolicy::ExplicitDeterministic;
@@ -499,18 +425,7 @@ inline NumericConversionPolicy numeric_conversion_policy(const Type& from, const
 
 inline std::optional<Type> builtin_scalar_type(std::string_view name) {
     if (const auto canonical = canonical_builtin_type_name(name)) name = *canonical;
-    if (name == "int") return Type::simple(TypeKind::Int);
-    if (name == "int8") return Type::simple(TypeKind::Int8);
-    if (name == "int16") return Type::simple(TypeKind::Int16);
-    if (name == "int32") return Type::simple(TypeKind::Int32);
-    if (name == "uint8") return Type::simple(TypeKind::UInt8);
-    if (name == "uint16") return Type::simple(TypeKind::UInt16);
-    if (name == "uint32") return Type::simple(TypeKind::UInt32);
-    if (name == "uint64") return Type::simple(TypeKind::UInt64);
-    if (name == "bigint") return Type::simple(TypeKind::BigInt);
-    if (name == "float") return Type::simple(TypeKind::Float);
-    if (name == "float32") return Type::simple(TypeKind::Float32);
-    if (name == "bigreal") return Type::simple(TypeKind::BigReal);
+    if (const auto* numeric = numeric_kind_info(name)) return Type::simple(numeric->kind);
     if (name == "bool") return Type::simple(TypeKind::Bool);
     if (name == "string") return Type::simple(TypeKind::String);
     if (name == "bin") return Type::simple(TypeKind::Bin);
@@ -518,7 +433,7 @@ inline std::optional<Type> builtin_scalar_type(std::string_view name) {
 }
 
 inline bool is_pointer_runtime_type(const Type& type) {
-    return type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal ||
+    return is_arbitrary_precision(type) ||
            type.kind == TypeKind::String || type.kind == TypeKind::Bin ||
            type.kind == TypeKind::Error || type.kind == TypeKind::Array ||
            type.kind == TypeKind::Tensor || type.kind == TypeKind::Union ||
@@ -532,10 +447,10 @@ enum class ValueStoragePolicy {
 };
 
 inline ValueStoragePolicy value_storage_policy(const Type& type) {
-    if (type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal ||
+    if (is_arbitrary_precision(type) ||
         type.kind == TypeKind::String || type.kind == TypeKind::Error ||
         (type.kind == TypeKind::Class &&
-         type.class_name == "$std.json.Value")) {
+         type.class_name == standard_class::json_value)) {
         return ValueStoragePolicy::ImmutableShared;
     }
     if (type.kind == TypeKind::Array || type.kind == TypeKind::Tensor ||
@@ -559,9 +474,10 @@ inline bool uses_shared_immutable_storage(const Type& type) {
 }
 
 inline std::size_t runtime_storage_bytes(const Type& type) {
-    if (is_integer(type)) return static_cast<std::size_t>(integer_width(type) / 8);
-    if (type.kind == TypeKind::Float32) return 4;
-    if (type.kind == TypeKind::Float) return 8;
+    if (const auto* numeric = numeric_info(type); numeric && numeric->width != 0) {
+        return static_cast<std::size_t>(numeric->width / 8);
+    }
+    if (type.kind == TypeKind::Real) return abi::exact_real_layout::bytes;
     if (type.kind == TypeKind::Bool) return 1;
     if (type.kind == TypeKind::Function) return 8;
     if (is_pointer_runtime_type(type)) return 8;

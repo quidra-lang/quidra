@@ -1,0 +1,18 @@
+// A reference loop over a `&` parameter while a call grows the same array
+// through another reference to its holder: FOR_ITERATION at the call.
+class Bag
+    int[] items
+
+void grow(Bag &bag)
+    bag.items = bag.items.append(9)
+
+void walk(int[] &values, Bag &bag)
+    for &x in values
+        x = x + 1
+        grow(&bag)
+
+Bag b
+b.items = [1, 2, 3]
+print("before" + NL)
+walk(&b.items, &b)
+print("after" + NL)

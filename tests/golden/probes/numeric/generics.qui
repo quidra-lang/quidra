@@ -1,0 +1,27 @@
+// Generic functions constrained by numeric family.
+T twice<T: numeric>(T value)
+    return value + value
+
+T largest<T: ordered>(T left, T right)
+    if left > right
+        return left
+    return right
+
+T scaled<T: floating>(T value, T factor)
+    return value * factor
+
+T step<T: integer>(T value, T one)
+    return value + one
+
+int8 five = 5
+real64 real_value = 2.5
+real32 single = 1.5
+int seven = 7
+int three = 3
+int nine = 9
+print("{twice(five)} {twice(real_value)} {twice(single)} {twice(seven)}")
+print(NL)
+print("{largest(three, nine)} {largest(nat8(4), nat8(2))} {largest(real_value, 0.25)}")
+print(NL)
+print("{scaled(real_value, 0.5)} {scaled(single, real32(0.5))} {step(int16(41), int16(1))} {step(nat32(9), nat32(1))}")
+print(NL)

@@ -6,6 +6,7 @@ ROOT="$(realpath "$2")"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run only
 "$QUIDRA" llvm "$ROOT/examples/hello.qui" > "$TMP/hello.ll"
 if grep -Eq 'call .*@quidra_(image|http)_' "$TMP/hello.ll"; then
     echo "unused optional runtime call leaked into Hello World" >&2

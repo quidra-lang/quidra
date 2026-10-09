@@ -71,14 +71,15 @@ const char* token_name(TokenKind kind) {
         case TokenKind::Indent: return "indent"; case TokenKind::Dedent: return "dedent"; case TokenKind::Pipe: return "|"; case TokenKind::Ampersand: return "&";
         case TokenKind::Eof: return "end of file"; case TokenKind::Newline: return "newline";
         case TokenKind::Identifier: return "identifier"; case TokenKind::Integer: return "integer";
-        case TokenKind::Float: return "float"; case TokenKind::String: return "string";
+        case TokenKind::RealLiteral: return "real"; case TokenKind::ImaginaryLiteral: return "imaginary"; case TokenKind::String: return "string";
         case TokenKind::KwClass: return "class"; case TokenKind::KwEnum: return "enum"; case TokenKind::KwPrivate: return "private"; case TokenKind::KwPublic: return "public"; case TokenKind::KwImport: return "import"; case TokenKind::KwConst: return "const";
-        case TokenKind::KwReturn: return "return"; case TokenKind::KwIf: return "if";
+        case TokenKind::KwReturn: return "return"; case TokenKind::KwIf: return "if"; case TokenKind::KwThen: return "then";
         case TokenKind::KwElif: return "elif"; case TokenKind::KwElse: return "else";
         case TokenKind::KwWhile: return "while"; case TokenKind::KwFor: return "for";
         case TokenKind::KwIn: return "in"; case TokenKind::KwMatch: return "match";
         case TokenKind::KwTry: return "try"; case TokenKind::KwBreak: return "break";
-        case TokenKind::KwContinue: return "continue"; case TokenKind::KwTrue: return "true";
+        case TokenKind::KwContinue: return "continue"; case TokenKind::KwThis: return "this";
+        case TokenKind::KwTrue: return "true";
         case TokenKind::KwFalse: return "false"; case TokenKind::KwNot: return "not";
         case TokenKind::KwAnd: return "and"; case TokenKind::KwOr: return "or";
         case TokenKind::KwBitNot: return "NOT"; case TokenKind::KwBitAnd: return "AND";
@@ -150,10 +151,10 @@ Token Lexer::identifier() {
     const auto text = std::string(source_.substr(start_index, index_ - start_index));
     static const std::unordered_map<std::string, TokenKind> keywords = {
         {"class", TokenKind::KwClass}, {"enum", TokenKind::KwEnum}, {"private", TokenKind::KwPrivate}, {"public", TokenKind::KwPublic}, {"import", TokenKind::KwImport}, {"const", TokenKind::KwConst},
-        {"return", TokenKind::KwReturn}, {"if", TokenKind::KwIf}, {"elif", TokenKind::KwElif}, {"else", TokenKind::KwElse},
+        {"return", TokenKind::KwReturn}, {"if", TokenKind::KwIf}, {"then", TokenKind::KwThen}, {"elif", TokenKind::KwElif}, {"else", TokenKind::KwElse},
         {"while", TokenKind::KwWhile}, {"for", TokenKind::KwFor},
         {"in", TokenKind::KwIn}, {"match", TokenKind::KwMatch}, {"try", TokenKind::KwTry},
-        {"break", TokenKind::KwBreak}, {"continue", TokenKind::KwContinue},
+        {"break", TokenKind::KwBreak}, {"continue", TokenKind::KwContinue}, {"this", TokenKind::KwThis},
         {"true", TokenKind::KwTrue}, {"false", TokenKind::KwFalse}, {"not", TokenKind::KwNot},
         {"and", TokenKind::KwAnd}, {"or", TokenKind::KwOr},
         {"NOT", TokenKind::KwBitNot}, {"AND", TokenKind::KwBitAnd},
@@ -193,11 +194,20 @@ Token Lexer::number() {
         advance();
         if (!eof() && (peek() == '+' || peek() == '-')) advance();
         if (eof() || !std::isdigit(static_cast<unsigned char>(peek()))) {
-            error("LEX_ERROR", "Malformed float exponent.", start);
+            error("LEX_ERROR", "Malformed real literal exponent.", start);
         }
         while (!eof() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
     }
-    return make(floating ? TokenKind::Float : TokenKind::Integer, start_index, start);
+    // An imaginary literal: a number immediately followed by `i` that does
+    // not start an identifier (`2.0i`, `1.0e-3i`; `2.0in` is `2.0` then
+    // `in`). The integer form `2i` is lexed too, so that the checker can
+    // ask for the real form.
+    if (!eof() && peek() == 'i' &&
+        !(std::isalnum(static_cast<unsigned char>(peek(1))) || peek(1) == '_')) {
+        advance();
+        return make(TokenKind::ImaginaryLiteral, start_index, start);
+    }
+    return make(floating ? TokenKind::RealLiteral : TokenKind::Integer, start_index, start);
 }
 
 Token Lexer::string() {

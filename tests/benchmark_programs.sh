@@ -18,6 +18,7 @@ PROGRAMS="$ROOT/tests/benchmark/quidra"
 TEMPLATE="$ROOT/benchmark/template"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+export QUIDRA_CACHE_DIR="$WORK/quidra-cache"  # a run cache of this suite run only
 
 if [ ! -x "$QUIDRA" ]; then
   echo "quidra compiler not found at $QUIDRA (build the tree first)" >&2

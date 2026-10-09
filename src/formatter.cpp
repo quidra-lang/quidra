@@ -28,7 +28,8 @@ bool word_like(TokenKind kind) {
     switch (kind) {
         case TokenKind::Identifier:
         case TokenKind::Integer:
-        case TokenKind::Float:
+        case TokenKind::RealLiteral:
+        case TokenKind::ImaginaryLiteral:
         case TokenKind::String:
         case TokenKind::KwClass:
         case TokenKind::KwPrivate:
@@ -37,6 +38,7 @@ bool word_like(TokenKind kind) {
         case TokenKind::KwConst:
         case TokenKind::KwReturn:
         case TokenKind::KwIf:
+        case TokenKind::KwThen:
         case TokenKind::KwElif:
         case TokenKind::KwElse:
         case TokenKind::KwWhile:
@@ -46,6 +48,7 @@ bool word_like(TokenKind kind) {
         case TokenKind::KwTry:
         case TokenKind::KwBreak:
         case TokenKind::KwContinue:
+        case TokenKind::KwThis:
         case TokenKind::KwTrue:
         case TokenKind::KwFalse:
         case TokenKind::KwNot:
@@ -65,7 +68,8 @@ bool expression_end(TokenKind kind) {
     switch (kind) {
         case TokenKind::Identifier:
         case TokenKind::Integer:
-        case TokenKind::Float:
+        case TokenKind::RealLiteral:
+        case TokenKind::ImaginaryLiteral:
         case TokenKind::String:
         case TokenKind::KwTrue:
         case TokenKind::KwFalse:

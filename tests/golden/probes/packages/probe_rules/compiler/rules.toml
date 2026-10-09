@@ -1,0 +1,214 @@
+[extension]
+version = 1
+phase = "tensor-region"
+
+[operation.first]
+function = "first"
+traits = "pure,tensor,differentiable"
+
+[operation.second]
+function = "second"
+traits = "pure,tensor,differentiable"
+
+[operation.pair]
+function = "pair"
+traits = "pure,tensor,differentiable"
+
+[operation.scale]
+function = "scale"
+traits = "pure,tensor,differentiable"
+
+[operation.accumulate]
+function = "accumulate"
+traits = "pure,tensor,differentiable"
+
+[operation.stamp]
+function = "stamp"
+traits = "pure,tensor,differentiable"
+
+# Not pure: never bound, so a chain through it has no safety contract.
+[operation.impure]
+function = "impure"
+traits = "tensor,differentiable"
+
+# A spelling that names no function once the method prefix is removed.
+[operation.nameless]
+function = "$method."
+traits = "pure,tensor"
+
+[operation.fused]
+function = "fused"
+traits = "pure,tensor,differentiable"
+
+[operation.fused_side]
+function = "fused_side"
+traits = "pure,tensor,differentiable"
+
+[operation.fused_scale]
+function = "fused_scale"
+traits = "pure,tensor,differentiable"
+
+[operation.fused_two]
+function = "fused_two"
+traits = "pure,tensor,differentiable"
+
+# Not pure: a replacement nobody can call.
+[operation.unbound]
+function = "unbound"
+traits = "tensor,differentiable"
+
+# Lacks the differentiable trait of the operations it would replace.
+[operation.unsafe]
+function = "unsafe"
+traits = "pure,tensor"
+
+[operation.specialized]
+function = "specialized"
+traits = "pure,tensor,differentiable"
+
+[operation.rescale]
+function = "rescale"
+traits = "pure,tensor,differentiable"
+
+[operation.owned]
+function = "owned"
+traits = "pure,tensor,differentiable"
+
+# Chain fusion.
+
+[fusion.first_second]
+operations = "first,second"
+replacement = "fused"
+
+[fusion.single]
+operations = "first"
+
+[fusion.impure_first]
+operations = "impure,first"
+replacement = "fused"
+
+[fusion.second_pair]
+operations = "second,pair"
+replacement = "unbound"
+
+[fusion.second_first]
+operations = "second,first"
+replacement = "fused_two"
+
+[fusion.first_scale]
+operations = "first,scale"
+replacement = "fused_scale"
+
+[fusion.first_accumulate]
+operations = "first,accumulate"
+replacement = "fused_side"
+
+[fusion.stamp_first]
+operations = "stamp,first"
+replacement = "fused"
+
+# Conditional rules that never match.
+
+[specialization.dtype]
+operation = "first"
+replacement = "specialized"
+dtype = "real64"
+
+[specialization.rank]
+operation = "first"
+replacement = "specialized"
+rank = "3"
+
+[specialization.shape_rank]
+operation = "first"
+replacement = "specialized"
+shape = "4, 4"
+
+[specialization.shape]
+operation = "first"
+replacement = "specialized"
+rank = "1"
+shape = "5"
+
+[specialization.unbound]
+operation = "first"
+replacement = "unbound"
+
+[specialization.unsafe]
+operation = "first"
+replacement = "unsafe"
+
+[specialization.rescale]
+operation = "scale"
+replacement = "rescale"
+
+[backend.strided]
+operation = "first"
+replacement = "specialized"
+layout = "strided"
+
+[backend.shape_then_layout]
+operation = "first"
+replacement = "specialized"
+shape = "4"
+layout = "strided"
+
+[memory.not_last]
+operation = "first"
+replacement = "specialized"
+last_use = "false"
+
+[memory.not_owned]
+operation = "pair"
+replacement = "specialized"
+owned = "false"
+last_use = "true"
+
+# A rule that matches and gives its by-value target a clone.
+
+[specialization.owned]
+operation = "second"
+replacement = "owned"
+device = "cpu"
+
+# Values the rule parser refuses.
+
+[specialization.bad_rank]
+operation = "first"
+replacement = "specialized"
+rank = "three"
+
+[specialization.bad_shape]
+operation = "first"
+replacement = "specialized"
+shape = "4, x"
+
+[specialization.empty_extent]
+operation = "first"
+replacement = "specialized"
+shape = "4,,4"
+
+[backend.bad_device]
+operation = "first"
+replacement = "specialized"
+device = "tpu"
+
+[backend.bad_layout]
+operation = "first"
+replacement = "specialized"
+layout = "diagonal"
+
+[specialization.bad_tracked]
+operation = "first"
+replacement = "specialized"
+tracked = "maybe"
+
+[memory.bad_last_use]
+operation = "first"
+replacement = "specialized"
+last_use = "sometimes"
+
+[memory.bad_owned]
+operation = "first"
+replacement = "specialized"
+owned = "shared"

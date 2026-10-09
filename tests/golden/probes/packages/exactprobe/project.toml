@@ -1,0 +1,13 @@
+[package]
+name = "golden-probe-exact"
+import = "exactprobe"
+display_name = "Golden Probe Exact"
+version = "0.1.0"
+repository = "https://example.invalid/exactprobe"
+
+[requires]
+quidra = ">=0.5.0 <0.6.0"
+abi = 1
+
+[native.source]
+cpu = "native/exactprobe.cpp"

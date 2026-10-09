@@ -1,0 +1,16 @@
+// An element read from an array the expression owns, copied out before the
+// array is released, and a one-character string literal compared with an
+// indexed character with the literal on the left. Compiled by the golden
+// corpus, never run.
+string[] names()
+    return ["alpha", "beta"]
+
+string first = names()[0]
+print(first)
+print(NL)
+
+string word = "hello"
+print("h" == word[0])
+print(NL)
+print("x" != word[1])
+print(NL)

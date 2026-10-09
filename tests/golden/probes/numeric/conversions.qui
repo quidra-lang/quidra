@@ -1,0 +1,35 @@
+// Conversions between numeric kinds: widening, checked narrowing as values,
+// integer to floating, and floating format changes.
+int64 wide = 300
+int8 small = 12
+int64 widened = int64(small)
+nat16 sixteen = nat16(wide)
+print("{widened} {real64(wide)} {real32(wide)} {sixteen}")
+print(NL)
+auto | error narrowed = int8(wide)
+match narrowed
+    int8 value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)
+auto | error unsigned = nat8(-1 * wide)
+match unsigned
+    nat8 value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)
+real64 precise = 0.1
+real32 single = real32(precise)
+real64 back = real64(single)
+print("{single} {back} {real64(int32(7))}")
+print(NL)
+int huge = int(9223372036854775807) * 4
+auto | error fitted = int64(huge)
+match fitted
+    int64 value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)

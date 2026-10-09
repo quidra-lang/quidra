@@ -1,0 +1,40 @@
+// A value loop iterates the value at loop entry while its body writes
+// elements of the iterated array in place.
+int[] values = [1, 2, 3]
+for v in values
+    print("{v} ")
+    values[2] = 77
+print("| {values[2]}")
+print(NL)
+int[3] fixed = [1, 2, 3]
+for v in fixed
+    print("{v} ")
+    fixed[2] = 77
+print("| {fixed[2]}")
+print(NL)
+int[2][3] grid = [[1, 2, 3], [4, 5, 6]]
+for v in grid[0]
+    print("{v} ")
+    grid[0][2] = 77
+    grid = [[7, 7, 7], [8, 8, 8]]
+print("| {grid[0][2]}")
+print(NL)
+string[] words = ["x", "y", "z"]
+for word in words
+    print("{word} ")
+    words[2] = "changed"
+print("| {words[2]}")
+print(NL)
+bin bits = bin.fill(4, 0)
+for bit in bits
+    print("{bit} ")
+    bits[3] = bin.fill(1, 1)
+print("| {bits}")
+print(NL)
+int[] targets = [1, 2, 3]
+int &last = &targets[2]
+for v in targets
+    print("{v} ")
+    last = 77
+print("| {targets[2]}")
+print(NL)

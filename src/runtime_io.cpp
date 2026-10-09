@@ -1,4 +1,9 @@
-#include "runtime_internal.hpp"
+#include "quidra/abi/io_status.hpp"
+#include "quidra/abi/layout.hpp"
+#include "quidra/abi/process_status.hpp"
+#include "quidra/abi/runtime_entry_points.hpp"
+#include "platform/environment.hpp"
+#include "runtime_report.hpp"
 
 #include <algorithm>
 #include <array>
@@ -15,6 +20,9 @@
 #include <string>
 #include <system_error>
 #include <vector>
+
+// The ABI this runtime shares with generated code (include/quidra/abi).
+namespace abi = quidra::abi;
 
 namespace {
 bool valid_text(const std::string& value) {
@@ -202,15 +210,15 @@ void* make_bin_value(const std::string& data) {
     if (data.size() >
             static_cast<std::size_t>(
                 std::numeric_limits<long long>::max() / 8) ||
-        data.size() > std::numeric_limits<std::size_t>::max() - 8) {
+        data.size() > std::numeric_limits<std::size_t>::max() - abi::bin_layout::payload_offset) {
         return nullptr;
     }
     auto* result = static_cast<unsigned char*>(
         quidra_managed_alloc(
-            static_cast<unsigned long long>(8 + data.size())));
+            static_cast<unsigned long long>(abi::bin_layout::payload_offset + data.size())));
     const auto bit_count = static_cast<long long>(data.size() * 8);
     std::memcpy(result, &bit_count, sizeof(bit_count));
-    if (!data.empty()) std::memcpy(result + 8, data.data(), data.size());
+    if (!data.empty()) std::memcpy(result + abi::bin_layout::payload_offset, data.data(), data.size());
     return result;
 }
 }
@@ -303,19 +311,19 @@ extern "C" char* quidra_file_handle_read_raw(void* value) {
 }
 
 extern "C" int quidra_file_handle_read_line_raw(void* value, char** out) {
-    if (!out) return -1;
+    if (!out) return abi::read_line_status::failed;
     *out = nullptr;
     auto* handle = file_handle_from_value(value);
     if (!handle || !handle->state || handle->state->closed ||
-        !handle->state->resource || !handle->state->resource->readable) return -1;
+        !handle->state->resource || !handle->state->resource->readable) return abi::read_line_status::failed;
     const auto start = handle->state->position;
-    if (start > static_cast<std::uint64_t>(std::numeric_limits<std::streamoff>::max())) return -1;
+    if (start > static_cast<std::uint64_t>(std::numeric_limits<std::streamoff>::max())) return abi::read_line_status::failed;
 
     auto& resource = *handle->state->resource;
     std::lock_guard<std::mutex> lock(resource.mutex);
     auto& stream = resource.stream;
     if (!position_file_stream(resource, start, FileStreamDirection::Read))
-        return -1;
+        return abi::read_line_status::failed;
 
     auto& line = handle->state->line_buffer;
     line.clear();
@@ -324,10 +332,10 @@ extern "C" int quidra_file_handle_read_line_raw(void* value, char** out) {
         stream.clear();
         if (eof) {
             advance_file_stream(resource, start, FileStreamDirection::Read);
-            return 0;
+            return abi::read_line_status::end_of_input;
         }
         invalidate_file_stream(resource);
-        return -1;
+        return abi::read_line_status::failed;
     }
 
     const auto delimiter_bytes = stream.eof() ? 0ULL : 1ULL;
@@ -337,20 +345,20 @@ extern "C" int quidra_file_handle_read_line_raw(void* value, char** out) {
         !valid_text(line)) {
         stream.clear();
         invalidate_file_stream(resource);
-        return -1;
+        return abi::read_line_status::failed;
     }
     auto* text = copy_validated_text(line);
     if (!text) {
         stream.clear();
         invalidate_file_stream(resource);
-        return -1;
+        return abi::read_line_status::failed;
     }
     handle->state->position =
         start + static_cast<std::uint64_t>(line.size()) + delimiter_bytes;
     advance_file_stream(
         resource, handle->state->position, FileStreamDirection::Read);
     *out = text;
-    return 1;
+    return abi::read_line_status::line;
 }
 
 extern "C" void* quidra_file_handle_read_bin_raw(void* value) {
@@ -491,8 +499,7 @@ extern "C" void* quidra_file_handle_clone(void* value) {
     try {
         auto* handle = file_handle_from_value(value);
         if (!handle || !handle->state) {
-            std::fprintf(stderr, "Quidra runtime error: invalid file handle copy\n");
-            std::exit(101);
+            quidra::runtime::report_uncoded("invalid file handle copy");
         }
 
         auto state = std::make_unique<FileState>(handle->state->resource);
@@ -504,8 +511,7 @@ extern "C" void* quidra_file_handle_clone(void* value) {
         auto* copy = new FileHandle{std::move(state)};
         return make_file_handle(copy);
     } catch (...) {
-        std::fprintf(stderr, "Quidra runtime error: allocation failed\n");
-        std::exit(101);
+        quidra::runtime::report_uncoded("allocation failed");
     }
 }
 
@@ -558,25 +564,25 @@ extern "C" bool quidra_file_write_bin_raw(const char* path,const void* bin_raw) 
        size>static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) return false;
     std::ofstream out(path,std::ios::binary|std::ios::trunc);
     if(!out) return false;
-    if(size) out.write(static_cast<const char*>(bin_raw)+8,static_cast<std::streamsize>(size));
+    if(size) out.write(static_cast<const char*>(bin_raw)+abi::bin_layout::payload_offset,static_cast<std::streamsize>(size));
     out.close();
     return static_cast<bool>(out);
 }
 
 extern "C" int quidra_file_exists_raw(const char* path) {
-    if(!path) return -1;
+    if(!path) return abi::path_query_status::failed;
     std::error_code error;
     const bool result=std::filesystem::exists(path,error);
-    return error?-1:(result?1:0);
+    return error?abi::path_query_status::failed:(result?abi::path_query_status::yes:abi::path_query_status::no);
 }
 extern "C" int quidra_file_is_directory_raw(const char* path) {
-    if(!path) return -1;
+    if(!path) return abi::path_query_status::failed;
     std::error_code error;
     const bool exists=std::filesystem::exists(path,error);
-    if(error) return -1;
-    if(!exists) return 0;
+    if(error) return abi::path_query_status::failed;
+    if(!exists) return abi::path_query_status::no;
     const bool result=std::filesystem::is_directory(path,error);
-    return error?-1:(result?1:0);
+    return error?abi::path_query_status::failed:(result?abi::path_query_status::yes:abi::path_query_status::no);
 }
 extern "C" bool quidra_file_remove_raw(const char* path) {
     if(!path) return false;
@@ -634,49 +640,31 @@ extern "C" void* quidra_file_list_raw(const char* path,bool recursive) {
         }
     }
     std::sort(entries.begin(),entries.end());
-    if(entries.size()>(std::numeric_limits<std::size_t>::max()-8)/sizeof(char*)) return nullptr;
-    const auto bytes=8+entries.size()*sizeof(char*);
+    if(entries.size()>(std::numeric_limits<std::size_t>::max()-abi::array_layout::payload_offset)/sizeof(char*)) return nullptr;
+    const auto bytes=abi::array_layout::payload_offset+entries.size()*sizeof(char*);
     auto* result=static_cast<unsigned char*>(
         quidra_managed_alloc(static_cast<unsigned long long>(bytes)));
     const auto count=static_cast<long long>(entries.size());
     std::memcpy(result,&count,sizeof(count));
     for(std::size_t i=0;i<entries.size();++i){
         auto* item=copy_validated_text(entries[i]);
-        std::memcpy(result+8+i*sizeof(char*),&item,sizeof(item));
+        std::memcpy(result+abi::array_layout::payload_offset+i*sizeof(char*),&item,sizeof(item));
     }
     return result;
 }
 
 extern "C" char* quidra_environment_get(const char* name) {
     if(!name) return nullptr;
-#ifdef _WIN32
-    char* value=nullptr;
-    std::size_t size=0;
-    if(_dupenv_s(&value,&size,name)!=0||!value) return nullptr;
-    const std::string text(value,size?size-1:0);
-    std::free(value);
-#else
-    const char* value=std::getenv(name);
-    if(!value) return nullptr;
-    const std::string text(value);
-#endif
-    if(!valid_text(text)) {
+    const auto text=quidra::platform::environment_value(name);
+    if(!text) return nullptr;
+    if(!valid_text(*text)) {
         quidra_runtime_text_error(
             "environment value must be valid UTF-8 text without NUL");
     }
-    return copy_validated_text(text);
+    return copy_validated_text(*text);
 }
 
 extern "C" bool quidra_environment_has(const char* name) {
     if(!name) return false;
-#ifdef _WIN32
-    char* value=nullptr;
-    std::size_t size=0;
-    const auto error=_dupenv_s(&value,&size,name);
-    const bool present=error==0&&value!=nullptr;
-    std::free(value);
-    return present;
-#else
-    return std::getenv(name)!=nullptr;
-#endif
+    return quidra::platform::environment_has(name);
 }

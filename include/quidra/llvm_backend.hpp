@@ -1,5 +1,5 @@
 #pragma once
-#include "quidra/ir.hpp"
+#include "quidra/ir/module.hpp"
 #include <string>
 
 namespace quidra {

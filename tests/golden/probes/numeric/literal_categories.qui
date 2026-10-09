@@ -1,0 +1,15 @@
+// Numeric literals in typed contexts: integer literals in every integer
+// kind, real literals in every real kind, in arrays and in calls.
+int8 small = -8
+nat64 large = 18446744073709551615
+int huge = 123456789012345678901234567890
+real64 real_value = 2.5
+real32 single = 0.1
+real exact_value = 0.75
+int8[] bytes = [1, 2, 3]
+real64[] reals = [1.0, 2.5, 3.0]
+real64 scale(real64 value, real64 factor)
+    return value * factor
+
+print("{small} {large} {huge} {real_value} {single} {exact_value} {bytes[2]} {reals[1]} {scale(2.0, 3.5)}")
+print(NL)

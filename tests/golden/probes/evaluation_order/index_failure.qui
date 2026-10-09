@@ -1,0 +1,13 @@
+// The target's index operands come before the right-hand side: a failing
+// index read stops the assignment before the right-hand side runs.
+int f()
+    print("f")
+    print(NL)
+    return 1
+
+int[] a = [0, 0, 0]
+int[] b = [1, 2]
+int j = 4
+print("start")
+print(NL)
+a[b[j]] = f()

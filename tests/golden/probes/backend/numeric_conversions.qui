@@ -1,0 +1,167 @@
+// Numeric conversions and parses in the shapes the other inputs miss: range-
+// checked casts between fixed-width integers of either signedness, exact
+// values to and from fixed-width and IEEE types, parses matched directly
+// (ParseNumberDirect) and parses kept as `T | error` (ParseNumber), formatted
+// interpolation of every numeric family, and bin conversions.
+int8 to_int8(int value)
+    return int8(value)
+
+nat8 to_uint8(nat16 value)
+    return nat8(value)
+
+nat16 to_uint16(nat64 value)
+    return nat16(value)
+
+nat32 to_uint32(int value)
+    return nat32(value)
+
+nat16 widened_unsigned(int8 value)
+    return nat16(value)
+
+int32 to_int32(nat64 value)
+    return int32(value)
+
+int64 to_int64(nat64 value)
+    return int64(value)
+
+int64 from_uint32(nat32 value)
+    return int64(value)
+
+int bigint_of_int16(int16 value)
+    return int(value)
+
+int bigint_of_uint8(nat8 value)
+    return int(value)
+
+real bigreal_of_int8(int8 value)
+    return real(value)
+
+real bigreal_of_uint32(nat32 value)
+    return real(value)
+
+real bigreal_of_float32(real32 value)
+    return real(value)
+
+real bigreal_of_float(real64 value)
+    return real(value)
+
+int bigint_of_bigreal(real value)
+    return int(value)
+
+int16 int16_of_bigint(int value)
+    return int16(value)
+
+nat64 uint64_of_bigint(int value)
+    return nat64(value)
+
+int8 int8_of_bigreal(real value)
+    return int8(value)
+
+nat32 uint32_of_bigreal(real value)
+    return nat32(value)
+
+real32 float32_of_bigint(int value)
+    return real32(value)
+
+real64 float_of_bigint(int value)
+    return real64(value)
+
+real32 float32_of_bigreal(real value)
+    return real32(value)
+
+real64 float_of_bigreal(real value)
+    return real64(value)
+
+real32 float32_of_int(int value)
+    return real32(value)
+
+real64 float_of_uint64(nat64 value)
+    return real64(value)
+
+real32 float32_of_float(real64 value)
+    return real32(value)
+
+real64 parsed_float(string text)
+    match real64.parse(text)
+        real64 value
+            return value
+        error problem
+            return 0.0
+
+real32 parsed_float32(string text)
+    match real32.parse(text)
+        real32 value
+            return value
+        error problem
+            return 0.0
+
+int8 parsed_int8(string text)
+    match int8.parse(text)
+        int8 value
+            return value
+        error problem
+            return int8(0)
+
+nat16 parsed_uint16(string text)
+    match nat16.parse(text)
+        nat16 value
+            return value
+        error problem
+            return nat16(0)
+
+nat64 parsed_uint64(string text)
+    match nat64.parse(text)
+        nat64 value
+            return value
+        error problem
+            return nat64(0)
+
+int32 | error kept_int32(string text)
+    int32 | error result = int32.parse(text)
+    return result
+
+int | error kept_bigint(string text)
+    int | error result = int.parse(text)
+    return result
+
+real | error kept_bigreal(string text)
+    real | error result = real.parse(text)
+    return result
+
+string formatted(int8 a, nat32 b, int c, real d, real e, real32 f)
+    return "{a:int=4} {b:int=6,zero} {c:int=3} {d:sig=5} {e:int=3} {f:frac=2}"
+
+string bin_text(bin value)
+    return value.string()
+
+nat64 uint64_of_bits(bin value)
+    return nat64(value)
+
+int64 int64_of_bits(bin value)
+    return int64(value)
+
+bin bits_of_bool(bool value)
+    return bin(value)
+
+bin bits_of_int16(int16 value)
+    return bin(value)
+
+bin bits_of_uint32(nat32 value)
+    return bin(value)
+
+bin bits_of_bools(bool[] values)
+    return bin(values)
+
+bool[] bools_of_bits(bin value)
+    return bool[](value)
+
+nat8[] bytes_of_bits(bin value)
+    return nat8[](value)
+
+bin bits_of_bytes(nat8[] values)
+    return bin(values)
+
+print(parsed_float("4.25") + parsed_float("x") + real64(parsed_float32("1.5")))
+print(NL)
+print(to_int8(5))
+print(NL)

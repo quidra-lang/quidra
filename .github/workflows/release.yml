@@ -51,7 +51,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Native smoke test
@@ -89,7 +89,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix curl)"
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Native smoke test
@@ -141,7 +141,7 @@ jobs:
           cmake -S . -B build -A x64
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config Release --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Native smoke test

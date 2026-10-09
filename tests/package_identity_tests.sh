@@ -3,6 +3,7 @@ set -euo pipefail
 QUIDRA="$1"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run only
 mkdir -p "$TMP/package" "$TMP/home" "$TMP/project"
 VERSION="$("$QUIDRA" --version | awk '{print $2}')"
 IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"

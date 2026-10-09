@@ -1,0 +1,62 @@
+// File operations that only unquoted (run-time path) heredocs of
+// stdlib_tests.sh use; compiled by the golden corpus, never run.
+auto | error copied = file.copy("probe-source.txt", "probe-copied.txt")
+match copied
+    void
+        print("copy{NL}")
+    error e
+        print("{e}{NL}")
+
+auto | error moved = file.move("probe-copied.txt", "probe-moved.txt")
+match moved
+    void
+        print("move{NL}")
+    error e
+        print("{e}{NL}")
+
+auto | error removed = file.remove("probe-moved.txt")
+match removed
+    void
+        print("remove{NL}")
+    error e
+        print("{e}{NL}")
+
+auto | error directory = file.mkdir("probe-directory")
+match directory
+    void
+        print("mkdir{NL}")
+    error e
+        print("{e}{NL}")
+
+auto | error written = file.write_bin("probe.bin", bin.fill(3, 1))
+match written
+    void
+        print("write_bin{NL}")
+    error e
+        print("{e}{NL}")
+
+auto | error created = file.create("probe-handle.txt")
+match created
+    file.Handle handle
+        match handle.write("alpha")
+            void
+                match handle.seek(0)
+                    void
+                        print("seek{NL}")
+                    error problem
+                        print("seek-error{NL}")
+            error problem
+                print("write-error{NL}")
+    error e
+        print("{e}{NL}")
+
+auto | error appended = file.append("probe-handle.txt")
+match appended
+    file.Handle handle
+        match handle.write_line("tail")
+            void
+                handle.close()
+            error problem
+                print("append-error{NL}")
+    error e
+        print("{e}{NL}")

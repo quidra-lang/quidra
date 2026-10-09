@@ -1,0 +1,33 @@
+// Text building in the shapes the other inputs miss: string-build parts of
+// narrow signed and unsigned integers and of bools, both in a joined line
+// and in a line appended to a string in place (with a literal part of more
+// than one character), and the negated forms of the one-character comparison
+// and of the counted prefix.
+string joined(int8 small, nat16 count, bool flag)
+    string[] fields = [small.string(), " ", count.string(), " ", flag.string(), NL]
+    string line = fields.join("")
+    return line
+
+int appended(int8 small, nat16 count, bool flag)
+    string content = ""
+    int written = 0
+    for index in range(0, 2)
+        string[] fields = [small.string(), ", ", count.string(), ",", flag.string(), NL]
+        string line = fields.join("")
+        content = content + line
+        written += int(len(line))
+    return written + int(len(content))
+
+bool not_letter(string text, int index)
+    return text[index] != "a"
+
+int not_spaces(string text, int count)
+    int found = 0
+    for index in range(count)
+        if text[index] != " "
+            found += 1
+    return found
+
+print(joined(int8(-3), nat16(7), true))
+print(appended(int8(-3), nat16(7), false))
+print(NL)

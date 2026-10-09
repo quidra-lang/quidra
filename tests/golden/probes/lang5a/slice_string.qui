@@ -1,0 +1,7 @@
+// A string slice whose end lies past the text.
+string word = "quidra"
+nat stop = len(word) + 3
+print(word.slice(1, 3))
+print(NL)
+print(word.slice(2, int(stop)))
+print(NL)

@@ -1,0 +1,8 @@
+// A failure inside a local module, reached from the root file.
+import lib = "./lib.qui"
+
+int[] values = [1, 2, 3]
+print("{lib.pick(values, 1)}")
+print(NL)
+print("{lib.pick(values, 5)}")
+print(NL)

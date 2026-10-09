@@ -1,0 +1,33 @@
+// Exact rational arithmetic in bigreal, comparisons, and conversions to and
+// from the other kinds.
+real third = real(1) / real(3)
+real sum = third + third + third
+print("{sum == real(1)} {third < real(0.34)} {third > real(0.33)}")
+print(NL)
+real tenth = 0.1
+real total = real(0)
+for i in range(10)
+    total = total + tenth
+print("{total == real(1)}")
+print(NL)
+auto | error approximate = real64(third)
+match approximate
+    real64 value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)
+auto | error whole = int(sum)
+match whole
+    int value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)
+auto | error broken = int(third)
+match broken
+    int value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)

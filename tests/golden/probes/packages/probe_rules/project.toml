@@ -1,0 +1,13 @@
+[package]
+name = "golden-probe-rules"
+import = "probe_rules"
+display_name = "Golden Probe Rules"
+version = "0.1.0"
+repository = "https://example.invalid/probe_rules"
+
+[requires]
+quidra = ">=0.5.0 <0.6.0"
+abi = 1
+
+[compiler.extension]
+rules = "compiler/rules.toml"

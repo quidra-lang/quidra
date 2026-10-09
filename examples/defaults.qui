@@ -1,5 +1,5 @@
 void replace(int[] &values, int count = 3)
-    values = array(count, fill = 7)
+    values = array(nat(count), fill = 7)
 
 int[] data = []
 replace(&values = &data)

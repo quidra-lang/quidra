@@ -1,0 +1,45 @@
+// A value loop that took a copy of the iterated array releases it at
+// every exit: its end, break, return, and a `try` propagation.
+int first_over(int[] &values, int limit)
+    for v in values
+        values = values.append(v)
+        if v > limit
+            return v
+    return 0
+
+int | error checked_sum(int[] &values)
+    int total = 0
+    for v in values
+        values[0] = 0
+        total = total + (try int.parse("{v}"))
+        if v == 3
+            int bad = try int.parse("x")
+            total = total + bad
+    return total
+
+int[] values = [1, 2, 3, 4]
+print("return: {first_over(&values, 2)} {len(values)}")
+print(NL)
+int[] more = [1, 2, 3, 4]
+int count = 0
+for v in more
+    more = more.append(v)
+    count = count + 1
+    if v == 2
+        break
+print("break: {count} {len(more)}")
+print(NL)
+int[] parsed = [1, 2, 3]
+int | error result = checked_sum(&parsed)
+match result
+    int sum
+        print("sum: {sum}")
+    error
+        print("try: {parsed[0]}")
+print(NL)
+for round in range(3)
+    int[] inner = [round, round]
+    for v in inner
+        inner = inner.append(v)
+    print("{len(inner)} ")
+print(NL)

@@ -1,0 +1,11 @@
+// A ref.Cell is shared by its copies: a call that receives a copy may grow
+// the array the target lives in.
+int grow(ref.Cell<int[]> cell)
+    for i in range(1000)
+        cell.value = cell.value.append(i)
+    return 1
+
+ref.Cell<int[]> c = ref.Cell<int[]>(value = [5, 0, 0])
+c.value[0] += grow(c)
+print("cell: {c.value[0]} {len(c.value)}")
+print(NL)

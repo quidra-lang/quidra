@@ -1,0 +1,18 @@
+// Floating arithmetic and formatted interpolation in both formats.
+real64 x = 2.5
+real64 y = -0.125
+real32 p = 1.5
+real32 q = 0.25
+print("{x + y} {x - y} {x * y} {x / y} {x ^ 2.0}")
+print(NL)
+print("{p + q} {p - q} {p * q} {p / q} {p ^ real32(3.0)}")
+print(NL)
+print("{x:frac=3} {y:sig=2} {x:int=5,frac=1} {p:int=4,frac=2,zero}")
+print(NL)
+print("{x > y} {p <= q} {x == 2.5} {-x}")
+print(NL)
+real64 total = 0.0
+for i in range(10)
+    total = total + 0.1
+print("{total}")
+print(NL)

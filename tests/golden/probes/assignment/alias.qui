@@ -1,0 +1,19 @@
+// A reference that aliases the target's array: the right-hand side grows
+// the array through the other reference.
+int grow(int[] &values)
+    for i in range(1000)
+        values = values.append(i)
+    return 1
+
+void bump(int[] &a, int[] &b)
+    a[0] += grow(&b)
+
+int[] v = [5, 0, 0]
+int[] &r = &v
+r[0] += grow(&v)
+print("reference local: {v[0]} {len(v)}")
+print(NL)
+int[] w = [5, 0, 0]
+bump(&w, &w)
+print("reference parameters: {w[0]} {len(w)}")
+print(NL)

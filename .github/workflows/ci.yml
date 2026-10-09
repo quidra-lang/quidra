@@ -64,9 +64,9 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=${{ matrix.standard }} -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Tests
-        run: ctest --test-dir build --output-on-failure --parallel 4
+        run: ctest --test-dir build --output-on-failure --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Package smoke
         if: matrix.compiler == 'gcc'
         run: |
@@ -88,9 +88,9 @@ jobs:
       - name: Configure
         run: cmake -S . -B build-release-compat -G Ninja -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON
       - name: Build
-        run: cmake --build build-release-compat --parallel
+        run: cmake --build build-release-compat --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Tests
-        run: ctest --test-dir build-release-compat --output-on-failure --parallel 4
+        run: ctest --test-dir build-release-compat --output-on-failure --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Native smoke
         run: bash scripts/native-smoke.sh ./build-release-compat/quidra "$PWD"
 
@@ -119,7 +119,7 @@ jobs:
           # above is the assertion; this step makes the intent explicit.
           ! grep -q "CURL_INCLUDE_DIR" build-wasm/CMakeCache.txt
       - name: Build
-        run: cmake --build build-wasm --target quidra_wasm --parallel
+        run: cmake --build build-wasm --target quidra_wasm --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Report artifact size
         run: |
           raw=$(stat -c%s build-wasm/quidra-core.wasm)
@@ -146,42 +146,56 @@ jobs:
       - name: Configure test-only fake GPU backend
         run: cmake -S . -B build-gpu-contracts -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
-        run: cmake --build build-gpu-contracts --parallel
+        run: cmake --build build-gpu-contracts --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: GPU backend unit tests
         run: ctest --test-dir build-gpu-contracts -R quidra_device_backend_tests --output-on-failure
       - name: GPU placement contracts
         run: ctest --test-dir build-gpu-contracts -R quidra_gpu_contracts --output-on-failure
+      - name: Unified-memory transfer views (fake GPU)
+        run: ctest --test-dir build-gpu-contracts -R quidra_unified_memory --output-on-failure
 
   sanitizers:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install compiler cache
-        run: sudo apt-get update && sudo apt-get install -y ccache llvm
+        run: sudo apt-get update && sudo apt-get install -y ccache llvm clang ninja-build
       - name: Restore compiler cache
-        uses: actions/cache@v4
+        id: sanitizer-ccache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ccache
-          key: ccache-${{ runner.os }}-sanitizers-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+          key: ccache-${{ runner.os }}-clang-sanitizers-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
           restore-keys: |
-            ccache-${{ runner.os }}-sanitizers-
+            ccache-${{ runner.os }}-clang-sanitizers-
       - name: Install native dependencies
         run: sudo apt-get install -y llvm libcurl4-openssl-dev
       - name: Configure ASan/UBSan
         run: >-
-          cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug
+          cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_CXX_FLAGS_DEBUG="-O0 -gline-tables-only"
           -DQUIDRA_WARNINGS_AS_ERRORS=ON
           -DQUIDRA_SANITIZE_RUNTIME=ON
           -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
           -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      - name: Build and cache sanitized compiler core
+        # Save instrumented compilation before long links; a runner shutdown
+        # must not discard every ccache object from the unsuccessful run.
+        run: cmake --build build-san --target quidra_core --parallel 2
+      - name: Persist sanitized compiler cache
+        if: steps.sanitizer-ccache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-clang-sanitizers-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
       - name: Build
-        run: cmake --build build-san --parallel
+        run: cmake --build build-san --parallel 2
       - name: Tests under sanitizers
         env:
           ASAN_OPTIONS: detect_leaks=1
-        run: ctest --test-dir build-san --output-on-failure --parallel 4
-
+        run: ctest --test-dir build-san --output-on-failure --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
 
   macos:
     runs-on: macos-latest
@@ -199,14 +213,14 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl)" -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Tests
-        run: ctest --test-dir build --output-on-failure --parallel 4
+        run: ctest --test-dir build --output-on-failure --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Real Metal GPU numerical integration
         env:
           QUIDRA_REQUIRE_REAL_GPU: "1"
           QUIDRA_REQUIRE_GPU_BACKEND: "Metal"
-        run: ctest --test-dir build -R quidra_real_gpu_integration --output-on-failure
+        run: ctest --test-dir build -R "quidra_real_gpu_integration|quidra_unified_memory" --output-on-failure
       - name: Native smoke
         run: |
           printf 'print("Hello from macOS")\n' > build/platform-smoke.qui
@@ -288,9 +302,9 @@ jobs:
           -DQUIDRA_WARNINGS_AS_ERRORS=ON
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config Release --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Tests
-        run: ctest --test-dir build -C Release --output-on-failure --parallel 4
+        run: ctest --test-dir build -C Release --output-on-failure --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Native smoke
         shell: pwsh
         run: |
@@ -366,20 +380,20 @@ jobs:
           if (($processShell -join "`n").Trim() -ne $expectedProcessShell) { throw "process.shell smoke failed: $processShell" }
           Set-Content -Path build/autograd-smoke.qui -Value @'
           class WindowsTensorState
-              tensor<float32> weight
+              tensor<real32> weight
 
           WindowsTensorState state
-          state.weight = tensor.ones<float32>([1])
-          float32 before = state.weight[0].item()
+          state.weight = tensor.ones<real32>([1])
+          real32 before = state.weight[0].item()
 
           state.weight = state.weight.track()
-          tensor<float32> loss = (state.weight * state.weight).reshape([])
+          tensor<real32> loss = (state.weight * state.weight).reshape([])
           loss.backward(&state.weight)
           print(state.weight.has_grad())
           print(NL)
-          tensor<float32> gradient = state.weight.grad
+          tensor<real32> gradient = state.weight.grad
           state.weight.clear_grad()
-          state.weight = state.weight.untrack() - gradient * float32(0.1)
+          state.weight = state.weight.untrack() - gradient * real32(0.1)
           print(state.weight[0].item() < before and not state.weight.has_grad())
           print(NL)
           '@

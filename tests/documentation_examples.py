@@ -11,184 +11,23 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import doc_blocks  # noqa: E402
+from doc_blocks import fixtures  # noqa: E402
+
 QUIDRA = Path(sys.argv[1]).resolve()
 ROOT = Path(sys.argv[2]).resolve()
-DOCS = [
-    ROOT / "README.md",
-    ROOT / "docs/spec/language.md",
-    ROOT / "docs/spec/llm-guide.md",
-]
+DOCS = [ROOT / document for document in doc_blocks.DOCUMENTS]
+
+# `quidra run` keeps the programs it builds in a run cache of this suite run
+# only, so every run of the suite sees the same hits and misses.
+RUN_CACHE = tempfile.TemporaryDirectory(prefix="quidra-cache-")
+os.environ["QUIDRA_CACHE_DIR"] = RUN_CACHE.name
 
 # quidra run includes native compilation. Windows CI has materially higher
 # toolchain startup cost, so keep the timeout as a hang guard rather than a
 # performance assertion.
 NATIVE_EXAMPLE_TIMEOUT = 60 if os.name == "nt" else 15
-
-POINT = """class Point
-    float x
-    float y
-
-"""
-CONFIG = """class Config
-    int retries = 3
-    float timeout = 5.0
-    string endpoint
-
-"""
-GENERIC = """class Box<T>
-    T value
-
-T first<T>(T[] values)
-    return values[0]
-
-class Convert
-    T identity<T>(T value)
-        return value
-
-"""
-LOOKUP = """int | none | error lookup(int id)
-    if id < 0
-        return error("invalid id")
-    if id == 0
-        return none
-    return id
-
-"""
-def prelude(path: Path, code: str) -> str:
-    rel = path.relative_to(ROOT).as_posix()
-    if rel == "README.md":
-        if code.lstrip().startswith("int | none | error doubled("):
-            return LOOKUP
-        if code.strip().startswith("auto result = lookup(1)") or code.strip().startswith("auto | error result = lookup(1)"):
-            return LOOKUP
-    if rel == "docs/spec/language.md":
-        stripped = code.lstrip()
-        if stripped.startswith("Box<int> box"):
-            return GENERIC
-        if stripped.startswith("Point point") and "Config config" in code:
-            return POINT + CONFIG
-        if stripped.startswith("Point a") or "Point point\n" in code:
-            return POINT
-    return ""
-
-
-def fixtures(directory: Path) -> None:
-    (directory / "geometry.qui").write_text(
-        "class Point\n    int x\n    int y\n\n    construct(int px, int py)\n        x = px\n        y = py\n",
-        encoding="utf-8",
-    )
-    (directory / "local.qui").write_text(
-        "int local_value()\n    return 1\n", encoding="utf-8"
-    )
-    (directory / "shared.qui").write_text(
-        "int shared_value()\n    return 1\n", encoding="utf-8"
-    )
-    shared = directory / "shared"
-    shared.mkdir()
-    (shared / "root.qui").write_text(
-        "int root_value()\n    return 1\n", encoding="utf-8"
-    )
-
-    packages = directory / "packages"
-    plotting = packages / "plotting"
-    plotting.mkdir(parents=True)
-    (plotting / "main.qui").write_text(
-        "const int answer = 42\n\nint placeholder()\n    return 0\n",
-        encoding="utf-8",
-    )
-
-    nn = packages / "nn"
-    nn.mkdir()
-    (nn / "main.qui").write_text(
-        """class Parameter<T: floating>
-    tensor<T> stored
-    private autograd.Target gradient_state
-
-    construct(tensor<T> value)
-        stored = value
-        gradient_state = autograd.target()
-
-    tensor<T> track()
-        return stored.track(&gradient_state)
-
-class State<T: floating>
-    tensor<T> stored
-
-    construct(tensor<T> value)
-        stored = value
-
-class Adam
-    int marker = 0
-
-    Adam | error construct()
-        marker = 1
-
-    void zero_grad<M>(M &model)
-        return
-
-    void step<M>(M &model)
-        return
-""",
-        encoding="utf-8",
-    )
-
-    dnn = packages / "dnn"
-    dnn.mkdir()
-    (dnn / "main.qui").write_text(
-        """public import mode = "./mode.qui"
-
-class Parameter<T: floating>
-    tensor<T> stored
-    private autograd.Target gradient_state
-
-    construct(tensor<T> value)
-        stored = value
-        gradient_state = autograd.target()
-
-    tensor<T> track()
-        return stored.track(&gradient_state)
-
-class FC
-    int marker = 0
-
-    FC | error construct(int features_in, int features_out)
-        marker = features_in + features_out
-
-class Adam
-    int marker = 0
-
-    Adam | error construct()
-        marker = 1
-
-    void zero_grad<M>(M &model)
-        return
-
-    void step<M>(M &model)
-        return
-""",
-        encoding="utf-8",
-    )
-    (dnn / "mode.qui").write_text(
-        "void fast()\n    return\n\nvoid deterministic()\n    return\n", encoding="utf-8"
-    )
-
-    math = packages / "math"
-    math.mkdir()
-    (math / "main.qui").write_text(
-        """const bigreal pi = bigreal(3.141592653589793)
-
-float sqrt(float value)
-    return value ^ 0.5
-
-tensor<T> mean<T: floating>(tensor<T> value)
-    return value
-
-tensor<T> matmul<T: numeric>(tensor<T> left, tensor<T> right)
-    return left * right
-""",
-        encoding="utf-8",
-    )
-
 
 def command_environment(cwd: Path | None) -> dict[str, str]:
     environment = os.environ.copy()
@@ -259,10 +98,16 @@ def verify_machine_tooling(tmp: Path, failures: list[str]) -> None:
         assert interface["repair"]["apply_command"] == "quidra patch FILE.qui PATCH.json --write"
         assert interface["grammar"]["fingerprint"].startswith("sha256:")
         assert interface["inspection"]["schema_version"] == 1
-        assert interface["diagnostics"]["runtime_provenance"]["schema_version"] == 1
+        assert interface["diagnostics"]["runtime_provenance"]["schema_version"] == 2
         assert interface["diagnostics"]["runtime_provenance"]["fields"] == [
             "source_revision", "node_id", "node_kind", "source_file"
         ]
+        runtime_errors = interface["diagnostics"]["runtime_errors"]
+        assert runtime_errors["schema_version"] == 1
+        assert runtime_errors["variable"] == "QUIDRA_ERROR_FORMAT"
+        assert runtime_errors["value"] == "json"
+        for field in ("code", "message", "details", "location", "provenance", "hops", "causes"):
+            assert field in runtime_errors["fields"], field
         assert interface["repair"]["replacement_forms"] == ["source", "structured_node"]
         assert interface["validation_sequence"] == [
             "quidra fmt FILE.qui --check",
@@ -454,7 +299,6 @@ def verify_first_party_surface_docs(failures: list[str]) -> None:
 def main() -> int:
     total = 0
     failures: list[str] = []
-    fence = re.compile(r"\x60\x60\x60quidra\n(.*?)\x60\x60\x60", re.S)
 
     with tempfile.TemporaryDirectory(prefix="quidra-docs-") as raw_tmp:
         tmp = Path(raw_tmp)
@@ -462,10 +306,12 @@ def main() -> int:
 
         for document in DOCS:
             text = document.read_text(encoding="utf-8")
-            for index, code in enumerate(fence.findall(text)):
+            for index, code in enumerate(doc_blocks.blocks(text)):
                 total += 1
                 source = tmp / f"{document.stem}-{index}.qui"
-                source.write_text(prelude(document, code) + code, encoding="utf-8")
+                source.write_text(
+                    doc_blocks.prelude(ROOT, document, code) + code, encoding="utf-8"
+                )
                 result = subprocess.run(
                     [str(QUIDRA), "check", str(source)],
                     cwd=tmp,

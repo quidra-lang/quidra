@@ -1,0 +1,29 @@
+// A const parameter is a value with storage of its own: the address of a
+// part of it never equals the address of the caller's storage. A const
+// local is a copy as well: it keeps its value when the source changes.
+class Holder
+    int[] values = [1, 2]
+
+void elements(const int[] b, int[] &a)
+    print(&b[0] == &a[0])
+    print(NL)
+
+void fields(const Holder h, Holder &same)
+    print(&h.values[0] == &same.values[0])
+    print(NL)
+
+void reads(const int[] b)
+    print(b[1])
+    print(NL)
+
+int[] a = [1, 2, 3]
+elements(a, &a)
+Holder h
+fields(h, &h)
+reads(a)
+const int[] x = a
+print(&x[0] == &a[0])
+print(NL)
+a[0] = 5
+print(x[0])
+print(NL)

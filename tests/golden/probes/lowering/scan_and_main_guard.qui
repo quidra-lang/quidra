@@ -1,0 +1,17 @@
+// scan with literal text before its first target, file.list with its
+// recursive argument, a handle method on a temporary, and a main guard
+// whose body ends the entry block. Compiled by the golden corpus, never run.
+int width = 0
+int height = 0
+void | error read = scan("size={&width}x{&height}")
+
+auto | error everything = file.list(".", recursive = true)
+
+file.Handle open_log()
+    return file.create("probe-scan-and-main-guard.txt")
+
+open_log().close()
+
+if main
+    print("{width}{NL}")
+    process.exit(0)

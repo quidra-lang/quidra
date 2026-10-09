@@ -5,19 +5,19 @@ cli args
     int iterations = argument(default = 7)
 
 class Result
-    int s_add
-    int s_xor
-    int s_mul
-    int s_div
+    int64 s_add
+    int64 s_xor
+    int64 s_mul
+    int64 s_div
 
 // The whole workload body (methodology 06 section 4, MB-03).
 Result workload()
-    int n = 120000000
-    int x = 20263917
-    int s_add = 0
-    int s_xor = 0
-    int s_mul = 1
-    int s_div = 0
+    int64 n = 120000000
+    int64 x = 20263917
+    int64 s_add = 0
+    int64 s_xor = 0
+    int64 s_mul = 1
+    int64 s_div = 0
     for i in range(n)
         x = (48271 * x) % 2147483647
         s_add = (s_add + x) % 2147483647

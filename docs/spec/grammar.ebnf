@@ -5,13 +5,15 @@
    line-ending style does not change string data. Control characters use
    NL, HT, CR, DQ, BS, FF, VT, and BL. *)
 
-program          = { NEWLINE | import_decl | extern_decl | cli_decl | enum_decl | class_decl | function_decl | main_guard | statement }, EOF ;
+program          = { NEWLINE | import_decl | extern_decl | export_decl | cli_decl | enum_decl | class_decl | function_decl | main_guard | statement }, EOF ;
 
 import_decl      = [ "public" ], "import", identifier,
                    [ "=", ( string | identifier ) ], statement_end ;
 
 extern_decl      = "extern", type, identifier, "(", [ parameters ], ")",
                    "=", string, statement_end ;
+
+export_decl      = "export", string, function_decl ;
 
 cli_decl         = "cli", identifier, NEWLINE, INDENT,
                    cli_field, { cli_field | NEWLINE }, DEDENT ;
@@ -30,7 +32,8 @@ class_prototype  = "class", qualified_identifier, [ type_parameters ], ";", stat
 class_definition = "class", qualified_identifier, [ type_parameters ], NEWLINE, INDENT,
                    class_member, { class_member | NEWLINE }, DEDENT ;
 class_member     = [ "private" ], ( field | constructor | function_definition ) ;
-constructor      = [ type, "|", "error" ], "construct", "(", [ parameters ], ")", suite ;
+constructor      = [ type, "|", "error" ], "construct", [ type_parameters ],
+                   "(", [ parameters ], ")", suite ;
 field            = [ "const" ], type, identifier, [ "=", expression ], statement_end ;
 
 function_decl    = function_prototype | function_definition ;
@@ -54,7 +57,7 @@ shape_axis       = integer_expression | "_" ;
 integer_expression = integer_term, { ( "+" | "-" ), integer_term } ;
 integer_term     = integer_factor, { ( "*" | "/" | "%" ), integer_factor } ;
 integer_factor   = ( "+" | "-" ), integer_factor
-                 | integer | identifier | "(", integer_expression, ")" ;
+                 | integer_literal | identifier | this_field | "(", integer_expression, ")" ;
 type_arguments   = "<", type, { ",", type }, ">" ;
 
 suite            = NEWLINE, INDENT, statement, { statement | NEWLINE }, DEDENT ;
@@ -69,16 +72,18 @@ address_assignment = "&", identifier, "=", "&", expression, statement_end ;
 assignable       = postfix ;
 return_stmt      = "return", [ expression ], statement_end ;
 loop_control_stmt = ( "break" | "continue" ), statement_end ;
-if_stmt          = "if", expression, suite,
-                   { "elif", expression, suite }, [ "else", suite ] ;
-while_stmt       = "while", expression, suite ;
-for_stmt         = "for", [ "&" ], identifier, "in", expression, suite ;
-match_stmt       = "match", expression, NEWLINE, INDENT,
+if_stmt          = "if", or_expr, suite,
+                   { "elif", or_expr, suite }, [ "else", suite ] ;
+while_stmt       = "while", or_expr, suite ;
+for_stmt         = "for", [ "&" ], identifier, "in", or_expr, suite ;
+match_stmt       = "match", or_expr, NEWLINE, INDENT,
                    match_case, { match_case | NEWLINE }, DEDENT ;
 match_case       = type, [ identifier | "(", identifier, ")" ], suite ;
 expr_stmt        = expression, statement_end ;
 
-expression       = or_expr ;
+expression       = if_expr | or_expr ;
+if_expr          = "if", or_expr, "then", or_expr,
+                   { "elif", or_expr, "then", or_expr }, "else", or_expr ;
 or_expr          = and_expr, { "or", and_expr } ;
 and_expr         = equality, { "and", equality } ;
 equality         = comparison, { ( "==" | "!=" ), comparison } ;
@@ -99,8 +104,11 @@ index_item       = expression
                  | [ expression ], ":", [ expression ], [ ":", [ expression ] ] ;
 member_suffix    = ".", identifier, [ type_arguments ],
                    [ "(", [ arguments ], ")" ] ;
-primary          = integer | float | string | "true" | "false" | "void" | "none" |
-                   array | identifier | "(", expression, ")" ;
+primary          = integer_literal | real_literal | imaginary_literal | string |
+                   "true" | "false" | "void" | "none" |
+                   array | identifier | this_field | "(", expression, ")" ;
+this_field       = "this", ".", identifier ;
+                   (* never followed directly by "(" or a type-argument call *)
 array            = "[", [ expression, { ",", expression }, [ "," ] ], "]" ;
 arguments        = argument, { ",", argument }, [ "," ] ;
 argument         = "&", identifier, "=", "&", expression
@@ -109,13 +117,20 @@ argument         = "&", identifier, "=", "&", expression
 statement_end    = NEWLINE | EOF ;
 
 (* Numeric lexical constraints:
-   - integer literals are decimal digits only; 0x/0b/0o-style base prefixes do not exist;
-   - floating literals contain a decimal point;
-   - exponent notation is available only after that decimal point, e.g. 1.0e8;
-   - numeric literals carry integer/real families rather than default concrete types;
-   - an integer-family literal has no implementation-width ceiling when its unique
-     context is bigint; fixed-width contexts retain their normal range limits;
-   - fixed-width integer bitwise operators are AND, OR, XOR, NOT, <<, and >>.
+   - integer literals are decimal digits only; 0x/0b/0o prefixes do not exist;
+   - real literals contain a decimal point; exponent notation only after it (1.0e8);
+   - an imaginary literal is a real literal immediately followed by `i` that is not
+     followed by an identifier character (2.0i, 1.0e-3i); `i` is not reserved, so
+     `int i = 5` stays valid; `2i` is lexed as an integer-form imaginary literal
+     and rejected by the checker;
+   - literals carry categories, not types: non-negative integer, negative integer
+     (unary `-` applied to an integer literal), real, imaginary, and complex (a real
+     and an imaginary literal joined by + or -); each materializes only into the
+     types of its category;
+   - in a nat or int context an integer literal has no width ceiling; fixed-width
+     contexts keep their ranges; a real literal rounds correctly to realN and is
+     exact for real;
+   - AND, OR, XOR, NOT, <<, >> apply only to nat8..nat64 and int8..int64.
      Lowercase and/or/not remain bool-only logical operators. *)
 
 (* Static/frontend constraints:
@@ -139,7 +154,9 @@ statement_end    = NEWLINE | EOF ;
      created and their nonnegative results are captured for that binding;
    - array dimensions use the same integer-expression rule. `[]` remains a
      runtime-sized dimension, while `[expr]` captures expr once for the binding;
-   - generic classes require explicit type arguments; generic function/method
+   - generic classes require explicit type arguments in type positions; a
+     construction call may omit them when the constructor's arguments uniquely
+     determine every class type parameter; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;
    - `fn<R>(P...)` is a capture-free function-value type. Converting a declared
@@ -161,6 +178,29 @@ statement_end    = NEWLINE | EOF ;
      the format of scan(...); print, flush and scan return void | error, and an
      expression statement whose value can be error fails fast on error;
    - `public import` re-exports the imported alias as a nested namespace of the module;
+   - inside method and constructor bodies a field of the receiver is written
+     `this.name`; a bare name never denotes a field. `this` is only a field
+     qualifier: it is not a value, cannot be passed, addressed, assigned,
+     compared or indexed, and does not call methods; it is a keyword;
+   - `_` is the discard name, not a reserved word: it is never declared (as a binding,
+     parameter, field, function, method, class, enum, variant, type parameter, match
+     binder, loop name or import alias) and never read; in a tensor shape pattern it is
+     an axis of any extent;
+   - identifiers that begin with `__quidra_` are reserved for the compiler and are never
+     declared;
+   - `export` is contextual: it begins an export_decl only at top level and only when a
+     string literal follows it; elsewhere it is an ordinary identifier. The string is
+     "C". An export_decl prefixes a non-generic free function, never a method,
+     constructor or class member, and is not valid inside a block. When an exported
+     function has a prototype, the prototype and the definition both carry the prefix;
+   - an if-expression's condition and branches are or_expr: an if-expression nested there,
+     or used as an operand, is parenthesized, and a branch extends as far as an or_expr, so
+     `if c then 2 else 3 + 1` is `if c then 2 else (3 + 1)`; `else` is mandatory and
+     `else if` is written `elif`; a statement that begins with `if` is an if_stmt (or the
+     `if main` guard), never an expression statement; statement headers are or_expr, so an
+     if-expression there is parenthesized; outside brackets an if-expression ends with its
+     line; it gives a value, never a reference (no `&` before it, no reference binding to it,
+     no address as a branch); `then` is reserved;
    - safe address targets, exhaustive cases, field-level initialization, fixed shapes,
      argument ordering, value equality, and
      no-shadowing are checked statically.

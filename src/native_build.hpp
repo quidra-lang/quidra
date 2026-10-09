@@ -1,33 +1,38 @@
 #pragma once
+#include "toolchain/native_link_recipe.hpp"
+
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
+namespace quidra {
+class CompileInputs;
+}
+
 namespace quidra::native {
 
-std::string shell_quote(std::string_view value);
-std::string clang_driver();
-std::string jit_driver();
-std::filesystem::path runtime_library();
-std::filesystem::path self_executable();
-std::filesystem::path jit_runtime_library();
+using toolchain::LinkOptions;
 
-struct LinkOptions {
-    bool debug{};
-    bool optimize{true};
-    std::vector<std::filesystem::path> inputs;
+// The native inputs of the packages a program imports (a compilation's
+// package map), in build order: per package, by name, its prebuilt library
+// for this platform and then its native sources; and the pkg-config modules
+// they declare. With `inputs`, the manifests read are recorded.
+struct PackageNativeInput {
+    std::filesystem::path path;
+    bool source{};
+};
+
+struct PackageNativeBuildInputs {
+    std::vector<PackageNativeInput> inputs;
     std::vector<std::string> pkg_config_modules;
 };
 
-std::string debugger_driver();
-int system_status(int status);
-int run_program(
-    const std::filesystem::path& program,
-    const std::vector<std::string>& arguments = {},
-    const std::optional<std::filesystem::path>& stdout_path = std::nullopt,
-    const std::optional<std::filesystem::path>& stderr_path = std::nullopt);
+PackageNativeBuildInputs package_native_build_inputs(
+    const std::map<std::string, std::filesystem::path>& packages,
+    CompileInputs* inputs = nullptr);
 
 struct JitOptions {
     bool optimize{true};
@@ -43,10 +48,26 @@ int run_llvm_jit(
     JitOptions options = {},
     const std::optional<std::filesystem::path>& stdout_path = std::nullopt,
     const std::optional<std::filesystem::path>& stderr_path = std::nullopt);
+// Builds the native link's recipe in build mode and executes it.
 int link_llvm(
     const std::filesystem::path& llvm,
     const std::filesystem::path& output,
     LinkOptions options = {});
+// The library build (quidra build --lib): a self-contained static archive
+// of the module compiled to an object, the package native objects the
+// executable link would compile (and the prebuilt package archives and
+// --link objects or archives), and the members of the runtime library
+// (toolchain/archiver.hpp). Throws std::runtime_error when an input cannot
+// go into an archive (a shared library) or a tool fails.
+void build_library(
+    const std::filesystem::path& llvm,
+    const std::filesystem::path& output,
+    const LinkOptions& options);
+// The flags a C linker needs to link that archive into a host program
+// (toolchain/link_flags.hpp), from the same options.
+std::vector<std::string> library_link_flags(
+    const std::filesystem::path& llvm,
+    const LinkOptions& options);
 int run_debugger(
     const std::filesystem::path& program,
     const std::vector<std::string>& arguments = {});

@@ -1,0 +1,57 @@
+// Probe package (golden corpus): a compiler extension whose descriptor
+// reaches the rejections of the optimizer's chain fusion and conditional
+// rules, and the descriptor values the rule parser refuses. The functions
+// only return a value: the probes are compiled, never run.
+
+tensor<real32> first(tensor<real32> value)
+    return value
+
+tensor<real32> second(tensor<real32> value)
+    return value
+
+tensor<real32> pair(tensor<real32> left, tensor<real32> right)
+    return left
+
+tensor<real32> scale(tensor<real32> value, real64 factor)
+    return value
+
+tensor<real32> accumulate(tensor<real32> &state, tensor<real32> value)
+    return value
+
+tensor<real32> stamp(tensor<real32> &state)
+    return state
+
+tensor<real32> impure(tensor<real32> value)
+    return value
+
+// Replacement targets.
+
+tensor<real32> fused(tensor<real32> value)
+    return value
+
+tensor<real32> fused_side(tensor<real32> side, tensor<real32> value)
+    return value
+
+tensor<real32> fused_scale(int factor, tensor<real32> value)
+    return value
+
+tensor<real32> fused_two(tensor<real32> value, tensor<real32> other)
+    return value
+
+tensor<real32> unbound(tensor<real32> value)
+    return value
+
+tensor<real32> unsafe(tensor<real32> value)
+    return value
+
+tensor<real32> specialized(tensor<real32> value)
+    return value
+
+tensor<real32> rescale(tensor<real32> value, int factor)
+    return value
+
+// Takes its argument by value: clearing its gradient writes to it, so the
+// lowering does not infer it borrowed.
+tensor<real32> owned(tensor<real32> value)
+    value.clear_grad()
+    return value

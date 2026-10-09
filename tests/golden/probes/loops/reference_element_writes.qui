@@ -1,0 +1,17 @@
+// A reference loop over a `&` parameter while a callee writes elements of
+// the same array through another reference: the array keeps its storage and
+// length, so the loop runs to its end and every write is kept.
+void clear_at(int[] &values, int i)
+    values[i] = 0
+
+void walk(int[] &a, int[] &b)
+    int i = 0
+    for &x in a
+        x = x + 1
+        if i > 0
+            clear_at(&b, i - 1)
+        i = i + 1
+
+int[] v = [1, 2, 3]
+walk(&v, &v)
+print("{v[0]} {v[1]} {v[2]}" + NL)

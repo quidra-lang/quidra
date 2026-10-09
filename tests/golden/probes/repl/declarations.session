@@ -1,0 +1,10 @@
+int twice(int v)
+    return v * 2
+
+:type twice(4)
+twice(4)
+:help
+:bogus
+:reset
+twice(1)
+:exit

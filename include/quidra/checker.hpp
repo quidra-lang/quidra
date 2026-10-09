@@ -2,6 +2,8 @@
 #include "quidra/ast.hpp"
 #include "quidra/types.hpp"
 #include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -9,6 +11,10 @@
 #include <vector>
 
 namespace quidra {
+
+namespace semantics {
+class EffectSummaries;
+}
 
 struct FunctionParameterType {
     std::string name;
@@ -69,11 +75,14 @@ struct ClassTypeInfo {
     std::vector<ClassFieldType> fields;
     std::unordered_map<std::string, std::string> methods;
     std::unordered_map<std::string, std::string> private_methods;
-    // Internal function name of the class's sole construct(...) member, stored
-    // in a vector for the existing checked-program ABI. Frontend validation
-    // guarantees this contains at most one entry.
+    // Internal function names of the class's construct(...) member: its sole
+    // entry, or one per instance of a constructor that declares type
+    // parameters of its own (keyed by instance name in constructor_instances).
     std::vector<std::string> constructors;
+    std::unordered_map<std::string, std::string> constructor_instances;
     std::unordered_set<std::string> private_constructors;
+    // ClassDecl::standard_library.
+    bool standard_library{};
 };
 
 struct FieldAccessInfo {
@@ -100,6 +109,17 @@ struct ScanFormat {
     std::vector<Type> target_types;
 };
 
+// A read whose initialization is known only at run time (L13): on some path
+// the storage it reads is initialized and on another it is not. The read
+// checks the flag that the stores of the binding declared by `binding` set,
+// and fails with UNINITIALIZED naming `path`, the storage as written.
+enum class InitSubject : std::uint8_t { binding, field, argument };
+struct InitializationCheck {
+    InitSubject subject{InitSubject::binding};
+    const Stmt* binding{};
+    std::string path;
+};
+
 struct CheckedProgram {
     Program program;
     std::vector<CompilerExtensionRegistration> compiler_extensions;
@@ -120,11 +140,37 @@ struct CheckedProgram {
     std::unordered_set<const Expr*> fail_fast_expressions;
     std::unordered_map<const Expr*, std::unordered_set<std::string>> class_expr_initialized_paths;
     std::unordered_map<const Expr*, ScanFormat> scan_formats;
+    // What every function may read, write and use (src/semantics), computed
+    // at the end of the check.
+    std::shared_ptr<const semantics::EffectSummaries> effects;
+    // Initialization checked at run time (L13): the reads that check a flag,
+    // the binding declarations that keep one (those some check reads), and
+    // where a binding that may be uninitialized becomes initialized: after a
+    // simple statement (an assignment, a binding, an expression statement)
+    // or after a call expression (a `&` argument or a receiver the callee
+    // initializes, a scan target). The lowering sets a binding's flag at the
+    // places listed for it when the binding keeps one.
+    std::unordered_map<const Expr*, InitializationCheck> initialization_checks;
+    std::unordered_set<const Stmt*> initialization_flags;
+    // The classes some field check reads (subject field): their values keep
+    // a hidden word of initialization bits, one per field, set by every
+    // store of the field.
+    std::unordered_set<std::string> initialization_masked_classes;
+    std::unordered_map<const Stmt*, std::vector<const Stmt*>> statement_initializes;
+    std::unordered_map<const Expr*, std::vector<const Stmt*>> expression_initializes;
 };
+
+// What a compilation produces: an executable (quidra build, run, a direct
+// run), a static library for a C host (quidra build --lib), or a REPL
+// submission. A library's root is checked like an imported module and has
+// no entry point; a REPL submission cannot export C symbols.
+enum class CompileArtifact { Executable, Library, Interactive };
 
 class Checker {
 public:
-    explicit Checker(std::size_t max_errors = 20) : max_errors_(max_errors ? max_errors : 1) {}
+    explicit Checker(std::size_t max_errors = 20,
+                     CompileArtifact artifact = CompileArtifact::Executable)
+        : max_errors_(max_errors ? max_errors : 1), artifact_(artifact) {}
     CheckedProgram check(ConcreteProgram program);
 
 private:
@@ -150,8 +196,45 @@ private:
     std::unordered_set<const Expr*> bounds_proven_;
     std::unordered_set<const Expr*> fail_fast_expressions_;
     std::unordered_set<std::string> initialized_, narrowed_, borrowed_, const_bindings_;
+    // L13: bindings that are initialized on some path to here but not on
+    // every one (initialized_ holds those initialized on every path); a
+    // binding in neither is uninitialized on every path.
+    std::unordered_set<std::string> maybe_initialized_;
+    // Bindings that a call may have written without guaranteeing their
+    // initialization (a `&` argument or receiver whose callee writes on some
+    // paths only, a write through a reference whose target is not known),
+    // so that no flag tracks them; a read that is not initialized on every
+    // path stays a compile error for them. It only grows within a body.
+    std::unordered_set<std::string> untracked_initialized_;
+    // The run-time checks in the order they were recorded, with the binding
+    // each reads, so that a loop can turn the checks of its body back into
+    // errors when the body writes their binding untracked.
+    std::vector<std::pair<const Expr*, std::string>> initialization_check_order_;
+    // L13 for array elements: the one-dimensional local arrays created
+    // without element values (`T[n] a`, `T[] a = array(k)`), by name, with
+    // the number of elements tracked one by one (n or k when constant and at
+    // most 256), or -1 when one state stands for every element. An element
+    // that may be initialized is listed in maybe_initialized_ as "a[i]", and
+    // "a[]" stands for every element; a read of an element that no path
+    // initializes is a compile error, everything else is checked at run
+    // time per element as before.
+    std::unordered_map<std::string, long long> element_tracked_arrays_;
+    // The target of the element assignment being checked, whose store is
+    // recorded once its value is checked.
+    const Expr* element_store_target_{};
+    // The declaration of each local binding name, the latest one checked.
+    std::unordered_map<std::string, const Stmt*> binding_declarations_;
+    // The simple statement and the call expression being checked, where a
+    // binding becomes initialized.
+    const Stmt* current_simple_statement_{};
+    const Expr* current_call_expression_{};
+    std::unordered_map<const Expr*, InitializationCheck> initialization_checks_;
+    std::unordered_map<const Stmt*, std::vector<const Stmt*>> statement_initializes_;
+    std::unordered_map<const Expr*, std::vector<const Stmt*>> expression_initializes_;
     std::unordered_map<std::string, long long> const_integer_values_;
     std::unordered_map<std::string, std::unordered_set<std::string>> class_initialized_paths_;
+    // The classes whose fields some run-time check reads.
+    std::unordered_set<std::string> initialization_masked_classes_;
     std::unordered_map<const Expr*, std::unordered_set<std::string>> class_expr_initialized_paths_;
     StorageEffect current_receiver_effect_;
     std::unordered_set<std::string> current_return_initialized_;
@@ -166,6 +249,8 @@ private:
     std::vector<Diagnostic> diagnostics_;
     bool suppress_diagnostics_{};
     std::size_t max_errors_{20};
+    CompileArtifact artifact_{CompileArtifact::Executable};
+    void check_library_root(const Program& program);
     Type current_return_{Type::simple(TypeKind::Void)};
     bool in_function_{};
     std::size_t loop_depth_{};
@@ -173,12 +258,22 @@ private:
     std::size_t stmt_depth_{};
     bool explicit_numeric_literal_context_{};
     std::string current_class_;
+    // Module namespace of the body being checked ("" for the root file). Local
+    // names are checked against the declarations of this module only.
+    std::string current_module_namespace_;
+    // Functions declared by the root file, generic instantiations of its
+    // templates included. They are not in the lexical environment of code in
+    // an imported module (see visible_function_name).
+    std::unordered_set<std::string> root_functions_;
     // Checker-internal name of every class member body, constructors included.
     std::unordered_map<const FunctionDecl*, std::string> method_internal_names_;
     // True while checking a construct(...) body: receiver fields start out
     // uninitialized (except defaults), reads of them are errors rather than
     // requirements, and const fields may be assigned once.
     bool in_constructor_{};
+    // True while checking a constructor's parameter shapes: no receiver
+    // exists at its entry, so `this.NAME` is rejected there.
+    bool this_unavailable_{};
     std::size_t constructor_block_depth_{};
     std::unordered_map<const Expr*, ScanFormat> scan_formats_;
     // The expression whose error cannot continue past it: a statement's
@@ -189,9 +284,60 @@ private:
     Type resolve_type(const TypeName& type, bool allow_auto = false);
     void check_type_extent_expressions(const TypeName& source);
     Type check_expr(const Expr& expr, const Type* expected = nullptr);
+    Type check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected);
     Type check_address_target(const Expr& expr, bool allow_tensor_element = false);
     bool storage_initialized(const Expr& expr) const;
+    // L13: a read of the binding `name` (expression `read`) that is not
+    // initialized on every path: a compile error when it is uninitialized on
+    // every path or its storage is not known, a run-time check otherwise.
+    void check_maybe_initialized_read(const Expr& read, const std::string& name);
+    // L13 for class fields: a read of the field path `path` of the local
+    // binding `root` (or, with root "$this", of the receiver in a
+    // constructor) that is not initialized on every path, spelled `shown`.
+    // Returns true when it is checked at run time (the path is initialized
+    // afterwards) or reported as uninitialized on every path, false when the
+    // caller reports it (untracked paths, and the receiver's untouched
+    // fields, which keep the constructor's text).
+    bool check_maybe_initialized_field(const Expr& read, const std::string& root,
+                                       const std::string& path, const std::string& shown);
+    // Records direct stores and untracked writes of field paths (L13).
+    void note_field_store(const std::string& root, const std::string& path);
+    void note_untracked_field_write(const std::string& root, const std::string& path);
+    // A class value assigned whole to `root` (".path" below it when not
+    // empty): its field paths not initialized on every path are untracked.
+    void note_class_value(const std::string& root, const std::string& path, const Type& type,
+                          const std::unordered_set<std::string>& initialized);
+    // The binding whose storage `name` designates (itself, or a reference's
+    // whole target binding), or nullopt when that is not one known binding.
+    std::optional<std::string> initialization_root(const std::string& name) const;
+    // Records that the binding `root` becomes initialized at the current
+    // simple statement and call expression, when it may be uninitialized.
+    void record_initialization(const std::string& root);
+    // Moves the bindings that a loop body may initialize from uninitialized
+    // to maybe-initialized.
+    void note_loop_initializations(const std::vector<StmtPtr>& body);
+    // Reports the checks recorded since `first` whose binding the loop body
+    // just checked may write untracked, as compile errors.
+    void reject_untracked_loop_checks(std::size_t first);
+    // Array elements (L13): starts or stops tracking the elements of `name`
+    // at its declaration; records a store into the element `target`
+    // (`a[i] = value`) or a write that may reach any element of the array a
+    // place is rooted in; rejects a read of an element of `base` (index
+    // `index`, or every element for a whole-array read) that no path
+    // initializes.
+    void declare_array_elements(const std::string& name, const Type& type, const BindingStmt& node);
+    void note_element_store(const Expr& target);
+    void note_element_writes(const Expr& place);
+    void check_element_read(const Expr& base, const Expr* index, SourceSpan span);
+    // The maybe-initialized bindings after a join of the continuing paths'
+    // states (initialized and maybe-initialized sets).
+    void join_maybe_initialized(
+        const std::vector<std::pair<const std::unordered_set<std::string>*,
+                                    const std::unordered_set<std::string>*>>& continuing);
     void check_static_index_bounds(const Type& base, const Expr& index);
+    // An index operand: an integer of any kind (an integer literal
+    // materializes as int); the bounds check takes it as it is.
+    Type check_index_operand(const Expr& index);
     Type check_name_expr(const Expr& expression, const NameExpr& node,
                          const Type* expected = nullptr);
     Type check_member_expr(const Expr& expression, const MemberExpr& node);
@@ -273,8 +419,19 @@ private:
     bool block_always_terminates(const std::vector<StmtPtr>& body) const;
     bool block_contains_return(const std::vector<StmtPtr>& body) const;
     const ClassFieldType* find_field(const std::string& class_name, const std::string& field) const;
+    // The receiver field that `this.NAME` denotes inside a member body; null
+    // for anything else. A bare name never denotes a field. Every check that
+    // asks whether an expression is a receiver field goes through it.
+    const ClassFieldType* receiver_field(const Expr& expression) const;
+    const ClassFieldType& check_this_field(const Expr& expression, const NameExpr& name);
+    void reject_bare_field(const std::string& name, SourceSpan span) const;
+    void reject_bare_storage_root(const Expr& expression) const;
+    bool standard_library_class(const std::string& class_name) const;
     const std::string* find_method(const std::string& class_name, const std::string& method) const;
     bool member_name_visible(const std::string& name) const;
+    bool declaration_name_visible(const std::string& name) const;
+    bool type_name_declared_in(const std::string& name, const std::string& module_namespace) const;
+    std::optional<std::string> visible_function_name(const std::string& name) const;
     bool equality_supported(const Type& type) const;
     bool fully_initialized_for_equality(const Expr& expression, const Type& type) const;
     std::unordered_set<std::string> complete_class_paths(const Type& type) const;

@@ -1,0 +1,4 @@
+// A probe package whose function fails on a short array, for runtime
+// failures located in package code.
+int second(int[] values)
+    return values[1]

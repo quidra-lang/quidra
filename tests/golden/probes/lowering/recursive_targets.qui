@@ -1,0 +1,22 @@
+// backward collecting the autograd targets of a class that reaches itself
+// through an array field declared before its target: the walk over the
+// class's type and over its values enters the class once. Compiled by the
+// golden corpus, never run.
+class Node
+    Node[] children
+    autograd.Target target
+
+    construct()
+        this.children = []
+        this.target = autograd.target()
+
+Node root = Node()
+root.children = root.children.append(Node())
+tensor<real32> left = tensor.ones<real32>([]).track(&root.target)
+tensor<real32> right = tensor.ones<real32>([]).track(
+    &root.children[0].target
+)
+tensor<real32> loss = left * right
+loss.backward(&root)
+print(root.target.has_grad())
+print(NL)

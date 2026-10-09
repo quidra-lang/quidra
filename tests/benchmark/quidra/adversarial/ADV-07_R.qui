@@ -9,11 +9,11 @@ string read_input_line()
             return line
         error problem
             process.exit(2)
-float a = float.parse(read_input_line())
-float b = float.parse(read_input_line())
-float h = a / b
-float mean = (1.0 + h + 3.0) / 3.0
-float diff = h - h
+real64 a = real64.parse(read_input_line())
+real64 b = real64.parse(read_input_line())
+real64 h = a / b
+real64 mean = (1.0 + h + 3.0) / 3.0
+real64 diff = h - h
 print("OBS=MEAN:{mean:frac=6}|DIFF:{diff:frac=6}")
 print(NL)
 flush()

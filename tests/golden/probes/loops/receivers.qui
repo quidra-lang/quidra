@@ -1,0 +1,28 @@
+// A value loop over a field iterates the value at loop entry while the
+// body calls a method that grows the field, through the implicit receiver
+// inside a method and through an explicit receiver outside.
+class Bag
+    int[] items
+
+    void grow_items()
+        this.items = this.items.append(int(len(this.items)))
+
+    int walk()
+        int total = 0
+        for v in this.items
+            total = total + v
+            grow_items()
+        return total
+
+Bag g
+g.items = [1, 2, 3]
+print("method: {g.walk()} {len(g.items)}")
+print(NL)
+Bag h
+h.items = [1, 2, 3]
+int total = 0
+for v in h.items
+    total = total + v
+    h.grow_items()
+print("receiver call: {total} {len(h.items)}")
+print(NL)

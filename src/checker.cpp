@@ -1,9 +1,14 @@
 #include "quidra/checker.hpp"
+#include "quidra/abi/symbols.hpp"
 #include "quidra/language.hpp"
+#include "quidra/member_function_names.hpp"
+#include "quidra/standard_classes.hpp"
 #include "operator_policy.hpp"
 #include "numeric_literal_policy.hpp"
 #include "constant_integer_eval.hpp"
+#include "constant_numeric_eval.hpp"
 #include "nesting_budget.hpp"
+#include "semantics/effect_summary.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
@@ -26,6 +31,102 @@ bool poisoned(const Type& type) {
     return type.kind == TypeKind::Invalid;
 }
 
+// The source spelling of a short expression, for a diagnostic that names
+// it: names, members, calls, indexing and literals; anything else is "this
+// value".
+std::string spelled_expression(const Expr& expression, int depth = 0) {
+    if (depth > 4) return "...";
+    const auto arguments = [&](const std::vector<CallArg>& args) {
+        std::string out;
+        for (std::size_t i = 0; i < args.size(); ++i) {
+            if (i) out += ", ";
+            if (args[i].name) out += *args[i].name + " = ";
+            if (args[i].writable) out += "&";
+            out += args[i].value ? spelled_expression(*args[i].value, depth + 1) : "?";
+        }
+        return out;
+    };
+    // A receiver or indexed base that is an operator expression keeps its
+    // parentheses.
+    const auto base = [&](const Expr& inner) {
+        const auto text = spelled_expression(inner, depth + 1);
+        return std::holds_alternative<BinaryExpr>(inner.data) ? "(" + text + ")" : text;
+    };
+    if (const auto* name = std::get_if<NameExpr>(&expression.data))
+        return name->this_qualifier ? "this." + name->name : name->name;
+    if (const auto* literal = std::get_if<IntegerExpr>(&expression.data))
+        return literal->spelling.empty() ? std::to_string(literal->value) : literal->spelling;
+    if (const auto* member = std::get_if<MemberExpr>(&expression.data))
+        return base(*member->base) + "." + member->name;
+    if (const auto* call = std::get_if<CallExpr>(&expression.data))
+        return call->callee + "(" + arguments(call->args) + ")";
+    if (const auto* method = std::get_if<MethodCallExpr>(&expression.data))
+        return base(*method->receiver) + "." + method->method + "(" +
+               arguments(method->args) + ")";
+    if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
+        if (index->items.size() == 1 && !index->items.front().slice && index->items.front().index)
+            return base(*index->base) + "[" +
+                   spelled_expression(*index->items.front().index, depth + 1) + "]";
+    }
+    if (const auto* binary = std::get_if<BinaryExpr>(&expression.data))
+        return spelled_expression(*binary->left, depth + 1) + " " + binary->op + " " +
+               spelled_expression(*binary->right, depth + 1);
+    return "this value";
+}
+
+// The text of a mismatch between nat and another integer kind (lengths,
+// counts, shapes and indices are nat; N1 converts nothing implicitly), or
+// nothing when the mismatch is another one.
+std::optional<std::string> nat_mismatch_message(const Expr& expression, const Type& received,
+                                                const Type& expected) {
+    const auto element = [](const Type& type) -> const Type& {
+        return type.kind == TypeKind::Array && type.first ? *type.first : type;
+    };
+    const bool arrays = received.kind == TypeKind::Array && expected.kind == TypeKind::Array;
+    if (!arrays && (received.kind == TypeKind::Array || expected.kind == TypeKind::Array))
+        return std::nullopt;
+    const auto& from = element(received);
+    const auto& to = element(expected);
+    if (!is_integer_family_type(from) || !is_integer_family_type(to) || from == to)
+        return std::nullopt;
+    const auto text = spelled_expression(expression);
+    if (from.kind == TypeKind::Nat) {
+        return "'" + text + "' has type " + type_name(received) + "; convert explicitly: " +
+               type_name(to) + "(" + text + ").";
+    }
+    if (to.kind == TypeKind::Nat) {
+        return "'" + text + "' has type " + type_name(received) + "; this parameter is " +
+               type_name(expected) + ": write nat(" + text + ").";
+    }
+    return std::nullopt;
+}
+
+// The case of an expected type that a literal of the other family met (the
+// type itself unless it is a union), for the diagnostic.
+Type literal_target(const Type& expected, bool (*family)(const Type&)) {
+    if (expected.kind == TypeKind::Union)
+        for (const auto& candidate : expected.cases)
+            if (family(candidate)) return candidate;
+    return expected;
+}
+
+// The value of a numeric literal operand (an integer or real literal, or its
+// negation), for the compile-time power checks; nothing for any other
+// expression.
+std::optional<double> literal_number_value(const Expr& expression) {
+    if (const auto* integer = std::get_if<IntegerExpr>(&expression.data))
+        return static_cast<double>(integer->value);
+    if (const auto* real = std::get_if<RealLiteralExpr>(&expression.data))
+        return real->value;
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
+        if (unary->op != "-") return std::nullopt;
+        const auto value = literal_number_value(*unary->operand);
+        if (!value) return std::nullopt;
+        return -*value;
+    }
+    return std::nullopt;
+}
+
 bool printable(const Type& type) {
     return poisoned(type) || is_numeric(type) || type.kind == TypeKind::Bool ||
            type.kind == TypeKind::String || type.kind == TypeKind::Bin ||
@@ -33,13 +134,27 @@ bool printable(const Type& type) {
 }
 
 using numeric_policy::NumericLiteralContext;
-using numeric_policy::NumericLiteralFamily;
+using numeric_policy::NumericLiteralCategory;
+using numeric_policy::complex_category;
+using numeric_policy::integer_category;
+using numeric_policy::single_family_category;
 using numeric_policy::direct_numeric_literal_family;
 using numeric_policy::numeric_literal_context;
 using numeric_policy::numeric_literal_family;
 
+// An if-expression gives a value: `&` cannot take its address, a reference
+// cannot be bound to it, and its branches are not addresses (IF_EXPRESSION).
+constexpr char if_expression_reference_message[] =
+    "An if-expression gives a value; a reference needs storage: use an if statement.";
+
+bool is_if_expression(const Expr& expression) {
+    return std::holds_alternative<IfExpr>(expression.data);
+}
+
 bool runtime_reserved_c_symbol(std::string_view symbol) {
-    if (symbol == "main" || symbol.starts_with("n_") || symbol.starts_with("quidra_") || symbol.starts_with("__quidra_")) {
+    namespace ns = abi::symbol_namespace;
+    if (symbol == ns::entry || symbol.starts_with(ns::user_prefix) ||
+        symbol.starts_with(ns::runtime_prefix) || symbol.starts_with(ns::internal_prefix)) {
         return true;
     }
     static const std::unordered_set<std::string> symbols{
@@ -49,6 +164,61 @@ bool runtime_reserved_c_symbol(std::string_view symbol) {
         "sin", "sinf", "cos", "cosf", "tan", "tanf",
         "log", "logf", "exp", "expf", "pow", "powf"};
     return symbols.contains(std::string(symbol));
+}
+
+// The C23 keywords. An exported function's name is its C symbol, so it may
+// not be one (FFI_SYMBOL).
+bool c_keyword(std::string_view symbol) {
+    static const std::unordered_set<std::string_view> keywords{
+        "alignas", "alignof", "auto", "bool", "break", "case", "char", "const",
+        "constexpr", "continue", "default", "do", "double", "else", "enum", "extern",
+        "false", "float", "for", "goto", "if", "inline", "int", "long", "nullptr",
+        "register", "restrict", "return", "short", "signed", "sizeof", "static",
+        "static_assert", "struct", "switch", "thread_local", "true", "typedef", "typeof",
+        "typeof_unqual", "union", "unsigned", "void", "volatile", "while", "_Alignas",
+        "_Alignof", "_Atomic", "_BitInt", "_Bool", "_Complex", "_Decimal128",
+        "_Decimal32", "_Decimal64", "_Generic", "_Imaginary", "_Noreturn",
+        "_Static_assert", "_Thread_local"};
+    return keywords.contains(symbol);
+}
+
+// Identifiers C reserves for the implementation: a leading underscore
+// followed by an uppercase letter, or two leading underscores.
+bool reserved_c_identifier(std::string_view symbol) {
+    return symbol.size() >= 2 && symbol[0] == '_' &&
+           (symbol[1] == '_' || std::isupper(static_cast<unsigned char>(symbol[1])));
+}
+
+// The spelled types that cross the exported C boundary by value: the
+// fixed-width scalars with a defined C mapping (the arbitrary-precision int
+// and nat have no fixed C representation).
+bool foreign_export_scalar(const TypeName& type) {
+    static const std::unordered_set<std::string_view> scalars{
+        "int8", "int16", "int32", "int64", "nat8", "nat16", "nat32", "nat64",
+        "real32", "real64"};
+    return type.arguments.empty() && type.function_parameters.empty() &&
+           type.array_depth == 0 && type.tensor_shape_prefix.empty() &&
+           scalars.contains(type.name);
+}
+
+// Why a spelled parameter or result type cannot cross the exported C
+// boundary, completing "Exported C parameter 'x' ...".
+std::string foreign_export_type_problem(const TypeName& type) {
+    if (type.array_depth != 0) return "is an array, a managed value that cannot cross the C ABI.";
+    if (type.name == "union") return "is a union, which cannot cross the C ABI.";
+    if (type.name == "fn") return "is a function value, which cannot cross the C ABI.";
+    if (type.name == "tensor") return "is a tensor, a managed value that cannot cross the C ABI.";
+    if (type.name == "int")
+        return "has type int, which has no fixed C representation; write int64.";
+    if (type.name == "nat")
+        return "has type nat, which has no fixed C representation; write nat64.";
+    if (type.name == "real")
+        return "has type " + type.name + ", which has no fixed C representation.";
+    if (type.name == "bool")
+        return "has type bool, which is not part of the exported C subset; use an integer type.";
+    if (type.name == "string" || type.name == "bin")
+        return "has type " + type.name + ", a managed value that cannot cross the C ABI.";
+    return "has type " + type.name + ", which has no C mapping.";
 }
 
 bool storage_paths_overlap(
@@ -192,11 +362,19 @@ Type merge_shaped_flow_facts(
     return merged;
 }
 
+// A name expression that can denote a binding: not `this.NAME`, which only
+// ever denotes a receiver field. Name-keyed facts about locals, parameters
+// and references are looked up through it.
+const NameExpr* binding_name(const Expr& expression) {
+    const auto* name = std::get_if<NameExpr>(&expression.data);
+    return name && !name->this_qualifier ? name : nullptr;
+}
+
 void collect_assigned_bindings(
     const std::vector<StmtPtr>& body, std::unordered_set<std::string>& names) {
     for (const auto& statement : body) {
         if (const auto* assignment = std::get_if<AssignStmt>(&statement->data)) {
-            if (const auto* name = std::get_if<NameExpr>(&assignment->target->data)) {
+            if (const auto* name = binding_name(*assignment->target)) {
                 names.insert(name->name);
             }
             continue;
@@ -328,6 +506,54 @@ std::unordered_map<std::string, StorageEffect> merge_reference_loop(
 }
 
 
+// Static extent of one axis of a tensor-to-tensor arithmetic result, from
+// the operands' static extents (nullopt: unknown). It follows the runtime
+// broadcast rule (tensor_broadcast_shape): equal extents stay, and a 1 takes
+// the other side's extent, 0 included. A known extent other than 1 is the
+// result whatever the unknown side holds (it can only match or be 1);
+// incompatible known extents fail at runtime and say nothing here.
+std::optional<long long> broadcast_result_extent(
+    std::optional<long long> left, std::optional<long long> right) {
+    if (left && right) {
+        if (*left == *right || *right == 1) return left;
+        if (*left == 1) return right;
+        return std::nullopt;
+    }
+    const auto known = left ? left : right;
+    if (known && *known != 1) return known;
+    return std::nullopt;
+}
+
+// The static shape of a tensor-to-tensor arithmetic result. Its source
+// pattern stays the left operand's, except that an axis the pattern fixes to
+// 1 takes the broadcast extent: the right operand's statically known extent
+// on that axis, from its pattern or its flow facts (so a known 1 keeps the
+// 1), or a wildcard when that extent is not known. Its flow facts are the
+// known prefix of the broadcast shape. Copying the left operand's shape
+// unchanged claimed [1, 3] for [1, 3] + [0, 3] (and for [1, 3] + [2, 3]) and
+// rejected correct programs.
+//
+// The wildcard is needed even though keeping the 1 would leave the type
+// identical to the left operand's: a fixed pattern extent is a static fact
+// (tensor_known_extent falls back to it where the flow facts end), so a 1
+// kept for an unknown extent would flow into derived facts, e.g. [3, 1] for
+// (one + unknown).transpose(0, 1) when the value is [3, 2] or [3, 0].
+void apply_broadcast_shape(const Type& left, const Type& right, Type& result) {
+    for (std::size_t axis = 0; axis < result.tensor_shape_prefix.size(); ++axis) {
+        if (result.tensor_shape_prefix[axis] != 1) continue;
+        const auto extent = broadcast_result_extent(1, tensor_known_extent(right, axis));
+        result.tensor_shape_prefix[axis] = extent ? *extent : -1;
+    }
+    result.tensor_known_shape_prefix.clear();
+    for (std::size_t axis = 0;; ++axis) {
+        if (result.length >= 0 && axis >= static_cast<std::size_t>(result.length)) break;
+        const auto extent = broadcast_result_extent(
+            tensor_known_extent(left, axis), tensor_known_extent(right, axis));
+        if (!extent) break;
+        result.tensor_known_shape_prefix.push_back(*extent);
+    }
+}
+
 // check_block can now throw NESTING_DEPTH, which makes the previously
 // unreachable loop_depth_ leak reachable. A leaked loop_depth_ silently
 // legalises break/continue outside a loop for the rest of the check.
@@ -363,6 +589,11 @@ const ClassFieldType* Checker::find_field(const std::string& class_name, const s
     return it == fields.end() ? nullptr : &*it;
 }
 
+bool Checker::standard_library_class(const std::string& class_name) const {
+    const auto class_it = classes_.find(class_name);
+    return class_it != classes_.end() && class_it->second.standard_library;
+}
+
 const std::string* Checker::find_method(const std::string& class_name, const std::string& method) const {
     const auto class_it = classes_.find(class_name);
     if (class_it == classes_.end()) return nullptr;
@@ -370,9 +601,107 @@ const std::string* Checker::find_method(const std::string& class_name, const std
     return it == class_it->second.methods.end() ? nullptr : &it->second;
 }
 
+const ClassFieldType* Checker::receiver_field(const Expr& expression) const {
+    const auto* name = std::get_if<NameExpr>(&expression.data);
+    if (!name || !name->this_qualifier || current_class_.empty()) return nullptr;
+    return find_field(current_class_, name->name);
+}
+
+// The root of a member or index chain, when it is a bare name of a field
+// that no binding shadows: the field must be written `this.NAME`.
+void Checker::reject_bare_storage_root(const Expr& expression) const {
+    const Expr* root = &expression;
+    for (;;) {
+        if (const auto* member = std::get_if<MemberExpr>(&root->data)) root = member->base.get();
+        else if (const auto* index = std::get_if<IndexExpr>(&root->data)) root = index->base.get();
+        else break;
+    }
+    if (const auto* name = binding_name(*root); name && !variables_.contains(name->name)) {
+        reject_bare_field(name->name, root->span);
+    }
+}
+
+// A bare name that resolves to nothing while the enclosing class has a field
+// of that name: the field must be written `this.NAME`.
+void Checker::reject_bare_field(const std::string& name, SourceSpan span) const {
+    if (current_class_.empty() || !find_field(current_class_, name)) return;
+    error("THIS_QUALIFIER",
+          "'" + name + "' is a field of '" + current_class_ + "': write 'this." + name + "'.",
+          span);
+}
+
+// `this.NAME`: valid inside method and constructor bodies and in a method's
+// signature shapes, where the receiver exists; NAME must be a field of the
+// enclosing class.
+const ClassFieldType& Checker::check_this_field(const Expr& expression, const NameExpr& name) {
+    const auto span = name.this_qualifier
+                          ? SourceSpan{name.this_qualifier->start, expression.span.end}
+                          : expression.span;
+    if (current_class_.empty() || this_unavailable_) {
+        error("THIS_QUALIFIER", "'this' is only valid inside method and constructor bodies.", span);
+    }
+    const auto* field = find_field(current_class_, name.name);
+    if (!field) {
+        error("UNKNOWN_MEMBER",
+              "Class '" + current_class_ + "' has no field '" + name.name + "'.", expression.span);
+    }
+    if (field->is_private && current_class_ != field->owner) {
+        error("PRIVATE_MEMBER",
+              "Private field '" + name.name + "' is only accessible inside class '" +
+                  field->owner + "'.",
+              expression.span);
+    }
+    return *field;
+}
+
+// Methods are called bare, so a binding cannot share a method's name. Fields
+// are written `this.NAME` and never bare, so bindings may share their names.
 bool Checker::member_name_visible(const std::string& name) const {
     if (current_class_.empty()) return false;
-    return find_field(current_class_, name) || find_method(current_class_, name);
+    return find_method(current_class_, name) != nullptr;
+}
+
+namespace {
+std::string module_scoped_name(const std::string& module_namespace, const std::string& name) {
+    return module_namespace.empty() ? name : module_namespace + "." + name;
+}
+}  // namespace
+
+// A function, class, or enum name that a local binding would shadow. Imported
+// declarations carry their module namespace ("vision.crop"), so a body is
+// checked against the declarations of its own module: package code never
+// sees the importing program's globals, and the root file never sees a
+// package's unqualified names.
+bool Checker::declaration_name_visible(const std::string& name) const {
+    return functions_.contains(module_scoped_name(current_module_namespace_, name)) ||
+           type_name_declared_in(name, current_module_namespace_);
+}
+
+// A class or enum `name` declared by the module `module_namespace` ("" for the
+// root file). Parameters and fields of an imported declaration are checked
+// with its own module_namespace, never against the importing program.
+bool Checker::type_name_declared_in(const std::string& name, const std::string& module_namespace) const {
+    const auto scoped = module_scoped_name(module_namespace, name);
+    return class_names_.contains(scoped) || enum_types_.contains(scoped);
+}
+
+// The checker-internal name of the function that `name`, as a function value
+// or a callee in the current body, denotes. Root code sees its own functions
+// and the qualified members of its imports. Code in an imported module sees
+// the same from its own side: a bare name denotes the module's own function
+// ("vision.crop") and never the importing program's, which is not in its
+// lexical environment. Standard-library bodies keep the merged lookup.
+std::optional<std::string> Checker::visible_function_name(const std::string& name) const {
+    if (!current_module_namespace_.empty() &&
+        current_module_namespace_.rfind("$std.", 0) != 0) {
+        if (auto own = module_scoped_name(current_module_namespace_, name);
+            functions_.contains(own)) {
+            return own;
+        }
+        if (root_functions_.contains(name)) return std::nullopt;
+    }
+    if (functions_.contains(name)) return name;
+    return std::nullopt;
 }
 
 bool Checker::equality_supported(const Type& type) const {
@@ -388,11 +717,7 @@ bool Checker::equality_supported(const Type& type) const {
                 return current.first && supported(*current.first);
             }
             if (current.kind == TypeKind::Class) {
-                if (current.class_name == "$std.json.Value" ||
-                    current.class_name == "$std.http.Response" ||
-                    current.class_name == "$std.file.Handle" ||
-                    current.class_name == "$std.atomic.Counter" ||
-                    current.class_name == "$std.autograd.Target") return false;
+                if (standard_class::is_runtime_handle(current.class_name)) return false;
                 if (!visiting.insert(current.class_name).second) return true;
                 const auto it = classes_.find(current.class_name);
                 if (it == classes_.end()) return false;
@@ -464,7 +789,7 @@ std::unordered_set<std::string> Checker::initialized_paths_for_expr(const Expr& 
         }
     }
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-        if (current_reference_parameters_.contains(name->name)) {
+        if (!name->this_qualifier && current_reference_parameters_.contains(name->name)) {
             std::unordered_set<std::string> paths;
             if (const auto it = current_reference_effects_.find(name->name);
                 it != current_reference_effects_.end()) {
@@ -477,8 +802,7 @@ std::unordered_set<std::string> Checker::initialized_paths_for_expr(const Expr& 
             }
             return paths;
         }
-        if (!variables_.contains(name->name) && !current_class_.empty() &&
-            find_field(current_class_, name->name)) {
+        if (receiver_field(expression)) {
             if (!current_receiver_effect_.initializes.contains(name->name)) return {};
             std::unordered_set<std::string> nested;
             const auto prefix = name->name + ".";
@@ -487,6 +811,7 @@ std::unordered_set<std::string> Checker::initialized_paths_for_expr(const Expr& 
             }
             return nested;
         }
+        if (name->this_qualifier) return {};
 
         std::string root = reference_root(name->name);
         std::string base_path;
@@ -520,7 +845,7 @@ std::unordered_set<std::string> Checker::initialized_paths_for_expr(const Expr& 
 
 std::optional<std::pair<std::string, std::string>> Checker::member_storage_path(const Expr& expression) const {
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-        if (!variables_.contains(name->name)) return std::nullopt;
+        if (name->this_qualifier || !variables_.contains(name->name)) return std::nullopt;
         if (const auto ref = reference_paths_.find(name->name); ref != reference_paths_.end()) {
             return ref->second;
         }
@@ -572,7 +897,7 @@ Checker::alias_storage_path(const Expr& expression) const {
 
 bool Checker::unknown_reference_access_path(const Expr& expression) const {
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-        return unknown_reference_targets_.contains(name->name);
+        return !name->this_qualifier && unknown_reference_targets_.contains(name->name);
     }
     if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
         return unknown_reference_access_path(*member->base);
@@ -585,10 +910,7 @@ bool Checker::unknown_reference_access_path(const Expr& expression) const {
 
 std::optional<std::string> Checker::current_receiver_path(const Expr& expression) const {
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-        if (!current_class_.empty() && !variables_.contains(name->name) &&
-            find_field(current_class_, name->name)) {
-            return name->name;
-        }
+        if (receiver_field(expression)) return name->name;
         return std::nullopt;
     }
     if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
@@ -607,7 +929,7 @@ std::optional<std::string> Checker::current_receiver_path(const Expr& expression
 std::optional<std::pair<std::string, std::string>>
 Checker::current_reference_parameter_path(const Expr& expression) const {
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-        if (current_reference_parameters_.contains(name->name)) {
+        if (!name->this_qualifier && current_reference_parameters_.contains(name->name)) {
             return std::pair<std::string, std::string>{name->name, ""};
         }
         return std::nullopt;
@@ -631,10 +953,10 @@ Checker::current_reference_parameter_path(const Expr& expression) const {
 bool Checker::const_access_path(const Expr& expression) const {
     std::function<std::optional<Type>(const Expr&)> storage_type =
         [&](const Expr& current) -> std::optional<Type> {
-            if (const auto* name = std::get_if<NameExpr>(&current.data)) {
-                if (const auto it = variables_.find(name->name); it != variables_.end()) return it->second;
-                if (!current_class_.empty()) {
-                    if (const auto* field = find_field(current_class_, name->name)) return field->type;
+            if (std::holds_alternative<NameExpr>(current.data)) {
+                if (const auto* field = receiver_field(current)) return field->type;
+                if (const auto* name = binding_name(current)) {
+                    if (const auto it = variables_.find(name->name); it != variables_.end()) return it->second;
                 }
                 return std::nullopt;
             }
@@ -654,11 +976,9 @@ bool Checker::const_access_path(const Expr& expression) const {
             return std::nullopt;
         };
 
-    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-        if (variables_.contains(name->name)) return const_bindings_.contains(name->name);
-        if (!current_class_.empty()) {
-            if (const auto* field = find_field(current_class_, name->name)) return field->is_const;
-        }
+    if (std::holds_alternative<NameExpr>(expression.data)) {
+        if (const auto* field = receiver_field(expression)) return field->is_const;
+        if (const auto* name = binding_name(expression)) return const_bindings_.contains(name->name);
         return false;
     }
     if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
@@ -687,6 +1007,10 @@ bool Checker::stable_writable_storage(const Expr& expression) const {
 
 bool Checker::storage_initialized(const Expr& expression) const {
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        if (name->this_qualifier) {
+            return receiver_field(expression) &&
+                   current_receiver_effect_.initializes.contains(name->name);
+        }
         if (current_reference_parameters_.contains(name->name)) {
             if (const auto it = current_reference_effects_.find(name->name);
                 it != current_reference_effects_.end()) {
@@ -705,7 +1029,7 @@ bool Checker::storage_initialized(const Expr& expression) const {
             const auto root = reference_root(name->name);
             return initialized_.contains(root) || initialized_.contains(name->name);
         }
-        if (!current_class_.empty() && find_field(current_class_, name->name)) {
+        if (receiver_field(expression)) {
             return current_receiver_effect_.initializes.contains(name->name);
         }
         return false;
@@ -720,18 +1044,484 @@ bool Checker::storage_initialized(const Expr& expression) const {
     return false;
 }
 
+std::optional<std::string> Checker::initialization_root(const std::string& name) const {
+    if (unknown_reference_targets_.contains(name)) return std::nullopt;
+    if (const auto ref = reference_paths_.find(name); ref != reference_paths_.end()) {
+        if (!ref->second.second.empty()) return std::nullopt;
+        return ref->second.first;
+    }
+    return reference_root(name);
+}
+
+void Checker::check_maybe_initialized_read(const Expr& read, const std::string& name) {
+    const auto root = initialization_root(name);
+    if (!root) {
+        if (unknown_reference_targets_.contains(name)) {
+            error("UNINITIALIZED",
+                  "'" + name + "' may be uninitialized through a reference whose target is not known.",
+                  read.span);
+        } else {
+            error("UNINITIALIZED", "Binding '" + name + "' may be uninitialized.", read.span);
+        }
+        return;
+    }
+    if (untracked_initialized_.contains(*root)) {
+        // A call may have initialized it, which no flag records.
+        error("UNINITIALIZED", "Binding '" + name + "' may be uninitialized.", read.span);
+        return;
+    }
+    if (!maybe_initialized_.contains(*root)) {
+        error("UNINITIALIZED", "'" + name + "' is read before it is initialized on every path.",
+              read.span);
+        return;
+    }
+    const auto declaration = binding_declarations_.find(*root);
+    if (declaration == binding_declarations_.end()) {
+        error("UNINITIALIZED", "Binding '" + name + "' may be uninitialized.", read.span);
+        return;
+    }
+    // Checked here at run time; past the check the binding is initialized.
+    initialization_checks_[&read] =
+        InitializationCheck{InitSubject::binding, declaration->second, name};
+    initialization_check_order_.emplace_back(&read, *root);
+    initialized_.insert(*root);
+    maybe_initialized_.erase(*root);
+}
+
+bool Checker::check_maybe_initialized_field(const Expr& read, const std::string& root,
+                                            const std::string& path, const std::string& shown) {
+    // Only a field of the value itself has a bit the checker can trust: a
+    // local declared without an initializer, or the receiver in its
+    // constructor, whose field stores are all seen. A field written where
+    // no bit records it (through a reference, by a callee) may be
+    // initialized untracked; nested fields are never tracked. Those reads
+    // stay errors.
+    const auto access = field_accesses_.find(&read);
+    if (path.empty() || path.find('.') != std::string::npos ||
+        untracked_initialized_.contains(root + "." + path) || access == field_accesses_.end() ||
+        classes_.at(access->second.owner).fields.size() > 63 ||
+        standard_library_class(access->second.owner)) {
+        return false;
+    }
+    if (!maybe_initialized_.contains(root + "." + path)) {
+        // The receiver keeps its constructor text.
+        if (root == "$this") return false;
+        error("UNINITIALIZED", "'" + shown + "' is read before it is initialized on every path.",
+              read.span);
+        return true;
+    }
+    initialization_checks_[&read] = InitializationCheck{InitSubject::field, nullptr, shown};
+    initialization_masked_classes_.insert(access->second.owner);
+    return true;
+}
+
+void Checker::note_field_store(const std::string& root, const std::string& path) {
+    if (!path.empty() && path.find('.') == std::string::npos)
+        maybe_initialized_.insert(root + "." + path);
+}
+
+void Checker::note_untracked_field_write(const std::string& root, const std::string& path) {
+    if (!path.empty()) {
+        untracked_initialized_.insert(root + "." + path.substr(0, path.find_first_of(".[")));
+        return;
+    }
+    const auto variable = variables_.find(root);
+    const auto class_name = root == "$this" ? current_class_
+                            : variable != variables_.end() && variable->second.kind == TypeKind::Class
+                                ? variable->second.class_name
+                                : std::string{};
+    if (const auto info = classes_.find(class_name); info != classes_.end()) {
+        for (const auto& field : info->second.fields) untracked_initialized_.insert(root + "." + field.name);
+    }
+}
+
+void Checker::note_class_value(const std::string& root, const std::string& path, const Type& type,
+                               const std::unordered_set<std::string>& initialized) {
+    (void)initialized;
+    if (type.kind != TypeKind::Class || !path.empty()) return;
+    // A whole value from elsewhere: its bits are not known to match.
+    const auto prefix = root + ".";
+    for (auto it = maybe_initialized_.begin(); it != maybe_initialized_.end();) {
+        if (it->rfind(prefix, 0) == 0) it = maybe_initialized_.erase(it);
+        else ++it;
+    }
+    if (const auto info = classes_.find(type.class_name); info != classes_.end()) {
+        for (const auto& field : info->second.fields) untracked_initialized_.insert(prefix + field.name);
+    }
+}
+
+void Checker::record_initialization(const std::string& root) {
+    if (initialized_.contains(root)) return;
+    const auto declaration = binding_declarations_.find(root);
+    if (declaration == binding_declarations_.end()) return;
+    const auto add = [&](std::vector<const Stmt*>& list) {
+        if (std::find(list.begin(), list.end(), declaration->second) == list.end())
+            list.push_back(declaration->second);
+    };
+    if (current_simple_statement_) add(statement_initializes_[current_simple_statement_]);
+    if (current_call_expression_) add(expression_initializes_[current_call_expression_]);
+}
+
+namespace {
+
+// The binding a place's storage belongs to: the name at the base of its
+// member and index chain, or null when the chain starts at a value.
+const NameExpr* place_root(const Expr& expression) {
+    const Expr* current = &expression;
+    for (;;) {
+        if (const auto* member = std::get_if<MemberExpr>(&current->data)) {
+            current = member->base.get();
+        } else if (const auto* index = std::get_if<IndexExpr>(&current->data)) {
+            current = index->base.get();
+        } else {
+            break;
+        }
+    }
+    const auto* name = std::get_if<NameExpr>(&current->data);
+    return name && !name->this_qualifier ? name : nullptr;
+}
+
+// The bindings a body may write or initialize, with `unknown` set when a
+// write has no place: assignment and rebinding targets, `&` arguments, method
+// receivers and the targets of scan formats.
+void collect_possible_initializations(const std::vector<StmtPtr>& body,
+                                      std::unordered_set<std::string>& names,
+                                      bool& unknown) {
+    const auto place = [&](const Expr& expression) {
+        if (const auto* root = place_root(expression)) {
+            names.insert(root->name);
+            return;
+        }
+        const Expr* current = &expression;
+        while (const auto* member = std::get_if<MemberExpr>(&current->data)) current = member->base.get();
+        while (const auto* index = std::get_if<IndexExpr>(&current->data)) current = index->base.get();
+        if (const auto* name = std::get_if<NameExpr>(&current->data); name && name->this_qualifier)
+            names.insert("$this");
+        else
+            unknown = true;
+    };
+    std::function<void(const Expr&)> expression = [&](const Expr& node) {
+        const auto each = [&](const ExprPtr& item) {
+            if (item) expression(*item);
+        };
+        const auto& data = node.data;
+        if (const auto* call = std::get_if<CallExpr>(&data)) {
+            names.insert("$this");
+            for (const auto& argument : call->args) {
+                if (argument.writable) place(*argument.value);
+                each(argument.value);
+                if (call->callee == "scan") {
+                    if (const auto* format = std::get_if<StringTemplateExpr>(&argument.value->data)) {
+                        for (const auto& target : format->expressions) {
+                            if (target) place(*target);
+                        }
+                    }
+                }
+            }
+        } else if (const auto* call = std::get_if<MethodCallExpr>(&data)) {
+            if (const auto* root = place_root(*call->receiver)) names.insert(root->name);
+            each(call->receiver);
+            for (const auto& argument : call->args) {
+                if (argument.writable) place(*argument.value);
+                each(argument.value);
+            }
+        } else if (const auto* node_value = std::get_if<StringTemplateExpr>(&data)) {
+            for (const auto& item : node_value->expressions) each(item);
+        } else if (const auto* array = std::get_if<ArrayExpr>(&data)) {
+            for (const auto& item : array->elements) each(item);
+        } else if (const auto* index = std::get_if<IndexExpr>(&data)) {
+            each(index->base);
+            for (const auto& item : index->items) {
+                each(item.index);
+                each(item.start);
+                each(item.stop);
+                each(item.step);
+            }
+        } else if (const auto* member = std::get_if<MemberExpr>(&data)) {
+            each(member->base);
+        } else if (const auto* unary = std::get_if<UnaryExpr>(&data)) {
+            each(unary->operand);
+        } else if (const auto* binary = std::get_if<BinaryExpr>(&data)) {
+            each(binary->left);
+            each(binary->right);
+        } else if (const auto* attempt = std::get_if<TryExpr>(&data)) {
+            each(attempt->value);
+        } else if (const auto* choice = std::get_if<IfExpr>(&data)) {
+            for (const auto& item : choice->conditions) each(item);
+            for (const auto& item : choice->values) each(item);
+            each(choice->otherwise);
+        }
+    };
+    for (const auto& statement : body) {
+        const auto& data = statement->data;
+        if (const auto* node = std::get_if<BindingStmt>(&data)) {
+            if (node->value) expression(*node->value);
+        } else if (const auto* node = std::get_if<AssignStmt>(&data)) {
+            place(*node->target);
+            expression(*node->target);
+            expression(*node->value);
+        } else if (const auto* node = std::get_if<RebindStmt>(&data)) {
+            names.insert(node->name);
+            expression(*node->target);
+        } else if (const auto* node = std::get_if<ReturnStmt>(&data)) {
+            if (node->value) expression(*node->value);
+        } else if (const auto* node = std::get_if<ExprStmt>(&data)) {
+            expression(*node->value);
+        } else if (const auto* node = std::get_if<IfStmt>(&data)) {
+            expression(*node->condition);
+            collect_possible_initializations(node->then_body, names, unknown);
+            collect_possible_initializations(node->else_body, names, unknown);
+        } else if (const auto* node = std::get_if<WhileStmt>(&data)) {
+            expression(*node->condition);
+            collect_possible_initializations(node->body, names, unknown);
+        } else if (const auto* node = std::get_if<ForStmt>(&data)) {
+            expression(*node->iterable);
+            collect_possible_initializations(node->body, names, unknown);
+        } else if (const auto* node = std::get_if<MatchStmt>(&data)) {
+            expression(*node->value);
+            for (const auto& match_case : node->cases)
+                collect_possible_initializations(match_case.body, names, unknown);
+        } else if (const auto* node = std::get_if<MainGuardStmt>(&data)) {
+            collect_possible_initializations(node->body, names, unknown);
+        }
+    }
+}
+
+// Whether `body` holds a break or continue of the loop it is the body of
+// (not of a loop nested in it).
+bool block_leaves_loop(const std::vector<StmtPtr>& body) {
+    for (const auto& statement : body) {
+        const auto& data = statement->data;
+        if (std::holds_alternative<LoopControlStmt>(data)) return true;
+        if (const auto* node = std::get_if<IfStmt>(&data)) {
+            if (block_leaves_loop(node->then_body) || block_leaves_loop(node->else_body)) return true;
+        } else if (const auto* node = std::get_if<MatchStmt>(&data)) {
+            for (const auto& match_case : node->cases)
+                if (block_leaves_loop(match_case.body)) return true;
+        } else if (const auto* node = std::get_if<MainGuardStmt>(&data)) {
+            if (block_leaves_loop(node->body)) return true;
+        }
+    }
+    return false;
+}
+
+// Whether a for loop provably runs its body at least once: over a non-empty
+// array literal, a fixed array of length at least one, or a range with
+// constant bounds and step that holds at least one value.
+bool loop_runs_at_least_once(const ForStmt& loop, const Type& iterable,
+                             const std::unordered_map<std::string, long long>* constants) {
+    if (const auto* array = std::get_if<ArrayExpr>(&loop.iterable->data))
+        return !array->elements.empty();
+    if (iterable.kind == TypeKind::Array) return iterable.length >= 1;
+    const auto* call = std::get_if<CallExpr>(&loop.iterable->data);
+    if (iterable.kind != TypeKind::Range || !call || call->callee != "range") return false;
+    std::vector<const Expr*> positional;
+    const Expr* named_step = nullptr;
+    for (const auto& argument : call->args) {
+        if (!argument.name) positional.push_back(argument.value.get());
+        else if (*argument.name == "step") named_step = argument.value.get();
+        else return false;
+    }
+    if (positional.empty() || positional.size() > 3 || (named_step && positional.size() == 3))
+        return false;
+    const auto value = [&](const Expr* expression) {
+        return constant_eval::integer(*expression, constants);
+    };
+    const auto start = positional.size() >= 2 ? value(positional[0]) : std::optional<long long>{0};
+    const auto stop = value(positional.size() >= 2 ? positional[1] : positional[0]);
+    const auto step = named_step ? value(named_step)
+                      : positional.size() == 3 ? value(positional[2])
+                                               : std::optional<long long>{1};
+    if (!start || !stop || !step || *step == 0) return false;
+    return *step > 0 ? *stop > *start : *stop < *start;
+}
+
+} // namespace
+
+void Checker::note_loop_initializations(const std::vector<StmtPtr>& body) {
+    std::unordered_set<std::string> names;
+    bool unknown = false;
+    collect_possible_initializations(body, names, unknown);
+    std::unordered_set<std::string> roots;
+    for (const auto& name : names) {
+        if (unknown_reference_targets_.contains(name)) unknown = true;
+        if (element_tracked_arrays_.contains(name)) maybe_initialized_.insert(name + "[]");
+        roots.insert(name);
+        roots.insert(reference_root(name));
+        if (const auto ref = reference_paths_.find(name); ref != reference_paths_.end())
+            roots.insert(ref->second.first);
+    }
+    if (unknown) {
+        for (const auto& [name, _] : binding_declarations_) roots.insert(name);
+        for (const auto& [name, _] : element_tracked_arrays_) maybe_initialized_.insert(name + "[]");
+    }
+    for (const auto& name : roots) {
+        if (!initialized_.contains(name)) maybe_initialized_.insert(name);
+        if (name == "$this") {
+            if (!current_class_.empty()) {
+                for (const auto& path : complete_class_paths(Type::class_type(current_class_)))
+                    maybe_initialized_.insert("$this." + path);
+            }
+        } else if (const auto variable = variables_.find(name);
+                   variable != variables_.end() && variable->second.kind == TypeKind::Class) {
+            for (const auto& path : complete_class_paths(variable->second))
+                maybe_initialized_.insert(name + "." + path);
+        }
+    }
+}
+
+void Checker::reject_untracked_loop_checks(std::size_t first) {
+    for (std::size_t i = first; i < initialization_check_order_.size(); ++i) {
+        const auto& [read, root] = initialization_check_order_[i];
+        if (!untracked_initialized_.contains(root)) continue;
+        const auto check = initialization_checks_.find(read);
+        if (check == initialization_checks_.end()) continue;
+        const auto path = check->second.path;
+        initialization_checks_.erase(check);
+        try {
+            error("UNINITIALIZED", "Binding '" + path + "' may be uninitialized.", read->span);
+        } catch (const CompileError& compile_error) {
+            record(compile_error);
+        }
+    }
+}
+
+void Checker::declare_array_elements(const std::string& name, const Type& type,
+                                     const BindingStmt& node) {
+    element_tracked_arrays_.erase(name);
+    const auto prefix = name + "[";
+    for (auto it = maybe_initialized_.begin(); it != maybe_initialized_.end();) {
+        if (it->rfind(prefix, 0) == 0) it = maybe_initialized_.erase(it);
+        else ++it;
+    }
+    if (node.reference || type.kind != TypeKind::Array || !type.first ||
+        type.first->kind == TypeKind::Array) {
+        return;
+    }
+    constexpr long long most_tracked = 256;
+    const auto count = [&](std::optional<long long> length) {
+        return length && *length >= 0 && *length <= most_tracked ? *length : -1;
+    };
+    if (!node.value) {
+        if (type.length >= 0) {
+            element_tracked_arrays_[name] = count(type.length);
+        } else if (type.length == -2 && !node.declared_type.dimension_expressions.empty() &&
+                   node.declared_type.dimension_expressions.front()) {
+            element_tracked_arrays_[name] = -1;
+        }
+        return;
+    }
+    const auto* call = std::get_if<CallExpr>(&node.value->data);
+    if (!call || call->callee != "array" || call->args.size() != 1 || call->args.front().name)
+        return;
+    const auto resolution = call_resolutions_.find(node.value.get());
+    if (resolution == call_resolutions_.end() || resolution->second.kind != CallKind::Builtin)
+        return;
+    element_tracked_arrays_[name] =
+        count(constant_eval::integer(*call->args.front().value, &const_integer_values_));
+}
+
+void Checker::note_element_store(const Expr& target) {
+    const auto* index = std::get_if<IndexExpr>(&target.data);
+    const auto* base = index ? std::get_if<NameExpr>(&index->base->data) : nullptr;
+    if (!base || base->this_qualifier) return;
+    const auto tracked = element_tracked_arrays_.find(base->name);
+    if (tracked == element_tracked_arrays_.end()) return;
+    std::optional<long long> position;
+    if (index->items.size() == 1 && !index->items.front().slice && index->items.front().index)
+        position = constant_eval::integer(*index->items.front().index, &const_integer_values_);
+    if (tracked->second >= 0 && position && *position >= 0 && *position < tracked->second) {
+        maybe_initialized_.insert(base->name + "[" + std::to_string(*position) + "]");
+    } else {
+        maybe_initialized_.insert(base->name + "[]");
+    }
+}
+
+void Checker::note_element_writes(const Expr& place) {
+    const auto* root = place_root(place);
+    if (root && element_tracked_arrays_.contains(root->name))
+        maybe_initialized_.insert(root->name + "[]");
+}
+
+void Checker::check_element_read(const Expr& base, const Expr* index, SourceSpan span) {
+    const auto* name = std::get_if<NameExpr>(&base.data);
+    if (!name || name->this_qualifier) return;
+    const auto tracked = element_tracked_arrays_.find(name->name);
+    if (tracked == element_tracked_arrays_.end()) return;
+    if (maybe_initialized_.contains(name->name + "[]")) return;
+    const auto element = [&](long long position) {
+        return maybe_initialized_.contains(name->name + "[" + std::to_string(position) + "]");
+    };
+    const auto reject = [&](const std::string& shown) {
+        error("UNINITIALIZED",
+              "'" + name->name + "[" + shown + "]' is read before it is initialized on every path.",
+              span);
+    };
+    std::optional<long long> position;
+    if (index) position = constant_eval::integer(*index, &const_integer_values_);
+    if (tracked->second >= 0 && position) {
+        if (*position >= 0 && *position < tracked->second && !element(*position))
+            reject(std::to_string(*position));
+        return;
+    }
+    if (tracked->second >= 0 && !index) {
+        for (long long i = 0; i < tracked->second; ++i) {
+            if (!element(i)) return reject(std::to_string(i));
+        }
+        return;
+    }
+    // Another index, or one state for every element: an error only when no
+    // element may be initialized.
+    const auto prefix = name->name + "[";
+    for (const auto& entry : maybe_initialized_) {
+        if (entry.rfind(prefix, 0) == 0) return;
+    }
+    if (tracked->second == 0) return;
+    if (index && position) reject(std::to_string(*position));
+    else if (const auto* variable = index ? std::get_if<NameExpr>(&index->data) : nullptr)
+        reject(variable->name);
+    else
+        reject(index ? "..." : "0");
+}
+
+void Checker::join_maybe_initialized(
+    const std::vector<std::pair<const std::unordered_set<std::string>*,
+                                const std::unordered_set<std::string>*>>& continuing) {
+    if (continuing.empty()) return;
+    std::unordered_set<std::string> joined;
+    for (const auto& [initialized, maybe] : continuing) {
+        joined.insert(initialized->begin(), initialized->end());
+        joined.insert(maybe->begin(), maybe->end());
+    }
+    for (const auto& name : initialized_) joined.erase(name);
+    maybe_initialized_ = std::move(joined);
+}
+
 void Checker::check_static_index_bounds(const Type& base, const Expr& index) {
     if (base.kind != TypeKind::Array || base.length < 0) return;
     const auto value = constant_eval::integer(index);
     if (!value) return;
     if (*value < 0 || *value >= base.length) {
         error("INDEX_BOUNDS",
-              "Constant array index " + std::to_string(*value) +
-                  " is outside [0, " + std::to_string(base.length) + ").",
+              "Index " + std::to_string(*value) + " out of bounds for length " +
+                  std::to_string(base.length) + ".",
               index.span);
         return;
     }
     bounds_proven_.insert(&index);
+}
+
+Type Checker::check_index_operand(const Expr& index) {
+    if (integer_category(numeric_literal_family(index))) {
+        const auto int_type = simple(TypeKind::Int);
+        return check_expr(index, &int_type);
+    }
+    const auto type = check_expr(index);
+    if (!poisoned(type) && !is_integer_family_type(type)) {
+        error("TYPE_MISMATCH", "An index must be an integer, not " + type_name(type) + ".",
+              index.span);
+    }
+    return type;
 }
 
 Type Checker::check_address_target(const Expr& expression, bool allow_tensor_element) {
@@ -739,22 +1529,27 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
     // is about total stack, not about either cycle alone.
     nesting::DepthGuard guard(
         expr_depth_, nesting::max_expression_depth, expression.span, "Address target");
+    // Storage given a reference may have any element written (L13); the
+    // element an assignment stores into, and its array, are recorded after
+    // the value instead.
+    const auto* store = element_store_target_
+        ? std::get_if<IndexExpr>(&element_store_target_->data) : nullptr;
+    if (&expression != element_store_target_ && !(store && &expression == store->base.get()))
+        note_element_writes(expression);
     Type type;
-    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+    if (is_if_expression(expression)) {
+        error("IF_EXPRESSION", if_expression_reference_message, expression.span);
+    }
+    if (const auto* name = std::get_if<NameExpr>(&expression.data); name && name->this_qualifier) {
+        const auto& field = check_this_field(expression, *name);
+        type = field.type;
+        field_accesses_[&expression] = FieldAccessInfo{field.owner, field.index, field.type};
+    } else if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        if (is_discard_name(name->name)) error("DISCARD", discard_read_message, expression.span);
         if (variables_.contains(name->name)) {
             type = variables_.at(name->name);
-        } else if (!current_class_.empty()) {
-            const auto* field = find_field(current_class_, name->name);
-            if (!field) error("UNKNOWN_NAME", "Unknown storage name '" + name->name + "'.", expression.span);
-            if (field->is_private && current_class_ != field->owner) {
-                error("PRIVATE_MEMBER",
-                      "Private field '" + name->name + "' is only accessible inside class '" +
-                          field->owner + "'.",
-                      expression.span);
-            }
-            type = field->type;
-            field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
         } else {
+            reject_bare_field(name->name, expression.span);
             error("UNKNOWN_NAME", "Unknown storage name '" + name->name + "'.", expression.span);
         }
     } else if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
@@ -781,7 +1576,6 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
         auto base = stable_writable_storage(*index->base)
             ? check_address_target(*index->base)
             : check_expr(*index->base);
-        auto int_type = simple(TypeKind::Int);
         if (base.kind == TypeKind::Tensor) {
             if (!allow_tensor_element) {
                 error("WRITE_CAPABILITY",
@@ -808,7 +1602,7 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
                           "Tensor slice assignment is not supported; assign individual elements.",
                           item.span);
                 }
-                check_expr(*item.index, &int_type);
+                check_index_operand(*item.index);
             }
             type = *base.first;
         } else {
@@ -817,7 +1611,7 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
                 error("INDEX_ARITY", "Array and bin indexing requires exactly one integer index.",
                       expression.span);
             }
-            check_expr(*index->items.front().index, &int_type);
+            check_index_operand(*index->items.front().index);
             check_static_index_bounds(base, *index->items.front().index);
             if (base.kind == TypeKind::Array) {
                 type = *base.first;
@@ -934,6 +1728,19 @@ void Checker::record_current_receiver_assignment(const std::string& path,
     record_storage_assignment(current_receiver_effect_, path, type, value);
 }
 
+namespace {
+
+// The elements of an initialized array of class values are whole values (a
+// class value enters an array only fully initialized), so a path below an
+// element step (`items[].storage`) is initialized when the array path before
+// the step (`items`) is: requirements name that array path.
+std::string element_owner_path(const std::string& path) {
+    const auto element = path.find("[]");
+    return element == std::string::npos ? path : path.substr(0, element);
+}
+
+} // namespace
+
 void Checker::compose_storage_effect(StorageEffect& destination, const StorageEffect& source,
                                      const std::string& prefix) {
     const auto qualify = [&](const std::string& path) {
@@ -973,7 +1780,7 @@ void Checker::compose_storage_effect(StorageEffect& destination, const StorageEf
     };
 
     for (const auto& path : source.required) {
-        const auto full = qualify(path);
+        const auto full = element_owner_path(qualify(path));
         if (!destination.initializes.contains(full)) destination.required.insert(full);
     }
     for (const auto& path : source.writes) destination.writes.insert(qualify(path));
@@ -1022,9 +1829,17 @@ void Checker::mark_storage_initialized(const Expr& expression) {
         insert_prefixes(current_reference_effects_[path->first].initializes, path->second);
         return;
     }
-    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+    if (const auto* name = binding_name(expression)) {
         if (const auto ref = reference_paths_.find(name->name); ref != reference_paths_.end()) {
             if (ref->second.second.empty()) {
+                if (!unknown_reference_targets_.contains(name->name)) {
+                    record_initialization(ref->second.first);
+                } else {
+                    // The write may reach any binding.
+                    for (const auto& [binding, _] : binding_declarations_) {
+                        if (!initialized_.contains(binding)) untracked_initialized_.insert(binding);
+                    }
+                }
                 initialized_.insert(ref->second.first);
             } else {
                 class_initialized_paths_[ref->second.first].insert(ref->second.second);
@@ -1033,6 +1848,7 @@ void Checker::mark_storage_initialized(const Expr& expression) {
             return;
         }
         if (variables_.contains(name->name)) {
+            record_initialization(reference_root(name->name));
             initialized_.insert(reference_root(name->name));
             initialized_.insert(name->name);
             return;
@@ -1062,6 +1878,15 @@ void Checker::check_storage_effect_requirements(
     for (const auto& path : effect.required) {
         const bool initialized =
             path.empty() ? storage_initialized(target) : initialized_paths.contains(path);
+        if (!initialized && path.empty()) {
+            // The callee reads the whole binding: a read of it (L13).
+            if (const auto* name = std::get_if<NameExpr>(&target.data);
+                name && !name->this_qualifier && variables_.contains(name->name) &&
+                !current_reference_parameters_.contains(name->name)) {
+                check_maybe_initialized_read(target, name->name);
+                continue;
+            }
+        }
         if (!initialized) {
             const std::string subject = receiver_context ? "Method receiver" : "Reference argument";
             error("UNINITIALIZED",
@@ -1080,6 +1905,10 @@ void Checker::apply_storage_effect_postconditions(
 
     if (const auto receiver_path = current_receiver_path(target)) {
         compose_storage_effect(current_receiver_effect_, postconditions, *receiver_path);
+        for (const auto* paths : {&effect.writes, &effect.initializes, &effect.invalidates}) {
+            for (const auto& path : *paths)
+                note_untracked_field_write("$this", path.empty() ? *receiver_path : *receiver_path + "." + path);
+        }
         return;
     }
     if (const auto reference_path = current_reference_parameter_path(target)) {
@@ -1128,11 +1957,28 @@ void Checker::apply_storage_effect_postconditions(
             if (dot == std::string::npos) break;
             start = dot + 1;
         }
+        record_initialization(storage->first);
         initialized_.insert(storage->first);
     };
 
     for (const auto& path : postconditions.invalidates) erase_path(path);
     for (const auto& path : postconditions.initializes) insert_prefixes(path);
+    // A callee that may write the storage without initializing it on every
+    // path leaves a binding no flag can track (L13), and fields no bit records.
+    if (storage && !initialized_.contains(storage->first) &&
+        (!effect.writes.empty() || !effect.initializes.empty() || !effect.invalidates.empty())) {
+        untracked_initialized_.insert(storage->first);
+    }
+    if (storage) {
+        const auto qualify = [&](const std::string& path) {
+            if (storage->second.empty()) return path;
+            if (path.empty()) return storage->second;
+            return storage->second + "." + path;
+        };
+        for (const auto* paths : {&effect.writes, &effect.initializes, &effect.invalidates}) {
+            for (const auto& path : *paths) note_untracked_field_write(storage->first, qualify(path));
+        }
+    }
 }
 
 void Checker::apply_storage_effect_to_target(const Expr& target, const StorageEffect& effect,
@@ -1237,6 +2083,12 @@ void Checker::finish_call_effects(
             postconditions.required.clear();
             if (!allow_receiver_initializes) postconditions.initializes.clear();
             compose_storage_effect(current_receiver_effect_, postconditions);
+            // A method called on the receiver writes its fields untracked.
+            for (const auto* paths : {&signature.receiver_effect.writes,
+                                      &signature.receiver_effect.initializes,
+                                      &signature.receiver_effect.invalidates}) {
+                for (const auto& path : *paths) note_untracked_field_write("$this", path);
+            }
         } else {
             apply_storage_effect_postconditions(
                 *receiver, signature.receiver_effect, allow_receiver_initializes);
@@ -1344,6 +2196,10 @@ void Checker::finalize_reference_effects(FunctionType& signature, bool include_f
 }
 
 void Checker::reset_current_effect_state() {
+    maybe_initialized_.clear();
+    element_tracked_arrays_.clear();
+    untracked_initialized_.clear();
+    binding_declarations_.clear();
     current_receiver_effect_ = {};
     current_return_initialized_.clear();
     current_return_summary_seen_ = false;
@@ -1375,7 +2231,10 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
             error("GENERIC_ARITY", "tensor requires exactly one element type.", source.span);
         }
         auto element = resolve_type(source.arguments.front());
-        if (!is_tensor_numeric(element) && element.kind != TypeKind::Bool) {
+        if (is_bare_integer(element)) {
+            error("INVALID_TYPE", "Tensor element types are fixed-width: use tensor<int64>.",
+                  source.arguments.front().span);
+        } else if (!is_tensor_numeric(element) && element.kind != TypeKind::Bool) {
             error("INVALID_TYPE", "tensor element type must be a fixed-width native numeric type or bool.", source.arguments.front().span);
         }
         const auto rank = !source.tensor_shape_prefix.empty()
@@ -1440,9 +2299,11 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
 void Checker::check_type_extent_expressions(const TypeName& source) {
     const auto check_extent = [&](const std::shared_ptr<Expr>& expression) {
         if (!expression) return;
+        // An extent is an integer of any kind; a literal materializes as int.
         const auto int_type = simple(TypeKind::Int);
-        const auto type = check_expr(*expression, &int_type);
-        if (!poisoned(type) && !is_integer(type)) {
+        const auto type = numeric_literal_family(*expression) != NumericLiteralCategory::None
+            ? check_expr(*expression, &int_type) : check_expr(*expression);
+        if (!poisoned(type) && !is_integer_family_type(type)) {
             error("INVALID_TYPE",
                   "Array/tensor extents require integer expressions.",
                   expression->span);
@@ -1489,28 +2350,48 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
 
-        if (is_builtin_text_constant(node->name)) {
+        if (!node->this_qualifier && is_discard_name(node->name)) {
+            error("DISCARD", discard_read_message, expression.span);
+        }
+        if (node->this_qualifier) {
+            const auto& field = check_this_field(expression, *node);
+            field_accesses_[&expression] = FieldAccessInfo{field.owner, field.index, field.type};
+            if (!current_receiver_effect_.initializes.contains(node->name)) {
+                if (in_constructor_ &&
+                    check_maybe_initialized_field(expression, "$this", node->name,
+                                                  "this." + node->name)) {
+                    current_receiver_effect_.initializes.insert(node->name);
+                } else if (in_constructor_) {
+                    error("UNINITIALIZED",
+                          "Field '" + node->name + "' is read before the constructor initializes it.",
+                          expression.span);
+                } else {
+                    current_receiver_effect_.required.insert(node->name);
+                }
+            }
+            type = field.type;
+        } else if (is_builtin_text_constant(node->name)) {
             type = simple(TypeKind::String);
         } else if (variables_.contains(node->name)) {
             if (current_reference_parameters_.contains(node->name)) {
                 auto& effect = current_reference_effects_[node->name];
                 if (!effect.initializes.contains("")) effect.required.insert("");
             } else if (!storage_initialized(expression)) {
-                error("UNINITIALIZED", "Binding '" + node->name + "' may be uninitialized.", expression.span);
+                check_maybe_initialized_read(expression, node->name);
             }
             type = variables_.at(node->name);
             if (type.kind == TypeKind::Class) {
                 const auto paths = initialized_paths_for_expr(expression);
                 class_expr_initialized_paths_[&expression] = paths;
             }
-        } else if (functions_.contains(node->name)) {
+        } else if (const auto function_name = visible_function_name(node->name)) {
             if (!expected || expected->kind != TypeKind::Function || !expected->first) {
                 error("FUNCTION_REFERENCE_CONTEXT",
                       "Function '" + node->name +
                       "' becomes a value only in an explicit fn<...>(...) type context.",
                       expression.span);
             }
-            const auto& function = functions_.at(node->name);
+            const auto& function = functions_.at(*function_name);
             if (function.external) {
                 error("FUNCTION_REFERENCE_EXTERN",
                       "extern functions are not function values; wrap the foreign call in a Quidra function.",
@@ -1538,33 +2419,15 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
                 }
             }
             type = *expected;
-            function_references_[&expression] = node->name;
+            function_references_[&expression] = *function_name;
         } else if (!current_class_.empty()) {
             if (find_method(current_class_, node->name)) {
                 error("FUNCTION_NOT_VALUE",
                       "Method '" + node->name + "' is callable but is not a first-class value.",
                       expression.span);
             }
-            const auto* field = find_field(current_class_, node->name);
-            if (!field) {
-                error("UNKNOWN_NAME", unknown_name_message(node->name), expression.span);
-            }
-            if (field->is_private && current_class_ != field->owner) {
-                error("PRIVATE_MEMBER",
-                      "Private field '" + node->name + "' is only accessible inside class '" +
-                          field->owner + "'.",
-                      expression.span);
-            }
-            if (!current_receiver_effect_.initializes.contains(node->name)) {
-                if (in_constructor_) {
-                    error("UNINITIALIZED",
-                          "Field '" + node->name + "' is read before the constructor initializes it.",
-                          expression.span);
-                }
-                current_receiver_effect_.required.insert(node->name);
-            }
-            type = field->type;
-            field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
+            reject_bare_field(node->name, expression.span);
+            error("UNKNOWN_NAME", unknown_name_message(node->name), expression.span);
         } else {
             error("UNKNOWN_NAME", unknown_name_message(node->name), expression.span);
         }
@@ -1576,7 +2439,7 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
 
-        if (const auto* enum_name = std::get_if<NameExpr>(&node->base->data);
+        if (const auto* enum_name = binding_name(*node->base);
             enum_name && enum_types_.contains(enum_name->name)) {
             const auto enum_type = enum_types_.at(enum_name->name);
             const auto it = std::find(enum_type.case_names.begin(), enum_type.case_names.end(), node->name);
@@ -1601,9 +2464,9 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
             type = base;
         } else if (base.kind == TypeKind::Tensor && node->name == "grad") {
             if (!base.first ||
-                (base.first->kind != TypeKind::Float32 && base.first->kind != TypeKind::Float)) {
+                (base.first->kind != TypeKind::Real32 && base.first->kind != TypeKind::Real64)) {
                 error("TYPE_MISMATCH",
-                      "tensor.grad is available only on tensor<float32> and tensor<float>.",
+                      "tensor.grad is available only on tensor<real32> and tensor<real64>.",
                       expression.span);
             }
             tensor_grad_accesses_.insert(&expression);
@@ -1612,10 +2475,9 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
             if (base.kind != TypeKind::Class) {
                 error("TYPE_MISMATCH", "Member access requires a class value.", expression.span);
             }
-            const auto standard_map =
-                base.class_name.rfind("__quidra_gc__std_map_Map_", 0) == 0;
-            const auto standard_set =
-                base.class_name.rfind("__quidra_gc__std_set_Set_", 0) == 0;
+            const bool standard = standard_library_class(base.class_name);
+            const auto standard_map = standard_class::is_map_instance(base.class_name, standard);
+            const auto standard_set = standard_class::is_set_instance(base.class_name, standard);
             if ((standard_map || standard_set) && node->name.rfind("__", 0) == 0) {
                 error("UNKNOWN_MEMBER", "Standard collection internals are not source-visible.", expression.span);
             }
@@ -1630,7 +2492,7 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
                       expression.span);
             }
             if (const auto receiver_base = current_receiver_path(*node->base)) {
-                const auto full = *receiver_base + "." + node->name;
+                const auto full = element_owner_path(*receiver_base + "." + node->name);
                 if (!current_receiver_effect_.initializes.contains(full)) {
                     if (in_constructor_) {
                         error("UNINITIALIZED",
@@ -1643,12 +2505,26 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
                 auto full = reference_base->second;
                 if (!full.empty()) full += ".";
                 full += node->name;
+                full = element_owner_path(full);
                 auto& effect = current_reference_effects_[reference_base->first];
                 if (!effect.initializes.contains(full)) effect.required.insert(full);
             } else {
                 const auto paths = initialized_paths_for_expr(*node->base);
                 if (!paths.contains(node->name)) {
-                    error("UNINITIALIZED", "Field '" + node->name + "' may be uninitialized.", expression.span);
+                    // L13: a field of a local value initialized on some
+                    // paths only is checked at run time.
+                    field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
+                    const auto storage = member_storage_path(expression);
+                    if (storage && !unknown_reference_access_path(expression) &&
+                        std::holds_alternative<NameExpr>(node->base->data) &&
+                        check_maybe_initialized_field(
+                            expression, storage->first, storage->second,
+                            std::get<NameExpr>(node->base->data).name + "." + node->name)) {
+                        class_initialized_paths_[storage->first].insert(storage->second);
+                    } else {
+                        error("UNINITIALIZED", "Field '" + node->name + "' may be uninitialized.",
+                              expression.span);
+                    }
                 }
             }
             type = field->type;
@@ -1667,7 +2543,37 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
 
     auto base = check_expr(*node->base);
     if (poisoned(base)) return base;
-    auto index_type = simple(TypeKind::Int);
+
+    // The parser preserves exclusive-start/end markers. Reject them until
+    // the corresponding typed slice IR and runtime lowering are wired up;
+    // ignoring them would silently select the wrong elements, particularly
+    // for descending slices and excluded starts.
+    for (const auto& item : node->items) {
+        if (!item.start_marker && !item.end_marker) continue;
+        if (item.start_marker && item.end_marker &&
+            item.start_marker != item.end_marker) {
+            error("SLICE_STEP", "Slice boundary markers must agree on direction.", item.span);
+        }
+        // Diagnose statically impossible directions before the backend gate.
+        // Dynamic steps will be checked by the shared slice planner.
+        if (item.step) {
+            if (const auto step = constant_eval::integer(*item.step)) {
+                if (*step == 0) {
+                    error("SLICE_STEP", "Slice step cannot be zero.", item.step->span);
+                }
+                const char direction = item.start_marker ? item.start_marker : item.end_marker;
+                if ((direction == '<' && *step < 0) ||
+                    (direction == '>' && *step > 0)) {
+                    error("SLICE_STEP",
+                          "Slice boundary direction conflicts with the step sign.",
+                          item.step->span);
+                }
+            }
+        }
+        error("SLICE_MARKER",
+              "Exclusive slice boundary markers require the directional slice backend.",
+              item.span);
+    }
 
     if (base.kind == TypeKind::Tensor) {
         if (node->items.empty()) {
@@ -1681,14 +2587,14 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         for (const auto& item : node->items) {
             if (!item.slice) {
                 if (!item.index) error("INDEX_SYNTAX", "Tensor index is missing.", item.span);
-                check_expr(*item.index, &index_type);
+                check_index_operand(*item.index);
                 if (result_rank >= 0) --result_rank;
                 continue;
             }
-            if (item.start) check_expr(*item.start, &index_type);
-            if (item.stop) check_expr(*item.stop, &index_type);
+            if (item.start) check_index_operand(*item.start);
+            if (item.stop) check_index_operand(*item.stop);
             if (item.step) {
-                check_expr(*item.step, &index_type);
+                check_index_operand(*item.step);
                 if (const auto step = constant_eval::integer(*item.step); step && *step <= 0) {
                     error("SLICE_STEP",
                           "Tensor slices currently require a positive step.",
@@ -1723,13 +2629,13 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         }
         const auto& item = node->items.front();
         if (item.slice) {
-            if (item.start) check_expr(*item.start, &index_type);
-            if (item.stop) check_expr(*item.stop, &index_type);
+            if (item.start) check_index_operand(*item.start);
+            if (item.stop) check_index_operand(*item.stop);
             if (item.step) error("SLICE_STEP", "bin slices do not take a step.", item.step->span);
             type = simple(TypeKind::Bin);
         } else {
             if (!item.index) error("INDEX_SYNTAX", "bin index is missing.", item.span);
-            check_expr(*item.index, &index_type);
+            check_index_operand(*item.index);
             type = simple(TypeKind::Bin);
         }
         return type;
@@ -1740,9 +2646,10 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         error("INDEX_ARITY", "Array and string indexing requires exactly one integer index.",
               expression.span);
     }
-    check_expr(*node->items.front().index, &index_type);
+    check_index_operand(*node->items.front().index);
     check_static_index_bounds(base, *node->items.front().index);
     if (base.kind == TypeKind::Array) {
+        check_element_read(*node->base, node->items.front().index.get(), expression.span);
         type = *base.first;
         // A class value may enter array storage only after all of its fields
         // are definitely initialized. The array element itself can still be
@@ -1766,7 +2673,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                      const Type* /*expected*/) {
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
-        const auto* receiver_name = std::get_if<NameExpr>(&node->receiver->data);
+        const auto* receiver_name = binding_name(*node->receiver);
         const auto type_receiver =
             receiver_name ? builtin_scalar_type(receiver_name->name) : std::optional<Type>{};
 
@@ -1798,7 +2705,8 @@ Type Checker::check_method_call_expr(const Expr& expression,
                       expression.span);
             }
             auto int_type = simple(TypeKind::Int);
-            auto count = check_expr(*node->args[0].value, &int_type);
+            auto nat_type = simple(TypeKind::Nat);
+            auto count = check_expr(*node->args[0].value, &nat_type);
             auto fill = check_expr(*node->args[1].value, &int_type);
             if (const auto value = constant_eval::integer(*node->args[0].value);
                 value && *value < 0) {
@@ -1839,9 +2747,9 @@ Type Checker::check_method_call_expr(const Expr& expression,
                       expression.span);
             }
             auto string_type = simple(TypeKind::String);
-            auto int_type = simple(TypeKind::Int);
+            auto nat_type = simple(TypeKind::Nat);
             auto value = check_expr(*node->args[0].value, &string_type);
-            auto count = check_expr(*node->args[1].value, &int_type);
+            auto count = check_expr(*node->args[1].value, &nat_type);
             if (const auto amount = constant_eval::integer(*node->args[1].value);
                 amount && *amount < 0) {
                 error("ARGUMENT_MISMATCH", "string.repeat count cannot be negative.",
@@ -1894,7 +2802,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
             if (poisoned(receiver)) {
                 type = receiver;
             } else if (receiver.kind == TypeKind::Class &&
-                       receiver.class_name == "$std.atomic.Counter") {
+                       receiver.class_name == standard_class::atomic_counter) {
                 if (!node->type_arguments.empty()) {
                     error("GENERIC_TARGET",
                           "atomic.Counter methods do not take type arguments.",
@@ -1933,7 +2841,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     type = simple(TypeKind::Invalid);
                 }
             } else if (receiver.kind == TypeKind::Class &&
-                       receiver.class_name == "$std.autograd.Target") {
+                       receiver.class_name == standard_class::autograd_target) {
                 if (node->method == "has_grad") {
                     if (!node->type_arguments.empty() || !node->args.empty()) {
                         error("ARGUMENT_MISMATCH",
@@ -1963,10 +2871,10 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         ? resolve_type(node->type_arguments.front())
                         : simple(TypeKind::Invalid);
                     if (!poisoned(element) &&
-                        element.kind != TypeKind::Float32 &&
-                        element.kind != TypeKind::Float) {
+                        element.kind != TypeKind::Real32 &&
+                        element.kind != TypeKind::Real64) {
                         error("TYPE_MISMATCH",
-                              "autograd.Target.gradient<T>() requires T to be float32 or float.",
+                              "autograd.Target.gradient<T>() requires T to be real32 or real64.",
                               expression.span);
                         element = simple(TypeKind::Invalid);
                     }
@@ -1980,7 +2888,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     type = simple(TypeKind::Invalid);
                 }
             } else if (receiver.kind == TypeKind::Class &&
-                       receiver.class_name == "$std.file.Handle") {
+                       receiver.class_name == standard_class::file_handle) {
                 if (!node->type_arguments.empty()) {
                     error("GENERIC_TARGET",
                           "file.Handle methods do not take type arguments.",
@@ -2005,13 +2913,13 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 } else if (one_int_argument) {
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH",
-                              "file.Handle.seek requires one int position.",
+                              "file.Handle.seek requires one nat position.",
                               expression.span);
                     }
-                    auto int_type = simple(TypeKind::Int);
-                    auto argument = check_expr(*node->args[0].value, &int_type);
-                    if (!poisoned(argument) && argument != int_type) {
-                        error("TYPE_MISMATCH", "file.Handle.seek requires an int.", node->args[0].span);
+                    auto nat_type = simple(TypeKind::Nat);
+                    auto argument = check_expr(*node->args[0].value, &nat_type);
+                    if (!poisoned(argument) && argument != nat_type) {
+                        error("TYPE_MISMATCH", "file.Handle.seek requires a nat.", node->args[0].span);
                     }
                 } else if (!node->args.empty()) {
                     error("ARGUMENT_MISMATCH",
@@ -2055,9 +2963,10 @@ Type Checker::check_method_call_expr(const Expr& expression,
             } else if (receiver.kind != TypeKind::Class) {
                 if (receiver.kind == TypeKind::Tensor) {
                     const auto shape_type = Type::array(simple(TypeKind::Int));
+                    const auto nat_shape_type = Type::array(simple(TypeKind::Nat));
                     const bool floating_tensor = receiver.first &&
-                        (receiver.first->kind == TypeKind::Float32 ||
-                         receiver.first->kind == TypeKind::Float);
+                        (receiver.first->kind == TypeKind::Real32 ||
+                         receiver.first->kind == TypeKind::Real64);
                     if (node->method == "track" || node->method == "retrack") {
                         const bool targeted_track =
                             node->method == "track" && node->args.size() == 1;
@@ -2079,7 +2988,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                       argument.span);
                             }
                             const auto target_type =
-                                Type::class_type("$std.autograd.Target");
+                                Type::class_type(standard_class::autograd_target);
                             auto actual = check_expr(*argument.value, &target_type);
                             if (!poisoned(actual) && actual != target_type) {
                                 error("TYPE_MISMATCH",
@@ -2100,7 +3009,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         if (!floating_tensor) {
                             error("TYPE_MISMATCH",
                                   "tensor." + node->method +
-                                      "() requires tensor<float32> or tensor<float>.",
+                                      "() requires tensor<real32> or tensor<real64>.",
                                   expression.span);
                         }
                         type = receiver;
@@ -2118,7 +3027,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         }
                         if (!floating_tensor) {
                             error("TYPE_MISMATCH",
-                                  "tensor.clear_grad() requires tensor<float32> or tensor<float>.",
+                                  "tensor.clear_grad() requires tensor<real32> or tensor<real64>.",
                                   expression.span);
                         }
                         if (const_access_path(*node->receiver)) {
@@ -2130,7 +3039,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     } else if (node->method == "backward") {
                         if (!floating_tensor) {
                             error("TYPE_MISMATCH",
-                                  "tensor.backward requires tensor<float32> or tensor<float>.",
+                                  "tensor.backward requires tensor<real32> or tensor<real64>.",
                                   expression.span);
                         }
                         if (!node->type_arguments.empty()) {
@@ -2143,7 +3052,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                 [&](const Type& candidate,
                                     std::unordered_set<std::string>& active) -> bool {
                             if (candidate.kind == TypeKind::Class &&
-                                candidate.class_name == "$std.autograd.Target")
+                                candidate.class_name == standard_class::autograd_target)
                                 return true;
                             if (candidate.kind == TypeKind::Array) {
                                 if (!candidate.first) return false;
@@ -2219,7 +3128,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         }
                         type = simple(TypeKind::Void);
                     } else if (node->method == "gpu") {
-                        const auto int_type = simple(TypeKind::Int);
+                        const auto int_type = simple(TypeKind::Nat);
                         if (!node->type_arguments.empty() || node->args.size() != 1 ||
                             node->args[0].writable || node->args[0].name) {
                             error("ARGUMENT_MISMATCH",
@@ -2248,7 +3157,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         }
                         type = receiver;
                     } else if (node->method == "transpose") {
-                        const auto int_type = simple(TypeKind::Int);
+                        const auto int_type = simple(TypeKind::Nat);
                         if (!node->type_arguments.empty() || node->args.size() != 2 ||
                             node->args[0].writable || node->args[1].writable ||
                             node->args[0].name || node->args[1].name) {
@@ -2313,7 +3222,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             error("ARGUMENT_MISMATCH",
                                   "tensor.reshape requires one shape array.", expression.span);
                         }
-                        auto shape = check_expr(*node->args[0].value, &shape_type);
+                        auto shape = check_expr(*node->args[0].value, &nat_shape_type);
                         long long rank = -1;
                         std::vector<long long> known_shape_prefix;
                         if (!poisoned(shape)) {
@@ -2434,7 +3343,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             error("ARGUMENT_MISMATCH",
                                   "tensor.shape() takes no arguments.", expression.span);
                         }
-                        type = Type::array(simple(TypeKind::Int), receiver.length);
+                        type = Type::array(simple(TypeKind::Nat), receiver.length);
                     } else if (node->method == "device") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
                             error("ARGUMENT_MISMATCH",
@@ -2460,7 +3369,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         }
                         if (!floating_tensor) {
                             error("TYPE_MISMATCH",
-                                  "tensor.has_grad() requires tensor<float32> or tensor<float>.",
+                                  "tensor.has_grad() requires tensor<real32> or tensor<real64>.",
                                   expression.span);
                         }
                         type = simple(TypeKind::Bool);
@@ -2530,7 +3439,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     } else if (node->method == "find") {
                         require_count(1, "string.find requires needle.");
                         auto a=check_plain_argument(0,"needle",string_type);
-                        type=poisoned(a)?simple(TypeKind::Invalid):Type::union_of({int_type,simple(TypeKind::None)});
+                        type=poisoned(a)?simple(TypeKind::Invalid):Type::union_of({simple(TypeKind::Nat),simple(TypeKind::None)});
                     } else if (node->method == "slice") {
                         require_count(2, "string.slice requires start and end.");
                         auto a=check_plain_argument(0,"start",int_type);
@@ -2579,6 +3488,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         type=poisoned(a)?simple(TypeKind::Invalid):text_type;
                     } else {
                         if (!is_tensor_numeric(*receiver.first) &&
+                            !is_bare_integer(*receiver.first) &&
                             receiver.first->kind != TypeKind::Bool &&
                             receiver.first->kind != TypeKind::String) {
                             error("UNKNOWN_MEMBER",
@@ -2686,6 +3596,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             ? stable_addressable_storage(*argument.value)
                             : stable_writable_storage(*argument.value);
                         if (!valid_storage) {
+                            reject_bare_storage_root(*argument.value);
                             error("WRITE_CAPABILITY",
                                   readonly_reference
                                       ? "Readonly reference arguments require stable addressable storage."
@@ -2882,8 +3793,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         error("ARGUMENT_MISMATCH",
                               "array requires n and optionally fill = value.", expression.span);
                     }
-                    auto int_type = simple(TypeKind::Int);
-                    auto count = builtin_arg(0, "n", &int_type);
+                    auto nat_type = simple(TypeKind::Nat);
+                    auto count = builtin_arg(0, "n", &nat_type);
                     if (node->args.size() == 1) {
                         if (!expected || expected->kind != TypeKind::Array) {
                             error("AMBIGUOUS_TYPE",
@@ -2935,13 +3846,27 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (node->args.empty() || node->args.size() > 3) {
                         error("ARGUMENT_MISMATCH", "range takes one to three arguments.", expression.span);
                     }
+                    // The bounds and the step are integers of any kind; a
+                    // literal materializes as int.
                     auto int_type = simple(TypeKind::Int);
                     bool any_poison = false;
                     for (std::size_t i = 0; i < node->args.size(); ++i) {
                         const std::string label =
                             node->args.size() == 1 ? "end" :
                             i == 0 ? "start" : i == 1 ? "end" : "step";
-                        any_poison |= poisoned(builtin_arg(i, label, &int_type));
+                        const auto& argument = node->args[i];
+                        if (argument.writable || (argument.name && *argument.name != label)) {
+                            error("ARGUMENT_MISMATCH", "Invalid builtin argument.", argument.span);
+                        }
+                        const auto bound =
+                            numeric_literal_family(*argument.value) != NumericLiteralCategory::None
+                                ? check_expr(*argument.value, &int_type)
+                                : check_expr(*argument.value);
+                        if (!poisoned(bound) && !is_integer_family_type(bound)) {
+                            error("TYPE_MISMATCH", "range bounds and step must be integers.",
+                                  argument.span);
+                        }
+                        any_poison |= poisoned(bound);
                     }
                     type = any_poison ? simple(TypeKind::Invalid) : simple(TypeKind::Range);
                     break;
@@ -2959,14 +3884,14 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             argument.kind != TypeKind::Bin) {
                             error("TYPE_MISMATCH", "len requires a string, array, or bin.", expression.span);
                         }
-                        type = simple(TypeKind::Int);
+                        type = simple(TypeKind::Nat);
                     }
                     break;
                 }
                 case BuiltinCallable::ExactAtom: {
                     if (node->args.size() != 2) {
                         error("ARGUMENT_MISMATCH",
-                              "exact.atom requires a provider string and an integer opcode.",
+                              "real.atom requires a provider string and an integer opcode.",
                               expression.span);
                     }
                     auto string_type = simple(TypeKind::String);
@@ -2977,7 +3902,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         !std::holds_alternative<StringExpr>(
                             node->args[0].value->data)) {
                         error("EXACT_PROVIDER",
-                              "exact.atom provider must be a string literal.",
+                              "real.atom provider must be a string literal.",
                               node->args[0].span);
                     }
                     const auto* opcode =
@@ -2987,12 +3912,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                          opcode->value >
                              std::numeric_limits<std::uint32_t>::max())) {
                         error("EXACT_PROVIDER",
-                              "exact.atom opcode must be a uint32-range integer literal.",
+                              "real.atom opcode must be a nat32-range integer literal.",
                               node->args[1].span);
                     }
                     if (!expected || !is_real(*expected)) {
                         error("AMBIGUOUS_NUMERIC_LITERAL",
-                              "exact.atom requires a unique real-family type context.",
+                              "real.atom requires a unique real-family type context.",
                               expression.span);
                         type = simple(TypeKind::Invalid);
                     } else {
@@ -3003,12 +3928,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 case BuiltinCallable::ExactUnary: {
                     if (node->args.size() != 3) {
                         error("ARGUMENT_MISMATCH",
-                              "exact.unary requires a provider string, an integer opcode, and a bigreal value.",
+                              "real.unary requires a provider string, an integer opcode, and a real value.",
                               expression.span);
                     }
                     auto string_type = simple(TypeKind::String);
                     auto int_type = simple(TypeKind::Int);
-                    auto real_type = simple(TypeKind::BigReal);
+                    auto real_type = simple(TypeKind::Real);
                     auto provider_type = builtin_arg(0, "provider", &string_type);
                     auto opcode_type = builtin_arg(1, "opcode", &int_type);
                     auto value_type = builtin_arg(2, "value", &real_type);
@@ -3016,7 +3941,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         !std::holds_alternative<StringExpr>(
                             node->args[0].value->data)) {
                         error("EXACT_PROVIDER",
-                              "exact.unary provider must be a string literal.",
+                              "real.unary provider must be a string literal.",
                               node->args[0].span);
                     }
                     const auto* opcode =
@@ -3026,7 +3951,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                          opcode->value >
                              std::numeric_limits<std::uint32_t>::max())) {
                         error("EXACT_PROVIDER",
-                              "exact.unary opcode must be a uint32-range integer literal.",
+                              "real.unary opcode must be a nat32-range integer literal.",
                               node->args[1].span);
                     }
                     type = poisoned(value_type)
@@ -3049,11 +3974,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto int_type = simple(TypeKind::Int);
                     (void)builtin_arg(0, "name", &string_type);
                     (void)builtin_arg(1, "index", &int_type);
-                    if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int &&
-                        expected->kind != TypeKind::Float && expected->kind != TypeKind::BigInt &&
-                        expected->kind != TypeKind::BigReal && expected->kind != TypeKind::Bool) {
+                    if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int64 &&
+                        expected->kind != TypeKind::Real64 && expected->kind != TypeKind::Int &&
+                        expected->kind != TypeKind::Real && expected->kind != TypeKind::Bool) {
                         error("TYPE_MISMATCH",
-                              "CLI arguments support string, int, float, bigint, bigreal, and bool.",
+                              "CLI arguments support string, int64, int, real64, real, and bool.",
                               expression.span);
                     }
                     type = *expected;
@@ -3068,11 +3993,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     (void)builtin_arg(0, "name", &string_type);
                     (void)builtin_arg(1, "index", &int_type);
                     (void)builtin_arg(2, "default", expected);
-                    if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int &&
-                        expected->kind != TypeKind::Float && expected->kind != TypeKind::BigInt &&
-                        expected->kind != TypeKind::BigReal && expected->kind != TypeKind::Bool) {
+                    if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int64 &&
+                        expected->kind != TypeKind::Real64 && expected->kind != TypeKind::Int &&
+                        expected->kind != TypeKind::Real && expected->kind != TypeKind::Bool) {
                         error("TYPE_MISMATCH",
-                              "Optional CLI arguments support string, int, float, bigint, bigreal, and bool.",
+                              "Optional CLI arguments support string, int64, int, real64, real, and bool.",
                               expression.span);
                     }
                     type = *expected;
@@ -3085,11 +4010,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto string_type = simple(TypeKind::String);
                     (void)builtin_arg(0, "name", &string_type);
                     (void)builtin_arg(1, "default", expected);
-                    if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int &&
-                        expected->kind != TypeKind::Float && expected->kind != TypeKind::BigInt &&
-                        expected->kind != TypeKind::BigReal && expected->kind != TypeKind::Bool) {
+                    if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int64 &&
+                        expected->kind != TypeKind::Real64 && expected->kind != TypeKind::Int &&
+                        expected->kind != TypeKind::Real && expected->kind != TypeKind::Bool) {
                         error("TYPE_MISMATCH",
-                              "CLI options support string, int, float, bigint, bigreal, and bool.",
+                              "CLI options support string, int64, int, real64, real, and bool.",
                               expression.span);
                     }
                     type = *expected;
@@ -3124,7 +4049,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto path = builtin_arg(0, "path", &string_type);
                     type = poisoned(path) ? simple(TypeKind::Invalid)
                         : Type::union_of({
-                            Type::class_type("$std.file.Handle"),
+                            Type::class_type(standard_class::file_handle),
                             simple(TypeKind::Error)});
                     if (!poisoned(path)) {
                         class_expr_initialized_paths_[&expression] = {"$handle"};
@@ -3249,12 +4174,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         numeric_literal_family(*node->args[0].value);
                     const auto expected_family =
                         numeric_literal_family(*node->args[1].value);
-                    const bool actual_family_only =
-                        actual_family == NumericLiteralFamily::Integer ||
-                        actual_family == NumericLiteralFamily::Real;
-                    const bool expected_family_only =
-                        expected_family == NumericLiteralFamily::Integer ||
-                        expected_family == NumericLiteralFamily::Real;
+                    const bool actual_family_only = single_family_category(actual_family);
+                    const bool expected_family_only = single_family_category(expected_family);
 
                     Type actual;
                     Type expected_value;
@@ -3303,7 +4224,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         any_poison = poisoned(builtin_arg(0, "sync", &bool_type));
                     }
                     type = any_poison ? simple(TypeKind::Invalid)
-                                      : Type::class_type("$std.time.Instant");
+                                      : Type::class_type(standard_class::time_instant);
                     if (!any_poison) class_expr_initialized_paths_[&expression] = {"$seconds"};
                     break;
                 }
@@ -3317,7 +4238,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
                     bool any_poison = false;
                     if (!node->args.empty()) {
-                        auto instant_type = Type::class_type("$std.time.Instant");
+                        auto instant_type = Type::class_type(standard_class::time_instant);
                         auto start = builtin_arg(0, "start", &instant_type);
                         any_poison |= poisoned(start);
                         if (!poisoned(start) &&
@@ -3332,18 +4253,18 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         any_poison |= poisoned(builtin_arg(1, "sync", &bool_type));
                     }
                     type = any_poison ? simple(TypeKind::Invalid)
-                                      : Type::class_type("$std.time.Duration");
+                                      : Type::class_type(standard_class::time_duration);
                     if (!any_poison) class_expr_initialized_paths_[&expression] = {"$seconds"};
                     break;
                 }
                 case BuiltinCallable::TimeSeconds: {
                     if (node->args.size() != 1) {
-                        error("ARGUMENT_MISMATCH", "time.seconds requires one float value.", expression.span);
+                        error("ARGUMENT_MISMATCH", "time.seconds requires one real64 value.", expression.span);
                     }
-                    auto float_type = simple(TypeKind::Float);
+                    auto float_type = simple(TypeKind::Real64);
                     auto seconds = builtin_arg(0, "value", &float_type);
                     type = poisoned(seconds) ? simple(TypeKind::Invalid)
-                                             : Type::class_type("$std.time.Duration");
+                                             : Type::class_type(standard_class::time_duration);
                     if (!poisoned(seconds)) class_expr_initialized_paths_[&expression] = {"$seconds"};
                     break;
                 }
@@ -3351,7 +4272,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH", "time.sleep requires one Duration.", expression.span);
                     }
-                    auto duration_type = Type::class_type("$std.time.Duration");
+                    auto duration_type = Type::class_type(standard_class::time_duration);
                     auto duration = builtin_arg(0, "duration", &duration_type);
                     if (!poisoned(duration) &&
                         !initialized_paths_for_expr(*node->args[0].value).contains("$seconds")) {
@@ -3364,8 +4285,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH", "gpu.sync requires one GPU index.", expression.span);
                     }
-                    auto int_type = simple(TypeKind::Int);
-                    auto index = builtin_arg(0, "index", &int_type);
+                    auto nat_type = simple(TypeKind::Nat);
+                    auto index = builtin_arg(0, "index", &nat_type);
                     if (!node->args.empty()) {
                         if (const auto value =
                                 constant_eval::integer(*node->args[0].value,
@@ -3387,7 +4308,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               "autograd.target() takes no arguments.",
                               expression.span);
                     }
-                    type = Type::class_type("$std.autograd.Target");
+                    type = Type::class_type(standard_class::autograd_target);
                     class_expr_initialized_paths_[&expression] = {"$handle"};
                     break;
                 }
@@ -3401,7 +4322,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto initial = builtin_arg(0, "initial", &int_type);
                     type = poisoned(initial)
                         ? simple(TypeKind::Invalid)
-                        : Type::class_type("$std.atomic.Counter");
+                        : Type::class_type(standard_class::atomic_counter);
                     if (!poisoned(initial)) class_expr_initialized_paths_[&expression] = {"$handle"};
                     break;
                 }
@@ -3418,7 +4339,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
 
                     if (node->args.size() == 2) {
-                        const auto counter_type = Type::class_type("$std.atomic.Counter");
+                        const auto counter_type = Type::class_type(standard_class::atomic_counter);
                         const auto& shared_argument = node->args[1];
                         if (shared_argument.writable ||
                             (shared_argument.name && *shared_argument.name != "shared")) {
@@ -3452,7 +4373,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     Type result_type = simple(TypeKind::Void);
                     if (expected && expected->kind == TypeKind::Array && expected->first &&
                         (expected->first->kind == TypeKind::Int ||
-                         expected->first->kind == TypeKind::Float)) {
+                         expected->first->kind == TypeKind::Int64 ||
+                         expected->first->kind == TypeKind::Real64)) {
                         result_type = *expected->first;
                     }
 
@@ -3482,7 +4404,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             const auto candidate = *operations.first->first;
                             if (candidate.kind == TypeKind::Void ||
                                 candidate.kind == TypeKind::Int ||
-                                candidate.kind == TypeKind::Float) {
+                                candidate.kind == TypeKind::Real64) {
                                 result_type = candidate;
                                 operation_type = Type::function(result_type, {});
                                 operations_type = Type::array(operation_type);
@@ -3492,7 +4414,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
 
                     if (!poisoned(operations) && operations != operations_type) {
                         error("TYPE_MISMATCH",
-                              "task.all requires fn<void>()[], fn<int>()[], or fn<float>()[].",
+                              "task.all requires fn<void>()[], fn<int>()[], or fn<real64>()[].",
                               argument.span);
                     }
                     type = poisoned(operations)
@@ -3509,12 +4431,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto int_type = simple(TypeKind::Int);
                     auto seed = builtin_arg(0, "seed", &int_type);
                     type = poisoned(seed) ? simple(TypeKind::Invalid)
-                                          : Type::class_type("$std.random.Generator");
+                                          : Type::class_type(standard_class::random_generator);
                     if (!poisoned(seed)) class_expr_initialized_paths_[&expression] = {"$state"};
                     break;
                 }
                 case BuiltinCallable::RandomInt: {
-                    if (current_class_ != "$std.random.Generator") {
+                    if (current_class_ != standard_class::random_generator) {
                         error("INVALID_CONTEXT", "random generator operation requires a Generator receiver.", expression.span);
                     }
                     if (node->args.size() != 2) {
@@ -3530,20 +4452,20 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::RandomFloat: {
-                    if (current_class_ != "$std.random.Generator") {
+                    if (current_class_ != standard_class::random_generator) {
                         error("INVALID_CONTEXT", "random generator operation requires a Generator receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
-                        error("ARGUMENT_MISMATCH", "Generator.float takes no arguments.", expression.span);
+                        error("ARGUMENT_MISMATCH", "Generator.real64 takes no arguments.", expression.span);
                     }
                     current_receiver_effect_.required.insert("$state");
                     current_receiver_effect_.writes.insert("$state");
                     current_receiver_effect_.initializes.insert("$state");
-                    type = simple(TypeKind::Float);
+                    type = simple(TypeKind::Real64);
                     break;
                 }
                 case BuiltinCallable::RandomBool: {
-                    if (current_class_ != "$std.random.Generator") {
+                    if (current_class_ != standard_class::random_generator) {
                         error("INVALID_CONTEXT", "random generator operation requires a Generator receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
@@ -3565,7 +4487,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto args = builtin_arg(1, "args", &args_type);
                     type = poisoned(program) || poisoned(args)
                         ? simple(TypeKind::Invalid)
-                        : Type::class_type("$std.process.Result");
+                        : Type::class_type(standard_class::process_result);
                     if (!poisoned(program) && !poisoned(args)) {
                         class_expr_initialized_paths_[&expression] = {
                             "status", "output", "error", "started"
@@ -3581,7 +4503,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto command = builtin_arg(0, "command", &string_type);
                     type = poisoned(command)
                         ? simple(TypeKind::Invalid)
-                        : Type::class_type("$std.process.Result");
+                        : Type::class_type(standard_class::process_result);
                     if (!poisoned(command)) {
                         class_expr_initialized_paths_[&expression] = {
                             "status", "output", "error", "started"
@@ -3597,11 +4519,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto text = builtin_arg(0, "text", &string_type);
                     type = poisoned(text) ? simple(TypeKind::Invalid)
                         : Type::union_of({
-                            Type::class_type("$std.json.Value"), simple(TypeKind::Error)});
+                            Type::class_type(standard_class::json_value), simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::JsonKind: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
@@ -3611,17 +4533,17 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::JsonSize: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
                         error("ARGUMENT_MISMATCH", "Value.size takes no arguments.", expression.span);
                     }
-                    type = Type::union_of({simple(TypeKind::Int), simple(TypeKind::Error)});
+                    type = Type::union_of({simple(TypeKind::Nat), simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::JsonGet: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (node->args.size() != 1) {
@@ -3631,29 +4553,29 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto key = builtin_arg(0, "key", &string_type);
                     type = poisoned(key) ? simple(TypeKind::Invalid)
                         : Type::union_of({
-                            Type::class_type("$std.json.Value"),
+                            Type::class_type(standard_class::json_value),
                             simple(TypeKind::None),
                             simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::JsonAt: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (node->args.size() != 1) {
-                        error("ARGUMENT_MISMATCH", "Value.at requires one int index.", expression.span);
+                        error("ARGUMENT_MISMATCH", "Value.at requires one nat index.", expression.span);
                     }
-                    auto int_type = simple(TypeKind::Int);
-                    auto index = builtin_arg(0, "index", &int_type);
+                    auto nat_type = simple(TypeKind::Nat);
+                    auto index = builtin_arg(0, "index", &nat_type);
                     type = poisoned(index) ? simple(TypeKind::Invalid)
                         : Type::union_of({
-                            Type::class_type("$std.json.Value"),
+                            Type::class_type(standard_class::json_value),
                             simple(TypeKind::None),
                             simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::JsonText: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
@@ -3663,7 +4585,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::JsonInteger: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
@@ -3673,37 +4595,27 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::JsonNumber: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
                         error("ARGUMENT_MISMATCH", "Value.number takes no arguments.", expression.span);
                     }
-                    type = Type::union_of({simple(TypeKind::Float), simple(TypeKind::Error)});
-                    break;
-                }
-                case BuiltinCallable::JsonBigInt: {
-                    if (current_class_ != "$std.json.Value") {
-                        error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
-                    }
-                    if (!node->args.empty()) {
-                        error("ARGUMENT_MISMATCH", "Value.bigint takes no arguments.", expression.span);
-                    }
-                    type = Type::union_of({simple(TypeKind::BigInt), simple(TypeKind::Error)});
+                    type = Type::union_of({simple(TypeKind::Real64), simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::JsonBigReal: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
-                        error("ARGUMENT_MISMATCH", "Value.bigreal takes no arguments.", expression.span);
+                        error("ARGUMENT_MISMATCH", "Value.real takes no arguments.", expression.span);
                     }
-                    type = Type::union_of({simple(TypeKind::BigReal), simple(TypeKind::Error)});
+                    type = Type::union_of({simple(TypeKind::Real), simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::JsonBoolean: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
@@ -3713,7 +4625,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::JsonEncode: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (!node->args.empty()) {
@@ -3723,13 +4635,13 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::JsonEqual: {
-                    if (current_class_ != "$std.json.Value") {
+                    if (current_class_ != standard_class::json_value) {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
                     }
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH", "Value.equal requires one Value.", expression.span);
                     }
-                    auto value_type = Type::class_type("$std.json.Value");
+                    auto value_type = Type::class_type(standard_class::json_value);
                     auto other = builtin_arg(0, "other", &value_type);
                     type = poisoned(other) ? simple(TypeKind::Invalid) : simple(TypeKind::Bool);
                     break;
@@ -3742,7 +4654,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto url = builtin_arg(0, "url", &string_type);
                     type = poisoned(url) ? simple(TypeKind::Invalid)
                         : Type::union_of({
-                            Type::class_type("$std.http.Response"), simple(TypeKind::Error)});
+                            Type::class_type(standard_class::http_response), simple(TypeKind::Error)});
                     if (!poisoned(url)) {
                         class_expr_initialized_paths_[&expression] = {
                             "status", "body", "$headers"
@@ -3751,7 +4663,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::HttpHeader: {
-                    if (current_class_ != "$std.http.Response") {
+                    if (current_class_ != standard_class::http_response) {
                         error("INVALID_CONTEXT", "HTTP header lookup requires a Response receiver.", expression.span);
                     }
                     if (node->args.size() != 1) {
@@ -3933,7 +4845,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               "tensor construction requires one numeric element type unless the expected tensor type supplies it.",
                               expression.span);
                     }
-                    if (!poisoned(element) && !is_tensor_numeric(element) &&
+                    if (!poisoned(element) && is_bare_integer(element)) {
+                        error("INVALID_TYPE", "Tensor element types are fixed-width: use tensor<int64>.",
+                              expression.span);
+                    } else if (!poisoned(element) && !is_tensor_numeric(element) &&
                         element.kind != TypeKind::Bool) {
                         error("INVALID_TYPE", "tensor element type must be a fixed-width native numeric type or bool.",
                               expression.span);
@@ -3984,12 +4899,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
 
                     bool bad_gpu = false;
                     if (gpu_index) {
-                        const auto int_type = simple(TypeKind::Int);
+                        const auto int_type = simple(TypeKind::Nat);
                         auto gpu = check_expr(*node->args[*gpu_index].value, &int_type);
                         bad_gpu = poisoned(gpu);
                         if (!bad_gpu && gpu != int_type) {
                             error("TYPE_MISMATCH",
-                                  "tensor gpu index expected int.",
+                                  "tensor gpu index expected nat.",
                                   node->args[*gpu_index].span);
                             bad_gpu = true;
                         }
@@ -4042,7 +4957,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         break;
                     }
 
-                    const auto shape_type = Type::array(simple(TypeKind::Int));
+                    const auto shape_type = Type::array(simple(TypeKind::Nat));
                     auto shape = check_expr(*node->args[*shape_index].value, &shape_type);
                     long long rank = -1;
                     std::vector<long long> known_shape_prefix;
@@ -4238,6 +5153,7 @@ Type Checker::check_call_expr(const Expr& expression,
                             ? stable_addressable_storage(*argument.value)
                             : stable_writable_storage(*argument.value);
                         if (!valid_storage) {
+                            reject_bare_storage_root(*argument.value);
                             error("WRITE_CAPABILITY",
                                   readonly_reference
                                       ? "Readonly reference arguments require stable addressable storage."
@@ -4313,13 +5229,13 @@ Type Checker::check_call_expr(const Expr& expression,
             const bool target_integer = is_integer_family_type(*target);
             const bool target_floating = is_real(*target);
             const bool same_family =
-                (family == NumericLiteralFamily::Integer && target_integer) ||
-                (family == NumericLiteralFamily::Real && target_floating);
+                (integer_category(family) && target_integer) ||
+                (family == NumericLiteralCategory::Real && target_floating);
             const bool direct_cross_family =
-                (direct_family == NumericLiteralFamily::Integer && target_floating) ||
-                (direct_family == NumericLiteralFamily::Real && target_integer);
+                (integer_category(direct_family) && target_floating) ||
+                (direct_family == NumericLiteralCategory::Real && target_integer);
 
-            if (family == NumericLiteralFamily::Mixed) {
+            if (family == NumericLiteralCategory::Mixed) {
                 error("NUMERIC_FAMILY",
                       "Explicit numeric cast source cannot implicitly mix integer and floating literal families.",
                       node->args[0].span);
@@ -4333,8 +5249,7 @@ Type Checker::check_call_expr(const Expr& expression,
                     throw;
                 }
                 explicit_numeric_literal_context_ = previous;
-            } else if (family == NumericLiteralFamily::Integer ||
-                       family == NumericLiteralFamily::Real) {
+            } else if (single_family_category(family)) {
                 error("NUMERIC_CAST",
                       "Cross-family conversion of a numeric-family expression requires a concrete source type.",
                       node->args[0].span);
@@ -4346,7 +5261,7 @@ Type Checker::check_call_expr(const Expr& expression,
                 [&](const Type& current) -> std::optional<Type> {
                     const auto error_type = simple(TypeKind::Error);
                     if (current.kind == TypeKind::Bin) {
-                        return is_integer(*target) ? std::optional<Type>{*target} : std::nullopt;
+                        return is_fixed_integer(*target) ? std::optional<Type>{*target} : std::nullopt;
                     }
                     if (is_numeric(current)) {
                         if (!explicit_numeric_cast_supported(current, *target)) return std::nullopt;
@@ -4400,7 +5315,7 @@ Type Checker::check_call_expr(const Expr& expression,
                     while (leaf.kind == TypeKind::Array && leaf.first) leaf = *leaf.first;
                     if (leaf.kind == TypeKind::Tensor &&
                         leaf.first) leaf = *leaf.first;
-                    const std::string detail = is_float(leaf) && is_integer_family_type(*target)
+                    const std::string detail = is_fixed_real(leaf) && is_integer_family_type(*target)
                         ? " Floating-point to integer conversion requires math.trunc, math.round, math.floor, or math.ceil."
                         : "";
                     error("NUMERIC_CAST",
@@ -4433,9 +5348,9 @@ Type Checker::check_call_expr(const Expr& expression,
                       expression.span);
             }
             const auto source = check_expr(*node->args[0].value);
-            bool valid = is_integer(source) || source.kind == TypeKind::Bool;
+            bool valid = is_fixed_integer(source) || source.kind == TypeKind::Bool;
             if (source.kind == TypeKind::Array && source.first)
-                valid = is_integer(*source.first) || source.first->kind == TypeKind::Bool;
+                valid = is_fixed_integer(*source.first) || source.first->kind == TypeKind::Bool;
             if (!poisoned(source) && !valid) {
                 error("TYPE_MISMATCH",
                       "bin(value) accepts an integer, bool, or a flat integer/bool array.",
@@ -4451,7 +5366,7 @@ Type Checker::check_call_expr(const Expr& expression,
         } else if (name.size() > 2 && name.ends_with("[]")) {
             const auto element_name = name.substr(0, name.size() - 2);
             const auto element = builtin_scalar_type(element_name);
-            if (!element || (!is_integer(*element) && element->kind != TypeKind::Bool)) {
+            if (!element || (!is_fixed_integer(*element) && element->kind != TypeKind::Bool)) {
                 error("TYPE_MISMATCH",
                       "Only integer[] and bool[] explicit conversions are supported here.",
                       expression.span);
@@ -4471,7 +5386,7 @@ Type Checker::check_call_expr(const Expr& expression,
             call_resolutions_[&expression] =
                 CallResolution{CallKind::NumericCast, name, std::nullopt, type};
         } else if (classes_.contains(name) && name.front() != '$' &&
-                   name.rfind("__quidra_gc__std_", 0) != 0) {
+                   !standard_library_class(name)) {
             type = check_class_construction(expression, *node, name);
         } else if (classes_.contains(name)) {
             // Standard-library value types keep their language-provided
@@ -4479,7 +5394,7 @@ Type Checker::check_call_expr(const Expr& expression,
             // records such as the cli argument class are built the same way.
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Constructor, name, std::nullopt, Type::class_type(name)};
-            if (name.rfind("$std.", 0) == 0) {
+            if (standard_library_class(name) && name.front() == '$') {
                     error("ARGUMENT_MISMATCH",
                           "Standard library value types cannot be constructed directly.",
                           expression.span);
@@ -4533,12 +5448,13 @@ Type Checker::check_call_expr(const Expr& expression,
         } else if (const auto builtin = builtin_callable(name)) {
             type = check_builtin_call_expr(expression, *node, *builtin, expected);
         } else {
-            if (!functions_.contains(name) || (!name.empty() && name.front() == '$')) {
+            const auto function_name = visible_function_name(name);
+            if (!function_name || (!name.empty() && name.front() == '$')) {
                 error("UNKNOWN_NAME", "Unknown function '" + name + "'.", expression.span);
             }
-            const auto& function = functions_.at(name);
+            const auto& function = functions_.at(*function_name);
             call_resolutions_[&expression] =
-                CallResolution{CallKind::Function, name, std::nullopt, function.result};
+                CallResolution{CallKind::Function, *function_name, std::nullopt, function.result};
             std::vector<PendingReferenceEffect> pending_reference_effects;
             const bool any_poison =
                 check_call_arguments(expression, node->args, function, pending_reference_effects);
@@ -4591,6 +5507,7 @@ FunctionType* Checker::begin_member_body(const ClassDecl& class_decl, const Func
     const_integer_values_.clear();
     class_initialized_paths_.clear();
     reset_current_effect_state();
+    current_module_namespace_ = class_decl.module_namespace;
 
     auto& signature = functions_.at(internal_it->second);
     for (std::size_t i = method.is_constructor ? 0 : 1; i < signature.parameters.size(); ++i) {
@@ -4709,7 +5626,16 @@ Type Checker::check_class_construction(const Expr& expression, const CallExpr& n
               expression.span);
     }
 
-    const auto chosen = info.constructors.front();
+    auto chosen = info.constructors.front();
+    if (!node.constructor.empty()) {
+        const auto instance = info.constructor_instances.find(node.constructor);
+        if (instance == info.constructor_instances.end()) {
+            error("NO_CONSTRUCTOR",
+                  "Class '" + class_name + "' has no constructor instance for this call.",
+                  expression.span);
+        }
+        chosen = instance->second;
+    }
     const auto describe = [&](const std::string& internal) {
         std::string text = "construct(";
         const auto& candidate = functions_.at(internal);
@@ -4789,6 +5715,7 @@ bool Checker::check_call_arguments(const Expr& expression, const std::vector<Cal
                             ? stable_addressable_storage(*argument.value)
                             : stable_writable_storage(*argument.value);
                         if (!valid_storage) {
+                            reject_bare_storage_root(*argument.value);
                             error("WRITE_CAPABILITY",
                                   readonly_reference
                                       ? "Readonly reference arguments require stable addressable storage."
@@ -4835,6 +5762,266 @@ bool Checker::check_call_arguments(const Expr& expression, const std::vector<Cal
     return any_poison;
 }
 
+namespace {
+
+// The flow state a path through an if-expression can change, saved before
+// a branch and merged after the branches exactly as check_if_stmt merges its
+// blocks. The receiver's requirements are not saved: they accumulate over
+// every path, as they do for an if statement.
+struct BranchFlow {
+    std::unordered_map<std::string, Type> variables;
+    ReferenceRoots reference_roots;
+    ReferencePaths reference_paths;
+    std::unordered_set<std::string> unknown_reference_targets;
+    std::unordered_set<std::string> const_bindings;
+    std::unordered_set<std::string> initialized;
+    std::unordered_map<std::string, std::unordered_set<std::string>> class_initialized_paths;
+    std::unordered_set<std::string> receiver_initializes;
+    std::unordered_set<std::string> receiver_writes;
+    std::unordered_set<std::string> receiver_invalidates;
+    std::unordered_map<std::string, StorageEffect> reference_effects;
+    std::unordered_set<std::string> maybe_initialized{};
+
+    const std::unordered_set<std::string>& paths_of(const std::string& name) const {
+        static const std::unordered_set<std::string> none;
+        const auto found = class_initialized_paths.find(name);
+        return found == class_initialized_paths.end() ? none : found->second;
+    }
+};
+
+} // namespace
+
+// An if-expression (language.md, "If expressions"). Every condition is bool.
+// With a contextual type each branch is checked against it as an initializer
+// is; without one the typed branches have one identical type, into which
+// the numeric literal branches materialize. Initialization and effects flow
+// as through an if statement: each condition on the path that reaches it,
+// each branch on its own path, merged after the expression.
+Type Checker::check_if_expr(const Expr& expression, const IfExpr& node, const Type* expected) {
+    const auto bool_type = simple(TypeKind::Bool);
+    const bool contextual = expected != nullptr;
+
+    const auto save = [&]() {
+        return BranchFlow{variables_, reference_roots_, reference_paths_,
+                          unknown_reference_targets_, const_bindings_, initialized_,
+                          class_initialized_paths_, current_receiver_effect_.initializes,
+                          current_receiver_effect_.writes,
+                          current_receiver_effect_.invalidates, current_reference_effects_,
+                          maybe_initialized_};
+    };
+    const auto restore = [&](const BranchFlow& state) {
+        variables_ = state.variables;
+        reference_roots_ = state.reference_roots;
+        reference_paths_ = state.reference_paths;
+        unknown_reference_targets_ = state.unknown_reference_targets;
+        const_bindings_ = state.const_bindings;
+        initialized_ = state.initialized;
+        maybe_initialized_ = state.maybe_initialized;
+        class_initialized_paths_ = state.class_initialized_paths;
+        current_receiver_effect_.initializes = state.receiver_initializes;
+        current_receiver_effect_.writes = state.receiver_writes;
+        current_receiver_effect_.invalidates = state.receiver_invalidates;
+        current_reference_effects_ = state.reference_effects;
+    };
+    // The state after a two-way choice from `before`, as check_if_stmt
+    // computes it after its two blocks.
+    const auto merge = [&](const BranchFlow& before, const BranchFlow& yes, bool yes_terminates,
+                           const BranchFlow& no, bool no_terminates) {
+        restore(before);
+        for (const auto& [name, base_type] : before.variables) {
+            if (base_type.kind == TypeKind::Tensor) {
+                std::vector<Type> continuing_types;
+                if (!yes_terminates) {
+                    if (const auto it = yes.variables.find(name); it != yes.variables.end()) {
+                        continuing_types.push_back(it->second);
+                    }
+                }
+                if (!no_terminates) {
+                    if (const auto it = no.variables.find(name); it != no.variables.end()) {
+                        continuing_types.push_back(it->second);
+                    }
+                }
+                if (!continuing_types.empty()) {
+                    variables_[name] = merge_shaped_flow_facts(base_type, continuing_types);
+                }
+            }
+            if ((yes_terminates || yes.initialized.contains(name)) &&
+                (no_terminates || no.initialized.contains(name))) {
+                initialized_.insert(name);
+            } else if (before.reference_paths.contains(name)) {
+                initialized_.erase(name);
+            }
+            if (base_type.kind == TypeKind::Class) {
+                std::unordered_set<std::string> merged;
+                const auto& yp = yes.paths_of(name);
+                const auto& np = no.paths_of(name);
+                const bool yes_unset = !yes.initialized.contains(name) &&
+                                       !yes.maybe_initialized.contains(name);
+                const bool no_unset = !no.initialized.contains(name) &&
+                                      !no.maybe_initialized.contains(name);
+                if (yes_terminates || (yes_unset && !no_terminates && !no_unset)) merged = np;
+                else if (no_terminates || (no_unset && !yes_unset)) merged = yp;
+                else {
+                    for (const auto& path : yp) {
+                        if (np.contains(path)) merged.insert(path);
+                    }
+                }
+                class_initialized_paths_[name] = std::move(merged);
+            }
+        }
+        if (yes_terminates) current_receiver_effect_.initializes = no.receiver_initializes;
+        else if (no_terminates) current_receiver_effect_.initializes = yes.receiver_initializes;
+        else {
+            current_receiver_effect_.initializes.clear();
+            for (const auto& field : yes.receiver_initializes) {
+                if (no.receiver_initializes.contains(field)) {
+                    current_receiver_effect_.initializes.insert(field);
+                }
+            }
+        }
+        current_receiver_effect_.writes = before.receiver_writes;
+        current_receiver_effect_.writes.insert(yes.receiver_writes.begin(), yes.receiver_writes.end());
+        current_receiver_effect_.writes.insert(no.receiver_writes.begin(), no.receiver_writes.end());
+        current_receiver_effect_.invalidates = yes.receiver_invalidates;
+        current_receiver_effect_.invalidates.insert(no.receiver_invalidates.begin(),
+                                                    no.receiver_invalidates.end());
+        current_reference_effects_ =
+            merge_reference_branches(before.reference_effects, yes.reference_effects,
+                                     no.reference_effects, yes_terminates, no_terminates);
+        std::vector<ReferenceTargetState> continuing_targets;
+        if (!yes_terminates) {
+            continuing_targets.push_back({yes.reference_paths, yes.unknown_reference_targets});
+        }
+        if (!no_terminates) {
+            continuing_targets.push_back({no.reference_paths, no.unknown_reference_targets});
+        }
+        auto joined = join_reference_targets(before.reference_roots, before.reference_paths,
+                                             before.unknown_reference_targets, continuing_targets);
+        reference_roots_ = std::move(joined.roots);
+        reference_paths_ = std::move(joined.paths);
+        unknown_reference_targets_ = std::move(joined.unknown);
+        for (const auto& name : joined.ambiguous) {
+            initialized_.erase(name);
+            class_initialized_paths_.erase(name);
+        }
+        std::vector<std::pair<const std::unordered_set<std::string>*,
+                              const std::unordered_set<std::string>*>> continuing;
+        if (!yes_terminates) continuing.emplace_back(&yes.initialized, &yes.maybe_initialized);
+        if (!no_terminates) continuing.emplace_back(&no.initialized, &no.maybe_initialized);
+        join_maybe_initialized(continuing);
+    };
+
+    const auto check_condition = [&](const Expr& condition) {
+        try {
+            (void)check_expr(condition, &bool_type);
+        } catch (const CompileError& failure) {
+            const auto& diagnostic = failure.diagnostic();
+            const auto raw = raw_types_.find(&condition);
+            if (diagnostic.code == "TYPE_MISMATCH" &&
+                diagnostic.span.start.offset == condition.span.start.offset &&
+                diagnostic.span.end.offset == condition.span.end.offset &&
+                raw != raw_types_.end() && raw->second.kind != TypeKind::Bool) {
+                error("TYPE_MISMATCH", "An if-expression condition must be bool.", condition.span);
+            }
+            throw;
+        }
+    };
+
+    std::optional<Type> branch_type;
+    std::vector<const Expr*> literal_branches;
+    std::optional<std::unordered_set<std::string>> class_paths;
+    bool poisoned_branch = false;
+    // Checks one branch on the current path; true when it never continues.
+    const auto check_branch = [&](const Expr& value) -> bool {
+        if (const auto* unary = std::get_if<UnaryExpr>(&value.data); unary && unary->op == "&") {
+            error("IF_EXPRESSION", if_expression_reference_message, value.span);
+        }
+        // Without a contextual type a numeric literal branch takes the type
+        // of the typed branches, so it is checked after them; it has no
+        // effect on the flow. A nested if-expression is always typed here.
+        if (!contextual && !is_if_expression(value) &&
+            numeric_literal_family(value) != NumericLiteralCategory::None) {
+            literal_branches.push_back(&value);
+            return false;
+        }
+        const auto type = contextual ? check_expr(value, expected) : check_expr(value);
+        const bool terminates = expr_has_no_normal_return(value);
+        if (poisoned(type)) {
+            poisoned_branch = true;
+            return terminates;
+        }
+        if (terminates || type.kind == TypeKind::Never) return true;
+        if (!contextual) {
+            if (!branch_type) {
+                branch_type = type;
+            } else if (*branch_type != type) {
+                error("TYPE_MISMATCH",
+                      "The branches of an if-expression have different types: '" +
+                          type_name(*branch_type) + "' and '" + type_name(type) + "'.",
+                      value.span);
+            }
+        }
+        if (type.kind == TypeKind::Class) {
+            const auto paths = initialized_paths_for_expr(value);
+            if (!class_paths) {
+                class_paths = paths;
+            } else {
+                std::unordered_set<std::string> common;
+                for (const auto& path : *class_paths) {
+                    if (paths.contains(path)) common.insert(path);
+                }
+                class_paths = std::move(common);
+            }
+        }
+        return false;
+    };
+
+    // The choices nest to the right: condition i leads to value i or to the
+    // rest of the chain. Each branch is checked on its own path, then the
+    // paths are merged from the last choice back to the first.
+    std::vector<BranchFlow> before_states;
+    std::vector<BranchFlow> yes_states;
+    std::vector<bool> yes_terminates;
+    for (std::size_t index = 0; index < node.conditions.size(); ++index) {
+        check_condition(*node.conditions[index]);
+        before_states.push_back(save());
+        yes_terminates.push_back(check_branch(*node.values[index]));
+        yes_states.push_back(save());
+        restore(before_states.back());
+    }
+    bool rest_terminates = check_branch(*node.otherwise);
+    for (std::size_t index = node.conditions.size(); index-- > 0;) {
+        const auto rest = save();
+        merge(before_states[index], yes_states[index], yes_terminates[index], rest,
+              rest_terminates);
+        rest_terminates = yes_terminates[index] && rest_terminates;
+    }
+
+    if (poisoned_branch) return simple(TypeKind::Invalid);
+    Type type = simple(TypeKind::Never);
+    if (contextual) {
+        type = *expected;
+    } else if (branch_type) {
+        type = *branch_type;
+    } else if (!literal_branches.empty()) {
+        error("AMBIGUOUS_NUMERIC_LITERAL",
+              "An if-expression whose branches are numeric literals needs a type from its context.",
+              expression.span);
+    }
+    for (const auto* value : literal_branches) (void)check_expr(*value, &type);
+    if (type.kind == TypeKind::Void) {
+        error("TYPE_MISMATCH", "An if-expression gives a value; its branches cannot be void.",
+              expression.span);
+    }
+    if (type.kind == TypeKind::Range) {
+        error("RANGE_CONTEXT", "range is only a for iterable.", expression.span);
+    }
+    if (type.kind == TypeKind::Class && class_paths) {
+        class_expr_initialized_paths_[&expression] = std::move(*class_paths);
+    }
+    return type;
+}
+
 Type Checker::check_expr(const Expr& expression, const Type* expected) {
     nesting::DepthGuard guard(
         expr_depth_, nesting::max_expression_depth, expression.span, "Expression");
@@ -4845,17 +6032,42 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         expected = &*contextual_default;
     }
     Type type = simple(TypeKind::Void);
+    // A call is where the bindings its effects initialize become initialized
+    // (L13): its `&` arguments and receiver, and scan targets.
+    struct CallScope {
+        const Expr*& current;
+        const Expr* saved;
+        ~CallScope() { current = saved; }
+    } call_scope{current_call_expression_, current_call_expression_};
+    if (std::holds_alternative<CallExpr>(expression.data) ||
+        std::holds_alternative<MethodCallExpr>(expression.data)) {
+        current_call_expression_ = &expression;
+    }
+    // A writable argument names storage, which `_` never names and an
+    // if-expression, a value, does not give.
+    const auto check_writable_arguments = [&](const std::vector<CallArg>& args) {
+        for (const auto& argument : args) {
+            if (!argument.writable) continue;
+            if (const auto* name = std::get_if<NameExpr>(&argument.value->data);
+                name && is_discard_name(name->name)) {
+                error("DISCARD", discard_read_message, argument.value->span);
+            }
+            if (is_if_expression(*argument.value)) {
+                error("IF_EXPRESSION", if_expression_reference_message, argument.value->span);
+            }
+        }
+    };
 
     if (const auto* node = std::get_if<IntegerExpr>(&expression.data)) {
         const auto context =
-            numeric_literal_context(expected, NumericLiteralFamily::Integer);
+            numeric_literal_context(expected, NumericLiteralCategory::NonNegativeInteger);
         if (context.ambiguous) {
             error("AMBIGUOUS_NUMERIC_LITERAL",
                   "Integer-family literal matches multiple concrete integer types.",
                   expression.span);
         }
         if (context.type) {
-            if (context.type->kind != TypeKind::BigInt &&
+            if (!is_bare_integer(*context.type) &&
                 (!node->fits_u64 || !integer_literal_value_fits(
                     static_cast<unsigned long long>(node->value), *context.type))) {
                 error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "INTEGER_RANGE",
@@ -4866,10 +6078,23 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             type = *context.type;
         } else if (explicit_numeric_literal_context_ && expected &&
                    is_real(*expected)) {
+            const auto spelling =
+                node->spelling.empty() ? std::to_string(node->value) : node->spelling;
+            if (is_fixed_real(*expected) &&
+                !constant_eval::real_literal_value(spelling, *expected)) {
+                error("NUMERIC_CAST",
+                      "Integer-family literal is outside the finite range of " +
+                          type_name(*expected) + ".",
+                      expression.span);
+            }
             type = *expected;
         } else if (context.opposite_family) {
+            const auto spelling =
+                node->spelling.empty() ? std::to_string(node->value) : node->spelling;
+            const auto target = type_name(literal_target(*expected, is_real));
             error("NUMERIC_FAMILY",
-                  "Integer-family literal cannot materialize as a real-family type without an explicit cast.",
+                  "An integer literal cannot materialize as " + target + ": write " + spelling +
+                      ".0 or " + target + "(" + spelling + ").",
                   expression.span);
         } else if (expected) {
             error("TYPE_MISMATCH",
@@ -4880,19 +6105,18 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                   "Integer-family literal requires a unique concrete integer type context.",
                   expression.span);
         }
-    } else if (const auto* node = std::get_if<FloatExpr>(&expression.data)) {
+    } else if (const auto* node = std::get_if<RealLiteralExpr>(&expression.data)) {
         const auto context =
-            numeric_literal_context(expected, NumericLiteralFamily::Real);
+            numeric_literal_context(expected, NumericLiteralCategory::Real);
         if (context.ambiguous) {
             error("AMBIGUOUS_NUMERIC_LITERAL",
                   "Real-family literal matches multiple concrete real types.",
                   expression.span);
         }
         if (context.type) {
-            if (context.type->kind != TypeKind::BigReal &&
-                (!std::isfinite(node->value) ||
-                 !float_value_fits_range(node->value, *context.type))) {
-                error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "FLOAT_RANGE",
+            if (context.type->kind != TypeKind::Real &&
+                !constant_eval::real_literal_value(node->spelling, *context.type)) {
+                error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "REAL_RANGE",
                       "Real-family literal is outside the finite range of " +
                           type_name(*context.type) + ".",
                       expression.span);
@@ -4905,7 +6129,8 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                   expression.span);
         } else if (context.opposite_family) {
             error("NUMERIC_FAMILY",
-                  "Real-family literal cannot materialize as an integer-family type without an explicit conversion.",
+                  "A real literal cannot materialize as " +
+                      type_name(literal_target(*expected, is_integer_family_type)) + ".",
                   expression.span);
         } else if (expected) {
             error("TYPE_MISMATCH",
@@ -4915,6 +6140,21 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             error("AMBIGUOUS_NUMERIC_LITERAL",
                   "Real-family literal requires a unique concrete real type context.",
                   expression.span);
+        }
+    } else if (const auto* node = std::get_if<ImaginaryLiteralExpr>(&expression.data)) {
+        // Imaginary literals materialize only as complex types, which do not
+        // exist yet; the integer form names the real form to write.
+        if (node->integer_form) {
+            error("NUMERIC_FAMILY",
+                  "An imaginary literal requires real form: write " + node->spelling + ".0i.",
+                  expression.span);
+        } else if (expected) {
+            error("NUMERIC_FAMILY",
+                  "An imaginary literal cannot materialize as " + type_name(*expected) + ".",
+                  expression.span);
+        } else {
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "An imaginary literal requires a complex type context.", expression.span);
         }
     } else if (std::holds_alternative<StringExpr>(expression.data)) {
         type = simple(TypeKind::String);
@@ -4968,12 +6208,12 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 std::optional<std::size_t> seed;
                 for (std::size_t i = 0; i < node->elements.size(); ++i) {
                     const auto family = numeric_literal_family(*node->elements[i]);
-                    if (family == NumericLiteralFamily::Mixed) {
+                    if (family == NumericLiteralCategory::Mixed) {
                         error("NUMERIC_FAMILY",
                               "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
                               node->elements[i]->span);
                     }
-                    if (family == NumericLiteralFamily::None) {
+                    if (family == NumericLiteralCategory::None) {
                         seed = i;
                         break;
                     }
@@ -5032,7 +6272,8 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         bool materialized_signed_minimum = false;
         if (node->op == "NOT") {
             const auto family = numeric_literal_family(*node->operand);
-            if (family == NumericLiteralFamily::Real || family == NumericLiteralFamily::Mixed) {
+            if (family == NumericLiteralCategory::Real || family == NumericLiteralCategory::Mixed ||
+                complex_category(family)) {
                 error("TYPE_MISMATCH", "NOT requires a fixed-width integer.", expression.span);
             }
             const auto context = numeric_literal_context(expected, family);
@@ -5049,7 +6290,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             (is_numeric(*expected) || expected->kind == TypeKind::Tensor)) {
             operand_expected = expected;
             if (const auto* literal = std::get_if<IntegerExpr>(&node->operand->data);
-                literal && is_integer(*expected) && is_signed_integer(*expected) &&
+                literal && is_fixed_integer(*expected) && is_signed_integer(*expected) &&
                 !integer_literal_value_fits(
                     static_cast<unsigned long long>(literal->value), *expected) &&
                 negative_integer_literal_value_fits(
@@ -5064,7 +6305,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         } else if (node->op == "-" || node->op == "NOT") {
             const auto family = numeric_literal_family(*node->operand);
-            if (family == NumericLiteralFamily::Mixed) {
+            if (family == NumericLiteralCategory::Mixed) {
                 error("NUMERIC_FAMILY",
                       "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
                       expression.span);
@@ -5089,19 +6330,28 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     error("TYPE_MISMATCH", "not requires bool.", expression.span);
                 }
             } else if (node->op == "NOT") {
-                if (!is_integer(type)) {
+                if (!is_fixed_integer(type)) {
                     error("TYPE_MISMATCH", "NOT requires a fixed-width integer.", expression.span);
                 }
             } else if (type.kind == TypeKind::Tensor) {
                 if (!type.first || !is_numeric(*type.first) ||
-                    (is_integer(*type.first) && !is_signed_integer(*type.first))) {
+                    (is_fixed_integer(*type.first) && !is_signed_integer(*type.first))) {
                     error("TYPE_MISMATCH",
                           "Tensor negation requires a signed numeric tensor.",
                           expression.span);
                 }
             } else if (!is_numeric(type)) {
                 error("TYPE_MISMATCH", "Negation requires a number.", expression.span);
-            } else if (is_integer(type) && !is_signed_integer(type)) {
+            } else if ((type.kind == TypeKind::Nat ||
+                        (is_fixed_integer(type) && !is_signed_integer(type))) &&
+                       integer_category(direct_numeric_literal_family(*node->operand))) {
+                // A negative integer literal (`-0` included) materializes
+                // only as a signed integer type.
+                error("NUMERIC_FAMILY",
+                      "A negative integer literal cannot materialize as " + type_name(type) + ".",
+                      expression.span);
+            } else if ((is_fixed_integer(type) && !is_signed_integer(type)) ||
+                       type.kind == TypeKind::Nat) {
                 error("TYPE_MISMATCH", "Negation requires a signed numeric type.", expression.span);
             }
         }
@@ -5109,10 +6359,17 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     } else if (const auto* node = std::get_if<BinaryExpr>(&expression.data)) {
         const auto left_family = numeric_literal_family(*node->left);
         const auto right_family = numeric_literal_family(*node->right);
-        if (left_family == NumericLiteralFamily::Mixed ||
-            right_family == NumericLiteralFamily::Mixed) {
+        const auto joined_family =
+            numeric_policy::join_numeric_literal_categories(left_family, right_family);
+        if (left_family == NumericLiteralCategory::Mixed ||
+            right_family == NumericLiteralCategory::Mixed) {
             error("NUMERIC_FAMILY",
                   "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
+                  expression.span);
+        } else if ((integer_category(left_family) && complex_category(right_family)) ||
+                   (complex_category(left_family) && integer_category(right_family))) {
+            error("NUMERIC_FAMILY",
+                  "Complex literal parts require real form: write 1.0 + 2.0i.",
                   expression.span);
         }
 
@@ -5127,26 +6384,39 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             return nullptr;
         };
 
-        const bool left_literal =
-            left_family == NumericLiteralFamily::Integer ||
-            left_family == NumericLiteralFamily::Real;
-        const bool right_literal =
-            right_family == NumericLiteralFamily::Integer ||
-            right_family == NumericLiteralFamily::Real;
+        const bool left_literal = single_family_category(left_family);
+        const bool right_literal = single_family_category(right_family);
 
-        if (left_literal && right_literal) {
-            if (left_family != right_family) {
+        if (joined_family == NumericLiteralCategory::Complex &&
+            operator_policy::participates_in_numeric_literal_family(node->op)) {
+            // A real and an imaginary literal joined: a complex literal,
+            // which materializes only as a complex type (none exists yet).
+            if (expected) {
+                error("NUMERIC_FAMILY",
+                      "A complex literal cannot materialize as " + type_name(*expected) + ".",
+                      expression.span);
+            } else {
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "A complex literal requires a complex type context.", expression.span);
+            }
+        } else if (left_literal && right_literal) {
+            if (integer_category(left_family) != integer_category(right_family)) {
                 error("NUMERIC_FAMILY",
                       "Integer- and real-family expressions cannot mix implicitly.",
                       expression.span);
             }
-            const auto context = numeric_literal_context(expected, left_family);
+            const auto context = numeric_literal_context(expected, joined_family);
             if (context.ambiguous) {
                 error("AMBIGUOUS_NUMERIC_LITERAL",
                       "Numeric-family expression matches multiple concrete numeric types.",
                       expression.span);
             }
-            if (!context.type) {
+            if (!context.type && context.natural_target) {
+                error("NUMERIC_FAMILY",
+                      "A negative integer literal cannot materialize as " +
+                          type_name(*context.natural_target) + ".",
+                      expression.span);
+            } else if (!context.type) {
                 if (context.opposite_family) {
                     error("NUMERIC_FAMILY",
                           "Numeric-family expression cannot cross families without an explicit cast.",
@@ -5231,6 +6501,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     if (tensor_result.length < 0) {
                         tensor_result.length = left.length >= 0 ? left.length : right.length;
                     }
+                    apply_broadcast_shape(left, right, tensor_result);
                 } else {
                     const auto& scalar_type = left_tensor ? right : left;
                     if (!is_tensor_numeric(scalar_type) || scalar_type != element) {
@@ -5245,7 +6516,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                           "Tensor operators are +, -, *, /, %, ^, and all-element comparisons.",
                           expression.span);
                 }
-                if (node->op == "%" && !is_integer(element)) {
+                if (node->op == "%" && !is_fixed_integer(element)) {
                     error("TYPE_MISMATCH", "Tensor remainder requires an integer element type.",
                           expression.span);
                 }
@@ -5254,7 +6525,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                         error("TYPE_MISMATCH",
                               "Tensor exponentiation is defined as tensor ^ scalar.",
                               expression.span);
-                    } else if (is_integer(element)) {
+                    } else if (is_fixed_integer(element)) {
                         const auto exponent = constant_eval::integer(
                             *node->right, &const_integer_values_);
                         if (exponent && *exponent < 0) {
@@ -5268,6 +6539,14 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         } else {
             if (left != right) {
+                // A nat operand with another integer kind names the
+                // conversion to write.
+                if (left.kind == TypeKind::Nat)
+                    if (const auto message = nat_mismatch_message(*node->left, left, right))
+                        error("TYPE_MISMATCH", *message, node->left->span);
+                if (right.kind == TypeKind::Nat)
+                    if (const auto message = nat_mismatch_message(*node->right, right, left))
+                        error("TYPE_MISMATCH", *message, node->right->span);
                 error("TYPE_MISMATCH", "Operands must have identical types.", expression.span);
             }
             if (node->op == "and" || node->op == "or") {
@@ -5276,9 +6555,9 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
                 type = left;
             } else if (operator_policy::is_fixed_width_bitwise_binary(node->op)) {
-                if (!is_integer(left)) {
+                if (!is_fixed_integer(left)) {
                     error("TYPE_MISMATCH",
-                          "Bitwise operators require identical fixed-width integer operands.",
+                          "Bitwise operations require nat8..nat64 or int8..int64.",
                           expression.span);
                 }
                 if (operator_policy::is_shift(node->op)) {
@@ -5302,6 +6581,11 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                           "Class equality requires every compared field to be definitely initialized.",
                           expression.span);
                 }
+                if (left.kind == TypeKind::Array) {
+                    // Equality reads every element.
+                    check_element_read(*node->left, nullptr, expression.span);
+                    check_element_read(*node->right, nullptr, expression.span);
+                }
                 type = simple(TypeKind::Bool);
             } else if (node->op == "<" || node->op == "<=" || node->op == ">" || node->op == ">=") {
                 if (!is_numeric(left)) {
@@ -5321,6 +6605,29 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                         error("POWER_DOMAIN",
                               "Integer exponent must be non-negative.",
                               node->right->span);
+                    } else if (exponent && *exponent == 0) {
+                        const auto base = constant_eval::integer(*node->left);
+                        if (base && *base == 0)
+                            error("POWER_DOMAIN", "0 ^ 0 is undefined.", expression.span);
+                    }
+                }
+                if (node->op == "^" && is_real(left)) {
+                    // Literal operands decide the undefined powers at
+                    // compile time: a zero base with a zero or negative
+                    // exponent, and a negative base with an exponent that is
+                    // not an integer.
+                    const auto base = literal_number_value(*node->left);
+                    const auto exponent = literal_number_value(*node->right);
+                    if (base && exponent) {
+                        if (*base == 0.0 && *exponent == 0.0)
+                            error("POWER_DOMAIN", "0 ^ 0 is undefined.", expression.span);
+                        else if (*base == 0.0 && *exponent < 0.0)
+                            error("POWER_DOMAIN", "0 ^ a negative exponent is undefined.",
+                                  expression.span);
+                        else if (*base < 0.0 && std::trunc(*exponent) != *exponent)
+                            error("POWER_DOMAIN",
+                                  "A negative base requires an integer exponent.",
+                                  expression.span);
                     }
                 }
                 if (is_integer_family_type(left) && (node->op == "/" || node->op == "%")) {
@@ -5330,6 +6637,22 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                               node->op == "/" ? "Integer division by zero is known at compile time."
                                               : "Integer remainder by zero is known at compile time.",
                               node->right->span);
+                    }
+                }
+                if (left_literal && right_literal && integer_category(joined_family) &&
+                    (is_fixed_integer(left) || left.kind == TypeKind::Nat)) {
+                    // A compound literal expression computes in the type its
+                    // literals materialize as, with checked arithmetic: an
+                    // operation whose known operands leave that type's range
+                    // is a compile-time error (nat8 x = 3 - 5).
+                    using State = constant_eval::IntegerInType::State;
+                    if (constant_eval::integer_in_type(*node->left, left).state == State::Known &&
+                        constant_eval::integer_in_type(*node->right, left).state == State::Known &&
+                        constant_eval::integer_in_type(expression, left).state == State::OutOfRange) {
+                        error("INTEGER_RANGE",
+                              "This integer literal expression is outside the range of " +
+                                  type_name(left) + ".",
+                              expression.span);
                     }
                 }
                 type = left;
@@ -5364,9 +6687,13 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         }
     } else if (const auto* node = std::get_if<MethodCallExpr>(&expression.data)) {
+        check_writable_arguments(node->args);
         type = check_method_call_expr(expression, *node, expected);
     } else if (const auto* node = std::get_if<CallExpr>(&expression.data)) {
+        check_writable_arguments(node->args);
         type = check_call_expr(expression, *node, expected);
+    } else if (const auto* node = std::get_if<IfExpr>(&expression.data)) {
+        type = check_if_expr(expression, *node, expected);
     }
 
     raw_types_[&expression] = type;
@@ -5394,10 +6721,15 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         }
         if (!assignable(type, *expected)) {
-            error("TYPE_MISMATCH",
-                  "Expected " + type_name(*expected) + " but received " +
-                      type_name(raw_types_.at(&expression)) + ".",
-                  expression.span);
+            if (const auto message =
+                    nat_mismatch_message(expression, raw_types_.at(&expression), *expected)) {
+                error("TYPE_MISMATCH", *message, expression.span);
+            } else {
+                error("TYPE_MISMATCH",
+                      "Expected " + type_name(*expected) + " but received " +
+                          type_name(raw_types_.at(&expression)) + ".",
+                      expression.span);
+            }
         }
         if (expected->kind == TypeKind::Union && type.kind == TypeKind::Class &&
             !fully_initialized_for_equality(expression, type)) {
@@ -5411,9 +6743,11 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     return type;
 }
 void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node) {
-        if (variables_.contains(node.name) || functions_.contains(node.name) ||
-            class_names_.contains(node.name) || enum_types_.contains(node.name) || is_reserved_value_name(node.name) ||
-            member_name_visible(node.name)) {
+        if (is_discard_name(node.name)) error("DISCARD", discard_typed_message, statement.span);
+        if (node.name.starts_with(abi::symbol_namespace::internal_prefix))
+            error("SHADOWING", compiler_name_message(node.name), statement.span);
+        if (variables_.contains(node.name) || declaration_name_visible(node.name) ||
+            is_reserved_value_name(node.name) || member_name_visible(node.name)) {
             error("SHADOWING", "Name is already visible or reserved.", statement.span);
         }
 
@@ -5442,8 +6776,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                                         SourceSpan span) -> long long {
             if (!expression) return -1;
             const auto int_type = simple(TypeKind::Int);
-            const auto extent_type = check_expr(*expression, &int_type);
-            if (!poisoned(extent_type) && !is_integer(extent_type)) {
+            const auto extent_type =
+                numeric_literal_family(*expression) != NumericLiteralCategory::None
+                    ? check_expr(*expression, &int_type) : check_expr(*expression);
+            if (!poisoned(extent_type) && !is_integer_family_type(extent_type)) {
                 error("INVALID_TYPE", "Array/tensor extents require integer expressions.", span);
             }
             if (const auto known =
@@ -5489,6 +6825,9 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
         }
 
         if (node.reference) {
+            if (node.value && is_if_expression(*node.value)) {
+                error("IF_EXPRESSION", if_expression_reference_message, node.value->span);
+            }
             if (!node.value || !node.reference_initializer) {
                 error("REFERENCE_BINDING", "Reference bindings require '= &storage'.", statement.span);
             }
@@ -5511,6 +6850,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                 error("INVALID_TYPE", "Reference binding requires a storable type.", statement.span);
             }
             variables_[node.name] = type;
+            binding_declarations_.erase(node.name);
+            maybe_initialized_.erase(node.name);
+            untracked_initialized_.erase(node.name);
+            declare_array_elements(node.name, type, node);
             if (node.is_const) {
                 if (!storage_initialized(*node.value)) {
                     error("UNINITIALIZED", "Readonly references require initialized storage.", node.value->span);
@@ -5521,7 +6864,7 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                 reference_roots_[node.name] = node.name;
                 reference_paths_[node.name] = {node.name, ""};
                 unknown_reference_targets_.insert(node.name);
-            } else if (const auto* source = std::get_if<NameExpr>(&node.value->data);
+            } else if (const auto* source = binding_name(*node.value);
                        source && variables_.contains(source->name)) {
                 reference_roots_[node.name] = reference_root(source->name);
                 if (const auto existing = reference_paths_.find(source->name); existing != reference_paths_.end()) {
@@ -5616,9 +6959,13 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             error("INVALID_TYPE", "Binding requires a storable type.", statement.span);
         }
         variables_[node.name] = type;
+        binding_declarations_[node.name] = &statement;
+        maybe_initialized_.erase(node.name);
+        untracked_initialized_.erase(node.name);
+        declare_array_elements(node.name, type, node);
         if (node.is_const) {
             const_bindings_.insert(node.name);
-            if (node.value && is_integer(type)) {
+            if (node.value && is_fixed_integer(type)) {
                 if (const auto known =
                         constant_eval::integer(*node.value, &const_integer_values_)) {
                     const_integer_values_[node.name] = *known;
@@ -5632,8 +6979,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             if (!paths.empty()) {
                 class_initialized_paths_[node.name] = paths;
             }
+            note_class_value(node.name, "", type, paths);
         } else if (type.kind == TypeKind::Class &&
-                   class_storage_established_at_declaration(type.class_name)) {
+                   class_storage_established_at_declaration(
+                       type.class_name, standard_library_class(type.class_name))) {
             // `Point point` creates the value with its declared defaults. Each
             // other field stays uninitialized until assigned, and reads are
             // checked per field like any other class value.
@@ -5647,6 +6996,16 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             }
             initialized_.insert(node.name);
             class_initialized_paths_[node.name] = default_initialized_paths(type.class_name);
+            // A fresh value whose field stores are all seen from here (L13).
+            const auto prefix = node.name + ".";
+            for (auto it = maybe_initialized_.begin(); it != maybe_initialized_.end();) {
+                if (it->rfind(prefix, 0) == 0) it = maybe_initialized_.erase(it);
+                else ++it;
+            }
+            for (auto it = untracked_initialized_.begin(); it != untracked_initialized_.end();) {
+                if (it->rfind(prefix, 0) == 0) it = untracked_initialized_.erase(it);
+                else ++it;
+            }
         } else if (type.kind == TypeKind::Array &&
                    (type.length >= 0 ||
                     (type.length == -2 &&
@@ -5661,6 +7020,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
 }
 
 void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
+        if (is_discard_name(node.name)) error("DISCARD", discard_read_message, statement.span);
+        if (is_if_expression(*node.target)) {
+            error("IF_EXPRESSION", if_expression_reference_message, node.target->span);
+        }
         if (const_bindings_.contains(node.name)) {
             error("WRITE_CAPABILITY", "const references cannot be rebound.", statement.span);
         }
@@ -5681,7 +7044,7 @@ void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
             reference_roots_[node.name] = node.name;
             reference_paths_[node.name] = {node.name, ""};
             unknown_reference_targets_.insert(node.name);
-        } else if (const auto* source = std::get_if<NameExpr>(&node.target->data);
+        } else if (const auto* source = binding_name(*node.target);
                    source && variables_.contains(source->name)) {
             reference_roots_[node.name] = reference_root(source->name);
             if (const auto existing = reference_paths_.find(source->name); existing != reference_paths_.end()) {
@@ -5708,15 +7071,18 @@ void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
 }
 
 void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
+        if (const auto* name = std::get_if<NameExpr>(&node.target->data);
+            name && is_discard_name(name->name)) {
+            error("DISCARD", discard_read_message, node.target->span);
+        }
         if (const_access_path(*node.target)) {
             // A constructor assigns each const field of its own class once, by a
             // statement directly in its body, so the value is fixed by the time
             // the constructor completes.
             bool constructor_const_initialization = false;
             if (in_constructor_) {
-                if (const auto* name = std::get_if<NameExpr>(&node.target->data);
-                    name && !variables_.contains(name->name)) {
-                    if (const auto* field = find_field(current_class_, name->name);
+                if (const auto* name = std::get_if<NameExpr>(&node.target->data)) {
+                    if (const auto* field = receiver_field(*node.target);
                         field && field->is_const) {
                         if (constructor_block_depth_ != 1) {
                             error("CONST_INITIALIZATION",
@@ -5760,7 +7126,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                      (is_numeric(read_type) || read_type.kind == TypeKind::String)) ||
                     ((node.compound_op == "-" || node.compound_op == "*" ||
                       node.compound_op == "/") && is_numeric(read_type)) ||
-                    (node.compound_op == "%" && is_integer(read_type));
+                    (node.compound_op == "%" && is_integer_family_type(read_type));
                 if (!valid) {
                     error("TYPE_MISMATCH",
                           "Operator '" + node.compound_op +
@@ -5771,10 +7137,11 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
         }
         Type type;
         if (auto* name = std::get_if<NameExpr>(&node.target->data)) {
-            if (is_builtin_text_constant(name->name)) {
+            if (name->this_qualifier) check_this_field(*node.target, *name);
+            if (!name->this_qualifier && is_builtin_text_constant(name->name)) {
                 error("WRITE_CAPABILITY", "Built-in text constants are immutable.", statement.span);
             }
-            if (variables_.contains(name->name)) {
+            if (!name->this_qualifier && variables_.contains(name->name)) {
                 const auto root = reference_root(name->name);
                 if (narrowed_.contains(root) || borrowed_.contains(root)) {
                     error("WRITE_CAPABILITY",
@@ -5819,16 +7186,24 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     }
                     initialized_.insert(name->name);
                 } else {
+                    element_tracked_arrays_.erase(root);
+                    if (!unknown_reference_targets_.contains(name->name)) {
+                        record_initialization(root);
+                    } else {
+                        // The write may reach any binding (L13).
+                        for (const auto& [binding, _] : binding_declarations_) {
+                            if (!initialized_.contains(binding)) untracked_initialized_.insert(binding);
+                        }
+                    }
                     initialized_.insert(root);
                     initialized_.insert(name->name);
                     if (type.kind == TypeKind::Class) {
                         class_initialized_paths_[root] = initialized_paths_for_expr(*node.value);
                         if (root == name->name) class_initialized_paths_[name->name] = class_initialized_paths_[root];
+                        note_class_value(root, "", type, class_initialized_paths_[root]);
                     }
                 }
-            } else if (!current_class_.empty()) {
-                const auto* field = find_field(current_class_, name->name);
-                if (!field) error("UNKNOWN_NAME", "Undefined assignment target.", statement.span);
+            } else if (const auto* field = receiver_field(*node.target)) {
                 if (field->is_private && current_class_ != field->owner) {
                     error("PRIVATE_MEMBER",
                           "Private field '" + name->name + "' is only accessible inside class '" +
@@ -5840,6 +7215,8 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 expr_types_[node.target.get()] = raw_types_[node.target.get()] = type;
                 check_expr(*node.value, &type);
                 record_current_receiver_assignment(name->name, type, *node.value);
+                note_field_store("$this", name->name);
+                note_class_value("$this", name->name, type, initialized_paths_for_expr(*node.value));
                 current_receiver_effect_.initializes.insert(name->name);
                 const auto prefix = name->name + ".";
                 for (auto it = current_receiver_effect_.initializes.begin();
@@ -5853,6 +7230,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     }
                 }
             } else {
+                reject_bare_field(name->name, node.target->span);
                 error("UNKNOWN_NAME", "Undefined assignment target.", statement.span);
             }
         } else if (std::holds_alternative<IndexExpr>(node.target->data) ||
@@ -5873,13 +7251,14 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                               "bin assignment requires exactly one integer index.",
                               node.target->span);
                     }
-                    auto int_type = simple(TypeKind::Int);
-                    check_expr(*indexed->items.front().index, &int_type);
+                    check_index_operand(*indexed->items.front().index);
                     type = simple(TypeKind::Bin);
                     raw_types_[node.target.get()] = expr_types_[node.target.get()] = type;
                     check_expr(*node.value, &type);
                 } else {
+                    element_store_target_ = node.target.get();
                     type = check_address_target(*node.target, true);
+                    element_store_target_ = nullptr;
                     const auto value_type = check_expr(*node.value, &type);
                     if (!poisoned(value_type) && type.kind == TypeKind::Class &&
                         !fully_initialized_for_equality(*node.value, type)) {
@@ -5887,6 +7266,7 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                               "Class values stored in arrays must have every field definitely initialized.",
                               node.value->span);
                     }
+                    note_element_store(*node.target);
                 }
             } else {
                 type = check_address_target(*node.target, false);
@@ -5897,6 +7277,9 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     current_receiver_effect_.writes.insert(*receiver_path);
                 } else {
                     record_current_receiver_assignment(*receiver_path, type, *node.value);
+                    note_field_store("$this", *receiver_path);
+                    note_class_value("$this", *receiver_path, type,
+                                     initialized_paths_for_expr(*node.value));
                 }
             } else if (const auto reference_path =
                            current_reference_parameter_path(*node.target)) {
@@ -5920,11 +7303,23 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                     auto& initialized_paths = class_initialized_paths_[path->first];
                     clear_descendants(initialized_paths, path->second);
                     mark_member_initialized(*node.target);
+                    std::unordered_set<std::string> nested_paths;
                     if (type.kind == TypeKind::Class) {
-                        for (const auto& nested : initialized_paths_for_expr(*node.value)) {
+                        nested_paths = initialized_paths_for_expr(*node.value);
+                        for (const auto& nested : nested_paths) {
                             initialized_paths.insert(path->second + "." + nested);
                         }
                     }
+                    // A store into a field of a value sets its bit (L13); one
+                    // through a reference to a field does not.
+                    const auto* target_root = place_root(*node.target);
+                    if (target_root && reference_paths_.contains(target_root->name) &&
+                        !reference_paths_.at(target_root->name).second.empty()) {
+                        note_untracked_field_write(path->first, path->second);
+                    } else {
+                        note_field_store(path->first, path->second);
+                    }
+                    note_class_value(path->first, path->second, type, nested_paths);
                 } else {
                     mark_member_initialized(*node.target);
                 }
@@ -6019,6 +7414,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         auto unknown_references = unknown_reference_targets_;
         auto const_bindings = const_bindings_;
         auto before = initialized_;
+        auto before_maybe = maybe_initialized_;
         auto before_paths = class_initialized_paths_;
         auto before_method = current_receiver_effect_.initializes;
         auto before_method_written = current_receiver_effect_.writes;
@@ -6028,6 +7424,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         check_block(node.then_body);
         auto yes_variables = variables_;
         auto yes = initialized_;
+        auto yes_maybe = maybe_initialized_;
         auto yes_paths = class_initialized_paths_;
         auto yes_method = current_receiver_effect_.initializes;
         auto yes_method_written = current_receiver_effect_.writes;
@@ -6042,6 +7439,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         unknown_reference_targets_ = unknown_references;
         const_bindings_ = const_bindings;
         initialized_ = before;
+        maybe_initialized_ = before_maybe;
         class_initialized_paths_ = before_paths;
         current_receiver_effect_.initializes = before_method;
         current_receiver_effect_.writes = before_method_written;
@@ -6050,6 +7448,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         check_block(node.else_body);
         auto no_variables = variables_;
         auto no = initialized_;
+        auto no_maybe = maybe_initialized_;
         auto no_paths = class_initialized_paths_;
         auto no_method = current_receiver_effect_.initializes;
         auto no_method_written = current_receiver_effect_.writes;
@@ -6098,8 +7497,13 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
                 std::unordered_set<std::string> merged;
                 const auto& yp = yes_paths[name];
                 const auto& np = no_paths[name];
-                if (yes_terminates) merged = np;
-                else if (no_terminates) merged = yp;
+                // A branch that leaves the binding uninitialized does not
+                // constrain its fields: a read after the join checks the
+                // binding first (L13).
+                const bool yes_unset = !yes.contains(name) && !yes_maybe.contains(name);
+                const bool no_unset = !no.contains(name) && !no_maybe.contains(name);
+                if (yes_terminates || (yes_unset && !no_terminates && !no_unset)) merged = np;
+                else if (no_terminates || (no_unset && !yes_unset)) merged = yp;
                 else {
                     for (const auto& p : yp) {
                         if (np.contains(p)) merged.insert(p);
@@ -6143,6 +7547,12 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
             initialized_.erase(name);
             class_initialized_paths_.erase(name);
         }
+        maybe_initialized_ = before_maybe;
+        std::vector<std::pair<const std::unordered_set<std::string>*,
+                              const std::unordered_set<std::string>*>> continuing;
+        if (!yes_terminates) continuing.emplace_back(&yes, &yes_maybe);
+        if (!no_terminates) continuing.emplace_back(&no, &no_maybe);
+        join_maybe_initialized(continuing);
         return;
 }
 
@@ -6164,13 +7574,20 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         collect_assigned_bindings(node.body, loop_assigned);
         weaken_loop_tensor_facts(variables_, loop_assigned);
         variables = variables_;
+        // The body may run after itself: what it may initialize may be
+        // initialized at its start (L13).
+        note_loop_initializations(node.body);
+        const auto first_check = initialization_check_order_.size();
         {
             ScopedCounter loop(loop_depth_);
             check_block(node.body);
         }
+        reject_untracked_loop_checks(first_check);
         auto body_variables = variables_;
         auto body_written = current_receiver_effect_.writes;
         auto body_invalidated = current_receiver_effect_.invalidates;
+        auto body_initialized = initialized_;
+        auto body_maybe = maybe_initialized_;
         variables_ = variables;
         reference_roots_ = references;
         reference_paths_ = reference_paths;
@@ -6178,6 +7595,8 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         const_bindings_ = const_bindings;
         initialized_ = initialized;
         class_initialized_paths_ = paths;
+        // The loop may run zero times.
+        join_maybe_initialized({{&body_initialized, &body_maybe}});
         for (const auto& [name, base_type] : variables) {
             if (base_type.kind != TypeKind::Tensor) continue;
             const auto it = body_variables.find(name);
@@ -6210,9 +7629,11 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         if (type.kind != TypeKind::Array && type.kind != TypeKind::Bin && type.kind != TypeKind::Range) {
             error("TYPE_MISMATCH", "for requires an array, bin, or range.", statement.span);
         }
-        if (variables_.contains(node.name) || functions_.contains(node.name) ||
-            class_names_.contains(node.name) || enum_types_.contains(node.name) || is_reserved_value_name(node.name) ||
-            member_name_visible(node.name)) {
+        if (is_discard_name(node.name)) error("DISCARD", discard_declaration_message, statement.span);
+        if (node.name.starts_with(abi::symbol_namespace::internal_prefix))
+            error("SHADOWING", compiler_name_message(node.name), statement.span);
+        if (variables_.contains(node.name) || declaration_name_visible(node.name) ||
+            is_reserved_value_name(node.name) || member_name_visible(node.name)) {
             error("SHADOWING", "Iteration name is already visible or reserved.", statement.span);
         }
 
@@ -6234,7 +7655,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         variables = variables_;
 
         if (node.writable) {
-            auto* name = std::get_if<NameExpr>(&node.iterable->data);
+            const auto* name = binding_name(*node.iterable);
             if ((type.kind != TypeKind::Array && type.kind != TypeKind::Bin) ||
                 !name || !variables_.contains(name->name)) {
                 error("WRITE_CAPABILITY", "Writable iteration requires an array or bin binding.", statement.span);
@@ -6257,13 +7678,20 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         if (item_type.kind == TypeKind::Class) {
             class_initialized_paths_[node.name] = complete_class_paths(item_type);
         }
+        // The body may run after itself: what it may initialize may be
+        // initialized at its start (L13).
+        note_loop_initializations(node.body);
+        const auto first_check = initialization_check_order_.size();
         {
             ScopedCounter loop(loop_depth_);
             check_block(node.body);
         }
+        reject_untracked_loop_checks(first_check);
         auto body_variables = variables_;
         auto body_written = current_receiver_effect_.writes;
         auto body_invalidated = current_receiver_effect_.invalidates;
+        auto body_initialized = initialized_;
+        auto body_maybe = maybe_initialized_;
         variables_ = variables;
         reference_roots_ = references;
         reference_paths_ = reference_paths;
@@ -6271,6 +7699,16 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         const_bindings_ = const_bindings;
         initialized_ = initialized;
         class_initialized_paths_ = class_paths;
+        // A loop that runs at least once and is left only at the end of its
+        // body (no break or continue of its own) ends in the state its body
+        // ends in; any other loop may run zero times (L13).
+        if (loop_runs_at_least_once(node, type, &const_integer_values_) &&
+            !block_leaves_loop(node.body)) {
+            for (const auto& name : body_initialized) {
+                if (variables.contains(name)) initialized_.insert(name);
+            }
+        }
+        join_maybe_initialized({{&body_initialized, &body_maybe}});
         for (const auto& [name, base_type] : variables) {
             if (base_type.kind != TypeKind::Tensor) continue;
             const auto it = body_variables.find(name);
@@ -6313,6 +7751,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     auto unknown_references = unknown_reference_targets_;
     auto const_bindings = const_bindings_;
     auto initialized = initialized_;
+    auto maybe_before = maybe_initialized_;
     auto class_paths = class_initialized_paths_;
     auto receiver_before = current_receiver_effect_;
     auto reference_before = current_reference_effects_;
@@ -6320,6 +7759,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     std::unordered_set<int> seen;
     std::vector<std::unordered_map<std::string, Type>> continuing_variables;
     std::vector<std::unordered_set<std::string>> continuing_initialized;
+    std::vector<std::unordered_set<std::string>> continuing_maybe;
     std::vector<std::unordered_map<std::string, std::unordered_set<std::string>>>
         continuing_class_paths;
     std::vector<std::unordered_set<std::string>> continuing_receiver_initialized;
@@ -6390,6 +7830,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         unknown_reference_targets_ = unknown_references;
         const_bindings_ = const_bindings;
         initialized_ = initialized;
+        maybe_initialized_ = maybe_before;
         class_initialized_paths_ = class_paths;
         current_receiver_effect_ = receiver_before;
         current_reference_effects_ = reference_before;
@@ -6400,7 +7841,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
             matched_paths = complete_class_paths(case_type);
         }
         if (!named_enum) {
-            if (auto* name = std::get_if<NameExpr>(&node.value->data)) {
+            if (const auto* name = binding_name(*node.value)) {
                 variables_[name->name] = case_type;
                 narrowed_.insert(reference_root(name->name));
                 if (case_type.kind == TypeKind::Class)
@@ -6409,8 +7850,12 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         }
 
         if (match_case.binder) {
-            if (variables_.contains(*match_case.binder) || functions_.contains(*match_case.binder) ||
-                class_names_.contains(*match_case.binder) || enum_types_.contains(*match_case.binder) ||
+            if (is_discard_name(*match_case.binder))
+                error("DISCARD", discard_declaration_message, match_case.span);
+            if (match_case.binder->starts_with(abi::symbol_namespace::internal_prefix))
+                error("SHADOWING", compiler_name_message(*match_case.binder), match_case.span);
+            if (variables_.contains(*match_case.binder) ||
+                declaration_name_visible(*match_case.binder) ||
                 is_reserved_value_name(*match_case.binder) ||
                 member_name_visible(*match_case.binder)) {
                 error("SHADOWING", "Case binder is already visible or reserved.", match_case.span);
@@ -6437,6 +7882,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         if (!block_always_terminates(match_case.body)) {
             continuing_variables.push_back(variables_);
             continuing_initialized.push_back(initialized_);
+            continuing_maybe.push_back(maybe_initialized_);
             continuing_class_paths.push_back(class_initialized_paths_);
             continuing_receiver_initialized.push_back(current_receiver_effect_.initializes);
             continuing_reference_effects.push_back(current_reference_effects_);
@@ -6458,6 +7904,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     unknown_reference_targets_ = unknown_references;
     const_bindings_ = const_bindings;
     initialized_ = initialized;
+    maybe_initialized_ = maybe_before;
     class_initialized_paths_ = class_paths;
     narrowed_ = narrowed;
 
@@ -6483,10 +7930,21 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
                 initialized_.erase(name);
             }
             if (variable_type.kind == TypeKind::Class) {
+                // Cases that leave the binding uninitialized do not constrain
+                // its fields, unless every case does (L13).
+                std::vector<std::size_t> setting;
+                for (std::size_t i = 0; i < continuing_class_paths.size(); ++i) {
+                    if (continuing_initialized[i].contains(name) || continuing_maybe[i].contains(name))
+                        setting.push_back(i);
+                }
+                if (setting.empty()) {
+                    for (std::size_t i = 0; i < continuing_class_paths.size(); ++i) setting.push_back(i);
+                }
                 std::unordered_set<std::string> merged;
-                const auto first = continuing_class_paths.front().find(name);
-                if (first != continuing_class_paths.front().end()) merged = first->second;
-                for (std::size_t i = 1; i < continuing_class_paths.size(); ++i) {
+                const auto first = continuing_class_paths[setting.front()].find(name);
+                if (first != continuing_class_paths[setting.front()].end()) merged = first->second;
+                for (std::size_t k = 1; k < setting.size(); ++k) {
+                    const auto i = setting[k];
                     const auto current = continuing_class_paths[i].find(name);
                     for (auto it = merged.begin(); it != merged.end();) {
                         if (current == continuing_class_paths[i].end() ||
@@ -6560,9 +8018,30 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         initialized_.erase(name);
         class_initialized_paths_.erase(name);
     }
+    std::vector<std::pair<const std::unordered_set<std::string>*,
+                          const std::unordered_set<std::string>*>> continuing;
+    for (std::size_t i = 0; i < continuing_initialized.size(); ++i)
+        continuing.emplace_back(&continuing_initialized[i], &continuing_maybe[i]);
+    join_maybe_initialized(continuing);
 }
 
 void Checker::check_stmt(const Stmt& statement) {
+    // The simple statement after which the bindings it initializes are
+    // initialized (L13); none while a compound statement's own expressions
+    // are checked, whose calls are those places.
+    struct StatementScope {
+        const Stmt*& current;
+        const Stmt* saved;
+        ~StatementScope() { current = saved; }
+    } statement_scope{current_simple_statement_, current_simple_statement_};
+    current_simple_statement_ =
+        std::holds_alternative<BindingStmt>(statement.data) ||
+                std::holds_alternative<RebindStmt>(statement.data) ||
+                std::holds_alternative<AssignStmt>(statement.data) ||
+                std::holds_alternative<ReturnStmt>(statement.data) ||
+                std::holds_alternative<ExprStmt>(statement.data)
+            ? &statement
+            : nullptr;
     if (const auto* node = std::get_if<BindingStmt>(&statement.data)) {
         check_binding_stmt(statement, *node);
         return;
@@ -6604,8 +8083,19 @@ void Checker::check_stmt(const Stmt& statement) {
         const auto reference_effects_before = current_reference_effects_;
         const auto narrowed_before = narrowed_;
         const auto borrowed_before = borrowed_;
-
-        check_block(node->body);
+        {
+            // An imported module's guard is merged into the root statements,
+            // but its names are checked against that module, as when the
+            // module is the root. Restored on unwinding too: an over-deep
+            // body is recovered by the enclosing block's handler.
+            struct ModuleNamespaceScope {
+                std::string& current;
+                std::string saved;
+                ~ModuleNamespaceScope() { current = std::move(saved); }
+            } module_scope{current_module_namespace_, current_module_namespace_};
+            current_module_namespace_ = node->module_namespace;
+            check_block(node->body);
+        }
 
         if (!node->active) {
             variables_ = variables_before;
@@ -6814,6 +8304,50 @@ bool Checker::block_contains_return(const std::vector<StmtPtr>& body) const {
     return false;
 }
 
+// The root of a library build is checked like an imported module: it holds
+// declarations, immutable const bindings and `if main` guards (which never
+// run: a library has no entry point), no other top-level statement and no
+// cli declaration (LIBRARY_TOP_LEVEL), and it exports at least one function
+// to its C host (FFI_EXPORT).
+void Checker::check_library_root(const Program& program) {
+    try {
+        for (const auto& class_decl : program.classes) {
+            if (class_decl.name.rfind("$cli.", 0) == 0)
+                error("LIBRARY_TOP_LEVEL", "A library build cannot declare cli.", class_decl.span);
+        }
+    } catch (const CompileError& compile_error) {
+        record(compile_error);
+    }
+    for (const auto& statement : program.statements) {
+        if (std::holds_alternative<MainGuardStmt>(statement->data)) continue;
+        if (const auto* binding = std::get_if<BindingStmt>(&statement->data);
+            binding && binding->is_const && !binding->reference && binding->value)
+            continue;
+        // A cli declaration's synthesized statements are reported with it.
+        if (const auto* binding = std::get_if<BindingStmt>(&statement->data);
+            binding && binding->declared_type.name.rfind("$cli.", 0) == 0)
+            continue;
+        if (statement->span.start.offset == std::numeric_limits<std::size_t>::max()) continue;
+        try {
+            error("LIBRARY_TOP_LEVEL",
+                  "A library build cannot contain executable top-level statements; move them into a function or an if main guard.",
+                  statement->span);
+        } catch (const CompileError& compile_error) {
+            record(compile_error);
+        }
+    }
+    const bool exports = std::any_of(program.functions.begin(), program.functions.end(),
+                                     [](const FunctionDecl& f) { return f.foreign_export.has_value(); });
+    if (!exports) {
+        try {
+            error("FFI_EXPORT", "A library build must export at least one function with export \"C\".",
+                  SourceSpan{});
+        } catch (const CompileError& compile_error) {
+            record(compile_error);
+        }
+    }
+}
+
 CheckedProgram Checker::check(ConcreteProgram concrete) {
     Program program = std::move(concrete.program);
     auto compiler_extensions = std::move(concrete.compiler_extensions);
@@ -6836,6 +8370,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         }
     }
     functions_.clear();
+    root_functions_.clear();
     classes_.clear();
     class_names_.clear();
     enum_types_.clear();
@@ -6942,17 +8477,15 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
 
         ClassTypeInfo info;
         info.name = declaration.name;
+        info.standard_library = declaration.standard_library;
 
             std::unordered_set<std::string> own_fields;
-            const bool standard_generated =
-                declaration.name.rfind("$std.", 0) == 0 ||
-                declaration.name.rfind("__quidra_gc__std_", 0) == 0;
             const bool namespace_scoped =
-                standard_generated ||
+                declaration.standard_library ||
                 declaration.name.find('.') != std::string::npos;
             for (auto& field : declaration.fields) {
                 if ((!namespace_scoped && is_reserved_value_name(field.name)) ||
-                    class_names_.contains(field.name) || enum_types_.contains(field.name)) {
+                    type_name_declared_in(field.name, declaration.module_namespace)) {
                     error("SHADOWING", "Class field name is reserved or conflicts with a class name.", field.span);
                 }
                 if (!own_fields.insert(field.name).second) {
@@ -6972,7 +8505,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             for (auto& method : declaration.methods) {
                 if (!method.is_constructor) {
                     if ((!namespace_scoped && is_reserved_value_name(method.name)) ||
-                        class_names_.contains(method.name) || enum_types_.contains(method.name) || method.name == "main") {
+                        type_name_declared_in(method.name, declaration.module_namespace) || method.name == "main") {
                         error("DUPLICATE_NAME", "Method name is reserved or conflicts with a class/entry point.", method.span);
                     }
                     if (!own_methods.insert(method.name).second) {
@@ -6992,10 +8525,10 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 std::unordered_set<std::string> parameter_names;
                 bool defaults = false;
                 for (auto& parameter : method.parameters) {
-                    if (is_reserved_value_name(parameter.name) || class_names_.contains(parameter.name) || enum_types_.contains(parameter.name) ||
-                        std::any_of(info.fields.begin(), info.fields.end(), [&](const auto& field) { return field.name == parameter.name; }) ||
+                    if (is_reserved_value_name(parameter.name) ||
+                        type_name_declared_in(parameter.name, declaration.module_namespace) ||
                         info.methods.contains(parameter.name) || parameter.name == method.name) {
-                        error("SHADOWING", "Method parameter shadows a class member or reserved name.", parameter.span);
+                        error("SHADOWING", "Method parameter shadows a class method or reserved name.", parameter.span);
                     }
                     if (!parameter_names.insert(parameter.name).second) {
                         error("DUPLICATE_NAME", "Duplicate parameter.", parameter.span);
@@ -7020,15 +8553,16 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                     // The receiver of a constructor is a local of its body, so
                     // the signature carries only the written parameters.
                     const auto internal_name =
-                        "$construct." + declaration.name + "." + std::to_string(info.constructors.size());
+                        member_function_name::constructor(declaration.name, info.constructors.size());
                     functions_[internal_name] = std::move(public_signature);
                     info.constructors.push_back(internal_name);
+                    info.constructor_instances[method.name] = internal_name;
                     if (method.is_private) info.private_constructors.insert(internal_name);
                     method_internal_names_[&method] = internal_name;
                     continue;
                 }
 
-                const auto internal_name = "$method." + declaration.name + "." + method.name;
+                const auto internal_name = member_function_name::method(declaration.name, method.name);
                 FunctionType internal_signature;
                 internal_signature.result = public_signature.result;
                 internal_signature.parameters.push_back(
@@ -7072,6 +8606,12 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         }
         return std::to_string(static_cast<int>(type.kind));
     };
+    // The C symbols that extern declarations bind; an exported function may
+    // not define one of them (FFI_SYMBOL_CONFLICT).
+    std::unordered_set<std::string> extern_c_symbols;
+    for (const auto& function : program.functions)
+        if (function.external_symbol) extern_c_symbols.insert(*function.external_symbol);
+    std::unordered_set<std::string> exported_c_symbols;
     for (auto& function : program.functions) {
         try {
             if (!function.type_parameters.empty()) {
@@ -7084,22 +8624,23 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 enum_types_.contains(function.name) || is_reserved_value_name(function.name)) {
                 error("DUPLICATE_NAME", "Reserved or duplicate function name.", function.span);
             }
+            if (function.module_namespace.empty()) root_functions_.insert(function.name);
 
             FunctionType signature;
             signature.result = resolve_type(function.return_type);
             signature.external = function.external_symbol.has_value();
             const auto ffi_scalar=[](const Type& type) {
                 switch(type.kind) {
-                    case TypeKind::Int:
+                    case TypeKind::Int64:
                     case TypeKind::Int8:
                     case TypeKind::Int16:
                     case TypeKind::Int32:
-                    case TypeKind::UInt8:
-                    case TypeKind::UInt16:
-                    case TypeKind::UInt32:
-                    case TypeKind::UInt64:
-                    case TypeKind::Float:
-                    case TypeKind::Float32:
+                    case TypeKind::Nat8:
+                    case TypeKind::Nat16:
+                    case TypeKind::Nat32:
+                    case TypeKind::Nat64:
+                    case TypeKind::Real64:
+                    case TypeKind::Real32:
                     case TypeKind::Bool:
                         return true;
                     default:
@@ -7108,12 +8649,12 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             };
             const auto ffi_callback_scalar=[](const Type& type) {
                 switch(type.kind) {
-                    case TypeKind::Int:
+                    case TypeKind::Int64:
                     case TypeKind::Int32:
-                    case TypeKind::UInt32:
-                    case TypeKind::UInt64:
-                    case TypeKind::Float:
-                    case TypeKind::Float32:
+                    case TypeKind::Nat32:
+                    case TypeKind::Nat64:
+                    case TypeKind::Real64:
+                    case TypeKind::Real32:
                         return true;
                     default:
                         return false;
@@ -7141,6 +8682,65 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 if(signature.result.kind!=TypeKind::Void&&!ffi_scalar(signature.result))
                     error("FFI_TYPE","External C result must be void or an explicit numeric/bool scalar type.",function.span);
             }
+            if (function.foreign_export) {
+                if (artifact_ == CompileArtifact::Interactive) {
+                    error("FFI_EXPORT", "export \"C\" is not available in an interactive session.",
+                          function.foreign_export->span);
+                }
+                const auto& result = function.return_type;
+                if (result.name == "int" && result.arguments.empty() && result.array_depth == 0) {
+                    error("FFI_TYPE",
+                          "Exported C result has type int, which has no fixed C representation; write int64.",
+                          result.span);
+                }
+                if (!(result.name == "void" && result.arguments.empty() && result.array_depth == 0) &&
+                    !foreign_export_scalar(result)) {
+                    error("FFI_TYPE",
+                          "Exported C result must be void or a fixed-width scalar with a defined C mapping: int8..int64, nat8..nat64, real32, real64.",
+                          result.span);
+                }
+                for (const auto& parameter : function.parameters) {
+                    if (parameter.default_value) {
+                        error("FFI_DEFAULT", "Exported C parameters cannot have default arguments.",
+                              parameter.span);
+                    }
+                    if (parameter.writable) {
+                        error("FFI_REFERENCE",
+                              "Exported C parameters are passed by value; reference parameters are not part of the C ABI subset.",
+                              parameter.span);
+                    }
+                    if (!foreign_export_scalar(parameter.type)) {
+                        error("FFI_TYPE",
+                              "Exported C parameter '" + parameter.name + "' " +
+                                  foreign_export_type_problem(parameter.type),
+                              parameter.span);
+                    }
+                }
+                const auto& symbol = function.foreign_export->symbol;
+                if (c_keyword(symbol)) {
+                    error("FFI_SYMBOL", "Exported C symbol '" + symbol + "' is a C keyword.",
+                          function.span);
+                }
+                if (reserved_c_identifier(symbol)) {
+                    error("FFI_SYMBOL",
+                          "Exported C symbol '" + symbol + "' is a reserved C identifier.",
+                          function.span);
+                }
+                if (runtime_reserved_c_symbol(symbol)) {
+                    error("FFI_SYMBOL_CONFLICT",
+                          "C symbol '" + symbol + "' is reserved by the compiler/runtime implementation.",
+                          function.span);
+                }
+                if (!exported_c_symbols.insert(symbol).second) {
+                    error("FFI_SYMBOL_CONFLICT", "C symbol '" + symbol + "' is exported more than once.",
+                          function.span);
+                }
+                if (extern_c_symbols.contains(symbol)) {
+                    error("FFI_SYMBOL_CONFLICT",
+                          "C symbol '" + symbol + "' is both exported and bound by an extern declaration.",
+                          function.span);
+                }
+            }
             if (signature.result.kind == TypeKind::None) {
                 error("INVALID_TYPE", "none is only a union case.", function.span);
             }
@@ -7148,7 +8748,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             std::unordered_set<std::string> names;
             bool defaults = false;
             for (auto& parameter : function.parameters) {
-                if (is_reserved_value_name(parameter.name) || class_names_.contains(parameter.name) || enum_types_.contains(parameter.name)) {
+                if (is_reserved_value_name(parameter.name) ||
+                    type_name_declared_in(parameter.name, function.module_namespace)) {
                     error("SHADOWING", "Parameter name is reserved.", parameter.span);
                 }
                 if (!names.insert(parameter.name).second) {
@@ -7168,7 +8769,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                         if(parameter.writable || parameter.is_const)
                             error("FFI_REFERENCE","External C callbacks are explicit by-value function pointers and cannot use const/reference parameter forms.",parameter.span);
                         if(!ffi_callback(type))
-                            error("FFI_CALLBACK_TYPE","External C callbacks require fn signatures containing only int32/uint32/int/uint64/float32/float value parameters and the same scalar set or void as the result.",parameter.span);
+                            error("FFI_CALLBACK_TYPE","External C callbacks require fn signatures containing only int32/nat32/int64/nat64/real32/real64 value parameters and the same scalar set or void as the result.",parameter.span);
                     } else if(type.kind==TypeKind::String) {
                         if(!parameter.writable || !parameter.is_const)
                             error("FFI_REFERENCE","External C string inputs must be explicit call-scoped read-only borrows written as const string &.",parameter.span);
@@ -7378,6 +8979,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
 
                 current_return_ = signature.result;
                 current_class_.clear();
+                current_module_namespace_ = function.module_namespace;
                 in_function_ = true;
                 check_block(function.body);
                 signature.no_normal_return =
@@ -7416,6 +9018,13 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         throw;
     }
     suppress_diagnostics_ = false;
+    // The final pass below records the run-time initialization checks
+    // against the converged summaries.
+    initialization_checks_.clear();
+    initialization_masked_classes_.clear();
+    initialization_check_order_.clear();
+    statement_initializes_.clear();
+    expression_initializes_.clear();
 
     if (!summaries_converged) {
         try {
@@ -7455,6 +9064,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         }
         current_return_ = signature.result;
         current_class_.clear();
+        current_module_namespace_ = function.module_namespace;
         in_function_ = true;
         try {
             for (const auto& parameter : function.parameters) {
@@ -7485,11 +9095,14 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             auto* signature = begin_member_body(class_decl, method);
             if (!signature) continue;
             try {
+                this_unavailable_ = method.is_constructor;
                 for (const auto& parameter : method.parameters) {
                     check_type_extent_expressions(parameter.type);
                 }
+                this_unavailable_ = false;
                 check_type_extent_expressions(method.return_type);
             } catch (const CompileError& compile_error) {
+                this_unavailable_ = false;
                 record(compile_error);
             }
             check_block(method.body);
@@ -7517,19 +9130,31 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
 
     current_return_ = simple(TypeKind::Void);
     current_class_.clear();
+    current_module_namespace_.clear();
     in_function_ = false;
+    if (artifact_ == CompileArtifact::Library) check_library_root(program);
     check_block(program.statements);
 
     if (!diagnostics_.empty()) {
         throw CompileErrors(std::move(diagnostics_));
     }
 
-    return CheckedProgram{std::move(program), std::move(compiler_extensions),
-                          functions_, classes_, expr_types_, raw_types_,
-                          field_accesses_, tensor_grad_accesses_, method_calls_, call_resolutions_, function_references_,
-                          binding_types_, case_types_, case_tags_, enum_constructions_,
-                          bounds_proven_, fail_fast_expressions_,
-                          class_expr_initialized_paths_, scan_formats_};
+    CheckedProgram checked{std::move(program), std::move(compiler_extensions),
+                           functions_, classes_, expr_types_, raw_types_,
+                           field_accesses_, tensor_grad_accesses_, method_calls_, call_resolutions_, function_references_,
+                           binding_types_, case_types_, case_tags_, enum_constructions_,
+                           bounds_proven_, fail_fast_expressions_,
+                           class_expr_initialized_paths_, scan_formats_, nullptr,
+                           {}, {}, {}, {}, {}};
+    for (const auto& [read, check] : initialization_checks_) {
+        if (check.binding) checked.initialization_flags.insert(check.binding);
+    }
+    checked.initialization_masked_classes = std::move(initialization_masked_classes_);
+    checked.initialization_checks = std::move(initialization_checks_);
+    checked.statement_initializes = std::move(statement_initializes_);
+    checked.expression_initializes = std::move(expression_initializes_);
+    checked.effects = std::make_shared<const semantics::EffectSummaries>(semantics::summarize_effects(checked));
+    return checked;
 }
 
 } // namespace quidra

@@ -1,0 +1,10 @@
+// A plain assignment validates its target after the right-hand side, so a
+// target index out of bounds fails after the right-hand side ran.
+int noisy()
+    print("noisy")
+    print(NL)
+    return 1
+
+int[] a = [0, 0, 0]
+int k = 5
+a[k] = noisy()

@@ -1,0 +1,9 @@
+// A reference loop over a reference local to an element of an array, while
+// the body replaces that element: FOR_ITERATION at the assignment.
+int[][] matrix = [[1, 2, 3], [4, 5]]
+int[] &row = &matrix[0]
+print("before" + NL)
+for &x in row
+    x = x + 10
+    matrix[0] = [9]
+print("after" + NL)

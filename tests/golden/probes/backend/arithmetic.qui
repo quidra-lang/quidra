@@ -1,0 +1,64 @@
+// Arithmetic in the shapes the other inputs miss: checked negation of a
+// fixed-width integer, exact negation and powers, every exact binary
+// operator and comparison, unsigned division, remainder and ordering,
+// integer powers of either signedness, IEEE powers, bool inequality and an
+// exact constant materialized as float32.
+import math
+
+int32 negated(int32 value)
+    return -value
+
+real real_negated(real value)
+    return -value
+
+int big_power(int base, int exponent)
+    return base ^ exponent
+
+real real_power(real base, real exponent)
+    return base ^ exponent
+
+int big_arithmetic(int left, int right)
+    return (left + right) * (left - right) / right + left % right
+
+real real_arithmetic(real left, real right)
+    return (left + right) * (left - right) / right
+
+bool big_order(int left, int right)
+    return left == right or left != right or left < right or left <= right or left > right or left >= right
+
+bool real_order(real left, real right)
+    return left == right or left != right or left < right or left <= right or left > right or left >= right
+
+nat16 unsigned_power(nat16 base, nat16 exponent)
+    return base ^ exponent
+
+int32 signed_power(int32 base, int32 exponent)
+    return base ^ exponent
+
+nat64 wide_power(nat64 base, nat64 exponent)
+    return base ^ exponent
+
+real32 float32_power(real32 base, real32 exponent)
+    return base ^ exponent
+
+real64 float_power(real64 base, real64 exponent)
+    return base ^ exponent
+
+nat32 unsigned_division(nat32 left, nat32 right)
+    return left / right + left % right
+
+bool unsigned_order(nat64 left, nat64 right)
+    return left < right or left <= right or left > right or left >= right
+
+bool signed_order(int8 left, int8 right)
+    return left < right or left <= right or left > right or left >= right
+
+bool flags_differ(bool left, bool right)
+    return left != right or left == right
+
+real32 pi32()
+    real32 value = math.pi
+    return value
+
+print(negated(int32(4)))
+print(NL)

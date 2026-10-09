@@ -1,0 +1,56 @@
+[extension]
+version = 1
+phase = "tensor-region"
+
+[operation.first]
+function = "first"
+traits = "pure,tensor,differentiable,higher-order"
+
+[operation.second]
+function = "second"
+traits = "pure,tensor,differentiable,higher-order"
+
+[operation.third]
+function = "third"
+traits = "pure,tensor,differentiable,higher-order"
+
+[operation.fused_bc]
+function = "fused_bc"
+traits = "pure,tensor,differentiable,higher-order,fusion-target"
+
+[operation.fused_abc]
+function = "fused_abc"
+traits = "pure,tensor,differentiable,higher-order,fusion-target"
+
+[operation.cpu_target]
+function = "cpu_target"
+traits = "pure,tensor,differentiable,higher-order,backend-target"
+
+[operation.reuse]
+function = "reuse"
+traits = "pure,tensor,differentiable,higher-order,memory-reuse-target"
+
+[fusion.bc]
+operations = "second,third"
+replacement = "fused_bc"
+
+[fusion.abc]
+operations = "first,second,third"
+replacement = "fused_abc"
+
+[backend.third_cpu]
+operation = "third"
+replacement = "cpu_target"
+device = "cpu"
+layout = "contiguous"
+tracked = "false"
+
+[memory.second_reuse]
+operation = "second"
+replacement = "reuse"
+dtype = "real32"
+device = "cpu"
+layout = "contiguous"
+tracked = "false"
+last_use = "true"
+owned = "true"

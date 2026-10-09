@@ -14,21 +14,22 @@ struct BuiltinTypeName {
     std::string_view canonical;
 };
 
+// The spellings of the built-in types and the canonical name each one
+// denotes.
 inline constexpr std::array<BuiltinTypeName, 20> builtin_type_names{{
     {"int", "int"},
+    {"nat", "nat"},
     {"int8", "int8"},
     {"int16", "int16"},
     {"int32", "int32"},
-    {"int64", "int"},
-    {"uint8", "uint8"},
-    {"uint16", "uint16"},
-    {"uint32", "uint32"},
-    {"uint64", "uint64"},
-    {"bigint", "bigint"},
-    {"float", "float"},
-    {"float32", "float32"},
-    {"float64", "float"},
-    {"bigreal", "bigreal"},
+    {"int64", "int64"},
+    {"nat8", "nat8"},
+    {"nat16", "nat16"},
+    {"nat32", "nat32"},
+    {"nat64", "nat64"},
+    {"real32", "real32"},
+    {"real64", "real64"},
+    {"real", "real"},
     {"bool", "bool"},
     {"string", "string"},
     {"bin", "bin"},
@@ -112,7 +113,6 @@ enum class BuiltinCallable {
     JsonText,
     JsonInteger,
     JsonNumber,
-    JsonBigInt,
     JsonBigReal,
     JsonBoolean,
     JsonEncode,
@@ -146,7 +146,7 @@ inline constexpr std::array<BuiltinCallableInfo, 7> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 60> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 59> intrinsic_callables{{
     {"$std.cli.argument", BuiltinCallable::CliArgument},
     {"$std.cli.argument_optional", BuiltinCallable::CliArgumentOptional},
     {"$std.cli.option", BuiltinCallable::CliOption},
@@ -180,7 +180,7 @@ inline constexpr std::array<BuiltinCallableInfo, 60> intrinsic_callables{{
     {"$std.autograd.target", BuiltinCallable::AutogradTarget},
     {"$std.random.generator", BuiltinCallable::RandomGenerator},
     {"$std.random.int", BuiltinCallable::RandomInt},
-    {"$std.random.float", BuiltinCallable::RandomFloat},
+    {"$std.random.real64", BuiltinCallable::RandomFloat},
     {"$std.random.bool", BuiltinCallable::RandomBool},
     {"$std.process.run", BuiltinCallable::ProcessRun},
     {"$std.process.shell", BuiltinCallable::ProcessShell},
@@ -193,8 +193,7 @@ inline constexpr std::array<BuiltinCallableInfo, 60> intrinsic_callables{{
     {"$std.json.text", BuiltinCallable::JsonText},
     {"$std.json.integer", BuiltinCallable::JsonInteger},
     {"$std.json.number", BuiltinCallable::JsonNumber},
-    {"$std.json.bigint", BuiltinCallable::JsonBigInt},
-    {"$std.json.bigreal", BuiltinCallable::JsonBigReal},
+    {"$std.json.real", BuiltinCallable::JsonBigReal},
     {"$std.json.boolean", BuiltinCallable::JsonBoolean},
     {"$std.json.encode", BuiltinCallable::JsonEncode},
     {"$std.json.equal", BuiltinCallable::JsonEqual},
@@ -202,8 +201,8 @@ inline constexpr std::array<BuiltinCallableInfo, 60> intrinsic_callables{{
     {"$std.http.header", BuiltinCallable::HttpHeader},
     {"$std.tensor.zeros", BuiltinCallable::TensorZeros},
     {"$std.tensor.ones", BuiltinCallable::TensorOnes},
-    {"$std.exact.atom", BuiltinCallable::ExactAtom},
-    {"$std.exact.unary", BuiltinCallable::ExactUnary},
+    {"$std.real.atom", BuiltinCallable::ExactAtom},
+    {"$std.real.unary", BuiltinCallable::ExactUnary},
     {"$std.reflect.collect", BuiltinCallable::ReflectCollect},
     {"$std.reflect.paths", BuiltinCallable::ReflectPaths},
     {"$std.reflect.type_name", BuiltinCallable::ReflectTypeName},
@@ -219,9 +218,9 @@ inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_vie
     return std::nullopt;
 }
 
-inline constexpr std::array<std::string_view, 19> standard_modules{{
+inline constexpr std::array<std::string_view, 18> standard_modules{{
     "cli", "file", "environment", "test", "time", "gpu", "task", "atomic", "autograd", "ref", "reflect", "random", "process",
-    "map", "set", "json", "http", "tensor", "exact"
+    "map", "set", "json", "http", "tensor"
 }};
 
 inline constexpr bool is_standard_module(std::string_view name) {
@@ -305,11 +304,6 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         if (member == "ones") return "$std.tensor.ones";
         return std::nullopt;
     }
-    if (module == "exact") {
-        if (member == "atom") return "$std.exact.atom";
-        if (member == "unary") return "$std.exact.unary";
-        return std::nullopt;
-    }
     if (module == "file") {
         if (member == "open") return "$std.file.open";
         if (member == "create") return "$std.file.create";
@@ -326,6 +320,18 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         if (member == "mkdir") return "$std.file.mkdir";
         if (member == "list") return "$std.file.list";
         return std::nullopt;
+    }
+    return std::nullopt;
+}
+
+// The functions a built-in type name provides as a namespace:
+// real.atom(provider, opcode) and real.unary(provider, opcode, value), the
+// exact-real extension intrinsics.
+inline constexpr std::optional<std::string_view> standard_type_function_target(
+    std::string_view type, std::string_view member) {
+    if (type == "real") {
+        if (member == "atom") return "$std.real.atom";
+        if (member == "unary") return "$std.real.unary";
     }
     return std::nullopt;
 }
@@ -384,8 +390,31 @@ inline constexpr std::string_view renamed_text_constant(std::string_view name) {
 // defaults, so fields can be assigned one by one. Standard-library value
 // types that user code cannot construct (file handles, generators, process
 // results and the like) stay uninitialized until the library supplies them.
-inline constexpr bool class_storage_established_at_declaration(std::string_view class_name) {
-    return !class_name.starts_with("$std.");
+// Those are the standard-library classes (`standard_library`, the class's
+// origin) other than the instances of the generic ones: only the ids of the
+// standard classes themselves begin with '$', which no source name can.
+inline constexpr bool class_storage_established_at_declaration(
+    std::string_view class_name, bool standard_library) {
+    return !(standard_library && class_name.starts_with('$'));
+}
+
+// `_` is the discard name: where a construct binds a value it does not use,
+// `_` binds nothing. It therefore never names a declaration and can never be
+// read. The frontend and the checker report both with DISCARD.
+inline constexpr std::string_view discard_name = "_";
+inline constexpr bool is_discard_name(std::string_view name) { return name == discard_name; }
+inline constexpr char discard_declaration_message[] =
+    "'_' is the discard name; it cannot name a variable, parameter, field, function, "
+    "class, enum, module or type.";
+inline constexpr char discard_typed_message[] = "'_' takes no type; its type is inferred.";
+inline constexpr char discard_read_message[] = "'_' discards a value; it cannot be read.";
+
+// Names that start with "__quidra_" (abi::symbol_namespace::internal_prefix)
+// belong to the compiler: it gives them to the instances of generic
+// declarations and to its own helpers. No source declares one (SHADOWING).
+inline std::string compiler_name_message(std::string_view name) {
+    return "'" + std::string(name) +
+           "' starts with '__quidra_', which is reserved for the names the compiler makes.";
 }
 
 inline constexpr bool is_reserved_value_name(std::string_view name) {

@@ -1,0 +1,41 @@
+// Check elision facts on paths the other inputs miss: a bounds guard looked
+// up through nested range loops, a length relation ended by a write to its
+// scalar, a scalar assigned a length, a sorted temporary, and a while body
+// that ends its block.
+int sum_rows(const int[] &values, int count)
+    int total = 0
+    for row in range(count)
+        for column in range(2)
+            total = total + values[row]
+    return total
+
+int[] cells_of(int width)
+    int size = width
+    int[] cells = array(nat(size), fill = 0)
+    size = 4
+    return cells
+
+int last_length(int[] items)
+    int size = 0
+    size = int(len(items))
+    return size
+
+int[3] fixed_numbers()
+    int[3] values = [3, 1, 2]
+    return values
+
+int first_sorted()
+    int[] sorted = fixed_numbers().sorted()
+    return sorted[0]
+
+int first_positive(int[] items)
+    int index = 0
+    while index < int(len(items))
+        if items[index] > 0
+            return items[index]
+        index = index + 1
+        continue
+    return 0
+
+int[] numbers = [4, 5]
+print("{sum_rows(&numbers, 2)} {len(cells_of(3))} {last_length(numbers)} {first_sorted()} {first_positive(numbers)}{NL}")

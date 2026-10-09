@@ -7,7 +7,12 @@
 #include "quidra/parser.hpp"
 #include "quidra/types.hpp"
 #include "quidra/project.hpp"
+#include "jit_protocol.hpp"
 #include "native_build.hpp"
+#include "platform/executable.hpp"
+#include "platform/file_descriptor.hpp"
+#include "platform/process.hpp"
+#include "repl_submission.hpp"
 
 #include <cerrno>
 #include <chrono>
@@ -190,20 +195,20 @@ public:
         }
 
         const std::string header =
-            "RUN " + std::to_string(compilation.llvm.size()) + "\n";
-        if (!write_all(input_fd_, header) ||
-            !write_all(input_fd_, compilation.llvm)) {
+            std::string(jit_protocol::run) + std::to_string(compilation.llvm.size()) + "\n";
+        if (!platform::write_all(input_fd_, header) ||
+            !platform::write_all(input_fd_, compilation.llvm)) {
             return server_terminated_result("persistent JIT request failed");
         }
 
         std::string response;
-        if (!read_line(output_fd_, response))
+        if (!platform::read_line(output_fd_, response, jit_protocol::response_line_limit))
             return server_terminated_result("persistent JIT terminated");
 
-        if (response.rfind("OK ", 0) == 0) {
+        if (response.rfind(jit_protocol::ok, 0) == 0) {
             NativeResult result;
             try {
-                result.status = std::stoi(response.substr(3));
+                result.status = std::stoi(response.substr(jit_protocol::ok.size()));
             } catch (...) {
                 return protocol_failure("invalid persistent JIT status");
             }
@@ -212,10 +217,11 @@ public:
             return result;
         }
 
-        const bool safe_fallback = response.rfind("ERR ", 0) == 0;
-        const bool post_execution = response.rfind("POSTERR ", 0) == 0;
+        const bool safe_fallback = response.rfind(jit_protocol::error, 0) == 0;
+        const bool post_execution = response.rfind(jit_protocol::post_error, 0) == 0;
         if (safe_fallback || post_execution) {
-            const auto prefix = safe_fallback ? 4U : 8U;
+            const auto prefix =
+                safe_fallback ? jit_protocol::error.size() : jit_protocol::post_error.size();
             std::size_t message_size = 0;
             try {
                 message_size =
@@ -224,7 +230,7 @@ public:
                 return protocol_failure("invalid persistent JIT error response");
             }
             std::string message(message_size, '\0');
-            if (!read_exact(output_fd_, message.data(), message.size()))
+            if (!platform::read_exact(output_fd_, message.data(), message.size()))
                 return protocol_failure("truncated persistent JIT error response");
 
             if (safe_fallback) {
@@ -266,51 +272,6 @@ private:
         }
     }
 
-    static bool write_all(int fd, std::string_view data) {
-        std::size_t offset = 0;
-        while (offset < data.size()) {
-            const auto written =
-                ::write(fd, data.data() + offset, data.size() - offset);
-            if (written < 0) {
-                if (errno == EINTR) continue;
-                return false;
-            }
-            if (written == 0) return false;
-            offset += static_cast<std::size_t>(written);
-        }
-        return true;
-    }
-
-    static bool read_exact(int fd, char* data, std::size_t size) {
-        std::size_t offset = 0;
-        while (offset < size) {
-            const auto count = ::read(fd, data + offset, size - offset);
-            if (count < 0) {
-                if (errno == EINTR) continue;
-                return false;
-            }
-            if (count == 0) return false;
-            offset += static_cast<std::size_t>(count);
-        }
-        return true;
-    }
-
-    static bool read_line(int fd, std::string& line) {
-        line.clear();
-        char c = 0;
-        while (true) {
-            const auto count = ::read(fd, &c, 1);
-            if (count < 0) {
-                if (errno == EINTR) continue;
-                return false;
-            }
-            if (count == 0) return false;
-            if (c == '\n') return true;
-            line.push_back(c);
-            if (line.size() > 4096) return false;
-        }
-    }
-
     bool ensure_started() {
         if (pid_ > 0) return true;
 
@@ -323,7 +284,7 @@ private:
             return false;
         }
 
-        const auto executable = native::self_executable();
+        const auto executable = platform::executable_path();
         pid_ = ::fork();
         if (pid_ < 0) {
             ::close(request_pipe[0]);
@@ -359,25 +320,25 @@ private:
         output_fd_ = response_pipe[0];
 
         std::string ready;
-        if (!read_line(output_fd_, ready)) {
+        if (!platform::read_line(output_fd_, ready, jit_protocol::response_line_limit)) {
             fast_path_error_ = "persistent JIT worker exited before READY";
             stop();
             return false;
         }
-        if (ready == "READY") return true;
+        if (ready == jit_protocol::ready) return true;
 
-        if (ready.rfind("STARTERR ", 0) == 0) {
+        if (ready.rfind(jit_protocol::start_error, 0) == 0) {
             std::size_t message_size = 0;
             try {
                 message_size =
-                    static_cast<std::size_t>(std::stoull(ready.substr(9)));
+                    static_cast<std::size_t>(std::stoull(ready.substr(jit_protocol::start_error.size())));
             } catch (...) {
                 fast_path_error_ = "invalid persistent JIT startup response";
                 stop();
                 return false;
             }
             std::string message(message_size, '\0');
-            if (!read_exact(output_fd_, message.data(), message.size())) {
+            if (!platform::read_exact(output_fd_, message.data(), message.size())) {
                 fast_path_error_ = "truncated persistent JIT startup response";
                 stop();
                 return false;
@@ -407,7 +368,7 @@ private:
         if (pid_ > 0) {
             while (::waitpid(pid_, &wait_status, 0) < 0 && errno == EINTR) {}
             pid_ = -1;
-            result.status = native::system_status(wait_status);
+            result.status = platform::system_status(wait_status);
         } else {
             result.status = 1;
         }
@@ -484,54 +445,6 @@ void print_diagnostic(const CompileError& error) {
               << "] " << diagnostic.message << "\n";
 }
 
-std::string trim(std::string_view text) {
-    std::size_t first = 0;
-    while (first < text.size() && (text[first] == ' ' || text[first] == '\t')) ++first;
-    std::size_t last = text.size();
-    while (last > first && (text[last - 1] == ' ' || text[last - 1] == '\t')) --last;
-    return std::string(text.substr(first, last - first));
-}
-
-bool starts_with_word(const std::string& text, std::string_view word) {
-    return text == word ||
-           (text.size() > word.size() && text.compare(0, word.size(), word) == 0 &&
-            text[word.size()] == ' ');
-}
-
-bool block_header(std::string_view line) {
-    const auto text = trim(line);
-    if (starts_with_word(text, "class") || starts_with_word(text, "if") ||
-        starts_with_word(text, "while") || starts_with_word(text, "for") ||
-        starts_with_word(text, "match")) {
-        return true;
-    }
-
-    const auto open = text.find('(');
-    if (open == std::string::npos || text.find('=', 0) < open) return false;
-    const auto close = text.rfind(')');
-    if (close == std::string::npos || close < open) return false;
-    const auto prefix = trim(std::string_view(text).substr(0, open));
-    return prefix.find(' ') != std::string::npos;
-}
-
-bool lexically_incomplete(std::string_view text) {
-    int parens = 0;
-    int brackets = 0;
-    bool in_string = false;
-    for (char c : text) {
-        if (c == '"') {
-            in_string = !in_string;
-            continue;
-        }
-        if (in_string) continue;
-        if (c == '(') ++parens;
-        else if (c == ')') --parens;
-        else if (c == '[') ++brackets;
-        else if (c == ']') --brackets;
-    }
-    return in_string || parens > 0 || brackets > 0;
-}
-
 struct ReplOutput {
     std::string normal;
     std::string display;
@@ -550,180 +463,6 @@ ReplOutput split_repl_output(const std::string& output) {
     result.normal += output.substr(finish + end.size());
     result.display = output.substr(start + begin.size(), finish - (start + begin.size()));
     return result;
-}
-
-bool replay_barrier_instruction(const ir::Instruction& instruction) {
-    return std::visit([](const auto& node) {
-        using T = std::decay_t<decltype(node)>;
-        return
-            std::is_same_v<T, ir::Input> ||
-            std::is_same_v<T, ir::Exit> ||
-            std::is_same_v<T, ir::CliArgument> ||
-            std::is_same_v<T, ir::CliArgumentOptional> ||
-            std::is_same_v<T, ir::CliOption> ||
-            std::is_same_v<T, ir::CliFlag> ||
-            std::is_same_v<T, ir::CliFinish> ||
-            std::is_same_v<T, ir::Flush> ||
-            std::is_same_v<T, ir::FileOpen> ||
-            std::is_same_v<T, ir::FileCreate> ||
-            std::is_same_v<T, ir::FileAppend> ||
-            std::is_same_v<T, ir::FileHandleRead> ||
-            std::is_same_v<T, ir::FileHandleReadLine> ||
-            std::is_same_v<T, ir::FileHandleReadBin> ||
-            std::is_same_v<T, ir::FileHandleWrite> ||
-            std::is_same_v<T, ir::FileHandleFlush> ||
-            std::is_same_v<T, ir::FileHandleSeek> ||
-            std::is_same_v<T, ir::FileHandleClose> ||
-            std::is_same_v<T, ir::FileRead> ||
-            std::is_same_v<T, ir::FileReadBin> ||
-            std::is_same_v<T, ir::FileWrite> ||
-            std::is_same_v<T, ir::FileWriteBin> ||
-            std::is_same_v<T, ir::FileExists> ||
-            std::is_same_v<T, ir::FileIsDirectory> ||
-            std::is_same_v<T, ir::FileRemove> ||
-            std::is_same_v<T, ir::FileCopy> ||
-            std::is_same_v<T, ir::FileMove> ||
-            std::is_same_v<T, ir::FileMkdir> ||
-            std::is_same_v<T, ir::FileList> ||
-            std::is_same_v<T, ir::EnvironmentGet> ||
-            std::is_same_v<T, ir::EnvironmentHas> ||
-            std::is_same_v<T, ir::TimeNow> ||
-            std::is_same_v<T, ir::TimeSince> ||
-            std::is_same_v<T, ir::TimeSleep> ||
-            std::is_same_v<T, ir::TaskAll> ||
-            std::is_same_v<T, ir::RandomGenerator> ||
-            std::is_same_v<T, ir::RandomInt> ||
-            std::is_same_v<T, ir::RandomFloat> ||
-            std::is_same_v<T, ir::RandomBool> ||
-            std::is_same_v<T, ir::ProcessRun> ||
-            std::is_same_v<T, ir::ProcessShell> ||
-            std::is_same_v<T, ir::HttpGet>;
-    }, instruction);
-}
-
-bool module_requires_replay_barrier(const ir::Module& module) {
-    struct ReplayConstant {
-        enum class Kind { Boolean, String };
-        Kind kind{Kind::Boolean};
-        bool boolean{};
-        std::string text;
-    };
-
-    std::unordered_map<std::string, const ir::Function*> functions;
-    const ir::Function* entrypoint = nullptr;
-    for (const auto& function : module.functions) {
-        functions.emplace(function.name, &function);
-        if (function.entrypoint) entrypoint = &function;
-    }
-    if (!entrypoint) return true;
-
-    std::vector<const ir::Function*> pending{entrypoint};
-    std::unordered_set<std::string> visited;
-    while (!pending.empty()) {
-        const auto* function = pending.back();
-        pending.pop_back();
-        if (!visited.insert(function->name).second) continue;
-        if (function->external_symbol) return true;
-        if (function->blocks.empty()) continue;
-
-        std::unordered_map<std::string, const ir::Block*> blocks;
-        for (const auto& block : function->blocks)
-            blocks.emplace(block.label, &block);
-
-        std::unordered_map<ir::ValueId, ReplayConstant> constants;
-        std::vector<const ir::Block*> pending_blocks{&function->blocks.front()};
-        std::unordered_set<std::string> visited_blocks;
-
-        while (!pending_blocks.empty()) {
-            const auto* block = pending_blocks.back();
-            pending_blocks.pop_back();
-            if (!visited_blocks.insert(block->label).second) continue;
-
-            for (const auto& instruction : block->instructions) {
-                if (const auto* bool_value =
-                        std::get_if<ir::ConstantBool>(&instruction)) {
-                    constants[bool_value->out] = ReplayConstant{
-                        ReplayConstant::Kind::Boolean, bool_value->value, {}};
-                } else if (const auto* string_value =
-                               std::get_if<ir::ConstantString>(&instruction)) {
-                    constants[string_value->out] = ReplayConstant{
-                        ReplayConstant::Kind::String, false, string_value->value};
-                } else if (const auto* binary =
-                               std::get_if<ir::Binary>(&instruction)) {
-                    const auto left = constants.find(binary->left);
-                    const auto right = constants.find(binary->right);
-                    if (left != constants.end() && right != constants.end() &&
-                        left->second.kind == ReplayConstant::Kind::String &&
-                        right->second.kind == ReplayConstant::Kind::String &&
-                        (binary->op == "==" || binary->op == "!=")) {
-                        const bool equal =
-                            left->second.text == right->second.text;
-                        constants[binary->out] = ReplayConstant{
-                            ReplayConstant::Kind::Boolean,
-                            binary->op == "==" ? equal : !equal, {}};
-                    }
-                }
-
-                if (replay_barrier_instruction(instruction)) return true;
-
-                if (const auto* call = std::get_if<ir::Call>(&instruction)) {
-                    const auto target = functions.find(call->callee);
-                    if (target == functions.end()) return true;
-                    pending.push_back(target->second);
-                }
-
-                // Capture-free function values may hide the dynamic callee from
-                // this call-graph walk. Until effect summaries are carried
-                // through function values, keep this conservative.
-                if (std::holds_alternative<ir::IndirectCall>(instruction))
-                    return true;
-
-                if (const auto* jump = std::get_if<ir::Jump>(&instruction)) {
-                    const auto target = blocks.find(jump->target);
-                    if (target == blocks.end()) return true;
-                    pending_blocks.push_back(target->second);
-                    break;
-                }
-
-                if (const auto* branch =
-                        std::get_if<ir::Branch>(&instruction)) {
-                    const auto known = constants.find(branch->condition);
-                    if (known != constants.end() &&
-                        known->second.kind == ReplayConstant::Kind::Boolean) {
-                        const auto& label = known->second.boolean
-                            ? branch->if_true : branch->if_false;
-                        const auto target = blocks.find(label);
-                        if (target == blocks.end()) return true;
-                        pending_blocks.push_back(target->second);
-                    } else {
-                        const auto yes = blocks.find(branch->if_true);
-                        const auto no = blocks.find(branch->if_false);
-                        if (yes == blocks.end() || no == blocks.end()) return true;
-                        pending_blocks.push_back(yes->second);
-                        pending_blocks.push_back(no->second);
-                    }
-                    break;
-                }
-
-                if (std::holds_alternative<ir::Return>(instruction) ||
-                    std::holds_alternative<ir::ReturnVoid>(instruction)) {
-                    break;
-                }
-            }
-        }
-    }
-    return false;
-}
-
-bool declaration_only_submission(std::string_view source) {
-    try {
-        auto parsed=Parser(Lexer(source).scan()).parse();
-        return parsed.statements.empty();
-    } catch (const CompileError&) {
-        return false;
-    } catch (const CompileErrors&) {
-        return false;
-    }
 }
 
 void repl_help() {
@@ -889,17 +628,7 @@ int run_repl() {
         buffer << std::cin.rdbuf();
         const auto source = buffer.str();
 
-        bool has_repl_command = false;
-        std::istringstream lines(source);
-        std::string candidate_line;
-        while (std::getline(lines, candidate_line)) {
-            if (!candidate_line.empty() && candidate_line.front() == ':') {
-                has_repl_command = true;
-                break;
-            }
-        }
-
-        if (!has_repl_command) {
+        if (!has_repl_command(source)) {
             if (source.find_first_not_of(" \t\r\n") != std::string::npos)
                 session.submit(source);
             std::cout << "\n";
@@ -911,19 +640,17 @@ int run_repl() {
         input = &buffered_input;
     }
 
-    std::string submission;
-    bool block = false;
+    SubmissionAssembler assembler;
 
     while (true) {
         repl_interrupted = 0;
-        std::cout << (submission.empty() ? ">>> " : "... ") << std::flush;
+        std::cout << (assembler.pending() ? "... " : ">>> ") << std::flush;
 
         std::string line;
         if (!std::getline(*input, line)) {
             if (interactive_input && repl_interrupted) {
                 std::cin.clear();
-                submission.clear();
-                block = false;
+                assembler.discard();
                 continue;
             }
             std::cout << "\n";
@@ -932,12 +659,11 @@ int run_repl() {
         }
 
         if (repl_interrupted) {
-            submission.clear();
-            block = false;
+            assembler.discard();
             continue;
         }
 
-        if (submission.empty() && !line.empty() && line.front() == ':') {
+        if (!assembler.pending() && !line.empty() && line.front() == ':') {
             if (line == ":quit" || line == ":exit") {
                 restore_signal();
                 return 0;
@@ -959,29 +685,7 @@ int run_repl() {
             continue;
         }
 
-        // A blank line with nothing pending carries no code. Submitting it would
-        // append an empty line to the accepted source and re-run the whole
-        // accumulated session, repeating every side effect already produced.
-        if (submission.empty() && trim(line).empty()) continue;
-
-        if (submission.empty()) block = block_header(line);
-
-        if (block && line.empty()) {
-            if (!lexically_incomplete(submission) && !submission.empty()) {
-                session.submit(submission);
-                submission.clear();
-                block = false;
-            }
-            continue;
-        }
-
-        submission += line;
-        submission += '\n';
-
-        if (!block && !lexically_incomplete(submission)) {
-            session.submit(submission);
-            submission.clear();
-        }
+        if (auto submission = assembler.add_line(line)) session.submit(*submission);
     }
 }
 

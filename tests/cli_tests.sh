@@ -3,8 +3,13 @@ set -euo pipefail
 set -x
 QUIDRA="$(realpath "$1")"
 ROOT="$(realpath "$2")"
+# The binary for the run-lease timing and the builds of the RSS-measured
+# programs. The refactoring gates pass an observing wrapper as QUIDRA
+# (tests/golden/observe_shim.py) and the real binary here.
+QUIDRA_TIMING="$(realpath "${QUIDRA_TIMING_BINARY:-$QUIDRA}")"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run only
 
 TIME_BIN=""
 if [[ -x /usr/bin/time ]] && /usr/bin/time --version 2>&1 | grep -q 'GNU time'; then
@@ -53,13 +58,13 @@ assert x["lsp"] is True
 assert x["package_management"] is True
 assert x["c_ffi"] is True
 assert x["debug_build"] is True
-for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","uint64","bigint","float32","float64 (= float)","bigreal","bin"]:
+for name in ["int8","int16","int32","int64","int","nat8","nat16","nat32","nat64","nat","real32","real64","real","bin"]:
     assert name in x["current_types"], name
 for name in ["print","flush","scan","range","array","len","tensor","error"]:
     assert name in x["current_builtins"], name
 for name in ["write","input","abs","sqrt","min","max"]:
     assert name not in x["current_builtins"], name
-assert x["standard_modules"] == ["cli","file","environment","test","time","gpu","task","atomic","autograd","ref","reflect","random","process","map","set","json","http","tensor","exact"]
+assert x["standard_modules"] == ["cli","file","environment","test","time","gpu","task","atomic","autograd","ref","reflect","random","process","map","set","json","http","tensor"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
 assert "tensor<T><D0, D1, ...>" in x["current_types"]
@@ -75,16 +80,16 @@ int three = 3
 int power = two ^ three ^ two
 print(power)
 print(NL)
-float base = 2.0
-float exponent = -2.0
+real64 base = 2.0
+real64 exponent = -2.0
 print(base ^ exponent)
 print(NL)
-bigint exact_base = 2
-bigint exact_exponent = 100
+int exact_base = 2
+int exact_exponent = 100
 print((exact_base ^ exact_exponent).string())
 print(NL)
-uint8 flags = 3
-uint8 mask = 5
+nat8 flags = 3
+nat8 mask = 5
 print(flags XOR mask)
 print(NL)
 QUI
@@ -118,14 +123,97 @@ set -e
 [[ "$power_overflow_rc" -eq 101 ]]
 grep -q 'INTEGER_OVERFLOW' "$TMP/power-overflow.err"
 
+# An if-expression evaluates its conditions in order and exactly one branch;
+# a branch that could fail runs only when chosen, and a borrowed branch value
+# is copied, so the result is independent of its source.
+cat > "$TMP/if-expression.qui" <<'QUI'
+bool condition(string label, bool result)
+    print(label)
+    print(NL)
+    return result
+
+int branch(string label, int result)
+    print(label)
+    print(NL)
+    return result
+
+int chosen = if condition("c1", false) then branch("v1", 1) elif condition("c2", true) then branch("v2", 2) else branch("v3", 3)
+print(chosen)
+print(NL)
+int n = 7
+int d = 0
+int quotient = if d != 0 then n / d else 0
+print(quotient)
+print(NL)
+string word = if chosen == 2 then "two" else "other"
+print(word)
+print(NL)
+int[] first = [1, 2, 3]
+int[] second = [4]
+int[] picked = if chosen == 2 then first else second
+first[0] = 9
+print(picked[0])
+print(NL)
+int64 wide = 5
+auto widened = if chosen > 5 then wide else -1
+print(widened)
+print(NL)
+QUI
+if_expression_output="$("$QUIDRA" run "$TMP/if-expression.qui")"
+if_expression_expected="$(printf 'c1\nc2\nv2\n2\n0\ntwo\n1\n-1')"
+[[ "$if_expression_output" == "$if_expression_expected" ]]
+
+# The formatter gives `then` one space on each side and keeps the line breaks
+# of a parenthesized if-expression; a patch can replace one as a node.
+cat > "$TMP/if-expression-format.qui" <<'QUI'
+bool ready = true
+int x = if ready  then 1 else  2
+int y = (if ready
+    then 3
+    else 4)
+print(x + y)
+print(NL)
+QUI
+"$QUIDRA" fmt "$TMP/if-expression-format.qui"
+cat > "$TMP/if-expression-format.expected" <<'QUI'
+bool ready = true
+int x = if ready then 1 else 2
+int y = (if ready
+    then 3
+    else 4)
+print(x + y)
+print(NL)
+QUI
+cmp "$TMP/if-expression-format.expected" "$TMP/if-expression-format.qui"
+"$QUIDRA" fmt "$TMP/if-expression-format.qui" --check
+"$QUIDRA" inspect "$TMP/if-expression-format.qui" > "$TMP/if-expression-inspect.json"
+python3 - "$TMP/if-expression-inspect.json" "$TMP/if-expression-change.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+node=next(n for n in x["nodes"] if n["kind"]=="if_expression" and n["source"]=="if ready then 1 else 2")
+json.dump({
+    "schema_version":1,
+    "base_revision":x["revision"],
+    "operations":[{
+        "op":"replace_node",
+        "node_id":node["node_id"],
+        "expected_hash":node["source_hash"],
+        "replacement":"if ready then 10 else 20"
+    }]
+},open(sys.argv[2],"w"))
+PY
+"$QUIDRA" patch "$TMP/if-expression-format.qui" "$TMP/if-expression-change.json" --write >/dev/null
+grep -q '^int x = if ready then 10 else 20$' "$TMP/if-expression-format.qui"
+[[ "$("$QUIDRA" run "$TMP/if-expression-format.qui")" == "13" ]]
+
 # GPU discovery is always safe, including on hosts with no supported GPU.
 "$QUIDRA" gpu > "$TMP/gpu-info.out"
 [[ -s "$TMP/gpu-info.out" ]]
 
 # CPU remains the default placement and explicit CPU copies preserve values.
 cat > "$TMP/tensor-device-cpu.qui" <<'QUI'
-tensor<float32> source = tensor.ones<float32>([2])
-tensor<float32> copied = source.cpu()
+tensor<real32> source = tensor.ones<real32>([2])
+tensor<real32> copied = source.cpu()
 print(copied[0].item())
 print(NL)
 QUI
@@ -178,7 +266,7 @@ grep -q 'tensor comparison requires identical shape' "$TMP/tensor-compare-shape-
 
 # An unavailable GPU must fail explicitly. It must never run the allocation on CPU.
 cat > "$TMP/tensor-device-unavailable.qui" <<'QUI'
-auto value = tensor.zeros<float32>([1], gpu = 2147483647)
+auto value = tensor.zeros<real32>([1], gpu = 2147483647)
 print(value[0].item())
 print(NL)
 QUI
@@ -191,7 +279,7 @@ grep -q 'gpu(2147483647) is not available' "$TMP/tensor-device-unavailable.err"
 [[ ! -s "$TMP/tensor-device-unavailable.out" ]]
 
 cat > "$TMP/tensor-transfer-unavailable.qui" <<'QUI'
-auto source = tensor.ones<float32>([1])
+auto source = tensor.ones<real32>([1])
 auto moved = source.gpu(2147483647)
 print(moved[0].item())
 print(NL)
@@ -221,7 +309,7 @@ print(NL)
 class  Secret
     private  int  value=1
     private  void reset ()
-        value=0
+        this.value=0
 QUI
 set +e
 "$QUIDRA" fmt "$TMP/format.qui" --check
@@ -239,7 +327,7 @@ print(NL)
 class Secret
     private int value = 1
     private void reset()
-        value = 0
+        this.value = 0
 QUI
 cmp "$TMP/format.expected" "$TMP/format.qui"
 "$QUIDRA" fmt "$TMP/format.qui" --check
@@ -436,12 +524,12 @@ source = (
     "class Left\n"
     "    int value = 10\n"
     "    int score()\n"
-    "        return value\n"
+    "        return this.value\n"
     "\n"
     "class Right\n"
     "    int value = 20\n"
     "    int score()\n"
-    "        return value + 1\n"
+    "        return this.value + 1\n"
     "\n"
     "Left left\n"
     "Right right\n"
@@ -590,7 +678,7 @@ source=(
     "    private int secret = 1\n"
     "\n"
     "    private int reveal()\n"
-    "        return secret\n"
+    "        return this.secret\n"
     "\n"
     "    int read()\n"
     "        return reveal()\n"
@@ -604,10 +692,10 @@ messages=[
         "uri":uri,"languageId":"quidra","version":1,"text":source
     }}},
     {"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{
-        "textDocument":{"uri":uri},"position":{"line":4,"character":15}
+        "textDocument":{"uri":uri},"position":{"line":4,"character":20}
     }},
     {"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{
-        "textDocument":{"uri":uri},"position":{"line":4,"character":15}
+        "textDocument":{"uri":uri},"position":{"line":4,"character":20}
     }},
     {"jsonrpc":"2.0","id":4,"method":"textDocument/references","params":{
         "textDocument":{"uri":uri},"position":{"line":1,"character":16},
@@ -640,7 +728,7 @@ definition=by_id[3]["result"]
 assert definition["range"]["start"]=={"line":1,"character":16},definition
 refs=by_id[4]["result"]
 assert [x["range"]["start"] for x in refs]==[
-    {"line":1,"character":16},{"line":4,"character":15}
+    {"line":1,"character":16},{"line":4,"character":20}
 ],refs
 rename=by_id[5]["result"]["changes"][uri]
 assert [x["range"]["start"] for x in rename]==[
@@ -735,7 +823,7 @@ HOME="$TMP/package-home" "$QUIDRA" package remove local_math
 [[ -z "$(HOME="$TMP/package-home" "$QUIDRA" package list)" ]]
 
 cat > "$TMP/ffi-scalar.qui" <<'QUI'
-extern int c_abs(int value) = "llabs"
+extern int64 c_abs(int64 value) = "llabs"
 print(c_abs(-42))
 print(NL)
 QUI
@@ -757,11 +845,11 @@ long long foreign_test_apply(foreign_test_callback callback, long long value) {
 C
 "${CC:-cc}" -c "$TMP/ffi-linked.c" -o "$TMP/ffi-linked.o"
 cat > "$TMP/ffi-linked.qui" <<'QUI'
-int twice(int value)
+int64 twice(int64 value)
     return value * 2
 
-extern int c_increment(int value) = "foreign_test_increment"
-extern int c_apply(fn<int>(int) callback, int value) = "foreign_test_apply"
+extern int64 c_increment(int64 value) = "foreign_test_increment"
+extern int64 c_apply(fn<int64>(int64) callback, int64 value) = "foreign_test_apply"
 
 print(c_increment(41))
 print(NL)
@@ -825,10 +913,10 @@ int32_t foreign_tensor_mutate(void* tensor) {
 C
 "${CC:-cc}" -I "$ROOT/include" -c "$TMP/ffi-tensor.c" -o "$TMP/ffi-tensor.o"
 cat > "$TMP/ffi-tensor.qui" <<'QUI'
-extern int32 c_tensor_probe(const tensor<float32> &value) = "foreign_tensor_probe"
-extern int32 c_tensor_mutate(tensor<float32> &value) = "foreign_tensor_mutate"
+extern int32 c_tensor_probe(const tensor<real32> &value) = "foreign_tensor_probe"
+extern int32 c_tensor_mutate(tensor<real32> &value) = "foreign_tensor_mutate"
 
-tensor<float32> value = tensor.ones<float32>([2, 3])
+tensor<real32> value = tensor.ones<real32>([2, 3])
 print(c_tensor_probe(&value))
 print(NL)
 print(c_tensor_mutate(&value))
@@ -836,7 +924,7 @@ print(NL)
 print(value[0, 0].item())
 print(NL)
 
-tensor<float32> tracked = value.track()
+tensor<real32> tracked = value.track()
 print(c_tensor_mutate(&tracked))
 print(NL)
 print(tracked.untrack()[0, 0].item())
@@ -915,8 +1003,13 @@ if find "$TMP/direct-aot" -maxdepth 1 -name '.quidra-run-*' -print -quit | grep 
     exit 1
 fi
 
+# The lease of a direct run, through the run cache and without it.
+for lease_form in cached no-cache; do
 case "$(uname -s)" in
     Linux|Darwin)
+        lease_options=()
+        [[ "$lease_form" == no-cache ]] && lease_options=(--no-cache)
+        rm -rf "$TMP/run-lease-a" "$TMP/run-lease-b"
         mkdir -p "$TMP/run-lease-a" "$TMP/run-lease-b"
         cat > "$TMP/run-lease-a/main.qui" <<QUI
 process.Result marker = process.run("touch", ["$TMP/run-lease-a/started"])
@@ -924,7 +1017,7 @@ if not marker.started or marker.status != 0
     process.exit(1)
 time.sleep(time.seconds(2.0))
 QUI
-        "$QUIDRA" "$TMP/run-lease-a/main.qui" \
+        "$QUIDRA_TIMING" ${lease_options[@]+"${lease_options[@]}"} "$TMP/run-lease-a/main.qui" \
             >"$TMP/run-lease-a/out" 2>"$TMP/run-lease-a/err" &
         run_lease_parent=$!
         for _ in $(seq 1 200); do
@@ -942,18 +1035,19 @@ QUI
 
         (
             cd "$TMP/run-lease-b"
-            "$QUIDRA" --version >/dev/null
+            "$QUIDRA_TIMING" --version >/dev/null
         )
         [[ -e "$run_lease_artifact" ]]
 
         sleep 3
         (
             cd "$TMP/run-lease-b"
-            "$QUIDRA" --version >/dev/null
+            "$QUIDRA_TIMING" --version >/dev/null
         )
         [[ ! -e "$run_lease_artifact" ]]
         ;;
 esac
+done
 
 [[ "$($QUIDRA "$ROOT/examples/hello.qui")" == "Hello from Quidra" ]]
 [[ "$($QUIDRA run "$ROOT/examples/functions.qui")" == "120" ]]
@@ -1085,7 +1179,7 @@ print(text.ends_with("  "))
 print(NL)
 auto found = text.find("日本")
 match found
-    int index
+    nat index
         print(index)
         print(NL)
     none
@@ -1193,13 +1287,14 @@ string_negative_index_rc=$?
 set -e
 [[ "$string_negative_index_rc" -eq 101 ]]
 grep -q 'error\[INDEX_BOUNDS\]' "$TMP/string-negative-index.err"
+grep -q 'index -1 out of bounds for length 1' "$TMP/string-negative-index.err"
 
 "$QUIDRA" llvm "$TMP/text-and-array.qui" > "$TMP/text-and-array.ll"
 grep -q 'call ptr @quidra_string_concat_many' "$TMP/text-and-array.ll"
 
 cat > "$TMP/float-sorted-order.qui" <<'QUI'
-float[] values = [0.0, -0.0, 2.0, 0.0 / 0.0, -1.0]
-float[] ordered = values.sorted()
+real64[] values = [0.0, -0.0, 2.0, 0.0 / 0.0, -1.0]
+real64[] ordered = values.sorted()
 for value in ordered
     print(value)
     print(NL)
@@ -1209,7 +1304,7 @@ float_sorted_expected=$(printf '%s\n' '-1.0' '-0.0' '0.0' '2.0' 'nan')
 [[ "$float_sorted_output" == "$float_sorted_expected" ]]
 
 cat > "$TMP/sorted-boundaries.qui" <<'QUI'
-float[] special = [
+real64[] special = [
     1.0 / 0.0,
     -1.0 / 0.0,
     0.0 / 0.0,
@@ -1218,7 +1313,7 @@ float[] special = [
     1.0 / 0.0,
     -1.0 / 0.0,
 ]
-float[] special_ordered = special.sorted()
+real64[] special_ordered = special.sorted()
 for value in special_ordered
     print(value)
     print(NL)
@@ -1255,6 +1350,7 @@ string_index_oob_rc=$?
 set -e
 [[ "$string_index_oob_rc" -eq 101 ]]
 grep -q 'error\[INDEX_BOUNDS\]' "$TMP/string-index-oob.err"
+grep -q 'index 2 out of bounds for length 2' "$TMP/string-index-oob.err"
 
 cat > "$TMP/string-growth.qui" <<'QUI'
 string built = ""
@@ -1326,24 +1422,24 @@ class ArrayPoint
     int y
 
     construct(int x_value, int y_value)
-        x = x_value
-        y = y_value
+        this.x = x_value
+        this.y = y_value
 
 class ArrayChild
     int x
     int y
 
     construct(int x_value, int y_value)
-        x = x_value
-        y = y_value
+        this.x = x_value
+        this.y = y_value
 
 class ArrayHolder
     ArrayChild child
     int[] tags
 
     construct(ArrayChild child_value, int[] tags_value)
-        child = child_value
-        tags = tags_value
+        this.child = child_value
+        this.tags = tags_value
 
 ArrayPoint[] left = [
     ArrayPoint(1, 2),
@@ -1432,17 +1528,17 @@ fixed_to_dynamic_expected=$(printf '1\n6\n8')
 [[ "$fixed_to_dynamic_output" == "$fixed_to_dynamic_expected" ]]
 
 cat > "$TMP/value-memory.qui" <<'QUI'
-float consume(float[] values)
+real64 consume(real64[] values)
     return values[0] + values[63]
 
-float[] values = array(64, fill = 1.0)
-float total = 0.0
+real64[] values = array(64, fill = 1.0)
+real64 total = 0.0
 for i in range(0, 100000)
     total = total + consume(values)
 print(total)
 print(NL)
 QUI
-"$QUIDRA" build "$TMP/value-memory.qui" -o "$TMP/value-memory"
+"$QUIDRA_TIMING" build "$TMP/value-memory.qui" -o "$TMP/value-memory"
 measure_rss "$TMP/value-memory.rss" "$TMP/value-memory.out" "$TMP/value-memory"
 grep -q '^200000\.0$' "$TMP/value-memory.out"
 value_memory_rss="$(cat "$TMP/value-memory.rss")"
@@ -1454,13 +1550,13 @@ fi
 echo "value-semantics memory peak RSS: ${value_memory_rss} KiB"
 
 cat > "$TMP/read-only-borrow.qui" <<'QUI'
-float read_first(float[] values)
+real64 read_first(real64[] values)
     return values[0]
 
-void mutate_copy(float[] values)
+void mutate_copy(real64[] values)
     values[0] = 99.0
 
-float[] values = [1.0, 2.0]
+real64[] values = [1.0, 2.0]
 print(read_first(values))
 print(NL)
 mutate_copy(values)
@@ -1486,14 +1582,14 @@ assert "release" in entry[second:second + 220]
 PY
 
 cat > "$TMP/temporary-memory.qui" <<'QUI'
-float[] make_values()
+real64[] make_values()
     return array(64, fill = 1.0)
 
 string prefix = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 int total = 0
 for i in range(0, 100000)
     make_values()
-    total += len(prefix + i.string())
+    total += int(len(prefix + i.string()))
 print(total > 0)
 print(NL)
 
@@ -1506,7 +1602,7 @@ print(NL)
 print(kept)
 print(NL)
 QUI
-"$QUIDRA" build "$TMP/temporary-memory.qui" -o "$TMP/temporary-memory"
+"$QUIDRA_TIMING" build "$TMP/temporary-memory.qui" -o "$TMP/temporary-memory"
 measure_rss "$TMP/temporary-memory.rss" "$TMP/temporary-memory.out" "$TMP/temporary-memory"
 temporary_memory_expected=$(printf 'true\n1\n4')
 [[ "$(cat "$TMP/temporary-memory.out")" == "$temporary_memory_expected" ]]
@@ -1516,6 +1612,87 @@ if [[ -n "$TIME_BIN" && -z "${ASAN_OPTIONS:-}" && "$temporary_memory_rss" -ge 80
     echo "temporary-value memory regression: peak RSS ${temporary_memory_rss} KiB" >&2
     exit 1
 fi
+
+# Unary negation releases an owned temporary operand like the binary
+# operators do. The IR check is exact. The loop check compares the peak RSS
+# of 400 rounds with 20 rounds; a leak keeps 1 MiB per round, filled with
+# pseudo-random values so that memory compression cannot hide it. The
+# tracked rounds also drop the negation's autograd graph after backward.
+cat > "$TMP/negation-temporary.qui" <<'QUI'
+cli args
+    int rounds = option(default = 1)
+    bool tracked = option(default = false)
+
+tensor<real32> noise(int count)
+    tensor<real32> value = tensor.zeros<real32>([nat(count)])
+    int64 state = 12345
+    for index in range(count)
+        state = (state * 1103515245 + 12345) % 2147483648
+        value[index] = real32(state % 1000003) / real32(1000003)
+    return value
+
+tensor<real32> base = noise(262144)
+tensor<real32> scale = tensor.ones<real32>([262144]) * real32(2)
+real32 expected = -(base[7].item() * real32(2))
+int matches = 0
+real32 expected_gradient = base[7].item() * real32(8)
+for round in range(args.rounds)
+    if args.tracked
+        tensor<real32> x = base.track()
+        tensor<real32> negated = -(x * scale)
+        (negated * negated).gather([7], []).backward(&x)
+        if negated.untrack()[7].item() == expected and x.grad[7].item() == expected_gradient
+            matches = matches + 1
+    else
+        tensor<real32> negated = -(base * scale)
+        if negated[7].item() == expected
+            matches = matches + 1
+int large = 123456789012345678901234567890
+int flipped = -(large + large)
+print(matches)
+print(NL)
+print(flipped)
+print(NL)
+QUI
+"$QUIDRA" ir "$TMP/negation-temporary.qui" > "$TMP/negation-temporary.ir"
+python3 - "$TMP/negation-temporary.ir" <<'PY'
+import re,sys
+text=open(sys.argv[1]).read()
+entry=text.split("function $entry(",1)[1].split("\nend\n",1)[0].splitlines()
+negations=[(i,m.group(1)) for i,line in enumerate(entry)
+           if (m:=re.fullmatch(r"\s*%\d+ = - %(\d+)",line))]
+# float32 negation of a product, two tensor negations, bigint negation
+assert len(negations)==4, negations
+for i,operand in negations[1:]:
+    assert any(re.fullmatch(rf"\s*release %{operand}\b.*",line) for line in entry[i+1:i+4]), \
+        (operand,entry[i:i+4])
+PY
+"$QUIDRA_TIMING" build "$TMP/negation-temporary.qui" -o "$TMP/negation-temporary"
+python3 - "$TMP/negation-temporary" <<'PY'
+import os,subprocess,sys,tempfile
+def run(*arguments):
+    # wait4 reports the peak RSS of this one child (KiB on Linux, bytes on macOS).
+    with tempfile.TemporaryFile() as out:
+        child=subprocess.Popen([sys.argv[1],*arguments],stdout=out)
+        _,status,usage=os.wait4(child.pid,0)
+        child.returncode=os.waitstatus_to_exitcode(status)
+        assert child.returncode==0, child.returncode
+        out.seek(0)
+        text=out.read().decode()
+    return text,usage.ru_maxrss//1024 if sys.platform=="darwin" else usage.ru_maxrss
+def check(name,*arguments,expected):
+    short,short_peak=run("--rounds","20",*arguments)
+    long,long_peak=run("--rounds","400",*arguments)
+    assert short==expected.format(rounds=20), short
+    assert long==expected.format(rounds=400), long
+    print(f"{name} peak RSS: {short_peak} KiB / {long_peak} KiB")
+    growth=long_peak-short_peak
+    if not os.environ.get("ASAN_OPTIONS") and growth>=65536:
+        sys.exit(f"{name} memory regression: +{growth} KiB over 380 rounds")
+check("negation temporary",expected="{rounds}\n-246913578024691357802469135780\n")
+check("tracked negation temporary","--tracked","true",
+      expected="{rounds}\n-246913578024691357802469135780\n")
+PY
 
 cat > "$TMP/ownership-transfer.qui" <<'QUI'
 string make_text()
@@ -1548,7 +1725,7 @@ for i in range(0, 200000)
 print("ownership-ok")
 print(NL)
 QUI
-"$QUIDRA" build "$TMP/ownership-transfer.qui" -o "$TMP/ownership-transfer"
+"$QUIDRA_TIMING" build "$TMP/ownership-transfer.qui" -o "$TMP/ownership-transfer"
 measure_rss "$TMP/ownership-transfer.rss" "$TMP/ownership-transfer.out" "$TMP/ownership-transfer"
 ownership_expected=$(printf 'alphabeta\nalphabeta\nownership-ok')
 [[ "$(cat "$TMP/ownership-transfer.out")" == "$ownership_expected" ]]
@@ -1561,21 +1738,21 @@ fi
 
 cat > "$TMP/union-match-borrow.qui" <<'QUI'
 class LinearKernel
-    float bias = 0.0
+    real64 bias = 0.0
 
-    float apply(float value)
-        return value + bias
+    real64 apply(real64 value)
+        return value + this.bias
 
 class RbfKernel
-    float gamma = 1.0
+    real64 gamma = 1.0
 
-    construct(float gamma_value)
-        gamma = gamma_value
+    construct(real64 gamma_value)
+        this.gamma = gamma_value
 
-    float apply(float value)
-        return value * gamma
+    real64 apply(real64 value)
+        return value * this.gamma
 
-float evaluate(LinearKernel | RbfKernel kernel, float value)
+real64 evaluate(LinearKernel | RbfKernel kernel, real64 value)
     match kernel
         LinearKernel linear_kernel
             return linear_kernel.apply(value)
@@ -1623,7 +1800,7 @@ int consume(bool present)
         int number
             return number
         string text
-            return len(text)
+            return int(len(text))
         none
             return 0
 
@@ -1633,7 +1810,7 @@ for i in range(0, 200000)
 print(total)
 print(NL)
 QUI
-"$QUIDRA" build "$TMP/union-conversion-memory.qui" -o "$TMP/union-conversion-memory"
+"$QUIDRA_TIMING" build "$TMP/union-conversion-memory.qui" -o "$TMP/union-conversion-memory"
 measure_rss "$TMP/union-conversion-memory.rss" "$TMP/union-conversion-memory.out" "$TMP/union-conversion-memory"
 grep -q '^700000$' "$TMP/union-conversion-memory.out"
 union_conversion_rss="$(cat "$TMP/union-conversion-memory.rss")"
@@ -1654,22 +1831,29 @@ out_of_bounds_rc=$?
 set -e
 [[ "$out_of_bounds_rc" -eq 101 ]]
 grep -q 'INDEX_BOUNDS' "$TMP/out-of-bounds.out"
-grep -q 'at 2:7:' "$TMP/out-of-bounds.out"
-grep -q 'index 3 outside length 3' "$TMP/out-of-bounds.out"
+python3 "$ROOT/tests/runtime_report.py" "$TMP/out-of-bounds.out" code=INDEX_BOUNDS "file=$TMP/out-of-bounds.qui" line=2 column=14 snippet=yes
+grep -q 'index 3 out of bounds for length 3' "$TMP/out-of-bounds.out"
+! grep -q 'source_revision=' "$TMP/out-of-bounds.out"
+set +e
+QUIDRA_ERROR_FORMAT=json "$QUIDRA" run "$TMP/out-of-bounds.qui" > /dev/null 2> "$TMP/out-of-bounds.json"
+out_of_bounds_rc=$?
+set -e
+[[ "$out_of_bounds_rc" -eq 101 ]]
 "$QUIDRA" inspect "$TMP/out-of-bounds.qui" > "$TMP/out-of-bounds.inspect.json"
-python3 - "$TMP/out-of-bounds.inspect.json" "$TMP/out-of-bounds.out" <<'PY'
-import json, pathlib, sys
+python3 - "$TMP/out-of-bounds.inspect.json" "$TMP/out-of-bounds.json" <<'PY'
+import json, sys
 inspection = json.load(open(sys.argv[1]))
-runtime = pathlib.Path(sys.argv[2]).read_text()
+report = json.loads(open(sys.argv[2]).read())
 nodes = [
     node for node in inspection["nodes"]
     if node["span"]["start"]["line"] == 2 and node["kind"] == "expression_statement"
 ]
 assert len(nodes) == 1, nodes
 node = nodes[0]
-assert f"source_revision={inspection['revision']}" in runtime, runtime
-assert f"node_id={node['node_id']}" in runtime, runtime
-assert f"node_kind={node['kind']}" in runtime, runtime
+provenance = report["provenance"]
+assert provenance["source_revision"] == inspection["revision"], report
+assert provenance["node_id"] == node["node_id"], report
+assert provenance["node_kind"] == node["kind"], report
 PY
 
 cat > "$TMP/full-array-proof.qui" <<'QUI'
@@ -1768,7 +1952,7 @@ fi
 [[ "$("$QUIDRA" run "$TMP/match-array-proof-join.qui")" == "4" ]]
 
 cat > "$TMP/zero-filled-array-proof.qui" <<'QUI'
-float[] values = array(1000, fill = 0.0)
+real64[] values = array(1000, fill = 0.0)
 print(values[999])
 print(NL)
 QUI
@@ -2004,10 +2188,10 @@ class EffectBox
     int y
 
     int read()
-        return x
+        return this.x
 
     void initialize()
-        y = 7
+        this.y = 7
 
 void fill(int &value)
     value = 5
@@ -2037,14 +2221,14 @@ class Mutable
     int counter
 
     void bump()
-        counter = counter + 1
+        this.counter = this.counter + 1
 
 class Pure
     int a
     int b
 
     int total()
-        return a + b
+        return this.a + this.b
 QUI
 "$QUIDRA" inspect "$TMP/effect-isolation.qui" > "$TMP/effect-isolation.json"
 python3 - "$TMP/effect-isolation.json" <<'PY'
@@ -2152,7 +2336,7 @@ class Pair
     int y
 
     void initialize_x()
-        x = 11
+        this.x = 11
 
 void set_x(Pair &pair)
     pair.x = 7
@@ -2228,10 +2412,10 @@ class Point
     int y
 
     construct(int x_value, int | none y_value = none)
-        x = x_value
+        this.x = x_value
         match y_value
             int value
-                y = value
+                this.y = value
             none
                 void
 
@@ -2239,10 +2423,10 @@ class Counter
     int value
 
     void reset()
-        value = 0
+        this.value = 0
 
     void increment()
-        value = value + 1
+        this.value = this.value + 1
 
 int a = 1
 int c = 2
@@ -2368,8 +2552,8 @@ class Point
     int y
 
     construct(int x_value, int y_value)
-        x = x_value
-        y = y_value
+        this.x = x_value
+        this.y = y_value
 
 int sum(Point point)
     return util.bump(point.x + point.y)
@@ -2380,10 +2564,10 @@ class Box<T>
     T value
 
     construct(T initial)
-        value = initial
+        this.value = initial
 
     T get()
-        return value
+        return this.value
 
 T first<T>(T[] values)
     return values[0]
@@ -2441,7 +2625,7 @@ QUI
 [[ "$(cd "$TMP/project" && "$QUIDRA" run src/generic-inference.qui)" == $'7\n7' ]]
 
 cat > "$TMP/project/src/implicit-math.qui" <<'QUI'
-print(math.sqrt(float(16.0)))
+print(math.sqrt(real64(16.0)))
 print(NL)
 QUI
 set +e
@@ -2505,13 +2689,13 @@ class model.Box
     model.Box | error construct(int value)
         if value < 0
             return error("negative")
-        stored = value
+        this.stored = value
 
 class model.Wrapper
     model.Box box
 
     model.Wrapper | error construct(int value)
-        box = try model.Box(value)
+        this.box = try model.Box(value)
 QUI
 cat > "$TMP/project/src/qualified-class-root.qui" <<'QUI'
 import library = "./qualified-class.qui"
@@ -2524,6 +2708,592 @@ print(wrapper.box.stored)
 print(NL)
 QUI
 [[ "$(cd "$TMP/project" && "$QUIDRA" run src/qualified-class-root.qui)" == "$(printf '7\n9')" ]]
+
+# A constructor may declare type parameters of its own; every construction
+# infers them from its arguments and instantiates the constructor once per
+# distinct argument list. The class stays non-generic, and a copy stored by
+# the constructor keeps sharing a ref.Cell with its source.
+cat > "$TMP/project/src/generic-constructor-lib.qui" <<'QUI'
+class Slot
+    ref.Cell<int> cell
+
+    construct(int value)
+        this.cell = ref.Cell<int>(value = value)
+
+class Pair
+    Slot left
+    Slot right
+
+class Counter
+    int count
+    Slot[] bound
+
+    construct<M>(M &model, int extra = 0)
+        this.bound = reflect.collect<Slot>(model)
+        this.count = int(len(this.bound)) + extra
+
+    void bump()
+        for slot in this.bound
+            slot.cell.value = slot.cell.value + 1
+
+class Labeled<T>
+    T value
+    string label
+
+    construct<S>(T initial, S source)
+        this.value = initial
+        this.label = reflect.type_name(source)
+
+class Checked
+    int total
+
+    Checked | error construct<M>(M model)
+        this.total = int(len(reflect.collect<Slot>(model)))
+        if this.total == 0
+            return error("no slots")
+
+class Empty
+    int value
+QUI
+cat > "$TMP/project/src/generic-constructor.qui" <<'QUI'
+import lib = "./generic-constructor-lib.qui"
+
+lib.Pair pair
+pair.left = lib.Slot(1)
+pair.right = lib.Slot(10)
+lib.Slot single = lib.Slot(5)
+
+lib.Counter from_pair = lib.Counter(&pair)
+lib.Counter from_single = lib.Counter(&single, extra = 2)
+from_pair.bump()
+print("{from_pair.count} {from_single.count} {pair.left.cell.value} {pair.right.cell.value}{NL}")
+
+lib.Labeled<int> labeled = lib.Labeled<int>(4, pair)
+print("{labeled.value} {labeled.label}{NL}")
+
+lib.Empty empty
+empty.value = 0
+match lib.Checked(empty)
+    lib.Checked value
+        print("{value.total}{NL}")
+    error problem
+        print("refused{NL}")
+lib.Checked checked = lib.Checked(pair)
+print("{checked.total}{NL}")
+QUI
+[[ "$(cd "$TMP/project" && "$QUIDRA" run src/generic-constructor.qui)" == "$(printf '2 3 2 11\n4 lib.Pair\nrefused\n2')" ]]
+
+cat > "$TMP/project/src/generic-constructor-infer.qui" <<'QUI'
+class Holder
+    int size
+
+    construct<T>(int value)
+        this.size = value
+
+Holder holder = Holder(3)
+QUI
+set +e
+(cd "$TMP/project" && "$QUIDRA" check src/generic-constructor-infer.qui --json) >"$TMP/generic-constructor-infer.json" 2>&1
+generic_constructor_status=$?
+set -e
+[[ $generic_constructor_status -ne 0 ]]
+grep -q 'GENERIC_INFERENCE' "$TMP/generic-constructor-infer.json"
+
+cat > "$TMP/project/src/generic-constructor-shadow.qui" <<'QUI'
+class Box<T>
+    T value
+
+    construct<T>(T initial)
+        this.value = initial
+QUI
+set +e
+(cd "$TMP/project" && "$QUIDRA" check src/generic-constructor-shadow.qui --json) >"$TMP/generic-constructor-shadow.json" 2>&1
+generic_constructor_status=$?
+set -e
+[[ $generic_constructor_status -ne 0 ]]
+grep -q 'SHADOWING' "$TMP/generic-constructor-shadow.json"
+
+# A construction call of a generic class may omit its type arguments when the
+# constructor's arguments determine them, with the rules of generic functions:
+# by-value and & arguments, nested generic arguments, a constructor with type
+# parameters of its own, and a fallible constructor. An untyped numeric
+# literal determines nothing, as for generic functions.
+cat > "$TMP/project/src/class-inference-lib.qui" <<'QUI'
+class Box<T>
+    T value
+
+    construct(T initial)
+        this.value = initial
+
+class Model
+    int weight
+
+class Holder<N>
+    string seen
+
+    construct(N &model)
+        this.seen = reflect.type_name(model)
+
+class Pair<A, B>
+    A first
+    B second
+
+    construct(A left, B right)
+        this.first = left
+        this.second = right
+
+class Tagged<T>
+    T value
+    string tag
+
+    construct<S>(T initial, S source)
+        this.value = initial
+        this.tag = reflect.type_name(source)
+
+class Checked<T>
+    T value
+
+    Checked<T> | error construct(T initial, bool accept)
+        this.value = initial
+        if not accept
+            return error("refused")
+
+class Slot<T>
+    T value
+QUI
+cat > "$TMP/project/src/class-inference.qui" <<'QUI'
+import lib = "./class-inference-lib.qui"
+
+int seven = 7
+lib.Box<int> boxed = lib.Box(seven)
+auto named = lib.Box("name")
+lib.Box<string> renamed = named
+print("{boxed.value} {renamed.value}{NL}")
+
+lib.Model model
+model.weight = 3
+auto holder = lib.Holder(&model)
+lib.Holder<lib.Model> declared = holder
+print("{declared.seen}{NL}")
+
+lib.Box<int>[] boxes = [boxed, lib.Box<int>(8)]
+auto nested = lib.Box(boxes)
+auto pair = lib.Pair(boxed, "right")
+print("{len(nested.value)} {nested.value[1].value} {pair.first.value} {pair.second}{NL}")
+
+auto tagged = lib.Tagged(seven, model)
+print("{tagged.value} {tagged.tag}{NL}")
+
+match lib.Checked(seven, false)
+    lib.Checked<int> value
+        print("{value.value}{NL}")
+    error problem
+        print("refused{NL}")
+auto accepted = lib.Checked(seven, true)
+print("{accepted.value}{NL}")
+QUI
+[[ "$(cd "$TMP/project" && "$QUIDRA" run src/class-inference.qui)" == "$(printf '7 name\nlib.Model\n2 8 7 right\n7 lib.Model\nrefused\n7')" ]]
+
+cat > "$TMP/project/src/class-inference-field.qui" <<'QUI'
+class Cache<K, V>
+    K key
+    V[] values
+
+    construct(K first)
+        this.key = first
+
+int one = 1
+auto cache = Cache(one)
+QUI
+set +e
+(cd "$TMP/project" && "$QUIDRA" check src/class-inference-field.qui --json) >"$TMP/class-inference-field.json" 2>&1
+class_inference_status=$?
+set -e
+[[ $class_inference_status -ne 0 ]]
+grep -q 'GENERIC_INFERENCE' "$TMP/class-inference-field.json"
+grep -q "write 'Cache<K, V>(...)'" "$TMP/class-inference-field.json"
+
+cat > "$TMP/project/src/class-inference-literal.qui" <<'QUI'
+class Box<T>
+    T value
+
+    construct(T initial)
+        this.value = initial
+
+auto boxed = Box(7)
+QUI
+set +e
+(cd "$TMP/project" && "$QUIDRA" check src/class-inference-literal.qui --json) >"$TMP/class-inference-literal.json" 2>&1
+class_inference_status=$?
+set -e
+[[ $class_inference_status -ne 0 ]]
+grep -q 'GENERIC_INFERENCE' "$TMP/class-inference-literal.json"
+
+cat > "$TMP/project/src/class-inference-no-constructor.qui" <<'QUI'
+class Slot<T>
+    T value
+
+auto slot = Slot()
+QUI
+set +e
+(cd "$TMP/project" && "$QUIDRA" check src/class-inference-no-constructor.qui --json) >"$TMP/class-inference-no-constructor.json" 2>&1
+class_inference_status=$?
+set -e
+[[ $class_inference_status -ne 0 ]]
+grep -q 'GENERIC_ARGUMENTS_REQUIRED' "$TMP/class-inference-no-constructor.json"
+
+cat > "$TMP/project/src/class-inference-declared.qui" <<'QUI'
+class Box<T>
+    T value
+
+    construct(T initial)
+        this.value = initial
+
+string word = "word"
+Box<int> boxed = Box(word)
+QUI
+set +e
+(cd "$TMP/project" && "$QUIDRA" check src/class-inference-declared.qui --json) >"$TMP/class-inference-declared.json" 2>&1
+class_inference_status=$?
+set -e
+[[ $class_inference_status -ne 0 ]]
+grep -q 'TYPE_MISMATCH' "$TMP/class-inference-declared.json"
+
+cat > "$TMP/class-inference-repl.txt" <<'QUI'
+class Box<T>
+    T value
+    construct(T initial)
+        this.value = initial
+
+int seven = 7
+auto boxed = Box(seven)
+boxed.value + 1
+:exit
+QUI
+"$QUIDRA" repl < "$TMP/class-inference-repl.txt" > "$TMP/class-inference-repl.out" 2> "$TMP/class-inference-repl.err"
+grep -Eq '(^|> )8$' "$TMP/class-inference-repl.out"
+! grep -q 'GENERIC' "$TMP/class-inference-repl.err"
+
+# `this.NAME` qualifies a field of the receiver inside method and constructor
+# bodies: reads, writes, compound assignments, & arguments, reference
+# bindings, loop sources, interpolations, chains, private fields, generic
+# classes and methods, and tensor shapes.
+cat > "$TMP/this-qualifier.qui" <<'QUI'
+class Item
+    int storage = 0
+
+class Bag
+    int count
+    int[] numbers
+    Item first
+    private int hidden = 5
+
+    construct(int start)
+        this.count = start
+        this.numbers = [1, 2]
+        Item item
+        this.first = item
+        int[] &all = &this.numbers
+        all[0] = 3
+
+    void add(int value)
+        this.count += value
+        this.numbers = this.numbers.append(value)
+
+    int total()
+        int sum = 0
+        for number in this.numbers
+            sum += number
+        return sum + this.hidden
+
+    void bump(int &target)
+        target += 1
+
+    void touch()
+        bump(&this.count)
+        this.first.storage = this.numbers[2] * 10
+        this.numbers = this.numbers.append(this.first.storage)
+
+    string describe()
+        return "{this.count}:{len(this.numbers)}:{this.numbers[3]}:{this.first.storage}"
+
+class Box<T>
+    T value
+    int n = 2
+
+    construct(T initial)
+        this.value = initial
+
+    S pick<S>(S fallback)
+        return fallback
+
+    T get()
+        return this.value
+
+    int extent()
+        tensor<real32><this.n> values = tensor.zeros<real32>([nat(this.n)])
+        return int(values.shape()[0])
+
+Bag bag = Bag(1)
+bag.add(4)
+bag.touch()
+print("{bag.describe()} {bag.total()}{NL}")
+Box<int> box = Box<int>(3)
+print("{box.get()} {box.pick<string>("s")} {box.extent()}{NL}")
+QUI
+[[ "$("$QUIDRA" run "$TMP/this-qualifier.qui")" == "$(printf '6:4:40:40 54\n3 s 2')" ]]
+"$QUIDRA" fmt "$TMP/this-qualifier.qui" --check
+"$QUIDRA" inspect "$TMP/this-qualifier.qui" > "$TMP/this-qualifier.inspect.json"
+python3 - "$TMP/this-qualifier.inspect.json" <<'PY'
+import json, sys
+nodes = json.load(open(sys.argv[1]))["nodes"]
+qualified = [node for node in nodes if node.get("this")]
+assert qualified and all(node["kind"] == "name" for node in qualified), qualified
+assert not any(node.get("this") for node in nodes if node["kind"] != "name")
+PY
+printf 'class Spaced\n    int x\n    int get()\n        return this .x\n' > "$TMP/this-format.qui"
+"$QUIDRA" fmt "$TMP/this-format.qui"
+grep -q '        return this.x$' "$TMP/this-format.qui"
+
+# Every other use of `this` is THIS_QUALIFIER, an unknown qualified field is
+# UNKNOWN_MEMBER, and `this` is a keyword.
+python3 - "$QUIDRA" "$TMP" <<'PY'
+import json, pathlib, subprocess, sys
+quidra, tmp = sys.argv[1], pathlib.Path(sys.argv[2])
+member = (
+    "class Box\n"
+    "    int size\n"
+    "    void reset()\n"
+    "        return\n"
+    "    T pick<T>(T value)\n"
+    "        return value\n"
+    "    void bump(int &target)\n"
+    "        target += 1\n"
+    "    void use(Box other)\n"
+    "        {}\n"
+)
+cases = {
+    "argument": (member.format("print(this)"), "THIS_QUALIFIER"),
+    "address": (member.format("bump(&this)"), "THIS_QUALIFIER"),
+    "value": (member.format("auto copy = this"), "THIS_QUALIFIER"),
+    "return": ("class Box\n    int size\n    Box get()\n        return this\n", "THIS_QUALIFIER"),
+    "compare": (member.format("bool same = this == other"), "THIS_QUALIFIER"),
+    "assign": (member.format("this = other"), "THIS_QUALIFIER"),
+    "index": (member.format("int first = this[0]"), "THIS_QUALIFIER"),
+    "method": (member.format("this.reset()"), "THIS_QUALIFIER"),
+    "generic-method": (member.format("int one = this.pick<int>(1)"), "THIS_QUALIFIER"),
+    "fn-field": ("int twice(int value)\n    return value * 2\nclass Box\n    fn<int>(int) callback = twice\n    int use()\n        return this.callback(1)\n", "THIS_QUALIFIER"),
+    "unknown-field": (member.format("this.sise = 1"), "UNKNOWN_MEMBER"),
+    "top-level": ("class Box\n    int size\nprint(this.size)\n", "THIS_QUALIFIER"),
+    "function": ("int f()\n    return this.size\n", "THIS_QUALIFIER"),
+    "field-default": ("class Box\n    int size = 1\n    int twice = this.size * 2\n", "THIS_QUALIFIER"),
+    "parameter-default": ("class Box\n    int size = 1\n    int get(int fallback = this.size)\n        return fallback\n", "THIS_QUALIFIER"),
+    "constructor-shape": ("class Box\n    int n = 2\n    construct(tensor<real32><this.n> values)\n        this.n = 3\n", "THIS_QUALIFIER"),
+    "cli": ("cli args\n    string mode = option(default = this.mode)\n", "THIS_QUALIFIER"),
+    "reserved": ("int this = 3\n", "PARSE_ERROR"),
+}
+for name, (source, code) in cases.items():
+    path = tmp / f"this-misuse-{name}.qui"
+    path.write_text(source, encoding="utf-8")
+    result = subprocess.run([quidra, "check", str(path), "--json"], capture_output=True, text=True)
+    assert result.returncode != 0, (name, result.stdout)
+    codes = [d["code"] for d in json.loads(result.stdout)["diagnostics"]]
+    assert codes and codes[0] == code, (name, codes, result.stdout)
+PY
+
+# The language server completes fields after `this.` and resolves `this.NAME`
+# to the field.
+python3 - "$QUIDRA" "$TMP" <<'PY'
+import json, pathlib, subprocess, sys
+quidra, tmp = sys.argv[1], pathlib.Path(sys.argv[2])
+uri = (tmp / "lsp-this.qui").as_uri()
+source = (
+    "class Counter\n"
+    "    int count = 0\n"
+    "    int limit = 3\n"
+    "    void bump()\n"
+    "        this.count += 1\n"
+    "    void reset()\n"
+    "        this.\n"
+)
+resolved = source.replace("        this.\n", "        this.count = 0\n")
+messages = [
+    {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":tmp.as_uri()}},
+    {"jsonrpc":"2.0","method":"initialized","params":{}},
+    {"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{
+        "uri":uri,"languageId":"quidra","version":1,"text":source}}},
+    {"jsonrpc":"2.0","id":2,"method":"textDocument/completion","params":{
+        "textDocument":{"uri":uri},"position":{"line":6,"character":13}}},
+    {"jsonrpc":"2.0","method":"textDocument/didChange","params":{
+        "textDocument":{"uri":uri,"version":2},"contentChanges":[{"text":resolved}]}},
+    {"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{
+        "textDocument":{"uri":uri},"position":{"line":4,"character":14}}},
+    {"jsonrpc":"2.0","id":4,"method":"shutdown","params":None},
+    {"jsonrpc":"2.0","method":"exit","params":None},
+]
+payload = b""
+for message in messages:
+    body = json.dumps(message, separators=(",", ":")).encode()
+    payload += f"Content-Length: {len(body)}\r\n\r\n".encode() + body
+process = subprocess.run([quidra, "lsp"], input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+assert process.returncode == 0, process.stderr.decode()
+responses = []; data = process.stdout; pos = 0
+while pos < len(data):
+    end = data.find(b"\r\n\r\n", pos); assert end >= 0
+    headers = data[pos:end].decode().split("\r\n")
+    length = int(next(x.split(":", 1)[1].strip() for x in headers if x.lower().startswith("content-length:")))
+    start = end + 4
+    responses.append(json.loads(data[start:start + length]))
+    pos = start + length
+by_id = {x["id"]: x for x in responses if "id" in x}
+labels = [item["label"] for item in by_id[2]["result"]]
+assert labels == ["count", "limit"], by_id[2]
+assert by_id[3]["result"]["range"]["start"] == {"line": 1, "character": 8}, by_id[3]
+PY
+
+cat > "$TMP/this-repl.txt" <<'QUI'
+class Counter
+    int count = 1
+    int twice()
+        return this.count * 2
+
+Counter counter
+counter.twice() + 1
+:exit
+QUI
+"$QUIDRA" repl < "$TMP/this-repl.txt" > "$TMP/this-repl.out" 2> "$TMP/this-repl.err"
+grep -Eq '(^|> )3$' "$TMP/this-repl.out"
+
+# A bare name never denotes a field. Each bare use of a field is
+# THIS_QUALIFIER with the hint `write 'this.NAME'`, and a bare name of a field
+# that is also a function's name keeps resolving to the function, while
+# `this.NAME` reaches the field.
+python3 - "$QUIDRA" "$TMP" <<'PY'
+import json, pathlib, subprocess, sys
+quidra, tmp = sys.argv[1], pathlib.Path(sys.argv[2])
+member = (
+    "class Box\n"
+    "    int size = 1\n"
+    "    int[] items = [1]\n"
+    "    int n = 2\n"
+    "    void bump(int &target)\n"
+    "        target += 1\n"
+    "    void use()\n"
+    "        {}\n"
+)
+cases = {
+    "read": "int copy = size",
+    "write": "size = 2",
+    "compound": "size += 2",
+    "address": "bump(&size)",
+    "loop": "for item in items\n            print(item)",
+    "interpolation": 'print("{size}")',
+    "shape": "tensor<real32><n> values = tensor.zeros<real32>([2])",
+}
+for name, statement in cases.items():
+    path = tmp / f"this-bare-{name}.qui"
+    path.write_text(member.format(statement), encoding="utf-8")
+    result = subprocess.run([quidra, "check", str(path), "--json"], capture_output=True, text=True)
+    assert result.returncode != 0, (name, result.stdout)
+    diagnostics = json.loads(result.stdout)["diagnostics"]
+    assert diagnostics[0]["code"] == "THIS_QUALIFIER", (name, diagnostics)
+    assert "write 'this." in diagnostics[0]["message"], (name, diagnostics)
+function_field = (
+    "int scale(int value)\n"
+    "    return value * 2\n"
+    "class Box\n"
+    "    int scale = 5\n"
+    "    int get()\n"
+    "        return {}\n"
+    "Box box\n"
+    "print(box.get())\n"
+)
+path = tmp / "this-bare-function.qui"
+path.write_text(function_field.format("scale"), encoding="utf-8")
+result = subprocess.run([quidra, "check", str(path), "--json"], capture_output=True, text=True)
+assert json.loads(result.stdout)["diagnostics"][0]["code"] == "FUNCTION_REFERENCE_CONTEXT", result.stdout
+path.write_text(function_field.format("this.scale"), encoding="utf-8")
+result = subprocess.run([quidra, "run", str(path)], capture_output=True, text=True)
+assert result.returncode == 0 and result.stdout == "5", (result.stdout, result.stderr)
+PY
+
+# Parameters, locals, loop variables and match binders may share a field's
+# name: `this.NAME` is the field and the bare name the binding, in the
+# checker's effects and in the lowering's facts.
+cat > "$TMP/shared-field-names.qui" <<'QUI'
+class Counter
+    int size
+    int i = 0
+    int[] xs = [5, 6, 7]
+    int n = 3
+    string text = "field"
+
+    construct(int size)
+        this.size = size
+        size = size + 1
+        this.size += size
+
+    void add(int &size)
+        size += this.size
+        this.size += 1
+
+    int locals()
+        int size = 100
+        int total = 0
+        for i in range(2)
+            this.i = this.i + 10
+            total += i
+        int | none value = 4
+        match value
+            int text
+                total += text
+            none
+                total += 0
+        return size + total + this.i
+
+    string append(string text)
+        text = this.text + "+" + text
+        return text
+
+    int bounded(int n)
+        int[] xs = array(nat(n), fill = 1)
+        int total = 0
+        for i in range(this.n)
+            total += xs[i]
+        return total
+
+Counter counter = Counter(2)
+int outside = 1
+counter.add(&outside)
+print("{counter.size} {outside} {counter.locals()} {counter.append("arg")}{NL}")
+print(counter.bounded(3))
+print(NL)
+print(counter.bounded(2))
+QUI
+set +e
+"$QUIDRA" run "$TMP/shared-field-names.qui" > "$TMP/shared-field-names.out" 2> "$TMP/shared-field-names.err"
+shared_status=$?
+set -e
+[[ $shared_status -ne 0 ]]
+[[ "$(cat "$TMP/shared-field-names.out")" == "$(printf '6 6 125 field+arg\n3')" ]]
+grep -q 'INDEX' "$TMP/shared-field-names.err"
+
+# A binding still cannot share a method's name.
+cat > "$TMP/shared-method-name.qui" <<'QUI'
+class Counter
+    int size = 0
+    int reset()
+        return 0
+    int use()
+        int reset = 1
+        return reset
+QUI
+set +e
+"$QUIDRA" check "$TMP/shared-method-name.qui" --json > "$TMP/shared-method-name.json" 2>&1
+shared_status=$?
+set -e
+[[ $shared_status -ne 0 ]]
+grep -q 'SHADOWING' "$TMP/shared-method-name.json"
 
 cat > "$TMP/project/src/bad-module.qui" <<'QUI'
 print("side effect")
@@ -2592,23 +3362,23 @@ grep -q 'SHADOWING' "$TMP/import-shadow.json"
 
 cat > "$TMP/class-init-summary.qui" <<'QUI'
 class Model
-    float bb
+    real64 bb
 
-    construct(float bb_value)
-        bb = bb_value
+    construct(real64 bb_value)
+        this.bb = bb_value
 
 Model build()
     return Model(2.0)
 
 class Data
-    float[] ys
+    real64[] ys
 
 class Holder
     Data data
 
-    float first()
-        data.ys = [3.0]
-        return data.ys[0]
+    real64 first()
+        this.data.ys = [3.0]
+        return this.data.ys[0]
 
 Model model = build()
 Data empty
@@ -2642,7 +3412,7 @@ $QUIDRA run "$TMP/runtime-zero.qui" > "$TMP/runtime-zero.out" 2>&1
 rc=$?
 set -e
 [[ "$rc" -eq 101 ]]
-grep -Eq 'Quidra runtime error\[DIVISION_BY_ZERO\] at [0-9]+:[0-9]+: division by zero' "$TMP/runtime-zero.out"
+python3 "$ROOT/tests/runtime_report.py" "$TMP/runtime-zero.out" code=DIVISION_BY_ZERO "file=$TMP/runtime-zero.qui" "message=division by zero"
 
 cat > "$TMP/patch-target.qui" <<'QUI'
 int answer = 41
@@ -2830,31 +3600,31 @@ cat > "$TMP/builtins.qui" <<'QUI'
 int[] values = [1, 2, 3]
 print(len(values))
 print(NL)
-print(float(3))
+print(real64(3))
 print(NL)
 QUI
 [[ "$($QUIDRA run "$TMP/builtins.qui")" == $'3\n3.0' ]]
 
 cat > "$TMP/float-format.qui" <<'QUI'
-print(float(4.0))
+print(real64(4.0))
 print(NL)
-print(float32(4.0))
+print(real32(4.0))
 print(NL)
-print(float(4.5))
+print(real64(4.5))
 print(NL)
-print(float(-2.0))
+print(real64(-2.0))
 print(NL)
-print("value={float(4.0)}")
+print("value={real64(4.0)}")
 print(NL)
-print(float(6.0))
+print(real64(6.0))
 print("|")
-print(float(7.0).string())
+print(real64(7.0).string())
 print(NL)
 QUI
 [[ "$($QUIDRA run "$TMP/float-format.qui")" == $'4.0\n4.0\n4.5\n-2.0\nvalue=4.0\n6.0|7.0' ]]
 
 cat > "$TMP/interpolation-format.qui" <<'QUI'
-float value = 12.3456
+real64 value = 12.3456
 print("{value:frac=2}")
 print(NL)
 print("{value:int=4,frac=2,zero}")
@@ -2865,7 +3635,7 @@ print("{value:sig=4}")
 print(NL)
 print("{int(12345):sig=4}")
 print(NL)
-print("{float(0.00123456):sig=3}")
+print("{real64(0.00123456):sig=3}")
 print(NL)
 print("{int(12):sig=4}")
 print(NL)
@@ -2874,7 +3644,7 @@ expected_format="$(printf '12.35\n0012.35\n  12.35\n12.35\n12350\n0.00123\n12.00
 [[ "$($QUIDRA run "$TMP/interpolation-format.qui")" == "$expected_format" ]]
 
 cat > "$TMP/interpolation-format-invalid.qui" <<'QUI'
-print("{float(12.3):frac=2,sig=3}")
+print("{real64(12.3):frac=2,sig=3}")
 print(NL)
 print("{int(12):zero}")
 print(NL)
@@ -2890,13 +3660,13 @@ grep -Eq "zero.*requires.*int" "$TMP/interpolation-format-invalid.out"
 cat > "$TMP/numeric-types.qui" <<'QUI'
 int8 a = 10
 int8 b = 12
-uint8 u = 200
-uint8 v = 20
+nat8 u = 200
+nat8 v = 20
 int16 widened = int16(a)
-uint32 count = 100
+nat32 count = 100
 int total = int(count)
-float converted_float = float(a)
-float32 compact = float32(1.5)
+real64 converted_float = real64(a)
+real32 compact = real32(1.5)
 print(a + b)
 print(NL)
 print(b - a)
@@ -2929,26 +3699,26 @@ numeric_output="$($QUIDRA run "$TMP/numeric-types.qui")"
 
 cat > "$TMP/compact-storage.qui" <<'QUI'
 int8[] small = [1, 2, 3]
-uint16[] medium = [1000, 2000, 3000]
-float32[] fractions = [1.5, 2.5]
+nat16[] medium = [1000, 2000, 3000]
+real32[] fractions = [1.5, 2.5]
 
 class Mixed
     int8 a
-    uint16 b
-    float32 c
-    uint8 d
+    nat16 b
+    real32 c
+    nat8 d
 
-    construct(int8 a_value, uint16 b_value, float32 c_value, uint8 d_value)
-        a = a_value
-        b = b_value
-        c = c_value
-        d = d_value
+    construct(int8 a_value, nat16 b_value, real32 c_value, nat8 d_value)
+        this.a = a_value
+        this.b = b_value
+        this.c = c_value
+        this.d = d_value
 
 Mixed value = Mixed(7, 500, 1.5, 9)
 int8 &a = &value.a
-uint16 &b = &value.b
-float32 &c = &value.c
-uint8 &d = &value.d
+nat16 &b = &value.b
+real32 &c = &value.c
+nat8 &d = &value.d
 
 a = 8
 b = 600
@@ -2991,7 +3761,7 @@ $QUIDRA run "$TMP/numeric-overflow.qui" > "$TMP/numeric-overflow.out" 2>&1
 rc=$?
 set -e
 [[ "$rc" -eq 101 ]]
-grep -Eq 'Quidra runtime error\[INTEGER_OVERFLOW\] at [0-9]+:[0-9]+: integer overflow' "$TMP/numeric-overflow.out"
+python3 "$ROOT/tests/runtime_report.py" "$TMP/numeric-overflow.out" code=INTEGER_OVERFLOW "file=$TMP/numeric-overflow.qui" "message=integer overflow"
 
 cat > "$TMP/out-of-bounds.qui" <<'QUI'
 int[] values = [1]
@@ -3004,7 +3774,7 @@ bounds_rc=$?
 set -e
 [[ "$bounds_rc" -eq 101 ]]
 grep -q 'INDEX_BOUNDS' "$TMP/out-of-bounds.out"
-grep -q 'index 1 outside length 1' "$TMP/out-of-bounds.out"
+grep -q 'index 1 out of bounds for length 1' "$TMP/out-of-bounds.out"
 
 cat > "$TMP/negative-index.qui" <<'QUI'
 bin values = bin.fill(1, 0)
@@ -3033,10 +3803,197 @@ $QUIDRA run "$TMP/numeric-cast-failure.qui" > "$TMP/numeric-cast-failure.out" 2>
 rc=$?
 set -e
 [[ "$rc" -eq 101 ]]
-grep -Eq 'Quidra runtime error\[UNHANDLED_ERROR\].*numeric cast outside destination range' "$TMP/numeric-cast-failure.out"
+python3 "$ROOT/tests/runtime_report.py" "$TMP/numeric-cast-failure.out" code=UNHANDLED_ERROR 'message=numeric conversion out of range: value cannot be represented as int8'
+
+# Locals inside imported module code, generic instances and the
+# module's inactive `if main` guard included, are checked against that
+# module's declarations, not the importer's globals.
+mkdir -p "$TMP/imported-local-scope"
+cat > "$TMP/imported-local-scope/lib.qui" <<'QUI'
+int generic_extent<T: numeric>(T value, int top)
+    int input_height = 4
+    int input_width = 5
+    return input_height * input_width + top
+
+int plain_extent(int top)
+    int input_height = 2
+    int total = 0
+    for input_width in range(3)
+        total = total + input_width
+    return input_height + total + top
+
+if main
+    int input_height = 6
+    print("{input_height}{NL}")
+QUI
+cat > "$TMP/imported-local-scope/main.qui" <<'QUI'
+import lib = "./lib.qui"
+
+int input_height()
+    return 1
+
+int input_width()
+    return 10
+
+print("{lib.generic_extent<int>(1, 2)} {lib.plain_extent(3)} {input_height()} {input_width()}{NL}")
+QUI
+[[ "$($QUIDRA run "$TMP/imported-local-scope/main.qui")" == "22 8 1 10" ]]
+[[ "$($QUIDRA run "$TMP/imported-local-scope/lib.qui")" == "6" ]]
+
+# Parameters, fields, and method names of imported declarations (generic
+# instances included) are checked against their own module's classes and
+# enums, not the importer's; standard-library members never conflict either.
+mkdir -p "$TMP/imported-signature-scope"
+cat > "$TMP/imported-signature-scope/lib.qui" <<'QUI'
+int scale(int height, int width)
+    return height * width
+
+int measure<M>(M model, int height)
+    return height
+
+class Frame
+    int height
+
+    construct(int h)
+        this.height = h
+
+    int area(int width)
+        return this.height * width
+QUI
+cat > "$TMP/imported-signature-scope/main.qui" <<'QUI'
+import lib = "./lib.qui"
+
+class model
+    int v
+
+class height
+    int v
+
+enum width
+    narrow
+    wide
+
+class seconds
+    int v
+
+model m
+m.v = 1
+lib.Frame f = lib.Frame(2)
+time.Duration pause = time.seconds(0.5)
+print("{lib.scale(2, 3)} {lib.measure<model>(m, 4)} {f.area(5)} {pause.seconds()}{NL}")
+QUI
+[[ "$($QUIDRA run "$TMP/imported-signature-scope/main.qui")" == "6 4 10 0.5" ]]
+
+# Generic type parameter names of imported functions and classes are
+# checked against their own module's declarations, not the importer's; the
+# standard library's map.Map<K, V> never conflicts with root declarations.
+mkdir -p "$TMP/imported-type-parameter-scope"
+cat > "$TMP/imported-type-parameter-scope/lib.qui" <<'QUI'
+class Holder<M>
+    M value
+
+int first<T>(T[] values, int n)
+    return n
+QUI
+cat > "$TMP/imported-type-parameter-scope/main.qui" <<'QUI'
+import lib = "./lib.qui"
+
+int M()
+    return 3
+
+class T
+    int v
+
+class K
+    int v
+
+class V
+    int v
+
+lib.Holder<int> holder
+holder.value = 4
+int[] values = [1, 2]
+map.Map<string, int> counts = map.Map<string, int>()
+counts.set("a", 7)
+print("{lib.first(values, 2)} {holder.value} {M()} {counts.size()}{NL}")
+QUI
+[[ "$($QUIDRA run "$TMP/imported-type-parameter-scope/main.qui")" == "2 4 3 1" ]]
+cat > "$TMP/imported-type-parameter-scope/own.qui" <<'QUI'
+class T
+    int v
+
+int first<T>(T value)
+    return 1
+QUI
+cat > "$TMP/imported-type-parameter-scope/own_main.qui" <<'QUI'
+import own = "./own.qui"
+
+print("{own.first<int>(5)}{NL}")
+QUI
+set +e
+own_standalone="$($QUIDRA check "$TMP/imported-type-parameter-scope/own.qui" 2>&1)"
+own_standalone_status=$?
+own_imported="$($QUIDRA check "$TMP/imported-type-parameter-scope/own_main.qui" 2>&1)"
+own_imported_status=$?
+set -e
+[[ "$own_standalone_status" -ne 0 && "$own_standalone" == *"SHADOWING"*"'T'"* ]]
+[[ "$own_imported_status" -ne 0 && "$own_imported" == *"SHADOWING"*"'T'"* ]]
+
+# A bare name in imported module code resolves in that module.
+# The importer's top-level functions neither replace the module's function
+# values nor hide its classes' fields, and module code cannot call them.
+mkdir -p "$TMP/imported-name-resolution"
+cat > "$TMP/imported-name-resolution/lib.qui" <<'QUI'
+int helper()
+    return 7
+
+int use()
+    fn<int>() f = helper
+    return f()
+
+class Box
+    int storage
+
+    int twice()
+        return this.storage * 2
+QUI
+cat > "$TMP/imported-name-resolution/main.qui" <<'QUI'
+import lib = "./lib.qui"
+
+int helper()
+    return 99
+
+int storage()
+    return 5
+
+lib.Box b
+b.storage = 4
+print("{lib.use()} {b.twice()} {helper()} {storage()}{NL}")
+QUI
+[[ "$($QUIDRA run "$TMP/imported-name-resolution/main.qui")" == "7 8 99 5" ]] || exit 1
+cat > "$TMP/imported-name-resolution/calls.qui" <<'QUI'
+int use()
+    return missing() + 1
+QUI
+cat > "$TMP/imported-name-resolution/calls_main.qui" <<'QUI'
+import calls = "./calls.qui"
+
+int missing()
+    return 1
+
+print("{calls.use()}{NL}")
+QUI
+set +e
+calls_standalone="$($QUIDRA check "$TMP/imported-name-resolution/calls.qui" 2>&1)"
+calls_standalone_status=$?
+calls_imported="$($QUIDRA check "$TMP/imported-name-resolution/calls_main.qui" 2>&1)"
+calls_imported_status=$?
+set -e
+[[ "$calls_standalone_status" -ne 0 && "$calls_standalone" == *"UNKNOWN_NAME"*"'missing'"* ]] || exit 1
+[[ "$calls_imported_status" -ne 0 && "$calls_imported" == *"UNKNOWN_NAME"*"'missing'"* ]] || exit 1
 
 cat > "$TMP/exact-cast-errors.qui" <<'QUI'
-bigint wide = 300
+int wide = 300
 auto | error narrowed = int8(wide)
 match narrowed
     int8 value
@@ -3046,30 +4003,30 @@ match narrowed
         print(problem)
         print(NL)
 
-bigreal fraction = 1.5
-auto | error exact_value = bigint(fraction)
+real fraction = 1.5
+auto | error exact_value = int(fraction)
 match exact_value
-    bigint value
+    int value
         print(value)
         print(NL)
     error problem
         print(problem)
         print(NL)
 
-bigint huge = 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-auto | error rounded = float(huge)
+int huge = 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+auto | error rounded = real64(huge)
 match rounded
-    float value
+    real64 value
         print(value)
         print(NL)
     error problem
         print(problem)
         print(NL)
 
-bigreal huge_real = bigreal(huge)
-auto | error rounded32 = float32(huge_real)
+real huge_real = real(huge)
+auto | error rounded32 = real32(huge_real)
 match rounded32
-    float32 value
+    real32 value
         print(value)
         print(NL)
     error problem
@@ -3077,11 +4034,15 @@ match rounded32
         print(NL)
 QUI
 exact_cast_output="$("$QUIDRA" run "$TMP/exact-cast-errors.qui")"
-[[ "$exact_cast_output" == "$(printf 'numeric cast outside destination range\nnumeric cast outside destination range\nnumeric cast outside destination range\nnumeric cast outside destination range')" ]]
+[[ "$exact_cast_output" == "$(printf '%s\n' \
+    "numeric conversion out of range: value cannot be represented as int8" \
+    "numeric conversion failed: value is not an integer and cannot be represented as int" \
+    "numeric conversion out of range: value cannot be represented as real64" \
+    "numeric conversion out of range: value cannot be represented as real32")" ]]
 
 cat > "$TMP/parse.qui" <<'QUI'
 int | error parsed = int.parse("123")
-float32 | error fraction = float32.parse("1.5")
+real32 | error fraction = real32.parse("1.5")
 int | error bad = int.parse("12x")
 match parsed
     int value
@@ -3091,7 +4052,7 @@ match parsed
         print(e)
         print(NL)
 match fraction
-    float32 value
+    real32 value
         print(value)
         print(NL)
     error e
@@ -3136,7 +4097,7 @@ cat > "$TMP/scan-format.qui" <<'QUI'
 int n
 scan(&n)
 int a
-float b
+real64 b
 scan("{&a} {&b}")
 string name
 int age
@@ -3188,12 +4149,12 @@ print(NL)
 QUI
 cat > "$TMP/cli-exact.qui" <<'QUI'
 cli args
-    bigint count = argument()
-    bigreal ratio = option(default = 0.1)
+    int count = argument()
+    real ratio = option(default = 0.1)
 
 print(args.count)
 print(NL)
-print(args.ratio == bigreal(0.125))
+print(args.ratio == real(0.125))
 print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/cli-exact.qui" -- 123456789012345678901234567890 --ratio 0.125)" == "$(printf '123456789012345678901234567890\ntrue')" ]]
@@ -3233,8 +4194,8 @@ cli_exact_bigreal_rc=$?
 set -e
 [[ "$cli_exact_bigint_rc" -eq 2 ]]
 [[ "$cli_exact_bigreal_rc" -eq 2 ]]
-grep -q 'Quidra CLI error: invalid bigint value' "$TMP/cli-exact-bigint.err"
-grep -q 'Quidra CLI error: invalid bigreal value' "$TMP/cli-exact-bigreal.err"
+grep -q 'Quidra CLI error: invalid int value' "$TMP/cli-exact-bigint.err"
+grep -q 'Quidra CLI error: invalid real value' "$TMP/cli-exact-bigreal.err"
 
 python3 - "$QUIDRA" "$TMP/cli-text.qui" <<'PY'
 import os
@@ -3337,7 +4298,7 @@ cat > "$TMP/multi-errors.qui" <<'QUI'
 bool a = 1
 int b = true
 string c = 3
-float d = false
+real64 d = false
 QUI
 set +e
 $QUIDRA check "$TMP/multi-errors.qui" --json --max-errors 3 > "$TMP/multi-errors.json"
@@ -3406,7 +4367,7 @@ square(6)
 class Box
     int value
     construct(int value_value)
-        value = value_value
+        this.value = value_value
 
 Box box = Box(9)
 box.value
@@ -3427,7 +4388,7 @@ bool broken = 1
 x
 int(10) / 0
 x
-float y = 4.0
+real64 y = 4.0
 y
 :type y
 :exit
@@ -3445,7 +4406,7 @@ expected=[
     "3","5","8","36","9","7",
     "[1, 2, 3]","111","Box(value = 9)",
     "Box(value = <uninitialized>)","none","\"hello\"",
-    "8","8","4.0","float"
+    "8","8","4.0","real64"
 ]
 position=0
 for value in expected:
@@ -3516,6 +4477,32 @@ QUI
 grep -q '3' "$TMP/repl-dead-effect/output.txt"
 ! grep -q 'REPL_REPLAY_UNSAFE' "$TMP/repl-dead-effect/error.txt"
 
+
+# A REPL result whose value is an error is displayed, and the session goes on:
+# replaying the accepted prefix discards that displayed error instead of
+# failing every later submission on it.
+cat > "$TMP/repl-error-results.txt" <<'QUI'
+int.parse("x")
+int(1) + 2
+:exit
+QUI
+set +e
+QUIDRA_CLANGXX=/definitely/not-a-clang QUIDRA_LLI=/definitely/not-an-lli "$QUIDRA" repl < "$TMP/repl-error-results.txt" > "$TMP/repl-error-results.out" 2> "$TMP/repl-error-results.err"
+repl_rc=$?
+set -e
+[[ "$repl_rc" -eq 0 ]]
+python3 - "$TMP/repl-error-results.out" "$TMP/repl-error-results.err" <<'PY'
+import sys
+out=open(sys.argv[1]).read()
+err=open(sys.argv[2]).read()
+expected=['error("numeric parse failed")', "3"]
+position=0
+for value in expected:
+    found=out.find(value, position)
+    assert found >= 0, (value, out, err)
+    position=found+len(value)
+assert "UNHANDLED_ERROR" not in err, err
+PY
 
 # A blank line with nothing pending must not resubmit the accumulated session.
 # It used to append an empty line to the accepted source and re-run the whole
@@ -3718,6 +4705,37 @@ task_output="$("$QUIDRA" run "$TMP/task-all.qui" | sort)"
 task_expected=$(printf 'alpha\nbeta')
 [[ "$task_output" == "$task_expected" ]]
 
+# A failure inside a task.all task ends the process at once after one report,
+# with standard output written before it flushed: exit handlers never run
+# while the other tasks may still be running.
+cat > "$TMP/task-all-failure.qui" <<'QUI'
+void fails()
+    int[] values = [1, 2, 3]
+    nat i = len(values)
+    print(values[i])
+
+void waits()
+    int total = 0
+    for k in range(200000)
+        total = total + k % 7
+    print(total > 0)
+
+print("before" + NL)
+task.all([fails, waits])
+print("after" + NL)
+QUI
+set +e
+"$QUIDRA" build "$TMP/task-all-failure.qui" -o "$TMP/task-all-failure" > /dev/null 2>&1
+"$TMP/task-all-failure" > "$TMP/task-all-failure.out" 2> "$TMP/task-all-failure.err"
+task_failure_rc=$?
+set -e
+[[ "$task_failure_rc" -eq 101 ]] || exit 1
+[[ "$(cat "$TMP/task-all-failure.out")" == before* ]] || exit 1
+! grep -q 'after' "$TMP/task-all-failure.out" || exit 1
+[[ "$(grep -c 'Quidra runtime error' "$TMP/task-all-failure.err")" -eq 1 ]] || exit 1
+python3 "$ROOT/tests/runtime_report.py" "$TMP/task-all-failure.err" code=INDEX_BOUNDS \
+    "file=$TMP/task-all-failure.qui" line=4 column=18 "message=index 3 out of bounds for length 3"
+
 cat > "$TMP/reference-aliasing.qui" <<'QUI'
 void touch(int[] &values, int[] &same)
     values[0] = 7
@@ -3773,7 +4791,7 @@ class Cell
     int value
 
     void read_before_initialize(int &later)
-        print(value)
+        print(this.value)
         print(NL)
         later = 1
 
@@ -3794,12 +4812,12 @@ class State
     construct(int | none value_value = none)
         match value_value
             int present
-                value = present
+                this.value = present
             none
                 void
 
     void initialize_then_replace(State &other)
-        value = 1
+        this.value = 1
         other = State()
 
 State state = State(0)
@@ -3884,8 +4902,8 @@ class Item
     int value
 
     construct(int id_value, int value_value)
-        id = id_value
-        value = value_value
+        this.id = id_value
+        this.value = value_value
 
 Item item = Item(3, 4)
 print(item.id)
@@ -3911,7 +4929,7 @@ class Item
     const int id
 
     construct(int id_value)
-        id = id_value
+        this.id = id_value
 
 Item item = Item(1)
 item.id = 2
@@ -3971,13 +4989,13 @@ class Counter
     int value
 
     construct(int value_value)
-        value = value_value
+        this.value = value_value
 
     int get()
-        return value
+        return this.value
 
     void increment()
-        value += 1
+        this.value += 1
 
 const Counter counter = Counter(4)
 print(counter.get())
@@ -3990,10 +5008,10 @@ class Counter
     int value
 
     construct(int value_value)
-        value = value_value
+        this.value = value_value
 
     void increment()
-        value += 1
+        this.value += 1
 
 const Counter counter = Counter(4)
 counter.increment()
@@ -4011,7 +5029,7 @@ class Item
     int value
 
     construct(int value_value)
-        value = value_value
+        this.value = value_value
 
 Item item = Item(4)
 QUI
@@ -4042,7 +5060,10 @@ import sys
 out=open(sys.argv[1]).read()
 assert "21" in out, out
 PY
-[[ ! -s "$TMP/repl-project/error.txt" ]]
+if [[ -s "$TMP/repl-project/error.txt" ]]; then
+    cat "$TMP/repl-project/error.txt" >&2
+    exit 1
+fi
 
 
 "$QUIDRA" describe > "$TMP/describe-final.json"
@@ -4076,7 +5097,7 @@ assert "duplicate_parameter" in calls["rejected"]
 PY
 
 cat > "$TMP/inspect-tensor-shape.qui" <<'QUI'
-tensor<float32><2, 3> matrix = tensor.zeros<float32>([2, 3])
+tensor<real32><2, 3> matrix = tensor.zeros<real32>([2, 3])
 auto row = matrix[0]
 auto dimensions = matrix.shape()
 QUI
@@ -4085,13 +5106,13 @@ python3 - "$TMP/inspect-tensor-shape.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
 types={n["inferred_type"] for n in x["nodes"] if n["inferred_type"]}
-assert "tensor<float32><2, 3>" in types, types
-assert "tensor<float32><3>" in types, types
-assert "int[2]" in types, types
+assert "tensor<real32><2, 3>" in types, types
+assert "tensor<real32><3>" in types, types
+assert "nat[2]" in types, types
 PY
 
 cat > "$TMP/tensor-rank-inference.qui" <<'QUI'
-tensor<float32> matrix = tensor.zeros<float32>([2, 3])
+tensor<real32> matrix = tensor.zeros<real32>([2, 3])
 auto shape = matrix.shape()
 print(shape[0])
 print(NL)
@@ -4133,8 +5154,8 @@ PY
 
 
 cat > "$TMP/uint64-literals.qui" <<'QUI'
-uint64 high = 10000000000000000000
-uint64 maximum = 18446744073709551615
+nat64 high = 10000000000000000000
+nat64 maximum = 18446744073709551615
 print(high)
 print(NL)
 print(maximum)
@@ -4143,7 +5164,7 @@ QUI
 [[ "$("$QUIDRA" run "$TMP/uint64-literals.qui")" == $'10000000000000000000\n18446744073709551615' ]]
 
 cat > "$TMP/uint64-too-large.qui" <<'QUI'
-uint64 value = 18446744073709551616
+nat64 value = 18446744073709551616
 QUI
 set +e
 "$QUIDRA" check "$TMP/uint64-too-large.qui" --json > "$TMP/uint64-too-large.json"
@@ -4184,7 +5205,7 @@ set +e
 deep_rc=$?
 set -e
 [[ "$deep_rc" -eq 101 ]]
-grep -Eq 'Quidra runtime error\[CALL_DEPTH_LIMIT\] at [0-9]+:[0-9]+: call depth limit' "$TMP/deep-recursion.out"
+python3 "$ROOT/tests/runtime_report.py" "$TMP/deep-recursion.out" code=CALL_DEPTH_LIMIT "file=$TMP/deep-recursion.qui" "message=maximum recursion depth exceeded (limit 4096)"
 
 cat > "$TMP/standalone-none.qui" <<'QUI'
 none
@@ -4195,25 +5216,25 @@ QUI
 
 
 cat > "$TMP/float-canonical-text.qui" <<'QUI'
-print(float(0.6))
+print(real64(0.6))
 print(NL)
-print(float(1.0 / 3.0))
+print(real64(1.0 / 3.0))
 print(NL)
-print(float(1.0))
+print(real64(1.0))
 print(NL)
-print(float(-0.0))
+print(real64(-0.0))
 print(NL)
-print(float(1.0e20))
+print(real64(1.0e20))
 print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-canonical-text.qui")" == $'0.6\n0.3333333333333333\n1.0\n-0.0\n1.0e+20' ]]
 
 cat > "$TMP/float-exception-text.qui" <<'QUI'
-print(float(0.0 / 0.0))
+print(real64(0.0 / 0.0))
 print(NL)
-print(float(1.0 / 0.0))
+print(real64(1.0 / 0.0))
 print(NL)
-print(float(-1.0 / 0.0))
+print(real64(-1.0 / 0.0))
 print(NL)
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-exception-text.qui")" == $'nan\ninf\n-inf' ]]
@@ -4270,3 +5291,177 @@ open(sys.argv[1] + '/flat-program.qui', 'w').write(
     ''.join('int v%d = %d\n' % (i, i) for i in range(40000)))
 " "$TMP"
 "$QUIDRA" check "$TMP/flat-program.qui"
+
+# Compound assignments store into the target's current storage: a
+# right-hand side that grows, shrinks or replaces the array or object the
+# target belongs to leaves the result in the current one
+# (tests/golden/probes/assignment).
+assignment_probes="$ROOT/tests/golden/probes/assignment"
+assignment_output="$("$QUIDRA" run "$assignment_probes/growth.qui")"
+[[ "$assignment_output" == "$(printf 'plain: 6 1003\ncompound: 6 1003\nproduct: 4 0 1003')" ]]
+set +e
+"$QUIDRA" run "$assignment_probes/shrink.qui" >"$TMP/assignment-shrink.out" 2>"$TMP/assignment-shrink.err"
+assignment_rc=$?
+set -e
+[[ "$assignment_rc" -ne 0 ]]
+[[ "$(cat "$TMP/assignment-shrink.out")" == "first: 6 1" ]]
+grep -q 'INDEX_BOUNDS' "$TMP/assignment-shrink.err"
+assignment_output="$("$QUIDRA" run "$assignment_probes/field_replacement.qui")"
+[[ "$assignment_output" == "$(printf 'field: 6 7\nnested: 6 1003\nnested replaced: 1 1000\nlocal: 6\nelement field: 6 6')" ]]
+assignment_output="$("$QUIDRA" run "$assignment_probes/receivers.qui")"
+[[ "$assignment_output" == "$(printf 'method: 6 1003\nreceiver call: 6 1003')" ]]
+assignment_output="$("$QUIDRA" run "$assignment_probes/string_elements.qui")"
+[[ "$assignment_output" == "$(printf 'a1 q r 3\np y1! 3')" ]]
+assignment_output="$("$QUIDRA" run "$assignment_probes/shared_cell.qui")"
+[[ "$assignment_output" == "cell: 6 1003" ]]
+assignment_output="$("$QUIDRA" run "$assignment_probes/alias.qui")"
+[[ "$assignment_output" == "$(printf 'reference local: 6 1003\nreference parameters: 6 1003')" ]]
+
+# Source evaluation order is left to right; an assignment evaluates its
+# target's index operands, then the right-hand side, then stores into the
+# target as it is then (tests/golden/probes/evaluation_order).
+order_probes="$ROOT/tests/golden/probes/evaluation_order"
+order_output="$("$QUIDRA" run "$order_probes/assignment.qui")"
+[[ "$order_output" == "$(printf 'i f | 0 5 0\ni f | 3\nplain: 7 5 1\ncompound: 8 1 1\nr c v | 9')" ]] || exit 1
+order_output="$("$QUIDRA" run "$order_probes/expressions.qui")"
+[[ "$order_output" == "$(printf '1 2 9 | 12\n2 1 3 | 6\n4 make 20 21 body 5 | 9\n6 7 8 | 62\na b c | abc\n1 2 | true\n10 11 12 | 3\n13 14 | 13-14\n1 0 | 3\n30 20 21 body | 20 21 30')" ]] || exit 1
+order_failure() {
+    local probe="$1" output="$2" location="$3" message="$4" status=0
+    "$QUIDRA" run "$order_probes/$probe.qui" >"$TMP/$probe.out" 2>"$TMP/$probe.err" || status=$?
+    [[ "$status" -eq 101 ]] || exit 1
+    [[ "$(cat "$TMP/$probe.out")" == "$output" ]] || exit 1
+    python3 "$ROOT/tests/runtime_report.py" "$TMP/$probe.err" code=INDEX_BOUNDS "file=$order_probes/$probe.qui" \
+        "line=${location%%:*}" "column=${location#*:}" "message=$message" || exit 1
+}
+order_failure plain_bounds noisy 10:3 "index 5 out of bounds for length 3"
+order_failure compound_bounds "" 10:3 "index 5 out of bounds for length 3"
+order_failure index_failure start 13:5 "index 4 out of bounds for length 2"
+
+# A read that only some paths initialize compiles and is checked at run time:
+# it runs on a path that initialized the binding and stops with
+# UNINITIALIZED, naming the binding, on one that did not.
+cat > "$TMP/maybe-initialized.qui" <<'QUI'
+int[] values = [3, 4]
+int x
+if len(values) > 1
+    x = values[1]
+int total = 0
+for v in values
+    if v > 10
+        total = v
+print("{x}")
+print(NL)
+QUI
+[[ "$("$QUIDRA" run "$TMP/maybe-initialized.qui")" == "4" ]] || exit 1
+cat > "$TMP/maybe-uninitialized.qui" <<'QUI'
+int[] values = [3]
+int x
+if len(values) > 1
+    x = values[1]
+print("before")
+print(NL)
+print(x)
+QUI
+maybe_status=0
+"$QUIDRA" run "$TMP/maybe-uninitialized.qui" >"$TMP/maybe-uninitialized.out" 2>"$TMP/maybe-uninitialized.err" || maybe_status=$?
+[[ "$maybe_status" -eq 101 ]] || exit 1
+[[ "$(cat "$TMP/maybe-uninitialized.out")" == "before" ]] || exit 1
+python3 "$ROOT/tests/runtime_report.py" "$TMP/maybe-uninitialized.err" code=UNINITIALIZED \
+    "file=$TMP/maybe-uninitialized.qui" line=7 column=7 "message='x' is uninitialized" || exit 1
+cat > "$TMP/maybe-zero-iterations.qui" <<'QUI'
+int[] values = []
+string last
+for v in values
+    last = "{v}"
+print(last)
+QUI
+maybe_status=0
+"$QUIDRA" run "$TMP/maybe-zero-iterations.qui" >/dev/null 2>"$TMP/maybe-zero-iterations.err" || maybe_status=$?
+[[ "$maybe_status" -eq 101 ]] || exit 1
+python3 "$ROOT/tests/runtime_report.py" "$TMP/maybe-zero-iterations.err" code=UNINITIALIZED \
+    "file=$TMP/maybe-zero-iterations.qui" line=5 column=7 "message='last' is uninitialized" || exit 1
+# A field that some paths store keeps a bit per field: a copy carries it,
+# equality ignores it, and a read on a path that left it unset stops.
+cat > "$TMP/maybe-field.qui" <<'QUI'
+class Point
+    int x
+    int y = 0
+
+    construct(bool known)
+        if known
+            this.x = 7
+        print("{this.y} ")
+        if known
+            print("{this.x} ")
+
+int[] flags = [1, 0]
+Point r = Point(true)
+Point p
+if len(flags) > 1
+    p.x = 3
+print("{p.x}")
+print(NL)
+Point s
+if len(flags) > 2
+    s.x = 1
+print(s.x)
+QUI
+field_status=0
+"$QUIDRA" run "$TMP/maybe-field.qui" >"$TMP/maybe-field.out" 2>"$TMP/maybe-field.err" || field_status=$?
+[[ "$field_status" -eq 101 ]] || exit 1
+[[ "$(cat "$TMP/maybe-field.out")" == "0 7 3" ]] || exit 1
+python3 "$ROOT/tests/runtime_report.py" "$TMP/maybe-field.err" code=UNINITIALIZED \
+    "file=$TMP/maybe-field.qui" line=22 column=7 "message='s.x' is uninitialized" || exit 1
+
+# Value collection loops iterate the value at loop entry: a body that
+# appends to, replaces or writes elements of the iterated storage, directly
+# or through a receiver or an aliasing reference, does not change the
+# elements the loop visits (tests/golden/probes/loops).
+loop_probes="$ROOT/tests/golden/probes/loops"
+loop_output="$("$QUIDRA" run "$loop_probes/append_reassign.qui")"
+[[ "$loop_output" == "$(printf '1 2 3 | 6 30\na b | 4 b!\n1 2 | 8')" ]]
+loop_output="$("$QUIDRA" run "$loop_probes/element_write.qui")"
+[[ "$loop_output" == "$(printf '1 2 3 | 77\n1 2 3 | 77\n1 2 3 | 7\nx y z | changed\n0 0 0 0 | 0001\n1 2 3 | 77')" ]]
+loop_output="$("$QUIDRA" run "$loop_probes/full_reassignment.qui")"
+[[ "$loop_output" == "$(printf '1 2 3 | 2\n1 2 3 | 1\n1 2 3 | 4\n1 2 3 | 1')" ]]
+loop_output="$("$QUIDRA" run "$loop_probes/exits.qui")"
+[[ "$loop_output" == "$(printf 'return: 3 7\nbreak: 2 6\ntry: 0\n4 4 4 ')" ]]
+loop_output="$("$QUIDRA" run "$loop_probes/receivers.qui")"
+[[ "$loop_output" == "$(printf 'method: 6 6\nreceiver call: 6 6')" ]]
+loop_output="$("$QUIDRA" run "$loop_probes/aliases.qui")"
+[[ "$loop_output" == "$(printf '1 2 3 | 77\n1 2 3 | 6\n1 2 3 | 6')" ]]
+loop_output="$("$QUIDRA" run "$ROOT/tests/benchmark/quidra/adversarial/ADV-15.qui")"
+[[ "$loop_output" == "$(printf 'ADV-START\nOBS=ITERS:5|LEN:6\nADV-END')" ]]
+
+# A reference loop over a reference binding iterates the live array: when
+# the body replaces or resizes it through another binding, the loop stops
+# with FOR_ITERATION at that statement (or at the statement of a break that
+# follows it), never writing back into a released array; element writes
+# through an alias keep the array and every write (tests/golden/probes/loops).
+for_iteration_failure() {
+    local probe="$1" location="$2" status=0
+    "$QUIDRA" run "$loop_probes/$probe.qui" >"$TMP/$probe.out" 2>"$TMP/$probe.err" || status=$?
+    [[ "$status" -eq 101 ]] || exit 1
+    [[ "$(cat "$TMP/$probe.out")" == "before" ]] || exit 1
+    python3 "$ROOT/tests/runtime_report.py" "$TMP/$probe.err" code=FOR_ITERATION "file=$loop_probes/$probe.qui" \
+        "line=${location%%:*}" "column=${location#*:}" \
+        "message=array iterated by reference was replaced or resized during the loop" || exit 1
+}
+for_iteration_failure reference_alias_call 12:9
+for_iteration_failure reference_alias_assignment 5:9
+for_iteration_failure reference_substorage 8:5
+for_iteration_failure reference_break 10:9
+loop_output="$("$QUIDRA" run "$loop_probes/reference_element_writes.qui")"
+[[ "$loop_output" == "0 0 4" ]] || exit 1
+loop_output="$("$QUIDRA" run "$loop_probes/reference_exits.qui")"
+[[ "$loop_output" == "$(printf '101 2 103 4 5\n3: 11 12 3 4\n5')" ]] || exit 1
+
+# A by-value argument keeps its value at the call while the call writes the
+# same storage, through another & argument, an element's array, a writing
+# receiver or a later argument; a const parameter's element addresses never
+# equal the caller's (tests/golden/probes/arguments).
+argument_probes="$ROOT/tests/golden/probes/arguments"
+argument_output="$("$QUIDRA" run "$argument_probes/aliasing.qui")"
+[[ "$argument_output" == "$(printf 'array: 1 7\nafter: 7\nplain: 2 6\nreplaced: 1 3 1\nclass: 0 5\nelement: 1 8\nlater: 1 3 103\nreceiver: 1 9\ntensor: 1.0 5.0\nint: 1 2\nstring: orig changed\nuntouched: 3 1')" ]]
+argument_output="$("$QUIDRA" run "$argument_probes/identity.qui")"
+[[ "$argument_output" == "$(printf 'false\nfalse\n2\nfalse\n1')" ]]

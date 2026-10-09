@@ -1,9 +1,9 @@
 print("ADV-START")
 print(NL)
 flush()
-uint32 a = 0
-uint32 b = 1
-uint32 r = a - b
+nat32 a = 0
+nat32 b = 1
+nat32 r = a - b
 print("OBS=SUB:{r}")
 print(NL)
 flush()

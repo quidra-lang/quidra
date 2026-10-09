@@ -10,10 +10,15 @@
 
 namespace quidra {
 
+class CompileInputs;
+
+// With `inputs`, every file the loader reads and every resolution it makes
+// is recorded (quidra/compile_inputs.hpp).
 ResolvedProgram load_program_with_modules(
     const std::filesystem::path& root_file,
     const std::filesystem::path& command_working_directory,
-    std::size_t max_errors = 20);
+    std::size_t max_errors = 20,
+    CompileInputs* inputs = nullptr);
 
 ResolvedProgram load_program_with_root_source(
     const std::filesystem::path& root_file,

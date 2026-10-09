@@ -1,0 +1,111 @@
+// Zero-extent broadcasting: tensor-to-tensor operands need equal rank,
+// and per axis equal extents or a singleton on one side, which takes the
+// other side's extent, including 0. --case 0 prints every allowed case: the
+// result shape and values and both operands' gradients (exact small
+// integers, so every backend prints the same text), and scalar arithmetic,
+// which broadcasts to any rank. --case 1..8 each run one combination that
+// must stop with a runtime error (cases 5..8 are 1..4 with the operands
+// swapped); --tracked 1, 2 or 3 tracks the left, the right or both operands.
+// The ranks come from int[] values, so they are not known statically and
+// rank mismatches reach the runtime too.
+//
+//     quidra tests/broadcast_zero_extent.qui --device N --case K [--tracked T]
+cli args
+    int device = option(default = -1)
+    int case = option(default = 0)
+    int tracked = option(default = 0)
+
+int element_count(int[] shape)
+    int count = 1
+    for extent in shape
+        count = count * extent
+    return count
+
+tensor<real32> place(tensor<real32> value, int device)
+    if device >= 0
+        return value.gpu(nat(device))
+    return value
+
+// 1, 2, 3, ... in row-major order.
+tensor<real32> ramp(int[] shape, int device)
+    int count = element_count(shape)
+    tensor<real32> flat = tensor.zeros<real32>([nat(count)])
+    for index in range(count)
+        flat[index] = real32(index + 1)
+    return place(flat.reshape(nat(shape)), device)
+
+void dump(string label, tensor<real32> value)
+    tensor<real32> host = value.cpu()
+    nat[] shape = host.shape()
+    print("{label} [")
+    for axis in range(len(shape))
+        if axis > 0
+            print(",")
+        print("{shape[axis]}")
+    print("]:")
+    int count = element_count(int(shape))
+    tensor<real32> flat = host.contiguous().reshape([nat(count)])
+    for index in range(count)
+        print(" {real64(flat[index].item())}")
+    print(NL)
+
+// A one-element loss through scatter; empty values give 0.
+tensor<real32> total(tensor<real32> value)
+    int count = element_count(int(value.shape()))
+    int[] zeros = array(nat(count), fill = 0)
+    return value.reshape([nat(count)]).scatter(zeros, [1])
+
+void check(string name, int[] left_shape, int[] right_shape, int device)
+    tensor<real32> left = ramp(left_shape, device)
+    tensor<real32> right = ramp(right_shape, device) * real32(10)
+    tensor<real32> output = left.track() * right.track() + left.track()
+    dump("{name} out", output.untrack())
+    tensor<real32> weights = ramp(int(output.shape()), device)
+    total(output * weights).backward(&left, &right)
+    dump("{name} d_left", left.grad)
+    dump("{name} d_right", right.grad)
+
+if args.case == 0
+    check("zero-zero", [0, 3], [0, 3], args.device)
+    check("zero-one", [0, 3], [1, 3], args.device)
+    check("one-zero", [1, 3], [0, 3], args.device)
+    check("two-one", [2, 3], [1, 3], args.device)
+    check("zero-cols", [2, 0], [2, 1], args.device)
+    tensor<real32> base = ramp([2, 3], args.device)
+    tensor<real32> x = base.track()
+    tensor<real32> shifted = x + real32(2)
+    dump("scalar out", shifted.untrack())
+    total(shifted * ramp([2, 3], args.device)).backward(&base)
+    dump("scalar d_x", base.grad)
+    tensor<real32> left_base = ramp([2, 3], args.device)
+    tensor<real32> y = left_base.track()
+    tensor<real32> reflected = real32(2) - y * real32(3)
+    dump("scalar-left out", reflected.untrack())
+    total(reflected * ramp([2, 3], args.device)).backward(&left_base)
+    dump("scalar-left d_x", left_base.grad)
+    tensor<real32> empty = ramp([0, 3], args.device)
+    tensor<real32> e = empty.track()
+    tensor<real32> empty_shifted = e + real32(2)
+    dump("empty-scalar out", empty_shifted.untrack())
+    total(empty_shifted).backward(&empty)
+    dump("empty-scalar d_x", empty.grad)
+else
+    int[][] left_shapes = [[0, 3], [3], [3], [3]]
+    int[][] right_shapes = [[2, 3], [0, 3], [2, 3], [1, 3]]
+    int index = (args.case - 1) % 4
+    tensor<real32> left = ramp(left_shapes[index], args.device)
+    tensor<real32> right = ramp(right_shapes[index], args.device)
+    if args.case > 4
+        tensor<real32> swapped = left
+        left = right
+        right = swapped
+    if args.tracked == 1 or args.tracked == 3
+        left = left.track()
+    if args.tracked == 2 or args.tracked == 3
+        right = right.track()
+    // Untracked operands add, tracked ones multiply (a node with saved
+    // operands).
+    if args.tracked == 0
+        print("unreachable {element_count(int((left + right).shape()))}{NL}")
+    else
+        print("unreachable {element_count(int((left * right).shape()))}{NL}")

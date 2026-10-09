@@ -1,0 +1,14 @@
+// Tensor arithmetic on the CPU, with values that become non-finite.
+tensor<real32> ones = tensor.ones<real32>([3])
+tensor<real32> twos = ones + ones
+tensor<real32> scaled = twos * twos
+print("{scaled[0].item()} {scaled[2].item()}")
+print(NL)
+tensor<real32> zeros = ones - ones
+tensor<real32> quotient = ones / zeros
+print("{quotient[1].item()}")
+print(NL)
+tensor<real64> wide = tensor.ones<real64>([2, 2])
+tensor<real64> product = wide * wide + wide
+print("{product[1, 1].item()}")
+print(NL)

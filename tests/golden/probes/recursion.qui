@@ -1,0 +1,25 @@
+// The recursion shapes of the backend's depth guard (decided by
+// self_depth_recursive_functions in src/ir/analysis/call_graph.cpp). A
+// function that recurses only into itself keeps its depth in a parameter; a
+// self-recursive function that also reaches another recursive function, or
+// is reached by one, shares the global depth counter instead.
+int countdown(int n)
+    if n <= 0
+        return 0
+    else
+        return countdown(n - 1) + 1
+
+int outer(int n)
+    if n <= 0
+        return countdown(3)
+    else
+        return outer(n - 1) + 1
+
+int alone(int n)
+    if n <= 0
+        return 0
+    else
+        return alone(n - 1) + 2
+
+print(outer(2) + alone(2))
+print(NL)

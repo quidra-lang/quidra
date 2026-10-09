@@ -1,0 +1,29 @@
+// Arithmetic, comparison and printing in every fixed-width integer kind,
+// at and near the ends of each range.
+int8 a8 = -128
+int8 b8 = 127
+int16 a16 = -32768
+int16 b16 = 32767
+int32 a32 = -2147483648
+int32 b32 = 2147483647
+int a64 = -9223372036854775807
+int b64 = 9223372036854775807
+nat8 u8 = 255
+nat16 u16 = 65535
+nat32 u32 = 4294967295
+nat64 u64 = 18446744073709551615
+print("{a8} {b8} {a8 + b8} {b8 / int8(3)} {b8 % int8(5)}")
+print(NL)
+print("{a16} {b16} {a16 + b16} {b16 / int16(7)}")
+print(NL)
+print("{a32} {b32} {a32 + b32} {b32 % int32(1000)}")
+print(NL)
+print("{a64} {b64} {a64 + b64} {b64 / 1000000}")
+print(NL)
+print("{u8} {u8 - nat8(5)} {u16 / nat16(255)} {u32 % nat32(1000)} {u64 - nat64(1)}")
+print(NL)
+print("{a8 < b8} {u16 >= nat16(65535)} {a64 == -9223372036854775807} {u64 != nat64(0)}")
+print(NL)
+int8 negative = -b8
+print("{negative} {-(a16 + int16(1))}")
+print(NL)

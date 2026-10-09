@@ -1,0 +1,5 @@
+// Literals of one family in a context of another, rejected today: an
+// integer literal where a real is expected.
+real64 from_integer = 3
+print("{from_integer}")
+print(NL)

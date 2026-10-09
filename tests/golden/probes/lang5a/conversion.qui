@@ -1,0 +1,10 @@
+// A narrowing conversion of a run-time value out of the destination range
+// fails fast; the same conversion in range succeeds.
+int small = 100
+int large = small * 3
+int8 fits = int8(small)
+print("fits {fits}")
+print(NL)
+int8 lost = int8(large)
+print("lost {lost}")
+print(NL)

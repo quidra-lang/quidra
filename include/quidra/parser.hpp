@@ -40,6 +40,7 @@ private:
     bool looks_like_declaration(bool function) const;
     bool looks_like_type_argument_call() const;
     bool looks_like_cli_decl() const;
+    bool looks_like_export_prefix() const;
     TypeName type_name();
     ExprPtr type_integer_expression();
     ExprPtr type_integer_term();
@@ -54,6 +55,8 @@ private:
     FunctionDecl constructor_decl(const std::string& class_name,
                                   const std::vector<std::string>& type_parameters);
     FunctionDecl external_function_decl();
+    ForeignExport foreign_export_prefix();
+    FunctionDecl export_function_decl();
     std::vector<StmtPtr> block_until(bool allow_else);
     StmtPtr statement();
     StmtPtr binding_stmt();
@@ -69,8 +72,12 @@ private:
 
     std::vector<CallArg> call_arguments(bool address_values = false);
     ExprPtr expression();
+    ExprPtr if_expression();
+    ExprPtr if_expression_part();
+    void report_if_expression(const Token& token, std::string message);
     ExprPtr inline_expression();
     ExprPtr string_expression(const Token& token);
+    ExprPtr this_field();
     ExprPtr or_expr();
     ExprPtr and_expr();
     ExprPtr bit_or_expr();

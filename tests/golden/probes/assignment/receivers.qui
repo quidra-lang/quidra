@@ -1,0 +1,24 @@
+// A compound assignment to an array field whose right-hand side calls a
+// method that grows the field, through the implicit receiver inside a
+// method and through an explicit receiver outside.
+class Bag
+    int[] items
+
+    int grow_items()
+        for i in range(1000)
+            this.items = this.items.append(i)
+        return 1
+
+    void bump_first()
+        this.items[0] += grow_items()
+
+Bag g
+g.items = [5, 0, 0]
+g.bump_first()
+print("method: {g.items[0]} {len(g.items)}")
+print(NL)
+Bag h
+h.items = [5, 0, 0]
+h.items[0] += h.grow_items()
+print("receiver call: {h.items[0]} {len(h.items)}")
+print(NL)

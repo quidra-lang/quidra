@@ -9,7 +9,7 @@ string read_input_line()
             return line
         error problem
             process.exit(2)
-float v = float.parse(read_input_line())
+real64 v = real64.parse(read_input_line())
 int32 r = int32(math.trunc(v))
 print("OBS=V:{r}")
 print(NL)

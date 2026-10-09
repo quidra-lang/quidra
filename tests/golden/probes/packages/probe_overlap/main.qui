@@ -1,0 +1,31 @@
+// Probe package (golden corpus): two compiler extensions of one package,
+// alpha and beta, whose fusion chains overlap on the same functions, and
+// conditional rules in all three stages (specialization, backend, memory).
+// The functions only return their input: the probes are compiled, never run.
+
+tensor<real32> first(tensor<real32> value)
+    return value
+
+tensor<real32> second(tensor<real32> value)
+    return value
+
+tensor<real32> third(tensor<real32> value)
+    return value
+
+tensor<real32> fused_ab(tensor<real32> value)
+    return value
+
+tensor<real32> fused_bc(tensor<real32> value)
+    return value
+
+tensor<real32> fused_abc(tensor<real32> value)
+    return value
+
+tensor<real32> inference(tensor<real32> value)
+    return value
+
+tensor<real32> cpu_target(tensor<real32> value)
+    return value
+
+tensor<real32> reuse(tensor<real32> value)
+    return value

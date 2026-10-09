@@ -1,0 +1,18 @@
+// Exact constants and operations of a probe provider package (no Math):
+// an atom and a unary operation, compared and converted.
+import exactprobe
+
+real root = exactprobe.root2
+real flipped = exactprobe.flip(root)
+real back = exactprobe.flip(flipped)
+print("{root > real(1.41)} {root < real(1.42)} {flipped < real(0)}")
+print(NL)
+print("{back == root}")
+print(NL)
+auto | error approximate = real64(root)
+match approximate
+    real64 value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)

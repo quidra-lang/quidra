@@ -1,0 +1,31 @@
+// A plain assignment evaluates its target's index operands, then the
+// right-hand side, then stores into the target as it is then; a compound
+// assignment also reads the target's element before the right-hand side.
+int note(string label, int value)
+    print(label)
+    return value
+
+int bump(int &i)
+    i = i + 1
+    return 7
+
+int[] a = [0, 0, 0]
+a[note("i ", 1)] = note("f ", 5)
+print("| {a[0]} {a[1]} {a[2]}")
+print(NL)
+a[note("i ", 2)] += note("f ", 3)
+print("| {a[2]}")
+print(NL)
+int i = 0
+a[i] = bump(&i)
+print("plain: {a[0]} {a[1]} {i}")
+print(NL)
+int j = 0
+int[] b = [1, 1, 1]
+b[j] += bump(&j)
+print("compound: {b[0]} {b[1]} {j}")
+print(NL)
+int[][] m = [[0, 0], [0, 0]]
+m[note("r ", 1)][note("c ", 0)] = note("v ", 9)
+print("| {m[1][0]}")
+print(NL)

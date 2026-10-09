@@ -19,6 +19,91 @@ static void require(bool condition, const char* message) {
     }
 }
 
+static void reject(const std::string& source);
+
+static void reject_code(const std::string& source, const std::string& code) {
+    try {
+        (void)parse(source);
+    } catch (const CompileError& error) {
+        if (error.diagnostic().code == code) return;
+        std::cerr << "expected " << code << ", got " << error.diagnostic().code << ":\n" << source;
+        std::exit(1);
+    } catch (const CompileErrors& errors) {
+        for (const auto& diagnostic : errors.diagnostics()) {
+            if (diagnostic.code == code) return;
+        }
+        std::cerr << "expected " << code << ":\n" << source;
+        std::exit(1);
+    }
+    std::cerr << "unexpected parser acceptance, expected " << code << ":\n" << source;
+    std::exit(1);
+}
+
+static const IfExpr& if_expression_of(const Program& program, std::size_t statement) {
+    const auto& binding = std::get<BindingStmt>(program.statements.at(statement)->data);
+    return std::get<IfExpr>(binding.value->data);
+}
+
+static void if_expressions() {
+    {
+        auto p = parse("int x = if ready then 1 else 2\n");
+        const auto& node = if_expression_of(p, 0);
+        require(node.conditions.size() == 1 && node.values.size() == 1 && node.otherwise,
+                "if-expression AST");
+    }
+    {
+        auto p = parse("string grade = if s >= 90 then \"A\" elif s >= 80 then \"B\" elif s >= 70 then \"C\" else \"D\"\n");
+        const auto& node = if_expression_of(p, 0);
+        require(node.conditions.size() == 3 && node.values.size() == 3,
+                "elif chains of an if-expression");
+    }
+    {
+        // A branch extends as far as an or_expr does.
+        auto p = parse("int x = if c then 2 else 3 + 1\n");
+        const auto& node = if_expression_of(p, 0);
+        require(std::holds_alternative<BinaryExpr>(node.otherwise->data),
+                "an if-expression branch is an or_expr");
+    }
+    {
+        // Parenthesized nesting in every position, operands, and the
+        // whole-expression positions.
+        auto p = parse(
+            "int a = if x then (if y then 1 else 2) else (if z then 3 else 4)\n"
+            "int b = if (if x then y else z) then 1 else 2\n"
+            "int c = 1 + (if x then 2 else 3)\n"
+            "int d = (if x\n    then 1\n    else 2)\n"
+            "f(if x then 1 else 2, named = if y then 3 else 4)\n"
+            "int[] e = [if x then 1 else 2, 3]\n"
+            "int g = e[if x then 0 else 1]\n"
+            "g += if x then 1 else 2\n"
+            "print(\"{if x then a else b}\")\n"
+            "int h(int v = if x then 1 else 2)\n"
+            "    return if v > 0 then v else 0\n"
+            "class Box\n"
+            "    int v = if x then 1 else 2\n");
+        require(p.statements.size() == 9 && p.functions.size() == 1 && p.classes.size() == 1,
+                "if-expressions in whole-expression positions");
+        require(std::holds_alternative<IfExpr>(
+                    std::get<BindingStmt>(p.statements[3]->data).value->data),
+                "a multi-line if-expression in parentheses");
+    }
+    reject_code("int x = if c then 1\n", "IF_EXPRESSION");
+    reject_code("int x = if c then 1 else if d then 2 else 3\n", "IF_EXPRESSION");
+    reject_code("int x = if c 1 else 2\n", "IF_EXPRESSION");
+    reject_code("int x = if c then if d then 1 else 2 else 3\n", "IF_EXPRESSION");
+    reject_code("int x = if if c then d else e then 1 else 2\n", "IF_EXPRESSION");
+    reject_code("int x = 1 + if c then 2 else 3\n", "IF_EXPRESSION");
+    reject_code("if if c then d else e\n    print(1)\n", "IF_EXPRESSION");
+    reject_code("while if c then d else e\n    print(1)\n", "IF_EXPRESSION");
+    reject_code("match if c then d else e\n    int v\n        print(v)\n", "IF_EXPRESSION");
+    reject_code("if c then print(1) else print(2)\n", "IF_EXPRESSION");
+    reject_code("if c then\n    print(1)\n", "IF_EXPRESSION");
+    reject_code("print(\"{if c then 1}\")\n", "IF_EXPRESSION");
+    // `then` is reserved, and there is no ?: operator.
+    reject("int then = 1\n");
+    reject("int x = c ? 1 : 2\n");
+}
+
 static void reject(const std::string& source) {
     try {
         (void)parse(source);
@@ -31,11 +116,52 @@ static void reject(const std::string& source) {
     std::exit(1);
 }
 
+static const Expr& binding_value_of(const Program& program, std::size_t statement) {
+    return *std::get<BindingStmt>(program.statements.at(statement)->data).value;
+}
+
+// Imaginary literals: a number immediately followed by `i` that does not
+// start an identifier; `i` itself stays an ordinary name.
+static void imaginary_literals() {
+    {
+        auto p = parse("com z = 2.0i\n");
+        const auto* literal = std::get_if<ImaginaryLiteralExpr>(&binding_value_of(p, 0).data);
+        require(literal && literal->spelling == "2.0" && !literal->integer_form,
+                "2.0i is an imaginary literal");
+    }
+    {
+        auto p = parse("com z = 1.0e5i\n");
+        const auto* literal = std::get_if<ImaginaryLiteralExpr>(&binding_value_of(p, 0).data);
+        require(literal && literal->spelling == "1.0e5" && !literal->integer_form,
+                "1.0e5i is an imaginary literal");
+    }
+    {
+        auto p = parse("com z = 2i\n");
+        const auto* literal = std::get_if<ImaginaryLiteralExpr>(&binding_value_of(p, 0).data);
+        require(literal && literal->spelling == "2" && literal->integer_form,
+                "2i is an integer-form imaginary literal");
+    }
+    {
+        const auto tokens = Lexer("2.0in 3.0i_x\n").scan();
+        require(tokens.size() >= 4 && tokens[0].kind == TokenKind::RealLiteral &&
+                    tokens[0].text == "2.0" && tokens[1].kind == TokenKind::KwIn &&
+                    tokens[2].kind == TokenKind::RealLiteral && tokens[3].kind == TokenKind::Identifier,
+                "an i followed by an identifier character ends no imaginary literal");
+    }
+    {
+        auto p = parse("int i = 5\nint j = i\n");
+        require(std::holds_alternative<IntegerExpr>(binding_value_of(p, 0).data) &&
+                    std::holds_alternative<NameExpr>(binding_value_of(p, 1).data),
+                "i stays an identifier");
+    }
+}
+
 int main() {
+    imaginary_literals();
     {
         auto enums = parse(
             "enum Token\n"
-            "    Number(float)\n"
+            "    Number(real64)\n"
             "    Name(string)\n"
             "    Plus\n"
             "    End\n"
@@ -53,7 +179,7 @@ int main() {
         require(enums.enums.size() == 1 && enums.enums[0].variants.size() == 4,
                 "enum declaration AST");
         require(enums.enums[0].variants[0].payload.has_value() &&
-                enums.enums[0].variants[0].payload->name == "float",
+                enums.enums[0].variants[0].payload->name == "real64",
                 "enum payload AST");
         const auto& match = std::get<MatchStmt>(enums.statements[1]->data);
         require(match.cases[0].tag == "Token.Number" &&
@@ -78,14 +204,21 @@ int main() {
                 "generic class constraint AST");
         reject("T bad<T:>(T value)\n    return value\n");
     }
-    reject("tensor<float32, 3> invalid\n");
+    reject("tensor<real32, 3> invalid\n");
     reject("tensor<3, _, _> invalid\n");
-    reject("tensor<float32><3, , _> invalid\n");
-    reject("tensor<float32><3, _ ,> invalid\n");
+    {
+        // `_` stays an identifier token: a typed `_` parses as a declaration,
+        // so the checker can name the rule that applies (DISCARD).
+        auto discard = parse("int _ = 1\n");
+        require(std::get<BindingStmt>(discard.statements[0]->data).name == "_",
+                "a typed discard parses as a binding");
+    }
+    reject("tensor<real32><3, , _> invalid\n");
+    reject("tensor<real32><3, _ ,> invalid\n");
     {
         auto shaped = parse(
-            "tensor<float32><3, _, _> image\n"
-            "tensor<float><_, 768> wide\n"
+            "tensor<real32><3, _, _> image\n"
+            "tensor<real64><_, 768> wide\n"
         );
         const auto& image = std::get<BindingStmt>(shaped.statements[0]->data).declared_type;
         const auto& wide = std::get<BindingStmt>(shaped.statements[1]->data).declared_type;
@@ -100,10 +233,10 @@ int main() {
         auto extents = parse(
             "int n = 3\n"
             "int m = 4\n"
-            "tensor<float><n * 2 + 1, _, 224> image\n"
-            "tensor<float><n * m, 224> graph\n"
-            "float[n * m] row\n"
-            "float[][n * m] nested\n"
+            "tensor<real64><n * 2 + 1, _, 224> image\n"
+            "tensor<real64><n * m, 224> graph\n"
+            "real64[n * m] row\n"
+            "real64[][n * m] nested\n"
         );
         const auto& image =
             std::get<BindingStmt>(extents.statements[2]->data).declared_type;
@@ -255,7 +388,7 @@ int main() {
             "class Holder\n"
             "    Value value\n"
             "    int read()\n"
-            "        return value.data\n"
+            "        return this.value.data\n"
         );
         require(p.classes.size() == 2, "composed classes");
         require(p.classes[1].fields.size() == 1 &&
@@ -426,7 +559,7 @@ int main() {
 
     {
         auto p = parse(
-            "float value = 12.3456\n"
+            "real64 value = 12.3456\n"
             "print(\"{value:int=5,frac=2,zero}\")\n"
             "print(\"{value:sig=4}\")\n"
         );
@@ -461,6 +594,100 @@ int main() {
         );
         require(p.statements.size() == 2, "ordinary identifier spellings");
     }
+
+    {
+        // `this.NAME` is a NameExpr marked with the span of `this.`; its own
+        // span is the field name's, also inside an interpolation and as the
+        // root of member, index and method-call chains.
+        auto p = parse(
+            "class Box\n"
+            "    int size\n"
+            "    int[] items\n"
+            "    int twice()\n"
+            "        this.items.append(this.size)\n"
+            "        print(\"{this.size}\")\n"
+            "        return this.size * 2\n"
+        );
+        const auto& method = p.classes[0].methods[0];
+        const auto& append = std::get<MethodCallExpr>(
+            std::get<ExprStmt>(method.body[0]->data).value->data);
+        const auto& receiver = std::get<NameExpr>(append.receiver->data);
+        require(receiver.name == "items" && receiver.this_qualifier &&
+                receiver.this_qualifier->start.column == 9 &&
+                receiver.this_qualifier->end.column == 14 &&
+                append.receiver->span.start.column == 14,
+                "this.NAME receiver AST and spans");
+        const auto& argument = std::get<NameExpr>(append.args[0].value->data);
+        require(argument.name == "size" && argument.this_qualifier, "this.NAME argument AST");
+        const auto& print = std::get<CallExpr>(std::get<ExprStmt>(method.body[1]->data).value->data);
+        const auto& text = std::get<StringTemplateExpr>(print.args[0].value->data);
+        const auto& interpolated = std::get<NameExpr>(text.expressions[0]->data);
+        require(interpolated.this_qualifier && text.expressions[0]->span.start.column == 22 &&
+                interpolated.this_qualifier->start.column == 17,
+                "this.NAME interpolation spans");
+        auto bare = parse("int get(int size)\n    return size\n");
+        const auto& ret = std::get<ReturnStmt>(bare.functions[0].body[0]->data);
+        require(!std::get<NameExpr>(ret.value->data).this_qualifier, "bare name has no qualifier");
+        auto shaped = parse(
+            "class Grid\n"
+            "    int n\n"
+            "    void make()\n"
+            "        tensor<real32><this.n, 2> values = tensor.zeros<real32>([this.n, 2])\n"
+        );
+        const auto& binding = std::get<BindingStmt>(shaped.classes[0].methods[0].body[0]->data);
+        require(binding.declared_type.tensor_shape_expressions.size() == 2 &&
+                std::get<NameExpr>(binding.declared_type.tensor_shape_expressions[0]->data)
+                    .this_qualifier,
+                "this.NAME in a tensor shape");
+    }
+    // `this` is a keyword and only qualifies a field.
+    reject("int this = 3\n");
+    reject("class this\n    int value\n");
+    reject("class Box\n    int this\n");
+    reject("class Box\n    int size\n    int get()\n        return this\n");
+    reject("class Box\n    int size\n    void use()\n        print(this)\n");
+    reject("class Box\n    int size\n    void use()\n        auto other = this\n");
+    reject("class Box\n    int size\n    void use()\n        this[0]\n");
+    reject("class Box\n    int size\n    void reset()\n        this.reset()\n");
+    reject("class Box\n    int size\n    T pick<T>(T v)\n        return this.pick<T>(v)\n");
+    reject("class Box\n    int size\n    void use()\n        this. size = 1\n        this = this\n");
+
+    {
+        // Slice start/end exclusivity follows the markers adjacent to the
+        // colon. Adjacent markers must not become binary comparisons.
+        auto marked = parse(
+            "int[] x = values[0<:5]\n"
+            "int[] y = values[10:>0:-2]\n"
+            "int[] z = values[5>:0]\n"
+            "int[] w = values[0:<5:2]\n"
+            "int[] conflict = values[0<:>5]\n"
+            "int[] spaced = values[0 <:5]\n"
+            "int[] after = values[0<: 5]\n"
+        );
+        const auto get = [&](std::size_t index) -> const IndexPart& {
+            const auto& binding = std::get<BindingStmt>(marked.statements.at(index)->data);
+            return std::get<IndexExpr>(binding.value->data).items.at(0);
+        };
+        require(get(0).slice && get(0).start_marker == '<' && get(0).end_marker == 0,
+                "ascending exclusive-start marker");
+        require(get(1).slice && get(1).start_marker == 0 && get(1).end_marker == '>' &&
+                get(1).step, "descending exclusive-end marker and step");
+        require(get(2).start_marker == '>' && get(2).end_marker == 0,
+                "descending exclusive-start marker");
+        require(get(3).end_marker == '<' && get(3).step, "ascending exclusive-end marker");
+        require(get(4).start_marker == '<' && get(4).end_marker == '>',
+                "conflicting markers preserved for semantic diagnostics");
+        // A marker belongs to the colon it touches; spaces on its other
+        // side do not matter.
+        require(get(5).slice && get(5).start && get(5).start_marker == '<' &&
+                get(5).end_marker == 0, "start marker after a space");
+        require(get(6).slice && get(6).stop && get(6).start_marker == '<' &&
+                get(6).end_marker == 0, "start marker before a spaced end");
+        reject("int[] x = values[0: <5]\n");
+        reject("int[] x = values[:> ]\n");
+    }
+
+    if_expressions();
 
     std::cout << "all parser tests passed\n";
 }

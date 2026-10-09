@@ -11,9 +11,9 @@ import tempfile
 import time
 
 WORKLOADS = {
-    "bitwise": """int value = 1
+    "bitwise": """int64 value = 1
 for index in range(2000000)
-    value = ((value XOR index) << 1) XOR (value >> 3)
+    value = ((value XOR int64(index)) << 1) XOR (value >> 3)
 print(value)
 """,
     "sort": """int[] values = array(50000, fill = 0)
@@ -224,17 +224,17 @@ def main():
                 samples.append(time.perf_counter() - started)
 
             if name == "file_read_whole":
-                expected = f"{fixture_bytes}\n".encode()
+                expected = f"{fixture_bytes}".encode()
                 if output_bytes != expected:
                     raise RuntimeError(
                         f"{name}: expected byte count {fixture_bytes}, got {output_bytes!r}")
             elif name in {"file_split_whole", "file_read_stream"}:
-                expected = f"{FILE_PARSE_LINES}\n".encode()
+                expected = f"{FILE_PARSE_LINES}".encode()
                 if output_bytes != expected:
                     raise RuntimeError(
                         f"{name}: expected line count {FILE_PARSE_LINES}, got {output_bytes!r}")
             elif name in {"file_parse_stream", "file_parse_whole"}:
-                expected = f"{FILE_PARSE_LINES} {fixture_checksum}\n".encode()
+                expected = f"{FILE_PARSE_LINES} {fixture_checksum}".encode()
                 if output_bytes != expected:
                     raise RuntimeError(
                         f"{name}: parse checksum mismatch: {output_bytes!r}")

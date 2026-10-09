@@ -11,11 +11,11 @@ class Lcg
     int state
 
     construct(int seed)
-        state = seed
+        this.state = seed
 
     int next_int()
-        state = (48271 * state) % 2147483647
-        return state
+        this.state = (48271 * this.state) % 2147483647
+        return this.state
 
 // One merge pass of the pinned algorithm from src into dst at the given width.
 void merge_pass(const int[] &src, int[] &dst, int n, int width)
@@ -70,10 +70,10 @@ Result workload()
     int n = 2000000
     int rounds = 4
     Lcg g = Lcg(20267917)
-    int[] src = array(n, fill = 0)
+    int[] src = array(nat(n), fill = 0)
     for i in range(n)
         src[i] = g.next_int()
-    int[] buf = array(n, fill = 0)
+    int[] buf = array(nat(n), fill = 0)
     int total = 0
     int ssum = 0
     int inv = 0

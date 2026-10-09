@@ -1,0 +1,9 @@
+// An array element read before any write, at an index known only at run
+// time (a constant index that no store reached is a compile error).
+int[] values = array(3)
+values[0] = 5
+print("first {values[0]}")
+print(NL)
+int last = int(len(values)) - 1
+print("{values[last]}")
+print(NL)

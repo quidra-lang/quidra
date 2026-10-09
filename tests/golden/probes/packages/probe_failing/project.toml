@@ -1,0 +1,10 @@
+[package]
+name = "golden-probe-failing"
+import = "probe_failing"
+display_name = "Golden Probe Failing"
+version = "0.1.0"
+repository = "https://example.invalid/probe_failing"
+
+[requires]
+quidra = ">=0.5.0 <0.6.0"
+abi = 1

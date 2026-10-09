@@ -3,7 +3,6 @@
 #include "quidra/language.hpp"
 #include "quidra/project.hpp"
 
-#include <cstdlib>
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
@@ -12,19 +11,7 @@
 
 namespace quidra {
 
-inline std::optional<std::string> import_environment_value(const char* name) {
-#ifdef _WIN32
-    char* raw = nullptr;
-    std::size_t size = 0;
-    if (_dupenv_s(&raw, &size, name) != 0 || !raw) return std::nullopt;
-    std::string value(raw, size > 0 ? size - 1 : 0);
-    std::free(raw);
-    return value;
-#else
-    if (const char* raw = std::getenv(name)) return std::string(raw);
-    return std::nullopt;
-#endif
-}
+class CompileInputs;
 
 inline constexpr bool is_importable_package_name(std::string_view name) {
     if (name.empty()) return false;
@@ -40,10 +27,10 @@ inline constexpr bool is_importable_package_name(std::string_view name) {
     // These spellings are tokenized as language keywords and therefore cannot
     // appear as the unquoted installed-package target in an import declaration.
     if (name == "class" || name == "import" || name == "const" || name == "return" ||
-        name == "if" || name == "elif" || name == "else" ||
+        name == "if" || name == "then" || name == "elif" || name == "else" ||
         name == "while" || name == "for" || name == "in" ||
         name == "match" || name == "try" || name == "break" ||
-        name == "continue" || name == "true" || name == "false" ||
+        name == "continue" || name == "this" || name == "true" || name == "false" ||
         name == "not" || name == "and" || name == "or") {
         return false;
     }
@@ -128,60 +115,11 @@ inline ImportPathResolution resolve_local_import_path(
     return ImportPathResolution{base, (base_path / relative).lexically_normal()};
 }
 
-inline std::optional<std::filesystem::path> resolve_installed_package_path(
-    std::string_view package_name) {
-    if (!is_importable_package_name(package_name)) {
-        throw std::invalid_argument(
-            "Package name must be an importable Quidra identifier and must not be a standard namespace.");
-    }
-
-    const auto candidate_from_root = [&](const std::filesystem::path& root)
-        -> std::optional<std::filesystem::path> {
-        if (root.empty()) return std::nullopt;
-        std::error_code error;
-        const auto candidate =
-            (root / std::string(package_name) / package_entrypoint_filename())
-                .lexically_normal();
-        if (std::filesystem::is_regular_file(candidate, error) && !error) return candidate;
-        return std::nullopt;
-    };
-
-    if (const auto configured = import_environment_value("QUIDRA_PACKAGE_PATH")) {
-        const std::string& paths = *configured;
-#ifdef _WIN32
-        constexpr char separator = ';';
-#else
-        constexpr char separator = ':';
-#endif
-        std::size_t start = 0;
-        while (start <= paths.size()) {
-            const auto end = paths.find(separator, start);
-            const auto part = paths.substr(
-                start, end == std::string::npos ? std::string::npos : end - start);
-            if (!part.empty()) {
-                if (auto resolved = candidate_from_root(std::filesystem::path(part))) {
-                    return resolved;
-                }
-            }
-            if (end == std::string::npos) break;
-            start = end + 1;
-        }
-    }
-
-#ifdef _WIN32
-    const auto home = import_environment_value("USERPROFILE");
-#else
-    const auto home = import_environment_value("HOME");
-#endif
-    if (home) {
-        if (auto resolved =
-                candidate_from_root(
-                    std::filesystem::path(*home) /
-                    std::filesystem::path(std::string(package_store_relative)))) {
-            return resolved;
-        }
-    }
-    return std::nullopt;
-}
+// The entrypoint of installed package `package_name`: the first root of
+// QUIDRA_PACKAGE_PATH that holds it, else the user package store. Defined in
+// src/import_path.cpp, which reads the environment. With `inputs`, every
+// candidate probed without success and the resolution itself are recorded.
+std::optional<std::filesystem::path> resolve_installed_package_path(
+    std::string_view package_name, CompileInputs* inputs = nullptr);
 
 } // namespace quidra

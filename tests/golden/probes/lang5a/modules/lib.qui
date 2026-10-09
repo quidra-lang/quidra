@@ -1,0 +1,3 @@
+// A local module whose function fails on a bad index.
+int pick(int[] values, int at)
+    return values[at]

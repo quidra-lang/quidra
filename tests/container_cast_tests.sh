@@ -4,6 +4,7 @@ set -euo pipefail
 QUIDRA="$1"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run only
 
 cat > "$TMP/array-error.qui" <<'QUI'
 int[] values = [1, 300]
@@ -17,7 +18,7 @@ match converted
         print(NL)
 QUI
 array_error_output="$("$QUIDRA" "$TMP/array-error.qui")"
-[[ "$array_error_output" == "numeric cast outside destination range" ]]
+[[ "$array_error_output" == "numeric conversion out of range: array element cannot be represented as int8" ]]
 
 cat > "$TMP/nested-array-error.qui" <<'QUI'
 int[][] values = [[1, 2], [3, 300]]
@@ -31,10 +32,10 @@ match converted
         print(NL)
 QUI
 nested_array_error_output="$("$QUIDRA" "$TMP/nested-array-error.qui")"
-[[ "$nested_array_error_output" == "numeric cast outside destination range" ]]
+[[ "$nested_array_error_output" == "numeric conversion out of range: array element cannot be represented as int8" ]]
 
 cat > "$TMP/tensor-casts.qui" <<'QUI'
-tensor<int><2> safe = tensor.ones<int>([2])
+tensor<int64><2> safe = tensor.ones<int64>([2])
 auto | error safe_result = int8(safe)
 match safe_result
     tensor<int8><2> narrowed
@@ -44,7 +45,7 @@ match safe_result
         print(problem)
         print(NL)
 
-tensor<int><2> unsafe = tensor.ones<int>([2])
+tensor<int64><2> unsafe = tensor.ones<int64>([2])
 unsafe[1] = 300
 auto | error unsafe_result = int8(unsafe)
 match unsafe_result
@@ -56,7 +57,7 @@ match unsafe_result
         print(NL)
 QUI
 tensor_output="$("$QUIDRA" "$TMP/tensor-casts.qui")"
-[[ "$tensor_output" == "$(printf '1\nnumeric cast outside destination range')" ]]
+[[ "$tensor_output" == "$(printf '1\nnumeric conversion out of range: tensor element cannot be represented as int8')" ]]
 
 cat > "$TMP/contextual-fail-fast.qui" <<'QUI'
 int[] values = [1, 300]
@@ -70,4 +71,4 @@ rc=$?
 set -e
 [[ "$rc" -eq 101 ]]
 grep -q 'UNHANDLED_ERROR' "$TMP/contextual-fail-fast.err"
-grep -q 'numeric cast outside destination range' "$TMP/contextual-fail-fast.err"
+grep -q 'numeric conversion out of range: array element cannot be represented as int8' "$TMP/contextual-fail-fast.err"

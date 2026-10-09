@@ -10,11 +10,11 @@ class Lcg
     int state
 
     construct(int seed)
-        state = seed
+        this.state = seed
 
     int next_int()
-        state = (48271 * state) % 2147483647
-        return state
+        this.state = (48271 * this.state) % 2147483647
+        return this.state
 
 class Result
     int acc
@@ -34,7 +34,7 @@ Result workload()
     int sm = 100003
     int q = 1000000007
     Lcg g = Lcg(20271917)
-    int[] keys = array(n, fill = 0)
+    int[] keys = array(nat(n), fill = 0)
     for i in range(n)
         keys[i] = g.next_int()
 
@@ -59,7 +59,7 @@ Result workload()
                     m.set(k, value + 1)
                 none
                     m.set(k, 1)
-        size1 = m.size()
+        size1 = int(m.size())
 
         found = 0
         vsum = 0
@@ -83,12 +83,12 @@ Result workload()
             int k = keys[i] % km
             if m.has(k)
                 m.remove(k)
-        size2 = m.size()
+        size2 = int(m.size())
 
         set.Set<int> st = set.Set<int>()
         for i in range(n)
             st.add(keys[i] % sm)
-        size3 = st.size()
+        size3 = int(st.size())
 
         int[] lst = []
         for i in range(n)

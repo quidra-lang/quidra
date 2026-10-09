@@ -76,6 +76,10 @@ option(QUIDRA_BUILD_WASM_FRONTEND
 if(EMSCRIPTEN)
   set(QUIDRA_BUILD_WASM_FRONTEND ON)
 endif()
+# The golden dump tool of the refactoring gates, built against the frontend
+# for node (gate Gw, tests/golden/wasm_tool.sh). Off in every normal build.
+option(QUIDRA_BUILD_WASM_GOLDEN
+    "With the WebAssembly frontend, also build quidra_golden_dump_wasm for node" OFF)
 
 if(QUIDRA_WARNINGS_AS_ERRORS)
   if(MSVC)
@@ -107,47 +111,183 @@ add_library(quidra_core
     src/lexer.cpp
     src/parser.cpp
     src/checker.cpp
-    src/ir.cpp
-    src/llvm_backend.cpp
+    src/ir/analysis/call_graph.cpp
+    src/ir/analysis/device_reach.cpp
+    src/ir/dump.cpp
+    src/ir/instruction_text.cpp
+    src/lowering/aggregate_lowering.cpp
+    src/lowering/assignment_lowering.cpp
+    src/lowering/assignment_order.cpp
+    src/lowering/autograd_lowering.cpp
+    src/lowering/bin_lowering.cpp
+    src/lowering/borrow_inference.cpp
+    src/lowering/builtin_lowering.cpp
+    src/lowering/call_lowering.cpp
+    src/lowering/check_elision_facts.cpp
+    src/lowering/check_lowering.cpp
+    src/lowering/collection_idioms.cpp
+    src/lowering/concurrency_lowering.cpp
+    src/lowering/console_lowering.cpp
+    src/lowering/control_flow_lowering.cpp
+    src/lowering/conversion_lowering.cpp
+    src/lowering/enclosing_class.cpp
+    src/lowering/expression_lowering.cpp
+    src/lowering/file_lowering.cpp
+    src/lowering/function_lowering.cpp
+    src/lowering/http_lowering.cpp
+    src/lowering/initialization_flags.cpp
+    src/lowering/json_lowering.cpp
+    src/lowering/lifetime_lowering.cpp
+    src/lowering/lower_module.cpp
+    src/lowering/lowerer.cpp
+    src/lowering/operator_lowering.cpp
+    src/lowering/random_lowering.cpp
+    src/lowering/reflection_lowering.cpp
+    src/lowering/scan_lowering.cpp
+    src/lowering/shape_constraint_lowering.cpp
+    src/lowering/source_locator.cpp
+    src/lowering/statement_lowering.cpp
+    src/lowering/storage_writes.cpp
+    src/lowering/string_concat_chain.cpp
+    src/lowering/syntax_queries.cpp
+    src/lowering/system_lowering.cpp
+    src/lowering/tensor_lowering.cpp
+    src/lowering/text_idioms.cpp
+    src/lowering/text_lowering.cpp
+    src/lowering/user_sources.cpp
+    src/semantics/argument_isolation.cpp
+    src/semantics/effect_summary.cpp
+    src/semantics/storage_path.cpp
+    src/optimizer/call_contract.cpp
+    src/optimizer/chain_fusion.cpp
+    src/optimizer/conditional_rules.cpp
+    src/optimizer/execution_policy.cpp
+    src/optimizer/ownership_adaptation.cpp
+    src/optimizer/pass_manager.cpp
+    src/optimizer/region_candidates.cpp
+    src/optimizer/region_formation.cpp
+    src/optimizer/rule_registry.cpp
+    src/optimizer/static_tensor_facts.cpp
+    src/optimizer/textual_uses.cpp
+    src/llvm_backend/aggregate_emitter.cpp
+    src/llvm_backend/array_cast_helpers.cpp
+    src/llvm_backend/autograd_emitter.cpp
+    src/llvm_backend/bare_integer.cpp
+    src/llvm_backend/bin_emitter.cpp
+    src/llvm_backend/call_emitter.cpp
+    src/llvm_backend/check_emitter.cpp
+    src/llvm_backend/concurrency_emitter.cpp
+    src/llvm_backend/console_emitter.cpp
+    src/llvm_backend/constant_emitter.cpp
+    src/llvm_backend/control_flow_emitter.cpp
+    src/llvm_backend/conversion_emitter.cpp
+    src/llvm_backend/debug_emitter.cpp
+    src/llvm_backend/debug_module.cpp
+    src/llvm_backend/debug_records.cpp
+    src/llvm_backend/diagnostic_constants.cpp
+    src/llvm_backend/error_result_emitter.cpp
+    src/llvm_backend/fail_fast_emitter.cpp
+    src/llvm_backend/file_emitter.cpp
+    src/llvm_backend/foreign_abi.cpp
+    src/llvm_backend/foreign_export_emitter.cpp
+    src/llvm_backend/function_emitter.cpp
+    src/llvm_backend/http_emitter.cpp
+    src/llvm_backend/json_emitter.cpp
+    src/llvm_backend/lifetime_emitter.cpp
+    src/llvm_backend/memory_emitter.cpp
+    src/llvm_backend/module_emitter.cpp
+    src/llvm_backend/numeric_emitter.cpp
+    src/llvm_backend/random_emitter.cpp
+    src/llvm_backend/repl_emitter.cpp
+    src/llvm_backend/repl_value_printer.cpp
+    src/llvm_backend/runtime_prelude.cpp
+    src/llvm_backend/scratch_planner.cpp
+    src/llvm_backend/self_depth_guard.cpp
+    src/llvm_backend/small_rational.cpp
+    src/llvm_backend/real_power.cpp
+    src/llvm_backend/statement_attribution.cpp
+    src/llvm_backend/storage_layout.cpp
+    src/llvm_backend/string_pool.cpp
+    src/llvm_backend/symbol_resolver.cpp
+    src/llvm_backend/system_emitter.cpp
+    src/llvm_backend/tensor_emitter.cpp
+    src/llvm_backend/text_emitter.cpp
+    src/llvm_backend/type_helpers.cpp
+    src/llvm_backend/type_lowering.cpp
+    src/llvm_backend/union_box.cpp
+    src/llvm_text/escape.cpp
+    src/llvm_text/function_text.cpp
+    src/llvm_text/llvm_builder.cpp
+    src/llvm_text/llvm_module.cpp
+    src/compile_inputs.cpp
     src/compiler.cpp
     src/frontend.cpp
+    src/import_path.cpp
     src/source_tools.cpp
     src/source_patch.cpp
     src/formatter.cpp
     src/package_manifest.cpp
     src/toml_subset.cpp
     src/package_lock.cpp
+    src/platform/sha256.cpp
+    src/platform/strict_json.cpp
 )
 target_include_directories(quidra_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+# The compiler's internal layers (src/llvm_backend, src/llvm_text, ...) include
+# each other by their directory: "llvm_backend/x.hpp".
+target_include_directories(quidra_core PRIVATE src)
+# Inline functions of the compiler stay hidden. Otherwise each one the
+# compiler instantiates, the IR Instruction variant's dispatch tables among
+# them, is a weak exported symbol of the CLI that the dynamic loader binds at
+# every start. PUBLIC, so that the CLI and everything else compiled against
+# the compiler use the same visibility; the runtime libraries keep theirs.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(quidra_core PUBLIC -fvisibility-inlines-hidden)
+endif()
+
+# How the REPL cuts its input into submissions and decides how to compile them
+# (src/repl_submission.hpp). Compiled once; the CLI and the golden REPL session
+# simulator (tests/golden/repl_session.cpp) link the same objects.
+add_library(quidra_repl_submission OBJECT EXCLUDE_FROM_ALL src/repl_submission.cpp)
+target_link_libraries(quidra_repl_submission PRIVATE quidra_core)
 
 if(NOT QUIDRA_BUILD_WASM_FRONTEND)
 
 find_package(CURL REQUIRED)
-add_library(quidra_runtime STATIC
+
+# The runtime of a Quidra program: the sources that define its entry points
+# (quidra/abi/runtime_entry_points.hpp), then the device layer and its host
+# services (CPU parallelism, counters, unified storage). The runtime archive
+# and the JIT runtime compile both lists in this order. The CLI compiles the
+# device sources too, in its own link order (add_executable(quidra) below).
+set(QUIDRA_RUNTIME_SOURCES
     src/runtime.cpp
-    src/runtime_exact.cpp
+    src/runtime_integer.cpp
+    src/runtime_exact_real.cpp
     src/runtime_io.cpp
     src/runtime_system.cpp
+    src/runtime_location.cpp
     src/runtime_process.cpp
     src/runtime_json.cpp
     src/runtime_http.cpp
-    src/device_backend.cpp
+    src/platform/sha256.cpp
 )
+set(QUIDRA_DEVICE_SOURCES
+    src/runtime_parallel.cpp
+    src/runtime_counters.cpp
+    src/device_backend.cpp
+    src/unified_storage.cpp
+)
+
+add_library(quidra_runtime STATIC ${QUIDRA_RUNTIME_SOURCES} ${QUIDRA_DEVICE_SOURCES})
 
 # The REPL uses LLVM ORC through `lli`. Keep a shared runtime alongside the
 # static archive so JIT submissions can resolve the exact same Quidra runtime
 # ABI without invoking the platform linker for every executable submission.
-add_library(quidra_runtime_jit SHARED
-    src/runtime.cpp
-    src/runtime_exact.cpp
-    src/runtime_io.cpp
-    src/runtime_system.cpp
-    src/runtime_process.cpp
-    src/runtime_json.cpp
-    src/runtime_http.cpp
-    src/device_backend.cpp
-)
-target_include_directories(quidra_runtime_jit PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS})
+add_library(quidra_runtime_jit SHARED ${QUIDRA_RUNTIME_SOURCES} ${QUIDRA_DEVICE_SOURCES})
+# The runtime's platform sources include their headers by directory
+# ("platform/sha256.hpp").
+target_include_directories(quidra_runtime_jit PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS} src)
 target_link_libraries(quidra_runtime_jit PRIVATE CURL::libcurl)
 if(CMAKE_DL_LIBS)
   target_link_libraries(quidra_runtime_jit PRIVATE ${CMAKE_DL_LIBS})
@@ -193,7 +333,7 @@ if(WIN32)
   set_target_properties(quidra_runtime_jit PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
   target_compile_definitions(quidra_runtime_jit PRIVATE NOMINMAX)
 endif()
-target_include_directories(quidra_runtime PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS})
+target_include_directories(quidra_runtime PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS} src)
 if(CMAKE_DL_LIBS)
   target_link_libraries(quidra_runtime PRIVATE ${CMAKE_DL_LIBS})
 endif()
@@ -229,15 +369,60 @@ endif()
 add_executable(quidra
     src/main.cpp
     src/repl_cli.cpp
+    $<TARGET_OBJECTS:quidra_repl_submission>
     src/lsp_server.cpp
     src/package_cli.cpp
     src/device_cli.cpp
     src/device_backend.cpp
+    src/runtime_counters.cpp
+    src/runtime_parallel.cpp
+    src/unified_storage.cpp
     src/native_build.cpp
     src/run_artifact.cpp
+    src/run_cache.cpp
     src/jit.cpp
+    src/platform/cache_files.cpp
+    src/platform/executable.cpp
+    src/platform/file_descriptor.cpp
+    src/platform/file_identity.cpp
+    src/platform/file_lock.cpp
+    src/platform/file_names.cpp
+    src/platform/native_text.cpp
+    src/platform/os_version.cpp
+    src/platform/private_directory.cpp
+    src/platform/process.cpp
+    src/platform/temporary_directory.cpp
+    src/platform/user_cache_directory.cpp
+    src/toolchain/archiver.cpp
+    src/toolchain/compiler_identity.cpp
+    src/toolchain/cuda_discovery.cpp
+    src/toolchain/driver_output.cpp
+    src/toolchain/installation_layout.cpp
+    src/toolchain/link_flags.cpp
+    src/toolchain/llvm_discovery.cpp
+    src/toolchain/native_link_recipe.cpp
+    src/toolchain/run_cache_eviction.cpp
+    src/toolchain/run_cache_key.cpp
+    src/toolchain/run_cache_metadata.cpp
+    src/toolchain/run_cache_store.cpp
+    src/toolchain/toolchain_identity.cpp
 )
 target_link_libraries(quidra PRIVATE quidra_core)
+# The platform sources include their headers by directory: "platform/x.hpp".
+target_include_directories(quidra PRIVATE src)
+if(WIN32)
+  # The platform sources include <windows.h> without its min and max macros.
+  set_source_files_properties(
+    src/platform/cache_files.cpp
+    src/platform/executable.cpp src/platform/file_identity.cpp src/platform/file_lock.cpp
+    src/platform/native_text.cpp src/platform/os_version.cpp
+    src/platform/private_directory.cpp src/platform/process.cpp
+    src/platform/user_cache_directory.cpp
+    PROPERTIES COMPILE_DEFINITIONS NOMINMAX)
+  # The user cache directory (the Local AppData known folder) and the private
+  # directories' access control lists.
+  target_link_libraries(quidra PRIVATE advapi32 ole32 shell32)
+endif()
 if(CMAKE_DL_LIBS)
   target_link_libraries(quidra PRIVATE ${CMAKE_DL_LIBS})
 endif()
@@ -259,8 +444,10 @@ endif() # NOT QUIDRA_BUILD_WASM_FRONTEND
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(quidra_core PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(quidra_repl_submission PRIVATE -Wall -Wextra -Wpedantic)
 elseif(MSVC)
   target_compile_options(quidra_core PRIVATE /W4 /wd4456 /bigobj)
+  target_compile_options(quidra_repl_submission PRIVATE /W4)
 endif()
 
 if(QUIDRA_BUILD_WASM_FRONTEND)
@@ -324,6 +511,32 @@ if(QUIDRA_BUILD_WASM_FRONTEND)
   endif()
 endif()
 
+if(QUIDRA_BUILD_WASM_FRONTEND AND QUIDRA_BUILD_WASM_GOLDEN)
+  add_executable(quidra_golden_dump_wasm
+      tests/golden/golden_dump.cpp
+      tests/golden/ir_full.cpp
+      tests/golden/census.cpp
+      tests/golden/census_keys.cpp
+      tests/golden/failure.cpp
+      tests/golden/repl_session.cpp
+      $<TARGET_OBJECTS:quidra_repl_submission>
+  )
+  target_include_directories(quidra_golden_dump_wasm PRIVATE
+      ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/tests ${CMAKE_SOURCE_DIR}/tests/golden)
+  target_link_libraries(quidra_golden_dump_wasm PRIVATE quidra_core)
+  if(EMSCRIPTEN)
+    target_compile_options(quidra_golden_dump_wasm PRIVATE -fwasm-exceptions)
+    target_link_options(quidra_golden_dump_wasm PRIVATE
+        -fwasm-exceptions
+        -sNODERAWFS=1
+        -sENVIRONMENT=node
+        -sEXIT_RUNTIME=1
+        -sSTACK_SIZE=16MB
+        -sINITIAL_MEMORY=64MB
+        -sALLOW_MEMORY_GROWTH=1)
+  endif()
+endif()
+
 if(NOT QUIDRA_BUILD_WASM_FRONTEND)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(quidra_runtime PRIVATE -Wall -Wextra -Wpedantic -ffunction-sections -fdata-sections)
@@ -356,6 +569,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_executable(quidra_tests tests/compiler_tests.cpp)
   target_link_libraries(quidra_tests PRIVATE quidra_core)
+  # platform/environment.hpp for the golden corpus capture hook.
+  target_include_directories(quidra_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   if(MSVC)
     # Compiler tests execute the same recursive lowering as the CLI and have
     # grown beyond COFF's default section limit on MSVC.
@@ -363,6 +578,59 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     target_link_options(quidra_tests PRIVATE /STACK:8388608)
   endif()
   add_test(NAME quidra_tests COMMAND quidra_tests)
+
+  # The refactoring equivalence harness (tests/golden, driven by
+  # tests/ir_golden.sh). The dump tool prints every observable compiler output
+  # of one input; it links the compiler core with src/ on its private include
+  # path.
+  add_library(quidra_golden_support STATIC
+      tests/golden/ir_full.cpp
+      tests/golden/census.cpp
+      tests/golden/census_keys.cpp
+      tests/golden/failure.cpp
+      tests/golden/repl_session.cpp
+      $<TARGET_OBJECTS:quidra_repl_submission>
+  )
+  target_link_libraries(quidra_golden_support PUBLIC quidra_core)
+  target_include_directories(quidra_golden_support
+      PUBLIC ${CMAKE_SOURCE_DIR}/tests/golden
+      PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_executable(quidra_golden_dump tests/golden/golden_dump.cpp)
+  target_link_libraries(quidra_golden_dump PRIVATE quidra_golden_support)
+  target_include_directories(quidra_golden_dump PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/tests)
+  if(APPLE)
+    # Gate Gobj: records the Metal source strings a program compiles at run
+    # time (DYLD_INSERT_LIBRARIES; tests/golden/metal_source_log).
+    add_library(quidra_metal_source_log SHARED
+        tests/golden/metal_source_log/metal_source_log.mm)
+    target_include_directories(quidra_metal_source_log PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(quidra_metal_source_log PRIVATE
+        "-framework Foundation" "-framework Metal" objc)
+  endif()
+  add_executable(quidra_ir_full_tests tests/golden/ir_full_tests.cpp)
+  target_link_libraries(quidra_ir_full_tests PRIVATE quidra_golden_support)
+  add_test(NAME quidra_ir_full_tests COMMAND quidra_ir_full_tests)
+  # The expected-difference rules of the golden comparison
+  # (tests/golden/expect.py), on synthetic captures, and the column map of a
+  # synthetic rewrite captured with the golden tool.
+  add_test(NAME quidra_golden_expect
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/golden/expect_tests.py
+                   --tool $<TARGET_FILE:quidra_golden_dump>)
+  # The census keys and counts (tests/golden/census_keys.hpp) on small
+  # programs captured with the golden tool.
+  add_test(NAME quidra_golden_census
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/golden/census_tests.py
+                   --tool $<TARGET_FILE:quidra_golden_dump>)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(quidra_golden_support PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(quidra_golden_dump PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(quidra_ir_full_tests PRIVATE -Wall -Wextra -Wpedantic)
+  elseif(MSVC)
+    # One template instantiation per IR struct.
+    target_compile_options(quidra_golden_support PRIVATE /W4 /bigobj)
+    target_compile_options(quidra_golden_dump PRIVATE /W4 /bigobj)
+    target_compile_options(quidra_ir_full_tests PRIVATE /W4 /bigobj)
+  endif()
 
   add_executable(quidra_import_path_tests tests/import_path_tests.cpp)
   target_link_libraries(quidra_import_path_tests PRIVATE quidra_core)
@@ -388,6 +656,182 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_link_libraries(quidra_runtime_string_tests PRIVATE quidra_runtime)
   add_test(NAME quidra_runtime_string_tests COMMAND quidra_runtime_string_tests)
 
+  # The runtime failure table: codes, reasons and their message templates.
+  add_executable(quidra_runtime_failure_tests tests/runtime_failure_tests.cpp
+      src/runtime_location.cpp src/platform/sha256.cpp)
+  target_include_directories(quidra_runtime_failure_tests PRIVATE ${CMAKE_SOURCE_DIR}/include
+                             ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_runtime_failure_tests COMMAND quidra_runtime_failure_tests)
+
+  # Stable 56-byte error value ABI, typed detail schemas and reserved codes.
+  add_executable(quidra_error_value_schema_tests tests/error_value_schema_tests.cpp)
+  target_include_directories(quidra_error_value_schema_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  add_test(NAME quidra_error_value_schema_tests COMMAND quidra_error_value_schema_tests)
+
+  # Shared inclusive/exclusive slice planning independent of a container backend.
+  add_executable(quidra_slice_bounds_tests tests/slice_bounds_tests.cpp)
+  target_include_directories(quidra_slice_bounds_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  add_test(NAME quidra_slice_bounds_tests COMMAND quidra_slice_bounds_tests)
+
+  add_executable(quidra_runtime_parallel_tests tests/runtime_parallel_tests.cpp)
+  target_include_directories(quidra_runtime_parallel_tests PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_parallel_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_parallel_tests COMMAND quidra_runtime_parallel_tests)
+
+  add_executable(quidra_platform_environment_tests tests/platform_environment_tests.cpp)
+  target_include_directories(quidra_platform_environment_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_platform_environment_tests COMMAND quidra_platform_environment_tests)
+
+  # The user cache directory, private directories and files, file identity
+  # and the OS version.
+  add_executable(quidra_platform_cache_directory_tests
+      tests/platform_cache_directory_tests.cpp
+      src/platform/file_descriptor.cpp
+      src/platform/file_identity.cpp
+      src/platform/os_version.cpp
+      src/platform/private_directory.cpp
+      src/platform/user_cache_directory.cpp)
+  target_include_directories(quidra_platform_cache_directory_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  if(WIN32)
+    target_compile_definitions(quidra_platform_cache_directory_tests PRIVATE NOMINMAX)
+    target_link_libraries(quidra_platform_cache_directory_tests PRIVATE advapi32 ole32 shell32)
+  endif()
+  add_test(NAME quidra_platform_cache_directory_tests COMMAND quidra_platform_cache_directory_tests)
+
+  add_executable(quidra_platform_strict_json_tests tests/platform_strict_json_tests.cpp)
+  target_link_libraries(quidra_platform_strict_json_tests PRIVATE quidra_core)
+  target_include_directories(quidra_platform_strict_json_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_platform_strict_json_tests COMMAND quidra_platform_strict_json_tests)
+
+  add_executable(quidra_platform_sha256_tests tests/platform_sha256_tests.cpp)
+  target_link_libraries(quidra_platform_sha256_tests PRIVATE quidra_core)
+  target_include_directories(quidra_platform_sha256_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_platform_sha256_tests COMMAND quidra_platform_sha256_tests)
+
+  # The native link recipe with the host toolchain: build and run modes, the
+  # template, the run-mode recording, and byte-identical executables.
+  add_executable(quidra_native_link_recipe_tests
+      tests/native_link_recipe_tests.cpp
+      src/toolchain/native_link_recipe.cpp
+      src/toolchain/link_flags.cpp
+      src/toolchain/cuda_discovery.cpp
+      src/toolchain/installation_layout.cpp
+      src/toolchain/llvm_discovery.cpp
+      src/platform/executable.cpp
+      src/platform/file_descriptor.cpp
+      src/platform/file_names.cpp
+      src/platform/native_text.cpp
+      src/platform/process.cpp
+      src/platform/temporary_directory.cpp)
+  target_include_directories(quidra_native_link_recipe_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+  add_dependencies(quidra_native_link_recipe_tests quidra_runtime)
+  add_test(NAME quidra_native_link_recipe_tests COMMAND quidra_native_link_recipe_tests)
+  set_tests_properties(quidra_native_link_recipe_tests PROPERTIES
+      ENVIRONMENT "QUIDRA_RUNTIME_LIBRARY=$<TARGET_FILE:quidra_runtime>")
+
+  # The toolchain and compiler identity of cached runs: the parsers of what
+  # the toolchain prints, snapshots with fake and host drivers, dependency
+  # records, and the compiler build id with its memo.
+  add_executable(quidra_toolchain_identity_tests
+      tests/toolchain_identity_tests.cpp
+      src/toolchain/compiler_identity.cpp
+      src/toolchain/cuda_discovery.cpp
+      src/toolchain/driver_output.cpp
+      src/toolchain/installation_layout.cpp
+      src/toolchain/llvm_discovery.cpp
+      src/toolchain/native_link_recipe.cpp
+      src/toolchain/link_flags.cpp
+      src/toolchain/toolchain_identity.cpp
+      src/platform/executable.cpp
+      src/platform/file_descriptor.cpp
+      src/platform/file_identity.cpp
+      src/platform/file_names.cpp
+      src/platform/native_text.cpp
+      src/platform/private_directory.cpp
+      src/platform/process.cpp
+      src/platform/temporary_directory.cpp)
+  target_link_libraries(quidra_toolchain_identity_tests PRIVATE quidra_core)
+  target_include_directories(quidra_toolchain_identity_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+  if(WIN32)
+    target_compile_definitions(quidra_toolchain_identity_tests PRIVATE NOMINMAX)
+    target_link_libraries(quidra_toolchain_identity_tests PRIVATE advapi32)
+  endif()
+  add_dependencies(quidra_toolchain_identity_tests quidra_runtime)
+  add_test(NAME quidra_toolchain_identity_tests COMMAND quidra_toolchain_identity_tests)
+  set_tests_properties(quidra_toolchain_identity_tests PROPERTIES
+      ENVIRONMENT "QUIDRA_RUNTIME_LIBRARY=$<TARGET_FILE:quidra_runtime>")
+
+  # The run cache below the CLI: keys, metadata and index files, the checks
+  # of a hit's records, the store's atomic publish, eviction and cleaning.
+  add_executable(quidra_run_cache_unit_tests
+      tests/run_cache_unit_tests.cpp
+      src/toolchain/run_cache_eviction.cpp
+      src/toolchain/run_cache_key.cpp
+      src/toolchain/run_cache_metadata.cpp
+      src/toolchain/run_cache_store.cpp
+      src/platform/cache_files.cpp
+      src/platform/file_descriptor.cpp
+      src/platform/file_identity.cpp
+      src/platform/file_lock.cpp
+      src/platform/file_names.cpp
+      src/platform/private_directory.cpp)
+  target_link_libraries(quidra_run_cache_unit_tests PRIVATE quidra_core)
+  target_include_directories(quidra_run_cache_unit_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+  if(WIN32)
+    target_compile_definitions(quidra_run_cache_unit_tests PRIVATE NOMINMAX)
+    target_link_libraries(quidra_run_cache_unit_tests PRIVATE advapi32)
+  endif()
+  add_test(NAME quidra_run_cache_unit_tests COMMAND quidra_run_cache_unit_tests)
+
+  add_executable(quidra_tensor_view_bounds_tests tests/tensor_view_bounds_tests.cpp)
+  target_include_directories(quidra_tensor_view_bounds_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_tensor_view_bounds_tests COMMAND quidra_tensor_view_bounds_tests)
+
+  # Correct rounding of decimal text to the IEEE formats.
+  add_executable(quidra_numeric_formats_tests tests/numeric_formats_tests.cpp)
+  target_include_directories(quidra_numeric_formats_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  target_link_libraries(quidra_numeric_formats_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_numeric_formats_tests COMMAND quidra_numeric_formats_tests)
+
+  # The small and the general form of the exact type `real` agree.
+  add_executable(quidra_exact_real_tests tests/exact_real_tests.cpp)
+  target_include_directories(quidra_exact_real_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  target_link_libraries(quidra_exact_real_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_exact_real_tests COMMAND quidra_exact_real_tests)
+
+  # Arbitrary-precision integer words agree with the boxed big integers.
+  add_executable(quidra_runtime_integer_tests tests/runtime_integer_tests.cpp)
+  target_include_directories(quidra_runtime_integer_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  target_link_libraries(quidra_runtime_integer_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_integer_tests COMMAND quidra_runtime_integer_tests)
+
+  # The exact text of every operation of the LLVM text layer.
+  add_executable(quidra_llvm_text_tests tests/llvm_text_tests.cpp)
+  target_link_libraries(quidra_llvm_text_tests PRIVATE quidra_core)
+  target_include_directories(quidra_llvm_text_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_llvm_text_tests COMMAND quidra_llvm_text_tests)
+
+  # Gate Gprel: the runtime prelude occurs once, verbatim, in the LLVM that
+  # the compiler emits for a minimal program.
+  add_executable(quidra_llvm_backend_tests tests/llvm_backend_tests.cpp)
+  target_link_libraries(quidra_llvm_backend_tests PRIVATE quidra_core)
+  target_include_directories(quidra_llvm_backend_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  add_test(NAME quidra_llvm_backend_tests
+           COMMAND quidra_llvm_backend_tests ${CMAKE_SOURCE_DIR}/tests/golden/probes/minimal.qui)
+  # Every runtime entry point the prelude declares is defined by the runtime
+  # library (nm; not on Windows, where the library is a .lib).
+  if(NOT WIN32)
+    add_test(NAME quidra_runtime_abi_symbols
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/runtime_abi_symbols.py
+                     $<TARGET_FILE:quidra_llvm_backend_tests> $<TARGET_FILE:quidra_runtime>)
+  endif()
+
   add_test(
     NAME quidra_process_portability
     COMMAND ${Python3_EXECUTABLE}
@@ -397,14 +841,57 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
 
   if(UNIX)
     add_test(NAME quidra_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
+    # The run cache end to end: changed inputs, damaged entries, permissions,
+    # concurrent runs, the replayed toolchain output, the cached program
+    # against quidra build's.
+    add_test(NAME quidra_run_cache COMMAND bash ${CMAKE_SOURCE_DIR}/tests/run_cache_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
+    # Gate Gdiff: programs built with and without an internal lowering
+    # switch behave the same (tests/lowering_switch_tests.sh).
+    # It links the way `quidra build` does (src/native_build.cpp and the
+    # platform and toolchain sources it uses).
+    add_executable(quidra_lowering_switch_build
+        tests/lowering_switch_build.cpp
+        src/native_build.cpp
+        src/platform/executable.cpp
+        src/platform/file_descriptor.cpp
+        src/platform/file_names.cpp
+        src/platform/native_text.cpp
+        src/platform/process.cpp
+        src/platform/temporary_directory.cpp
+        src/toolchain/cuda_discovery.cpp
+        src/toolchain/installation_layout.cpp
+        src/toolchain/llvm_discovery.cpp
+        src/toolchain/native_link_recipe.cpp
+        src/toolchain/link_flags.cpp
+        src/toolchain/archiver.cpp
+    )
+    target_link_libraries(quidra_lowering_switch_build PRIVATE quidra_core ${CMAKE_DL_LIBS})
+    target_include_directories(quidra_lowering_switch_build PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND CMAKE_CXX_FLAGS MATCHES "sanitize")
+      target_compile_definitions(quidra_lowering_switch_build PRIVATE QUIDRA_SANITIZE_GENERATED=1)
+    endif()
+    add_dependencies(quidra_lowering_switch_build quidra_runtime)
+    add_test(NAME quidra_lowering_switches
+             COMMAND bash ${CMAKE_SOURCE_DIR}/tests/lowering_switch_tests.sh
+                     $<TARGET_FILE:quidra_lowering_switch_build> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_package_names COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_name_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_package_identity COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_identity_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_package_native COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_native_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_runtime_location COMMAND bash ${CMAKE_SOURCE_DIR}/tests/runtime_location_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_runtime_diagnostics COMMAND bash ${CMAKE_SOURCE_DIR}/tests/runtime_diagnostics_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_runtime_error_json COMMAND bash ${CMAKE_SOURCE_DIR}/tests/runtime_error_json_tests.sh $<TARGET_FILE:quidra>)
+    # Exported functions called from C (export "C"): values, reentrancy,
+    # concurrent host threads, failures at the boundary.
+    add_test(NAME quidra_c_export COMMAND bash ${CMAKE_SOURCE_DIR}/tests/c_export_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_package_releases COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_release_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_package_metadata_sync COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_metadata_sync_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
+    add_test(NAME quidra_nat_lengths COMMAND bash ${CMAKE_SOURCE_DIR}/tests/nat_length_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_container_casts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/container_cast_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_tensor_autograd_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/tensor_autograd_foundation_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_tensor_view_fast_paths COMMAND bash ${CMAKE_SOURCE_DIR}/tests/tensor_view_fast_path_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_cpu_parallel COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cpu_parallel_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_unified_memory COMMAND bash ${CMAKE_SOURCE_DIR}/tests/unified_memory_tests.sh $<TARGET_FILE:quidra>)
     if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
       add_executable(quidra_device_backend_tests tests/device_backend_tests.cpp)
       target_include_directories(quidra_device_backend_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -412,6 +899,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       target_link_libraries(quidra_device_backend_tests PRIVATE quidra_runtime)
       add_test(NAME quidra_device_backend_tests COMMAND quidra_device_backend_tests)
       add_test(NAME quidra_gpu_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/gpu_contract_tests.sh $<TARGET_FILE:quidra>)
+      add_test(NAME quidra_gpu_contracts_autograd COMMAND bash ${CMAKE_SOURCE_DIR}/tests/gpu_autograd_contract_tests.sh $<TARGET_FILE:quidra>)
+      add_test(NAME quidra_runtime_counters COMMAND bash ${CMAKE_SOURCE_DIR}/tests/runtime_counters.sh $<TARGET_FILE:quidra>)
     endif()
     add_test(NAME quidra_real_gpu_integration COMMAND bash ${CMAKE_SOURCE_DIR}/tests/real_gpu_integration.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_native_smoke COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/native-smoke.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
@@ -428,6 +917,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   add_test(NAME quidra_documentation_examples COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/documentation_examples.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
   add_test(NAME quidra_manifest_registry COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/manifest_registry_tests.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
   add_test(NAME quidra_metadata_ssot COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/metadata_ssot_tests.py)
+  # The glue rules of the refactoring move gate (Gm), pinned by probes.
+  add_test(NAME quidra_refactor_move_check COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/refactor/check_moves.py --self-test)
   add_test(
     NAME quidra_generic_specialization_benchmark_smoke
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/generic_specialization_scaling.py
@@ -444,34 +935,65 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   endif()
   set_tests_properties(
     quidra_tests
+    quidra_ir_full_tests
     quidra_import_path_tests
     quidra_parser_tests
     quidra_type_policy_tests
     quidra_package_manifest_tests
     quidra_package_lock_tests
     quidra_runtime_string_tests
+    quidra_runtime_parallel_tests
+    quidra_platform_environment_tests
+    quidra_platform_cache_directory_tests
+    quidra_platform_sha256_tests
+    quidra_platform_strict_json_tests
+    quidra_toolchain_identity_tests
+    quidra_run_cache_unit_tests
+    quidra_tensor_view_bounds_tests
+    quidra_numeric_formats_tests
+    quidra_exact_real_tests
+    quidra_runtime_integer_tests
     quidra_process_portability
     quidra_documentation_examples
     quidra_manifest_registry
+    quidra_refactor_move_check
+    quidra_golden_expect
+    quidra_golden_census
     quidra_generic_specialization_benchmark_smoke
     PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
   )
   if(UNIX)
     set_tests_properties(
-      quidra_cli
       quidra_package_names
       quidra_package_identity
       quidra_package_native
       quidra_package_releases
       quidra_package_metadata_sync
-      quidra_stdlib
       quidra_tensor_autograd_foundation
+      quidra_tensor_view_fast_paths
+      quidra_cpu_parallel
       quidra_native_smoke
+      quidra_nat_lengths
       PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
+    )
+    # The CLI and stdlib suites compile and run many programs each, so they
+    # get twice the unit suites' timeout; a hang still fails the run.
+    math(EXPR QUIDRA_PROGRAM_SUITE_TIMEOUT "${QUIDRA_TEST_TIMEOUT} * 2")
+    set_tests_properties(
+      quidra_cli
+      quidra_stdlib
+      PROPERTIES TIMEOUT ${QUIDRA_PROGRAM_SUITE_TIMEOUT}
+    )
+    # Builds a few hundred small programs, a few of them in parallel.
+    math(EXPR QUIDRA_RUN_CACHE_TEST_TIMEOUT "${QUIDRA_TEST_TIMEOUT} * 6")
+    set_tests_properties(
+      quidra_run_cache
+      PROPERTIES TIMEOUT ${QUIDRA_RUN_CACHE_TEST_TIMEOUT}
     )
     if(TEST quidra_gpu_contracts)
       set_tests_properties(
         quidra_gpu_contracts
+        quidra_gpu_contracts_autograd
         PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
       )
     endif()
@@ -482,8 +1004,18 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
       )
     endif()
     if(TEST quidra_real_gpu_integration)
+      # Builds and runs well over a hundred GPU programs, each of which
+      # starts the device, so it gets ten thirds of the unit suites'
+      # timeout; a hang still fails the run.
+      math(EXPR QUIDRA_REAL_GPU_TEST_TIMEOUT "${QUIDRA_TEST_TIMEOUT} * 10 / 3")
       set_tests_properties(
         quidra_real_gpu_integration
+        PROPERTIES TIMEOUT ${QUIDRA_REAL_GPU_TEST_TIMEOUT}
+      )
+    endif()
+    if(TEST quidra_unified_memory)
+      set_tests_properties(
+        quidra_unified_memory
         PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
       )
     endif()

@@ -1,0 +1,299 @@
+name: refactor-equivalence
+
+# Equivalence checks of the compiler against a base (tests/golden/README.md;
+# driver: tests/ir_golden.sh). Manual dispatch only: `base` names the commit
+# to compare with. `per_commit` compares every commit of base..HEAD with its
+# parent; `full` compares HEAD with the base on the slower checks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Base to compare with: a commit, a tag or a branch (e.g. develop)'
+        required: true
+        type: string
+      per_commit:
+        description: 'Every commit of base..HEAD against its parent (G1, Gseq, Gperf, Gwc), and G1c against the base'
+        type: boolean
+        default: true
+      full:
+        description: 'HEAD against the base on the slower checks (G1, G2, Gbatch, Ghdr, Gperf, Gobj, Gp, Gsan, Gw, Gwin)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: refactor-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QUIDRA_GOLDEN_HOME: ${{ github.workspace }}/../golden-home
+
+jobs:
+  # The base as a commit id, so that every job compares with the same commit.
+  base:
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.resolve.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: resolve
+        name: Resolve the base
+        env:
+          BASE_INPUT: ${{ inputs.base }}
+        run: |
+          commit="$(git rev-parse --verify --quiet "$BASE_INPUT^{commit}" ||
+                    git rev-parse --verify --quiet "origin/$BASE_INPUT^{commit}")" || {
+            echo "::error::unknown base: $BASE_INPUT"
+            exit 1
+          }
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+  # G1 for every commit (the walk compares each commit with its parent and the
+  # pinned statuses), on Linux and macOS, plus Gseq on macOS and Gperf on
+  # Linux. Packages come from their pinned commits in corpus.toml; programs
+  # outside the repository are not available here and are skipped with
+  # --allow-missing.
+  per-commit:
+    needs: base
+    if: inputs.per_commit
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      BASE: ${{ needs.base.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev valgrind
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install llvm curl
+      - name: Fetch pinned package sources
+        run: tests/golden/fetch_packages.sh
+      - name: Configure head build
+        run: cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix curl 2>/dev/null || true)"
+      - name: G1 every commit against its parent
+        run: tests/ir_golden.sh walk "$BASE..HEAD" --harness-auto --allow-missing
+      - name: Gseq every commit (macOS, libclang from Homebrew llvm)
+        if: runner.os == 'macOS'
+        run: |
+          python3 scripts/refactor/check_sequencing.py --self-test
+          head="$(git rev-parse HEAD)"
+          status=0
+          for commit in $(git rev-list --reverse "$BASE..HEAD"); do
+            git checkout --quiet "$commit"
+            python3 scripts/refactor/check_sequencing.py --build build-release || status=1
+          done
+          git checkout --quiet "$head"
+          exit $status
+      - name: Gperf every commit against its parent (Linux, retired instructions)
+        if: runner.os == 'Linux'
+        run: |
+          status=0
+          for commit in $(git rev-list --reverse "$BASE..HEAD"); do
+            tests/ir_golden.sh perf --base-ref "$commit^" --head-ref "$commit" --allow-missing || status=1
+          done
+          exit $status
+
+  # G1c against the base, on macOS, where the coverage build uses Apple clang
+  # with Xcode's llvm-profdata and llvm-cov: every code region on a compiler
+  # line changed since the base executes, and branch coverage of every
+  # touched function is not below the base's. A job of its own, because it
+  # runs two instrumented captures of the corpus (head and base).
+  coverage:
+    needs: base
+    if: inputs.per_commit
+    runs-on: macos-latest
+    timeout-minutes: 360
+    env:
+      BASE: ${{ needs.base.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
+        run: brew install llvm curl
+      - name: Fetch pinned package sources
+        run: tests/golden/fetch_packages.sh
+      - name: Configure head build
+        run: cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix curl)"
+      - name: G1c against the base
+        run: tests/ir_golden.sh coverage --base-ref "$BASE" --allow-missing
+
+  # Gwc: every commit compiles with /W4 /WX (quidra_core and the golden tool).
+  windows-compile:
+    needs: base
+    if: inputs.per_commit
+    runs-on: windows-latest
+    env:
+      BASE: ${{ needs.base.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install native dependencies
+        shell: pwsh
+        run: vcpkg install curl:x64-windows
+      - name: Compile every commit
+        shell: bash
+        run: |
+          status=0
+          for commit in $(git rev-list --reverse "$BASE..HEAD"); do
+            git checkout --quiet "$commit"
+            cmake -S . -B build -A x64 -DQUIDRA_WARNINGS_AS_ERRORS=ON \
+              -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" > /dev/null
+            if ! cmake --build build --config Release --parallel ${{ runner.os == 'macOS' && 3 || 4 }} --target quidra_core quidra_golden_dump; then
+              echo "Gwc failed at $(git log -1 --format='%h %s')"
+              status=1
+            fi
+          done
+          exit $status
+
+  # HEAD against the base: G1, G2 (corpus B), Gbatch (selfcheck), Ghdr,
+  # Gperf, Gobj (objects and Metal kernel sources), Gp (package suites on the
+  # fake GPU and on Metal), Gsan and the LLVM `opt` validation. Gw and Gwin
+  # run in their own jobs below.
+  full:
+    needs: base
+    if: inputs.full
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      BASE: ${{ needs.base.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev valgrind
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install llvm curl
+      - name: Fetch pinned package sources
+        run: tests/golden/fetch_packages.sh
+      - name: Configure builds
+        run: |
+          cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix curl 2>/dev/null || true)"
+          cmake -S . -B build-test -DCMAKE_BUILD_TYPE=Release -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl 2>/dev/null || true)"
+      - name: G1 against the base
+        run: tests/ir_golden.sh compare --base-ref "$BASE" --allow-missing
+      - name: Gbatch (selfcheck)
+        run: tests/ir_golden.sh selfcheck --allow-missing
+      - name: G2 (corpus B, Core suites)
+        run: tests/ir_golden.sh observe --build "$PWD/build-test" --base-ref "$BASE" --allow-missing
+      - name: Ghdr
+        run: bash scripts/refactor/check_headers.sh build-release
+      - name: Gperf against the base (limit 1.0 %)
+        if: runner.os == 'Linux'
+        run: tests/ir_golden.sh perf --base-ref "$BASE" --limit 1.0 --allow-missing
+      - name: Gobj against the base
+        run: tests/ir_golden.sh objects --base-ref "$BASE"
+      - name: Gp (package suites from the pinned store, fake GPU)
+        run: tests/ir_golden.sh packages --build "$PWD/build-test" --allow-missing
+      - name: Gp (package suites from the pinned store, Metal)
+        if: runner.os == 'macOS'
+        run: tests/ir_golden.sh packages --build "$PWD/build-release" --allow-missing
+      - name: Gobj Metal kernel sources against the base
+        if: runner.os == 'macOS'
+        run: tests/ir_golden.sh metal-sources --base-ref "$BASE"
+      - name: Gsan (ASan+UBSan corpus capture equals the release capture)
+        if: runner.os == 'Linux'
+        run: tests/ir_golden.sh sanitize --allow-missing
+      - name: Backend LLVM validation
+        run: |
+          cmake --build build-release --parallel ${{ runner.os == 'macOS' && 3 || 4 }} --target quidra
+          bash tests/backend_regressions.sh build-release/quidra "$(command -v opt || echo /usr/lib/llvm-18/bin/opt)"
+
+  # Gw: the WebAssembly frontend and the wasm golden (the views the wasm build
+  # supports) against the base.
+  full-wasm:
+    needs: base
+    if: inputs.full
+    runs-on: ubuntu-latest
+    env:
+      BASE: ${{ needs.base.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build the frontend and the wasm golden tool (head and base)
+        run: |
+          emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release -DQUIDRA_BUILD_WASM_GOLDEN=ON
+          cmake --build build-wasm --parallel ${{ runner.os == 'macOS' && 3 || 4 }} --target quidra_wasm quidra_golden_dump_wasm
+          node tests/wasm_api_tests.mjs build-wasm
+          git worktree add --detach ../base "$BASE"
+          emcmake cmake -S ../base -B ../base/build-wasm -DCMAKE_BUILD_TYPE=Release -DQUIDRA_BUILD_WASM_GOLDEN=ON
+          cmake --build ../base/build-wasm --parallel ${{ runner.os == 'macOS' && 3 || 4 }} --target quidra_golden_dump_wasm
+      - name: Wasm golden (examples, probes, compiler-test programs)
+        run: |
+          python3 tests/golden/corpus.py materialize --root "$QUIDRA_GOLDEN_HOME/corpus" --unpinned --allow-missing
+          for side in head base; do
+            build=build-wasm; [ "$side" = base ] && build=../base/build-wasm
+            python3 tests/golden/capture.py --tool "tests/golden/wasm_tool.sh" \
+              --env "QUIDRA_WASM_GOLDEN=$PWD/$build/quidra_golden_dump_wasm.js" \
+              --root "$QUIDRA_GOLDEN_HOME/corpus" --home "$QUIDRA_GOLDEN_HOME/home" \
+              --out "$QUIDRA_GOLDEN_HOME/wasm-$side" \
+              --views ir,ir.full,ir.lowered,llvm,diagnostics,compile.memory,repl.session \
+              --only examples/ --only probes/ --only compiler_tests/
+          done
+          python3 tests/golden/compare.py "$QUIDRA_GOLDEN_HOME/wasm-base" "$QUIDRA_GOLDEN_HOME/wasm-head"
+
+  # Gwin: full Windows CI plus the Windows golden subset (Core examples,
+  # heredocs, probes, NN) against the base.
+  full-windows:
+    needs: base
+    if: inputs.full
+    runs-on: windows-latest
+    env:
+      BASE: ${{ needs.base.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install native dependencies
+        shell: pwsh
+        run: |
+          vcpkg install curl:x64-windows
+          if (-not (Get-Command lli.exe -ErrorAction SilentlyContinue)) { choco install llvm -y --no-progress }
+      - name: Configure and build head
+        shell: bash
+        run: |
+          cmake -S . -B build -A x64 -DQUIDRA_WARNINGS_AS_ERRORS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake --build build --config Release --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
+      - name: Core tests
+        run: ctest --test-dir build -C Release --output-on-failure --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
+      - name: Process portability
+        run: python tests/process_portability_tests.py build/Release/quidra.exe
+      - name: Windows golden subset against the base
+        shell: bash
+        run: |
+          git worktree add --detach ../base "$BASE"
+          cmake -S ../base -B ../base/build -A x64 \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake --build ../base/build --config Release --parallel ${{ runner.os == 'macOS' && 3 || 4 }} --target quidra_golden_dump
+          python tests/golden/corpus.py materialize --root "$QUIDRA_GOLDEN_HOME/corpus" --unpinned --allow-missing
+          for side in head base; do
+            tool=build/Release/quidra_golden_dump.exe; [ "$side" = base ] && tool=../base/build/Release/quidra_golden_dump.exe
+            python tests/golden/capture.py --tool "$tool" --root "$QUIDRA_GOLDEN_HOME/corpus" \
+              --home "$QUIDRA_GOLDEN_HOME/home" --out "$QUIDRA_GOLDEN_HOME/win-$side" \
+              --views ir,ir.full,llvm --only examples/ --only heredoc/ --only probes/ --only store/nn/
+          done
+          python tests/golden/compare.py "$QUIDRA_GOLDEN_HOME/win-base" "$QUIDRA_GOLDEN_HOME/win-head"

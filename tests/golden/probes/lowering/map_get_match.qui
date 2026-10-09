@@ -1,0 +1,28 @@
+// match over map.Map.get(key) with scalar keys and values: the collection
+// idiom that branches on the map's own lookup instead of building V | none.
+map.Map<int, int> counts = map.Map<int, int>()
+counts.set(1, 10)
+counts.set(2, 20)
+match counts.get(1)
+    int value
+        print("{value}{NL}")
+    none
+        print("missing{NL}")
+match counts.get(7)
+    none
+        print("missing{NL}")
+    int
+        print("present{NL}")
+
+int lookup(int key)
+    map.Map<int, real64> table = map.Map<int, real64>()
+    table.set(3, 1.5)
+    match table.get(key)
+        real64 value
+            if value > 1.0
+                return 2
+            return 1
+        none
+            return 0
+
+print("{lookup(3)}{NL}")

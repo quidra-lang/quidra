@@ -1,4 +1,21 @@
 #include "device_backend.hpp"
+#include "ieee_decimal.hpp"
+#include "platform/environment.hpp"
+#include "runtime_counters.hpp"
+#include "runtime_parallel.hpp"
+#include "runtime_report.hpp"
+#include "tensor_view_bounds.hpp"
+#include "unified_storage.hpp"
+#include "quidra/abi/dtype.hpp"
+#include "quidra/abi/io_status.hpp"
+#include "quidra/abi/layout.hpp"
+#include "quidra/abi/process_status.hpp"
+#include "quidra/abi/string_codes.hpp"
+#include "quidra/abi/tensor_index.hpp"
+#include "quidra/abi/tensor_codes.hpp"
+#include "quidra/abi/runtime_entry_points.hpp"
+#include "quidra/abi/runtime_failure.hpp"
+#include "quidra/slice_bounds.hpp"
 #include "quidra/native_extension.h"
 #include <algorithm>
 #include <array>
@@ -47,10 +64,102 @@
 #include <unistd.h>
 #endif
 
-extern "C" void* quidra_bigint_parse(const char*);
-extern "C" void* quidra_bigreal_parse(const char*);
+// The ABI this runtime shares with generated code (include/quidra/abi).
+namespace abi = quidra::abi;
+
+// Stops the program (GPU_SCOPE, at the current statement) when the calling
+// thread still holds a device stream for a package encode that the package
+// code which began it left open (runtime_system.cpp).
+void quidra_runtime_check_package_hold(const char* returned);
+
+namespace {
+// GPU_SCOPE at a location the runtime operation knows, in the format of the
+// TENSOR and AUTOGRAD failures (no provenance suffix).
+[[noreturn]] void fail_package_scope_at(const std::string& message,
+                                        unsigned long long line,
+                                        unsigned long long column) {
+    quidra::runtime::report_failure(abi::FailureReason::package_scope_violation,
+                                    abi::FailureArgs{.message = message}, line, column);
+}
+
+// The runtime's failure paths end a package encode hold the calling thread
+// still has (native_extension.h), so that exit does not wait for its stream.
+// When the hold recorded a protocol violation, that violation is the failure
+// reported (GPU_SCOPE at the failing operation, in the format of the failure
+// it replaces): Core work refused inside a package encoder scope, for
+// example because an extern call returned with its scope open, ends the
+// program this way.
+void end_package_hold_before_failure(unsigned long long line,
+                                     unsigned long long column) {
+    if (quidra::device::open_package_holds.load(std::memory_order_relaxed) == 0)
+        return;
+    std::string violation;
+    if (quidra::device::end_left_package_hold("the program failed", violation) !=
+        quidra::device::LeftHold::Violated)
+        return;
+    fail_package_scope_at(violation, line, column);
+}
+
+// Where Core takes control back from package code inside a statement, a
+// package encode the calling thread left open stops the program at the
+// operation's own location (GPU_SCOPE): `returned` names what came back.
+void check_package_hold_at(const char* returned, unsigned long long line,
+                           unsigned long long column) {
+    if (quidra::device::open_package_holds.load(std::memory_order_relaxed) == 0)
+        return;
+    std::string message;
+    if (quidra::device::end_left_package_hold(returned, message) ==
+        quidra::device::LeftHold::None)
+        return;
+    fail_package_scope_at(message, line, column);
+}
+
+// task.all would wait for good on a hold the calling thread left open
+// earlier in its statement: the tasks wait for the held stream while this
+// thread waits for them.
+void check_package_hold_before_tasks(unsigned long long line,
+                                     unsigned long long column) {
+    check_package_hold_at("task.all started its tasks", line, column);
+}
+
+// A custom autograd backward callback is package code that runs inside the
+// backward() call at line:column, which is where a package encode it breaks
+// or leaves open is reported: the statement provenance may still name a
+// statement of a function that returned earlier in the same statement.
+struct PackageBackwardCall {
+    unsigned long long line{};
+    unsigned long long column{};
+};
+thread_local const PackageBackwardCall* package_backward_call = nullptr;
+
+class PackageBackwardScope {
+public:
+    PackageBackwardScope(unsigned long long line, unsigned long long column)
+        : call_{line, column}, previous_(package_backward_call),
+          held_before_(quidra::device::package_hold_active()) {
+        package_backward_call = &call_;
+    }
+    ~PackageBackwardScope() { package_backward_call = previous_; }
+    PackageBackwardScope(const PackageBackwardScope&) = delete;
+    PackageBackwardScope& operator=(const PackageBackwardScope&) = delete;
+
+    // After the callback returned. A hold the thread had before the call is
+    // not the callback's; it is reported where that hold was left open.
+    void returned() const {
+        if (!held_before_)
+            check_package_hold_at("a custom autograd backward callback returned",
+                                  call_.line, call_.column);
+    }
+
+private:
+    PackageBackwardCall call_;
+    const PackageBackwardCall* previous_;
+    bool held_before_;
+};
+} // namespace
 
 extern "C" void qcore_execution_policy_set(int policy) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if (policy == QCORE_EXECUTION_FAST) {
         quidra::device::set_execution_mode(quidra::device::ExecutionMode::Fast);
         return;
@@ -60,10 +169,7 @@ extern "C" void qcore_execution_policy_set(int policy) {
             quidra::device::ExecutionMode::Deterministic);
         return;
     }
-    std::fprintf(
-        stderr,
-        "Quidra runtime error[PACKAGE_EXECUTION_POLICY]: invalid package execution policy\n");
-    std::exit(101);
+    quidra::runtime::report_failure(abi::FailureReason::invalid_execution_policy, {}, 0, 0);
 }
 
 extern "C" int qcore_execution_policy_get() {
@@ -76,10 +182,12 @@ extern "C" int qcore_execution_policy_get() {
 // Compatibility symbols for package sources created before the generic
 // execution-policy ABI was formalized.
 extern "C" void qcore_execution_fast() {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     qcore_execution_policy_set(QCORE_EXECUTION_FAST);
 }
 
 extern "C" void qcore_execution_deterministic() {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     qcore_execution_policy_set(QCORE_EXECUTION_DETERMINISTIC);
 }
 
@@ -111,8 +219,7 @@ void mark_used(int index) {
 }
 
 [[noreturn]] void runtime_allocation_failure() {
-    std::fprintf(stderr, "Quidra runtime error: allocation failed\n");
-    std::exit(101);
+    quidra::runtime::report_uncoded("allocation failed");
 }
 
 using ManagedDrop = void (*)(void*);
@@ -379,6 +486,9 @@ bool tracker_bit(const InitializationTracker& tracker, std::size_t index) {
 
 void tracker_set(InitializationTracker& tracker, std::size_t index) {
     if (tracker.fully_initialized || index >= tracker.count) return;
+    // A pending write-only output carries no bitset until an element is
+    // written individually (qcore_tensor_output_handle).
+    if (tracker.bits.empty()) tracker.bits.assign((tracker.count + 7) / 8, 0);
     const auto byte = index / 8;
     const auto bit = static_cast<unsigned char>(1U << (index % 8));
     if ((tracker.bits[byte] & bit) != 0) return;
@@ -389,6 +499,15 @@ void tracker_set(InitializationTracker& tracker, std::size_t index) {
         tracker.bits.clear();
         tracker.bits.shrink_to_fit();
     }
+}
+
+// Marks every tracked element initialized at once, for outputs whose producer
+// has already proven that it wrote an initialized value to each element.
+void tracker_mark_complete(InitializationTracker& tracker) {
+    tracker.fully_initialized = true;
+    tracker.initialized_count = tracker.count;
+    tracker.bits.clear();
+    tracker.bits.shrink_to_fit();
 }
 
 // True when the address has no initialization tracking left to prove: either it is not
@@ -416,15 +535,12 @@ tracked_unit_for_address(const void* address) {
 
 [[noreturn]] void runtime_uninitialized_failure(unsigned long long line,
                                                 unsigned long long column) {
-    std::fprintf(stderr,
-                 "Quidra runtime error[UNINITIALIZED] at %llu:%llu: value is uninitialized\n",
-                 line, column);
-    std::exit(101);
+    quidra::runtime::report_failure(abi::FailureReason::value_uninitialized, {}, line,
+                                    column);
 }
 
 [[noreturn]] void runtime_text_failure(const char* message) {
-    std::fprintf(stderr, "Quidra runtime error: %s\n", message);
-    std::exit(101);
+    quidra::runtime::report_uncoded(message ? message : "runtime failure");
 }
 
 bool valid_utf8(std::string_view text, std::size_t* codepoints = nullptr,
@@ -737,7 +853,7 @@ extern "C" char* quidra_format_float(double value) {
     char buffer[64];
     const auto result =
         std::to_chars(std::begin(buffer), std::end(buffer), value, std::chars_format::general);
-    if (result.ec != std::errc{}) runtime_text_failure("float formatting failed");
+    if (result.ec != std::errc{}) runtime_text_failure("real formatting failed");
 
     std::string text(buffer, result.ptr);
     if (text.find('.') == std::string::npos) {
@@ -836,7 +952,7 @@ std::string canonical_float_text(double value) {
     if (value == 0.0) return std::signbit(value) ? "-0.0" : "0.0";
     char buffer[64];
     const auto result = std::to_chars(std::begin(buffer), std::end(buffer), value, std::chars_format::general);
-    if (result.ec != std::errc{}) runtime_text_failure("float formatting failed");
+    if (result.ec != std::errc{}) runtime_text_failure("real formatting failed");
     std::string text(buffer, result.ptr);
     if (text.find('.') == std::string::npos) {
         const auto exponent = text.find_first_of("eE");
@@ -871,6 +987,17 @@ extern "C" char* quidra_format_unsigned(unsigned long long value, int integer_wi
     const auto result = std::to_chars(std::begin(buffer), std::end(buffer), value);
     if (result.ec != std::errc{}) runtime_text_failure("numeric formatting failed");
     return runtime_copy_string(finish_integer_format(std::string(buffer, result.ptr), integer_width, fractional, significant, zero != 0));
+}
+
+// An arbitrary-precision integer word, formatted as quidra_format_signed
+// formats an int64.
+extern "C" char* quidra_int_format(long long value, int integer_width, int fractional, int significant, int zero) {
+    if ((value & abi::bare_integer_layout::boxed_bit) == 0)
+        return quidra_format_signed(value >> 1, integer_width, fractional, significant, zero);
+    char* text = quidra_int_text(value);
+    std::string digits(text);
+    quidra_managed_release(text, nullptr);
+    return runtime_copy_string(finish_integer_format(std::move(digits), integer_width, fractional, significant, zero != 0));
 }
 
 extern "C" char* quidra_format_number(double value, int integer_width, int fractional, int significant, int zero) {
@@ -1096,7 +1223,7 @@ extern "C" void quidra_init_create(void* base, unsigned long long count,
     if (!tracker->fully_initialized) {
         tracker->bits.assign((tracker->count + 7) / 8, 0);
     }
-    if (tracker->data_offset == 8) {
+    if (tracker->data_offset == abi::array_layout::payload_offset) {
         const auto physical_capacity =
             it->second.size >= tracker->data_offset
                 ? (it->second.size - tracker->data_offset) / tracker->unit_bytes
@@ -1221,8 +1348,7 @@ extern "C" void* quidra_atomic_counter_create(long long initial) {
         auto state = std::make_shared<std::atomic<long long>>(initial);
         return make_atomic_counter_value(new AtomicCounterHandle{std::move(state)});
     } catch (...) {
-        std::fprintf(stderr, "Quidra runtime error: allocation failed\n");
-        std::exit(101);
+        quidra::runtime::report_uncoded("allocation failed");
     }
 }
 
@@ -1230,13 +1356,11 @@ extern "C" void* quidra_atomic_counter_clone(void* value) {
     try {
         auto* source = atomic_counter_from_value(value);
         if (!source || !source->state) {
-            std::fprintf(stderr, "Quidra runtime error: invalid atomic counter copy\n");
-            std::exit(101);
+            quidra::runtime::report_uncoded("invalid atomic counter copy");
         }
         return make_atomic_counter_value(new AtomicCounterHandle{source->state});
     } catch (...) {
-        std::fprintf(stderr, "Quidra runtime error: allocation failed\n");
-        std::exit(101);
+        quidra::runtime::report_uncoded("allocation failed");
     }
 }
 
@@ -1251,8 +1375,7 @@ extern "C" void quidra_atomic_counter_drop(void* value) {
 extern "C" long long quidra_atomic_counter_load(void* value) {
     auto* handle = atomic_counter_from_value(value);
     if (!handle || !handle->state) {
-        std::fprintf(stderr, "Quidra runtime error: invalid atomic counter\n");
-        std::exit(101);
+        quidra::runtime::report_uncoded("invalid atomic counter");
     }
     return handle->state->load(std::memory_order_seq_cst);
 }
@@ -1262,17 +1385,14 @@ extern "C" long long quidra_atomic_counter_add(
     unsigned long long line, unsigned long long column) {
     auto* handle = atomic_counter_from_value(value);
     if (!handle || !handle->state) {
-        std::fprintf(stderr, "Quidra runtime error: invalid atomic counter\n");
-        std::exit(101);
+        quidra::runtime::report_uncoded("invalid atomic counter");
     }
     auto current = handle->state->load(std::memory_order_seq_cst);
     while (true) {
         if ((delta > 0 && current > std::numeric_limits<long long>::max() - delta) ||
             (delta < 0 && current < std::numeric_limits<long long>::min() - delta)) {
-            std::fprintf(stderr,
-                "Quidra runtime error[INTEGER_OVERFLOW] at %llu:%llu: integer overflow\n",
-                line, column);
-            std::exit(101);
+            quidra::runtime::report_failure(abi::FailureReason::integer_overflow, {}, line,
+                                            column);
         }
         const auto next = static_cast<long long>(current + delta);
         if (handle->state->compare_exchange_weak(
@@ -1286,24 +1406,19 @@ extern "C" long long quidra_atomic_counter_add(
 extern "C" void quidra_task_all_atomic_counter(
     void* raw, void* shared,
     unsigned long long line, unsigned long long column) {
+    check_package_hold_before_tasks(line, column);
     if (!raw || !shared) {
-        std::fprintf(stderr,
-            "Quidra runtime error[TASK_ARRAY] at %llu:%llu: task.all received invalid shared storage\n",
-            line, column);
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_invalid_shared_storage, {}, line, column);
     }
     long long signed_count = 0;
     std::memcpy(&signed_count, raw, sizeof(signed_count));
     if (signed_count < 0) {
-        std::fprintf(stderr,
-            "Quidra runtime error[TASK_ARRAY] at %llu:%llu: task.all received an invalid operation array\n",
-            line, column);
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_invalid_operation_array, {}, line, column);
     }
     using TaskFunction = void (*)(void*);
     static_assert(sizeof(TaskFunction) == sizeof(void*));
     const auto count = static_cast<std::size_t>(signed_count);
-    const auto* payload = static_cast<const unsigned char*>(raw) + 8;
+    const auto* payload = static_cast<const unsigned char*>(raw) + abi::array_layout::payload_offset;
     std::vector<TaskFunction> operations;
     std::vector<std::thread> threads;
     std::atomic<std::size_t> next{0};
@@ -1315,10 +1430,7 @@ extern "C" void quidra_task_all_atomic_counter(
                 payload + index * sizeof(TaskFunction),
                 sizeof(TaskFunction));
             if (!operation) {
-                std::fprintf(stderr,
-                    "Quidra runtime error[TASK_NULL] at %llu:%llu: task.all received a null operation\n",
-                    line, column);
-                std::exit(101);
+                quidra::runtime::report_failure(abi::FailureReason::task_null_operation, {}, line, column);
             }
             operations.push_back(operation);
         }
@@ -1329,11 +1441,17 @@ extern "C" void quidra_task_all_atomic_counter(
         threads.reserve(worker_count);
         for (std::size_t worker = 0; worker < worker_count; ++worker) {
             threads.emplace_back([&operations, &next, shared] {
+                // Package kernels called from a task run serially here.
+                const quidra::runtime_parallel::SerialScope task_scope;
+                // A package encode this task breaks or leaves open ends the
+                // process with the stream still held (device_backend.hpp).
+                quidra::device::running_task_all_task = true;
                 while (true) {
                     const auto index = next.fetch_add(1, std::memory_order_relaxed);
                     if (index >= operations.size()) return;
                     void* argument = quidra_atomic_counter_clone(shared);
                     operations[index](argument);
+                    quidra_runtime_check_package_hold("a task.all task returned");
                     const auto task_argument_still_owned =
                         managed_allocations.find(reinterpret_cast<std::uintptr_t>(argument)) !=
                         managed_allocations.end();
@@ -1347,38 +1465,30 @@ extern "C" void quidra_task_all_atomic_counter(
         }
     } catch (const std::exception& error) {
         for (auto& thread : threads) if (thread.joinable()) thread.join();
-        std::fprintf(stderr,
-            "Quidra runtime error[TASK_START] at %llu:%llu: cannot start task: %s\n",
-            line, column, error.what());
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_start_failed,
+                                        abi::FailureArgs{.message = error.what()},
+                                        line, column);
     }
     for (auto& thread : threads) thread.join();
 }
 
 extern "C" void quidra_task_all(
     void* raw, unsigned long long line, unsigned long long column) {
+    check_package_hold_before_tasks(line, column);
     if (!raw) {
-        std::fprintf(
-            stderr,
-            "Quidra runtime error[TASK_ARRAY] at %llu:%llu: task.all received a null operation array\n",
-            line, column);
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_null_operation_array, {}, line, column);
     }
 
     long long signed_count = 0;
     std::memcpy(&signed_count, raw, sizeof(signed_count));
     if (signed_count < 0) {
-        std::fprintf(
-            stderr,
-            "Quidra runtime error[TASK_ARRAY] at %llu:%llu: task.all received an invalid operation array\n",
-            line, column);
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_invalid_operation_array, {}, line, column);
     }
 
     using TaskFunction = void (*)();
     static_assert(sizeof(TaskFunction) == sizeof(void*));
     const auto count = static_cast<std::size_t>(signed_count);
-    const auto* payload = static_cast<const unsigned char*>(raw) + 8;
+    const auto* payload = static_cast<const unsigned char*>(raw) + abi::array_layout::payload_offset;
 
     std::vector<TaskFunction> operations;
     std::vector<std::thread> threads;
@@ -1391,11 +1501,7 @@ extern "C" void quidra_task_all(
                 &operation, payload + index * sizeof(TaskFunction),
                 sizeof(TaskFunction));
             if (!operation) {
-                std::fprintf(
-                    stderr,
-                    "Quidra runtime error[TASK_NULL] at %llu:%llu: task.all received a null operation\n",
-                    line, column);
-                std::exit(101);
+                quidra::runtime::report_failure(abi::FailureReason::task_null_operation, {}, line, column);
             }
             operations.push_back(operation);
         }
@@ -1407,47 +1513,49 @@ extern "C" void quidra_task_all(
         threads.reserve(worker_count);
         for (std::size_t worker = 0; worker < worker_count; ++worker) {
             threads.emplace_back([&operations, &next] {
+                // Package kernels called from a task run serially here.
+                const quidra::runtime_parallel::SerialScope task_scope;
+                // A package encode this task breaks or leaves open ends the
+                // process with the stream still held (device_backend.hpp).
+                quidra::device::running_task_all_task = true;
                 while (true) {
                     const auto index = next.fetch_add(1, std::memory_order_relaxed);
                     if (index >= operations.size()) return;
                     operations[index]();
+                    quidra_runtime_check_package_hold("a task.all task returned");
                 }
             });
         }
     } catch (const std::exception& error) {
         for (auto& thread : threads) if (thread.joinable()) thread.join();
-        std::fprintf(
-            stderr,
-            "Quidra runtime error[TASK_START] at %llu:%llu: cannot start task: %s\n",
-            line, column, error.what());
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_start_failed,
+                                        abi::FailureArgs{.message = error.what()},
+                                        line, column);
     }
 
     for (auto& thread : threads) thread.join();
 }
 
-template <class Result>
+// Result is the C type of a task's result; with words, each result is an
+// arbitrary-precision integer word whose box moves from the worker thread to
+// the joining thread.
+template <class Result, bool words = false>
 void quidra_task_all_results(
     void* raw, void* output, unsigned long long line, unsigned long long column) {
+    check_package_hold_before_tasks(line, column);
     if (!raw || !output) {
-        std::fprintf(stderr,
-            "Quidra runtime error[TASK_ARRAY] at %llu:%llu: task.all received invalid storage\n",
-            line, column);
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_invalid_storage, {}, line, column);
     }
     long long signed_count = 0;
     std::memcpy(&signed_count, raw, sizeof(signed_count));
     if (signed_count < 0) {
-        std::fprintf(stderr,
-            "Quidra runtime error[TASK_ARRAY] at %llu:%llu: task.all received an invalid operation array\n",
-            line, column);
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_invalid_operation_array, {}, line, column);
     }
     using TaskFunction = Result (*)();
     static_assert(sizeof(TaskFunction) == sizeof(void*));
     const auto count = static_cast<std::size_t>(signed_count);
-    const auto* operation_payload = static_cast<const unsigned char*>(raw) + 8;
-    auto* result_payload = static_cast<unsigned char*>(output) + 8;
+    const auto* operation_payload = static_cast<const unsigned char*>(raw) + abi::array_layout::payload_offset;
+    auto* result_payload = static_cast<unsigned char*>(output) + abi::array_layout::payload_offset;
     std::vector<TaskFunction> operations;
     std::vector<std::thread> threads;
     std::atomic<std::size_t> next{0};
@@ -1459,10 +1567,7 @@ void quidra_task_all_results(
                 operation_payload + index * sizeof(TaskFunction),
                 sizeof(TaskFunction));
             if (!operation) {
-                std::fprintf(stderr,
-                    "Quidra runtime error[TASK_NULL] at %llu:%llu: task.all received a null operation\n",
-                    line, column);
-                std::exit(101);
+                quidra::runtime::report_failure(abi::FailureReason::task_null_operation, {}, line, column);
             }
             operations.push_back(operation);
         }
@@ -1473,10 +1578,17 @@ void quidra_task_all_results(
         threads.reserve(worker_count);
         for (std::size_t worker = 0; worker < worker_count; ++worker) {
             threads.emplace_back([&operations, &next, result_payload] {
+                // Package kernels called from a task run serially here.
+                const quidra::runtime_parallel::SerialScope task_scope;
+                // A package encode this task breaks or leaves open ends the
+                // process with the stream still held (device_backend.hpp).
+                quidra::device::running_task_all_task = true;
                 while (true) {
                     const auto index = next.fetch_add(1, std::memory_order_relaxed);
                     if (index >= operations.size()) return;
-                    const Result result = operations[index]();
+                    Result result = operations[index]();
+                    if constexpr (words) result = quidra_int_detach(result);
+                    quidra_runtime_check_package_hold("a task.all task returned");
                     std::memcpy(result_payload + index * sizeof(Result),
                                 &result, sizeof(Result));
                 }
@@ -1484,12 +1596,19 @@ void quidra_task_all_results(
         }
     } catch (const std::exception& error) {
         for (auto& thread : threads) if (thread.joinable()) thread.join();
-        std::fprintf(stderr,
-            "Quidra runtime error[TASK_START] at %llu:%llu: cannot start task: %s\n",
-            line, column, error.what());
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::task_start_failed,
+                                        abi::FailureArgs{.message = error.what()},
+                                        line, column);
     }
     for (auto& thread : threads) thread.join();
+    if constexpr (words) {
+        for (std::size_t index = 0; index < operations.size(); ++index) {
+            long long word = 0;
+            std::memcpy(&word, result_payload + index * sizeof(word), sizeof(word));
+            word = quidra_int_attach(word);
+            std::memcpy(result_payload + index * sizeof(word), &word, sizeof(word));
+        }
+    }
 }
 
 extern "C" void quidra_task_all_i64(
@@ -1500,6 +1619,10 @@ extern "C" void quidra_task_all_f64(
     void* raw, void* output, unsigned long long line, unsigned long long column) {
     quidra_task_all_results<double>(raw, output, line, column);
 }
+extern "C" void quidra_task_all_int(
+    void* raw, void* output, unsigned long long line, unsigned long long column) {
+    quidra_task_all_results<long long, true>(raw, output, line, column);
+}
 
 extern "C" bool quidra_array_can_append_move(void* array) {
     auto* allocation = exact_array_append_allocation(array);
@@ -1508,7 +1631,7 @@ extern "C" bool quidra_array_can_append_move(void* array) {
         return false;
     }
     const auto& tracker = *allocation->initialization;
-    return tracker.data_offset == 8 && tracker.unit_bytes != 0 &&
+    return tracker.data_offset == abi::array_layout::payload_offset && tracker.unit_bytes != 0 &&
            tracker.fully_initialized &&
            tracker.count <= allocation->array_capacity;
 }
@@ -1530,7 +1653,7 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
         runtime_text_failure("array append move requires unique initialized storage");
     }
     auto* tracker = allocation->initialization.get();
-    if (tracker->data_offset != 8 || tracker->unit_bytes == 0 ||
+    if (tracker->data_offset != abi::array_layout::payload_offset || tracker->unit_bytes == 0 ||
         !tracker->fully_initialized ||
         tracker->count > allocation->array_capacity) {
         runtime_text_failure("array append move requires unique initialized storage");
@@ -1562,12 +1685,12 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
             new_capacity *= 2;
         }
         if (new_capacity >
-            (std::numeric_limits<std::size_t>::max() - 8) / stride) {
+            (std::numeric_limits<std::size_t>::max() - abi::array_layout::payload_offset) / stride) {
             runtime_allocation_failure();
         }
 
         const auto old_key = reinterpret_cast<std::uintptr_t>(array);
-        const auto new_bytes = static_cast<std::size_t>(8) + new_capacity * stride;
+        const auto new_bytes = static_cast<std::size_t>(abi::array_layout::payload_offset) + new_capacity * stride;
         const auto old_bytes = allocation->size;
         clear_managed_range_cache(allocation);
         result = std::realloc(array, new_bytes);
@@ -1609,7 +1732,7 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
     // explicitly empty before publishing the longer array. Without this, a stale
     // pointer in spare capacity can be released as if it were an existing element.
     std::memset(
-        static_cast<unsigned char*>(result) + 8 + old_count * stride,
+        static_cast<unsigned char*>(result) + abi::array_layout::payload_offset + old_count * stride,
         0, stride);
 
     tracker->count = new_count;
@@ -1637,24 +1760,25 @@ extern "C" void* quidra_array_sorted(void* raw, int kind,
     if (signed_count < 0) runtime_text_failure("invalid array length during sort");
     const auto count = static_cast<std::size_t>(signed_count);
     const auto stride = static_cast<std::size_t>(raw_stride);
-    if (count > (std::numeric_limits<std::size_t>::max() - 8) / stride) {
+    if (count > (std::numeric_limits<std::size_t>::max() - abi::array_layout::payload_offset) / stride) {
         runtime_allocation_failure();
     }
 
     const auto expected_stride = [&]() -> std::size_t {
-        switch (kind) {
-            case 1: return sizeof(std::int64_t);
-            case 2: return sizeof(std::int8_t);
-            case 3: return sizeof(std::int16_t);
-            case 4: return sizeof(std::int32_t);
-            case 5: return sizeof(std::uint8_t);
-            case 6: return sizeof(std::uint16_t);
-            case 7: return sizeof(std::uint32_t);
-            case 8: return sizeof(std::uint64_t);
-            case 9: return sizeof(double);
-            case 10: return sizeof(float);
-            case 11: return 1;
-            case 12: return sizeof(char*);
+        switch (static_cast<abi::SortElementKind>(kind)) {
+            case abi::SortElementKind::int64: return sizeof(std::int64_t);
+            case abi::SortElementKind::int8: return sizeof(std::int8_t);
+            case abi::SortElementKind::int16: return sizeof(std::int16_t);
+            case abi::SortElementKind::int32: return sizeof(std::int32_t);
+            case abi::SortElementKind::uint8: return sizeof(std::uint8_t);
+            case abi::SortElementKind::uint16: return sizeof(std::uint16_t);
+            case abi::SortElementKind::uint32: return sizeof(std::uint32_t);
+            case abi::SortElementKind::uint64: return sizeof(std::uint64_t);
+            case abi::SortElementKind::float64: return sizeof(double);
+            case abi::SortElementKind::float32: return sizeof(float);
+            case abi::SortElementKind::boolean: return 1;
+            case abi::SortElementKind::string: return sizeof(char*);
+            case abi::SortElementKind::bare_integer: return sizeof(long long);
             default: runtime_text_failure("unsupported sorted array element type");
         }
     }();
@@ -1662,19 +1786,19 @@ extern "C" void* quidra_array_sorted(void* raw, int kind,
 
     if (count != 0) {
         quidra_init_require_range(
-            static_cast<unsigned char*>(raw) + 8,
+            static_cast<unsigned char*>(raw) + abi::array_layout::payload_offset,
             static_cast<unsigned long long>(count * stride), line, column);
     }
 
-    auto* result = static_cast<unsigned char*>(managed_allocate(8 + count * stride));
+    auto* result = static_cast<unsigned char*>(managed_allocate(abi::array_layout::payload_offset + count * stride));
     std::memcpy(result, &signed_count, sizeof(signed_count));
     if (count != 0) {
-        std::memcpy(result + 8, static_cast<unsigned char*>(raw) + 8, count * stride);
+        std::memcpy(result + abi::array_layout::payload_offset, static_cast<unsigned char*>(raw) + abi::array_layout::payload_offset, count * stride);
     }
     quidra_init_create(result, static_cast<unsigned long long>(count),
-                       static_cast<unsigned long long>(stride), 8, 1);
+                       static_cast<unsigned long long>(stride), abi::array_layout::payload_offset, 1);
 
-    auto* data = result + 8;
+    auto* data = result + abi::array_layout::payload_offset;
     const auto float_less = [](auto left, auto right) {
         const bool left_nan = std::isnan(left);
         const bool right_nan = std::isnan(right);
@@ -1686,52 +1810,52 @@ extern "C" void* quidra_array_sorted(void* raw, int kind,
         return left < right;
     };
 
-    switch (kind) {
-        case 1:
+    switch (static_cast<abi::SortElementKind>(kind)) {
+        case abi::SortElementKind::int64:
             std::stable_sort(reinterpret_cast<std::int64_t*>(data),
                              reinterpret_cast<std::int64_t*>(data) + count);
             break;
-        case 2:
+        case abi::SortElementKind::int8:
             std::stable_sort(reinterpret_cast<std::int8_t*>(data),
                              reinterpret_cast<std::int8_t*>(data) + count);
             break;
-        case 3:
+        case abi::SortElementKind::int16:
             std::stable_sort(reinterpret_cast<std::int16_t*>(data),
                              reinterpret_cast<std::int16_t*>(data) + count);
             break;
-        case 4:
+        case abi::SortElementKind::int32:
             std::stable_sort(reinterpret_cast<std::int32_t*>(data),
                              reinterpret_cast<std::int32_t*>(data) + count);
             break;
-        case 5:
+        case abi::SortElementKind::uint8:
             std::stable_sort(reinterpret_cast<std::uint8_t*>(data),
                              reinterpret_cast<std::uint8_t*>(data) + count);
             break;
-        case 6:
+        case abi::SortElementKind::uint16:
             std::stable_sort(reinterpret_cast<std::uint16_t*>(data),
                              reinterpret_cast<std::uint16_t*>(data) + count);
             break;
-        case 7:
+        case abi::SortElementKind::uint32:
             std::stable_sort(reinterpret_cast<std::uint32_t*>(data),
                              reinterpret_cast<std::uint32_t*>(data) + count);
             break;
-        case 8:
+        case abi::SortElementKind::uint64:
             std::stable_sort(reinterpret_cast<std::uint64_t*>(data),
                              reinterpret_cast<std::uint64_t*>(data) + count);
             break;
-        case 9:
+        case abi::SortElementKind::float64:
             std::stable_sort(reinterpret_cast<double*>(data),
                              reinterpret_cast<double*>(data) + count, float_less);
             break;
-        case 10:
+        case abi::SortElementKind::float32:
             std::stable_sort(reinterpret_cast<float*>(data),
                              reinterpret_cast<float*>(data) + count, float_less);
             break;
-        case 11:
+        case abi::SortElementKind::boolean:
             std::stable_sort(reinterpret_cast<std::uint8_t*>(data),
                              reinterpret_cast<std::uint8_t*>(data) + count);
             break;
-        case 12: {
+        case abi::SortElementKind::string: {
             auto** begin = reinterpret_cast<char**>(data);
             struct SortableString {
                 char* value{};
@@ -1754,6 +1878,28 @@ extern "C" void* quidra_array_sorted(void* raw, int kind,
             for (std::size_t i = 0; i < count; ++i) begin[i] = strings[i].value;
             break;
         }
+        case abi::SortElementKind::bare_integer: {
+            // Inline words order like their values. Boxed words are shared
+            // by the copy and compared through the runtime.
+            auto* words = reinterpret_cast<long long*>(data);
+            bool boxed = false;
+            for (std::size_t i = 0; i < count; ++i)
+                boxed = boxed || (words[i] & abi::bare_integer_layout::boxed_bit) != 0;
+            if (!boxed) {
+                std::stable_sort(words, words + count);
+                break;
+            }
+            for (std::size_t i = 0; i < count; ++i) {
+                if ((words[i] & abi::bare_integer_layout::boxed_bit) == 0) continue;
+                quidra_managed_retain(reinterpret_cast<void*>(
+                    static_cast<std::uintptr_t>(words[i]) &
+                    ~static_cast<std::uintptr_t>(abi::bare_integer_layout::boxed_bit)));
+            }
+            std::stable_sort(words, words + count, [](long long left, long long right) {
+                return quidra_int_compare(left, right) < 0;
+            });
+            break;
+        }
         default:
             runtime_text_failure("unsupported sorted array element type");
     }
@@ -1772,7 +1918,11 @@ std::shared_ptr<AutogradSlot> clone_autograd_slot(
 enum class AutogradOp {
     Leaf, Add, Sub, Mul, Div, ScalarBinary,
     Reshape, Transpose, Gather, GatherBackward,
-    CustomNative
+    CustomNative, Neg,
+    // A device operand read with stride-0 broadcast axes. The node holds the
+    // broadcast view itself (no materialized copy); its gradient sums over
+    // the broadcast axes like the Gather it replaces.
+    Broadcast
 };
 
 struct TensorStorage {
@@ -1780,9 +1930,17 @@ struct TensorStorage {
     int dtype{};
     std::size_t count{};
     int device{-1}; // -1 is an internal CPU representation; public gpu indices are >= 0.
-    std::vector<unsigned char> data;
+    quidra::unified::HostBytes data;
     quidra::device::Buffer* gpu_buffer{};
     InitializationTracker initialization;
+    // Non-null when `data` (CPU) or `gpu_buffer` (GPU) views a unified-memory
+    // block shared with other storages (runtime_unified.inc); the block then
+    // owns the memory.
+    quidra::unified::Block* unified{};
+    // Package code has received a native device handle of this storage, so
+    // its command buffers may still use the buffer, even ones it commits in a
+    // later call. `.cpu()` then never views the buffer (runtime_unified.inc).
+    bool lent_to_package{};
 };
 
 struct TensorValue {
@@ -1796,17 +1954,25 @@ struct TensorValue {
 
 [[noreturn]] void tensor_fail(const char* message, unsigned long long line,
                               unsigned long long column) {
-    std::fprintf(stderr, "Quidra runtime error[TENSOR] at %llu:%llu: %s\n",
-                 line, column, message);
-    std::exit(101);
+    end_package_hold_before_failure(line, column);
+    quidra::runtime::report_failure(abi::FailureReason::tensor_failure,
+                                    abi::FailureArgs{.message = message}, line, column);
+}
+
+// A tensor element index or slice outside its axis (INDEX_BOUNDS, naming the
+// axis from 0).
+[[noreturn]] void tensor_index_fail(abi::FailureReason reason, const abi::FailureArgs& args,
+                                    unsigned long long line, unsigned long long column) {
+    end_package_hold_before_failure(line, column);
+    quidra::runtime::report_failure(reason, args, line, column);
 }
 
 std::size_t tensor_dtype_bytes(int dtype) {
     switch (dtype) {
-        case 1: case 8: case 9: return 8;
-        case 2: case 5: case 11: return 1;
-        case 3: case 6: return 2;
-        case 4: case 7: case 10: return 4;
+        case QCORE_DTYPE_INT64: case QCORE_DTYPE_UINT64: case QCORE_DTYPE_FLOAT64: return 8;
+        case QCORE_DTYPE_INT8: case QCORE_DTYPE_UINT8: case QCORE_DTYPE_BOOL: return 1;
+        case QCORE_DTYPE_INT16: case QCORE_DTYPE_UINT16: return 2;
+        case QCORE_DTYPE_INT32: case QCORE_DTYPE_UINT32: case QCORE_DTYPE_FLOAT32: return 4;
         default: runtime_text_failure("invalid tensor dtype");
     }
 }
@@ -1820,7 +1986,7 @@ std::vector<long long> tensor_int_array_from_array(
     const auto size = static_cast<unsigned long long>(count);
     if (size > std::numeric_limits<unsigned long long>::max() / sizeof(long long))
         tensor_fail("integer array is too large", line, column);
-    auto* data = static_cast<unsigned char*>(raw) + 8;
+    auto* data = static_cast<unsigned char*>(raw) + abi::array_layout::payload_offset;
     quidra_init_require_range(data, size * sizeof(long long), line, column);
     std::vector<long long> values(static_cast<std::size_t>(count));
     for (long long i = 0; i < count; ++i) {
@@ -1881,15 +2047,54 @@ std::size_t tensor_logical_count(const TensorValue& tensor) {
 }
 
 std::size_t tensor_storage_index(const TensorValue& tensor, std::size_t logical) {
-    if (tensor.shape.empty()) return tensor.offset;
-    std::size_t index = tensor.offset;
-    for (std::size_t axis = tensor.shape.size(); axis-- > 0;) {
-        const auto dimension = static_cast<std::size_t>(tensor.shape[axis]);
-        const auto coordinate = dimension == 0 ? 0 : logical % dimension;
-        if (dimension != 0) logical /= dimension;
-        index += coordinate * static_cast<std::size_t>(tensor.strides[axis]);
+    return quidra::tensor_view::storage_index(
+        tensor.offset, tensor.shape, tensor.strides, logical);
+}
+
+// O(rank) proof that every tensor_storage_index() of the view lies inside its
+// storage. False means "not proven", never "invalid": callers keep their exact
+// per-element checks for those views.
+bool tensor_view_within_storage(const TensorValue& tensor) {
+    return tensor.storage &&
+           quidra::tensor_view::within_storage(
+               tensor.offset, tensor.shape, tensor.strides, tensor.storage->count);
+}
+
+// True when the view's `count` logical elements are the storage elements
+// [offset, offset + count) in order, all inside storage, so the whole view can
+// move with one bulk copy. False keeps the caller's per-element path.
+bool tensor_view_dense_in_storage(const TensorValue& tensor, std::size_t count) {
+    return tensor.storage &&
+           quidra::tensor_view::dense_run(tensor.shape, tensor.strides) &&
+           tensor.offset <= tensor.storage->count &&
+           count <= tensor.storage->count - tensor.offset;
+}
+
+// Copies the `count` logical elements of a CPU view into the fresh contiguous
+// `output` with one memcpy when tensor_view_dense_in_storage() holds. The
+// source storage indices are then offset + i, so initialization propagates
+// without address arithmetic, in one step for fully initialized storage.
+// Returns false, copying nothing, for every other view; the caller keeps its
+// per-element path for those.
+bool tensor_copy_dense_view(const TensorValue& source, TensorStorage& output,
+                            std::size_t count) {
+    if (!tensor_view_dense_in_storage(source, count)) return false;
+    const auto width = tensor_dtype_bytes(source.storage->dtype);
+    if (count != 0) {
+        std::memcpy(output.data.data(),
+                    source.storage->data.data() + source.offset * width,
+                    count * width);
     }
-    return index;
+    if (source.storage->initialization.fully_initialized) {
+        tracker_mark_complete(output.initialization);
+    } else {
+        for (std::size_t i = 0; i < count; ++i) {
+            if (tracker_bit(source.storage->initialization, source.offset + i)) {
+                tracker_set(output.initialization, i);
+            }
+        }
+    }
+    return true;
 }
 
 TensorValue* tensor_descriptor(TensorStorage* storage, std::vector<long long> shape,
@@ -1904,7 +2109,12 @@ void tensor_storage_release(TensorStorage* storage) {
     if (storage->owners == 0) runtime_text_failure("tensor storage owner underflow");
     --storage->owners;
     if (storage->owners == 0) {
-        quidra::device::release(storage->gpu_buffer);
+        if (storage->unified) {
+            quidra::unified::detach(storage->unified, storage->device >= 0);
+            storage->unified = nullptr;
+        } else {
+            quidra::device::release(storage->gpu_buffer);
+        }
         storage->gpu_buffer = nullptr;
         delete storage;
     }
@@ -1939,6 +2149,19 @@ void tensor_require_cpu(
     }
 }
 
+// Fill mode of a Core GPU kernel output of `dtype` (see below).
+// Floating-point kernels store every element. Integer and bool kernels are
+// checked: an element that overflows (or divides by zero) is skipped and only
+// flags the deferred check, so their outputs keep the zero fill and a failing
+// element reads 0, as it did before outputs skipped the fill.
+int gpu_kernel_output_fill(int dtype) {
+    return dtype == QCORE_DTYPE_FLOAT64 || dtype == QCORE_DTYPE_FLOAT32
+               ? abi::tensor_fill_mode::write_only
+               : abi::tensor_fill_mode::zeros;
+}
+
+// fill_mode: abi::tensor_fill_mode (uninitialized storage is tracked per
+// element; write_only storage needs no fill on a device).
 TensorStorage* tensor_storage_create(
     int dtype, std::size_t count, int fill_mode, int device_index = -1,
     unsigned long long line = 0, unsigned long long column = 0) {
@@ -1958,7 +2181,7 @@ TensorStorage* tensor_storage_create(
     try {
         storage->initialization.count = count;
         storage->initialization.unit_bytes = width;
-        storage->initialization.fully_initialized = fill_mode != 0 || count == 0;
+        storage->initialization.fully_initialized = fill_mode != abi::tensor_fill_mode::uninitialized || count == 0;
         storage->initialization.initialized_count =
             storage->initialization.fully_initialized ? count : 0;
         if (!storage->initialization.fully_initialized) {
@@ -1973,31 +2196,31 @@ TensorStorage* tensor_storage_create(
         runtime_allocation_failure();
     }
 
-    auto fill_ones = [&](std::vector<unsigned char>& target) {
+    auto fill_ones = [&](quidra::unified::HostBytes& target) {
         target.resize(bytes);
         for (std::size_t i = 0; i < count; ++i) {
             auto* slot = target.data() + i * width;
             switch (dtype) {
-                case 1: { std::int64_t v=1; std::memcpy(slot,&v,8); break; }
-                case 2: { std::int8_t v=1; std::memcpy(slot,&v,1); break; }
-                case 3: { std::int16_t v=1; std::memcpy(slot,&v,2); break; }
-                case 4: { std::int32_t v=1; std::memcpy(slot,&v,4); break; }
-                case 5: { std::uint8_t v=1; std::memcpy(slot,&v,1); break; }
-                case 6: { std::uint16_t v=1; std::memcpy(slot,&v,2); break; }
-                case 7: { std::uint32_t v=1; std::memcpy(slot,&v,4); break; }
-                case 8: { std::uint64_t v=1; std::memcpy(slot,&v,8); break; }
-                case 9: { double v=1.0; std::memcpy(slot,&v,8); break; }
-                case 10:{ float v=1.0F; std::memcpy(slot,&v,4); break; }
-                case 11:{ std::uint8_t v=1; std::memcpy(slot,&v,1); break; }
+                case QCORE_DTYPE_INT64: { std::int64_t v=1; std::memcpy(slot,&v,8); break; }
+                case QCORE_DTYPE_INT8: { std::int8_t v=1; std::memcpy(slot,&v,1); break; }
+                case QCORE_DTYPE_INT16: { std::int16_t v=1; std::memcpy(slot,&v,2); break; }
+                case QCORE_DTYPE_INT32: { std::int32_t v=1; std::memcpy(slot,&v,4); break; }
+                case QCORE_DTYPE_UINT8: { std::uint8_t v=1; std::memcpy(slot,&v,1); break; }
+                case QCORE_DTYPE_UINT16: { std::uint16_t v=1; std::memcpy(slot,&v,2); break; }
+                case QCORE_DTYPE_UINT32: { std::uint32_t v=1; std::memcpy(slot,&v,4); break; }
+                case QCORE_DTYPE_UINT64: { std::uint64_t v=1; std::memcpy(slot,&v,8); break; }
+                case QCORE_DTYPE_FLOAT64: { double v=1.0; std::memcpy(slot,&v,8); break; }
+                case QCORE_DTYPE_FLOAT32: { float v=1.0F; std::memcpy(slot,&v,4); break; }
+                case QCORE_DTYPE_BOOL: { std::uint8_t v=1; std::memcpy(slot,&v,1); break; }
                 default: tensor_fail("invalid tensor dtype", line, column);
             }
         }
     };
 
     if (device_index < 0) {
-        if (fill_mode == 1) {
+        if (fill_mode == abi::tensor_fill_mode::zeros) {
             std::fill(storage->data.begin(), storage->data.end(), std::uint8_t{0});
-        } else if (fill_mode == 2) {
+        } else if (fill_mode == abi::tensor_fill_mode::ones) {
             try {
                 fill_ones(storage->data);
             } catch (...) {
@@ -2014,14 +2237,18 @@ TensorStorage* tensor_storage_create(
         delete storage;
         tensor_fail(backend_error.c_str(), line, column);
     }
-    if (fill_mode == 1) {
+    // write_only: the producing kernel writes every element, so a zero fill
+    // would be overwritten unobserved (and failures release the storage).
+    if (fill_mode == abi::tensor_fill_mode::zeros ||
+        (fill_mode == abi::tensor_fill_mode::write_only &&
+         !quidra::device::written_outputs_skip_fill(device_index))) {
         if (!quidra::device::zero(storage->gpu_buffer, 0, bytes, backend_error)) {
             quidra::device::release(storage->gpu_buffer);
             storage->gpu_buffer = nullptr;
             delete storage;
             tensor_fail(backend_error.c_str(), line, column);
         }
-    } else if (fill_mode == 2) {
+    } else if (fill_mode == abi::tensor_fill_mode::ones) {
         if (!quidra::device::compute_fill_ones(
                 storage->gpu_buffer, dtype, count, backend_error)) {
             quidra::device::release(storage->gpu_buffer);
@@ -2033,17 +2260,92 @@ TensorStorage* tensor_storage_create(
     return storage;
 }
 
-void tensor_require_initialized(const TensorValue& tensor,
-                                unsigned long long line,
-                                unsigned long long column) {
+// True when every element the view references is inside storage and
+// initialized. Fully initialized storage leaves only the view bounds to prove,
+// which tensor_view_within_storage() does in O(rank); partially initialized
+// storage and unproven views keep the exact per-element scan.
+bool tensor_view_initialized(const TensorValue& tensor) {
+    if (tensor.storage && tensor.storage->initialization.fully_initialized &&
+        tensor_view_within_storage(tensor)) {
+        return true;
+    }
     const auto count = tensor_logical_count(tensor);
     for (std::size_t i = 0; i < count; ++i) {
         const auto storage_index = tensor_storage_index(tensor, i);
         if (storage_index >= tensor.storage->count ||
             !tracker_bit(tensor.storage->initialization, storage_index)) {
-            runtime_uninitialized_failure(line, column);
+            return false;
         }
     }
+    return true;
+}
+
+void tensor_require_initialized(const TensorValue& tensor,
+                                unsigned long long line,
+                                unsigned long long column) {
+    if (!tensor_view_initialized(tensor)) runtime_uninitialized_failure(line, column);
+}
+
+// Runtime switch `name` selects between a new behaviour (`new_value`) and
+// the previous one (`old_value`). Unset or empty, it takes `default_new`.
+// Any other value also selects the previous behaviour, which a kill switch
+// exists to restore, and is reported on stderr. Runtime switches read their
+// variable once, on first use, into a function-local static.
+bool runtime_switch_enabled(const char* name, const char* new_value,
+                            const char* old_value, bool default_new) {
+    const auto value = quidra::platform::environment_value(name);
+    if (!value || value->empty()) return default_new;
+    if (*value == new_value) return true;
+    if (*value != old_value)
+        std::fprintf(stderr,
+                     "Quidra runtime warning: unrecognized %s=%s "
+                     "(expected %s or %s); using %s\n",
+                     name, value->c_str(), new_value, old_value, old_value);
+    return false;
+}
+
+// Devices with strided compute (Metal, the test backend) read broadcast and
+// strided views by index arithmetic in the kernel instead of host-built
+// gather index maps; that is the default, which QUIDRA_BROADCAST=strided
+// also names. QUIDRA_BROADCAST=gather restores the index maps; CUDA and HIP
+// always use them.
+bool tensor_gpu_strided_enabled(const TensorStorage& storage) {
+    static const bool strided_requested = runtime_switch_enabled(
+        "QUIDRA_BROADCAST", "strided", "gather", true);
+    return strided_requested && storage.gpu_buffer &&
+           quidra::device::supports_strided_compute(storage.gpu_buffer);
+}
+
+// Autograd keeps a dense tensor it retains for backward (a custom node's
+// saved tensor, a CPU node's value, a host-engine gradient handed to a slot
+// or callback) by sharing its storage copy-on-write instead of copying it.
+// That is the default, which QUIDRA_SAVED_TENSORS=cow also names;
+// QUIDRA_SAVED_TENSORS=copy copies every such tensor.
+bool autograd_storage_sharing_enabled() {
+    static const bool enabled = runtime_switch_enabled(
+        "QUIDRA_SAVED_TENSORS", "cow", "copy", true);
+    return enabled;
+}
+
+// Element strides that read `operand` broadcast to `output_shape` (identical
+// ranks): the operand's own strides, and 0 on the axes it broadcasts.
+std::vector<long long> tensor_broadcast_strides(
+    const TensorValue& operand, const std::vector<long long>& output_shape) {
+    std::vector<long long> strides(output_shape.size(), 0);
+    for (std::size_t axis = 0; axis < output_shape.size(); ++axis)
+        strides[axis] = operand.shape[axis] == 1 ? 0 : operand.strides[axis];
+    return strides;
+}
+
+// O(rank) proof that every element the strided read of `source` over
+// `shape` touches lies inside its storage; unproven views keep the
+// per-element checked gather path.
+bool tensor_strided_read_within_storage(
+    const TensorValue& source, const std::vector<long long>& shape,
+    const std::vector<long long>& strides) {
+    return source.storage &&
+           quidra::tensor_view::within_storage(
+               source.offset, shape, strides, source.storage->count);
 }
 
 TensorStorage* tensor_gpu_materialize_storage(
@@ -2055,7 +2357,30 @@ TensorStorage* tensor_gpu_materialize_storage(
     }
     const auto count = tensor_logical_count(source);
     auto* output = tensor_storage_create(
-        source.storage->dtype, count, 0, source.storage->device, line, column);
+        source.storage->dtype, count, abi::tensor_fill_mode::uninitialized, source.storage->device, line, column);
+    if (tensor_gpu_strided_enabled(*source.storage) &&
+        tensor_view_within_storage(source)) {
+        // Same elements as the gather below, addressed by the view's strides
+        // on the device. Initialization propagates as in the gather path.
+        std::string backend_error;
+        if (!quidra::device::compute_strided_copy(
+                output->gpu_buffer, source.storage->gpu_buffer,
+                source.storage->dtype, source.offset, source.shape,
+                source.strides, backend_error)) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        if (source.storage->initialization.fully_initialized) {
+            tracker_mark_complete(output->initialization);
+        } else {
+            for (std::size_t logical = 0; logical < count; ++logical) {
+                if (tracker_bit(source.storage->initialization,
+                                tensor_storage_index(source, logical)))
+                    tracker_set(output->initialization, logical);
+            }
+        }
+        return output;
+    }
     std::vector<std::uint64_t> indices;
     try {
         indices.resize(count);
@@ -2063,14 +2388,22 @@ TensorStorage* tensor_gpu_materialize_storage(
         tensor_storage_release(output);
         runtime_allocation_failure();
     }
+    // A fully initialized source needs no per-element initialization
+    // propagation: once the gather succeeds every output element holds an
+    // initialized source element, so the output is marked complete in one
+    // step. A view proven inside storage also skips the per-element range
+    // check. Partially initialized sources keep exact per-element propagation.
+    const bool source_complete = source.storage->initialization.fully_initialized;
+    const bool in_storage = tensor_view_within_storage(source);
     for (std::size_t logical = 0; logical < count; ++logical) {
         const auto source_index = tensor_storage_index(source, logical);
-        if (source_index >= source.storage->count) {
+        if (!in_storage && source_index >= source.storage->count) {
             tensor_storage_release(output);
             tensor_fail("tensor view exceeds storage", line, column);
         }
         indices[logical] = static_cast<std::uint64_t>(source_index);
-        if (tracker_bit(source.storage->initialization, source_index)) {
+        if (!source_complete &&
+            tracker_bit(source.storage->initialization, source_index)) {
             tracker_set(output->initialization, logical);
         }
     }
@@ -2081,6 +2414,7 @@ TensorStorage* tensor_gpu_materialize_storage(
         tensor_storage_release(output);
         tensor_fail(backend_error.c_str(), line, column);
     }
+    if (source_complete) tracker_mark_complete(output->initialization);
     return output;
 }
 
@@ -2089,7 +2423,7 @@ TensorStorage* tensor_transfer_storage(
     unsigned long long line, unsigned long long column) {
     const auto count = tensor_logical_count(source);
     auto* output = tensor_storage_create(
-        source.storage->dtype, count, 0, target_device, line, column);
+        source.storage->dtype, count, abi::tensor_fill_mode::uninitialized, target_device, line, column);
     const auto width = tensor_dtype_bytes(source.storage->dtype);
     if (count != 0 && width > std::numeric_limits<std::size_t>::max() / count) {
         tensor_storage_release(output);
@@ -2247,6 +2581,8 @@ TensorStorage* tensor_transfer_storage(
     return output;
 }
 
+#include "runtime_unified.inc"
+
 template <typename Int>
 std::uint64_t unsigned_magnitude(Int value) {
     static_assert(std::is_integral_v<Int>);
@@ -2316,16 +2652,16 @@ template <typename Src>
 bool tensor_cast_from(const TensorValue& tensor, int target_dtype,
                       TensorStorage& output) {
     switch (target_dtype) {
-        case 1: return tensor_cast_buffer<Src,std::int64_t>(tensor,output);
-        case 2: return tensor_cast_buffer<Src,std::int8_t>(tensor,output);
-        case 3: return tensor_cast_buffer<Src,std::int16_t>(tensor,output);
-        case 4: return tensor_cast_buffer<Src,std::int32_t>(tensor,output);
-        case 5: return tensor_cast_buffer<Src,std::uint8_t>(tensor,output);
-        case 6: return tensor_cast_buffer<Src,std::uint16_t>(tensor,output);
-        case 7: return tensor_cast_buffer<Src,std::uint32_t>(tensor,output);
-        case 8: return tensor_cast_buffer<Src,std::uint64_t>(tensor,output);
-        case 9: return tensor_cast_buffer<Src,double>(tensor,output);
-        case 10:return tensor_cast_buffer<Src,float>(tensor,output);
+        case QCORE_DTYPE_INT64: return tensor_cast_buffer<Src,std::int64_t>(tensor,output);
+        case QCORE_DTYPE_INT8: return tensor_cast_buffer<Src,std::int8_t>(tensor,output);
+        case QCORE_DTYPE_INT16: return tensor_cast_buffer<Src,std::int16_t>(tensor,output);
+        case QCORE_DTYPE_INT32: return tensor_cast_buffer<Src,std::int32_t>(tensor,output);
+        case QCORE_DTYPE_UINT8: return tensor_cast_buffer<Src,std::uint8_t>(tensor,output);
+        case QCORE_DTYPE_UINT16: return tensor_cast_buffer<Src,std::uint16_t>(tensor,output);
+        case QCORE_DTYPE_UINT32: return tensor_cast_buffer<Src,std::uint32_t>(tensor,output);
+        case QCORE_DTYPE_UINT64: return tensor_cast_buffer<Src,std::uint64_t>(tensor,output);
+        case QCORE_DTYPE_FLOAT64: return tensor_cast_buffer<Src,double>(tensor,output);
+        case QCORE_DTYPE_FLOAT32: return tensor_cast_buffer<Src,float>(tensor,output);
         default: return false;
     }
 }
@@ -2335,6 +2671,74 @@ bool tensor_cast_from(const TensorValue& tensor, int target_dtype,
 // preserving independent-value semantics across package code.
 void tensor_detach_for_write(
     TensorValue& tensor, unsigned long long line, unsigned long long column);
+
+// Native borrows while the calling thread holds a device stream for a
+// package encode (native_extension.h). A hold covers one device: a device
+// borrow of a tensor on another device is refused. Inside the open encoder
+// scope Core does no work on the scope's device stream, so only a borrow
+// that is a pure lookup is served there. A borrow that would need Core work
+// (the copy-on-write detach of tensor_detach_for_write, the relocation of a
+// shared unified-memory view in tensor_unified_prepare_native_borrow, new
+// output storage) is refused before any of that work. Each refusal is
+// recorded as a protocol violation, which stops the program when the hold
+// ends. The decision depends only on the tensor's state, never on the pool,
+// poisoning, upload mode or GPU timing.
+enum class NativeBorrow { Const, Mutable, Output };
+
+bool native_borrow_refused_in_hold(const TensorValue& tensor, NativeBorrow kind,
+                                   const char* call) {
+    const auto& storage = *tensor.storage;
+    if (quidra::device::package_hold_refuses_device(storage.device, call))
+        return true;
+    if (!quidra::device::package_scope_open(storage.device)) return false;
+    const bool shared_view =
+        storage.unified && quidra::unified::views(*storage.unified) > 1;
+    const char* work = nullptr;
+    switch (kind) {
+        case NativeBorrow::Const:
+            if (shared_view)
+                work = "is a unified-memory view its source still shares (the "
+                       "borrow first moves it to memory of its own)";
+            break;
+        case NativeBorrow::Mutable:
+            // tensor_detach_for_write copies a view that does not cover its
+            // whole storage densely from offset 0, and storage shared with
+            // other owners.
+            if (!(tensor.offset == 0 && tensor_is_contiguous_value(tensor) &&
+                  tensor_logical_count(tensor) == storage.count))
+                work = "is a view of part of its storage (the borrow first "
+                       "copies it to storage of its own)";
+            else if (!tensor_storage_writable_in_place(storage))
+                work = "does not own its storage alone (the borrow first "
+                       "detaches it copy-on-write)";
+            break;
+        case NativeBorrow::Output:
+            if (!tensor_storage_writable_in_place(storage))
+                work = "does not own its storage alone (the borrow first "
+                       "gives it storage of its own)";
+            break;
+    }
+    if (!work) return false;
+    quidra::device::note_package_scope_violation(
+        storage.device, std::string(call) + " of a tensor that " + work);
+    return true;
+}
+
+// A mutable CPU borrow of a unified-memory view that device work may still
+// read first waits for that work (I4 in runtime_unified.inc), and a package
+// encode hold neither commits nor waits. Refused whenever the wait could be
+// needed, whether or not that work has finished, so the outcome does not
+// depend on GPU timing.
+bool cpu_borrow_refused_in_hold(const TensorValue& tensor) {
+    if (!quidra::device::package_hold_active()) return false;
+    const auto* block = tensor.storage->unified;
+    if (!block || quidra::unified::views(*block) != 1 ||
+        !block->device_reads_possible.load(std::memory_order_acquire))
+        return false;
+    return quidra::device::note_package_hold_violation(
+        "qcore_tensor_cpu_data of a CPU tensor whose unified memory device "
+        "work may still read (the borrow first waits for that work)");
+}
 
 } // namespace
 
@@ -2411,25 +2815,48 @@ extern "C" long long qcore_tensor_backend_device_index(const void* raw) {
     return static_cast<long long>(info->backend_index);
 }
 
+// A package kernel may read every element of a borrowed device view, so the
+// device handles refuse a view with an uninitialized element exactly as
+// qcore_tensor_cpu_data(_const) do: the package then takes its portable path,
+// which reports UNINITIALIZED at the Quidra source location.
+// tensor_view_initialized() accepts fully initialized storage in O(rank) once
+// the view is proven inside storage; only partially initialized storage has
+// exactly the borrowed view scanned.
 extern "C" std::uint64_t qcore_tensor_device_handle_const(
     const void* raw) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if (!raw) return 0;
     const auto* tensor = static_cast<const TensorValue*>(raw);
     if (!tensor->storage || tensor_on_cpu(*tensor->storage) ||
-        !tensor_is_contiguous_value(*tensor) || !tensor->storage->gpu_buffer) {
+        !tensor_is_contiguous_value(*tensor) || !tensor->storage->gpu_buffer ||
+        !tensor_view_initialized(*tensor)) {
         return 0;
     }
+    if (native_borrow_refused_in_hold(*tensor, NativeBorrow::Const,
+                                       "qcore_tensor_device_handle_const"))
+        return 0;
+    if (!tensor_unified_prepare_native_borrow(tensor->storage, false)) return 0;
+    tensor_unified_note_device_lend(*tensor->storage);
     return quidra::device::buffer_native_handle(tensor->storage->gpu_buffer);
 }
 
 extern "C" std::uint64_t qcore_tensor_device_handle(void* raw) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if (!raw) return 0;
     auto* tensor = static_cast<TensorValue*>(raw);
+    // The initialization check runs before the copy-on-write boundary, which
+    // preserves per-element initialization, so a refused view is not copied.
     if (tensor->graph || !tensor->storage || tensor_on_cpu(*tensor->storage) ||
-        !tensor_is_contiguous_value(*tensor) || !tensor->storage->gpu_buffer) {
+        !tensor_is_contiguous_value(*tensor) || !tensor->storage->gpu_buffer ||
+        !tensor_view_initialized(*tensor)) {
         return 0;
     }
+    if (native_borrow_refused_in_hold(*tensor, NativeBorrow::Mutable,
+                                       "qcore_tensor_device_handle"))
+        return 0;
+    if (!tensor_unified_prepare_native_borrow(tensor->storage, true)) return 0;
     tensor_detach_for_write(*tensor, 0, 0);
+    tensor_unified_note_device_lend(*tensor->storage);
     return quidra::device::buffer_native_handle(tensor->storage->gpu_buffer);
 }
 
@@ -2439,10 +2866,12 @@ extern "C" std::uint64_t qcore_tensor_device_offset_bytes(
     const auto* tensor = static_cast<const TensorValue*>(raw);
     if (!tensor->storage || tensor->offset > tensor->storage->count) return 0;
     return static_cast<std::uint64_t>(
+        quidra::device::buffer_base_offset(tensor->storage->gpu_buffer) +
         tensor->offset * tensor_dtype_bytes(tensor->storage->dtype));
 }
 
 extern "C" int qcore_device_activate(long long device) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if (device < 0 ||
         device > static_cast<long long>(std::numeric_limits<int>::max())) {
         return 0;
@@ -2455,12 +2884,37 @@ extern "C" int qcore_device_activate(long long device) {
     }
 }
 
-extern "C" std::uint64_t qcore_device_queue_handle(long long device) {
+extern "C" std::uint64_t qcore_device_native_device(long long device) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if (device < 0 ||
         device > static_cast<long long>(std::numeric_limits<int>::max())) {
         return 0;
     }
     try {
+        return quidra::device::native_device_handle(static_cast<int>(device));
+    } catch (...) {
+        return 0;
+    }
+}
+
+extern "C" void qcore_register_warmup(void (*function)(long long device)) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    try {
+        quidra::device::register_warmup(function);
+    } catch (...) {
+    }
+}
+
+extern "C" std::uint64_t qcore_device_queue_handle(long long device) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    if (device < 0 ||
+        device > static_cast<long long>(std::numeric_limits<int>::max())) {
+        return 0;
+    }
+    try {
+        if (quidra::device::package_hold_refuses_device(
+                static_cast<int>(device), "qcore_device_queue_handle"))
+            return 0;
         return quidra::device::queue_native_handle(static_cast<int>(device));
     } catch (...) {
         return 0;
@@ -2469,36 +2923,301 @@ extern "C" std::uint64_t qcore_device_queue_handle(long long device) {
 
 extern "C" void* qcore_device_buffer_allocate(
     long long device,std::uint64_t bytes) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if(device<0 ||
        device>static_cast<long long>(std::numeric_limits<int>::max()) ||
        bytes>static_cast<std::uint64_t>(
            std::numeric_limits<std::size_t>::max()))
         return nullptr;
     try {
+        if (quidra::device::package_hold_refuses_device(
+                static_cast<int>(device), "qcore_device_buffer_allocate"))
+            return nullptr;
         std::string error;
-        return quidra::device::allocate(
-            static_cast<int>(device),static_cast<std::size_t>(bytes),error);
+        // Idle storage: the package may write it on the host at once.
+        return quidra::device::allocate_buffer(
+            static_cast<int>(device),static_cast<std::size_t>(bytes),true,error);
     } catch (...) {
         return nullptr;
     }
 }
 
 extern "C" std::uint64_t qcore_device_buffer_handle(const void* raw) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if(!raw) return 0;
     try {
-        return quidra::device::buffer_native_handle(
-            static_cast<const quidra::device::Buffer*>(raw));
+        const auto* buffer = static_cast<const quidra::device::Buffer*>(raw);
+        if (quidra::device::package_hold_refuses_device(
+                quidra::device::buffer_device(buffer),
+                "qcore_device_buffer_handle"))
+            return 0;
+        return quidra::device::buffer_native_handle(buffer);
     } catch (...) {
         return 0;
     }
 }
 
 extern "C" void qcore_device_buffer_release(void* raw) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if(!raw) return;
     try {
         quidra::device::release(
             static_cast<quidra::device::Buffer*>(raw));
     } catch (...) {
+    }
+}
+
+namespace {
+bool qcore_device_index(long long device, int& index) {
+    if (device < 0 ||
+        device > static_cast<long long>(std::numeric_limits<int>::max()))
+        return false;
+    index = static_cast<int>(device);
+    return true;
+}
+} // namespace
+
+extern "C" int qcore_device_encode_begin(long long device) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index)) return 0;
+    try {
+        return quidra::device::hold_package_stream(index) ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
+}
+
+extern "C" std::uint64_t qcore_metal_command_buffer(long long device) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index)) return 0;
+    try {
+        std::string error;
+        return quidra::device::begin_package_encode(index, true, error);
+    } catch (...) {
+        return 0;
+    }
+}
+
+extern "C" std::uint64_t qcore_device_compute_encoder(long long device) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index)) return 0;
+    try {
+        std::string error;
+        return quidra::device::begin_package_encode(index, false, error);
+    } catch (...) {
+        return 0;
+    }
+}
+
+extern "C" int qcore_metal_note_work(
+    long long device, std::uint32_t dispatches, std::uint64_t bytes) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index)) return 1;
+    std::string error;
+    bool violated = false;
+    try {
+        if (quidra::device::end_package_encode(
+                index, dispatches, bytes, violated, error))
+            return 0;
+    } catch (...) {
+        return 1;
+    }
+    if (!violated) return 1;
+    // The package asked Core for work inside its encoder scope (or for a
+    // commit or wait while it held the stream). Core refused it, and the
+    // scope's command buffer was discarded; the program stops at the
+    // statement that made the extern call, or at the backward() call whose
+    // custom autograd callback this is (native_extension.h). A warm-up or
+    // completion callback stopped the program in end_package_encode.
+    if (const auto* call = package_backward_call)
+        fail_package_scope_at(error, call->line, call->column);
+    quidra::runtime::report_at_statement(
+        abi::FailureReason::package_scope_violation, abi::FailureArgs{.message = error},
+        quidra::runtime::current_user_statement(), {.provenance = true});
+}
+
+extern "C" int qcore_device_flush(long long device) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index)) return 1;
+    try {
+        if (quidra::device::package_hold_refuses_device(index, "qcore_device_flush"))
+            return 1;
+        std::string error;
+        return quidra::device::flush(index, error) ? 0 : 1;
+    } catch (...) {
+        return 1;
+    }
+}
+
+extern "C" int qcore_device_wait(long long device) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index)) return 1;
+    try {
+        if (quidra::device::package_hold_refuses_device(index, "qcore_device_wait"))
+            return 1;
+        std::string error;
+        return quidra::device::wait_idle(index, error) ? 0 : 1;
+    } catch (...) {
+        return 1;
+    }
+}
+
+extern "C" int qcore_device_status_slot(
+    long long device, std::uint64_t* buffer, std::uint64_t* offset_bytes,
+    std::uint64_t* slot) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index) || !buffer || !offset_bytes || !slot)
+        return 1;
+    try {
+        if (quidra::device::package_hold_refuses_device(
+                index, "qcore_device_status_slot"))
+            return 1;
+        // A slot may need a status page that Core clears first, so slots
+        // are taken before the encoder scope opens, never inside it.
+        if (quidra::device::package_scope_open(index)) {
+            quidra::device::note_package_scope_violation(
+                index, "qcore_device_status_slot (a slot may need Core to "
+                       "clear a status page)");
+            return 1;
+        }
+        std::string error;
+        return quidra::device::status_slot(
+            index, *buffer, *offset_bytes, *slot, error) ? 0 : 1;
+    } catch (...) {
+        return 1;
+    }
+}
+
+extern "C" int qcore_device_defer_status(
+    long long device, std::uint64_t slot, const char* message) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index)) return 1;
+    try {
+        if (quidra::device::package_hold_refuses_device(
+                index, "qcore_device_defer_status"))
+            return 1;
+        std::string error;
+        return quidra::device::defer_status(index, slot, message, error) ? 0 : 1;
+    } catch (...) {
+        return 1;
+    }
+}
+
+extern "C" int qcore_device_status_wait(
+    long long device, std::uint64_t slot, std::uint32_t* value) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index) || !value) return 1;
+    try {
+        if (quidra::device::package_hold_refuses_device(
+                index, "qcore_device_status_wait"))
+            return 1;
+        std::string error;
+        return quidra::device::status_wait(index, slot, *value, error) ? 0 : 1;
+    } catch (...) {
+        return 1;
+    }
+}
+
+extern "C" void qcore_device_status_release(long long device, std::uint64_t slot) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index)) return;
+    try {
+        quidra::device::status_release(index, slot);
+    } catch (...) {
+    }
+}
+
+// Write-only package outputs. The package passes its output as a
+// mutable tensor parameter; qcore_tensor_output_handle turns it into
+// uninitialized device storage of the same dtype, shape and device, without
+// a fill and without a per-element bitset, and returns its native handle.
+// Reads fail as uninitialized until qcore_tensor_mark_written marks the
+// whole storage written in O(1) after a successful encode. Exclusive storage
+// is reused; shared storage stays with its other owners and the output gets
+// fresh storage instead of a copy that would be overwritten anyway. This is
+// the one way a package kernel may receive an uninitialized tensor
+// (qcore_tensor_device_handle refuses uninitialized views): the package
+// declares that it only writes it.
+extern "C" std::uint64_t qcore_tensor_output_handle(void* raw) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    if (!raw) return 0;
+    auto* tensor = static_cast<TensorValue*>(raw);
+    if (tensor->graph || !tensor->storage || tensor_on_cpu(*tensor->storage) ||
+        !tensor->storage->gpu_buffer || tensor->offset != 0 ||
+        !tensor_is_contiguous_value(*tensor))
+        return 0;
+    try {
+        const auto count = tensor_logical_count(*tensor);
+        if (count != tensor->storage->count) return 0;
+        if (native_borrow_refused_in_hold(*tensor, NativeBorrow::Output,
+                                           "qcore_tensor_output_handle"))
+            return 0;
+        // Storage shared with other owners, or with a unified-memory view of
+        // another value, stays with them.
+        if (!tensor_storage_writable_in_place(*tensor->storage)) {
+            auto* fresh = tensor_storage_create(
+                tensor->storage->dtype, count, abi::tensor_fill_mode::uninitialized, tensor->storage->device);
+            tensor_storage_release(tensor->storage);
+            tensor->storage = fresh;
+        }
+        if (!tensor_unified_prepare_native_borrow(tensor->storage, true)) return 0;
+        tensor_unified_note_device_lend(*tensor->storage);
+        auto& tracker = tensor->storage->initialization;
+        tracker.fully_initialized = count == 0;
+        tracker.initialized_count = tracker.fully_initialized ? count : 0;
+        tracker.bits.clear();
+        tracker.bits.shrink_to_fit();
+        return quidra::device::buffer_native_handle(tensor->storage->gpu_buffer);
+    } catch (...) {
+        return 0;
+    }
+}
+
+// Marks a write-only output (qcore_tensor_output_handle) written. It also
+// accepts an output created uninitialized in Quidra code
+// (tensor<T>(shape, gpu = n)); qcore_tensor_device_handle refuses handles to
+// uninitialized views, so a package reaches such an output through
+// qcore_tensor_output_handle. Only an exclusive, dense, untracked tensor that
+// covers its storage qualifies.
+extern "C" int qcore_tensor_mark_written(void* raw) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    if (!raw) return 1;
+    auto* tensor = static_cast<TensorValue*>(raw);
+    if (tensor->graph || !tensor->storage || tensor->storage->owners != 1 ||
+        tensor->offset != 0 || !tensor_is_contiguous_value(*tensor))
+        return 1;
+    try {
+        if (tensor_logical_count(*tensor) != tensor->storage->count) return 1;
+    } catch (...) {
+        return 1;
+    }
+    tracker_mark_complete(tensor->storage->initialization);
+    return 0;
+}
+
+extern "C" int qcore_device_on_complete(
+    long long device, void (*callback)(void*), void* context) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    int index = 0;
+    if (!qcore_device_index(device, index) || !callback) return 1;
+    try {
+        if (quidra::device::package_hold_refuses_device(
+                index, "qcore_device_on_complete"))
+            return 1;
+        std::string error;
+        return quidra::device::on_complete(index, callback, context, error) ? 0 : 1;
+    } catch (...) {
+        return 1;
     }
 }
 
@@ -2508,41 +3227,33 @@ extern "C" int qcore_execution_is_deterministic() {
 
 extern "C" const void* qcore_tensor_cpu_data_const(
     const void* raw) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if (!raw) return nullptr;
     const auto* tensor = static_cast<const TensorValue*>(raw);
     if (!tensor->storage || !tensor_on_cpu(*tensor->storage) ||
         !tensor_is_contiguous_value(*tensor)) {
         return nullptr;
     }
-    const auto count = tensor_logical_count(*tensor);
-    for (std::size_t i = 0; i < count; ++i) {
-        const auto index = tensor_storage_index(*tensor, i);
-        if (index >= tensor->storage->count ||
-            !tracker_bit(tensor->storage->initialization, index)) {
-            return nullptr;
-        }
-    }
+    if (!tensor_view_initialized(*tensor)) return nullptr;
+    if (!tensor_unified_prepare_native_borrow(tensor->storage, false)) return nullptr;
     const auto width = tensor_dtype_bytes(tensor->storage->dtype);
     if (tensor->offset > tensor->storage->count) return nullptr;
     return tensor->storage->data.data() + tensor->offset * width;
 }
 
 extern "C" void* qcore_tensor_cpu_data(void* raw) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     if (!raw) return nullptr;
     auto* tensor = static_cast<TensorValue*>(raw);
+    // As in qcore_tensor_device_handle, the initialization check runs before
+    // the copy-on-write boundary, so a refused view is not copied.
     if (tensor->graph || !tensor->storage || !tensor_on_cpu(*tensor->storage) ||
-        !tensor_is_contiguous_value(*tensor)) {
+        !tensor_is_contiguous_value(*tensor) || !tensor_view_initialized(*tensor)) {
         return nullptr;
     }
+    if (cpu_borrow_refused_in_hold(*tensor)) return nullptr;
+    if (!tensor_unified_prepare_native_borrow(tensor->storage, true)) return nullptr;
     tensor_detach_for_write(*tensor, 0, 0);
-    const auto count = tensor_logical_count(*tensor);
-    for (std::size_t i = 0; i < count; ++i) {
-        const auto index = tensor_storage_index(*tensor, i);
-        if (index >= tensor->storage->count ||
-            !tracker_bit(tensor->storage->initialization, index)) {
-            return nullptr;
-        }
-    }
     const auto width = tensor_dtype_bytes(tensor->storage->dtype);
     if (tensor->offset > tensor->storage->count) return nullptr;
     return tensor->storage->data.data() + tensor->offset * width;
@@ -2561,16 +3272,16 @@ bool numeric_cast_element_from(const void* source_raw, void* destination_raw,
         return true;
     };
     switch (target_dtype) {
-        case 1: return write(std::int64_t{});
-        case 2: return write(std::int8_t{});
-        case 3: return write(std::int16_t{});
-        case 4: return write(std::int32_t{});
-        case 5: return write(std::uint8_t{});
-        case 6: return write(std::uint16_t{});
-        case 7: return write(std::uint32_t{});
-        case 8: return write(std::uint64_t{});
-        case 9: return write(double{});
-        case 10:return write(float{});
+        case QCORE_DTYPE_INT64: return write(std::int64_t{});
+        case QCORE_DTYPE_INT8: return write(std::int8_t{});
+        case QCORE_DTYPE_INT16: return write(std::int16_t{});
+        case QCORE_DTYPE_INT32: return write(std::int32_t{});
+        case QCORE_DTYPE_UINT8: return write(std::uint8_t{});
+        case QCORE_DTYPE_UINT16: return write(std::uint16_t{});
+        case QCORE_DTYPE_UINT32: return write(std::uint32_t{});
+        case QCORE_DTYPE_UINT64: return write(std::uint64_t{});
+        case QCORE_DTYPE_FLOAT64: return write(double{});
+        case QCORE_DTYPE_FLOAT32: return write(float{});
         default:return false;
     }
 }
@@ -2579,16 +3290,16 @@ static bool numeric_cast_element_try(
     const void* source, void* destination, int source_dtype, int target_dtype) {
     bool ok=false;
     switch (source_dtype) {
-        case 1: ok=numeric_cast_element_from<std::int64_t>(source,destination,target_dtype); break;
-        case 2: ok=numeric_cast_element_from<std::int8_t>(source,destination,target_dtype); break;
-        case 3: ok=numeric_cast_element_from<std::int16_t>(source,destination,target_dtype); break;
-        case 4: ok=numeric_cast_element_from<std::int32_t>(source,destination,target_dtype); break;
-        case 5: ok=numeric_cast_element_from<std::uint8_t>(source,destination,target_dtype); break;
-        case 6: ok=numeric_cast_element_from<std::uint16_t>(source,destination,target_dtype); break;
-        case 7: ok=numeric_cast_element_from<std::uint32_t>(source,destination,target_dtype); break;
-        case 8: ok=numeric_cast_element_from<std::uint64_t>(source,destination,target_dtype); break;
-        case 9: ok=numeric_cast_element_from<double>(source,destination,target_dtype); break;
-        case 10:ok=numeric_cast_element_from<float>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_INT64: ok=numeric_cast_element_from<std::int64_t>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_INT8: ok=numeric_cast_element_from<std::int8_t>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_INT16: ok=numeric_cast_element_from<std::int16_t>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_INT32: ok=numeric_cast_element_from<std::int32_t>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_UINT8: ok=numeric_cast_element_from<std::uint8_t>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_UINT16: ok=numeric_cast_element_from<std::uint16_t>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_UINT32: ok=numeric_cast_element_from<std::uint32_t>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_UINT64: ok=numeric_cast_element_from<std::uint64_t>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_FLOAT64: ok=numeric_cast_element_from<double>(source,destination,target_dtype); break;
+        case QCORE_DTYPE_FLOAT32: ok=numeric_cast_element_from<float>(source,destination,target_dtype); break;
         default: break;
     }
     return ok;
@@ -2608,18 +3319,19 @@ extern "C" void quidra_numeric_cast_element(
     unsigned long long line, unsigned long long column) {
     if (!destination || !source) runtime_text_failure("null numeric cast storage");
     quidra_init_check(const_cast<void*>(source), line, column);
+    // A fixed-width element conversion fails only outside the destination's
+    // range (a non-finite real stays non-finite).
     if (!numeric_cast_element_try(source,destination,source_dtype,target_dtype)) {
-        std::fprintf(stderr,
-            "Quidra runtime error[NUMERIC_CAST_RANGE] at %llu:%llu: numeric cast outside destination range\n",
-            line,column);
-        std::exit(101);
+        quidra::runtime::report_conversion(abi::ConversionReason::out_of_range,
+                                           abi::conversion_type_name(target_dtype),
+                                           abi::ConversionSubject::array_element, line, column);
     }
 }
 
 extern "C" void* quidra_tensor_create(
     void* shape_array, int dtype, int fill_mode, bool has_gpu, long long gpu,
     unsigned long long line, unsigned long long column) {
-    if (fill_mode < 0 || fill_mode > 2) {
+    if (fill_mode < abi::tensor_fill_mode::uninitialized || fill_mode > abi::tensor_fill_mode::ones) {
         tensor_fail("invalid tensor fill mode", line, column);
     }
     int device_index = -1;
@@ -2647,8 +3359,11 @@ extern "C" void* quidra_tensor_to_gpu(
     }
     auto* source = static_cast<TensorValue*>(raw);
     tensor_require_untracked_transform(*source,"gpu()",line,column);
-    auto* storage = tensor_transfer_storage(
+    auto* storage = tensor_unified_transfer(
         *source, static_cast<int>(gpu), line, column);
+    if (!storage)
+        storage = tensor_transfer_storage(
+            *source, static_cast<int>(gpu), line, column);
     return tensor_descriptor(
         storage, source->shape, tensor_contiguous_strides(source->shape), 0);
 }
@@ -2658,7 +3373,8 @@ extern "C" void* quidra_tensor_to_cpu(
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
     tensor_require_untracked_transform(*source,"cpu()",line,column);
-    auto* storage = tensor_transfer_storage(*source, -1, line, column);
+    auto* storage = tensor_unified_transfer(*source, -1, line, column);
+    if (!storage) storage = tensor_transfer_storage(*source, -1, line, column);
     return tensor_descriptor(
         storage, source->shape, tensor_contiguous_strides(source->shape), 0);
 }
@@ -2702,21 +3418,21 @@ extern "C" bool quidra_tensor_is_contiguous(void* raw) {
 extern "C" void* quidra_tensor_shape(void* raw) {
     if (!raw) runtime_text_failure("null tensor");
     const auto& shape = static_cast<TensorValue*>(raw)->shape;
-    if (shape.size() > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(long long)) {
+    if (shape.size() > (std::numeric_limits<std::size_t>::max() - abi::array_layout::payload_offset) / sizeof(long long)) {
         runtime_allocation_failure();
     }
-    const auto bytes = 8 + shape.size() * sizeof(long long);
+    const auto bytes = abi::array_layout::payload_offset + shape.size() * sizeof(long long);
     auto* result = static_cast<unsigned char*>(managed_allocate(bytes));
     const auto rank = static_cast<long long>(shape.size());
     std::memcpy(result, &rank, sizeof(rank));
     for (std::size_t i = 0; i < shape.size(); ++i) {
-        std::memcpy(result + 8 + i * sizeof(long long), &shape[i], sizeof(long long));
+        std::memcpy(result + abi::array_layout::payload_offset + i * sizeof(long long), &shape[i], sizeof(long long));
     }
     const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(result));
     auto tracker = std::make_unique<InitializationTracker>();
     tracker->count = shape.size();
     tracker->unit_bytes = sizeof(long long);
-    tracker->data_offset = 8;
+    tracker->data_offset = abi::array_layout::payload_offset;
     tracker->initialized_count = shape.size();
     tracker->fully_initialized = true;
     it->second.initialization = std::move(tracker);
@@ -2819,15 +3535,24 @@ extern "C" void* quidra_tensor_contiguous(
     if (!tensor_on_cpu(*source->storage)) {
         storage = tensor_gpu_materialize_storage(*source, 0, 0);
     } else {
-        storage = tensor_storage_create(source->storage->dtype, count, 0);
-        const auto width = tensor_dtype_bytes(source->storage->dtype);
-        for (std::size_t i = 0; i < count; ++i) {
-            const auto source_index = tensor_storage_index(*source, i);
-            std::memcpy(storage->data.data() + i * width,
-                        source->storage->data.data() + source_index * width, width);
-            if (tracker_bit(source->storage->initialization, source_index)) {
-                tracker_set(storage->initialization, i);
+        storage = tensor_storage_create(source->storage->dtype, count, abi::tensor_fill_mode::uninitialized);
+        // A view that is one dense run of storage without the canonical
+        // strides (a size-1 axis carrying another stride) copies in bulk.
+        if (!tensor_copy_dense_view(*source, *storage, count)) {
+            const auto width = tensor_dtype_bytes(source->storage->dtype);
+            const bool source_complete =
+                source->storage->initialization.fully_initialized;
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto source_index = tensor_storage_index(*source, i);
+                std::memcpy(storage->data.data() + i * width,
+                            source->storage->data.data() + source_index * width,
+                            width);
+                if (!source_complete &&
+                    tracker_bit(source->storage->initialization, source_index)) {
+                    tracker_set(storage->initialization, i);
+                }
             }
+            if (source_complete) tracker_mark_complete(storage->initialization);
         }
     }
     return tensor_descriptor(storage, source->shape,
@@ -2859,12 +3584,32 @@ extern "C" void* quidra_tensor_item_ptr(void* raw, unsigned long long line,
     return scalar.data();
 }
 
+// Whether the runtime converts tensors of dtype `source` to `target`: numeric
+// dtypes, never a real to an integer (a rounding choice).
+static bool tensor_cast_supported(int source, int target) {
+    const auto numeric = [](int dtype) {
+        return dtype >= QCORE_DTYPE_INT64 && dtype <= QCORE_DTYPE_FLOAT32;
+    };
+    const auto real = [](int dtype) {
+        return dtype == QCORE_DTYPE_FLOAT64 || dtype == QCORE_DTYPE_FLOAT32;
+    };
+    return numeric(source) && numeric(target) && !(real(source) && !real(target));
+}
+
 static void* tensor_cast_impl(
     void* raw, int target_dtype, unsigned long long line,
     unsigned long long column, bool recoverable) {
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
     tensor_require_initialized(*source, line, column);
+    // An unsupported dtype pair is a TENSOR failure, before any device work;
+    // only a value outside the destination's range is a conversion failure.
+    if (!tensor_cast_supported(source->storage->dtype, target_dtype)) {
+        const auto message = "tensor cast from " +
+            std::string(abi::conversion_type_name(source->storage->dtype)) + " to " +
+            std::string(abi::conversion_type_name(target_dtype)) + " is unsupported";
+        tensor_fail(message.c_str(), line, column);
+    }
     if (source->graph) {
         tensor_fail(
             "tracked tensor cannot be cast; call untrack() explicitly before changing dtype",
@@ -2887,7 +3632,8 @@ static void* tensor_cast_impl(
             input_offset = 0;
         }
         auto* output = tensor_storage_create(
-            target_dtype, count, 1, source->storage->device, line, column);
+            target_dtype, count, gpu_kernel_output_fill(target_dtype),
+            source->storage->device, line, column);
         std::string backend_error;
         const bool ok = quidra::device::compute_cast(
             output->gpu_buffer, input_storage->gpu_buffer, input_offset,
@@ -2908,25 +3654,28 @@ static void* tensor_cast_impl(
         return tensor_descriptor(
             output,source->shape,tensor_contiguous_strides(source->shape),0);
     }
-    auto* output = tensor_storage_create(target_dtype, count, 1);
+    auto* output = tensor_storage_create(target_dtype, count, abi::tensor_fill_mode::zeros);
     bool exact = false;
     switch (source->storage->dtype) {
-        case 1: exact=tensor_cast_from<std::int64_t>(*source,target_dtype,*output); break;
-        case 2: exact=tensor_cast_from<std::int8_t>(*source,target_dtype,*output); break;
-        case 3: exact=tensor_cast_from<std::int16_t>(*source,target_dtype,*output); break;
-        case 4: exact=tensor_cast_from<std::int32_t>(*source,target_dtype,*output); break;
-        case 5: exact=tensor_cast_from<std::uint8_t>(*source,target_dtype,*output); break;
-        case 6: exact=tensor_cast_from<std::uint16_t>(*source,target_dtype,*output); break;
-        case 7: exact=tensor_cast_from<std::uint32_t>(*source,target_dtype,*output); break;
-        case 8: exact=tensor_cast_from<std::uint64_t>(*source,target_dtype,*output); break;
-        case 9: exact=tensor_cast_from<double>(*source,target_dtype,*output); break;
-        case 10:exact=tensor_cast_from<float>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_INT64: exact=tensor_cast_from<std::int64_t>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_INT8: exact=tensor_cast_from<std::int8_t>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_INT16: exact=tensor_cast_from<std::int16_t>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_INT32: exact=tensor_cast_from<std::int32_t>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_UINT8: exact=tensor_cast_from<std::uint8_t>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_UINT16: exact=tensor_cast_from<std::uint16_t>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_UINT32: exact=tensor_cast_from<std::uint32_t>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_UINT64: exact=tensor_cast_from<std::uint64_t>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_FLOAT64: exact=tensor_cast_from<double>(*source,target_dtype,*output); break;
+        case QCORE_DTYPE_FLOAT32: exact=tensor_cast_from<float>(*source,target_dtype,*output); break;
         default: break;
     }
     if (!exact) {
         tensor_storage_release(output);
         if (recoverable) return nullptr;
-        tensor_fail("tensor cast is unsupported or a value is outside the target range", line, column);
+        end_package_hold_before_failure(line, column);
+        quidra::runtime::report_conversion(abi::ConversionReason::out_of_range,
+                                           abi::conversion_type_name(target_dtype),
+                                           abi::ConversionSubject::tensor_element, line, column);
     }
     return tensor_descriptor(
         output,source->shape,tensor_contiguous_strides(source->shape),0);
@@ -2967,6 +3716,10 @@ extern "C" void quidra_tensor_extent_check(
         tensor_fail("tensor extent does not satisfy captured shape constraint",line,column);
 }
 
+TensorValue* tensor_gather_logical_indices(
+    TensorValue& source,std::vector<std::size_t> logical_indices,
+    std::vector<long long> output_shape,
+    unsigned long long line,unsigned long long column);
 
 namespace {
 
@@ -2976,30 +3729,151 @@ TensorStorage* tensor_gpu_materialize_storage(
     unsigned long long line,
     unsigned long long column);
 
-extern "C" void* quidra_tensor_unary(
-    void* raw,int operation,unsigned long long line,unsigned long long column);
-extern "C" void* quidra_tensor_binary(
-    void* primary_raw,void* other_raw,void* scalar,int scalar_side,
-    int operation,unsigned long long line,unsigned long long column);
 
+// Floating values of an autograd node or of a host-engine gradient. They
+// either own a std::vector or retain a dense CPU TensorStorage of T (offset 0,
+// every element initialized) by reference count. A retained storage is never
+// written while it is shared: tensor writers detach shared storage first
+// (tensor_detach_for_write behind eager writes and the mutable native
+// accessors), and mutable_data() copies unless this value is the only owner.
+// Retention lets forward snapshots, slot gradients and custom-callback
+// gradients move between tensors and the host engine without element copies;
+// every value read is the value a copy would have held. It follows
+// autograd_storage_sharing_enabled() (the default); with
+// QUIDRA_SAVED_TENSORS=copy every value is an owned vector.
+template <typename T>
+class HostValues {
+public:
+    static constexpr int element_dtype=std::is_same_v<T,float>?QCORE_DTYPE_FLOAT32:QCORE_DTYPE_FLOAT64;
+
+    HostValues()=default;
+    HostValues(std::vector<T> values) : owned_(std::move(values)) {}
+    HostValues(const HostValues& other)
+        : owned_(other.owned_),storage_(other.storage_),count_(other.count_) {
+        if(storage_) retain(storage_);
+    }
+    HostValues(HostValues&& other) noexcept
+        : owned_(std::move(other.owned_)),
+          storage_(std::exchange(other.storage_,nullptr)),
+          count_(std::exchange(other.count_,0)) {}
+    HostValues& operator=(HostValues other) noexcept {
+        owned_.swap(other.owned_);
+        std::swap(storage_,other.storage_);
+        std::swap(count_,other.count_);
+        return *this;
+    }
+    ~HostValues() { drop_storage(); }
+
+    // Shares `storage`, a CPU storage of T whose elements are all initialized.
+    static HostValues share(TensorStorage* storage) {
+        HostValues result;
+        retain(storage);
+        result.storage_=storage;
+        result.count_=storage->count;
+        return result;
+    }
+
+    // A buffer of `count` values that the caller writes completely through
+    // mutable_data() before reading: storage-backed, so that it can be handed
+    // out without a copy, or an owned vector when sharing is disabled.
+    static HostValues allocate(std::size_t count) {
+        if(!autograd_storage_sharing_enabled())
+            return HostValues(std::vector<T>(count));
+        HostValues result;
+        result.storage_=tensor_storage_create(element_dtype,count,abi::tensor_fill_mode::uninitialized);
+        tracker_mark_complete(result.storage_->initialization);
+        result.count_=count;
+        return result;
+    }
+
+    std::size_t size() const { return storage_?count_:owned_.size(); }
+    bool empty() const { return size()==0; }
+    const T* data() const {
+        return storage_
+            ? reinterpret_cast<const T*>(storage_->data.data()) : owned_.data();
+    }
+    const T& operator[](std::size_t index) const { return data()[index]; }
+    const T* begin() const { return data(); }
+    const T* end() const { return data()+size(); }
+
+    // Writable values: a storage held only by this value is written in place,
+    // a shared one is copied first.
+    T* mutable_data() {
+        if(!storage_) return owned_.data();
+        if(!tensor_storage_writable_in_place(*storage_)){
+            const auto count=count_;
+            auto* copy=tensor_storage_create(element_dtype,count,abi::tensor_fill_mode::uninitialized);
+            if(count!=0)
+                std::memcpy(copy->data.data(),storage_->data.data(),count*sizeof(T));
+            tracker_mark_complete(copy->initialization);
+            drop_storage();
+            storage_=copy;
+            count_=count;
+        }
+        return reinterpret_cast<T*>(storage_->data.data());
+    }
+
+    // The values as an owned vector (copied out of a retained storage).
+    std::vector<T>& vector() {
+        if(storage_){
+            std::vector<T> values(data(),data()+count_);
+            drop_storage();
+            owned_=std::move(values);
+        }
+        return owned_;
+    }
+
+    // A dense CPU tensor of `shape` holding the values: the retained storage
+    // itself (reference counted) or a fresh copy of the owned vector.
+    TensorValue* tensor(const std::vector<long long>& shape) const {
+        TensorStorage* storage=storage_;
+        if(storage){
+            retain(storage);
+        }else{
+            storage=tensor_storage_create(element_dtype,owned_.size(),abi::tensor_fill_mode::uninitialized);
+            if(!owned_.empty())
+                std::memcpy(storage->data.data(),owned_.data(),owned_.size()*sizeof(T));
+            tracker_mark_complete(storage->initialization);
+        }
+        return tensor_descriptor(storage,shape,tensor_contiguous_strides(shape),0);
+    }
+
+private:
+    static void retain(TensorStorage* storage) {
+        if(storage->owners==std::numeric_limits<std::size_t>::max())
+            runtime_text_failure("tensor storage owner overflow");
+        ++storage->owners;
+    }
+    void drop_storage() noexcept {
+        if(storage_) tensor_storage_release(storage_);
+        storage_=nullptr;
+        count_=0;
+    }
+
+    std::vector<T> owned_;
+    TensorStorage* storage_{};
+    std::size_t count_{};
+};
 
 class AutogradBuffer {
 public:
-    explicit AutogradBuffer(int dtype=10) { set_dtype(dtype); }
-    explicit AutogradBuffer(std::vector<float> values) : values_(std::move(values)) {}
-    explicit AutogradBuffer(std::vector<double> values) : values_(std::move(values)) {}
+    explicit AutogradBuffer(int dtype=QCORE_DTYPE_FLOAT32) { set_dtype(dtype); }
+    explicit AutogradBuffer(std::vector<float> values) : values_(HostValues<float>(std::move(values))) {}
+    explicit AutogradBuffer(std::vector<double> values) : values_(HostValues<double>(std::move(values))) {}
+    explicit AutogradBuffer(HostValues<float> values) : values_(std::move(values)) {}
+    explicit AutogradBuffer(HostValues<double> values) : values_(std::move(values)) {}
 
     int dtype() const {
-        return std::holds_alternative<std::vector<float>>(values_) ? 10 : 9;
+        return std::holds_alternative<HostValues<float>>(values_) ? QCORE_DTYPE_FLOAT32 : QCORE_DTYPE_FLOAT64;
     }
 
     void set_dtype(int dtype) {
-        if (dtype==10) {
-            if (!std::holds_alternative<std::vector<float>>(values_))
-                values_.emplace<std::vector<float>>();
-        } else if (dtype==9) {
-            if (!std::holds_alternative<std::vector<double>>(values_))
-                values_.emplace<std::vector<double>>();
+        if (dtype==QCORE_DTYPE_FLOAT32) {
+            if (!std::holds_alternative<HostValues<float>>(values_))
+                values_.emplace<HostValues<float>>();
+        } else if (dtype==QCORE_DTYPE_FLOAT64) {
+            if (!std::holds_alternative<HostValues<double>>(values_))
+                values_.emplace<HostValues<double>>();
         } else {
             runtime_text_failure("invalid autograd floating dtype");
         }
@@ -3012,38 +3886,38 @@ public:
     bool empty() const { return size()==0; }
 
     void resize(std::size_t count) {
-        std::visit([&](auto& values){ values.resize(count); }, values_);
+        std::visit([&](auto& values){ values.vector().resize(count); }, values_);
     }
 
     void assign(std::size_t count,double value) {
-        if (auto* values=std::get_if<std::vector<float>>(&values_))
-            values->assign(count,static_cast<float>(value));
+        if (auto* values=std::get_if<HostValues<float>>(&values_))
+            values->vector().assign(count,static_cast<float>(value));
         else
-            std::get<std::vector<double>>(values_).assign(count,value);
+            std::get<HostValues<double>>(values_).vector().assign(count,value);
     }
 
     double scalar_as_double(std::size_t index) const {
-        if (const auto* values=std::get_if<std::vector<float>>(&values_))
+        if (const auto* values=std::get_if<HostValues<float>>(&values_))
             return static_cast<double>((*values)[index]);
-        return std::get<std::vector<double>>(values_)[index];
+        return std::get<HostValues<double>>(values_)[index];
     }
 
     template <typename T>
-    const std::vector<T>& typed() const {
-        return std::get<std::vector<T>>(values_);
+    const HostValues<T>& typed() const {
+        return std::get<HostValues<T>>(values_);
     }
 
     template <typename T>
-    std::vector<T>& typed() {
-        return std::get<std::vector<T>>(values_);
+    HostValues<T>& typed() {
+        return std::get<HostValues<T>>(values_);
     }
 
 private:
-    std::variant<std::vector<float>,std::vector<double>> values_;
+    std::variant<HostValues<float>,HostValues<double>> values_;
 };
 
 struct AutogradNode {
-    explicit AutogradNode(int element_dtype=10)
+    explicit AutogradNode(int element_dtype=QCORE_DTYPE_FLOAT32)
         : dtype(element_dtype), data(element_dtype), aux(element_dtype) {}
 
     int dtype{10};
@@ -3057,9 +3931,14 @@ struct AutogradNode {
     TensorValue* device_tensor{};
     TensorValue* device_aux{};
     qcore_autograd_backward_fn custom_backward{};
+    qcore_autograd_backward_masked_fn custom_backward_masked{};
     qcore_autograd_backward_tracked_fn custom_backward_tracked{};
     std::vector<TensorValue*> custom_saved;
     std::vector<unsigned char> custom_metadata;
+    // Masked callbacks only: input i was declared at attach time to be
+    // written completely whenever its gradient is requested. Empty when
+    // nothing was declared.
+    std::vector<unsigned char> custom_full_writes;
 
     ~AutogradNode() noexcept {
         if(device_tensor){
@@ -3199,7 +4078,7 @@ extern "C" void* quidra_autograd_target_gradient(
 }
 
 struct AutogradGradient {
-    explicit AutogradGradient(int element_dtype=10) : dtype(element_dtype), data(element_dtype) {}
+    explicit AutogradGradient(int element_dtype=QCORE_DTYPE_FLOAT32) : dtype(element_dtype), data(element_dtype) {}
     AutogradGradient(const AutogradGradient&)=delete;
     AutogradGradient& operator=(const AutogradGradient&)=delete;
     AutogradGradient(AutogradGradient&& other) noexcept
@@ -3227,8 +4106,9 @@ struct AutogradGradient {
 };
 
 [[noreturn]] void autograd_fail(const char* message, unsigned long long line, unsigned long long column) {
-    std::fprintf(stderr, "Quidra runtime error[AUTOGRAD] at %llu:%llu: %s\n", line, column, message);
-    std::exit(101);
+    end_package_hold_before_failure(line, column);
+    quidra::runtime::report_failure(abi::FailureReason::autograd_failure,
+                                    abi::FailureArgs{.message = message}, line, column);
 }
 
 AutogradBuffer tensor_float_values(const TensorValue& tensor,
@@ -3236,34 +4116,48 @@ AutogradBuffer tensor_float_values(const TensorValue& tensor,
                                  unsigned long long column) {
     tensor_require_cpu(*tensor.storage, "autograd tensor conversion", line, column);
     tensor_require_initialized(tensor,line,column);
-    if(tensor.storage->dtype!=9&&tensor.storage->dtype!=10)
-        autograd_fail("autograd values require float32 or float tensors",line,column);
+    if(tensor.storage->dtype!=QCORE_DTYPE_FLOAT64&&tensor.storage->dtype!=QCORE_DTYPE_FLOAT32)
+        autograd_fail("autograd values require real32 or real64 tensors",line,column);
     const auto count=tensor_logical_count(tensor);
-    AutogradBuffer result(tensor.storage->dtype);
-    if(tensor.storage->dtype==10){
-        auto& values=result.typed<float>();
-        values.resize(count);
-        for(std::size_t i=0;i<count;++i){
-            const auto index=tensor_storage_index(tensor,i);
-            std::memcpy(&values[i],tensor.storage->data.data()+index*sizeof(float),sizeof(float));
-        }
-    }else{
-        auto& values=result.typed<double>();
-        values.resize(count);
-        for(std::size_t i=0;i<count;++i){
-            const auto index=tensor_storage_index(tensor,i);
-            std::memcpy(&values[i],tensor.storage->data.data()+index*sizeof(double),sizeof(double));
-        }
+    // A view that densely covers its whole (initialized) storage is retained
+    // by reference count instead of copied when sharing is enabled: writers
+    // detach shared storage, so the snapshot keeps the values it has now.
+    // Other contiguous views (offset views) are one dense byte range of
+    // storage and are copied with a single memcpy; the rest keep the
+    // per-element gather.
+    const bool dense=tensor_view_dense_in_storage(tensor,count);
+    if(dense && tensor.offset==0 && count==tensor.storage->count &&
+       autograd_storage_sharing_enabled()){
+        if(tensor.storage->dtype==QCORE_DTYPE_FLOAT32)
+            return AutogradBuffer(HostValues<float>::share(tensor.storage));
+        return AutogradBuffer(HostValues<double>::share(tensor.storage));
     }
-    return result;
+    const auto snapshot=[&](auto tag)->AutogradBuffer{
+        using T=decltype(tag);
+        std::vector<T> values(count);
+        if(dense){
+            if(count!=0)
+                std::memcpy(values.data(),
+                            tensor.storage->data.data()+tensor.offset*sizeof(T),
+                            count*sizeof(T));
+        }else{
+            for(std::size_t i=0;i<count;++i){
+                const auto index=tensor_storage_index(tensor,i);
+                std::memcpy(&values[i],tensor.storage->data.data()+index*sizeof(T),sizeof(T));
+            }
+        }
+        return AutogradBuffer(std::move(values));
+    };
+    if(tensor.storage->dtype==QCORE_DTYPE_FLOAT32) return snapshot(float{});
+    return snapshot(double{});
 }
 
 std::shared_ptr<AutogradNode> autograd_constant_node(const TensorValue& tensor,
                                                  unsigned long long line,
                                                  unsigned long long column) {
     tensor_require_initialized(tensor,line,column);
-    if(tensor.storage->dtype!=9&&tensor.storage->dtype!=10)
-        autograd_fail("autograd values require float32 or float tensors",line,column);
+    if(tensor.storage->dtype!=QCORE_DTYPE_FLOAT64&&tensor.storage->dtype!=QCORE_DTYPE_FLOAT32)
+        autograd_fail("autograd values require real32 or real64 tensors",line,column);
     auto node=std::make_shared<AutogradNode>(tensor.storage->dtype);
     node->shape=tensor.shape;
     if(tensor_on_cpu(*tensor.storage)){
@@ -3282,7 +4176,7 @@ void tensor_attach_view_graph(
     std::vector<std::size_t> aux,
     unsigned long long line,unsigned long long column) {
     if(!result||!source.graph) return;
-    if(source.storage->dtype!=9&&source.storage->dtype!=10)
+    if(source.storage->dtype!=QCORE_DTYPE_FLOAT64&&source.storage->dtype!=QCORE_DTYPE_FLOAT32)
         autograd_fail("tracked tensor view requires a floating dtype",line,column);
     auto node=std::make_shared<AutogradNode>(source.storage->dtype);
     node->shape=result->shape;
@@ -3296,23 +4190,41 @@ void tensor_attach_view_graph(
     result->graph=std::move(node);
 }
 
+// A contiguous CPU tensor holding gradient values: their retained storage
+// when they have one, otherwise a copy.
+template <typename T>
+TensorValue* autograd_tensor_from_gradient(
+    int dtype,const std::vector<long long>& shape,const HostValues<T>& values) {
+    if(dtype!=HostValues<T>::element_dtype)
+        runtime_text_failure("autograd buffer dtype mismatch");
+    return values.tensor(shape);
+}
+
 TensorValue* autograd_tensor_from_values(
     int dtype,const std::vector<long long>& shape,const AutogradBuffer& data) {
     if(data.dtype()!=dtype) runtime_text_failure("autograd buffer dtype mismatch");
-    auto* storage=tensor_storage_create(dtype,data.size(),1);
-    if(dtype==10){
-        const auto& values=data.typed<float>();
-        if(!values.empty())
-            std::memcpy(storage->data.data(),values.data(),values.size()*sizeof(float));
-    }else if(dtype==9){
-        const auto& values=data.typed<double>();
-        if(!values.empty())
-            std::memcpy(storage->data.data(),values.data(),values.size()*sizeof(double));
-    }else{
-        delete storage;
-        runtime_text_failure("invalid autograd floating dtype");
-    }
-    return tensor_descriptor(storage,shape,tensor_contiguous_strides(shape),0);
+    if(dtype==QCORE_DTYPE_FLOAT32) return data.typed<float>().tensor(shape);
+    if(dtype==QCORE_DTYPE_FLOAT64) return data.typed<double>().tensor(shape);
+    runtime_text_failure("invalid autograd floating dtype");
+}
+
+// Host values of a gradient tensor that a custom native callback wrote. With
+// sharing enabled, the dense storage Core allocated for it is retained rather
+// than copied; anything else is read through tensor_float_values().
+template <typename T>
+HostValues<T> autograd_gradient_values(
+    const TensorValue& gradient,unsigned long long line,unsigned long long column) {
+    if(autograd_storage_sharing_enabled() &&
+       gradient.storage && tensor_on_cpu(*gradient.storage) &&
+       gradient.storage->dtype==HostValues<T>::element_dtype &&
+       gradient.storage->initialization.fully_initialized &&
+       gradient.offset==0 && tensor_is_contiguous_value(gradient) &&
+       tensor_logical_count(gradient)==gradient.storage->count)
+        return HostValues<T>::share(gradient.storage);
+    auto values=tensor_float_values(gradient,line,column);
+    if(values.dtype()!=HostValues<T>::element_dtype)
+        runtime_text_failure("autograd gradient dtype mismatch");
+    return std::move(values.template typed<T>());
 }
 
 TensorValue* autograd_tensor_from_node(const AutogradNode& node) {
@@ -3326,7 +4238,7 @@ void autograd_accumulate_slot(
     unsigned long long line,unsigned long long column,
     bool preserve_graph=false) {
     if(!slot||!gradient) autograd_fail("invalid autograd gradient slot",line,column);
-    if(slot->dtype!=9&&slot->dtype!=10)
+    if(slot->dtype!=QCORE_DTYPE_FLOAT64&&slot->dtype!=QCORE_DTYPE_FLOAT32)
         autograd_fail("invalid autograd gradient slot dtype",line,column);
     if(gradient->storage->dtype!=slot->dtype){
         auto* converted=static_cast<TensorValue*>(
@@ -3341,7 +4253,7 @@ void autograd_accumulate_slot(
         return;
     }
     auto* combined=static_cast<TensorValue*>(
-        quidra_tensor_binary(slot->gradient,gradient,nullptr,0,1,line,column));
+        quidra_tensor_binary(slot->gradient,gradient,nullptr,abi::scalar_side::none,abi::tensor_binary_opcode::add,line,column));
     release_managed_tensor(slot->gradient);
     release_managed_tensor(gradient);
     if(!preserve_graph) combined->graph.reset();
@@ -3382,6 +4294,51 @@ void autograd_require_same_shape(const AutogradNode& a,const AutogradNode& b,
     autograd_require_same_node_device("autograd operation",a,b,line,column);
 }
 
+// Higher-order (backward(track = true)) symbolic nodes live on the device of
+// the values they differentiate. CPU nodes keep host-backed AutogradBuffer
+// values; GPU nodes hold a device TensorValue. A GPU node's value is computed
+// by the same untracked device kernel the eager tensor operation uses, and
+// the graph edge is recorded here, so the next backward differentiates it
+// with the ordinary GPU engines.
+
+// A borrowed, graph-free view of a GPU node's value: the eager kernels take
+// it as an untracked operand. It does not own its storage.
+TensorValue autograd_device_view(const AutogradNode& node) {
+    const auto* value=node.device_tensor;
+    return TensorValue{
+        value->storage,value->shape,value->strides,value->offset,{},{}};
+}
+
+// A dense, offset-0 copy of a GPU value's logical elements (the value itself,
+// retained, when it already is one). The caller owns the result.
+TensorValue* autograd_device_dense_value(
+    const TensorValue& value,unsigned long long line,unsigned long long column) {
+    if(tensor_on_cpu(*value.storage))
+        autograd_fail("internal autograd GPU path received a CPU tensor",line,column);
+    if(tensor_is_contiguous_value(value)&&value.offset==0){
+        if(value.storage->owners==std::numeric_limits<std::size_t>::max())
+            runtime_text_failure("tensor storage owner overflow");
+        ++value.storage->owners;
+        return tensor_descriptor(value.storage,value.shape,value.strides,0);
+    }
+    auto* storage=tensor_gpu_materialize_storage(value,line,column);
+    return tensor_descriptor(
+        storage,value.shape,tensor_contiguous_strides(value.shape),0);
+}
+
+std::shared_ptr<AutogradNode> autograd_device_symbolic_node(
+    int dtype,std::vector<long long> shape,AutogradOp operation,
+    std::vector<std::shared_ptr<AutogradNode>> parents,TensorValue* value) {
+    value->graph.reset();
+    value->grad_slot.reset();
+    auto node=std::make_shared<AutogradNode>(dtype);
+    node->shape=std::move(shape);
+    node->op=operation;
+    node->parents=std::move(parents);
+    node->device_tensor=value;
+    return node;
+}
+
 template <typename T>
 std::shared_ptr<AutogradNode> autograd_symbolic_binary_t(
     const std::shared_ptr<AutogradNode>& left,
@@ -3393,9 +4350,9 @@ std::shared_ptr<AutogradNode> autograd_symbolic_binary_t(
     if(a.size()!=b.size()) autograd_fail("higher-order gradient shape mismatch",line,column);
     std::vector<T> values(a.size(),T{0});
     for(std::size_t i=0;i<values.size();++i){
-        if(operation==1) values[i]=static_cast<T>(a[i]+b[i]);
-        else if(operation==2) values[i]=static_cast<T>(a[i]-b[i]);
-        else if(operation==3) values[i]=static_cast<T>(a[i]*b[i]);
+        if(operation==abi::tensor_binary_opcode::add) values[i]=static_cast<T>(a[i]+b[i]);
+        else if(operation==abi::tensor_binary_opcode::subtract) values[i]=static_cast<T>(a[i]-b[i]);
+        else if(operation==abi::tensor_binary_opcode::multiply) values[i]=static_cast<T>(a[i]*b[i]);
         else {
             if(b[i]==T{0}) autograd_fail("division by zero",line,column);
             values[i]=static_cast<T>(a[i]/b[i]);
@@ -3404,9 +4361,9 @@ std::shared_ptr<AutogradNode> autograd_symbolic_binary_t(
     auto node=std::make_shared<AutogradNode>(left->dtype);
     node->shape=left->shape;
     node->parents={left,right};
-    node->op=operation==1?AutogradOp::Add:
-        operation==2?AutogradOp::Sub:
-        operation==3?AutogradOp::Mul:AutogradOp::Div;
+    node->op=operation==abi::tensor_binary_opcode::add?AutogradOp::Add:
+        operation==abi::tensor_binary_opcode::subtract?AutogradOp::Sub:
+        operation==abi::tensor_binary_opcode::multiply?AutogradOp::Mul:AutogradOp::Div;
     node->data=AutogradBuffer(std::move(values));
     return node;
 }
@@ -3417,12 +4374,26 @@ std::shared_ptr<AutogradNode> autograd_symbolic_binary(
     int operation,
     unsigned long long line,unsigned long long column) {
     if(!left||!right) autograd_fail("null higher-order gradient operand",line,column);
-    if(left->device_tensor||right->device_tensor)
-        autograd_fail("backward(track = true) currently requires CPU tensors",line,column);
     autograd_require_same_shape(*left,*right,line,column);
-    if(left->dtype==10) return autograd_symbolic_binary_t<float>(
+    if(left->dtype!=QCORE_DTYPE_FLOAT64&&left->dtype!=QCORE_DTYPE_FLOAT32)
+        autograd_fail("invalid higher-order gradient dtype",line,column);
+    if(left->device_tensor){
+        // Same element-wise device kernel as the eager tensor operation
+        // (IEEE division, as for every GPU float tensor division).
+        auto a=autograd_device_view(*left);
+        auto b=autograd_device_view(*right);
+        auto* value=static_cast<TensorValue*>(
+            quidra_tensor_binary(&a,&b,nullptr,abi::scalar_side::none,operation,line,column));
+        return autograd_device_symbolic_node(
+            left->dtype,left->shape,
+            operation==abi::tensor_binary_opcode::add?AutogradOp::Add:
+            operation==abi::tensor_binary_opcode::subtract?AutogradOp::Sub:
+            operation==abi::tensor_binary_opcode::multiply?AutogradOp::Mul:AutogradOp::Div,
+            {left,right},value);
+    }
+    if(left->dtype==QCORE_DTYPE_FLOAT32) return autograd_symbolic_binary_t<float>(
         left,right,operation,line,column);
-    if(left->dtype==9) return autograd_symbolic_binary_t<double>(
+    if(left->dtype==QCORE_DTYPE_FLOAT64) return autograd_symbolic_binary_t<double>(
         left,right,operation,line,column);
     autograd_fail("invalid higher-order gradient dtype",line,column);
 }
@@ -3438,10 +4409,10 @@ std::shared_ptr<AutogradNode> autograd_symbolic_scalar_t(
     for(std::size_t i=0;i<values.size();++i){
         const T left=scalar_left?scalar_value:source[i];
         const T right=scalar_left?source[i]:scalar_value;
-        if(operation==1) values[i]=static_cast<T>(left+right);
-        else if(operation==2) values[i]=static_cast<T>(left-right);
-        else if(operation==3) values[i]=static_cast<T>(left*right);
-        else if(operation==6) {
+        if(operation==abi::tensor_binary_opcode::add) values[i]=static_cast<T>(left+right);
+        else if(operation==abi::tensor_binary_opcode::subtract) values[i]=static_cast<T>(left-right);
+        else if(operation==abi::tensor_binary_opcode::multiply) values[i]=static_cast<T>(left*right);
+        else if(operation==abi::tensor_binary_opcode::power) {
             if(scalar_left)
                 autograd_fail("tensor power requires tensor ^ scalar",line,column);
             values[i]=static_cast<T>(std::pow(left,right));
@@ -3467,23 +4438,83 @@ std::shared_ptr<AutogradNode> autograd_symbolic_scalar(
     int operation,bool scalar_left,
     unsigned long long line,unsigned long long column) {
     if(!input) autograd_fail("null higher-order gradient operand",line,column);
-    if(input->device_tensor)
-        autograd_fail("backward(track = true) currently requires CPU tensors",line,column);
-    if(input->dtype==10) return autograd_symbolic_scalar_t<float>(
+    if(input->device_tensor){
+        if(input->dtype!=QCORE_DTYPE_FLOAT64&&input->dtype!=QCORE_DTYPE_FLOAT32)
+            autograd_fail("invalid higher-order gradient dtype",line,column);
+        if(operation==abi::tensor_binary_opcode::power&&scalar_left)
+            autograd_fail("tensor power requires tensor ^ scalar",line,column);
+        // The scalar divisor is a host value: reject zero exactly as the CPU
+        // symbolic path does, without reading device memory.
+        const bool zero_divisor=input->dtype==QCORE_DTYPE_FLOAT32
+            ? static_cast<float>(scalar)==0.0F : scalar==0.0;
+        if(operation==abi::tensor_binary_opcode::divide&&!scalar_left&&zero_divisor)
+            autograd_fail("division by zero",line,column);
+        auto source=autograd_device_view(*input);
+        const int side=scalar_left?1:2;
+        TensorValue* value=nullptr;
+        if(input->dtype==QCORE_DTYPE_FLOAT32){
+            float typed=static_cast<float>(scalar);
+            value=static_cast<TensorValue*>(quidra_tensor_binary(
+                &source,nullptr,&typed,side,operation,line,column));
+        }else{
+            double typed=scalar;
+            value=static_cast<TensorValue*>(quidra_tensor_binary(
+                &source,nullptr,&typed,side,operation,line,column));
+        }
+        auto node=autograd_device_symbolic_node(
+            input->dtype,input->shape,AutogradOp::ScalarBinary,{input},value);
+        node->aux.assign(1,scalar);
+        node->aux_index={
+            static_cast<std::size_t>(operation),
+            scalar_left?std::size_t{1}:std::size_t{0}};
+        return node;
+    }
+    if(input->dtype==QCORE_DTYPE_FLOAT32) return autograd_symbolic_scalar_t<float>(
         input,scalar,operation,scalar_left,line,column);
-    if(input->dtype==9) return autograd_symbolic_scalar_t<double>(
+    if(input->dtype==QCORE_DTYPE_FLOAT64) return autograd_symbolic_scalar_t<double>(
         input,scalar,operation,scalar_left,line,column);
     autograd_fail("invalid higher-order gradient dtype",line,column);
 }
 
+// Symbolic tensor negation: the gradient of -x is -g, recorded as a Neg node
+// so that higher-order backward differentiates it again.
+std::shared_ptr<AutogradNode> autograd_symbolic_neg(
+    const std::shared_ptr<AutogradNode>& input,
+    unsigned long long line,unsigned long long column) {
+    if(!input) autograd_fail("null higher-order gradient operand",line,column);
+    if(input->dtype!=QCORE_DTYPE_FLOAT64&&input->dtype!=QCORE_DTYPE_FLOAT32)
+        autograd_fail("invalid higher-order gradient dtype",line,column);
+    if(input->device_tensor){
+        auto source=autograd_device_view(*input);
+        auto* value=static_cast<TensorValue*>(
+            quidra_tensor_unary(&source,abi::tensor_unary_opcode::negate,line,column));
+        return autograd_device_symbolic_node(
+            input->dtype,input->shape,AutogradOp::Neg,{input},value);
+    }
+    auto node=std::make_shared<AutogradNode>(input->dtype);
+    node->shape=input->shape;
+    node->parents={input};
+    node->op=AutogradOp::Neg;
+    const auto negate=[&](auto tag){
+        using T=decltype(tag);
+        const auto& source=input->data.template typed<T>();
+        std::vector<T> values(source.begin(),source.end());
+        for(auto& value:values) value=static_cast<T>(-value);
+        node->data=AutogradBuffer(std::move(values));
+    };
+    if(input->dtype==QCORE_DTYPE_FLOAT32) negate(float{});
+    else negate(double{});
+    return node;
+}
+
 template <typename T>
 std::vector<T> autograd_gather_values(
-    const std::vector<T>& input,const std::vector<std::size_t>& indices,
+    const HostValues<T>& input,const std::vector<std::size_t>& indices,
     unsigned long long line,unsigned long long column) {
     std::vector<T> output(indices.size());
     for(std::size_t i=0;i<indices.size();++i){
         if(indices[i]>=input.size())
-            autograd_fail("tensor gather index is outside input",line,column);
+            autograd_fail("tensor gather index is out of bounds for the input",line,column);
         output[i]=input[indices[i]];
     }
     return output;
@@ -3491,7 +4522,7 @@ std::vector<T> autograd_gather_values(
 
 template <typename T>
 std::vector<T> autograd_gather_backward_values(
-    const std::vector<T>& gradient,std::size_t source_count,
+    const HostValues<T>& gradient,std::size_t source_count,
     const std::vector<std::size_t>& indices,
     unsigned long long line,unsigned long long column) {
     if(gradient.size()!=indices.size())
@@ -3499,7 +4530,7 @@ std::vector<T> autograd_gather_backward_values(
     std::vector<T> output(source_count,T{0});
     for(std::size_t i=0;i<indices.size();++i){
         if(indices[i]>=source_count)
-            autograd_fail("tensor gather backward index is outside input",line,column);
+            autograd_fail("tensor gather backward index is out of bounds for the input",line,column);
         output[indices[i]]=static_cast<T>(output[indices[i]]+gradient[i]);
     }
     return output;
@@ -3535,8 +4566,15 @@ std::shared_ptr<AutogradNode> autograd_symbolic_reshape(
     node->op=AutogradOp::Reshape;
     if(input->device_tensor){
         auto* source=input->device_tensor;
-        if(!tensor_is_contiguous_value(*source))
-            autograd_fail("higher-order reshape requires contiguous storage",line,column);
+        if(!tensor_is_contiguous_value(*source)){
+            // A strided GPU value (for example a transposed gradient) is
+            // reshaped from a dense copy of its logical elements, which is
+            // the element order the host-backed CPU node holds.
+            auto* storage=tensor_gpu_materialize_storage(*source,line,column);
+            node->device_tensor=tensor_descriptor(
+                storage,output_shape,tensor_contiguous_strides(output_shape),0);
+            return node;
+        }
         if(source->storage->owners==std::numeric_limits<std::size_t>::max())
             runtime_text_failure("tensor storage owner overflow");
         ++source->storage->owners;
@@ -3561,9 +4599,9 @@ AutogradBuffer autograd_transpose_values(
     std::vector<T> output(count);
     auto input_strides=tensor_contiguous_strides(input_shape);
     auto output_strides=tensor_contiguous_strides(output_shape);
+    std::vector<std::size_t> coordinates(output_shape.size());
     for(std::size_t linear=0;linear<count;++linear){
         std::size_t rest=linear;
-        std::vector<std::size_t> coordinates(output_shape.size());
         for(std::size_t axis=output_shape.size();axis-- >0;){
             const auto dim=static_cast<std::size_t>(output_shape[axis]);
             coordinates[axis]=dim==0?0:rest%dim;
@@ -3600,7 +4638,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_transpose(
         std::swap(strides[axis0],strides[axis1]);
         node->device_tensor=tensor_descriptor(
             source->storage,node->shape,std::move(strides),source->offset);
-    }else if(input->dtype==10){
+    }else if(input->dtype==QCORE_DTYPE_FLOAT32){
         node->data=autograd_transpose_values<float>(
             input->data,input->shape,axis0,axis1,line,column);
     }else{
@@ -3615,19 +4653,33 @@ std::shared_ptr<AutogradNode> autograd_symbolic_gather(
     const std::vector<long long>& output_shape,
     const std::vector<std::size_t>& indices,
     unsigned long long line,unsigned long long column) {
-    if(!input||input->device_tensor)
-        autograd_fail("higher-order tensor gather requires CPU tensors",line,column);
+    if(!input) autograd_fail("null higher-order gather operand",line,column);
     if(tensor_element_count(output_shape,line,column)!=indices.size())
         autograd_fail("tensor gather output shape does not match index count",line,column);
+    if(input->device_tensor){
+        if(input->dtype!=QCORE_DTYPE_FLOAT64&&input->dtype!=QCORE_DTYPE_FLOAT32)
+            autograd_fail("tensor gather autograd requires a floating dtype",line,column);
+        const auto source_count=autograd_node_count(*input);
+        for(const auto index:indices)
+            if(index>=source_count)
+                autograd_fail("tensor gather index is out of bounds for the input",line,column);
+        auto source=autograd_device_view(*input);
+        auto* value=tensor_gather_logical_indices(
+            source,indices,output_shape,line,column);
+        auto node=autograd_device_symbolic_node(
+            input->dtype,output_shape,AutogradOp::Gather,{input},value);
+        node->aux_index=indices;
+        return node;
+    }
     auto node=std::make_shared<AutogradNode>(input->dtype);
     node->shape=output_shape;
     node->parents={input};
     node->op=AutogradOp::Gather;
     node->aux_index=indices;
-    if(input->dtype==10)
+    if(input->dtype==QCORE_DTYPE_FLOAT32)
         node->data=AutogradBuffer(autograd_gather_values<float>(
             input->data.typed<float>(),indices,line,column));
-    else if(input->dtype==9)
+    else if(input->dtype==QCORE_DTYPE_FLOAT64)
         node->data=AutogradBuffer(autograd_gather_values<double>(
             input->data.typed<double>(),indices,line,column));
     else
@@ -3640,18 +4692,52 @@ std::shared_ptr<AutogradNode> autograd_symbolic_gather_backward(
     const std::vector<long long>& input_shape,
     const std::vector<std::size_t>& indices,
     unsigned long long line,unsigned long long column) {
-    if(!gradient||gradient->device_tensor)
-        autograd_fail("higher-order tensor gather requires CPU tensors",line,column);
+    if(!gradient) autograd_fail("null higher-order gather operand",line,column);
     const auto source_count=tensor_element_count(input_shape,line,column);
+    if(gradient->device_tensor){
+        if(gradient->dtype!=QCORE_DTYPE_FLOAT64&&gradient->dtype!=QCORE_DTYPE_FLOAT32)
+            autograd_fail("tensor gather autograd requires a floating dtype",line,column);
+        if(autograd_node_count(*gradient)!=indices.size())
+            autograd_fail("tensor gather backward size mismatch",line,column);
+        std::vector<std::uint64_t> device_indices(indices.size());
+        for(std::size_t i=0;i<indices.size();++i){
+            if(indices[i]>=source_count)
+                autograd_fail("tensor gather backward index is out of bounds for the input",line,column);
+            device_indices[i]=static_cast<std::uint64_t>(indices[i]);
+        }
+        // Serial ascending accumulation from +0.0 per source element, the
+        // same device kernel as the first-order GPU gather backward.
+        auto* dense=autograd_device_dense_value(
+            *gradient->device_tensor,line,column);
+        auto* storage=tensor_storage_create(
+            gradient->dtype,source_count,abi::tensor_fill_mode::zeros,dense->storage->device,line,column);
+        auto* value=tensor_descriptor(
+            storage,input_shape,tensor_contiguous_strides(input_shape),0);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_gather_backward(
+            storage->gpu_buffer,dense->storage->gpu_buffer,gradient->dtype,
+            device_indices.data(),source_count,device_indices.size(),
+            backend_error);
+        release_managed_tensor(dense);
+        if(!ok){
+            release_managed_tensor(value);
+            autograd_fail(backend_error.c_str(),line,column);
+        }
+        auto node=autograd_device_symbolic_node(
+            gradient->dtype,input_shape,AutogradOp::GatherBackward,
+            {gradient},value);
+        node->aux_index=indices;
+        return node;
+    }
     auto node=std::make_shared<AutogradNode>(gradient->dtype);
     node->shape=input_shape;
     node->parents={gradient};
     node->op=AutogradOp::GatherBackward;
     node->aux_index=indices;
-    if(gradient->dtype==10)
+    if(gradient->dtype==QCORE_DTYPE_FLOAT32)
         node->data=AutogradBuffer(autograd_gather_backward_values<float>(
             gradient->data.typed<float>(),source_count,indices,line,column));
-    else if(gradient->dtype==9)
+    else if(gradient->dtype==QCORE_DTYPE_FLOAT64)
         node->data=AutogradBuffer(autograd_gather_backward_values<double>(
             gradient->data.typed<double>(),source_count,indices,line,column));
     else
@@ -3659,9 +4745,65 @@ std::shared_ptr<AutogradNode> autograd_symbolic_gather_backward(
     return node;
 }
 
+// Logical source index of every output element of a broadcast from
+// `source_shape` to `output_shape` (identical ranks), the gather indices a
+// Broadcast node stands for.
+std::vector<std::size_t> autograd_broadcast_indices(
+    const std::vector<long long>& source_shape,
+    const std::vector<long long>& output_shape,
+    unsigned long long line,unsigned long long column) {
+    if(source_shape.size()!=output_shape.size())
+        autograd_fail("invalid tensor broadcast graph",line,column);
+    const auto count=tensor_element_count(output_shape,line,column);
+    const auto source_strides=tensor_contiguous_strides(source_shape);
+    std::vector<std::size_t> indices(count);
+    for(std::size_t logical=0;logical<count;++logical){
+        auto remaining=logical;
+        std::size_t source=0;
+        for(std::size_t axis=output_shape.size();axis-->0;){
+            const auto extent=static_cast<std::size_t>(output_shape[axis]);
+            const auto coordinate=extent==0?std::size_t{0}:remaining%extent;
+            if(extent!=0) remaining/=extent;
+            if(source_shape[axis]!=1)
+                source+=coordinate*static_cast<std::size_t>(source_strides[axis]);
+        }
+        indices[logical]=source;
+    }
+    return indices;
+}
+
 void autograd_topological(const std::shared_ptr<AutogradNode>& node,
                         std::unordered_set<const AutogradNode*>& seen,
                         std::vector<std::shared_ptr<AutogradNode>>& order);
+
+// A tracked tensor for a symbolic node, as handed to a package's tracked
+// backward callback. The native ABI carries no strides or offsets, so a GPU
+// value is dense at offset 0, like the host-backed CPU values; the tensor's
+// graph is the node itself, so the package can attach its second-order node
+// to it on the node's own device.
+TensorValue* autograd_tracked_callback_tensor(
+    const std::shared_ptr<AutogradNode>& node,
+    unsigned long long line,unsigned long long column) {
+    TensorValue* value=node->device_tensor
+        ? autograd_device_dense_value(*node->device_tensor,line,column)
+        : autograd_tensor_from_node(*node);
+    value->graph=node;
+    return value;
+}
+
+// The tracked gradient a target receives from its symbolic node. CPU nodes
+// hold dense host values, so a CPU x.grad is always contiguous. A GPU node can
+// hold a strided view (a Transpose node), and storing that view would make
+// x.grad non-contiguous on gpu(n) only: reshape() of it would fail where the
+// CPU succeeds, and contiguous() is rejected for tracked tensors. A strided
+// GPU value is therefore stored as a dense copy of its logical elements (one
+// device copy, no arithmetic); its graph is still the symbolic node.
+TensorValue* autograd_tracked_target_tensor(
+    const AutogradNode& node,unsigned long long line,unsigned long long column) {
+    if(node.device_tensor&&!tensor_is_contiguous_value(*node.device_tensor))
+        return autograd_device_dense_value(*node.device_tensor,line,column);
+    return autograd_tensor_from_node(node);
+}
 
 std::vector<TensorValue*> autograd_custom_backward_tracked_tensors(
     const AutogradNode& node,
@@ -3673,8 +4815,7 @@ std::vector<TensorValue*> autograd_custom_backward_tracked_tensors(
     if(!gradient || gradient->dtype!=node.dtype || gradient->shape!=node.shape)
         autograd_fail("tracked custom native gradient output does not match forward output",line,column);
 
-    auto* gradient_tensor=autograd_tensor_from_node(*gradient);
-    gradient_tensor->graph=gradient;
+    auto* gradient_tensor=autograd_tracked_callback_tensor(gradient,line,column);
     std::vector<TensorValue*> inputs;
     std::vector<TensorValue*> outputs;
     inputs.reserve(node.parents.size());
@@ -3683,15 +4824,13 @@ std::vector<TensorValue*> autograd_custom_backward_tracked_tensors(
         for(const auto& parent:node.parents){
             if(!parent || parent->dtype!=node.dtype)
                 autograd_fail("invalid tracked custom native autograd parent",line,column);
-            auto* input=autograd_tensor_from_node(*parent);
-            input->graph=parent;
-            inputs.push_back(input);
+            inputs.push_back(autograd_tracked_callback_tensor(parent,line,column));
 
             const auto count=autograd_node_count(*parent);
             const int device=parent->device_tensor
                 ? parent->device_tensor->storage->device : -1;
             auto* storage=tensor_storage_create(
-                node.dtype,count,1,device,line,column);
+                node.dtype,count,abi::tensor_fill_mode::zeros,device,line,column);
             outputs.push_back(tensor_descriptor(
                 storage,parent->shape,tensor_contiguous_strides(parent->shape),0));
         }
@@ -3711,17 +4850,21 @@ std::vector<TensorValue*> autograd_custom_backward_tracked_tensors(
         for(auto* value:outputs) writable.push_back(value);
 
         int status=-1;
-        try {
-            status=node.custom_backward_tracked(
-                input_borrows.data(),static_cast<std::uint64_t>(input_borrows.size()),
-                saved.empty()?nullptr:saved.data(),
-                static_cast<std::uint64_t>(saved.size()),
-                gradient_tensor,writable.data(),
-                static_cast<std::uint64_t>(writable.size()),
-                node.custom_metadata.empty()?nullptr:node.custom_metadata.data(),
-                static_cast<std::uint64_t>(node.custom_metadata.size()));
-        } catch (...) {
-            status=-1;
+        {
+            const PackageBackwardScope package_call(line,column);
+            try {
+                status=node.custom_backward_tracked(
+                    input_borrows.data(),static_cast<std::uint64_t>(input_borrows.size()),
+                    saved.empty()?nullptr:saved.data(),
+                    static_cast<std::uint64_t>(saved.size()),
+                    gradient_tensor,writable.data(),
+                    static_cast<std::uint64_t>(writable.size()),
+                    node.custom_metadata.empty()?nullptr:node.custom_metadata.data(),
+                    static_cast<std::uint64_t>(node.custom_metadata.size()));
+            } catch (...) {
+                status=-1;
+            }
+            package_call.returned();
         }
         if(status!=0){
             const auto message=
@@ -3755,7 +4898,44 @@ void autograd_add_symbolic_gradient(
     unsigned long long line,unsigned long long column) {
     auto& current=gradients[target.get()];
     if(!current) current=std::move(value);
-    else current=autograd_symbolic_binary(current,value,1,line,column);
+    else current=autograd_symbolic_binary(current,value,abi::tensor_binary_opcode::add,line,column);
+}
+
+// The higher-order seed d loss / d loss = 1. It keeps the graph shape the
+// seed has always had, loss * 0 + 1, so every leaf the loss reaches still
+// receives its (zero) higher-order contribution through the seed, but the
+// two nodes hold exactly 0 and 1 instead of values computed from the loss.
+// Computing them made the seed inf * 0 = NaN for a non-finite loss and
+// poisoned every gradient. For a finite loss the seed is 1 as
+// before; the 0 node's value (formerly loss * 0, possibly -0) is never read
+// by any backward formula, so every finite result keeps its bits.
+std::shared_ptr<AutogradNode> autograd_symbolic_seed(
+    const std::shared_ptr<AutogradNode>& loss,
+    unsigned long long line,unsigned long long column) {
+    if(!loss) autograd_fail("null loss tensor",line,column);
+    if(loss->dtype!=QCORE_DTYPE_FLOAT64&&loss->dtype!=QCORE_DTYPE_FLOAT32)
+        autograd_fail("invalid higher-order gradient dtype",line,column);
+    const auto count=autograd_node_count(*loss);
+    const auto exact=[&](const std::shared_ptr<AutogradNode>& input,
+                         int operation,double scalar,bool ones){
+        auto node=std::make_shared<AutogradNode>(loss->dtype);
+        node->shape=loss->shape;
+        node->parents={input};
+        node->op=AutogradOp::ScalarBinary;
+        node->aux.assign(1,scalar);
+        node->aux_index={static_cast<std::size_t>(operation),std::size_t{0}};
+        if(loss->device_tensor){
+            auto* storage=tensor_storage_create(
+                loss->dtype,count,ones?abi::tensor_fill_mode::ones:abi::tensor_fill_mode::zeros,
+                loss->device_tensor->storage->device,line,column);
+            node->device_tensor=tensor_descriptor(
+                storage,loss->shape,tensor_contiguous_strides(loss->shape),0);
+        }else{
+            node->data.assign(count,ones?1.0:0.0);
+        }
+        return node;
+    };
+    return exact(exact(loss,3,0.0,false),1,1.0,true);
 }
 
 void autograd_backward_tracked(
@@ -3766,16 +4946,13 @@ void autograd_backward_tracked(
     std::vector<std::shared_ptr<AutogradNode>> order;
     autograd_topological(loss,seen,order);
 
-    for(const auto& node:order){
-        if(node->device_tensor)
-            autograd_fail("backward(track = true) currently requires CPU tensors",line,column);
-    }
-
+    // Graphs never mix devices (tracked transfers are rejected and every
+    // tracked operation requires same-device operands), so every symbolic
+    // gradient node below lives on the loss's device: host-backed on the CPU,
+    // a device TensorValue on gpu(n).
     std::unordered_map<const AutogradNode*,std::shared_ptr<AutogradNode>> gradients;
     gradients.reserve(order.size());
-    auto seed=autograd_symbolic_scalar(loss,0.0,3,false,line,column);
-    seed=autograd_symbolic_scalar(seed,1.0,1,false,line,column);
-    gradients.emplace(loss.get(),seed);
+    gradients.emplace(loss.get(),autograd_symbolic_seed(loss,line,column));
 
     for(auto it=order.rbegin();it!=order.rend();++it){
         const auto& node=*it;
@@ -3786,7 +4963,7 @@ void autograd_backward_tracked(
         if(node->target_identity){
             for(const auto& slot:selected){
                 if(!slot || slot->identity!=node->target_identity) continue;
-                auto* value=autograd_tensor_from_node(*g);
+                auto* value=autograd_tracked_target_tensor(*g,line,column);
                 value->graph=g;
                 autograd_accumulate_slot(slot,value,line,column,true);
             }
@@ -3800,27 +4977,27 @@ void autograd_backward_tracked(
             autograd_add_symbolic_gradient(gradients,node->parents[0],g,line,column);
             autograd_add_symbolic_gradient(
                 gradients,node->parents[1],
-                autograd_symbolic_scalar(g,-1.0,3,false,line,column),
+                autograd_symbolic_scalar(g,-1.0,abi::tensor_binary_opcode::multiply,false,line,column),
                 line,column);
         }else if(node->op==AutogradOp::Mul){
             autograd_add_symbolic_gradient(
                 gradients,node->parents[0],
-                autograd_symbolic_binary(g,node->parents[1],3,line,column),
+                autograd_symbolic_binary(g,node->parents[1],abi::tensor_binary_opcode::multiply,line,column),
                 line,column);
             autograd_add_symbolic_gradient(
                 gradients,node->parents[1],
-                autograd_symbolic_binary(g,node->parents[0],3,line,column),
+                autograd_symbolic_binary(g,node->parents[0],abi::tensor_binary_opcode::multiply,line,column),
                 line,column);
         }else if(node->op==AutogradOp::Div){
             autograd_add_symbolic_gradient(
                 gradients,node->parents[0],
-                autograd_symbolic_binary(g,node->parents[1],4,line,column),
+                autograd_symbolic_binary(g,node->parents[1],abi::tensor_binary_opcode::divide,line,column),
                 line,column);
-            auto numerator=autograd_symbolic_binary(g,node->parents[0],3,line,column);
+            auto numerator=autograd_symbolic_binary(g,node->parents[0],abi::tensor_binary_opcode::multiply,line,column);
             auto denominator=autograd_symbolic_binary(
-                node->parents[1],node->parents[1],3,line,column);
-            auto right=autograd_symbolic_binary(numerator,denominator,4,line,column);
-            right=autograd_symbolic_scalar(right,-1.0,3,false,line,column);
+                node->parents[1],node->parents[1],abi::tensor_binary_opcode::multiply,line,column);
+            auto right=autograd_symbolic_binary(numerator,denominator,abi::tensor_binary_opcode::divide,line,column);
+            right=autograd_symbolic_scalar(right,-1.0,abi::tensor_binary_opcode::multiply,false,line,column);
             autograd_add_symbolic_gradient(
                 gradients,node->parents[1],std::move(right),line,column);
         }else if(node->op==AutogradOp::ScalarBinary){
@@ -3828,27 +5005,27 @@ void autograd_backward_tracked(
             const bool scalar_left=node->aux_index[1]!=0;
             const double scalar=node->aux.scalar_as_double(0);
             std::shared_ptr<AutogradNode> result;
-            if(operation==1 || (operation==2&&!scalar_left)) result=g;
-            else if(operation==2) result=autograd_symbolic_scalar(
-                g,-1.0,3,false,line,column);
-            else if(operation==3) result=autograd_symbolic_scalar(
-                g,scalar,3,false,line,column);
-            else if(operation==6){
+            if(operation==abi::tensor_binary_opcode::add || (operation==abi::tensor_binary_opcode::subtract&&!scalar_left)) result=g;
+            else if(operation==abi::tensor_binary_opcode::subtract) result=autograd_symbolic_scalar(
+                g,-1.0,abi::tensor_binary_opcode::multiply,false,line,column);
+            else if(operation==abi::tensor_binary_opcode::multiply) result=autograd_symbolic_scalar(
+                g,scalar,abi::tensor_binary_opcode::multiply,false,line,column);
+            else if(operation==abi::tensor_binary_opcode::power){
                 if(scalar_left)
                     autograd_fail("tensor power requires tensor ^ scalar",line,column);
                 auto coefficient=autograd_symbolic_scalar(
-                    g,scalar,3,false,line,column);
+                    g,scalar,abi::tensor_binary_opcode::multiply,false,line,column);
                 auto power=autograd_symbolic_scalar(
-                    node->parents[0],scalar-1.0,6,false,line,column);
+                    node->parents[0],scalar-1.0,abi::tensor_binary_opcode::power,false,line,column);
                 result=autograd_symbolic_binary(
-                    coefficient,power,3,line,column);
+                    coefficient,power,abi::tensor_binary_opcode::multiply,line,column);
             }else if(!scalar_left) result=autograd_symbolic_scalar(
-                g,scalar,4,false,line,column);
+                g,scalar,abi::tensor_binary_opcode::divide,false,line,column);
             else{
-                auto numerator=autograd_symbolic_scalar(g,-scalar,3,false,line,column);
+                auto numerator=autograd_symbolic_scalar(g,-scalar,abi::tensor_binary_opcode::multiply,false,line,column);
                 auto square=autograd_symbolic_binary(
-                    node->parents[0],node->parents[0],3,line,column);
-                result=autograd_symbolic_binary(numerator,square,4,line,column);
+                    node->parents[0],node->parents[0],abi::tensor_binary_opcode::multiply,line,column);
+                result=autograd_symbolic_binary(numerator,square,abi::tensor_binary_opcode::divide,line,column);
             }
             autograd_add_symbolic_gradient(
                 gradients,node->parents[0],std::move(result),line,column);
@@ -3875,6 +5052,18 @@ void autograd_backward_tracked(
                 autograd_symbolic_gather_backward(
                     g,node->parents[0]->shape,node->aux_index,line,column),
                 line,column);
+        }else if(node->op==AutogradOp::Broadcast){
+            // Same derivative as the Gather of broadcast indices it replaces.
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor broadcast graph",line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_gather_backward(
+                    g,node->parents[0]->shape,
+                    autograd_broadcast_indices(
+                        node->parents[0]->shape,node->shape,line,column),
+                    line,column),
+                line,column);
         }else if(node->op==AutogradOp::GatherBackward){
             if(node->parents.size()!=1)
                 autograd_fail("invalid tensor gather backward graph",line,column);
@@ -3883,6 +5072,12 @@ void autograd_backward_tracked(
                 autograd_symbolic_gather(
                     g,node->parents[0]->shape,node->aux_index,line,column),
                 line,column);
+        }else if(node->op==AutogradOp::Neg){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor negation graph",line,column);
+            autograd_add_symbolic_gradient(
+                gradients,node->parents[0],
+                autograd_symbolic_neg(g,line,column),line,column);
         }else if(node->op==AutogradOp::CustomNative){
             if(!node->custom_backward_tracked)
                 autograd_fail(
@@ -3904,14 +5099,17 @@ void autograd_backward_tracked(
 }
 
 template <typename T>
-void autograd_add_gradient(std::unordered_map<const AutogradNode*,std::vector<T>>& gradients,
-                         const std::shared_ptr<AutogradNode>& node,std::vector<T> value) {
+void autograd_add_gradient(std::unordered_map<const AutogradNode*,HostValues<T>>& gradients,
+                         const std::shared_ptr<AutogradNode>& node,HostValues<T> value) {
     auto& current=gradients[node.get()];
     if(current.empty()) current=std::move(value);
     else{
         if(current.size()!=value.size()) runtime_text_failure("autograd gradient size mismatch");
-        for(std::size_t i=0;i<current.size();++i)
-            current[i]=static_cast<T>(current[i]+value[i]);
+        const auto count=current.size();
+        auto* out=current.mutable_data();
+        const auto* in=value.data();
+        for(std::size_t i=0;i<count;++i)
+            out[i]=static_cast<T>(out[i]+in[i]);
     }
 }
 
@@ -3939,20 +5137,55 @@ void autograd_topological(const std::shared_ptr<AutogradNode>& node,
 }
 
 
+// Saved state is a forward-time value snapshot, not an additional graph edge.
+// A saved tensor that densely covers its whole storage (contiguous, offset
+// 0, every storage element) is retained by reference count: every writer of
+// a shared storage detaches first (tensor_detach_for_write behind eager
+// writes and the mutable native accessors), so the snapshot keeps its
+// forward-time values without a copy. Other views are materialized into
+// independent contiguous storage on the same device, because the native ABI
+// carries no strides. The retention follows autograd_storage_sharing_enabled()
+// (the default; QUIDRA_SAVED_TENSORS=copy materializes every save). A
+// mutable pointer a package obtained before saving is not detached, so the
+// native ABI forbids writing a saved tensor through one after the save.
+TensorValue* autograd_saved_snapshot(const TensorValue& source) {
+    if(autograd_storage_sharing_enabled() && source.offset==0 &&
+       tensor_is_contiguous_value(source) &&
+       tensor_logical_count(source)==source.storage->count){
+        if(source.storage->owners==std::numeric_limits<std::size_t>::max())
+            runtime_text_failure("tensor storage owner overflow");
+        ++source.storage->owners;
+        return tensor_descriptor(
+            source.storage,source.shape,source.strides,0);
+    }
+    auto* storage=tensor_transfer_storage(
+        source,source.storage->device,0,0);
+    return tensor_descriptor(
+        storage,source.shape,tensor_contiguous_strides(source.shape),0);
+}
+
 } // namespace
 
-extern "C" int qcore_tensor_attach_custom_autograd_with_saved_ex(
+namespace {
+
+// Shared by the full-request and the masked attachment: exactly one of
+// `backward` and `backward_masked` is set, and `full_writes` (input_count
+// bytes, optional) only with `backward_masked`.
+int attach_custom_autograd(
     void* output_raw,
     const void* const* input_raws,
     std::uint64_t input_count,
     const void* const* saved_raws,
     std::uint64_t saved_count,
     qcore_autograd_backward_fn backward,
+    qcore_autograd_backward_masked_fn backward_masked,
     qcore_autograd_backward_tracked_fn backward_tracked,
+    const std::uint8_t* full_writes,
     const void* metadata,
     std::uint64_t metadata_size) {
     try {
-        if(!output_raw || !input_raws || input_count==0 || !backward)
+        if(!output_raw || !input_raws || input_count==0 ||
+           (!backward && !backward_masked))
             return -1;
         if(saved_count!=0 && !saved_raws) return -1;
         if(metadata_size!=0 && !metadata) return -1;
@@ -3962,6 +5195,31 @@ extern "C" int qcore_tensor_attach_custom_autograd_with_saved_ex(
         if(output->storage->dtype!=QCORE_DTYPE_FLOAT32 &&
            output->storage->dtype!=QCORE_DTYPE_FLOAT64)
             return -3;
+        // Saving tensors may copy them on their devices, which Core does
+        // not do inside the calling thread's package encoder scope on that
+        // device, nor on another device while the thread holds a stream
+        // (native_extension.h): attach after qcore_metal_note_work.
+        if(quidra::device::package_hold_active()){
+            std::vector<const TensorValue*> involved{output};
+            for(std::uint64_t index=0;index<input_count;++index)
+                involved.push_back(static_cast<const TensorValue*>(input_raws[index]));
+            for(std::uint64_t index=0;index<saved_count;++index)
+                involved.push_back(static_cast<const TensorValue*>(saved_raws[index]));
+            for(const auto* tensor:involved){
+                if(!tensor || !tensor->storage || tensor_on_cpu(*tensor->storage))
+                    continue;
+                const int device=tensor->storage->device;
+                if(quidra::device::package_hold_refuses_device(
+                       device,"a custom autograd attach"))
+                    return -6;
+                if(quidra::device::package_scope_open(device)){
+                    quidra::device::note_package_scope_violation(
+                        device,
+                        "a custom autograd attach (saving tensors may copy them)");
+                    return -6;
+                }
+            }
+        }
 
         bool tracked=false;
         for(std::uint64_t index=0;index<input_count;++index){
@@ -3979,6 +5237,7 @@ extern "C" int qcore_tensor_attach_custom_autograd_with_saved_ex(
         node->shape=output->shape;
         node->op=AutogradOp::CustomNative;
         node->custom_backward=backward;
+        node->custom_backward_masked=backward_masked;
         node->custom_backward_tracked=backward_tracked;
         node->parents.reserve(static_cast<std::size_t>(input_count));
         node->custom_saved.reserve(static_cast<std::size_t>(saved_count));
@@ -3994,19 +5253,22 @@ extern "C" int qcore_tensor_attach_custom_autograd_with_saved_ex(
             const auto* saved_source=
                 static_cast<const TensorValue*>(saved_raws[index]);
             if(!saved_source->storage) return -5;
-            // Saved state is a true forward-time value snapshot, not a storage
-            // alias or an additional graph edge. Materialize the logical view
-            // into independent contiguous storage on the same device.
-            auto* saved_storage=tensor_transfer_storage(
-                *saved_source,saved_source->storage->device,0,0);
-            auto* saved=tensor_descriptor(
-                saved_storage,saved_source->shape,
-                tensor_contiguous_strides(saved_source->shape),0);
-            node->custom_saved.push_back(saved);
+            node->custom_saved.push_back(autograd_saved_snapshot(*saved_source));
         }
         if(metadata_size!=0){
             const auto* bytes=static_cast<const unsigned char*>(metadata);
             node->custom_metadata.assign(bytes,bytes+metadata_size);
+        }
+        if(full_writes){
+            bool any=false;
+            for(std::uint64_t index=0;index<input_count;++index)
+                any=any || full_writes[index]!=0;
+            if(any){
+                node->custom_full_writes.resize(static_cast<std::size_t>(input_count));
+                for(std::uint64_t index=0;index<input_count;++index)
+                    node->custom_full_writes[static_cast<std::size_t>(index)]=
+                        full_writes[index]!=0 ? 1 : 0;
+            }
         }
 
         if(tensor_on_cpu(*output->storage))
@@ -4021,6 +5283,43 @@ extern "C" int qcore_tensor_attach_custom_autograd_with_saved_ex(
     }
 }
 
+} // namespace
+
+extern "C" int qcore_tensor_attach_custom_autograd_with_saved_ex(
+    void* output_raw,
+    const void* const* input_raws,
+    std::uint64_t input_count,
+    const void* const* saved_raws,
+    std::uint64_t saved_count,
+    qcore_autograd_backward_fn backward,
+    qcore_autograd_backward_tracked_fn backward_tracked,
+    const void* metadata,
+    std::uint64_t metadata_size) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    if(!backward) return -1;
+    return attach_custom_autograd(
+        output_raw,input_raws,input_count,saved_raws,saved_count,
+        backward,nullptr,backward_tracked,nullptr,metadata,metadata_size);
+}
+
+extern "C" int qcore_tensor_attach_custom_autograd_masked(
+    void* output_raw,
+    const void* const* input_raws,
+    std::uint64_t input_count,
+    const void* const* saved_raws,
+    std::uint64_t saved_count,
+    qcore_autograd_backward_masked_fn backward,
+    qcore_autograd_backward_tracked_fn backward_tracked,
+    const std::uint8_t* full_writes,
+    const void* metadata,
+    std::uint64_t metadata_size) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    if(!backward) return -1;
+    return attach_custom_autograd(
+        output_raw,input_raws,input_count,saved_raws,saved_count,
+        nullptr,backward,backward_tracked,full_writes,metadata,metadata_size);
+}
+
 extern "C" int qcore_tensor_attach_custom_autograd_with_saved(
     void* output_raw,
     const void* const* input_raws,
@@ -4030,6 +5329,7 @@ extern "C" int qcore_tensor_attach_custom_autograd_with_saved(
     qcore_autograd_backward_fn backward,
     const void* metadata,
     std::uint64_t metadata_size) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     return qcore_tensor_attach_custom_autograd_with_saved_ex(
         output_raw,input_raws,input_count,saved_raws,saved_count,
         backward,nullptr,metadata,metadata_size);
@@ -4043,6 +5343,7 @@ extern "C" int qcore_tensor_attach_custom_autograd_ex(
     qcore_autograd_backward_tracked_fn backward_tracked,
     const void* metadata,
     std::uint64_t metadata_size) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     return qcore_tensor_attach_custom_autograd_with_saved_ex(
         output_raw,input_raws,input_count,input_raws,input_count,
         backward,backward_tracked,metadata,metadata_size);
@@ -4055,6 +5356,7 @@ extern "C" int qcore_tensor_attach_custom_autograd(
     qcore_autograd_backward_fn backward,
     const void* metadata,
     std::uint64_t metadata_size) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     return qcore_tensor_attach_custom_autograd_ex(
         output_raw,input_raws,input_count,backward,nullptr,metadata,metadata_size);
 }
@@ -4063,8 +5365,8 @@ extern "C" void* quidra_tensor_track(
     void* raw,unsigned long long line,unsigned long long column) {
     if(!raw) autograd_fail("null tensor",line,column);
     auto* source=static_cast<TensorValue*>(raw);
-    if(source->storage->dtype!=9&&source->storage->dtype!=10)
-        autograd_fail("track() requires tensor<float32> or tensor<float>",line,column);
+    if(source->storage->dtype!=QCORE_DTYPE_FLOAT64&&source->storage->dtype!=QCORE_DTYPE_FLOAT32)
+        autograd_fail("track() requires tensor<real32> or tensor<real64>",line,column);
     auto* result=static_cast<TensorValue*>(quidra_tensor_clone(raw));
     if(result->graph) return result;
     if(!source->grad_slot){
@@ -4083,8 +5385,8 @@ extern "C" void* quidra_tensor_track_target(
     void* raw,void* target_raw,unsigned long long line,unsigned long long column) {
     if(!raw) autograd_fail("null tensor",line,column);
     auto* source=static_cast<TensorValue*>(raw);
-    if(source->storage->dtype!=9&&source->storage->dtype!=10)
-        autograd_fail("track() requires tensor<float32> or tensor<float>",line,column);
+    if(source->storage->dtype!=QCORE_DTYPE_FLOAT64&&source->storage->dtype!=QCORE_DTYPE_FLOAT32)
+        autograd_fail("track() requires tensor<real32> or tensor<real64>",line,column);
     auto* handle=autograd_target_from_value(target_raw);
     if(!handle||!handle->slot) autograd_fail("invalid autograd target",line,column);
     if(handle->slot->dtype!=0&&handle->slot->dtype!=source->storage->dtype)
@@ -4112,8 +5414,8 @@ extern "C" void* quidra_tensor_retrack(
     void* raw,unsigned long long line,unsigned long long column) {
     if(!raw) autograd_fail("null tensor",line,column);
     auto* source=static_cast<TensorValue*>(raw);
-    if(source->storage->dtype!=9&&source->storage->dtype!=10)
-        autograd_fail("retrack() requires tensor<float32> or tensor<float>",line,column);
+    if(source->storage->dtype!=QCORE_DTYPE_FLOAT64&&source->storage->dtype!=QCORE_DTYPE_FLOAT32)
+        autograd_fail("retrack() requires tensor<real32> or tensor<real64>",line,column);
     auto* result=static_cast<TensorValue*>(quidra_tensor_clone(raw));
     result->graph.reset();
     result->grad_slot=new_autograd_slot(source->storage->dtype);
@@ -4167,28 +5469,56 @@ TensorValue* tensor_gather_logical_indices(
     }catch(...){
         runtime_allocation_failure();
     }
+    // A dense source holds logical element i at storage index offset + i, so
+    // the storage index needs no per-axis division.
+    const bool dense_source=tensor_view_dense_in_storage(source,source_count);
     for(std::size_t i=0;i<output_count;++i){
         const auto index=logical_indices[i];
         if(index>=source_count)
-            tensor_fail("tensor.gather index is outside the source tensor",line,column);
-        const auto physical=tensor_storage_index(source,index);
+            tensor_fail("tensor.gather index is out of bounds for the source tensor",line,column);
+        const auto physical=dense_source
+            ? source.offset+index : tensor_storage_index(source,index);
         if(physical>=source.storage->count)
             tensor_fail("tensor.gather source view exceeds storage",line,column);
         physical_indices[i]=static_cast<std::uint64_t>(physical);
     }
 
     auto* storage=tensor_storage_create(
-        source.storage->dtype,output_count,0,source.storage->device,line,column);
+        source.storage->dtype,output_count,abi::tensor_fill_mode::uninitialized,source.storage->device,line,column);
     const auto width=tensor_dtype_bytes(source.storage->dtype);
-    if(tensor_on_cpu(*source.storage)){
-        for(std::size_t i=0;i<output_count;++i){
-            const auto physical=static_cast<std::size_t>(physical_indices[i]);
-            std::memcpy(
-                storage->data.data()+i*width,
-                source.storage->data.data()+physical*width,width);
-            if(tracker_bit(source.storage->initialization,physical))
-                tracker_set(storage->initialization,i);
+    // Every gathered element comes from the source storage, so a fully
+    // initialized source makes the whole output initialized once the copy
+    // succeeds. Partially initialized sources propagate per element.
+    const bool source_complete=source.storage->initialization.fully_initialized;
+    const auto propagate_initialization=[&]{
+        if(source_complete){
+            tracker_mark_complete(storage->initialization);
+            return;
         }
+        for(std::size_t i=0;i<output_count;++i)
+            if(tracker_bit(
+                    source.storage->initialization,
+                    static_cast<std::size_t>(physical_indices[i])))
+                tracker_set(storage->initialization,i);
+    };
+    if(tensor_on_cpu(*source.storage)){
+        const auto copy_elements=[&](auto tag){
+            using Element=decltype(tag);
+            auto* output=storage->data.data();
+            const auto* input=source.storage->data.data();
+            for(std::size_t i=0;i<output_count;++i){
+                const auto physical=static_cast<std::size_t>(physical_indices[i]);
+                std::memcpy(output+i*sizeof(Element),
+                            input+physical*sizeof(Element),sizeof(Element));
+            }
+        };
+        switch(width){
+            case 1: copy_elements(std::uint8_t{}); break;
+            case 2: copy_elements(std::uint16_t{}); break;
+            case 4: copy_elements(std::uint32_t{}); break;
+            default: copy_elements(std::uint64_t{}); break;
+        }
+        propagate_initialization();
     }else{
         std::string backend_error;
         if(!quidra::device::compute_gather(
@@ -4198,17 +5528,13 @@ TensorValue* tensor_gather_logical_indices(
             tensor_storage_release(storage);
             tensor_fail(backend_error.c_str(),line,column);
         }
-        for(std::size_t i=0;i<output_count;++i)
-            if(tracker_bit(
-                    source.storage->initialization,
-                    static_cast<std::size_t>(physical_indices[i])))
-                tracker_set(storage->initialization,i);
+        propagate_initialization();
     }
 
     auto* result=tensor_descriptor(
         storage,output_shape,tensor_contiguous_strides(output_shape),0);
     if(source.graph){
-        if(source.storage->dtype!=9&&source.storage->dtype!=10){
+        if(source.storage->dtype!=QCORE_DTYPE_FLOAT64&&source.storage->dtype!=QCORE_DTYPE_FLOAT32){
             release_managed_tensor(result);
             autograd_fail("tracked tensor gather requires a floating dtype",line,column);
         }
@@ -4242,7 +5568,7 @@ extern "C" void* quidra_tensor_gather(
     }
     for(const auto index:raw_indices){
         if(index<0)
-            tensor_fail("tensor.gather index is outside the source tensor",line,column);
+            tensor_fail("tensor.gather index is out of bounds for the source tensor",line,column);
         logical_indices.push_back(static_cast<std::size_t>(index));
     }
     return tensor_gather_logical_indices(
@@ -4254,7 +5580,7 @@ extern "C" void* quidra_tensor_scatter(
     unsigned long long line,unsigned long long column) {
     if(!raw) tensor_fail("tensor.scatter received a null tensor",line,column);
     auto& source=*static_cast<TensorValue*>(raw);
-    if(source.storage->dtype<1||source.storage->dtype>10)
+    if(source.storage->dtype<QCORE_DTYPE_INT64||source.storage->dtype>QCORE_DTYPE_FLOAT32)
         tensor_fail(
             "tensor.scatter requires a numeric tensor element type",
             line,column);
@@ -4276,15 +5602,15 @@ extern "C" void* quidra_tensor_scatter(
     }
     for(std::size_t i=0;i<source_count;++i){
         if(raw_indices[i]<0)
-            tensor_fail("tensor.scatter index is outside the output tensor",line,column);
+            tensor_fail("tensor.scatter index is out of bounds for the output tensor",line,column);
         const auto index=static_cast<std::size_t>(raw_indices[i]);
         if(index>=output_count)
-            tensor_fail("tensor.scatter index is outside the output tensor",line,column);
+            tensor_fail("tensor.scatter index is out of bounds for the output tensor",line,column);
         logical_indices[i]=index;
     }
 
     auto* storage=tensor_storage_create(
-        source.storage->dtype,output_count,1,source.storage->device,line,column);
+        source.storage->dtype,output_count,abi::tensor_fill_mode::zeros,source.storage->device,line,column);
     if(tensor_on_cpu(*source.storage)){
         std::fill(storage->data.begin(), storage->data.end(), static_cast<unsigned char>(0));
         const auto scatter_typed=[&](auto tag){
@@ -4323,16 +5649,16 @@ extern "C" void* quidra_tensor_scatter(
             }
         };
         switch(source.storage->dtype){
-            case 1: scatter_typed(std::int64_t{}); break;
-            case 2: scatter_typed(std::int8_t{}); break;
-            case 3: scatter_typed(std::int16_t{}); break;
-            case 4: scatter_typed(std::int32_t{}); break;
-            case 5: scatter_typed(std::uint8_t{}); break;
-            case 6: scatter_typed(std::uint16_t{}); break;
-            case 7: scatter_typed(std::uint32_t{}); break;
-            case 8: scatter_typed(std::uint64_t{}); break;
-            case 9: scatter_typed(double{}); break;
-            case 10:scatter_typed(float{}); break;
+            case QCORE_DTYPE_INT64: scatter_typed(std::int64_t{}); break;
+            case QCORE_DTYPE_INT8: scatter_typed(std::int8_t{}); break;
+            case QCORE_DTYPE_INT16: scatter_typed(std::int16_t{}); break;
+            case QCORE_DTYPE_INT32: scatter_typed(std::int32_t{}); break;
+            case QCORE_DTYPE_UINT8: scatter_typed(std::uint8_t{}); break;
+            case QCORE_DTYPE_UINT16: scatter_typed(std::uint16_t{}); break;
+            case QCORE_DTYPE_UINT32: scatter_typed(std::uint32_t{}); break;
+            case QCORE_DTYPE_UINT64: scatter_typed(std::uint64_t{}); break;
+            case QCORE_DTYPE_FLOAT64: scatter_typed(double{}); break;
+            case QCORE_DTYPE_FLOAT32: scatter_typed(float{}); break;
             default:
                 tensor_storage_release(storage);
                 tensor_fail("tensor.scatter requires a numeric tensor element type",line,column);
@@ -4417,7 +5743,7 @@ TensorValue* autograd_device_binary_tensor(
     TensorValue* left,TensorValue* right,int operation,
     unsigned long long line,unsigned long long column) {
     return static_cast<TensorValue*>(
-        quidra_tensor_binary(left,right,nullptr,0,operation,line,column));
+        quidra_tensor_binary(left,right,nullptr,abi::scalar_side::none,operation,line,column));
 }
 
 TensorValue* autograd_device_scalar_tensor(
@@ -4426,12 +5752,12 @@ TensorValue* autograd_device_scalar_tensor(
     if(!input||!input->storage)
         autograd_fail("null GPU autograd scalar operand",line,column);
     const int side=scalar_left?1:2;
-    if(input->storage->dtype==10){
+    if(input->storage->dtype==QCORE_DTYPE_FLOAT32){
         float value=static_cast<float>(scalar);
         return static_cast<TensorValue*>(
             quidra_tensor_binary(input,nullptr,&value,side,operation,line,column));
     }
-    if(input->storage->dtype==9){
+    if(input->storage->dtype==QCORE_DTYPE_FLOAT64){
         double value=scalar;
         return static_cast<TensorValue*>(
             quidra_tensor_binary(input,nullptr,&value,side,operation,line,column));
@@ -4439,27 +5765,44 @@ TensorValue* autograd_device_scalar_tensor(
     autograd_fail("invalid GPU autograd scalar dtype",line,column);
 }
 
+// The kernel computes both partial derivatives element by element from
+// (g, a, b): Add and Sub read neither operand, Mul's left partial reads only
+// b and its right partial only a, Div's left partial reads only b and its
+// right partial both. left_needed/right_needed (split outputs only) say which
+// partials the caller keeps. An operand that no kept partial reads is not
+// densified: the kernel reads the dense gradient in its place, which changes
+// only values that are discarded. A discarded partial goes to scratch that
+// is never read, so that scratch is not zero-filled.
 void autograd_device_binary_backward(
     TensorValue* gradient,TensorValue* left,TensorValue* right,int operation,
     bool shared_parent,TensorValue*& left_gradient,TensorValue*& right_gradient,
-    unsigned long long line,unsigned long long column) {
-    AutogradDeviceDenseInput gd(*gradient,line,column);
-    AutogradDeviceDenseInput ad(*left,line,column);
-    AutogradDeviceDenseInput bd(*right,line,column);
-    if(gd->shape!=ad->shape||gd->shape!=bd->shape)
-        autograd_fail("autograd binary backward shape mismatch",line,column);
+    unsigned long long line,unsigned long long column,
+    bool left_needed=true,bool right_needed=true) {
     if(shared_parent&&left!=right)
         autograd_fail("shared autograd binary parent mismatch",line,column);
+    if(shared_parent) left_needed=right_needed=true;
+    const bool reads_left=operation>=abi::tensor_binary_opcode::multiply && right_needed;
+    const bool reads_right=operation==abi::tensor_binary_opcode::divide || (operation==abi::tensor_binary_opcode::multiply && left_needed);
+    AutogradDeviceDenseInput gd(*gradient,line,column);
+    AutogradDeviceDenseInput ad;
+    AutogradDeviceDenseInput bd;
+    if(reads_left) ad.reset(*left,line,column);
+    if(reads_right && !shared_parent) bd.reset(*right,line,column);
+    const TensorValue* a=reads_left ? ad.get() : gd.get();
+    const TensorValue* b=!reads_right ? gd.get() : shared_parent ? a : bd.get();
+    if(gd->shape!=left->shape||gd->shape!=right->shape||
+       gd->shape!=a->shape||gd->shape!=b->shape)
+        autograd_fail("autograd binary backward shape mismatch",line,column);
     const auto count=tensor_logical_count(*gd.get());
     auto* left_storage=tensor_storage_create(
-        gd->storage->dtype,count,1,gd->storage->device,line,column);
+        gd->storage->dtype,count,left_needed?abi::tensor_fill_mode::write_only:abi::tensor_fill_mode::uninitialized,gd->storage->device,line,column);
     TensorStorage* right_storage=left_storage;
     left_gradient=tensor_descriptor(
         left_storage,left->shape,tensor_contiguous_strides(left->shape),0);
     right_gradient=nullptr;
     if(!shared_parent){
         right_storage=tensor_storage_create(
-            gd->storage->dtype,count,1,gd->storage->device,line,column);
+            gd->storage->dtype,count,right_needed?abi::tensor_fill_mode::write_only:abi::tensor_fill_mode::uninitialized,gd->storage->device,line,column);
         right_gradient=tensor_descriptor(
             right_storage,right->shape,tensor_contiguous_strides(right->shape),0);
     }
@@ -4467,7 +5810,7 @@ void autograd_device_binary_backward(
     std::string backend_error;
     const bool ok=quidra::device::compute_binary_backward(
         left_storage->gpu_buffer,right_storage->gpu_buffer,
-        gd->storage->gpu_buffer,ad->storage->gpu_buffer,bd->storage->gpu_buffer,
+        gd->storage->gpu_buffer,a->storage->gpu_buffer,b->storage->gpu_buffer,
         gd->storage->dtype,operation,count,backend_error);
     if(!ok){
         release_managed_tensor(left_gradient);
@@ -4481,7 +5824,7 @@ void autograd_device_binary_backward(
 TensorValue* autograd_device_negate_tensor(
     TensorValue* input,unsigned long long line,unsigned long long column) {
     return static_cast<TensorValue*>(
-        quidra_tensor_unary(input,1,line,column));
+        quidra_tensor_unary(input,abi::tensor_unary_opcode::negate,line,column));
 }
 
 bool autograd_accumulate_device_gradient_in_place(
@@ -4491,7 +5834,7 @@ bool autograd_accumulate_device_gradient_in_place(
        !destination->storage||!source->storage)
         return false;
     if(tensor_on_cpu(*destination->storage)||tensor_on_cpu(*source->storage)||
-       destination->storage->owners!=1||
+       !tensor_storage_writable_in_place(*destination->storage)||
        destination->storage->dtype!=source->storage->dtype||
        destination->storage->device!=source->storage->device||
        destination->shape!=source->shape||
@@ -4508,7 +5851,7 @@ bool autograd_accumulate_device_gradient_in_place(
             destination->storage->gpu_buffer,
             destination->storage->gpu_buffer,0,
             source->storage->gpu_buffer,0,
-            nullptr,0,destination->storage->dtype,1,count,backend_error))
+            nullptr,abi::scalar_side::none,destination->storage->dtype,abi::tensor_binary_opcode::add,count,backend_error))
         autograd_fail(backend_error.c_str(),line,column);
     return true;
 }
@@ -4529,7 +5872,7 @@ void autograd_add_device_gradient(
         return;
     }
     auto* combined=autograd_device_binary_tensor(
-        found->second,value,1,line,column);
+        found->second,value,abi::tensor_binary_opcode::add,line,column);
     release_managed_tensor(found->second);
     release_managed_tensor(value);
     found->second=combined;
@@ -4542,32 +5885,118 @@ TensorValue* autograd_device_filled_like(
         autograd_fail("internal autograd GPU fill requires a device tensor",line,column);
     const auto count=tensor_logical_count(*node.device_tensor);
     auto* storage=tensor_storage_create(
-        node.dtype,count,ones?2:1,node.device_tensor->storage->device,line,column);
+        node.dtype,count,ones?abi::tensor_fill_mode::ones:abi::tensor_fill_mode::zeros,node.device_tensor->storage->device,line,column);
     auto strides=tensor_contiguous_strides(node.shape);
     return tensor_descriptor(storage,node.shape,std::move(strides),0);
 }
 
+// First-order gradient pruning. A node needs a gradient when it is the leaf
+// of a selected target or reaches one through its parents. Gradients flow
+// only into such nodes, so the formulas of values that reach no selected
+// target never run (user decision Q8: a custom callback still runs whenever
+// any of its inputs needs a gradient). Every contribution to a needed node
+// comes from a needed child and is accumulated in the same order as
+// before, so the gradients that reach targets are bitwise unchanged.
+// QUIDRA_AUTOGRAD_PRUNE=off restores the previous walk, in which every node
+// counts as needed. QUIDRA_TEST_AUTOGRAD_STATS=1 reports the counts on
+// stderr.
+class AutogradNeed {
+public:
+    AutogradNeed(const std::vector<std::shared_ptr<AutogradNode>>& order,
+                 const std::vector<std::shared_ptr<AutogradSlot>>& selected) {
+        static const bool pruning=runtime_switch_enabled(
+            "QUIDRA_AUTOGRAD_PRUNE","on","off",true);
+        std::unordered_set<const AutogradIdentity*> identities;
+        identities.reserve(selected.size());
+        for(const auto& slot:selected)
+            if(slot && slot->identity) identities.insert(slot->identity.get());
+        needed_.reserve(order.size());
+        // autograd_topological lists every parent before its children.
+        for(const auto& node:order){
+            bool need=!pruning || (node->target_identity &&
+                identities.count(node->target_identity.get())!=0);
+            for(const auto& parent:node->parents)
+                if(!need && parent && needed_.count(parent.get())!=0) need=true;
+            if(need){
+                needed_.insert(node.get());
+                if(!node->parents.empty()) ++formulas_;
+            }else if(!node->parents.empty()){
+                ++pruned_;
+            }
+        }
+    }
+
+    bool operator()(const std::shared_ptr<AutogradNode>& node) const {
+        return node && needed_.count(node.get())!=0;
+    }
+
+    bool any_parent(const AutogradNode& node) const {
+        for(const auto& parent:node.parents)
+            if((*this)(parent)) return true;
+        return false;
+    }
+
+    void report() const {
+        static const bool enabled=[]{
+            const auto value=quidra::platform::environment_value("QUIDRA_TEST_AUTOGRAD_STATS");
+            return value && *value=="1";
+        }();
+        if(enabled)
+            std::fprintf(stderr,"autograd stats: formulas %zu pruned %zu\n",
+                         formulas_,pruned_);
+    }
+
+private:
+    std::unordered_set<const AutogradNode*> needed_;
+    std::size_t formulas_{};
+    std::size_t pruned_{};
+};
+
+// Runs a custom native backward callback. `needed[i]` says whether parent i
+// needs its gradient. A full-request callback receives a gradient tensor for
+// every input, as before; a masked callback receives one only where needed
+// (NULL elsewhere) and the mask itself. Requested gradients are zero-filled
+// before the call (the callbacks' contract), except those a masked callback
+// declared fully written at attach time (full_writes): they are write-only
+// outputs (fill mode write_only). The returned vector holds nullptr for every
+// gradient that was not requested.
 std::vector<TensorValue*> autograd_custom_backward_tensors(
     const AutogradNode& node,TensorValue* gradient,
+    const std::vector<unsigned char>& needed,
     unsigned long long line,unsigned long long column) {
-    if(node.op!=AutogradOp::CustomNative || !node.custom_backward ||
-       node.parents.empty())
+    if(node.op!=AutogradOp::CustomNative ||
+       (!node.custom_backward && !node.custom_backward_masked) ||
+       node.parents.empty() || needed.size()!=node.parents.size())
         autograd_fail("invalid custom native autograd node",line,column);
     if(!gradient || !gradient->storage || gradient->storage->dtype!=node.dtype ||
        gradient->shape!=node.shape)
         autograd_fail("custom native gradient output does not match forward output",line,column);
 
+    const bool masked=node.custom_backward_masked!=nullptr;
     std::vector<TensorValue*> outputs;
     outputs.reserve(node.parents.size());
     try {
-        for(const auto& parent:node.parents){
+        for(std::size_t index=0;index<node.parents.size();++index){
+            const auto& parent=node.parents[index];
             if(!parent || parent->dtype!=node.dtype)
                 autograd_fail("invalid custom native autograd parent",line,column);
+            if(masked && !needed[index]){
+                outputs.push_back(nullptr);
+                continue;
+            }
             const auto count=autograd_node_count(*parent);
             const int device=parent->device_tensor
                 ? parent->device_tensor->storage->device : -1;
+            // A declared full write is a write-only output, like a Core
+            // kernel output that stores every element (fill mode write_only): Metal
+            // and the fake GPU skip its zero fill, CUDA/HIP keep it and
+            // QUIDRA_GPU_ZERO_FILL=always restores it. The callback writes
+            // every element and must report it, or the backward fails
+            // below, so the unfilled contents are never observed.
+            const bool write_only=masked && !node.custom_full_writes.empty() &&
+                node.custom_full_writes[index]!=0;
             auto* storage=tensor_storage_create(
-                node.dtype,count,1,device,line,column);
+                node.dtype,count,write_only?abi::tensor_fill_mode::write_only:abi::tensor_fill_mode::zeros,device,line,column);
             outputs.push_back(tensor_descriptor(
                 storage,parent->shape,tensor_contiguous_strides(parent->shape),0));
         }
@@ -4583,17 +6012,53 @@ std::vector<TensorValue*> autograd_custom_backward_tensors(
         }
         for(auto* value:outputs) writable.push_back(value);
 
+        // The native callback ABI carries no strides, so a callback can only
+        // read a dense upstream gradient. Device view backward (transpose)
+        // yields strided gradients; hand the callback a dense copy at offset
+        // 0 of the same values, as the host engine does with its dense
+        // gradient buffers. A gradient already dense at offset 0 is borrowed.
+        AutogradDeviceDenseInput dense_gradient;
+        const TensorValue* callback_gradient=gradient;
+        if(!tensor_on_cpu(*gradient->storage)){
+            dense_gradient.reset(*gradient,line,column);
+            callback_gradient=dense_gradient.get();
+        }
+
         int status=-1;
-        try {
-            status=node.custom_backward(
-                saved.empty()?nullptr:saved.data(),
-                static_cast<std::uint64_t>(saved.size()),
-                gradient,writable.data(),
-                static_cast<std::uint64_t>(writable.size()),
-                node.custom_metadata.empty()?nullptr:node.custom_metadata.data(),
-                static_cast<std::uint64_t>(node.custom_metadata.size()));
-        } catch (...) {
-            status=-1;
+        std::vector<std::uint8_t> fully_written;
+        {
+            const PackageBackwardScope package_call(line,column);
+            try {
+                if(masked){
+                    // Undeclared gradients are zero-filled before the call, so a
+                    // callback that writes only part of one leaves zeros
+                    // elsewhere. A gradient declared fully written at attach
+                    // time was allocated write-only above and must be reported
+                    // in fully_written after a successful call; a broken
+                    // promise fails the backward before the gradient is used.
+                    std::vector<std::uint8_t> mask(needed.begin(),needed.end());
+                    fully_written.assign(needed.size(),0);
+                    status=node.custom_backward_masked(
+                        saved.empty()?nullptr:saved.data(),
+                        static_cast<std::uint64_t>(saved.size()),
+                        callback_gradient,writable.data(),mask.data(),
+                        fully_written.data(),
+                        static_cast<std::uint64_t>(writable.size()),
+                        node.custom_metadata.empty()?nullptr:node.custom_metadata.data(),
+                        static_cast<std::uint64_t>(node.custom_metadata.size()));
+                }else{
+                    status=node.custom_backward(
+                        saved.empty()?nullptr:saved.data(),
+                        static_cast<std::uint64_t>(saved.size()),
+                        callback_gradient,writable.data(),
+                        static_cast<std::uint64_t>(writable.size()),
+                        node.custom_metadata.empty()?nullptr:node.custom_metadata.data(),
+                        static_cast<std::uint64_t>(node.custom_metadata.size()));
+                }
+            } catch (...) {
+                status=-1;
+            }
+            package_call.returned();
         }
         if(status!=0){
             const auto message=
@@ -4601,11 +6066,32 @@ std::vector<TensorValue*> autograd_custom_backward_tensors(
                 std::to_string(status);
             autograd_fail(message.c_str(),line,column);
         }
+        if(masked && !node.custom_full_writes.empty()){
+            for(std::size_t index=0;index<outputs.size();++index){
+                if(outputs[index] && node.custom_full_writes[index] &&
+                   !fully_written[index]){
+                    const auto message=
+                        "custom native autograd backward did not report a "
+                        "complete write of gradient input " +
+                        std::to_string(index) + " declared as fully written";
+                    autograd_fail(message.c_str(),line,column);
+                }
+            }
+        }
         return outputs;
     } catch (...) {
-        for(auto* value:outputs) release_managed_tensor(value);
+        for(auto* value:outputs)
+            if(value) release_managed_tensor(value);
         throw;
     }
+}
+
+std::vector<unsigned char> autograd_parent_mask(
+    const AutogradNode& node,const AutogradNeed& need) {
+    std::vector<unsigned char> mask(node.parents.size(),0);
+    for(std::size_t index=0;index<node.parents.size();++index)
+        mask[index]=need(node.parents[index]) ? 1 : 0;
+    return mask;
 }
 
 void autograd_grad_device(
@@ -4621,6 +6107,8 @@ void autograd_grad_device(
     if(!loss->device_tensor||tensor_logical_count(*loss->device_tensor)!=1)
         autograd_fail("grad requires a scalar GPU loss",line,column);
 
+    const AutogradNeed need(order,selected);
+    need.report();
     std::unordered_map<const AutogradNode*,TensorValue*> gradients;
     gradients.reserve(order.size());
     auto* initial=autograd_device_filled_like(*loss,true,line,column);
@@ -4641,19 +6129,26 @@ void autograd_grad_device(
                     slot,static_cast<TensorValue*>(quidra_tensor_clone(g)),line,column);
             }
         }
-        if(node->parents.empty()){
+        if(node->parents.empty() || !need.any_parent(*node)){
             release_managed_tensor(g);
             gradients.erase(node.get());
             continue;
         }
 
         if(node->op==AutogradOp::CustomNative){
+            const auto mask=autograd_parent_mask(*node,need);
             auto input_gradients=autograd_custom_backward_tensors(
-                *node,g,line,column);
-            for(std::size_t index=0;index<input_gradients.size();++index)
+                *node,g,mask,line,column);
+            for(std::size_t index=0;index<input_gradients.size();++index){
+                if(!input_gradients[index]) continue;
+                if(!mask[index]){
+                    release_managed_tensor(input_gradients[index]);
+                    continue;
+                }
                 autograd_add_device_gradient(
                     gradients,node->parents[index],input_gradients[index],
                     line,column);
+            }
         }else if(node->op==AutogradOp::Add||node->op==AutogradOp::Sub||
            node->op==AutogradOp::Mul||node->op==AutogradOp::Div){
             if(node->parents.size()!=2 ||
@@ -4675,30 +6170,37 @@ void autograd_grad_device(
                     g,a,b,operation,true,left_gradient,right_gradient,line,column);
                 autograd_add_device_gradient(
                     gradients,node->parents[0],left_gradient,line,column);
-            }else if(node->op==AutogradOp::Add){
-                right_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
-                left_gradient=g;
-                g=nullptr;
-                autograd_add_device_gradient(
-                    gradients,node->parents[0],left_gradient,line,column);
-                autograd_add_device_gradient(
-                    gradients,node->parents[1],right_gradient,line,column);
-            }else if(node->op==AutogradOp::Sub){
-                right_gradient=autograd_device_negate_tensor(g,line,column);
-                left_gradient=g;
-                g=nullptr;
-                autograd_add_device_gradient(
-                    gradients,node->parents[0],left_gradient,line,column);
-                autograd_add_device_gradient(
-                    gradients,node->parents[1],right_gradient,line,column);
             }else{
-                autograd_device_binary_backward(
-                    g,a,b,operation,false,
-                    left_gradient,right_gradient,line,column);
-                autograd_add_device_gradient(
-                    gradients,node->parents[0],left_gradient,line,column);
-                autograd_add_device_gradient(
-                    gradients,node->parents[1],right_gradient,line,column);
+                const bool left_needed=need(node->parents[0]);
+                const bool right_needed=need(node->parents[1]);
+                if(node->op==AutogradOp::Add){
+                    if(left_needed && right_needed)
+                        right_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                    else if(right_needed)
+                        right_gradient=std::exchange(g,nullptr);
+                    if(left_needed) left_gradient=std::exchange(g,nullptr);
+                }else if(node->op==AutogradOp::Sub){
+                    if(right_needed)
+                        right_gradient=autograd_device_negate_tensor(g,line,column);
+                    if(left_needed) left_gradient=std::exchange(g,nullptr);
+                }else{
+                    // One kernel produces both partial derivatives; the one
+                    // no target needs is dropped.
+                    autograd_device_binary_backward(
+                        g,a,b,operation,false,
+                        left_gradient,right_gradient,line,column,
+                        left_needed,right_needed);
+                    if(!left_needed)
+                        release_managed_tensor(std::exchange(left_gradient,nullptr));
+                    if(!right_needed)
+                        release_managed_tensor(std::exchange(right_gradient,nullptr));
+                }
+                if(left_gradient)
+                    autograd_add_device_gradient(
+                        gradients,node->parents[0],left_gradient,line,column);
+                if(right_gradient)
+                    autograd_add_device_gradient(
+                        gradients,node->parents[1],right_gradient,line,column);
             }
         }else if(node->op==AutogradOp::ScalarBinary){
             if(node->parents.size()!=1||node->aux.size()!=1||
@@ -4709,27 +6211,27 @@ void autograd_grad_device(
             const bool scalar_left=node->aux_index[1]!=0;
             const auto scalar=node->aux.scalar_as_double(0);
             TensorValue* result=nullptr;
-            if(operation==1||(operation==2&&!scalar_left)){
+            if(operation==abi::tensor_binary_opcode::add||(operation==abi::tensor_binary_opcode::subtract&&!scalar_left)){
                 result=g;
                 g=nullptr;
-            }else if(operation==2){
+            }else if(operation==abi::tensor_binary_opcode::subtract){
                 result=autograd_device_negate_tensor(g,line,column);
-            }else if(operation==6){
+            }else if(operation==abi::tensor_binary_opcode::power){
                 if(scalar_left)
                     autograd_fail("tensor power requires tensor ^ scalar",line,column);
                 auto* coefficient=autograd_device_scalar_tensor(
-                    g,scalar,3,false,line,column);
+                    g,scalar,abi::tensor_binary_opcode::multiply,false,line,column);
                 auto* power=autograd_device_scalar_tensor(
-                    input->device_tensor,scalar-1.0,6,false,line,column);
+                    input->device_tensor,scalar-1.0,abi::tensor_binary_opcode::power,false,line,column);
                 result=autograd_device_binary_tensor(
-                    coefficient,power,3,line,column);
+                    coefficient,power,abi::tensor_binary_opcode::multiply,line,column);
                 release_managed_tensor(coefficient);
                 release_managed_tensor(power);
             }else{
                 AutogradDeviceDenseInput gd(*g,line,column);
                 AutogradDeviceDenseInput xd;
                 const TensorValue* input_dense=gd.get();
-                if(operation==4&&scalar_left){
+                if(operation==abi::tensor_binary_opcode::divide&&scalar_left){
                     xd.reset(*input->device_tensor,line,column);
                     input_dense=xd.get();
                     if(gd->shape!=xd->shape)
@@ -4737,7 +6239,7 @@ void autograd_grad_device(
                 }
                 const auto count=tensor_logical_count(*gd.get());
                 auto* storage=tensor_storage_create(
-                    node->dtype,count,1,gd->storage->device,line,column);
+                    node->dtype,count,abi::tensor_fill_mode::write_only,gd->storage->device,line,column);
                 result=tensor_descriptor(
                     storage,input->shape,tensor_contiguous_strides(input->shape),0);
                 std::string backend_error;
@@ -4793,7 +6295,7 @@ void autograd_grad_device(
             const auto input_count=autograd_node_count(*input);
             AutogradDeviceDenseInput gd(*g,line,column);
             auto* storage=tensor_storage_create(
-                node->dtype,input_count,1,input->device_tensor->storage->device,
+                node->dtype,input_count,abi::tensor_fill_mode::write_only,input->device_tensor->storage->device,
                 line,column);
             auto* result=tensor_descriptor(
                 storage,input->shape,tensor_contiguous_strides(input->shape),0);
@@ -4805,6 +6307,28 @@ void autograd_grad_device(
                 storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
                 indices.data(),input_count,indices.size(),backend_error);
             if(!ok){
+                release_managed_tensor(result);
+                autograd_fail(backend_error.c_str(),line,column);
+            }
+            autograd_add_device_gradient(gradients,input,result,line,column);
+        }else if(node->op==AutogradOp::Broadcast){
+            if(node->parents.size()!=1||!node->parents[0]->device_tensor)
+                autograd_fail("invalid GPU tensor broadcast graph",line,column);
+            const auto& input=node->parents[0];
+            const auto input_count=autograd_node_count(*input);
+            AutogradDeviceDenseInput gd(*g,line,column);
+            if(gd->shape!=node->shape)
+                autograd_fail("GPU tensor broadcast backward shape mismatch",line,column);
+            // One kernel thread per source element writes it (fill mode write_only).
+            auto* storage=tensor_storage_create(
+                node->dtype,input_count,abi::tensor_fill_mode::write_only,input->device_tensor->storage->device,
+                line,column);
+            auto* result=tensor_descriptor(
+                storage,input->shape,tensor_contiguous_strides(input->shape),0);
+            std::string backend_error;
+            if(!quidra::device::compute_broadcast_backward(
+                   storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
+                   input->shape,node->shape,backend_error)){
                 release_managed_tensor(result);
                 autograd_fail(backend_error.c_str(),line,column);
             }
@@ -4821,11 +6345,11 @@ void autograd_grad_device(
             std::vector<std::uint64_t> indices(input_count);
             for(std::size_t i=0;i<input_count;++i){
                 if(node->aux_index[i]>=gradient_count)
-                    autograd_fail("GPU tensor scatter index is outside gradient",line,column);
+                    autograd_fail("GPU tensor scatter index is out of bounds for the gradient",line,column);
                 indices[i]=static_cast<std::uint64_t>(node->aux_index[i]);
             }
             auto* storage=tensor_storage_create(
-                node->dtype,input_count,1,input->device_tensor->storage->device,
+                node->dtype,input_count,abi::tensor_fill_mode::write_only,input->device_tensor->storage->device,
                 line,column);
             auto* result=tensor_descriptor(
                 storage,input->shape,tensor_contiguous_strides(input->shape),0);
@@ -4838,6 +6362,12 @@ void autograd_grad_device(
                 autograd_fail(backend_error.c_str(),line,column);
             }
             autograd_add_device_gradient(gradients,input,result,line,column);
+        }else if(node->op==AutogradOp::Neg){
+            if(node->parents.size()!=1||!node->parents[0]->device_tensor)
+                autograd_fail("invalid GPU tensor negation graph",line,column);
+            autograd_add_device_gradient(
+                gradients,node->parents[0],
+                autograd_device_negate_tensor(g,line,column),line,column);
         }
 
         // Every child has already contributed in reverse-topological order.
@@ -4861,9 +6391,11 @@ void autograd_grad_t(
     order.reserve(64);
     autograd_topological(loss,seen,order);
 
-    std::unordered_map<const AutogradNode*,std::vector<T>> gradients;
+    const AutogradNeed need(order,selected);
+    need.report();
+    std::unordered_map<const AutogradNode*,HostValues<T>> gradients;
     gradients.reserve(order.size());
-    gradients[loss.get()]={T{1}};
+    gradients[loss.get()]=HostValues<T>(std::vector<T>{T{1}});
 
     for(auto it=order.rbegin();it!=order.rend();++it){
         const auto& node=*it;
@@ -4876,45 +6408,54 @@ void autograd_grad_t(
         if(node->target_identity){
             for(const auto& slot:selected){
                 if(!slot || slot->identity!=node->target_identity) continue;
-                std::vector<T> slot_values(g.begin(),g.end());
                 autograd_accumulate_slot(
-                    slot,
-                    autograd_tensor_from_values(
-                        node->dtype,node->shape,AutogradBuffer(std::move(slot_values))),
+                    slot,autograd_tensor_from_gradient<T>(node->dtype,node->shape,g),
                     line,column);
             }
         }
 
-        if(node->parents.empty()){
+        if(node->parents.empty() || !need.any_parent(*node)){
             gradients.erase(node.get());
             continue;
         }
 
         if(node->op==AutogradOp::CustomNative){
-            auto gradient_tensor=autograd_tensor_from_values(
-                node->dtype,node->shape,
-                AutogradBuffer(std::vector<T>(g.begin(),g.end())));
-            auto input_gradients=autograd_custom_backward_tensors(
-                *node,gradient_tensor,line,column);
+            // The callback borrows the gradient as a tensor and its gradient
+            // outputs come back as tensors; both move by reference, not copy.
+            auto gradient_tensor=autograd_tensor_from_gradient<T>(
+                node->dtype,node->shape,g);
+            const auto mask=autograd_parent_mask(*node,need);
+            std::vector<TensorValue*> input_gradients;
+            try {
+                input_gradients=autograd_custom_backward_tensors(
+                    *node,gradient_tensor,mask,line,column);
+            } catch (...) {
+                release_managed_tensor(gradient_tensor);
+                throw;
+            }
             release_managed_tensor(gradient_tensor);
             for(std::size_t index=0;index<input_gradients.size();++index){
-                auto values=tensor_float_values(
+                if(!input_gradients[index]) continue;
+                if(!mask[index]){
+                    release_managed_tensor(input_gradients[index]);
+                    continue;
+                }
+                auto next=autograd_gradient_values<T>(
                     *input_gradients[index],line,column);
-                std::vector<T> next(
-                    values.template typed<T>().begin(),
-                    values.template typed<T>().end());
                 release_managed_tensor(input_gradients[index]);
                 autograd_add_gradient(
                     gradients,node->parents[index],std::move(next));
             }
         }else if(node->op==AutogradOp::Add||node->op==AutogradOp::Sub||
            node->op==AutogradOp::Mul||node->op==AutogradOp::Div){
-            const auto& a=node->parents[0]->data.typed<T>();
-            const auto& b=node->parents[1]->data.typed<T>();
+            const auto* a=node->parents[0]->data.typed<T>().data();
+            const auto* b=node->parents[1]->data.typed<T>().data();
             const bool shared_parent=node->parents[0].get()==node->parents[1].get();
             if(shared_parent){
-                std::vector<T> combined=std::move(found->second);
-                for(std::size_t i=0;i<combined.size();++i){
+                HostValues<T> combined_values=std::move(found->second);
+                const auto count=combined_values.size();
+                auto* combined=combined_values.mutable_data();
+                for(std::size_t i=0;i<count;++i){
                     const T gradient=combined[i];
                     T left_value{},right_value{};
                     if(node->op==AutogradOp::Add){
@@ -4933,56 +6474,86 @@ void autograd_grad_t(
                     combined[i]=static_cast<T>(left_value+right_value);
                 }
                 autograd_add_gradient(
-                    gradients,node->parents[0],std::move(combined));
+                    gradients,node->parents[0],std::move(combined_values));
             }else{
-                std::vector<T> left_gradient,right_gradient;
+                // Each partial derivative is computed only for a parent that
+                // needs it; every element keeps its expression.
+                const bool left_needed=need(node->parents[0]);
+                const bool right_needed=need(node->parents[1]);
+                HostValues<T> left_gradient,right_gradient;
                 if(node->op==AutogradOp::Add){
-                    left_gradient=std::move(found->second);
-                    right_gradient=left_gradient;
-                }else if(node->op==AutogradOp::Sub){
-                    left_gradient=std::move(found->second);
-                    right_gradient.resize(left_gradient.size());
-                    for(std::size_t i=0;i<left_gradient.size();++i)
-                        right_gradient[i]=static_cast<T>(-left_gradient[i]);
-                }else{
-                    left_gradient.resize(g.size());
-                    right_gradient.resize(g.size());
-                    if(node->op==AutogradOp::Mul){
-                        for(std::size_t i=0;i<g.size();++i){
-                            left_gradient[i]=static_cast<T>(g[i]*b[i]);
-                            right_gradient[i]=static_cast<T>(g[i]*a[i]);
-                        }
+                    if(left_needed && right_needed){
+                        left_gradient=std::move(found->second);
+                        right_gradient=left_gradient;
+                    }else if(left_needed){
+                        left_gradient=std::move(found->second);
                     }else{
-                        for(std::size_t i=0;i<g.size();++i){
-                            left_gradient[i]=static_cast<T>(g[i]/b[i]);
-                            right_gradient[i]=static_cast<T>(
-                                -static_cast<T>(g[i]*a[i])/
-                                static_cast<T>(b[i]*b[i]));
+                        right_gradient=std::move(found->second);
+                    }
+                }else if(node->op==AutogradOp::Sub){
+                    if(right_needed){
+                        const auto count=g.size();
+                        right_gradient=HostValues<T>::allocate(count);
+                        const auto* left=g.data();
+                        auto* right=right_gradient.mutable_data();
+                        for(std::size_t i=0;i<count;++i)
+                            right[i]=static_cast<T>(-left[i]);
+                    }
+                    if(left_needed) left_gradient=std::move(found->second);
+                }else{
+                    const auto count=g.size();
+                    const auto* gv=g.data();
+                    if(left_needed){
+                        left_gradient=HostValues<T>::allocate(count);
+                        auto* left=left_gradient.mutable_data();
+                        if(node->op==AutogradOp::Mul){
+                            for(std::size_t i=0;i<count;++i)
+                                left[i]=static_cast<T>(gv[i]*b[i]);
+                        }else{
+                            for(std::size_t i=0;i<count;++i)
+                                left[i]=static_cast<T>(gv[i]/b[i]);
+                        }
+                    }
+                    if(right_needed){
+                        right_gradient=HostValues<T>::allocate(count);
+                        auto* right=right_gradient.mutable_data();
+                        if(node->op==AutogradOp::Mul){
+                            for(std::size_t i=0;i<count;++i)
+                                right[i]=static_cast<T>(gv[i]*a[i]);
+                        }else{
+                            for(std::size_t i=0;i<count;++i)
+                                right[i]=static_cast<T>(
+                                    -static_cast<T>(gv[i]*a[i])/
+                                    static_cast<T>(b[i]*b[i]));
                         }
                     }
                 }
-                autograd_add_gradient(gradients,node->parents[0],std::move(left_gradient));
-                autograd_add_gradient(gradients,node->parents[1],std::move(right_gradient));
+                if(left_needed)
+                    autograd_add_gradient(gradients,node->parents[0],std::move(left_gradient));
+                if(right_needed)
+                    autograd_add_gradient(gradients,node->parents[1],std::move(right_gradient));
             }
         }else if(node->op==AutogradOp::ScalarBinary){
             if(node->parents.size()!=1||node->aux.size()!=1||
                node->aux_index.size()!=2)
                 autograd_fail("invalid autograd scalar graph",line,column);
-            const auto& input=node->parents[0]->data.typed<T>();
+            const auto* input=node->parents[0]->data.typed<T>().data();
             const auto operation=static_cast<int>(node->aux_index[0]);
             const bool scalar_left=node->aux_index[1]!=0;
             const T scalar_value=static_cast<T>(node->aux.scalar_as_double(0));
             // Scalar backward is one-to-one, so transform the completed gradient
             // buffer in place instead of allocating an equally sized temporary.
-            std::vector<T> input_gradient=std::move(found->second);
-            for(std::size_t i=0;i<input_gradient.size();++i){
+            HostValues<T> input_gradient_values=std::move(found->second);
+            const auto count=input_gradient_values.size();
+            auto* input_gradient=input_gradient_values.mutable_data();
+            for(std::size_t i=0;i<count;++i){
                 const T gradient=input_gradient[i];
-                if(operation==1)input_gradient[i]=gradient;
-                else if(operation==2)
+                if(operation==abi::tensor_binary_opcode::add)input_gradient[i]=gradient;
+                else if(operation==abi::tensor_binary_opcode::subtract)
                     input_gradient[i]=scalar_left?static_cast<T>(-gradient):gradient;
-                else if(operation==3)
+                else if(operation==abi::tensor_binary_opcode::multiply)
                     input_gradient[i]=static_cast<T>(gradient*scalar_value);
-                else if(operation==6){
+                else if(operation==abi::tensor_binary_opcode::power){
                     if(scalar_left)
                         autograd_fail("tensor power requires tensor ^ scalar",line,column);
                     input_gradient[i]=static_cast<T>(
@@ -4997,25 +6568,25 @@ void autograd_grad_t(
                 }
             }
             autograd_add_gradient(
-                gradients,node->parents[0],std::move(input_gradient));
+                gradients,node->parents[0],std::move(input_gradient_values));
         }else if(node->op==AutogradOp::Reshape){
             if(node->parents.size()!=1)
                 autograd_fail("invalid tensor reshape graph",line,column);
             if(g.size()!=node->parents[0]->data.size())
                 autograd_fail("tensor reshape backward size mismatch",line,column);
+            // Reshape keeps element order and this node's gradient is erased
+            // below, so hand the buffer to the parent instead of copying it.
             autograd_add_gradient(
-                gradients,node->parents[0],std::vector<T>(g.begin(),g.end()));
+                gradients,node->parents[0],std::move(found->second));
         }else if(node->op==AutogradOp::Transpose){
             if(node->parents.size()!=1||node->aux_index.size()!=2)
                 autograd_fail("invalid tensor transpose graph",line,column);
-            AutogradBuffer gb(std::vector<T>(g.begin(),g.end()));
+            AutogradBuffer gb(std::move(found->second));
             auto restored=autograd_transpose_values<T>(
                 gb,node->shape,node->aux_index[0],node->aux_index[1],line,column);
             autograd_add_gradient(
                 gradients,node->parents[0],
-                std::vector<T>(
-                    restored.template typed<T>().begin(),
-                    restored.template typed<T>().end()));
+                std::move(restored.template typed<T>()));
         }else if(node->op==AutogradOp::Gather){
             if(node->parents.size()!=1)
                 autograd_fail("invalid tensor gather graph",line,column);
@@ -5023,12 +6594,22 @@ void autograd_grad_t(
                 g,autograd_node_count(*node->parents[0]),node->aux_index,
                 line,column);
             autograd_add_gradient(
-                gradients,node->parents[0],std::move(input_gradient));
+                gradients,node->parents[0],HostValues<T>(std::move(input_gradient)));
         }else if(node->op==AutogradOp::GatherBackward){
             if(node->parents.size()!=1)
                 autograd_fail("invalid tensor gather backward graph",line,column);
             auto input_gradient=autograd_gather_values<T>(
                 g,node->aux_index,line,column);
+            autograd_add_gradient(
+                gradients,node->parents[0],HostValues<T>(std::move(input_gradient)));
+        }else if(node->op==AutogradOp::Neg){
+            if(node->parents.size()!=1)
+                autograd_fail("invalid tensor negation graph",line,column);
+            // Negation is one-to-one: negate the completed gradient in place.
+            HostValues<T> input_gradient=std::move(found->second);
+            const auto count=input_gradient.size();
+            auto* values=input_gradient.mutable_data();
+            for(std::size_t i=0;i<count;++i) values[i]=static_cast<T>(-values[i]);
             autograd_add_gradient(
                 gradients,node->parents[0],std::move(input_gradient));
         }
@@ -5058,7 +6639,7 @@ void autograd_backward_selected(
     }
     if(tensor->graph->device_tensor)
         autograd_grad_device(tensor->graph,selected,line,column);
-    else if(tensor->graph->dtype==10)
+    else if(tensor->graph->dtype==QCORE_DTYPE_FLOAT32)
         autograd_grad_t<float>(tensor->graph,selected,line,column);
     else
         autograd_grad_t<double>(tensor->graph,selected,line,column);
@@ -5068,6 +6649,7 @@ extern "C" void quidra_tensor_backward_many(
     void* raw,void** target_raws,const unsigned char* target_kinds,
     unsigned long long target_count,bool track,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::step_boundary(quidra::counters::StepEvent::Backward); // qcount
     auto* tensor=autograd_backward_loss(raw,line,column);
     if(target_count==0)
         autograd_fail("backward() requires at least one gradient target",line,column);
@@ -5186,7 +6768,10 @@ std::vector<long long> tensor_broadcast_shape(const TensorValue& left,
         if (a != b && a != 1 && b != 1) {
             tensor_fail("tensor shapes are not broadcast-compatible", line, column);
         }
-        shape[i] = std::max(a, b);
+        // A singleton axis takes the other side's extent, including 0;
+        // max() would instead give 1 and read one element of an empty
+        // operand.
+        shape[i] = a == 1 ? b : a;
     }
     return shape;
 }
@@ -5228,7 +6813,22 @@ TensorStorage* tensor_gpu_expand_storage(
     tensor_require_initialized(source, line, column);
     const auto count = tensor_element_count(output_shape, line, column);
     auto* output = tensor_storage_create(
-        source.storage->dtype, count, 0, source.storage->device, line, column);
+        source.storage->dtype, count, abi::tensor_fill_mode::uninitialized, source.storage->device, line, column);
+    if (tensor_gpu_strided_enabled(*source.storage)) {
+        const auto strides = tensor_broadcast_strides(source, output_shape);
+        if (tensor_strided_read_within_storage(source, output_shape, strides)) {
+            std::string backend_error;
+            if (!quidra::device::compute_strided_copy(
+                    output->gpu_buffer, source.storage->gpu_buffer,
+                    source.storage->dtype, source.offset, output_shape,
+                    strides, backend_error)) {
+                tensor_storage_release(output);
+                tensor_fail(backend_error.c_str(), line, column);
+            }
+            tracker_mark_complete(output->initialization);
+            return output;
+        }
+    }
     std::vector<std::uint64_t> indices;
     try {
         indices.resize(count);
@@ -5244,7 +6844,6 @@ TensorStorage* tensor_gpu_expand_storage(
             tensor_fail("tensor broadcast view exceeds storage", line, column);
         }
         indices[logical] = static_cast<std::uint64_t>(storage_index);
-        tracker_set(output->initialization, logical);
     }
     std::string backend_error;
     if (!quidra::device::compute_gather(
@@ -5253,6 +6852,9 @@ TensorStorage* tensor_gpu_expand_storage(
         tensor_storage_release(output);
         tensor_fail(backend_error.c_str(), line, column);
     }
+    // The source was required to be initialized above and every output element
+    // is gathered from it, so the whole output is initialized at once.
+    tracker_mark_complete(output->initialization);
     return output;
 }
 
@@ -5341,10 +6943,10 @@ bool integer_power_checked(T base, std::uint64_t exponent, T& out) {
 template <typename T>
 bool tensor_apply_operator(T left, T right, int operation, T& out) {
     switch (operation) {
-        case 1: return tensor_add_checked(left, right, out);
-        case 2: return tensor_sub_checked(left, right, out);
-        case 3: return tensor_mul_checked(left, right, out);
-        case 4:
+        case abi::tensor_binary_opcode::add: return tensor_add_checked(left, right, out);
+        case abi::tensor_binary_opcode::subtract: return tensor_sub_checked(left, right, out);
+        case abi::tensor_binary_opcode::multiply: return tensor_mul_checked(left, right, out);
+        case abi::tensor_binary_opcode::divide:
             if constexpr (std::is_integral_v<T>) {
                 if (right == 0) return false;
                 if constexpr (std::is_signed_v<T>) {
@@ -5353,7 +6955,7 @@ bool tensor_apply_operator(T left, T right, int operation, T& out) {
             }
             out = static_cast<T>(left / right);
             return true;
-        case 5:
+        case abi::tensor_binary_opcode::remainder:
             if constexpr (std::is_integral_v<T>) {
                 if (right == 0) return false;
                 if constexpr (std::is_signed_v<T>) {
@@ -5367,7 +6969,7 @@ bool tensor_apply_operator(T left, T right, int operation, T& out) {
             } else {
                 return false;
             }
-        case 6:
+        case abi::tensor_binary_opcode::power:
             if constexpr (std::is_integral_v<T>) {
                 if constexpr (std::is_signed_v<T>) {
                     if (right < 0) return false;
@@ -5391,10 +6993,58 @@ void tensor_binary_typed(const TensorValue& primary, const TensorValue* other,
                          unsigned long long line, unsigned long long column) {
     const auto count = tensor_element_count(output_shape, line, column);
     T scalar_value{};
-    if (scalar_side != 0) {
+    if (scalar_side != abi::scalar_side::none) {
         if (!scalar) tensor_fail("missing tensor scalar operand", line, column);
         std::memcpy(&scalar_value, scalar, sizeof(T));
     }
+    const auto operation_failure = [&]() {
+        tensor_fail(operation == abi::tensor_binary_opcode::divide || operation == abi::tensor_binary_opcode::remainder
+                        ? "invalid tensor division/remainder or integer overflow"
+                        : operation == abi::tensor_binary_opcode::power
+                            ? "invalid tensor power domain or integer overflow"
+                            : "tensor integer arithmetic overflow",
+                    line, column);
+    };
+
+    // Fully initialized operands that already have the output shape and are a
+    // single dense run of storage hold logical element i at storage index
+    // offset + i, all proven inside storage. Read them directly instead of
+    // recomputing a broadcast index and a tracker bit per element. Element
+    // order, arithmetic and the first failing element are unchanged.
+    const auto dense_input = [&](const TensorValue& operand) {
+        return operand.shape == output_shape &&
+               operand.storage->initialization.fully_initialized &&
+               tensor_view_dense_in_storage(operand, count);
+    };
+    if (dense_input(primary) && (!other || dense_input(*other))) {
+        const auto* primary_data =
+            primary.storage->data.data() + primary.offset * sizeof(T);
+        auto* output_data = output.data.data();
+        const auto load = [](const unsigned char* data, std::size_t logical) {
+            T value{};
+            std::memcpy(&value, data + logical * sizeof(T), sizeof(T));
+            return value;
+        };
+        const auto store = [&](std::size_t logical, T left, T right) {
+            T result{};
+            if (!tensor_apply_operator(left, right, operation, result)) operation_failure();
+            std::memcpy(output_data + logical * sizeof(T), &result, sizeof(T));
+        };
+        if (other) {
+            const auto* other_data =
+                other->storage->data.data() + other->offset * sizeof(T);
+            for (std::size_t logical = 0; logical < count; ++logical)
+                store(logical, load(primary_data, logical), load(other_data, logical));
+        } else if (scalar_side == abi::scalar_side::left) {
+            for (std::size_t logical = 0; logical < count; ++logical)
+                store(logical, scalar_value, load(primary_data, logical));
+        } else {
+            for (std::size_t logical = 0; logical < count; ++logical)
+                store(logical, load(primary_data, logical), scalar_value);
+        }
+        return;
+    }
+
     for (std::size_t logical = 0; logical < count; ++logical) {
         const auto primary_index =
             other ? tensor_broadcast_index(primary, output_shape, logical)
@@ -5418,7 +7068,7 @@ void tensor_binary_typed(const TensorValue& primary, const TensorValue* other,
                         other->storage->data.data() + other_index * sizeof(T), sizeof(T));
             left = primary_value;
             right = other_value;
-        } else if (scalar_side == 1) {
+        } else if (scalar_side == abi::scalar_side::left) {
             left = scalar_value;
             right = primary_value;
         } else {
@@ -5427,14 +7077,7 @@ void tensor_binary_typed(const TensorValue& primary, const TensorValue* other,
         }
 
         T result{};
-        if (!tensor_apply_operator(left, right, operation, result)) {
-            tensor_fail(operation == 4 || operation == 5
-                            ? "invalid tensor division/remainder or integer overflow"
-                            : operation == 6
-                                ? "invalid tensor power domain or integer overflow"
-                                : "tensor integer arithmetic overflow",
-                        line, column);
-        }
+        if (!tensor_apply_operator(left, right, operation, result)) operation_failure();
         std::memcpy(output.data.data() + logical * sizeof(T), &result, sizeof(T));
     }
 }
@@ -5442,11 +7085,8 @@ void tensor_binary_typed(const TensorValue& primary, const TensorValue* other,
 } // namespace
 
 [[noreturn]] void scalar_power_failure(
-    const char* code, const char* message,
-    unsigned long long line, unsigned long long column) {
-    std::fprintf(stderr, "Quidra runtime error[%s] at %llu:%llu: %s\n",
-                 code, line, column, message);
-    std::exit(101);
+    abi::FailureReason reason, unsigned long long line, unsigned long long column) {
+    quidra::runtime::report_failure(reason, {}, line, column);
 }
 
 template <typename T>
@@ -5455,7 +7095,7 @@ long long scalar_signed_power(
     unsigned long long line, unsigned long long column) {
     T result{};
     if (!integer_power_checked(static_cast<T>(base), exponent, result))
-        scalar_power_failure("INTEGER_OVERFLOW", "integer overflow", line, column);
+        scalar_power_failure(abi::FailureReason::integer_overflow, line, column);
     return static_cast<long long>(result);
 }
 
@@ -5465,7 +7105,7 @@ unsigned long long scalar_unsigned_power(
     unsigned long long line, unsigned long long column) {
     T result{};
     if (!integer_power_checked(static_cast<T>(base), exponent, result))
-        scalar_power_failure("INTEGER_OVERFLOW", "integer overflow", line, column);
+        scalar_power_failure(abi::FailureReason::integer_overflow, line, column);
     return static_cast<unsigned long long>(result);
 }
 
@@ -5473,8 +7113,9 @@ extern "C" long long quidra_integer_pow_signed(
     long long base, long long exponent, int bits,
     unsigned long long line, unsigned long long column) {
     if (exponent < 0)
-        scalar_power_failure(
-            "POWER_DOMAIN", "integer exponent must be non-negative", line, column);
+        scalar_power_failure(abi::FailureReason::negative_integer_exponent, line, column);
+    if (base == 0 && exponent == 0)
+        scalar_power_failure(abi::FailureReason::zero_power_zero, line, column);
     const auto power = static_cast<unsigned long long>(exponent);
     switch (bits) {
         case 8: return scalar_signed_power<std::int8_t>(base, power, line, column);
@@ -5482,32 +7123,34 @@ extern "C" long long quidra_integer_pow_signed(
         case 32: return scalar_signed_power<std::int32_t>(base, power, line, column);
         case 64: return scalar_signed_power<std::int64_t>(base, power, line, column);
         default:
-            scalar_power_failure("POWER_DOMAIN", "invalid integer power width", line, column);
+            scalar_power_failure(abi::FailureReason::invalid_integer_power_width, line, column);
     }
 }
 
 extern "C" unsigned long long quidra_integer_pow_unsigned(
     unsigned long long base, unsigned long long exponent, int bits,
     unsigned long long line, unsigned long long column) {
+    if (base == 0 && exponent == 0)
+        scalar_power_failure(abi::FailureReason::zero_power_zero, line, column);
     switch (bits) {
         case 8: return scalar_unsigned_power<std::uint8_t>(base, exponent, line, column);
         case 16: return scalar_unsigned_power<std::uint16_t>(base, exponent, line, column);
         case 32: return scalar_unsigned_power<std::uint32_t>(base, exponent, line, column);
         case 64: return scalar_unsigned_power<std::uint64_t>(base, exponent, line, column);
         default:
-            scalar_power_failure("POWER_DOMAIN", "invalid integer power width", line, column);
+            scalar_power_failure(abi::FailureReason::invalid_integer_power_width, line, column);
     }
 }
 
 extern "C" void* quidra_tensor_unary(void* raw, int operation,
                                       unsigned long long line,
                                       unsigned long long column) {
-    if (!raw || operation != 1) {
+    if (!raw || operation != abi::tensor_unary_opcode::negate) {
         tensor_fail("invalid tensor unary operation", line, column);
     }
     auto& source = *static_cast<TensorValue*>(raw);
     const auto dtype = source.storage->dtype;
-    if (dtype == 5 || dtype == 6 || dtype == 7 || dtype == 8) {
+    if (dtype == QCORE_DTYPE_UINT8 || dtype == QCORE_DTYPE_UINT16 || dtype == QCORE_DTYPE_UINT32 || dtype == QCORE_DTYPE_UINT64) {
         tensor_fail("tensor negation requires a signed numeric tensor", line, column);
     }
     tensor_require_initialized(source, line, column);
@@ -5524,7 +7167,8 @@ extern "C" void* quidra_tensor_unary(void* raw, int operation,
             input_offset = 0;
         }
         auto* output = tensor_storage_create(
-            dtype, count, 1, source.storage->device, line, column);
+            dtype, count, gpu_kernel_output_fill(dtype), source.storage->device,
+            line, column);
         std::string backend_error;
         const bool ok = quidra::device::compute_unary(
             output->gpu_buffer, input->gpu_buffer, input_offset,
@@ -5534,11 +7178,15 @@ extern "C" void* quidra_tensor_unary(void* raw, int operation,
             tensor_storage_release(output);
             tensor_fail(backend_error.c_str(), line, column);
         }
-        return tensor_descriptor(
+        auto* result = tensor_descriptor(
             output, source.shape, tensor_contiguous_strides(source.shape), 0);
+        // Negation of a tracked tensor is recorded in the autograd graph
+        // instead of silently cutting it.
+        tensor_attach_view_graph(result, source, AutogradOp::Neg, {}, line, column);
+        return result;
     }
 
-    auto* output = tensor_storage_create(dtype, count, 1);
+    auto* output = tensor_storage_create(dtype, count, abi::tensor_fill_mode::zeros);
     auto run = [&](auto tag) {
         using T = decltype(tag);
         for (std::size_t i = 0; i < count; ++i) {
@@ -5560,18 +7208,20 @@ extern "C" void* quidra_tensor_unary(void* raw, int operation,
         }
     };
     switch (dtype) {
-        case 1: run(std::int64_t{}); break;
-        case 2: run(std::int8_t{}); break;
-        case 3: run(std::int16_t{}); break;
-        case 4: run(std::int32_t{}); break;
-        case 9: run(double{}); break;
-        case 10: run(float{}); break;
+        case QCORE_DTYPE_INT64: run(std::int64_t{}); break;
+        case QCORE_DTYPE_INT8: run(std::int8_t{}); break;
+        case QCORE_DTYPE_INT16: run(std::int16_t{}); break;
+        case QCORE_DTYPE_INT32: run(std::int32_t{}); break;
+        case QCORE_DTYPE_FLOAT64: run(double{}); break;
+        case QCORE_DTYPE_FLOAT32: run(float{}); break;
         default:
             tensor_storage_release(output);
             tensor_fail("invalid tensor element type for negation", line, column);
     }
-    return tensor_descriptor(
+    auto* result = tensor_descriptor(
         output, source.shape, tensor_contiguous_strides(source.shape), 0);
+    tensor_attach_view_graph(result, source, AutogradOp::Neg, {}, line, column);
+    return result;
 }
 
 extern "C" void* quidra_tensor_compare(
@@ -5580,8 +7230,8 @@ extern "C" void* quidra_tensor_compare(
     if (!primary_raw) tensor_fail("null tensor comparison operand", line, column);
     auto* primary = static_cast<TensorValue*>(primary_raw);
     auto* other = static_cast<TensorValue*>(other_raw);
-    if (other && scalar_side != 0) tensor_fail("invalid tensor comparison operands", line, column);
-    if (!other && scalar_side != 1 && scalar_side != 2)
+    if (other && scalar_side != abi::scalar_side::none) tensor_fail("invalid tensor comparison operands", line, column);
+    if (!other && scalar_side != abi::scalar_side::left && scalar_side != abi::scalar_side::right)
         tensor_fail("invalid tensor scalar comparison side", line, column);
     if (other && primary->storage->dtype != other->storage->dtype)
         tensor_fail("tensor comparison requires identical element types", line, column);
@@ -5590,7 +7240,7 @@ extern "C" void* quidra_tensor_compare(
                     line, column);
     if (other && primary->shape != other->shape)
         tensor_fail("tensor comparison requires identical shape", line, column);
-    if (operation < 1 || operation > 6)
+    if (operation < abi::tensor_comparison_opcode::equal || operation > abi::tensor_comparison_opcode::greater_equal)
         tensor_fail("invalid tensor comparison operation", line, column);
     tensor_require_initialized(*primary, line, column);
     if (other) tensor_require_initialized(*other, line, column);
@@ -5616,7 +7266,7 @@ extern "C" void* quidra_tensor_compare(
     }
 
     const auto count = tensor_logical_count(*left_tensor);
-    auto* output = tensor_storage_create(11, count, 1);
+    auto* output = tensor_storage_create(QCORE_DTYPE_BOOL, count, abi::tensor_fill_mode::zeros);
     const int dtype = left_tensor->storage->dtype;
     const auto run = [&](auto tag) {
         using T = decltype(tag);
@@ -5634,34 +7284,34 @@ extern "C" void* quidra_tensor_compare(
                 std::memcpy(&other_value,
                             right_tensor->storage->data.data() + oi * sizeof(T), sizeof(T));
                 a = primary_value; b = other_value;
-            } else if (scalar_side == 1) {
+            } else if (scalar_side == abi::scalar_side::left) {
                 a = scalar_value; b = primary_value;
             } else {
                 a = primary_value; b = scalar_value;
             }
             bool match = false;
             switch (operation) {
-                case 1: match = a == b; break;
-                case 2: match = a != b; break;
-                case 3: match = a < b; break;
-                case 4: match = a <= b; break;
-                case 5: match = a > b; break;
-                case 6: match = a >= b; break;
+                case abi::tensor_comparison_opcode::equal: match = a == b; break;
+                case abi::tensor_comparison_opcode::not_equal: match = a != b; break;
+                case abi::tensor_comparison_opcode::less: match = a < b; break;
+                case abi::tensor_comparison_opcode::less_equal: match = a <= b; break;
+                case abi::tensor_comparison_opcode::greater: match = a > b; break;
+                case abi::tensor_comparison_opcode::greater_equal: match = a >= b; break;
             }
             output->data[i] = static_cast<unsigned char>(match ? 1 : 0);
         }
     };
     switch (dtype) {
-        case 1: run(std::int64_t{}); break;
-        case 2: run(std::int8_t{}); break;
-        case 3: run(std::int16_t{}); break;
-        case 4: run(std::int32_t{}); break;
-        case 5: run(std::uint8_t{}); break;
-        case 6: run(std::uint16_t{}); break;
-        case 7: run(std::uint32_t{}); break;
-        case 8: run(std::uint64_t{}); break;
-        case 9: run(double{}); break;
-        case 10: run(float{}); break;
+        case QCORE_DTYPE_INT64: run(std::int64_t{}); break;
+        case QCORE_DTYPE_INT8: run(std::int8_t{}); break;
+        case QCORE_DTYPE_INT16: run(std::int16_t{}); break;
+        case QCORE_DTYPE_INT32: run(std::int32_t{}); break;
+        case QCORE_DTYPE_UINT8: run(std::uint8_t{}); break;
+        case QCORE_DTYPE_UINT16: run(std::uint16_t{}); break;
+        case QCORE_DTYPE_UINT32: run(std::uint32_t{}); break;
+        case QCORE_DTYPE_UINT64: run(std::uint64_t{}); break;
+        case QCORE_DTYPE_FLOAT64: run(double{}); break;
+        case QCORE_DTYPE_FLOAT32: run(float{}); break;
         default:
             tensor_storage_release(output);
             if (primary_cpu_storage) tensor_storage_release(primary_cpu_storage);
@@ -5684,7 +7334,7 @@ extern "C" bool quidra_tensor_bool_reduce(
     void* raw, bool all, unsigned long long line, unsigned long long column) {
     if (!raw) tensor_fail("null boolean tensor", line, column);
     auto* tensor = static_cast<TensorValue*>(raw);
-    if (tensor->storage->dtype != 11)
+    if (tensor->storage->dtype != QCORE_DTYPE_BOOL)
         tensor_fail("all()/any() require tensor<bool>", line, column);
     tensor_require_initialized(*tensor, line, column);
     TensorStorage* cpu_storage = nullptr;
@@ -5714,13 +7364,54 @@ void tensor_attach_binary_graph(
     unsigned long long line,unsigned long long column) {
     if(!result||!primary) return;
     if(!primary->graph&&(!other||!other->graph)) return;
-    if(primary->storage->dtype!=9&&primary->storage->dtype!=10)
+    if(primary->storage->dtype!=QCORE_DTYPE_FLOAT64&&primary->storage->dtype!=QCORE_DTYPE_FLOAT32)
         autograd_fail("tracked tensor arithmetic requires a floating dtype",line,column);
 
     auto graph_operand=[&](TensorValue* operand)->std::shared_ptr<AutogradNode>{
         if(operand->shape==result->shape)
             return operand->graph
                 ? operand->graph : autograd_constant_node(*operand,line,column);
+
+        // Devices with strided compute keep the broadcast operand as a
+        // stride-0 view instead of gathering an expanded copy. The forward
+        // pass required it to be initialized. The view shares the operand's
+        // storage when the operand densely covers it; an operand that is a
+        // view into a larger storage (one row of a big tensor, say) is first
+        // copied densely, so that the graph holds operand-sized memory rather
+        // than the whole storage, and later writes to the larger tensor need
+        // no copy-on-write. That copy is never larger than the expanded copy
+        // the gather path makes.
+        if(!tensor_on_cpu(*operand->storage) &&
+           tensor_gpu_strided_enabled(*operand->storage)){
+            auto strides=tensor_broadcast_strides(*operand,result->shape);
+            if(tensor_strided_read_within_storage(*operand,result->shape,strides)){
+                TensorStorage* storage=operand->storage;
+                auto offset=operand->offset;
+                if(offset==0 && tensor_is_contiguous_value(*operand) &&
+                   tensor_logical_count(*operand)==storage->count){
+                    if(storage->owners==std::numeric_limits<std::size_t>::max())
+                        runtime_text_failure("tensor storage owner overflow");
+                    ++storage->owners;
+                }else{
+                    storage=tensor_transfer_storage(
+                        *operand,operand->storage->device,line,column);
+                    offset=0;
+                    const auto dense=tensor_contiguous_strides(operand->shape);
+                    for(std::size_t axis=0;axis<strides.size();++axis)
+                        strides[axis]=operand->shape[axis]==1?0:dense[axis];
+                }
+                auto* view=tensor_descriptor(
+                    storage,result->shape,std::move(strides),offset);
+                auto node=std::make_shared<AutogradNode>(operand->storage->dtype);
+                node->shape=result->shape;
+                node->device_tensor=view;
+                if(operand->graph){
+                    node->op=AutogradOp::Broadcast;
+                    node->parents={operand->graph};
+                }
+                return node;
+            }
+        }
 
         auto indices=tensor_broadcast_logical_indices(
             *operand,result->shape,line,column);
@@ -5735,8 +7426,8 @@ void tensor_attach_binary_graph(
     auto node=std::make_shared<AutogradNode>(primary->storage->dtype);
     node->shape=result->shape;
     node->op=other
-        ? (operation==1?AutogradOp::Add:operation==2?AutogradOp::Sub:
-           operation==3?AutogradOp::Mul:AutogradOp::Div)
+        ? (operation==abi::tensor_binary_opcode::add?AutogradOp::Add:operation==abi::tensor_binary_opcode::subtract?AutogradOp::Sub:
+           operation==abi::tensor_binary_opcode::multiply?AutogradOp::Mul:AutogradOp::Div)
         : AutogradOp::ScalarBinary;
     const auto primary_node=graph_operand(primary);
     if(other){
@@ -5744,7 +7435,7 @@ void tensor_attach_binary_graph(
         node->parents={primary_node,other_node};
     }else{
         node->parents={primary_node};
-        if(primary->storage->dtype==10){
+        if(primary->storage->dtype==QCORE_DTYPE_FLOAT32){
             float value{};
             std::memcpy(&value,scalar,sizeof(value));
             node->aux.assign(1,static_cast<double>(value));
@@ -5755,7 +7446,7 @@ void tensor_attach_binary_graph(
         }
         node->aux_index={
             static_cast<std::size_t>(operation),
-            scalar_side==1?std::size_t{1}:std::size_t{0}
+            scalar_side==abi::scalar_side::left?std::size_t{1}:std::size_t{0}
         };
     }
     if(tensor_on_cpu(*result->storage))
@@ -5773,13 +7464,13 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
     if (!primary_raw) tensor_fail("null tensor operand", line, column);
     auto* primary = static_cast<TensorValue*>(primary_raw);
     auto* other = static_cast<TensorValue*>(other_raw);
-    if (other && scalar_side != 0) {
+    if (other && scalar_side != abi::scalar_side::none) {
         tensor_fail("invalid tensor binary operands", line, column);
     }
-    if (!other && scalar_side != 1 && scalar_side != 2) {
+    if (!other && scalar_side != abi::scalar_side::left && scalar_side != abi::scalar_side::right) {
         tensor_fail("invalid tensor scalar operand side", line, column);
     }
-    if (operation == 6 && (other || scalar_side != 2)) {
+    if (operation == abi::tensor_binary_opcode::power && (other || scalar_side != abi::scalar_side::right)) {
         tensor_fail("tensor power requires tensor ^ scalar", line, column);
     }
     if (other && primary->storage->dtype != other->storage->dtype) {
@@ -5796,6 +7487,52 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
     if (!tensor_on_cpu(*primary->storage)) {
         tensor_require_initialized(*primary, line, column);
         if (other) tensor_require_initialized(*other, line, column);
+
+        const auto needs_expansion = [&](const TensorValue& operand) {
+            return !tensor_is_contiguous_value(operand) ||
+                   operand.shape != output_shape;
+        };
+        // Broadcast and strided operands are read in place by index
+        // arithmetic: the kernel applies the dense kernel's arithmetic to the
+        // elements a gather would have produced, so the bits are identical.
+        if ((needs_expansion(*primary) || (other && needs_expansion(*other))) &&
+            tensor_gpu_strided_enabled(*primary->storage) &&
+            quidra::device::supports_strided_binary(
+                primary->storage->gpu_buffer, primary->storage->dtype,
+                operation)) {
+            const auto primary_strides =
+                tensor_broadcast_strides(*primary, output_shape);
+            const auto other_strides = other
+                ? tensor_broadcast_strides(*other, output_shape)
+                : std::vector<long long>{};
+            if (tensor_strided_read_within_storage(
+                    *primary, output_shape, primary_strides) &&
+                (!other || tensor_strided_read_within_storage(
+                               *other, output_shape, other_strides))) {
+                // The strided kernel writes every element (fill mode write_only).
+                auto* output = tensor_storage_create(
+                    primary->storage->dtype, count, abi::tensor_fill_mode::write_only,
+                    primary->storage->device, line, column);
+                std::string backend_error;
+                if (!quidra::device::compute_binary_strided(
+                        output->gpu_buffer, primary->storage->gpu_buffer,
+                        primary->offset, primary_strides,
+                        other ? other->storage->gpu_buffer : nullptr,
+                        other ? other->offset : 0, other_strides,
+                        scalar, scalar_side, primary->storage->dtype,
+                        operation, output_shape, backend_error)) {
+                    tensor_storage_release(output);
+                    tensor_fail(backend_error.c_str(), line, column);
+                }
+                auto* result = tensor_descriptor(
+                    output, output_shape,
+                    tensor_contiguous_strides(output_shape), 0);
+                tensor_attach_binary_graph(
+                    result, primary, other, scalar, scalar_side, operation,
+                    line, column);
+                return result;
+            }
+        }
 
         TensorStorage* primary_expanded = nullptr;
         TensorStorage* other_expanded = nullptr;
@@ -5826,7 +7563,8 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
         }
 
         auto* output = tensor_storage_create(
-            primary->storage->dtype, count, 1,
+            primary->storage->dtype, count,
+            gpu_kernel_output_fill(primary->storage->dtype),
             primary->storage->device, line, column);
         std::string backend_error;
         const bool ok = quidra::device::compute_binary(
@@ -5847,19 +7585,19 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
         return result;
     }
 
-    auto* output = tensor_storage_create(primary->storage->dtype, count, 1);
+    auto* output = tensor_storage_create(primary->storage->dtype, count, abi::tensor_fill_mode::zeros);
 
     switch (primary->storage->dtype) {
-        case 1: tensor_binary_typed<std::int64_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 2: tensor_binary_typed<std::int8_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 3: tensor_binary_typed<std::int16_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 4: tensor_binary_typed<std::int32_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 5: tensor_binary_typed<std::uint8_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 6: tensor_binary_typed<std::uint16_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 7: tensor_binary_typed<std::uint32_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 8: tensor_binary_typed<std::uint64_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 9: tensor_binary_typed<double>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
-        case 10:tensor_binary_typed<float>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_INT64: tensor_binary_typed<std::int64_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_INT8: tensor_binary_typed<std::int8_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_INT16: tensor_binary_typed<std::int16_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_INT32: tensor_binary_typed<std::int32_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_UINT8: tensor_binary_typed<std::uint8_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_UINT16: tensor_binary_typed<std::uint16_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_UINT32: tensor_binary_typed<std::uint32_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_UINT64: tensor_binary_typed<std::uint64_t>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_FLOAT64: tensor_binary_typed<double>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
+        case QCORE_DTYPE_FLOAT32: tensor_binary_typed<float>(*primary,other,scalar,scalar_side,operation,*output,output_shape,line,column); break;
         default:
             delete output;
             tensor_fail("invalid tensor element type", line, column);
@@ -5884,12 +7622,12 @@ namespace {
 
 namespace {
 
-constexpr long long tensor_slice_missing = std::numeric_limits<long long>::min();
-
 TensorStorage* tensor_materialize_storage(const TensorValue& source) {
     const auto count = tensor_logical_count(source);
-    auto* output = tensor_storage_create(source.storage->dtype, count, 0);
+    auto* output = tensor_storage_create(source.storage->dtype, count, abi::tensor_fill_mode::uninitialized);
+    if (tensor_copy_dense_view(source, *output, count)) return output;
     const auto width = tensor_dtype_bytes(source.storage->dtype);
+    const bool source_complete = source.storage->initialization.fully_initialized;
     for (std::size_t i = 0; i < count; ++i) {
         const auto source_index = tensor_storage_index(source, i);
         if (source_index >= source.storage->count) {
@@ -5898,10 +7636,12 @@ TensorStorage* tensor_materialize_storage(const TensorValue& source) {
         }
         std::memcpy(output->data.data() + i * width,
                     source.storage->data.data() + source_index * width, width);
-        if (tracker_bit(source.storage->initialization, source_index)) {
+        if (!source_complete &&
+            tracker_bit(source.storage->initialization, source_index)) {
             tracker_set(output->initialization, i);
         }
     }
+    if (source_complete) tracker_mark_complete(output->initialization);
     return output;
 }
 
@@ -5916,7 +7656,8 @@ void tensor_detach_for_write(
     const bool owns_full_contiguous_storage =
         tensor.offset == 0 && tensor_is_contiguous_value(tensor) &&
         logical_count == tensor.storage->count;
-    if (tensor.storage->owners == 1 && owns_full_contiguous_storage) return;
+    if (owns_full_contiguous_storage &&
+        tensor_storage_writable_in_place(*tensor.storage)) return;
 
     auto* old = tensor.storage;
     auto* replacement = tensor_on_cpu(*old)
@@ -5949,33 +7690,59 @@ extern "C" void* quidra_tensor_index(void* raw, const long long* specs,
     std::size_t offset = source->offset;
 
     for (std::size_t axis = 0; axis < static_cast<std::size_t>(count); ++axis) {
-        const auto kind = specs[axis * 4];
-        const auto first = specs[axis * 4 + 1];
-        const auto second = specs[axis * 4 + 2];
-        const auto third = specs[axis * 4 + 3];
+        namespace spec = abi::tensor_index_spec;
+        const auto* item = specs + axis * spec::fields;
+        const auto kind = item[spec::kind_field];
+        const auto first = item[spec::first_part_field];
+        const auto second = item[spec::first_part_field + 1];
+        const auto third = item[spec::first_part_field + 2];
         const auto dimension = source->shape[axis];
         const auto stride = source->strides[axis];
 
-        if (kind == 0) {
+        if (kind == spec::index) {
             if (first < 0 || first >= dimension) {
-                tensor_fail("tensor index is outside the dimension", line, column);
+                tensor_index_fail(abi::FailureReason::axis_index_out_of_bounds,
+                                  abi::FailureArgs{.index = first,
+                                                   .length = dimension,
+                                                   .axis = static_cast<long long>(axis)},
+                                  line, column);
             }
             offset += static_cast<std::size_t>(first) *
                       static_cast<std::size_t>(stride);
             continue;
         }
-        if (kind != 1) tensor_fail("invalid tensor index kind", line, column);
+        if (kind != spec::slice) tensor_fail("invalid tensor index kind", line, column);
 
-        const auto start = first == tensor_slice_missing ? 0 : first;
-        const auto stop = second == tensor_slice_missing ? dimension : second;
-        const auto step = third == tensor_slice_missing ? 1 : third;
+        const auto start = first == spec::missing ? 0 : first;
+        const auto stop = second == spec::missing ? dimension : second;
+        const auto step = third == spec::missing ? 1 : third;
         if (step <= 0) {
             tensor_fail("tensor slices currently require a positive step", line, column);
         }
         if (start < 0 || start > dimension || stop < 0 || stop > dimension) {
-            tensor_fail("tensor slice is outside the dimension", line, column);
+            tensor_index_fail(abi::FailureReason::axis_slice_out_of_bounds,
+                              abi::FailureArgs{.length = dimension,
+                                               .start = start,
+                                               .end = stop,
+                                               .axis = static_cast<long long>(axis)},
+                              line, column);
         }
-        const auto length = stop <= start ? 0 : (stop - start + step - 1) / step;
+        // Existing tensor index ABI uses half-open ascending slices. Route
+        // non-empty selections through the shared bounds planner, preserving
+        // legacy empty [start, stop) results, including [dimension, dimension).
+        // Unlike ceil((stop-start)/step), count is computed without a
+        // potentially overflowing stop-start+step-1 intermediate.
+        long long length = 0;
+        if (stop > start) {
+            const auto selection = quidra::plan_slice(
+                static_cast<std::uint64_t>(dimension),
+                quidra::SliceRequest{
+                    .start = start, .end = stop, .step = step,
+                    .exclude_end = true,
+                    .end_marker = quidra::SliceDirection::ascending});
+            if (!selection) tensor_fail("invalid checked tensor slice plan", line, column);
+            length = static_cast<long long>(selection.plan.count);
+        }
         offset += static_cast<std::size_t>(start) *
                   static_cast<std::size_t>(stride);
         shape.push_back(length);
@@ -6017,7 +7784,11 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
     for (std::size_t axis = 0; axis < static_cast<std::size_t>(count); ++axis) {
         const auto index = indices[axis];
         if (index < 0 || index >= tensor->shape[axis]) {
-            tensor_fail("tensor index is outside the dimension", line, column);
+            tensor_index_fail(abi::FailureReason::axis_index_out_of_bounds,
+                              abi::FailureArgs{.index = index,
+                                               .length = tensor->shape[axis],
+                                               .axis = static_cast<long long>(axis)},
+                              line, column);
         }
         storage_index += static_cast<std::size_t>(index) *
                          static_cast<std::size_t>(tensor->strides[axis]);
@@ -6040,16 +7811,27 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
 }
 
 
+// An element index outside a string (a negative one included): the index
+// and the string's length in code points, at the index operand.
+[[noreturn]] static void string_index_failure(const char* text, long long index,
+                                              unsigned long long line,
+                                              unsigned long long column) {
+    ManagedAllocation* allocation = nullptr;
+    const auto source = cached_string_view(text, allocation);
+    const auto length = allocation && allocation->string_codepoint_length_known
+        ? allocation->string_codepoint_length
+        : utf8_length(source);
+    quidra::runtime::report_failure(
+        abi::FailureReason::index_out_of_bounds,
+        abi::FailureArgs{.index = index, .length = static_cast<long long>(length)},
+        line, column);
+}
+
 extern "C" char* quidra_string_index(const char* text, long long index,
                                       unsigned long long line,
                                       unsigned long long column) {
     if (!text) runtime_text_failure("null string");
-    if (index < 0) {
-        std::fprintf(stderr,
-                     "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld is negative\n",
-                     line, column, index);
-        std::exit(101);
-    }
+    if (index < 0) string_index_failure(text, index, line, column);
 
     // Managed ASCII strings are the overwhelmingly common case for protocol,
     // file and benchmark text. UTF-8 validation already proved that code-point
@@ -6061,10 +7843,10 @@ extern "C" char* quidra_string_index(const char* text, long long index,
         const auto length = allocation->string_byte_length;
         const auto position = static_cast<std::size_t>(index);
         if (position >= length) {
-            std::fprintf(stderr,
-                         "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
-                         line, column, index, length);
-            std::exit(101);
+            quidra::runtime::report_failure(
+                abi::FailureReason::index_out_of_bounds,
+                abi::FailureArgs{.index = index, .length = static_cast<long long>(length)},
+                line, column);
         }
         const auto byte = static_cast<unsigned char>(text[position]);
         static const auto ascii_singletons = [] {
@@ -6089,10 +7871,10 @@ extern "C" char* quidra_string_index(const char* text, long long index,
             allocation->string_codepoint_length_known = true;
             allocation->string_codepoint_length = length;
         }
-        std::fprintf(stderr,
-                     "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
-                     line, column, index, length);
-        std::exit(101);
+        quidra::runtime::report_failure(
+            abi::FailureReason::index_out_of_bounds,
+            abi::FailureArgs{.index = index, .length = static_cast<long long>(length)},
+            line, column);
     }
 
     if (bounds.end == bounds.start + 1) {
@@ -6122,22 +7904,17 @@ extern "C" bool quidra_string_index_equal_ascii(
     const char* text, long long index, unsigned char expected,
     unsigned long long line, unsigned long long column) {
     if (!text) runtime_text_failure("null string");
-    if (index < 0) {
-        std::fprintf(stderr,
-                     "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld is negative\n",
-                     line, column, index);
-        std::exit(101);
-    }
+    if (index < 0) string_index_failure(text, index, line, column);
 
     if (auto* allocation = exact_managed_string(text);
         allocation && allocation->string_ascii_known &&
         allocation->string_ascii) {
         const auto position = static_cast<std::size_t>(index);
         if (position >= allocation->string_byte_length) {
-            std::fprintf(stderr,
-                         "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
-                         line, column, index, allocation->string_byte_length);
-            std::exit(101);
+            quidra::runtime::report_failure(
+                abi::FailureReason::index_out_of_bounds,
+                abi::FailureArgs{.index = index, .length = static_cast<long long>(allocation->string_byte_length)},
+                line, column);
         }
         return static_cast<unsigned char>(text[position]) == expected;
     }
@@ -6153,10 +7930,10 @@ extern "C" bool quidra_string_index_equal_ascii(
             allocation->string_codepoint_length_known = true;
             allocation->string_codepoint_length = length;
         }
-        std::fprintf(stderr,
-                     "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
-                     line, column, index, length);
-        std::exit(101);
+        quidra::runtime::report_failure(
+            abi::FailureReason::index_out_of_bounds,
+            abi::FailureArgs{.index = index, .length = static_cast<long long>(length)},
+            line, column);
     }
     return bounds.end == bounds.start + 1 &&
            static_cast<unsigned char>(text[bounds.start]) == expected;
@@ -6172,18 +7949,14 @@ extern "C" long long quidra_string_count_ascii_prefix(
     if (count <= 0) return initial;
 
     auto overflow = [&]() -> void {
-        std::fprintf(
-            stderr,
-            "Quidra runtime error[INTEGER_OVERFLOW] at %llu:%llu: integer overflow\n",
-            overflow_line, overflow_column);
-        std::exit(101);
+        quidra::runtime::report_failure(abi::FailureReason::integer_overflow, {},
+                                        overflow_line, overflow_column);
     };
     auto bounds = [&](long long index, std::size_t length) -> void {
-        std::fprintf(
-            stderr,
-            "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
-            index_line, index_column, index, length);
-        std::exit(101);
+        quidra::runtime::report_failure(
+            abi::FailureReason::index_out_of_bounds,
+            abi::FailureArgs{.index = index, .length = static_cast<long long>(length)},
+            index_line, index_column);
     };
     auto add_one = [&](long long& value) {
         if (value == std::numeric_limits<long long>::max()) overflow();
@@ -6291,11 +8064,24 @@ extern "C" long long quidra_string_find(const char* text, const char* needle) {
     return static_cast<long long>(utf8_prefix_length(source, pos));
 }
 
+// A slice [start, end) outside a string: its bounds and the string's length
+// in code points, at the slice.
+[[noreturn]] static void string_slice_failure(const char* text, long long start,
+                                              long long end, unsigned long long line,
+                                              unsigned long long column) {
+    ManagedAllocation* allocation = nullptr;
+    const auto length = utf8_length(cached_string_view(text, allocation));
+    quidra::runtime::report_failure(
+        abi::FailureReason::slice_out_of_bounds,
+        abi::FailureArgs{.length = static_cast<long long>(length), .start = start, .end = end},
+        line, column);
+}
+
 extern "C" char* quidra_string_slice(
-    const char* text, long long start, long long end) {
+    const char* text, long long start, long long end, unsigned long long line,
+    unsigned long long column) {
     if (!text) runtime_text_failure("null string");
-    if (start < 0 || end < start)
-        runtime_text_failure("string slice is outside [0, len]");
+    if (start < 0 || end < start) string_slice_failure(text, start, end, line, column);
 
     ManagedAllocation* allocation = nullptr;
     const auto source = validated_string_view(text, allocation);
@@ -6315,18 +8101,25 @@ extern "C" char* quidra_string_slice(
         (void)utf8_next(source, byte);
         ++codepoint;
     }
-    if (codepoint != target_start) {
-        runtime_text_failure("string slice is outside [0, len]");
-    }
+    if (codepoint != target_start) string_slice_failure(text, start, end, line, column);
     const auto byte_start = byte;
 
     while (codepoint < target_end && byte < source.size()) {
         (void)utf8_next(source, byte);
         ++codepoint;
     }
-    if (codepoint != target_end) {
-        runtime_text_failure("string slice is outside [0, len]");
-    }
+    if (codepoint != target_end) string_slice_failure(text, start, end, line, column);
+
+    // UTF-8 scanning has already established that the prefix [0, end) is
+    // valid. Use that prefix as the planner's bounds instead of making a
+    // second pass over the entire string to count code points.
+    const auto selection = quidra::plan_slice(
+        static_cast<std::uint64_t>(end),
+        quidra::SliceRequest{.start = start, .end = end, .step = std::nullopt,
+                             .exclude_end = true,
+                             .end_marker = quidra::SliceDirection::ascending});
+    if (!selection) runtime_text_failure("invalid checked string slice plan");
+    const auto selected_codepoints = selection.plan.count;
 
     if (allocation) {
         allocation->string_index_cursor_valid = true;
@@ -6338,7 +8131,8 @@ extern "C" char* quidra_string_slice(
         }
     }
     return copy_validated_runtime_text(
-        source.substr(byte_start, byte - byte_start), target_end - target_start);
+        source.substr(byte_start, byte - byte_start),
+        static_cast<std::size_t>(selected_codepoints));
 }
 
 extern "C" char* quidra_string_trim(const char* text) {
@@ -6537,7 +8331,7 @@ extern "C" void* quidra_string_split(const char* text, const char* separator) {
         start = pos + delimiter.size();
     }
 
-    if (piece_count > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(char*) ||
+    if (piece_count > (std::numeric_limits<std::size_t>::max() - abi::array_layout::payload_offset) / sizeof(char*) ||
         source.size() == std::numeric_limits<std::size_t>::max()) {
         runtime_allocation_failure();
     }
@@ -6554,7 +8348,7 @@ extern "C" void* quidra_string_split(const char* text, const char* separator) {
     slab_it->second.shared_string_slab = true;
     slab_it->second.owners = piece_count;
 
-    const auto bytes = 8 + piece_count * sizeof(char*);
+    const auto bytes = abi::array_layout::payload_offset + piece_count * sizeof(char*);
     auto* result = static_cast<unsigned char*>(managed_allocate(bytes));
     const auto count = static_cast<long long>(piece_count);
     std::memcpy(result, &count, sizeof(count));
@@ -6565,7 +8359,7 @@ extern "C" void* quidra_string_split(const char* text, const char* separator) {
         const auto end = pos == std::string_view::npos ? source.size() : pos;
         slab[end] = '\0';
         auto* item = slab + start;
-        std::memcpy(result + 8 + i * sizeof(char*), &item, sizeof(item));
+        std::memcpy(result + abi::array_layout::payload_offset + i * sizeof(char*), &item, sizeof(item));
         start = pos == std::string_view::npos
             ? source.size() : pos + delimiter.size();
     }
@@ -6655,7 +8449,7 @@ extern "C" char* quidra_string_build_append_move_unique_direct(
     for (std::size_t i = 0; i < count; ++i) {
         aliases[i] = 0;
         switch (kinds[i]) {
-            case 0: {
+            case abi::string_build_part_kind::text: {
                 const auto* text = reinterpret_cast<const char*>(
                     static_cast<std::uintptr_t>(raw_values[i]));
                 if (!text) runtime_text_failure("null string builder value");
@@ -6669,7 +8463,7 @@ extern "C" char* quidra_string_build_append_move_unique_direct(
                 checked_add(added_codepoints, codepoints);
                 break;
             }
-            case 4: {
+            case abi::string_build_part_kind::ascii_character: {
                 const auto* text = reinterpret_cast<const char*>(
                     static_cast<std::uintptr_t>(raw_values[i]));
                 if (!text || text[0] == '\0' || text[1] != '\0' ||
@@ -6682,7 +8476,7 @@ extern "C" char* quidra_string_build_append_move_unique_direct(
                 checked_add(added_codepoints, 1);
                 break;
             }
-            case 1: {
+            case abi::string_build_part_kind::signed_integer: {
                 const auto value = std::bit_cast<long long>(raw_values[i]);
                 auto& numeric = numeric_parts[i];
                 const auto converted = std::to_chars(
@@ -6695,7 +8489,7 @@ extern "C" char* quidra_string_build_append_move_unique_direct(
                 checked_add(added_codepoints, lengths[i]);
                 break;
             }
-            case 2: {
+            case abi::string_build_part_kind::unsigned_integer: {
                 auto& numeric = numeric_parts[i];
                 const auto converted = std::to_chars(
                     numeric.data(), numeric.data() + numeric.size(),
@@ -6708,7 +8502,7 @@ extern "C" char* quidra_string_build_append_move_unique_direct(
                 checked_add(added_codepoints, lengths[i]);
                 break;
             }
-            case 3: {
+            case abi::string_build_part_kind::boolean: {
                 lengths[i] = raw_values[i] ? 4U : 5U;
                 checked_add(added, lengths[i]);
                 checked_add(added_codepoints, lengths[i]);
@@ -6781,8 +8575,8 @@ extern "C" char* quidra_string_build_append_move_unique_direct(
             offset += delimiter.size();
         }
         switch (kinds[i]) {
-            case 0:
-            case 4: {
+            case abi::string_build_part_kind::text:
+            case abi::string_build_part_kind::ascii_character: {
                 const auto* source = aliases[i]
                     ? result
                     : reinterpret_cast<const char*>(
@@ -6793,8 +8587,8 @@ extern "C" char* quidra_string_build_append_move_unique_direct(
                 }
                 break;
             }
-            case 1:
-            case 2: {
+            case abi::string_build_part_kind::signed_integer:
+            case abi::string_build_part_kind::unsigned_integer: {
                 if (lengths[i] != 0) {
                     std::memcpy(
                         result + offset, numeric_parts[i].data(), lengths[i]);
@@ -6802,7 +8596,7 @@ extern "C" char* quidra_string_build_append_move_unique_direct(
                 }
                 break;
             }
-            case 3: {
+            case abi::string_build_part_kind::boolean: {
                 const char* value = raw_values[i] ? "true" : "false";
                 std::memcpy(result + offset, value, lengths[i]);
                 offset += lengths[i];
@@ -6851,9 +8645,6 @@ extern "C" char* quidra_string_build_append_move(
 extern "C" long long quidra_string_build_append_last_length() {
     return string_build_append_last_codepoints;
 }
-
-extern "C" char* quidra_string_concat_many(const char* const* values,
-                                                 unsigned long long raw_count);
 
 extern "C" char* quidra_string_append_move_many(
     char* raw, const char* const* suffixes, unsigned long long raw_count) {
@@ -7033,7 +8824,7 @@ extern "C" char* quidra_string_build(
     std::array<char, 32> numeric{};
     for (std::size_t i = 0; i < count; ++i) {
         switch (kinds[i]) {
-            case 0: {
+            case abi::string_build_part_kind::text: {
                 const auto* text = reinterpret_cast<const char*>(
                     static_cast<std::uintptr_t>(raw_values[i]));
                 if (!text) runtime_text_failure("null string builder value");
@@ -7045,7 +8836,7 @@ extern "C" char* quidra_string_build(
                 checked_add(total_codepoints, codepoints);
                 break;
             }
-            case 1: {
+            case abi::string_build_part_kind::signed_integer: {
                 const auto value = std::bit_cast<long long>(raw_values[i]);
                 const auto converted = std::to_chars(
                     numeric.data(), numeric.data() + numeric.size(), value, 10);
@@ -7057,7 +8848,7 @@ extern "C" char* quidra_string_build(
                 checked_add(total_codepoints, bytes);
                 break;
             }
-            case 2: {
+            case abi::string_build_part_kind::unsigned_integer: {
                 const auto converted = std::to_chars(
                     numeric.data(), numeric.data() + numeric.size(),
                     raw_values[i], 10);
@@ -7069,7 +8860,7 @@ extern "C" char* quidra_string_build(
                 checked_add(total_codepoints, bytes);
                 break;
             }
-            case 3: {
+            case abi::string_build_part_kind::boolean: {
                 const auto bytes = raw_values[i] ? 4U : 5U;
                 checked_add(total, bytes);
                 checked_add(total_codepoints, bytes);
@@ -7092,7 +8883,7 @@ extern "C" char* quidra_string_build(
             offset += delimiter.size();
         }
         switch (kinds[i]) {
-            case 0: {
+            case abi::string_build_part_kind::text: {
                 const auto* text = reinterpret_cast<const char*>(
                     static_cast<std::uintptr_t>(raw_values[i]));
                 ManagedAllocation* allocation = nullptr;
@@ -7102,7 +8893,7 @@ extern "C" char* quidra_string_build(
                 offset += piece.size();
                 break;
             }
-            case 1: {
+            case abi::string_build_part_kind::signed_integer: {
                 const auto value = std::bit_cast<long long>(raw_values[i]);
                 const auto converted = std::to_chars(
                     result + offset, result + total, value, 10);
@@ -7111,7 +8902,7 @@ extern "C" char* quidra_string_build(
                 offset = static_cast<std::size_t>(converted.ptr - result);
                 break;
             }
-            case 2: {
+            case abi::string_build_part_kind::unsigned_integer: {
                 const auto converted = std::to_chars(
                     result + offset, result + total, raw_values[i], 10);
                 if (converted.ec != std::errc{})
@@ -7119,7 +8910,7 @@ extern "C" char* quidra_string_build(
                 offset = static_cast<std::size_t>(converted.ptr - result);
                 break;
             }
-            case 3: {
+            case abi::string_build_part_kind::boolean: {
                 const char* value = raw_values[i] ? "true" : "false";
                 const auto bytes = raw_values[i] ? 4U : 5U;
                 std::memcpy(result + offset, value, bytes);
@@ -7224,7 +9015,7 @@ long long bin_length(const void* raw) {
 bool bin_bit_at(const void* raw, long long index) {
     const auto length = bin_length(raw);
     if (index < 0 || index >= length) runtime_text_failure("bin index out of bounds");
-    const auto* data = static_cast<const unsigned char*>(raw) + 8;
+    const auto* data = static_cast<const unsigned char*>(raw) + abi::bin_layout::payload_offset;
     const auto byte_index = static_cast<std::size_t>(index / 8);
     const auto shift = static_cast<unsigned>(7 - (index % 8));
     return ((data[byte_index] >> shift) & 1U) != 0;
@@ -7233,7 +9024,7 @@ bool bin_bit_at(const void* raw, long long index) {
 void bin_set_bit(void* raw, long long index, bool value) {
     const auto length = bin_length(raw);
     if (index < 0 || index >= length) runtime_text_failure("bin index out of bounds");
-    auto* data = static_cast<unsigned char*>(raw) + 8;
+    auto* data = static_cast<unsigned char*>(raw) + abi::bin_layout::payload_offset;
     const auto byte_index = static_cast<std::size_t>(index / 8);
     const auto shift = static_cast<unsigned>(7 - (index % 8));
     const auto mask = static_cast<unsigned char>(1U << shift);
@@ -7245,33 +9036,65 @@ void bin_set_bit(void* raw, long long index, bool value) {
 extern "C" void* quidra_bin_alloc(long long bit_count, long long fill) {
     if (fill != 0 && fill != 1) runtime_text_failure("bin fill must be 0 or 1");
     const auto bytes = bin_payload_bytes(bit_count);
-    if (bytes > std::numeric_limits<std::size_t>::max() - 8) runtime_allocation_failure();
-    auto* result = static_cast<unsigned char*>(managed_allocate(8 + bytes));
+    if (bytes > std::numeric_limits<std::size_t>::max() - abi::bin_layout::payload_offset) runtime_allocation_failure();
+    auto* result = static_cast<unsigned char*>(managed_allocate(abi::bin_layout::payload_offset + bytes));
     std::memcpy(result, &bit_count, sizeof(bit_count));
-    if (bytes != 0) std::memset(result + 8, fill ? 0xff : 0x00, bytes);
+    if (bytes != 0) std::memset(result + abi::bin_layout::payload_offset, fill ? 0xff : 0x00, bytes);
     if (fill && bit_count % 8 != 0 && bytes != 0) {
         const auto used = static_cast<unsigned>(bit_count % 8);
-        result[8 + bytes - 1] &= static_cast<unsigned char>(0xffU << (8U - used));
+        result[abi::bin_layout::payload_offset + bytes - 1] &= static_cast<unsigned char>(0xffU << (8U - used));
     }
     return result;
 }
 
-extern "C" void* quidra_bin_index(void* raw, long long index) {
+// A bin element index outside the bin's length, at the index operand.
+[[noreturn]] static void bin_index_failure(long long index, long long length,
+                                           unsigned long long line, unsigned long long column) {
+    quidra::runtime::report_failure(abi::FailureReason::index_out_of_bounds,
+                                    abi::FailureArgs{.index = index, .length = length}, line,
+                                    column);
+}
+
+extern "C" void* quidra_bin_index(void* raw, long long index, unsigned long long line,
+                                  unsigned long long column) {
+    const auto length = bin_length(raw);
+    if (index < 0 || index >= length) bin_index_failure(index, length, line, column);
     auto* result = quidra_bin_alloc(1, 0);
     bin_set_bit(result, 0, bin_bit_at(raw, index));
     return result;
 }
 
-extern "C" void quidra_bin_set(void* raw, long long index, void* bit) {
+extern "C" void quidra_bin_set(void* raw, long long index, void* bit, unsigned long long line,
+                               unsigned long long column) {
+    const auto length = bin_length(raw);
+    if (index < 0 || index >= length) bin_index_failure(index, length, line, column);
     if (bin_length(bit) != 1) runtime_text_failure("bin element assignment requires exactly one bit");
     bin_set_bit(raw, index, bin_bit_at(bit, 0));
 }
 
-extern "C" void* quidra_bin_slice(void* raw, long long start, long long end) {
+extern "C" void* quidra_bin_slice(void* raw, long long start, long long end,
+                                  unsigned long long line, unsigned long long column) {
     const auto length = bin_length(raw);
-    if (start < 0 || end < start || end > length) runtime_text_failure("bin slice out of bounds");
+    if (start < 0 || end < start || end > length) {
+        quidra::runtime::report_failure(
+            abi::FailureReason::slice_out_of_bounds,
+            abi::FailureArgs{.length = length, .start = start, .end = end}, line, column);
+    }
+    // Current bin.slice callers supply a half-open ascending interval,
+    // including empty [length, length), which the shared planner accepts.
+    const auto selection = quidra::plan_slice(
+        static_cast<std::uint64_t>(length),
+        quidra::SliceRequest{
+            .start = start, .end = end, .step = std::nullopt, .exclude_end = true,
+            .end_marker = quidra::SliceDirection::ascending});
+    // All endpoint conditions were checked above, so failure is a programming
+    // error in the adapter, never a user-facing bounds error.
+    if (!selection) runtime_text_failure("invalid checked bin slice plan");
     auto* result = quidra_bin_alloc(end - start, 0);
-    for (long long i = start; i < end; ++i) bin_set_bit(result, i - start, bin_bit_at(raw, i));
+    for (std::uint64_t offset = 0; offset < selection.plan.count; ++offset) {
+        bin_set_bit(result, static_cast<long long>(offset),
+                    bin_bit_at(raw, selection.plan.index_at(offset)));
+    }
     return result;
 }
 
@@ -7324,8 +9147,8 @@ extern "C" unsigned long long quidra_bin_to_u64(void* raw, int width) {
 extern "C" void* quidra_bin_clone(void* raw) {
     const auto bit_count = bin_length(raw);
     const auto bytes = bin_payload_bytes(bit_count);
-    auto* result = static_cast<unsigned char*>(managed_allocate(8 + bytes));
-    std::memcpy(result, raw, 8 + bytes);
+    auto* result = static_cast<unsigned char*>(managed_allocate(abi::bin_layout::payload_offset + bytes));
+    std::memcpy(result, raw, abi::bin_layout::payload_offset + bytes);
     return result;
 }
 
@@ -7337,8 +9160,8 @@ extern "C" bool quidra_bin_equal(void* left, void* right) {
     if (left_bits != right_bits) return false;
     const auto bytes = bin_payload_bytes(left_bits);
     return bytes == 0 || std::memcmp(
-        static_cast<unsigned char*>(left) + 8,
-        static_cast<unsigned char*>(right) + 8,
+        static_cast<unsigned char*>(left) + abi::bin_layout::payload_offset,
+        static_cast<unsigned char*>(right) + abi::bin_layout::payload_offset,
         bytes) == 0;
 }
 
@@ -7356,7 +9179,7 @@ extern "C" char* quidra_u8_array_try_utf8(void* raw) {
     if (signed_count < 0) return nullptr;
     const auto count = static_cast<unsigned long long>(signed_count);
     return quidra_runtime_try_copy_text_bytes(
-        static_cast<const char*>(raw) + 8, count);
+        static_cast<const char*>(raw) + abi::array_layout::payload_offset, count);
 }
 
 extern "C" char* quidra_bin_try_utf8(void* raw) {
@@ -7364,7 +9187,7 @@ extern "C" char* quidra_bin_try_utf8(void* raw) {
     const auto bits = bin_length(raw);
     if (bits % 8 != 0) return nullptr;
     return quidra_runtime_try_copy_text_bytes(
-        static_cast<const char*>(raw) + 8,
+        static_cast<const char*>(raw) + abi::bin_layout::payload_offset,
         static_cast<unsigned long long>(bits / 8));
 }
 
@@ -7380,10 +9203,10 @@ extern "C" void* quidra_bin_from_array(void* raw, int width, int stride) {
         runtime_allocation_failure();
     const auto total_bits = static_cast<long long>(count * static_cast<unsigned long long>(width));
     auto* result = quidra_bin_alloc(total_bits, 0);
-    const auto* data = static_cast<const unsigned char*>(raw) + 8;
+    const auto* data = static_cast<const unsigned char*>(raw) + abi::array_layout::payload_offset;
     if (width == 8 && stride == 1) {
         if (count != 0)
-            std::memcpy(static_cast<unsigned char*>(result) + 8, data,
+            std::memcpy(static_cast<unsigned char*>(result) + abi::bin_layout::payload_offset, data,
                         static_cast<std::size_t>(count));
         return result;
     }
@@ -7417,18 +9240,18 @@ extern "C" void* quidra_bin_to_array(void* raw, int width, int stride) {
     if (count < 0 || static_cast<long long>(count_size) != count ||
         (count_size != 0 &&
          static_cast<std::size_t>(stride) >
-             (std::numeric_limits<std::size_t>::max() - 8) / count_size))
+             (std::numeric_limits<std::size_t>::max() - abi::array_layout::payload_offset) / count_size))
         runtime_allocation_failure();
     auto* result = static_cast<unsigned char*>(
-        managed_allocate(8 + count_size * static_cast<std::size_t>(stride)));
+        managed_allocate(abi::array_layout::payload_offset + count_size * static_cast<std::size_t>(stride)));
     std::memcpy(result, &count, sizeof(count));
-    auto* data = result + 8;
+    auto* data = result + abi::array_layout::payload_offset;
     if (width == 8 && stride == 1) {
         if (count_size != 0)
-            std::memcpy(data, static_cast<const unsigned char*>(raw) + 8,
+            std::memcpy(data, static_cast<const unsigned char*>(raw) + abi::bin_layout::payload_offset,
                         count_size);
         quidra_init_create(result, static_cast<unsigned long long>(count_size),
-                           1, 8, 1);
+                           1, abi::array_layout::payload_offset, 1);
         return result;
     }
     for (long long i = 0; i < count; ++i) {
@@ -7445,7 +9268,7 @@ extern "C" void* quidra_bin_to_array(void* raw, int width, int stride) {
         }
     }
     quidra_init_create(result, static_cast<unsigned long long>(count_size),
-                       static_cast<unsigned long long>(stride), 8, 1);
+                       static_cast<unsigned long long>(stride), abi::array_layout::payload_offset, 1);
     return result;
 }
 
@@ -7475,14 +9298,14 @@ extern "C" void* quidra_string_utf8(const char* text) {
     if (!text) runtime_text_failure("null string");
     ManagedAllocation* allocation = nullptr;
     const auto source = validated_string_view(text, allocation);
-    if (source.size() > (std::numeric_limits<std::size_t>::max() - 8) ||
+    if (source.size() > (std::numeric_limits<std::size_t>::max() - abi::bin_layout::payload_offset) ||
         source.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max() / 8)) {
         runtime_allocation_failure();
     }
-    auto* result = static_cast<unsigned char*>(managed_allocate(8 + source.size()));
+    auto* result = static_cast<unsigned char*>(managed_allocate(abi::bin_layout::payload_offset + source.size()));
     const auto count = static_cast<long long>(source.size() * 8);
     std::memcpy(result, &count, sizeof(count));
-    if (!source.empty()) std::memcpy(result + 8, source.data(), source.size());
+    if (!source.empty()) std::memcpy(result + abi::bin_layout::payload_offset, source.data(), source.size());
     return result;
 }
 
@@ -7492,18 +9315,19 @@ extern "C" void* quidra_string_codepoints(const char* text) {
     std::size_t count_size = 0;
     const auto source =
         validated_string_view(text, allocation, &count_size);
-    if (count_size > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(long long)) {
+    if (count_size > (std::numeric_limits<std::size_t>::max() - abi::array_layout::payload_offset) / sizeof(long long)) {
         runtime_allocation_failure();
     }
     auto* result = static_cast<unsigned char*>(
-        managed_allocate(8 + count_size * sizeof(long long)));
+        managed_allocate(abi::array_layout::payload_offset + count_size * sizeof(long long)));
     const auto count = static_cast<long long>(count_size);
     std::memcpy(result, &count, sizeof(count));
     std::size_t byte_index = 0;
     std::size_t out_index = 0;
     while (byte_index < source.size()) {
-        const auto codepoint = static_cast<long long>(utf8_next(source, byte_index));
-        std::memcpy(result + 8 + out_index * sizeof(long long),
+        // An int element is the inline word of the code point.
+        const auto codepoint = static_cast<long long>(utf8_next(source, byte_index)) << 1;
+        std::memcpy(result + abi::array_layout::payload_offset + out_index * sizeof(long long),
                     &codepoint, sizeof(codepoint));
         ++out_index;
     }
@@ -7518,12 +9342,12 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
     std::memcpy(&signed_count, raw, sizeof(signed_count));
     if (signed_count < 0) runtime_text_failure("invalid string array length");
     const auto count = static_cast<std::size_t>(signed_count);
-    if (count > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(char*)) {
+    if (count > (std::numeric_limits<std::size_t>::max() - abi::array_layout::payload_offset) / sizeof(char*)) {
         runtime_allocation_failure();
     }
     if (count != 0) {
         quidra_init_require_range(
-            static_cast<unsigned char*>(raw) + 8,
+            static_cast<unsigned char*>(raw) + abi::array_layout::payload_offset,
             static_cast<unsigned long long>(count * sizeof(char*)), line, column);
     }
 
@@ -7540,7 +9364,7 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
         for (std::size_t i = 0; i < count; ++i) {
             char* item = nullptr;
             std::memcpy(&item,
-                        static_cast<unsigned char*>(raw) + 8 + i * sizeof(char*),
+                        static_cast<unsigned char*>(raw) + abi::array_layout::payload_offset + i * sizeof(char*),
                         sizeof(item));
             if (!item) runtime_text_failure("null string in join");
             const auto byte = static_cast<unsigned char>(item[0]);
@@ -7557,7 +9381,7 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
             for (std::size_t i = 0; i < count; ++i) {
                 char* item = nullptr;
                 std::memcpy(&item,
-                            static_cast<unsigned char*>(raw) + 8 + i * sizeof(char*),
+                            static_cast<unsigned char*>(raw) + abi::array_layout::payload_offset + i * sizeof(char*),
                             sizeof(item));
                 result[i] = item[0];
             }
@@ -7590,7 +9414,7 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
     for (std::size_t i = 0; i < count; ++i) {
         char* item = nullptr;
         std::memcpy(&item,
-                    static_cast<unsigned char*>(raw) + 8 + i * sizeof(char*),
+                    static_cast<unsigned char*>(raw) + abi::array_layout::payload_offset + i * sizeof(char*),
                     sizeof(item));
         if (!item) runtime_text_failure("null string in join");
         ManagedAllocation* item_allocation = nullptr;
@@ -7706,22 +9530,22 @@ extern "C" void quidra_cli_finish() {
 }
 
 extern "C" int quidra_input_read(char** out) {
-    if (!out) return -1;
+    if (!out) return abi::read_line_status::failed;
     *out = nullptr;
 
     std::string text;
     if (!std::getline(std::cin, text)) {
-        if (std::cin.bad()) return -1;
-        if (std::cin.eof()) return 0;
-        return -1;
+        if (std::cin.bad()) return abi::read_line_status::failed;
+        if (std::cin.eof()) return abi::read_line_status::end_of_input;
+        return abi::read_line_status::failed;
     }
 
     std::size_t codepoints = 0;
     bool contains_nul = false;
     if (!valid_utf8(text, &codepoints, &contains_nul) || contains_nul)
-        return -1;
+        return abi::read_line_status::failed;
     *out = copy_validated_runtime_text(text, codepoints);
-    return 1;
+    return abi::read_line_status::line;
 }
 
 extern "C" bool quidra_string_parse_two_signed(
@@ -7880,11 +9704,49 @@ extern "C" char* quidra_integer_text_unsigned(unsigned long long value) {
         static_cast<std::size_t>(converted.ptr - buffer.data()));
 }
 
+namespace {
+
+enum class DecimalReal { not_decimal, out_of_range, ok };
+
+// Reads real text that is decimal, after optional leading white space, by
+// rounding its exact value once to the nearest value of Real's format, ties
+// to even, subnormals included (ieee_decimal.hpp). A value beyond the finite
+// range, and a value that is not zero but rounds to zero, is out of range.
+// Other text that strtod reads (hexadecimal, infinities, NaNs) is not
+// decimal; the caller decides.
+template <class Real>
+DecimalReal read_decimal_real(const char* text, Real& out) {
+    namespace ieee = quidra::ieee_decimal;
+    static_assert(std::is_same_v<Real, float> || std::is_same_v<Real, double>);
+    const char* start = text;
+    while (*start == ' ' || (*start >= '\t' && *start <= '\r')) ++start;
+    ieee::Decimal decimal;
+    if (!ieee::parse(start, decimal)) return DecimalReal::not_decimal;
+    if constexpr (std::is_same_v<Real, float>) {
+        const auto rounded = ieee::round(decimal, ieee::binary32);
+        if (rounded.overflow || rounded.underflow_to_zero) return DecimalReal::out_of_range;
+        out = ieee::binary32_value(rounded);
+    } else {
+        const auto rounded = ieee::round(decimal, ieee::binary64);
+        if (rounded.overflow || rounded.underflow_to_zero) return DecimalReal::out_of_range;
+        out = ieee::binary64_value(rounded);
+    }
+    return DecimalReal::ok;
+}
+
+} // namespace
+
 extern "C" bool quidra_parse_float32(const char* text, float* out) {
     if (!text || !out || !*text) return false;
+    float value = 0.0F;
+    switch (read_decimal_real(text, value)) {
+        case DecimalReal::ok: *out = value; return true;
+        case DecimalReal::out_of_range: return false;
+        case DecimalReal::not_decimal: break;
+    }
     errno = 0;
     char* end = nullptr;
-    const auto value = std::strtof(text, &end);
+    value = std::strtof(text, &end);
     if (errno == ERANGE || end == text || !end || *end != '\0' || !std::isfinite(value)) return false;
     *out = value;
     return true;
@@ -7892,41 +9754,53 @@ extern "C" bool quidra_parse_float32(const char* text, float* out) {
 
 extern "C" bool quidra_parse_float64(const char* text, double* out) {
     if (!text || !out || !*text) return false;
+    double value = 0.0;
+    switch (read_decimal_real(text, value)) {
+        case DecimalReal::ok: *out = value; return true;
+        case DecimalReal::out_of_range: return false;
+        case DecimalReal::not_decimal: break;
+    }
     errno = 0;
     char* end = nullptr;
-    const auto value = std::strtod(text, &end);
+    value = std::strtod(text, &end);
     if (errno == ERANGE || end == text || !end || *end != '\0' || !std::isfinite(value)) return false;
     *out = value;
     return true;
 }
 
 extern "C" long long quidra_cli_parse_int(const char* text) {
-    if (!text || !*text) cli_fail("invalid int value");
+    if (!text || !*text) cli_fail("invalid int64 value");
     errno = 0;
     char* end = nullptr;
     const auto value = std::strtoll(text, &end, 10);
-    if (errno == ERANGE || end == text || !end || *end != '\0') cli_fail("invalid int value");
+    if (errno == ERANGE || end == text || !end || *end != '\0') cli_fail("invalid int64 value");
     return value;
 }
 
 extern "C" double quidra_cli_parse_float(const char* text) {
-    if (!text || !*text) cli_fail("invalid float value");
+    if (!text || !*text) cli_fail("invalid real64 value");
+    double value = 0.0;
+    switch (read_decimal_real(text, value)) {
+        case DecimalReal::ok: return value;
+        case DecimalReal::out_of_range: cli_fail("invalid real64 value");
+        case DecimalReal::not_decimal: break;
+    }
     errno = 0;
     char* end = nullptr;
-    const auto value = std::strtod(text, &end);
-    if (errno == ERANGE || end == text || !end || *end != '\0') cli_fail("invalid float value");
+    value = std::strtod(text, &end);
+    if (errno == ERANGE || end == text || !end || *end != '\0') cli_fail("invalid real64 value");
     return value;
 }
 
 extern "C" void* quidra_cli_parse_bigint(const char* text) {
     auto* value = quidra_bigint_parse(text);
-    if (!value) cli_fail("invalid bigint value");
+    if (!value) cli_fail("invalid int value");
     return value;
 }
 
 extern "C" void* quidra_cli_parse_bigreal(const char* text) {
     auto* value = quidra_bigreal_parse(text);
-    if (!value) cli_fail("invalid bigreal value");
+    if (!value) cli_fail("invalid real value");
     return value;
 }
 

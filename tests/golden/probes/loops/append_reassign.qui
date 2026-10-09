@@ -1,0 +1,21 @@
+// A value loop iterates the array it started with while its body appends
+// to the iterated binding.
+int[] values = [1, 2, 3]
+for v in values
+    print("{v} ")
+    values = values.append(v * 10)
+print("| {len(values)} {values[5]}")
+print(NL)
+string[] names = ["a", "b"]
+for name in names
+    print("{name} ")
+    names = names.append(name + "!")
+print("| {len(names)} {names[3]}")
+print(NL)
+int[] grown = [1, 2]
+for v in grown
+    for w in grown
+        grown = grown.append(v + w)
+    print("{v} ")
+print("| {len(grown)}")
+print(NL)

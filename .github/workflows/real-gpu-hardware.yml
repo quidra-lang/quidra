@@ -26,6 +26,9 @@ on:
       - "src/device_compute.inc"
       - "src/device_integer_compute.inc"
       - "src/device_tensor_reduce_compute.inc"
+      - "src/device_unified.inc"
+      - "src/unified_storage.cpp"
+      - "src/unified_storage.hpp"
       - "tests/real_gpu_integration.sh"
 
 concurrency:
@@ -47,7 +50,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Require NVIDIA hardware and run numerical integration
         env:
           QUIDRA_REQUIRE_REAL_GPU: "1"
@@ -68,7 +71,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Require AMD hardware and run numerical integration
         env:
           QUIDRA_REQUIRE_REAL_GPU: "1"

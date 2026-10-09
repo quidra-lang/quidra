@@ -1,0 +1,20 @@
+// Calls of probe_rules operations that the conditional rules reject (see
+// packages/probe_rules/compiler/rules.toml for the rules), and one rule that
+// gives its by-value target a clone of a borrowed argument.
+import probe = probe_rules
+
+tensor<real32> x = tensor.ones<real32>([4])
+tensor<real32> y = tensor.ones<real32>([4])
+// A temporary of known shape [4]: wrong dtype, rank, shape and layout, an
+// unbound and an unsafe replacement, and a last use where the rule asks for
+// a later one.
+tensor<real32> fresh = probe.first(tensor.ones<real32>([4]))
+// x is used again below: not its last use.
+tensor<real32> both = probe.pair(x, y)
+// The replacement's factor is an int, scale's a float.
+tensor<real32> scaled = probe.scale(x, 2.0)
+// second's argument is borrowed; owned takes its argument by value.
+tensor<real32> copied = probe.second(x)
+print("100% ")
+print(fresh[0].item() + both[0].item() + scaled[0].item() + copied[0].item())
+print(NL)

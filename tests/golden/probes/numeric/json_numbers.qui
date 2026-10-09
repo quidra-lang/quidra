@@ -1,0 +1,37 @@
+// Numbers read from JSON in each of the standard API's kinds.
+json.Value parsed = json.parse("[12, 2.5, 123456789012345678901234567890, -3]")
+auto | error first = parsed.at(0)
+match first
+    json.Value item
+        int integer = item.integer()
+        real64 number = item.number()
+        print("{integer} {number}")
+    none
+        print("missing")
+    error problem
+        print("{problem}")
+print(NL)
+auto | error second = parsed.at(1)
+match second
+    json.Value item
+        auto | error integer = item.integer()
+        match integer
+            int value
+                print("{value}")
+            error problem
+                print("{problem}")
+    none
+        print("missing")
+    error problem
+        print("{problem}")
+print(NL)
+auto | error third = parsed.at(2)
+match third
+    json.Value item
+        int big = item.integer()
+        print("{big}")
+    none
+        print("missing")
+    error problem
+        print("{problem}")
+print(NL)

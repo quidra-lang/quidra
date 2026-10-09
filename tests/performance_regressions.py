@@ -25,6 +25,11 @@ if os.environ.get("ASAN_OPTIONS") or os.environ.get("UBSAN_OPTIONS"):
     print("skipped: sanitizer build")
     raise SystemExit(0)
 
+# `quidra run` keeps the programs it builds in a run cache of this suite run
+# only, so every run of the suite sees the same hits and misses.
+RUN_CACHE = tempfile.TemporaryDirectory(prefix="quidra-cache-")
+os.environ["QUIDRA_CACHE_DIR"] = RUN_CACHE.name
+
 # A quadratic implementation costs ~4x when the input doubles and a linear one
 # ~2x. Keep the 3x boundary: measurement quality must improve rather than making
 # the regression threshold less meaningful.
@@ -271,7 +276,7 @@ for outer in range(0, 2048)
     string row = ""
     for inner in range(0, 512)
         row = row + "x"
-    total += len(row)
+    total += int(len(row))
 print(total)
 """,
     "1048576",
@@ -315,7 +320,7 @@ for i in range(0, n)
     source = source + "x"
 int total = 0
 for i in range(0, n)
-    total += len(source.slice(0, 1))
+    total += int(len(source.slice(0, 1)))
 print(total)
 """,
     3000, 6000, lambda n: str(n), allow_too_fast=True)
@@ -326,13 +331,13 @@ print(total)
 check_scaling(
     "explicit UTF-8 bin decoding",
     """int n = {n}
-string source = string.repeat("a", n)
+string source = string.repeat("a", nat(n))
 bin data = source.utf8()
 int total = 0
 for pass in range(0, 8)
     match string.from_utf8(data)
         string text
-            total += len(text)
+            total += int(len(text))
         error problem
             process.exit(1)
 print(total)
@@ -363,7 +368,7 @@ print(len(remaining))
 check_ratio(
     "fully initialized array reference fast path",
     """int n = 400000
-int[] values = array(n, fill = 1)
+int[] values = array(nat(n), fill = 1)
 int total = 0
 for pass in range(0, 8)
     for i in range(0, n)
@@ -378,7 +383,7 @@ print(total)
     return total
 
 int n = 400000
-int[] values = array(n, fill = 1)
+int[] values = array(nat(n), fill = 1)
 print(sum_all(&values, n))
 """,
     "3200000", "3200000")
@@ -396,7 +401,7 @@ check_ratio(
         v[i] = v[i] + 1
 
 int n = 400000
-int[] v = array(n, fill = 0)
+int[] v = array(nat(n), fill = 0)
 for pass in range(0, 8)
     scale(&v, n)
 print(v[0])
@@ -406,8 +411,8 @@ print(v[0])
         destination[i] = source[i] + 1
 
 int n = 400000
-int[] source = array(n, fill = 0)
-int[] destination = array(n, fill = 0)
+int[] source = array(nat(n), fill = 0)
+int[] destination = array(nat(n), fill = 0)
 for pass in range(0, 8)
     copy_into(&destination, &source, n)
 print(destination[0])

@@ -1,0 +1,6 @@
+int.parse("x")
+int y = 3
+y
+error("shown")
+y + 1
+:exit

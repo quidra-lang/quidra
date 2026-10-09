@@ -1,0 +1,9 @@
+// A failure inside package code, reached from a user statement.
+import probe_failing
+
+int[] values = [4, 5]
+print("{probe_failing.second(values)}")
+print(NL)
+int[] short = [9]
+print("{probe_failing.second(short)}")
+print(NL)

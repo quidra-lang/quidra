@@ -14,8 +14,12 @@
 #include "package_cli.hpp"
 #include "native_build.hpp"
 #include "run_artifact.hpp"
+#include "run_cache.hpp"
 #include "jit.hpp"
 #include "device_cli.hpp"
+#include "platform/file_names.hpp"
+#include "platform/process.hpp"
+#include "platform/temporary_directory.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -23,6 +27,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <optional>
 #include <random>
 #include <sstream>
@@ -140,40 +145,16 @@ void require_qui_source(const fs::path& path) {
 
 class TemporaryBuild {
 public:
-    TemporaryBuild() {
-        const auto base = fs::temp_directory_path();
-        std::random_device rd;
-        const auto now = static_cast<unsigned long long>(
-            std::chrono::high_resolution_clock::now().time_since_epoch().count());
-        for (unsigned attempt = 0; attempt < 64; ++attempt) {
-            const auto nonce = (static_cast<unsigned long long>(rd()) << 32U) ^ rd() ^ now ^ attempt;
-            dir_ = base / ("quidra-" + std::to_string(nonce));
-            std::error_code ec;
-            if (fs::create_directory(dir_, ec)) return;
-        }
-        throw std::runtime_error("cannot create temporary build directory");
-    }
-
-    TemporaryBuild(const TemporaryBuild&) = delete;
-    TemporaryBuild& operator=(const TemporaryBuild&) = delete;
-
-    ~TemporaryBuild() {
-        std::error_code ec;
-        fs::remove_all(dir_, ec);
-    }
+    TemporaryBuild() : directory_("quidra-", "cannot create temporary build directory") {}
 
     fs::path executable() const {
-#ifdef _WIN32
-        return dir_ / "program.exe";
-#else
-        return dir_ / "program";
-#endif
+        return directory_.path() / quidra::platform::executable_file_name("program");
     }
 
-    fs::path llvm() const { return dir_ / "program.ll"; }
+    fs::path llvm() const { return directory_.path() / "program.ll"; }
 
 private:
-    fs::path dir_;
+    quidra::platform::TemporaryDirectory directory_;
 };
 
 std::size_t parse_max_errors(const std::string& text) {
@@ -190,33 +171,6 @@ std::size_t parse_max_errors(const std::string& text) {
     return static_cast<std::size_t>(value);
 }
 
-struct PackageNativeBuildInputs {
-    std::vector<fs::path> files;
-    std::vector<std::string> pkg_config_modules;
-};
-
-PackageNativeBuildInputs package_native_build_inputs(const fs::path& source) {
-    PackageNativeBuildInputs result;
-    const auto packages =
-        quidra::resolve_package_dependencies(source, fs::current_path());
-    for (const auto& [name, package_main] : packages) {
-        (void)name;
-        const auto root = package_main.parent_path();
-        const auto manifest = quidra::try_read_package_manifest(root);
-        if (!manifest) continue;
-        if (const auto native =
-                quidra::package_native_library_path(root, *manifest)) {
-            result.files.push_back(*native);
-        }
-        const auto sources =
-            quidra::package_native_source_paths(root, *manifest);
-        result.files.insert(result.files.end(), sources.begin(), sources.end());
-        for (const auto& [_, module] : manifest->native_pkg_config)
-            result.pkg_config_modules.push_back(module);
-    }
-    return result;
-}
-
 int build_native(const fs::path& source, const fs::path& output, bool keep_llvm = false,
                  std::size_t max_errors = 20, bool debug = false,
                  const std::vector<fs::path>& link_inputs = {}) {
@@ -227,13 +181,14 @@ int build_native(const fs::path& source, const fs::path& output, bool keep_llvm 
     ll += ".ll";
     write_file(ll, result.llvm);
 
-    auto native_inputs = package_native_build_inputs(source);
-    native_inputs.files.insert(
-        native_inputs.files.end(), link_inputs.begin(), link_inputs.end());
+    const auto native_inputs = quidra::native::package_native_build_inputs(result.packages);
+    std::vector<fs::path> files;
+    for (const auto& native_input : native_inputs.inputs) files.push_back(native_input.path);
+    files.insert(files.end(), link_inputs.begin(), link_inputs.end());
 
     const auto rc = quidra::native::link_llvm(
         ll, output, quidra::native::LinkOptions{
-            debug, true, native_inputs.files, native_inputs.pkg_config_modules});
+            debug, true, files, native_inputs.pkg_config_modules});
     if (!keep_llvm) {
         std::error_code ec;
         fs::remove(ll, ec);
@@ -241,13 +196,65 @@ int build_native(const fs::path& source, const fs::path& output, bool keep_llvm 
     return rc == 0 ? 0 : 1;
 }
 
+// `quidra build --lib`: the root compiled as a library (no entry point,
+// declarations only), archived with the package natives and the runtime;
+// with print_link_flags, the flags a C linker needs are printed on stdout.
+int build_library_archive(const fs::path& source, const fs::path& output, bool keep_llvm,
+                          std::size_t max_errors, bool debug,
+                          const std::vector<fs::path>& link_inputs, bool print_link_flags) {
+    require_qui_source(source);
+    quidra::CompileOptions options{max_errors, debug};
+    options.artifact = quidra::CompileArtifact::Library;
+    auto result = quidra::compile_file(source, options, fs::current_path());
+    auto ll = output;
+    ll += ".ll";
+    write_file(ll, result.llvm);
+    const auto remove_llvm = [&]() {
+        if (keep_llvm) return;
+        std::error_code ec;
+        fs::remove(ll, ec);
+    };
+
+    const auto native_inputs = quidra::native::package_native_build_inputs(result.packages);
+    std::vector<fs::path> files;
+    for (const auto& native_input : native_inputs.inputs) files.push_back(native_input.path);
+    files.insert(files.end(), link_inputs.begin(), link_inputs.end());
+    const quidra::native::LinkOptions link{debug, true, files, native_inputs.pkg_config_modules};
+    try {
+        quidra::native::build_library(ll, output, link);
+        if (print_link_flags) {
+            std::string line;
+            for (const auto& flag : quidra::native::library_link_flags(ll, link)) {
+                if (!line.empty()) line += ' ';
+                line += flag;
+            }
+            std::cout << line << "\n";
+        }
+    } catch (...) {
+        remove_llvm();
+        throw;
+    }
+    remove_llvm();
+    return 0;
+}
+
+// A direct run (`quidra FILE.qui`, `quidra run`): through the run cache, or
+// with `use_cache` false (--no-cache) built beside the source and run as
+// before the cache.
 int run_native(const fs::path& source, std::size_t max_errors = 20,
                const std::vector<std::string>& program_args = {},
-               const std::vector<fs::path>& link_inputs = {}) {
-    quidra::run_artifact::TemporaryArtifact temp(source);
-    const auto& executable = temp.executable();
-    if (build_native(source, executable, false, max_errors, false, link_inputs) != 0) return 1;
-    return quidra::native::run_program(executable, program_args);
+               const std::vector<fs::path>& link_inputs = {},
+               bool use_cache = true) {
+    const auto uncached = [&]() {
+        quidra::run_artifact::TemporaryArtifact temp(source);
+        const auto& executable = temp.executable();
+        if (build_native(source, executable, false, max_errors, false, link_inputs) != 0) return 1;
+        return quidra::platform::run_program(executable, program_args);
+    };
+    if (!use_cache) return uncached();
+    require_qui_source(source);
+    return quidra::run_cache::run_cached(
+        quidra::run_cache::DirectRun{source, max_errors, program_args, link_inputs}, uncached);
 }
 
 std::string description_json() {
@@ -271,15 +278,22 @@ void usage(std::ostream& out) {
         << "  " << cli << " lock " << source << " [--check]    write or verify "
         << quidra::package_lock_filename << "\n"
         << "  " << cli << " package-path               print the default package store path\n"
+        << "  " << cli << " cache clean                remove the run cache's programs\n"
         << "  " << cli << " gpu                        list supported GPU devices and backends\n"
         << "  " << cli << " info                       print CPU/GPU backend information\n"
-        << "  " << cli << " " << source << " [ARGS...]         AOT compile/link and run with program arguments\n"
-        << "  " << cli << " run " << source << " [--link FILE] [-- ARGS...]\n"
+        << "  " << cli << " [--no-cache] " << source << " [ARGS...]\n"
+        << "                                      AOT compile/link and run with program arguments\n"
+        << "  " << cli << " run " << source << " [--no-cache] [--link FILE] [-- ARGS...]\n"
         << "                                      compile and run; --link is repeatable\n"
+        << "                                      direct runs reuse the run cache; --no-cache\n"
+        << "                                      builds without it\n"
         << "  " << cli << " check " << source << " [--json] [--max-errors N]\n"
         << "                                      type-check without building\n"
         << "  " << cli << " build " << source << " [-o FILE] [--debug] [--link FILE] [--max-errors N]\n"
         << "                                      build native executable; --link is repeatable\n"
+        << "  " << cli << " build " << source << " --lib [-o FILE] [--print-link-flags] [--link FILE]\n"
+        << "                                      build a static library of the export \"C\" functions;\n"
+        << "                                      --print-link-flags prints what a C linker adds\n"
         << "  " << cli << " debug " << source << " [--link FILE] [-- ARGS...]\n"
         << "                                      build with debug symbols and launch lldb/gdb\n"
         << "  " << cli << " fmt " << source << " [--check]     format source; --check only verifies canonical form\n"
@@ -437,6 +451,14 @@ int main(int argc, char** argv) {
         return quidra::cli::run_package_cli(argc - 2, argv + 2);
     }
 
+    if (argc >= 2 && std::string(argv[1]) == "cache") {
+        if (argc == 3 && std::string(argv[2]) == "clean") {
+            return quidra::run_cache::clean_cache(std::cout, std::cerr);
+        }
+        std::cerr << "quidra: usage: quidra cache clean\n";
+        return 2;
+    }
+
     if (argc == 2 && std::string(argv[1]) == "gpu") {
         return quidra::cli::run_gpu_cli(false);
     }
@@ -467,12 +489,16 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (argc >= 2 && fs::path(argv[1]).extension() == quidra::source_extension) {
-        const fs::path input = argv[1];
+    const bool direct_no_cache = argc >= 3 && std::string(argv[1]) == "--no-cache" &&
+                                 fs::path(argv[2]).extension() == quidra::source_extension;
+    if (direct_no_cache ||
+        (argc >= 2 && fs::path(argv[1]).extension() == quidra::source_extension)) {
+        const int first = direct_no_cache ? 2 : 1;
+        const fs::path input = argv[first];
         std::vector<std::string> program_args;
-        for (int i = 2; i < argc; ++i) program_args.emplace_back(argv[i]);
+        for (int i = first + 1; i < argc; ++i) program_args.emplace_back(argv[i]);
         try {
-            return run_native(input, 20, program_args);
+            return run_native(input, 20, program_args, {}, !direct_no_cache);
         } catch (const quidra::CompileErrors& e) {
             print_compile_errors(input, e, false);
             return 1;
@@ -633,22 +659,35 @@ int main(int argc, char** argv) {
         }
 
         if (command == "build") {
-            fs::path output = input.stem();
+            std::optional<fs::path> output;
             bool keep = false;
             bool debug = false;
+            bool library = false;
+            bool print_link_flags = false;
             std::size_t max_errors = 20;
             std::vector<fs::path> link_inputs;
             for (int i = 3; i < argc; ++i) {
                 const std::string option = argv[i];
                 if (option == "-o" && i + 1 < argc) output = argv[++i];
                 else if (option == "--keep-llvm") keep = true;
+                else if (option == "--lib") library = true;
+                else if (option == "--print-link-flags") print_link_flags = true;
                 else if (option == "--debug") debug = true;
                 else if (option == "--link" && i + 1 < argc) link_inputs.emplace_back(argv[++i]);
                 else if (option == "--link") throw std::runtime_error("--link requires a file path");
                 else if (option == "--max-errors" && i + 1 < argc) max_errors = parse_max_errors(argv[++i]);
                 else throw std::runtime_error("unknown build option: " + option);
             }
-            return build_native(input, output, keep, max_errors, debug, link_inputs);
+            if (print_link_flags && !library)
+                throw std::runtime_error("--print-link-flags requires --lib");
+            if (library) {
+                // libNAME.a, NAME.lib on Windows.
+                const auto archive = quidra::platform::static_library_file_name(input.stem().string());
+                return build_library_archive(input, output.value_or(fs::path(archive)), keep,
+                                             max_errors, debug, link_inputs, print_link_flags);
+            }
+            return build_native(input, output.value_or(input.stem()), keep, max_errors, debug,
+                                link_inputs);
         }
 
         if (command == "debug") {
@@ -674,16 +713,18 @@ int main(int argc, char** argv) {
             std::vector<std::string> program_args;
             std::vector<fs::path> link_inputs;
             bool program_mode = false;
+            bool use_cache = true;
             for (int i = 3; i < argc; ++i) {
                 const std::string option = argv[i];
                 if (program_mode) program_args.push_back(option);
                 else if (option == "--") program_mode = true;
+                else if (option == "--no-cache") use_cache = false;
                 else if (option == "--link" && i + 1 < argc) link_inputs.emplace_back(argv[++i]);
                 else if (option == "--link") throw std::runtime_error("--link requires a file path");
                 else if (option == "--max-errors" && i + 1 < argc) max_errors = parse_max_errors(argv[++i]);
                 else throw std::runtime_error("unknown run option: " + option + "; use '--' before program arguments");
             }
-            return run_native(input, max_errors, program_args, link_inputs);
+            return run_native(input, max_errors, program_args, link_inputs, use_cache);
         }
 
         usage(std::cerr);

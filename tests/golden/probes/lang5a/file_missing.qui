@@ -1,0 +1,11 @@
+// Reading a file that does not exist: as a value, then fail-fast.
+auto | error attempt = file.read("missing-input.txt")
+match attempt
+    string text
+        print("read {len(text)}")
+    error problem
+        print("failed: {problem}")
+print(NL)
+string forced = file.read("missing-input.txt")
+print("{len(forced)}")
+print(NL)

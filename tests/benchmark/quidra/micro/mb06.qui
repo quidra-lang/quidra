@@ -9,28 +9,29 @@ class Lcg
     int state
 
     construct(int seed)
-        state = seed
+        this.state = seed
 
     int next_int()
-        state = (48271 * state) % 2147483647
-        return state
+        this.state = (48271 * this.state) % 2147483647
+        return this.state
 
-    float next_unit()
-        return float(next_int()) / 2147483647.0
+    real64 next_unit()
+        real64 value = real64(next_int())
+        return value / 2147483647.0
 
 class Result
-    float sum_c
-    float c_first
-    float c_last
+    real64 sum_c
+    real64 c_first
+    real64 c_last
 
 // The whole workload body, generation included (methodology 06 section 4, MB-06).
 Result workload()
     int n = 512
     int rounds = 3
     Lcg g = Lcg(20266917)
-    float[] a = array(n * n, fill = 0.0)
-    float[] b = array(n * n, fill = 0.0)
-    float[] c = array(n * n, fill = 0.0)
+    real64[] a = array(nat(n * n), fill = 0.0)
+    real64[] b = array(nat(n * n), fill = 0.0)
+    real64[] c = array(nat(n * n), fill = 0.0)
     for i in range(n * n)
         a[i] = g.next_unit()
     for i in range(n * n)
@@ -39,11 +40,11 @@ Result workload()
         a[r] = a[r] + 1.0e-9
         for i in range(n)
             for j in range(n)
-                float s = 0.0
+                real64 s = 0.0
                 for k in range(n)
                     s = s + a[i * n + k] * b[k * n + j]
                 c[i * n + j] = s
-    float sum_c = 0.0
+    real64 sum_c = 0.0
     for i in range(n * n)
         sum_c = sum_c + c[i]
     Result result

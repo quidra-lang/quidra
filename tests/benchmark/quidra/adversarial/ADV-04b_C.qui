@@ -2,7 +2,7 @@ print("ADV-START")
 print(NL)
 flush()
 int32 a = -1
-uint32 b = 1
+nat32 b = 1
 bool r = a < b
 print("OBS=CMP:{r}")
 print(NL)

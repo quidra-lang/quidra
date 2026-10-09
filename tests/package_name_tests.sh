@@ -4,6 +4,7 @@ set -euo pipefail
 QUIDRA="$1"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run only
 
 mkdir -p "$TMP/source" "$TMP/home"
 cat > "$TMP/source/main.qui" <<'QUI'

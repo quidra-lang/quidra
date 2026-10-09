@@ -1,0 +1,6 @@
+int y = 3
+// only a comment
+y + 1
+process.exit(0)
+y + 2
+:exit

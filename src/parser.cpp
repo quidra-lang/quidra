@@ -77,6 +77,15 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
                     expect_operand = false;
                     continue;
                 }
+                // `this.NAME`: a receiver field in an extent expression.
+                if (kind == TokenKind::KwThis && index + 2 < tokens.size() &&
+                    tokens[index + 1].kind == TokenKind::Dot &&
+                    tokens[index + 2].kind == TokenKind::Identifier) {
+                    index += 3;
+                    any = true;
+                    expect_operand = false;
+                    continue;
+                }
                 if (kind == TokenKind::LParen) {
                     ++parens;
                     ++index;
@@ -192,7 +201,9 @@ void relocate_arg(CallArg& argument, const SourcePos& base) {
 
 void relocate_expr(Expr& expression, const SourcePos& base) {
     relocate_span(expression.span, base);
-    if (auto* node = std::get_if<StringTemplateExpr>(&expression.data)) {
+    if (auto* node = std::get_if<NameExpr>(&expression.data)) {
+        if (node->this_qualifier) relocate_span(*node->this_qualifier, base);
+    } else if (auto* node = std::get_if<StringTemplateExpr>(&expression.data)) {
         for (auto& child : node->expressions) relocate_expr(*child, base);
     } else if (auto* node = std::get_if<ArrayExpr>(&expression.data)) {
         for (auto& child : node->elements) relocate_expr(*child, base);
@@ -221,6 +232,10 @@ void relocate_expr(Expr& expression, const SourcePos& base) {
         for (auto& argument : node->type_arguments) relocate_type(argument, base);
     } else if (auto* node = std::get_if<TryExpr>(&expression.data)) {
         relocate_expr(*node->value, base);
+    } else if (auto* node = std::get_if<IfExpr>(&expression.data)) {
+        for (auto& condition : node->conditions) relocate_expr(*condition, base);
+        for (auto& value : node->values) relocate_expr(*value, base);
+        relocate_expr(*node->otherwise, base);
     }
 }
 
@@ -326,6 +341,13 @@ bool Parser::looks_like_cli_decl() const {
            peek(2).kind == TokenKind::Newline;
 }
 
+// `export` is contextual: it starts an export prefix only when a string
+// literal follows it, so `export` stays an ordinary identifier elsewhere.
+bool Parser::looks_like_export_prefix() const {
+    return at(TokenKind::Identifier) && peek().text == "export" &&
+           peek(1).kind == TokenKind::String;
+}
+
 Program Parser::parse() {
     Program p;
     consume_newlines();
@@ -340,6 +362,7 @@ Program Parser::parse() {
                 p.imports.push_back(std::move(declaration));
             }
             else if (at(TokenKind::Identifier) && peek().text == "extern") p.functions.push_back(external_function_decl());
+            else if (looks_like_export_prefix()) p.functions.push_back(export_function_decl());
             else if (looks_like_cli_decl()) cli_decl(p);
             else if (at(TokenKind::KwEnum)) p.enums.push_back(enum_decl());
             else if (at(TokenKind::KwClass)) p.classes.push_back(class_decl());
@@ -485,6 +508,8 @@ ExprPtr Parser::type_integer_factor() {
         result->data = IntegerExpr{value, std::to_string(value), true};
         return result;
     }
+
+    if (at(TokenKind::KwThis)) return this_field();
 
     if (match(TokenKind::Identifier)) {
         const auto token = previous();
@@ -753,19 +778,27 @@ ClassDecl Parser::class_decl() {
         if (at(TokenKind::KwImport)) error(peek(), "import is only valid at top level.");
         if (at(TokenKind::KwPublic)) error(peek(), "public is only valid as 'public import' at top level.");
         const bool is_private = match(TokenKind::KwPrivate);
+        // An export prefix on a member is recorded, so that the frontend
+        // reports FFI_EXPORT for it rather than a bare parse error.
+        std::optional<ForeignExport> foreign_export;
+        if (looks_like_export_prefix()) foreign_export = foreign_export_prefix();
         if (at(TokenKind::Identifier) && peek().text == "construct" &&
-            peek(1).kind == TokenKind::LParen) {
+            (peek(1).kind == TokenKind::LParen || peek(1).kind == TokenKind::Less)) {
             auto constructor = constructor_decl(name, type_parameters);
             constructor.is_private = is_private;
+            constructor.foreign_export = std::move(foreign_export);
             methods.push_back(std::move(constructor));
         } else if (looks_like_declaration(true)) {
             auto method = function_decl();
             method.is_private = is_private;
+            method.foreign_export = std::move(foreign_export);
             if (method.name == "construct") {
                 method.is_constructor = true;
                 method.constructor_typed = true;
             }
             methods.push_back(std::move(method));
+        } else if (foreign_export) {
+            error(peek(), "export \"C\" must precede a function declaration.");
         } else if (looks_like_declaration(false)) {
             const auto field_start = is_private ? previous().span.start : peek().span.start;
             const bool is_const = match(TokenKind::KwConst);
@@ -822,11 +855,14 @@ FunctionDecl Parser::function_decl() {
 // `construct(...)` inside a class body. The member has no spelled return type:
 // it constructs the enclosing class, so the parser fills that type in, with the
 // class's own type parameters as arguments so a generic class instantiates it
-// like any other member.
+// like any other member. `construct<M>(...)` declares type parameters of the
+// constructor itself; calls infer them from their arguments.
 FunctionDecl Parser::constructor_decl(const std::string& class_name,
                                       const std::vector<std::string>& type_parameters) {
     const auto start = peek().span.start;
     const auto name = consume(TokenKind::Identifier, "Expected construct.");
+    std::vector<std::string> own_constraints;
+    auto own_parameters = type_parameter_list(&own_constraints);
     TypeName result;
     result.name = class_name;
     result.span = name.span;
@@ -853,7 +889,8 @@ FunctionDecl Parser::constructor_decl(const std::string& class_name,
     auto body = block_until(false);
     const auto end = previous().span.end;
     FunctionDecl declaration{name.text, {}, std::move(params), std::move(result), std::move(body),
-                             {start, end}, false, {}, std::nullopt, {}};
+                             {start, end}, false, std::move(own_parameters), std::nullopt,
+                             std::move(own_constraints)};
     declaration.is_constructor = true;
     return declaration;
 }
@@ -893,6 +930,27 @@ FunctionDecl Parser::external_function_decl() {
     return declaration;
 }
 
+ForeignExport Parser::foreign_export_prefix() {
+    const auto keyword = consume(TokenKind::Identifier, "Expected export.");
+    const auto abi = consume(TokenKind::String, "Expected the ABI string after export.");
+    ForeignExport prefix;
+    prefix.abi = abi.text;
+    prefix.span = {keyword.span.start, abi.span.end};
+    return prefix;
+}
+
+// `export "C"` before a top-level function prototype or definition. The
+// frontend validates the ABI string and the target.
+FunctionDecl Parser::export_function_decl() {
+    auto prefix = foreign_export_prefix();
+    if (!looks_like_declaration(true))
+        error(peek(), "export \"C\" must precede a function declaration.");
+    auto declaration = function_decl();
+    declaration.span.start = prefix.span.start;
+    declaration.foreign_export = std::move(prefix);
+    return declaration;
+}
+
 std::vector<StmtPtr> Parser::block_until(bool) {
     consume(TokenKind::Indent, "Expected a block indented by four spaces.");
     std::vector<StmtPtr> body;
@@ -902,6 +960,7 @@ std::vector<StmtPtr> Parser::block_until(bool) {
             if (at(TokenKind::KwEnum)) error(peek(), "Nested enums are prohibited.");
             if (at(TokenKind::KwImport)) error(peek(), "import is only valid at top level.");
             if (at(TokenKind::Identifier) && peek().text == "extern") error(peek(), "extern declarations are only valid at top level.");
+            if (looks_like_export_prefix()) error(peek(), "export declarations are only valid at top level.");
             if (looks_like_declaration(true)) error(peek(), "Nested functions are prohibited.");
             body.push_back(statement());
         } catch (const CompileError& error) {
@@ -969,7 +1028,15 @@ StmtPtr Parser::if_stmt() {
     std::function<StmtPtr(TokenKind)> parse_branch = [&](TokenKind keyword) -> StmtPtr {
         const auto start = consume(
             keyword, keyword == TokenKind::KwIf ? "Expected if." : "Expected elif.").span.start;
-        auto condition = expression();
+        // A statement header is an or_expr, so an if-expression there is
+        // written in parentheses.
+        auto condition = or_expr();
+        if (at(TokenKind::KwThen)) {
+            throw CompileError(Diagnostic{
+                "IF_EXPRESSION",
+                "An if statement has no 'then'; its body follows on indented lines.",
+                peek().span});
+        }
         end_statement("condition");
         auto then_body = block_until(false);
         std::vector<StmtPtr> else_body;
@@ -1009,13 +1076,13 @@ StmtPtr Parser::main_guard_stmt() {
     return statement;
 }
 StmtPtr Parser::while_stmt() {
-    auto start=consume(TokenKind::KwWhile,"Expected while.").span.start;auto cond=expression();end_statement("condition");auto body=block_until(false);auto s=std::make_unique<Stmt>();s->span={start,previous().span.end};s->data=WhileStmt{std::move(cond),std::move(body)};return s;
+    auto start=consume(TokenKind::KwWhile,"Expected while.").span.start;auto cond=or_expr();end_statement("condition");auto body=block_until(false);auto s=std::make_unique<Stmt>();s->span={start,previous().span.end};s->data=WhileStmt{std::move(cond),std::move(body)};return s;
 }
 StmtPtr Parser::for_stmt() {
-    auto start=consume(TokenKind::KwFor,"Expected for.").span.start;bool write=match(TokenKind::Ampersand);auto name=consume(TokenKind::Identifier,"Expected iteration name.");consume(TokenKind::KwIn,"Expected in.");auto value=expression();end_statement("iterable");auto body=block_until(false);auto s=std::make_unique<Stmt>();s->span={start,previous().span.end};s->data=ForStmt{name.text,write,std::move(value),std::move(body)};return s;
+    auto start=consume(TokenKind::KwFor,"Expected for.").span.start;bool write=match(TokenKind::Ampersand);auto name=consume(TokenKind::Identifier,"Expected iteration name.");consume(TokenKind::KwIn,"Expected in.");auto value=or_expr();end_statement("iterable");auto body=block_until(false);auto s=std::make_unique<Stmt>();s->span={start,previous().span.end};s->data=ForStmt{name.text,write,std::move(value),std::move(body)};return s;
 }
 StmtPtr Parser::match_stmt() {
-    auto start=consume(TokenKind::KwMatch,"Expected match.").span.start;auto value=expression();end_statement("match value");consume(TokenKind::Indent,"Expected indented typed cases.");std::vector<MatchCase> cases;
+    auto start=consume(TokenKind::KwMatch,"Expected match.").span.start;auto value=or_expr();end_statement("match value");consume(TokenKind::Indent,"Expected indented typed cases.");std::vector<MatchCase> cases;
     while(!at(TokenKind::Dedent)&&!at(TokenKind::Eof)) {
         auto type=type_name();auto span=type.span;std::string tag;std::optional<std::string> binder;
         if(match(TokenKind::LParen)){
@@ -1109,6 +1176,57 @@ std::vector<CallArg> Parser::call_arguments(bool address_values) {
 
 ExprPtr Parser::expression() {
     ParseDepthGuard depth(expression_depth_, max_parse_depth, peek(), "Expression");
+    if (at(TokenKind::KwIf)) return if_expression();
+    return or_expr();
+}
+
+// An IF_EXPRESSION error that does not stop the parse: the if-expression is
+// read on, so the diagnostics after it stay meaningful.
+void Parser::report_if_expression(const Token& token, std::string message) {
+    record(CompileError(Diagnostic{"IF_EXPRESSION", std::move(message), token.span}));
+}
+
+// if_expr = "if", or_expr, "then", or_expr,
+//           { "elif", or_expr, "then", or_expr }, "else", or_expr
+ExprPtr Parser::if_expression() {
+    ParseDepthGuard depth(expression_depth_, max_parse_depth, peek(), "Expression");
+    const auto start = consume(TokenKind::KwIf, "Expected if.").span.start;
+    IfExpr node;
+    for (;;) {
+        node.conditions.push_back(if_expression_part());
+        if (!match(TokenKind::KwThen)) {
+            throw CompileError(Diagnostic{
+                "IF_EXPRESSION", "An if-expression continues with 'then' after its condition.",
+                peek().span});
+        }
+        node.values.push_back(if_expression_part());
+        if (match(TokenKind::KwElif)) continue;
+        if (at(TokenKind::KwElse) && peek(1).kind == TokenKind::KwIf) {
+            report_if_expression(peek(1), "'else if' is not used in an if-expression; write 'elif'.");
+            current_ += 2;
+            continue;
+        }
+        break;
+    }
+    if (!match(TokenKind::KwElse)) {
+        throw CompileError(Diagnostic{
+            "IF_EXPRESSION", "An if-expression needs 'else': every path must give a value.",
+            peek().span});
+    }
+    node.otherwise = if_expression_part();
+    auto result = std::make_unique<Expr>();
+    result->span = SourceSpan{start, node.otherwise->span.end};
+    result->data = std::move(node);
+    return result;
+}
+
+// A condition or a branch of an if-expression: an or_expr, so an
+// if-expression nested there is written in parentheses.
+ExprPtr Parser::if_expression_part() {
+    if (at(TokenKind::KwIf)) {
+        report_if_expression(peek(), "A nested if-expression must be parenthesized.");
+        return if_expression();
+    }
     return or_expr();
 }
 
@@ -1117,6 +1235,7 @@ ExprPtr Parser::inline_expression() {
     auto result = expression();
     consume_newlines();
     if (!at(TokenKind::Eof)) error(peek(), "Unexpected token inside string interpolation.");
+    if (!diagnostics_.empty()) throw CompileErrors(std::move(diagnostics_));
     return result;
 }
 
@@ -1270,7 +1389,21 @@ ExprPtr Parser::make_binary(ExprPtr left, const Token& op, ExprPtr right) {
 ExprPtr Parser::or_expr() { auto e=and_expr(); while(match(TokenKind::KwOr)){auto op=previous(); e=make_binary(std::move(e),op,and_expr());} return e; }
 ExprPtr Parser::and_expr() { auto e=equality(); while(match(TokenKind::KwAnd)){auto op=previous(); e=make_binary(std::move(e),op,equality());} return e; }
 ExprPtr Parser::equality() { auto e=comparison(); while(match(TokenKind::EqEq)||match(TokenKind::NotEq)){auto op=previous(); e=make_binary(std::move(e),op,comparison());} return e; }
-ExprPtr Parser::comparison() { auto e=bit_or_expr(); while(match(TokenKind::Less)||match(TokenKind::LessEq)||match(TokenKind::Greater)||match(TokenKind::GreaterEq)){auto op=previous(); e=make_binary(std::move(e),op,bit_or_expr());} return e; }
+ExprPtr Parser::comparison() {
+    auto e = bit_or_expr();
+    for (;;) {
+        // In a slice, '<:' and '>:' are exclusive-start markers only when
+        // adjacent. Preserve the operator token for postfix() to consume.
+        if ((at(TokenKind::Less) || at(TokenKind::Greater)) &&
+            peek(1).kind == TokenKind::Colon &&
+            peek().span.end.offset == peek(1).span.start.offset) break;
+        if (!(match(TokenKind::Less) || match(TokenKind::LessEq) ||
+              match(TokenKind::Greater) || match(TokenKind::GreaterEq))) break;
+        auto op = previous();
+        e = make_binary(std::move(e), op, bit_or_expr());
+    }
+    return e;
+}
 ExprPtr Parser::bit_or_expr() { auto e=bit_xor_expr(); while(match(TokenKind::KwBitOr)){auto op=previous(); e=make_binary(std::move(e),op,bit_xor_expr());} return e; }
 ExprPtr Parser::bit_xor_expr() { auto e=bit_and_expr(); while(match(TokenKind::KwBitXor)){auto op=previous(); e=make_binary(std::move(e),op,bit_and_expr());} return e; }
 ExprPtr Parser::bit_and_expr() { auto e=shift_expr(); while(match(TokenKind::KwBitAnd)){auto op=previous(); e=make_binary(std::move(e),op,shift_expr());} return e; }
@@ -1334,7 +1467,7 @@ ExprPtr Parser::postfix() {
         if (at(TokenKind::LBracket) && peek(1).kind == TokenKind::RBracket &&
             peek(2).kind == TokenKind::LParen) {
             auto* name = std::get_if<NameExpr>(&e->data);
-            if (name) {
+            if (name && !name->this_qualifier) {
                 const auto start = e->span.start;
                 consume(TokenKind::LBracket, "Expected '['.");
                 consume(TokenKind::RBracket, "Expected ']'.");
@@ -1412,31 +1545,48 @@ ExprPtr Parser::postfix() {
             for (;;) {
                 IndexPart item;
                 const auto item_start = peek().span.start;
-                if (match(TokenKind::Colon)) {
+                // After the initial colon, only an immediately adjacent
+                // '<' / '>' marker marks an excluded end.
+                const auto optional_end_marker = [&]() -> char {
+                    const auto& colon = previous();
+                    if ((at(TokenKind::Less) || at(TokenKind::Greater)) &&
+                        colon.span.end.offset == peek().span.start.offset) {
+                        const char marker = at(TokenKind::Less) ? '<' : '>';
+                        ++current_;
+                        return marker;
+                    }
+                    return 0;
+                };
+                const auto parse_slice_tail = [&]() {
                     item.slice = true;
+                    item.end_marker = optional_end_marker();
                     if (!at(TokenKind::Colon) && !at(TokenKind::Comma) &&
                         !at(TokenKind::RBracket)) {
                         item.stop = expression();
+                    } else if (item.end_marker) {
+                        error(peek(), "Expected a slice end after the exclusive marker.");
                     }
                     if (match(TokenKind::Colon)) {
                         if (!at(TokenKind::Comma) && !at(TokenKind::RBracket)) {
                             item.step = expression();
                         }
                     }
+                };
+                if (match(TokenKind::Colon)) {
+                    parse_slice_tail();
                 } else {
                     auto first = expression();
+                    // comparison() left this marker unconsumed because it
+                    // is adjacent to the colon, not a comparison operator.
+                    if ((at(TokenKind::Less) || at(TokenKind::Greater)) &&
+                        peek(1).kind == TokenKind::Colon &&
+                        peek().span.end.offset == peek(1).span.start.offset) {
+                        item.start_marker = at(TokenKind::Less) ? '<' : '>';
+                        ++current_;
+                    }
                     if (match(TokenKind::Colon)) {
-                        item.slice = true;
                         item.start = std::move(first);
-                        if (!at(TokenKind::Colon) && !at(TokenKind::Comma) &&
-                            !at(TokenKind::RBracket)) {
-                            item.stop = expression();
-                        }
-                        if (match(TokenKind::Colon)) {
-                            if (!at(TokenKind::Comma) && !at(TokenKind::RBracket)) {
-                                item.step = expression();
-                            }
-                        }
+                        parse_slice_tail();
                     } else {
                         item.index = std::move(first);
                     }
@@ -1461,6 +1611,31 @@ ExprPtr Parser::postfix() {
     return e;
 }
 
+// `this.NAME`: a field of the receiver. `this` is only a field qualifier,
+// so every other use of it, and a call through it, is rejected here. The
+// expression's span is the field name's, so every location recorded for the
+// field is the same as for a bare name.
+ExprPtr Parser::this_field() {
+    const auto qualifier = consume(TokenKind::KwThis, "Expected this.");
+    if (!at(TokenKind::Dot) || peek(1).kind != TokenKind::Identifier) {
+        throw CompileError(Diagnostic{
+            "THIS_QUALIFIER", "'this' only qualifies a field: write 'this.<field>'.", qualifier.span});
+    }
+    const auto dot = consume(TokenKind::Dot, "Expected '.' after this.");
+    const auto name = consume(TokenKind::Identifier, "Expected a field name after 'this.'.");
+    if (at(TokenKind::LParen) || looks_like_type_argument_call()) {
+        throw CompileError(Diagnostic{
+            "THIS_QUALIFIER",
+            "Methods are called without 'this.': write '" + name.text +
+                "(...)'; a function value held in a field is copied into a local first.",
+            SourceSpan{qualifier.span.start, name.span.end}});
+    }
+    auto e = std::make_unique<Expr>();
+    e->span = name.span;
+    e->data = NameExpr{name.text, SourceSpan{qualifier.span.start, dot.span.end}};
+    return e;
+}
+
 ExprPtr Parser::primary() {
     if (match(TokenKind::Integer)) {
         const auto t=previous(); std::uint64_t value{}; const auto* b=t.text.data(); const auto* end=b+t.text.size();
@@ -1471,10 +1646,16 @@ ExprPtr Parser::primary() {
         auto e=std::make_unique<Expr>(); e->span=t.span;
         e->data=IntegerExpr{fits?value:0,t.text,fits}; return e;
     }
-    if (match(TokenKind::Float)) {
+    if (match(TokenKind::RealLiteral)) {
         const auto t=previous(); char* end=nullptr; const auto value=std::strtod(t.text.c_str(),&end);
         if (!end || *end!='\0') error(t,"Invalid real literal.");
-        auto e=std::make_unique<Expr>(); e->span=t.span; e->data=FloatExpr{value,t.text}; return e;
+        auto e=std::make_unique<Expr>(); e->span=t.span; e->data=RealLiteralExpr{value,t.text}; return e;
+    }
+    if (match(TokenKind::ImaginaryLiteral)) {
+        const auto t=previous(); auto magnitude=t.text.substr(0,t.text.size()-1);
+        const bool integer_form=magnitude.find('.')==std::string::npos;
+        auto e=std::make_unique<Expr>(); e->span=t.span;
+        e->data=ImaginaryLiteralExpr{std::move(magnitude),integer_form}; return e;
     }
     if (match(TokenKind::String)) { const auto t=previous(); return string_expression(t); }
     if (match(TokenKind::KwTrue)||match(TokenKind::KwFalse)) { const auto t=previous(); auto e=std::make_unique<Expr>(); e->span=t.span; e->data=BoolExpr{t.kind==TokenKind::KwTrue}; return e; }
@@ -1485,6 +1666,13 @@ ExprPtr Parser::primary() {
         auto e=std::make_unique<Expr>(); e->span=SourceSpan{start,end}; e->data=ArrayExpr{std::move(elements)}; return e;
     }
     if (match(TokenKind::LParen)) { const auto start=previous().span.start; auto e=expression(); const auto end=consume(TokenKind::RParen,"Expected ')' after expression.").span.end; e->span=SourceSpan{start,end}; return e; }
+    if (at(TokenKind::KwThis)) return this_field();
+    if (at(TokenKind::KwIf)) {
+        report_if_expression(
+            peek(),
+            "An if-expression used as an operand must be parenthesized: write '(if ... then ... else ...)'.");
+        return if_expression();
+    }
     if (match(TokenKind::Identifier)) {
         const auto t=previous(); auto e=std::make_unique<Expr>(); e->span=t.span;
         if (t.text=="void") e->data=VoidExpr{};

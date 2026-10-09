@@ -1,0 +1,8 @@
+// An element read past the end of a dynamic array stops the program with
+// INDEX_BOUNDS at the index expression.
+int[] values = [10, 20, 30]
+int total = 0
+for i in range(len(values) + 1)
+    total = total + values[i]
+print("{total}")
+print(NL)

@@ -1,0 +1,4 @@
+auto | error saved = file.write("probe-effect.txt", "A")
+int(1) + 2
+:reset
+int(1) + 2

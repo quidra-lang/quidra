@@ -1,0 +1,63 @@
+// Source evaluation order is left to right: call arguments (named ones in
+// source order, then omitted defaults in parameter order), the receiver
+// before the arguments, binary operands, concatenations, array literals,
+// interpolation segments, index operands, and constructor arguments before
+// field defaults and the constructor body.
+int p(int value)
+    print("{value} ")
+    return value
+
+string s(string text)
+    print(text + " ")
+    return text
+
+int three(int a, int b, int c = p(9))
+    return a + b + c
+
+class Box
+    int first = p(20)
+    int second = p(21)
+    int given
+
+    construct(int given)
+        print("body ")
+        this.given = given
+
+    int add(int value)
+        return this.given + value
+
+Box make(int value)
+    print("make ")
+    return Box(value)
+
+int r = three(p(1), p(2))
+print("| {r}")
+print(NL)
+r = three(b = p(2), a = p(1), c = p(3))
+print("| {r}")
+print(NL)
+r = make(p(4)).add(p(5))
+print("| {r}")
+print(NL)
+r = p(6) + p(7) * p(8)
+print("| {r}")
+print(NL)
+string text = s("a") + s("b") + s("c")
+print("| {text}")
+print(NL)
+bool both = p(1) == 1 and p(2) == 2
+print("| {both}")
+print(NL)
+int[] values = [p(10), p(11), p(12)]
+print("| {len(values)}")
+print(NL)
+string joined = "{p(13)}-{p(14)}"
+print("| {joined}")
+print(NL)
+int[][] grid = [[1, 2], [3, 4]]
+r = grid[p(1)][p(0)]
+print("| {r}")
+print(NL)
+Box box = Box(p(30))
+print("| {box.first} {box.second} {box.given}")
+print(NL)

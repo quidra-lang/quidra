@@ -1,0 +1,24 @@
+// Error values: construction, interpolation, equality, propagation with
+// try, matching, and a successful path through each.
+int | error half(int value)
+    if value % 2 != 0
+        return error("odd value")
+    return value / 2
+
+int | error quarter(int value)
+    int first = try half(value)
+    return try half(first)
+
+error made = error("made here")
+print("made: {made}")
+print(NL)
+print("equal: {made == error("made here")} {made == error("other")}")
+print(NL)
+int[] inputs = [8, 6, 5]
+for value in inputs
+    match quarter(value)
+        int result
+            print("{value} -> {result}")
+        error problem
+            print("{value} failed: {problem}")
+    print(NL)

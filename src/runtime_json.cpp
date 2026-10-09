@@ -1,4 +1,7 @@
-#include "runtime_internal.hpp"
+#include "ieee_decimal.hpp"
+#include "runtime_report.hpp"
+#include "quidra/abi/process_status.hpp"
+#include "quidra/abi/runtime_entry_points.hpp"
 
 #include <algorithm>
 #include <cerrno>
@@ -16,14 +19,13 @@
 #include <utility>
 #include <vector>
 
-extern "C" char* quidra_runtime_copy_text(
-    const char* data, unsigned long long raw_size);
+// The ABI this runtime shares with generated code (include/quidra/abi).
+namespace abi = quidra::abi;
 
 namespace {
 
 [[noreturn]] void runtime_allocation_failure() {
-    std::fprintf(stderr, "Quidra runtime error: allocation failed\n");
-    std::exit(101);
+    quidra::runtime::report_uncoded("allocation failed");
 }
 
 char* runtime_copy_string(const std::string& value) {
@@ -79,6 +81,19 @@ void append_utf8(std::string& out, unsigned codepoint) {
         out.push_back(static_cast<char>(0x80U | ((codepoint >> 6U) & 0x3fU)));
         out.push_back(static_cast<char>(0x80U | (codepoint & 0x3fU)));
     }
+}
+
+// The binary64 value of a JSON number's text (always decimal), rounded
+// once from its exact value (ieee_decimal.hpp). False when the value is
+// beyond the finite range, or not zero but rounds to zero; `out` then holds
+// the rounded infinity or zero.
+bool json_number_value(const std::string& text, double& out) {
+    namespace ieee = quidra::ieee_decimal;
+    ieee::Decimal decimal;
+    if (!ieee::parse(text, decimal)) return false;
+    const auto rounded = ieee::round(decimal, ieee::binary64);
+    out = ieee::binary64_value(rounded);
+    return !rounded.overflow && !rounded.underflow_to_zero;
 }
 
 class JsonParser {
@@ -270,10 +285,7 @@ private:
         node->number_text = std::move(token);
         // JSON itself has no IEEE-754 range restriction. Keep the source
         // spelling losslessly; narrow accessors decide whether a value fits.
-        errno = 0;
-        char* end = nullptr;
-        const double value = std::strtod(node->number_text.c_str(), &end);
-        if (errno != ERANGE && end && *end == '\0' && std::isfinite(value)) {
+        if (double value = 0.0; json_number_value(node->number_text, value)) {
             node->number = value;
         }
         return node;
@@ -579,16 +591,16 @@ extern "C" long long quidra_json_integer(void* value) {
 extern "C" bool quidra_json_number_ok(void* value) {
     auto* node = json_node(value);
     if (!node || node->kind != JsonKind::Number) return false;
-    errno = 0;
-    char* end = nullptr;
-    const double parsed = std::strtod(node->number_text.c_str(), &end);
-    return errno != ERANGE && end && *end == '\0' && std::isfinite(parsed);
+    double parsed = 0.0;
+    return json_number_value(node->number_text, parsed);
 }
 
 extern "C" double quidra_json_number(void* value) {
     auto* node = json_node(value);
     if (!node || node->kind != JsonKind::Number) return 0.0;
-    return std::strtod(node->number_text.c_str(), nullptr);
+    double number = 0.0;
+    (void)json_number_value(node->number_text, number);
+    return number;
 }
 
 extern "C" char* quidra_json_number_text(void* value) {

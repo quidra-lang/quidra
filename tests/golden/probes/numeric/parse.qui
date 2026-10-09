@@ -1,0 +1,29 @@
+// Numeric parsing in every kind, accepted and rejected text.
+int a = int.parse("-42")
+nat16 c = nat16.parse("65535")
+real64 d = real64.parse("2.5e-3")
+int f = int.parse("123456789012345678901234567890")
+real g = real.parse("0.125")
+print("{a} {c} {d} {f} {g}")
+print(NL)
+int8 | error b = int8.parse("200")
+match b
+    int8 value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)
+real32 | error e = real32.parse("1.0e39")
+match e
+    real32 value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)
+int | error h = int.parse("9223372036854775808")
+match h
+    int value
+        print("{value}")
+    error problem
+        print("{problem}")
+print(NL)

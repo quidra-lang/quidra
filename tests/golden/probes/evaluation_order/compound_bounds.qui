@@ -1,0 +1,10 @@
+// A compound assignment validates and reads its target before the
+// right-hand side, so a target index out of bounds fails first.
+int noisy()
+    print("noisy")
+    print(NL)
+    return 1
+
+int[] a = [0, 0, 0]
+int k = 5
+a[k] += noisy()

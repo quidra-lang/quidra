@@ -1,0 +1,23 @@
+// Arrays and calls in the shapes the other inputs miss: a filled fixed array
+// written at an index the compiler cannot prove in range, a row written into
+// a fixed two-dimensional array, and a function value called with two
+// arguments.
+int fixed_write(int index, int value)
+    int[4] slots = array(4, fill = 0)
+    slots[index] = value
+    return slots[0]
+
+int grid_write(int index)
+    int[2][3] grid = [[1, 2, 3], [4, 5, 6]]
+    int[3] row = [7, 8, 9]
+    grid[index] = row
+    return grid[0][0]
+
+int add(int left, int right)
+    return left + right
+
+int apply(fn<int>(int, int) operation, int left, int right)
+    return operation(left, right)
+
+print(apply(add, fixed_write(1, 5), grid_write(1)))
+print(NL)

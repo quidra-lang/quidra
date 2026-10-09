@@ -1,0 +1,13 @@
+// Overlapping fusion chains of two extensions (probe_overlap alpha and beta)
+// and the conditional rules of all three stages.
+import probe = probe_overlap
+
+tensor<real32> input = tensor.ones<real32>([4])
+tensor<real32> chained = probe.third(probe.second(probe.first(input)))
+tensor<real32> pair = probe.second(probe.first(tensor.ones<real32>([4])))
+tensor<real32> tail = probe.third(probe.second(tensor.ones<real32>([4])))
+tensor<real32> alone = probe.first(tensor.ones<real32>([4]))
+tensor<real32> moved = probe.second(tensor.ones<real32>([4]))
+tensor<real32> placed = probe.third(tensor.ones<real32>([4]).contiguous())
+print(chained[0].item() + pair[0].item() + tail[0].item() + alone[0].item() + moved[0].item() + placed[0].item())
+print(NL)

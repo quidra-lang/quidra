@@ -1,0 +1,14 @@
+// Non-finite floating values made by arithmetic, printed and compared.
+real64 zero = 0.0
+real64 one = 1.0
+real64 infinite = one / zero
+real64 negative = -one / zero
+real64 undefined = zero / zero
+print("{infinite} {negative} {undefined}")
+print(NL)
+print("{infinite > 1.0e308} {undefined == undefined} {infinite + negative}")
+print(NL)
+real32 small = real32(1.0e-30)
+real32 overflowed = small * real32(1.0e30) * real32(1.0e30) * real32(1.0e30)
+print("{overflowed}")
+print(NL)

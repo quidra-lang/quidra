@@ -12,11 +12,11 @@ class Lcg
     int state
 
     construct(int seed)
-        state = seed
+        this.state = seed
 
     int next_int()
-        state = (48271 * state) % 2147483647
-        return state
+        this.state = (48271 * this.state) % 2147483647
+        return this.state
 
 class Result
     int sum_v
@@ -42,7 +42,7 @@ Result workload()
             int v = g.next_int()
             string record = "{i} {v}{NL}"
             writer.write(record)
-            nbytes = nbytes + len(record)
+            nbytes = nbytes + int(len(record))
         writer.flush()
         writer.close()
 

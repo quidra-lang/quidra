@@ -1,0 +1,18 @@
+// A numeric parse that fails, handled as a value and then fail-fast.
+int | error good = int.parse("123")
+int | error bad = int.parse("12x")
+match good
+    int value
+        print("good {value}")
+    error problem
+        print("good failed {problem}")
+print(NL)
+match bad
+    int value
+        print("bad {value}")
+    error problem
+        print("bad failed {problem}")
+print(NL)
+int forced = int.parse("x9")
+print("{forced}")
+print(NL)

@@ -1,0 +1,21 @@
+// Chains of probe_rules operations that chain fusion rejects (see
+// packages/probe_rules/compiler/rules.toml for the patterns).
+import probe = probe_rules
+
+tensor<real32> x = tensor.ones<real32>([4])
+tensor<real32> y = tensor.ones<real32>([4])
+tensor<real32> state = tensor.zeros<real32>([4])
+// first(x), then second(y): second does not take first's result.
+tensor<real32> apart = probe.pair(probe.first(x), probe.second(y))
+// second, then first: the replacement takes two tensors.
+tensor<real32> wide = probe.first(probe.second(x))
+// first, then scale: the replacement's factor is an int, scale's a float.
+tensor<real32> scaled = probe.scale(probe.first(x), 2.0)
+// first, then accumulate: accumulate's side input is writable.
+tensor<real32> summed = probe.accumulate(&state, probe.first(x))
+// stamp, then first: the first call takes a writable argument.
+tensor<real32> stamped = probe.first(probe.stamp(&state))
+// impure, then first: impure is not bound to an operation.
+tensor<real32> rough = probe.first(probe.impure(x))
+print(apart[0].item() + wide[0].item() + scaled[0].item() + summed[0].item() + stamped[0].item() + rough[0].item())
+print(NL)

@@ -1,0 +1,8 @@
+// Unbounded recursion stops at the call depth limit.
+int descend(int depth)
+    return descend(depth + 1) + 1
+
+print("start")
+print(NL)
+print("{descend(0)}")
+print(NL)

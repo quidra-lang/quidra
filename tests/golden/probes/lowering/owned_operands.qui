@@ -1,0 +1,59 @@
+// Tensor, target and text operands that are temporaries the expression
+// owns, a reference to a union narrowed by name, function values held in a
+// reference or returning nothing, bin slices with an open end, error text,
+// string.repeat. Compiled by the golden corpus, never run.
+tensor<real32> make_tracked()
+    tensor<real32> value = tensor.ones<real32>([2])
+    value.track()
+    return value
+
+print(make_tracked().grad.is_tracked())
+print(NL)
+make_tracked().clear_grad()
+
+autograd.Target make_target()
+    return autograd.target()
+
+print(make_target().has_grad())
+print(NL)
+
+string greeting()
+    return "hello"
+
+print(greeting()[0] == "h")
+print(NL)
+
+int | string choice = 3
+int | string& chosen = &choice
+match chosen
+    int
+        print(chosen + 1)
+        print(NL)
+    string
+        print(chosen)
+        print(NL)
+
+int twice(int value)
+    return value * 2
+
+void show(int value)
+    print("{value}{NL}")
+
+fn<int>(int) operation = twice
+fn<int>(int)& held = &operation
+print(held(4))
+print(NL)
+fn<void>(int) shower = show
+shower(5)
+
+bin bits = bin.fill(6, 1)
+bin head = bits[:2]
+bin tail = bits[3:]
+print("{len(head)} {len(tail)}{NL}")
+
+error problem = error("bad")
+print(problem.string())
+print(NL)
+string repeated = string.repeat("ab", 2)
+print(repeated)
+print(NL)

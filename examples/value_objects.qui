@@ -2,18 +2,18 @@ class Point
     int x = 1
     int y = 2
 
-    construct(int first = 1)
-        x = first
+    construct(int x = 1)
+        this.x = x
 
     int sum()
-        return x + y
+        return this.x + this.y
 
 class ShiftedPoint
     Point point = Point()
     int offset = 1
 
     int sum()
-        return point.sum() + offset
+        return this.point.sum() + this.offset
 
 Point a
 Point b = Point(1)

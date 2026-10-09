@@ -3,15 +3,15 @@ namespace {
 
 int gpu_integer_bits(int dtype) {
     switch(dtype){
-        case 1: case 8: return 64;
-        case 2: case 5: return 8;
-        case 3: case 6: return 16;
-        case 4: case 7: return 32;
+        case QCORE_DTYPE_INT64: case QCORE_DTYPE_UINT64: return 64;
+        case QCORE_DTYPE_INT8: case QCORE_DTYPE_UINT8: return 8;
+        case QCORE_DTYPE_INT16: case QCORE_DTYPE_UINT16: return 16;
+        case QCORE_DTYPE_INT32: case QCORE_DTYPE_UINT32: return 32;
         default: return 0;
     }
 }
-bool gpu_integer_signed(int dtype) { return dtype>=1&&dtype<=4; }
-bool gpu_integer_dtype(int dtype) { return dtype>=1&&dtype<=8; }
+bool gpu_integer_signed(int dtype) { return dtype>=QCORE_DTYPE_INT64&&dtype<=QCORE_DTYPE_INT32; }
+bool gpu_integer_dtype(int dtype) { return dtype>=QCORE_DTYPE_INT64&&dtype<=QCORE_DTYPE_UINT64; }
 
 std::string ptx_integer_kind(int dtype) {
     const auto bits=gpu_integer_bits(dtype);
@@ -20,23 +20,23 @@ std::string ptx_integer_kind(int dtype) {
 }
 std::string integer_min_text(int dtype) {
     switch(dtype){
-        case 1:return "-9223372036854775808";
-        case 2:return "-128";
-        case 3:return "-32768";
-        case 4:return "-2147483648";
+        case QCORE_DTYPE_INT64: return "-9223372036854775808";
+        case QCORE_DTYPE_INT8: return "-128";
+        case QCORE_DTYPE_INT16: return "-32768";
+        case QCORE_DTYPE_INT32: return "-2147483648";
         default:return "0";
     }
 }
 std::string integer_max_text(int dtype) {
     switch(dtype){
-        case 1:return "9223372036854775807";
-        case 2:return "127";
-        case 3:return "32767";
-        case 4:return "2147483647";
-        case 5:return "255";
-        case 6:return "65535";
-        case 7:return "4294967295";
-        case 8:return "18446744073709551615";
+        case QCORE_DTYPE_INT64: return "9223372036854775807";
+        case QCORE_DTYPE_INT8: return "127";
+        case QCORE_DTYPE_INT16: return "32767";
+        case QCORE_DTYPE_INT32: return "2147483647";
+        case QCORE_DTYPE_UINT8: return "255";
+        case QCORE_DTYPE_UINT16: return "65535";
+        case QCORE_DTYPE_UINT32: return "4294967295";
+        case QCORE_DTYPE_UINT64: return "18446744073709551615";
         default:return "0";
     }
 }
@@ -191,14 +191,14 @@ std::string ptx_integer_binary_source(int dtype,int operation,int scalar_side) {
       " add.u64 %rd9,%rd2,%rd8;\n add.u64 %rd10,%rd3,%rd8;\n"
       " add.u64 %rd11,%rd1,%rd8;\n";
     o<<ptx_load_integer_global(dtype,"%rd9","%rd20","%r5");
-    if(scalar_side==0) o<<ptx_load_integer_global(dtype,"%rd10","%rd21","%r6");
+    if(scalar_side==abi::scalar_side::none) o<<ptx_load_integer_global(dtype,"%rd10","%rd21","%r6");
     else o<<ptx_load_integer_param(dtype,"p_scalar","%rd21","%r6");
-    const char* a=scalar_side==1?"%rd21":"%rd20";
-    const char* b=scalar_side==1?"%rd20":"%rd21";
-    if(operation==1)o<<ptx_checked_add(dtype,a,b,"%rd30","BAD","BIN");
-    else if(operation==2)o<<ptx_checked_sub(dtype,a,b,"%rd30","BAD","BIN");
-    else if(operation==3)o<<ptx_checked_mul(dtype,a,b,"%rd30","BAD");
-    else if(operation==4){
+    const char* a=scalar_side==abi::scalar_side::left?"%rd21":"%rd20";
+    const char* b=scalar_side==abi::scalar_side::left?"%rd20":"%rd21";
+    if(operation==abi::tensor_binary_opcode::add)o<<ptx_checked_add(dtype,a,b,"%rd30","BAD","BIN");
+    else if(operation==abi::tensor_binary_opcode::subtract)o<<ptx_checked_sub(dtype,a,b,"%rd30","BAD","BIN");
+    else if(operation==abi::tensor_binary_opcode::multiply)o<<ptx_checked_mul(dtype,a,b,"%rd30","BAD");
+    else if(operation==abi::tensor_binary_opcode::divide){
         o<<" setp.eq."<<(sign?"s64":"u64")<<" %p2,"<<b<<",0;\n @%p2 bra BAD;\n";
         if(sign){
             o<<" mov.s64 %rd62,0x8000000000000000;\n"
@@ -274,9 +274,9 @@ std::string ptx_integer_cast_source(int source_dtype,int target_dtype) {
         o<<"mul.lo.u64 %rd10,%rd7,"<<out_bytes<<";add.u64 %rd11,%rd1,%rd10;"
          <<ptx_store_integer_global(target_dtype,"%rd11","%rd20","%r6");
     }else{
-        const auto out_bytes=target_dtype==10?4:8;
+        const auto out_bytes=target_dtype==QCORE_DTYPE_FLOAT32?4:8;
         o<<"mul.lo.u64 %rd10,%rd7,"<<out_bytes<<";add.u64 %rd11,%rd1,%rd10;";
-        if(target_dtype==10){
+        if(target_dtype==QCORE_DTYPE_FLOAT32){
             o<<"cvt.rn.f32."<<(ss?"s64":"u64")<<" %f1,%rd20;st.global.f32 [%rd11],%f1;";
         }else{
             o<<"cvt.rn.f64."<<(ss?"s64":"u64")<<" %fd1,%rd20;st.global.f64 [%rd11],%fd1;";
@@ -322,8 +322,8 @@ std::string ptx_integer_gather_backward_source(int dtype) {
 #ifdef __APPLE__
 std::string msl_integer_type(int dtype) {
     switch(dtype){
-        case 1:return "long"; case 2:return "char"; case 3:return "short"; case 4:return "int";
-        case 5:return "uchar"; case 6:return "ushort"; case 7:return "uint"; case 8:return "ulong";
+        case QCORE_DTYPE_INT64: return "long"; case QCORE_DTYPE_INT8: return "char"; case QCORE_DTYPE_INT16: return "short"; case QCORE_DTYPE_INT32: return "int";
+        case QCORE_DTYPE_UINT8: return "uchar"; case QCORE_DTYPE_UINT16: return "ushort"; case QCORE_DTYPE_UINT32: return "uint"; case QCORE_DTYPE_UINT64: return "ulong";
         default:return {};
     }
 }
@@ -380,13 +380,13 @@ std::string msl_integer_binary_source(int dtype,int operation,int scalar_side) {
        "const device "<<t<<"* right [[buffer(2)]],constant "<<t<<"& scalar [[buffer(3)]],"
        "constant ulong& count [[buffer(4)]],device atomic_uint* status [[buffer(5)]],"
        "uint gid [[thread_position_in_grid]]){ulong i=ulong(gid);if(i>=count)return;"<<t<<" a=left[i],b=";
-    if(scalar_side==0)o<<"right[i];";else o<<"scalar;";
-    if(scalar_side==1)o<<t<<" q=a;a=b;b=q;";
+    if(scalar_side==abi::scalar_side::none)o<<"right[i];";else o<<"scalar;";
+    if(scalar_side==abi::scalar_side::left)o<<t<<" q=a;a=b;b=q;";
     o<<t<<" r=0;bool bad=false;";
-    if(operation==1)o<<"bad=q_add(a,b,r);";
-    else if(operation==2)o<<"bad=q_sub(a,b,r);";
-    else if(operation==3)o<<"bad=q_mul(a,b,r);";
-    else if(operation==4){
+    if(operation==abi::tensor_binary_opcode::add)o<<"bad=q_add(a,b,r);";
+    else if(operation==abi::tensor_binary_opcode::subtract)o<<"bad=q_sub(a,b,r);";
+    else if(operation==abi::tensor_binary_opcode::multiply)o<<"bad=q_mul(a,b,r);";
+    else if(operation==abi::tensor_binary_opcode::divide){
         o<<"if(b==0)bad=true;";
         if(sign)o<<"else if(a==("<<t<<")"<<integer_min_text(dtype)<<"&&b==("<<t<<")-1)bad=true;";
         o<<"else r=a/b;";

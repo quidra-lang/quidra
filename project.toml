@@ -31,7 +31,7 @@ tagline = "Programming with maximum meaning per token."
 # abi = 1 and ir = 2.
 [compat]
 abi = 1
-ir = 1
+ir = 3
 package_schema = 1
 lockfile_schema = 3
 

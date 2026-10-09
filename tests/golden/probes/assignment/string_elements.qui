@@ -1,0 +1,15 @@
+// A compound assignment to a string element whose right-hand side replaces
+// the array keeps the old element alive for the operation and stores into
+// the new array.
+int replace(string[] &values)
+    values = ["p", "q", "r"]
+    return 1
+
+string[] s = ["a", "b"]
+s[0] += "{replace(&s)}"
+print("{s[0]} {s[1]} {s[2]} {len(s)}")
+print(NL)
+string[] t = ["x", "y"]
+t[1] += "{replace(&t)}!"
+print("{t[0]} {t[1]} {len(t)}")
+print(NL)

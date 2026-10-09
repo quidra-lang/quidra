@@ -1,0 +1,29 @@
+[extension]
+version = 1
+phase = "tensor-region"
+
+[operation.first]
+function = "first"
+traits = "pure,tensor,differentiable,higher-order"
+
+[operation.second]
+function = "second"
+traits = "pure,tensor,differentiable,higher-order"
+
+[operation.fused_ab]
+function = "fused_ab"
+traits = "pure,tensor,differentiable,higher-order,fusion-target"
+
+[operation.inference]
+function = "inference"
+traits = "pure,tensor,differentiable,higher-order,specialization-target"
+
+[fusion.ab]
+operations = "first,second"
+replacement = "fused_ab"
+
+[specialization.first_inference]
+operation = "first"
+replacement = "inference"
+dtype = "real32"
+tracked = "false"

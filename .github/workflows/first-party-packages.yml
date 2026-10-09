@@ -63,7 +63,7 @@ jobs:
       - name: Enforce first-party package layer boundary
         run: python3 tests/first_party_layer_tests.py packages/math packages/nn packages/vision packages/video packages/dnn
       - name: Build Quidra
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON && cmake --build build --parallel
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON && cmake --build build --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Smoke-test local first-party installs
         env:
           HOME: ${{ runner.temp }}/quidra-install-home

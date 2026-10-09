@@ -194,7 +194,10 @@ link the CUDA runtime. AOT and REPL/JIT use the same package source declarations
 
 This mechanism is intentionally domain-neutral: NN, DNN, Vision, Video,
 scientific, and other packages own their kernels and third-party backend policy. Core only
-compiles, links, caches, and loads the declared native inputs.
+compiles, links, and loads the declared native inputs. A direct run (`quidra FILE.qui`,
+`quidra run`) caches the whole executable built from them, keyed by their contents among
+everything else the build depends on; the inputs themselves are compiled again whenever a
+build runs.
 
 Package kernels that need to share Core's same-device asynchronous ordering may
 query the borrowed backend-native queue/stream with
@@ -202,6 +205,261 @@ query the borrowed backend-native queue/stream with
 `MTLCommandQueue`; CUDA/HIP use their backend default stream, represented by
 native handle 0. The execution handle is mechanism only: packages still own
 operation semantics, kernels, and backend policy.
+
+On Metal, Core keeps one open command buffer per device and waits only where
+the host reads device data (`.item()`, `.cpu()`, readbacks, `gpu.sync`,
+synchronized time samples, program exit). Package kernels can append to it
+instead of committing and waiting on command buffers of their own; the calls
+are declared and specified in `include/quidra/native_extension.h`:
+
+- Package encodes follow one ownership protocol: take every handle and
+  status slot, open the scope, set state, dispatch, close.
+  `qcore_device_encode_begin(device)` holds Core's stream for the calling
+  thread (it returns 0 when the device has no Core stream: CUDA, HIP, the
+  fake backend, `QUIDRA_METAL_STREAM=0`; the package then submits as before).
+  While the stream is held Core commits nothing, so tensor handles and
+  status slots taken now do not split Core's batch, and the work Core may
+  need for them (a copy-on-write detach, an upload, new output storage, a
+  status page clear) is encoded in program order on Core's own encoders.
+  `qcore_device_compute_encoder(device)` then opens the encoder scope and
+  returns Core's open compute encoder (set the pipeline state and every
+  binding the kernel uses, dispatch, never end it), or
+  `qcore_metal_command_buffer(device)` returns Core's open command buffer
+  for encoders of the package's own (end them before closing). Exactly one
+  `qcore_metal_note_work(device, dispatches, bytes)` closes the scope and
+  the hold, also after a failed encode and when no scope was opened. Defer
+  status slots and attach autograd after it. Without
+  `qcore_device_encode_begin`, opening a scope takes the hold itself, and
+  handles taken before it were lent outside a hold, which commits Core's
+  batch at each lend.
+- Inside the scope Core performs no encoding, upload, copy, fill, blit or
+  copy-on-write detach on that stream: a Metal encoder cannot save and
+  restore its pipeline state and bindings, and an encoder Core ended would
+  be released under the package. Only lookups that need no Core work are
+  served there (tensor metadata and offsets, a const handle of a tensor
+  that is not a still-shared unified-memory view, a mutable or output handle
+  of a dense tensor at offset 0 that covers the storage it alone owns (a
+  view of part of its storage needs a copy), the queue and native device
+  handles, scratch buffers, deferring or releasing a status slot, completion
+  callbacks, counters). A handle that needs Core work, a status slot, a
+  custom autograd attach involving the device, and a nested scope or hold
+  are protocol violations. During the whole hold Core neither commits nor
+  waits on the stream, so a flush, a wait, a status wait and a mutable CPU
+  pointer (`qcore_tensor_cpu_data`) of a unified-memory view that device
+  work may still read are violations too; take mutable CPU pointers before
+  `qcore_device_encode_begin`. A hold covers one device: a call that needs
+  another device's stream (its tensors' handles, its queue, scratch, status
+  slots, completion callbacks, flush or wait, an attach involving it) is a
+  violation, so a thread never waits for a second stream while it keeps
+  one locked. Whether a call is refused depends only on the program's
+  state, never on the buffer pool, the upload mode or GPU timing.
+- Core does none of the work a violation asks for: the call fails (0, NULL,
+  nonzero, or -6 from an autograd attach), and `qcore_metal_note_work`
+  discards the hold's command buffer (nothing of it runs) and stops the
+  program with `Quidra runtime error[GPU_SCOPE] at FILE:L:C` (status 101)
+  where Core called the package code: at the user's statement that made
+  the extern call, or at the `backward()` call whose custom autograd
+  backward callback broke the protocol. In a completion callback or a
+  warm-up, which run outside any Quidra statement, the report names the
+  program's root file without a line and the process ends at once (`std::_Exit`, exit handlers skipped) with
+  the stream still held, so the program never runs on without the
+  discarded work. In a `task.all` task the report keeps its location, and
+  the process ends at once the same way, so the other tasks never run on
+  without that work either. A hold or scope must end before the package
+  code that began it returns (the extern call, or a backward, completion
+  or warm-up callback). Core checks where control comes back: at that
+  thread's next Quidra statement, at the start of a `task.all` call and
+  the end of each of its tasks, when a backward callback returns, after
+  each completion callback and warm-up, and at exit. A hold found open
+  there is ended the same way and the program stops with `GPU_SCOPE` at
+  the statement that was running, at the `task.all` call (whose tasks
+  would otherwise wait for the held stream), at the `backward()` call, or
+  naming the root file after a completion callback, a warm-up or at exit (ending at
+  once there and on a `task.all` task's thread). Core work the thread asks
+  for on the held stream before that point, for example later in the same
+  statement, is refused where the hold refuses it (any work inside the
+  scope, a commit or wait during the hold) and stops the program with
+  `GPU_SCOPE` right there; other threads' work on the stream waits until
+  the hold has been ended. The runtime counters `package_encode_holds`,
+  `package_encode_scopes` and `package_scope_violations` count holds,
+  scopes and violations.
+- Inside a hold never wait, flush, synchronize or commit a command buffer
+  of your own, and bind buffer handles taken in it only in that hold's
+  scope (Core records them as used by its open command buffer, so the host
+  can read them without a device synchronization once it completed). A
+  queue handle taken in a hold makes the hold's end commit Core's open work,
+  so the package's own command buffers on it run after the hold's work.
+  Only a handle taken in the hold does that: after a hold that took none,
+  Core's command buffer stays open, and a command buffer the package
+  commits on a queue handle taken before `qcore_device_encode_begin` (or
+  cached from an earlier call) runs before the hold's work and reads stale
+  data. Call `qcore_device_queue_handle` again during the hold (a lookup,
+  also allowed in the scope) before committing command buffers of your own
+  that use the hold's results.
+- `qcore_device_flush`, `qcore_device_wait` (before a host read of
+  package-owned device memory) and `qcore_device_on_complete` (for example to
+  release scratch once all queued work, including the package's own command
+  buffers, has completed; registered in a hold, the callback joins the
+  hold's command buffer and runs after its work, never at once). Completion
+  callbacks run one at a time on a
+  Core-owned queue, not inside Metal's completion handlers, and a
+  synchronization returns only after the callbacks of the work it waited for
+  have run. A callback may use the stream calls listed here but must not wait
+  for another callback. Completion handlers a package adds to its own Metal
+  command buffers must not call them.
+- Status words for checked kernels: `qcore_device_status_slot` hands out a
+  zeroed 32-bit word to bind (take it before the encoder scope opens).
+  After encoding (or committing) the kernel, the
+  package either defers the check with `qcore_device_defer_status`, which
+  reports the message and the queuing statement at the next synchronization
+  point without a host wait now, reads it at once with
+  `qcore_device_status_wait`, or discards it with
+  `qcore_device_status_release`.
+- Scratch from `qcore_device_buffer_allocate` holds unspecified bytes and no
+  queued GPU work uses it when it is returned, so on Metal the package may
+  write it through shared storage at once. A tensor's storage may still be in
+  use by queued Core work when its handle is lent: host access to it needs
+  `qcore_device_wait` first.
+- Write-only outputs: for a kernel that stores every element, take the output
+  with `qcore_tensor_output_handle` (no fill, no per-element bookkeeping; reads
+  fail as uninitialized until written) and call `qcore_tensor_mark_written`
+  after a successful encode.
+- Warm-up: `qcore_register_warmup(fn)` (for example from a static
+  initializer of the package's native code) makes Core call `fn(device)` once
+  per GPU device the program uses, on a Core background thread, when the
+  program first allocates on it. Compile the package's kernels there, for the
+  device `qcore_device_native_device(device)` returns; the first GPU step then
+  finds them compiled. The kernel cache must be thread-safe, and `fn` must
+  not encode or wait for device work.
+
+Packages that still commit their own command buffers on
+`qcore_device_queue_handle` keep working: lending a native handle outside a
+hold commits Core's open work first, and every later synchronization covers
+the package's command buffers. `QUIDRA_COUNTERS=<file>` reports per program
+step how many command buffers, waits (with their source sites), fills,
+uploads, allocations and package queue borrows a program pays.
+
+Package autograd callbacks are attached with the
+`qcore_tensor_attach_custom_autograd*` family in
+`include/quidra/native_extension.h`. Saved tensors are value snapshots, but
+Core may keep a dense saved tensor by sharing its storage copy-on-write
+instead of copying it. Writes through Core detach a shared storage first,
+including `qcore_tensor_cpu_data` and `qcore_tensor_device_handle` called
+after the attach. A pointer or handle obtained before the attach call is not
+detached, so finish every write through it before attaching, or save a
+separate tensor.
+
+A callback attached with `qcore_tensor_attach_custom_autograd_masked`
+receives, besides the gradient tensors, a `needed` byte per input: Core marks
+the inputs through which a selected backward target is reachable, passes
+`NULL` for every other gradient, and does not call the callback at all when no
+input needs one. Callbacks attached with the older functions keep receiving
+every gradient, zero-filled. At attach time a masked callback may declare, per
+input, that it writes the whole gradient whenever it is requested
+(`full_writes`). A declared gradient is a write-only output: its contents are
+unspecified when the callback starts (Metal and the fake test GPU skip its
+zero fill; `QUIDRA_GPU_ZERO_FILL=always` restores it), the callback must store
+every element, and it must report `fully_written[i] = 1` after each successful
+call, or the backward fails. Undeclared gradients always arrive zero-filled.
+
+### CPU parallelism in package kernels
+
+CPU kernels that want more than one core use Core's
+`qcore_parallel_for(begin, end, grain, body, context)` instead of creating
+threads or calling Grand Central Dispatch themselves. Core schedules the work
+on GCD on Apple platforms and on one persistent thread pool elsewhere.
+
+The call is deterministic by construction:
+
+- `[begin, end)` is cut into the fixed chunks
+  `[begin + k*grain, min(begin + (k+1)*grain, end))`. The chunks depend only on
+  the three arguments, never on the thread count, and `body` runs exactly once
+  per chunk.
+- A body may write only the outputs of its own range and must compute each one
+  exactly as a serial loop would. Partition independent outputs (output
+  channels, rows, elements), never the terms of one sum. A reduction may use a
+  fixed number of chunks whose partial results the caller combines in a fixed
+  order afterwards. Under this rule the results are bitwise identical for
+  every thread count.
+- A call nested inside a body, a call made inside a `task.all` operation, a
+  single-chunk range and a thread count of 1 all run the chunks in ascending
+  order on the calling thread.
+- A body returns 0 or a positive package error code. Once a chunk fails, later
+  chunks that have not started are skipped, and the call returns the code of
+  the failing chunk with the lowest index, which does not depend on
+  scheduling. An escaping C++ exception is caught and reported as
+  `QCORE_PARALLEL_CALLBACK_EXCEPTION`; invalid arguments return
+  `QCORE_PARALLEL_INVALID_ARGUMENT`. Negative results are reserved for Core: a
+  body that returns one fails its chunk with
+  `QCORE_PARALLEL_INVALID_BODY_RESULT`, so a body result never looks like
+  another Core status.
+- Bodies may call only the `qcore_*` functions that read data without
+  changing Core state: a nested `qcore_parallel_for`,
+  `qcore_parallel_thread_count`, `qcore_native_abi_version`,
+  `qcore_execution_policy_get`, `qcore_execution_is_deterministic`, and the
+  tensor metadata queries `qcore_tensor_dtype`, `qcore_tensor_device`,
+  `qcore_tensor_rank`, `qcore_tensor_extent`, `qcore_tensor_element_count`,
+  `qcore_tensor_is_contiguous`, `qcore_tensor_backend`,
+  `qcore_tensor_backend_device_index` and `qcore_tensor_device_offset_bytes`.
+  Any other `qcore_*` call from a body, including `qcore_tensor_cpu_data` and
+  `qcore_tensor_device_handle`, stops the program with
+  `Quidra runtime error[PARALLEL_BODY]` (exit status 101) at every thread
+  count, before it touches Core state. Take data pointers and handles before
+  the call and pass them through `context`.
+- Bodies on other threads run under the caller's floating-point environment
+  (rounding mode, and flush-to-zero/denormal controls where the platform's
+  `fenv_t` carries them, as on arm64 and x86-64), and exception flags they
+  raise are raised on the caller before the call returns. A body that changes
+  the environment must restore it before returning.
+- Bodies may run on threads with a smaller stack than the caller's (512 KiB
+  for Grand Central Dispatch workers). Keep large scratch buffers off the
+  stack: allocate them before the call and pass them through `context`.
+- Test every parallel kernel both with `QUIDRA_CPU_THREADS=1` and with more
+  than one thread (for example with the variable unset). With one thread every
+  chunk runs on the caller, so a body that overflows a helper's stack can pass
+  there and fail only with more threads.
+
+```cpp
+struct Scale { const float* in; float* out; float factor; };
+
+static int scale_elements(uint64_t begin, uint64_t end, void* raw) {
+    const auto& job = *static_cast<const Scale*>(raw);
+    for (uint64_t i = begin; i < end; ++i) job.out[i] = job.in[i] * job.factor;
+    return 0;
+}
+
+// ...
+Scale job{input_data, output_data, 3.0F};
+int status = qcore_parallel_for(0, count, 16384, scale_elements, &job);
+```
+
+`QUIDRA_CPU_THREADS=N` (an integer from 1 to 256) limits each
+`qcore_parallel_for` call to `N` threads including the caller; a value above
+the hardware thread count is reduced to it. `QUIDRA_CPU_THREADS=1` makes every
+call fully serial, with no thread hand-off. Unset or empty means the hardware
+thread count. The variable is read and validated by the first
+`qcore_parallel_for` or `qcore_parallel_thread_count` call in the process,
+wherever that call is made (at top level, nested, or inside `task.all`); any
+other value stops the program there with `Quidra runtime error[CPU_THREADS]`
+(exit status 101). A program that must not stop part way, such as a benchmark
+harness before a timed run, reads `qcore_parallel_thread_count()` first (see
+below) so that the value is checked before any output or timed work. The
+variable does not limit `task.all`, which starts its own threads, and package
+kernels called inside a `task.all` operation run serially anyway.
+Core's own CPU tensor kernels stay single-threaded.
+
+`qcore_parallel_thread_count()` returns the number of threads a call from the
+current context may use: the effective `QUIDRA_CPU_THREADS` value, or 1 inside
+a body or a `task.all` operation. It is an upper bound; a loaded system may run
+a call on fewer threads, which never changes its results. Quidra code, such as
+a benchmark harness that records the setting and wants it validated up front,
+can read it through an `extern` binding:
+
+```quidra
+extern nat64 cpu_threads() = "qcore_parallel_thread_count"
+
+print(cpu_threads())
+```
 
 ### Package `project.toml`
 

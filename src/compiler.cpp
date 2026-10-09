@@ -3,6 +3,8 @@
 #include "quidra/frontend.hpp"
 #include "quidra/lexer.hpp"
 #include "quidra/llvm_backend.hpp"
+#include "quidra/lowering.hpp"
+#include "quidra/optimizer.hpp"
 #include "quidra/parser.hpp"
 #include "quidra/language.hpp"
 
@@ -36,22 +38,35 @@ ResolvedProgram resolve_source(std::string_view source, CompileOptions options) 
         /*enforce_package_lock=*/false);
 }
 
+// The display path of the root: the option, or the path the compile was
+// given.
+void set_display_path(ResolvedProgram& program, const CompileOptions& options,
+                      std::string given) {
+    program.program.source_display_path =
+        options.source_display_path.empty() ? std::move(given) : options.source_display_path;
+}
+
 CheckedProgram finish_check(ResolvedProgram program, CompileOptions options) {
     if (options.max_errors == 0) options.max_errors = 1;
     auto concrete = expand_generics(std::move(program));
-    Checker checker(options.max_errors);
+    Checker checker(options.max_errors, options.artifact);
     return checker.check(std::move(concrete));
 }
 
 Compilation finish_compile(ResolvedProgram program, CompileOptions options) {
+    auto packages = std::move(program.packages);
     auto checked = finish_check(std::move(program), options);
-    auto lowered = ir::optimize(ir::lower(checked));
+    auto lowered =
+        ir::optimize(ir::lower(checked, nullptr, 0, options.lowering, options.artifact));
     auto llvm = emit_llvm(lowered, options.debug_info);
-    return Compilation{std::move(checked), std::move(lowered), std::move(llvm)};
+    return Compilation{
+        std::move(checked), std::move(lowered), std::move(llvm), std::move(packages)};
 }
 
 ReplCompilation finish_repl_compile(
     ResolvedProgram program, CompileOptions options, std::size_t replay_prefix_bytes) {
+    options.artifact = CompileArtifact::Interactive;
+    auto packages = std::move(program.packages);
     auto checked = finish_check(std::move(program), options);
 
     const Expr* repl_expression = nullptr;
@@ -65,10 +80,11 @@ ReplCompilation finish_repl_compile(
     }
 
     auto lowered = ir::optimize(
-        ir::lower(checked, repl_expression, replay_prefix_bytes));
+        ir::lower(checked, repl_expression, replay_prefix_bytes, options.lowering));
     auto llvm = emit_llvm(lowered);
     return ReplCompilation{
-        Compilation{std::move(checked), std::move(lowered), std::move(llvm)},
+        Compilation{
+            std::move(checked), std::move(lowered), std::move(llvm), std::move(packages)},
         std::move(expression_type)};
 }
 
@@ -100,16 +116,20 @@ CheckedProgram check_file_source(
 }
 
 Compilation compile(std::string_view source, CompileOptions options) {
-    return finish_compile(resolve_source(source, options), options);
+    auto program = resolve_source(source, options);
+    set_display_path(program, options, "<memory>");
+    return finish_compile(std::move(program), options);
 }
 
 Compilation compile_file(
     const std::filesystem::path& source,
     CompileOptions options,
-    const std::filesystem::path& command_working_directory) {
+    const std::filesystem::path& command_working_directory,
+    CompileInputs* inputs) {
     if (options.max_errors == 0) options.max_errors = 1;
     auto program = load_program_with_modules(
-        source, command_working_directory, options.max_errors);
+        source, command_working_directory, options.max_errors, inputs);
+    set_display_path(program, options, source.string());
     return finish_compile(std::move(program), options);
 }
 
@@ -121,6 +141,7 @@ ReplCompilation compile_repl_file(
     if (options.max_errors == 0) options.max_errors = 1;
     auto program = load_program_with_modules(
         source, command_working_directory, options.max_errors);
+    set_display_path(program, options, "<repl>");
     return finish_repl_compile(std::move(program), options, replay_prefix_bytes);
 }
 
@@ -133,6 +154,7 @@ ReplCompilation compile_repl_file_source(
     if (options.max_errors == 0) options.max_errors = 1;
     auto program = load_program_with_root_source(
         source_path, source, command_working_directory, options.max_errors);
+    set_display_path(program, options, "<repl>");
     return finish_repl_compile(std::move(program), options, replay_prefix_bytes);
 }
 

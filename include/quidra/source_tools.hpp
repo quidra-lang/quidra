@@ -18,6 +18,8 @@ struct SourceNode {
     std::optional<std::string> authority;
     std::optional<std::string> parent_id;
     std::size_t depth{};
+    // A name node written `this.NAME` (a receiver field).
+    bool this_qualified{};
 };
 
 struct SourceInspection {

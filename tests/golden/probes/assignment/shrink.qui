@@ -1,0 +1,14 @@
+// A compound assignment whose right-hand side shrinks the target's array
+// fails with INDEX_BOUNDS at the target instead of writing past the end.
+int shrink(int[] &values)
+    values = [1]
+    return 1
+
+int[] b = [5, 0, 0]
+b[0] += shrink(&b)
+print("first: {b[0]} {len(b)}")
+print(NL)
+int[] c = [5, 0, 0]
+c[2] += shrink(&c)
+print("unreachable")
+print(NL)

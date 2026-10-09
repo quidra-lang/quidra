@@ -1,0 +1,99 @@
+// A by-value argument keeps its value at the call while the call writes the
+// same storage: through another & argument (an element write, a
+// replacement, a field, a tensor element), through an element's array,
+// through the receiver of a method that writes it, and through an argument
+// evaluated after it. Values that are not borrowed (int, string) behave the
+// same.
+class Box
+    int[] items = [1, 2, 3]
+    int total = 0
+
+    void keep(const int[] values)
+        this.items[0] = 9
+        this.total = values[0]
+
+class Point
+    int x = 0
+    int y = 0
+
+void through(const int[] values, int[] &same)
+    same[0] = 7
+    print("array: {values[0]} {same[0]}")
+    print(NL)
+
+void plain(int[] values, int[] &same)
+    same[1] = 6
+    print("plain: {values[1]} {same[1]}")
+    print(NL)
+
+void replace(const int[] values, int[] &same)
+    same = [4]
+    print("replaced: {values[0]} {len(values)} {len(same)}")
+    print(NL)
+
+void move(const Point point, Point &same)
+    same.x = 5
+    print("class: {point.x} {same.x}")
+    print(NL)
+
+void row(const int[] first, int[][] &rows)
+    rows[0][0] = 8
+    print("element: {first[0]} {rows[0][0]}")
+    print(NL)
+
+int grow(int[] &values)
+    for i in range(100)
+        values = values.append(i)
+    return int(len(values))
+
+void later(const int[] values, int count)
+    print("later: {values[0]} {len(values)} {count}")
+    print(NL)
+
+void tensors(const tensor<real32> values, tensor<real32> &same)
+    same[0] = 5.0
+    print("tensor: {values[0].item()} {same[0].item()}")
+    print(NL)
+
+void scalar(const int value, int &same)
+    same = 2
+    print("int: {value} {same}")
+    print(NL)
+
+void text(const string value, string &same)
+    same = "changed"
+    print("string: {value} {same}")
+    print(NL)
+
+void untouched(const int[] values, int[] &other)
+    other[0] = 1
+    print("untouched: {values[0]} {other[0]}")
+    print(NL)
+
+int[] a = [1, 2, 3]
+through(a, &a)
+print("after: {a[0]}")
+print(NL)
+int[] p = [1, 2, 3]
+plain(p, &p)
+int[] b = [1, 2, 3]
+replace(b, &b)
+Point point
+move(point, &point)
+int[][] rows = [[1, 2], [3]]
+row(rows[0], &rows)
+int[] c = [1, 2, 3]
+later(c, grow(&c))
+Box box
+box.keep(box.items)
+print("receiver: {box.total} {box.items[0]}")
+print(NL)
+tensor<real32> t = tensor.ones<real32>([2])
+tensors(t, &t)
+int n = 1
+scalar(n, &n)
+string s = "orig"
+text(s, &s)
+int[] d = [3]
+int[] e = [4]
+untouched(d, &e)

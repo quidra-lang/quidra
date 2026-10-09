@@ -10,7 +10,7 @@ string read_input_line()
         error problem
             process.exit(2)
 int32 a = int32.parse(read_input_line())
-uint32 b = uint32.parse(read_input_line())
+nat32 b = nat32.parse(read_input_line())
 bool r = a < b
 print("OBS=CMP:{r}")
 print(NL)

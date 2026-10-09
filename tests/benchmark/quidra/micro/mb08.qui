@@ -12,14 +12,14 @@ class Lcg
     int state
 
     construct(int seed)
-        state = seed
+        this.state = seed
 
     int next_int()
-        state = (48271 * state) % 2147483647
-        return state
+        this.state = (48271 * this.state) % 2147483647
+        return this.state
 
 // Order-sensitive rolling hash over a byte sequence.
-int rhash(const uint8[] &seq)
+int rhash(const nat8[] &seq)
     int h = 0
     for c in seq
         h = (h * 131 + int(c)) % 1000000007
@@ -41,44 +41,44 @@ Result workload()
     string[] words = []
     for w in range(nw)
         int l = 4 + (g.next_int() % 13)
-        uint8[] word = array(l, fill = uint8(0))
+        nat8[] word = array(nat(l), fill = nat8(0))
         for c in range(l)
-            word[c] = uint8(97 + (g.next_int() % 26))
+            word[c] = nat8(97 + (g.next_int() % 26))
         string piece = string.from_utf8(bin(word))
         words = words.append(piece)
     string joined = words.join(" ")
-    uint8[] text = uint8[](joined.utf8())
-    int n = len(text)
+    nat8[] text = nat8[](joined.utf8())
+    int n = int(len(text))
 
     int acc = 0
     int cnt_ab = 0
     int cnt_w = 0
     for r in range(rounds)
         int p = 7 * r + 11
-        if text[p] == uint8(32)
-            text[p] = uint8(120)
+        if text[p] == nat8(32)
+            text[p] = nat8(120)
         else
-            text[p] = uint8(97 + ((int(text[p]) - 97 + 1) % 26))
+            text[p] = nat8(97 + ((int(text[p]) - 97 + 1) % 26))
 
         int h1 = rhash(&text)
 
-        uint8[] u = array(n, fill = uint8(0))
+        nat8[] u = array(nat(n), fill = nat8(0))
         for i in range(n)
             int c = int(text[i])
             if c >= 97 and c <= 122
-                u[i] = uint8(c - 32)
+                u[i] = nat8(c - 32)
             else
-                u[i] = uint8(c)
+                u[i] = nat8(c)
         int h2 = rhash(&u)
 
-        uint8[] v = array(n, fill = uint8(0))
+        nat8[] v = array(nat(n), fill = nat8(0))
         for i in range(n)
             v[i] = text[n - 1 - i]
         int h3 = rhash(&v)
 
         cnt_ab = 0
         for i in range(n - 1)
-            if text[i] == uint8(97) and text[i + 1] == uint8(98)
+            if text[i] == nat8(97) and text[i + 1] == nat8(98)
                 cnt_ab = cnt_ab + 1
 
         // pass 5: word count on the language's own string type, constructed

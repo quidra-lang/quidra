@@ -118,6 +118,115 @@ copied whole into the measurement sandbox and must stay immutable during a
 frozen measurement window, so it owns its own metadata under
 `benchmark/template/config/`.
 
+## Environment variables
+
+Core reads the process environment only through `src/platform/environment.hpp`:
+`quidra::platform::environment_value(name)` (no value when unset) and
+`quidra::platform::environment_has(name)`. They read through `_dupenv_s` on
+Windows, where the CRT deprecates `std::getenv` (C4996, an error under `/WX`),
+and through `std::getenv` elsewhere. They only read: what an unset, empty or
+malformed value means is decided where the variable is used, and the table
+below records that decision for every variable. "Once" means that the first use
+reads the variable and the process keeps the result.
+
+The "Run cache key" column says how the key of a cached run
+(`quidra FILE.qui`, `quidra run`) covers each variable, as
+`src/toolchain/compile_environment.hpp` classifies it: `value` (the key
+holds the variable's value, set or not), `effect` (the variable only steers
+a search; the key holds what the search found, and a cached run repeats the
+search) or `no` (it never changes what is built). The table and the header
+must agree (`check_cache_key_environment`), so a variable cannot be added to
+either without a class.
+
+`tests/metadata_ssot_tests.py` fails when C, C++ or Objective-C++ code under
+`src/`, `include/` or `tests/`, outside that header, names an environment
+reader: `getenv` and its `secure_`, `_w` and `_s` forms, `_dupenv_s`,
+`GetEnvironmentVariable`, `GetEnvironmentStrings`, an `environ` array,
+`_NSGetEnviron` or `NSProcessInfo`'s `environment`. A name counts whether it is
+called or not (`&std::getenv` does); comments, string literals and longer names
+such as `fegetenv` do not. The test also fails when this table and the
+`QUIDRA_*` names quoted in `src/` and `include/` disagree.
+
+| Variable | Read by | Values | Run cache key |
+|---|---|---|---|
+| `QUIDRA_PACKAGE_PATH` | Compiler: each installed-package import | Package roots separated by `:` (`;` on Windows), searched in order before the user package store; empty entries are skipped. Unset: the store only. | `effect` |
+| `HOME` (`USERPROFILE` on Windows) | Compiler: installed-package imports; package commands; the user cache directory (`HOME` only) | The user package store is `<home>/<store_relative>` (`store_relative` in `project.toml`). Imports skip the store when the variable is unset; when it is empty they look for `<store_relative>` relative to the current directory. Package commands fail ("cannot determine user home") when it is unset or empty. The user cache directory on macOS and Linux lies below `HOME` (see `QUIDRA_CACHE_DIR`); there is none unless `HOME` is an absolute path. | `effect` |
+| `QUIDRA_ALLOW_FILE_PACKAGE_ASSETS` | Package commands: release asset URLs | `1` also accepts `file://` asset URLs. Anything else or unset: HTTPS only. | `no` |
+| `QUIDRA_CLANGXX`, then `QUIDRA_CLANG` | Native code generation and linking | The first non-empty one is the C++ driver, used as given. Neither: the first of `clang++-20` ... `clang++-15`, `clang++` found on `PATH` (Windows: `clang++.exe`, `clang++-20.exe` ... `clang++-17.exe`). | `value` |
+| `QUIDRA_NVCC` | Package `.cu` sources | Non-empty: the CUDA compiler; it must be executable or on `PATH`. Unset or empty: `nvcc` on `PATH`. | `value` |
+| `QUIDRA_CUDA_HOME`, `CUDA_HOME`, `CUDA_PATH` | CUDA runtime library lookup | The first non-empty one, in this order, is the toolkit root and must be a directory. None: derived from the CUDA compiler's location. | `value` |
+| `QUIDRA_LLI` | REPL JIT | Non-empty: the `lli` runner, on `PATH` or as a file path. Unset or empty: the platform search. | `no` |
+| `QUIDRA_LLVM_LIBRARY` | In-process ORC JIT | Non-empty: tried first as the LLVM shared library, before the platform names. | `no` |
+| `QUIDRA_ORC_RUNTIME` | REPL JIT (macOS) | Non-empty: the ORC runtime archive; it must be a file. Unset or empty: searched beside the LLVM installation. | `no` |
+| `QUIDRA_COMPILER_RT_BUILTINS` | REPL JIT (macOS) | Non-empty: the compiler-rt builtins archive; it must be a file. Unset or empty: searched beside the LLVM installation. | `no` |
+| `QUIDRA_DEBUGGER` | `quidra debug` | Non-empty: the debugger; it must be executable or on `PATH`. Unset or empty: `lldb`, then `gdb` on `PATH`. | `no` |
+| `QUIDRA_RUNTIME_LIBRARY` | Native builds and `quidra run` | Non-empty: the runtime archive; it must be a file. Unset or empty: beside the `quidra` executable, then the installed `lib/quidra` layouts. | `value` |
+| `QUIDRA_JIT_RUNTIME_LIBRARY` | REPL JIT | Non-empty: the shared JIT runtime; it must be a file. Unset or empty: beside the executable, then the installed layouts. | `no` |
+| `QUIDRA_NATIVE_INCLUDE_DIR` | Package native sources | Non-empty: a directory that must contain `quidra/native_extension.h`. Unset or empty: the installation layout. | `value` |
+| `QUIDRA_PKG_CONFIG` | Package native dependencies | Non-empty: the `pkg-config` program. Unset or empty: `pkg-config`. | `value` |
+| `QUIDRA_AR` | `quidra build --lib` on Linux and Windows | Non-empty: the static archiver (`ar`, which reads MRI scripts, or `lib.exe`/`llvm-lib` on Windows). Unset or empty: `ar`, `lib.exe` on Windows. | `no` |
+| `QUIDRA_LIBTOOL` | `quidra build --lib` on Apple platforms | Non-empty: the `libtool` program that merges the archive. Unset or empty: `libtool`. | `no` |
+| `QUIDRA_CACHE_DIR` | User cache directory (`src/platform/user_cache_directory.hpp`): the run cache of `quidra FILE.qui` and `quidra run`, and `quidra cache clean` | Non-empty: the cache directory, made absolute against the current directory when it is relative. Unset or empty: the platform's user cache directory: `$HOME/Library/Caches/Quidra` on macOS, `$XDG_CACHE_HOME/quidra` or `$HOME/.cache/quidra` on Linux and other POSIX systems, `<Local AppData>\Quidra\Cache` (the known folder) on Windows. | `no` |
+| `XDG_CACHE_HOME` | User cache directory on POSIX systems other than macOS | An absolute path: the cache directory is `$XDG_CACHE_HOME/quidra`. Unset, empty or relative: `$HOME/.cache/quidra`. macOS and Windows ignore it. | `no` |
+| `PATH` | Executable lookup on POSIX | Searched in order for names without a directory; an empty entry means `.`. Unset: nothing is found. Windows uses `SearchPathW` instead. | `effect` |
+| `CPATH`, `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`, `OBJC_INCLUDE_PATH`, `OBJCPLUS_INCLUDE_PATH`, `LIBRARY_PATH`, `COMPILER_PATH`, `CCC_OVERRIDE_OPTIONS`, `PKG_CONFIG_PATH`, `PKG_CONFIG_LIBDIR`, `PKG_CONFIG_SYSROOT_DIR`, `PKG_CONFIG_ALLOW_SYSTEM_CFLAGS`, `PKG_CONFIG_ALLOW_SYSTEM_LIBS`, `NVCC_PREPEND_FLAGS`, `NVCC_APPEND_FLAGS`, `SDKROOT`, `DEVELOPER_DIR`, `MACOSX_DEPLOYMENT_TARGET`, `ZERO_AR_DATE`, `INCLUDE`, `LIB`, `LIBPATH`, `VCINSTALLDIR`, `VCToolsInstallDir`, `WindowsSdkDir`, `WindowsSDKVersion`, `UniversalCRTSdkDir`, `UCRTVersion` | Run cache key only: the native toolchain (clang, the linker, pkg-config, nvcc) reads them, Core never acts on them | Keyed by value on every platform, whether set or not, also those only one platform's tools read. | `value` |
+| any name | `environment.get(name)` and `environment.has(name)`, each call | `get` yields `none` when the variable is unset; a value that is not valid UTF-8 text is a runtime text failure. `has` is true for every set variable, the empty string included. | `no` |
+| `QUIDRA_ERROR_FORMAT` | Runtime: each failure report | `json`: each runtime failure and test assertion report is one line of JSON on stderr in place of the text (`docs/spec/diagnostics.md`, "Machine-readable runtime reports"). Anything else or unset: the text. | `no` |
+| `QUIDRA_CPU_THREADS` | Runtime: `qcore_parallel_for`, once | An integer from 1 to 256 bounds the threads of each call and is reduced to the hardware thread count. Unset or empty: the hardware thread count. Anything else stops the program with `Quidra runtime error[CPU_THREADS]` (exit status 101). | `no` |
+| `QUIDRA_BROADCAST` | Runtime: GPU broadcast and strided views, once | `strided` (also unset or empty): Metal and the test backend index strided views in the kernel. `gather`: host-built index maps. Anything else: a warning on stderr, then `gather`. | `no` |
+| `QUIDRA_SAVED_TENSORS` | Runtime: tensors autograd keeps for backward, once | `cow` (also unset or empty): storage shared copy-on-write. `copy`: copied. Anything else: a warning on stderr, then `copy`. | `no` |
+| `QUIDRA_AUTOGRAD_PRUNE` | Runtime: `backward`, once | `on` (also unset or empty): no gradient formula runs for values that reach no target. `off`: every node runs. Anything else: a warning on stderr, then `off`. | `no` |
+| `QUIDRA_TEST_AUTOGRAD_STATS` | Runtime: `backward`, once | `1`: each backward prints `autograd stats: formulas N pruned M` on stderr. | `no` |
+| `QUIDRA_COUNTERS` | Runtime counters, once at program start | Non-empty: per-step counter records are written to this file; `-` or `stderr` selects stderr. Unset or empty: off. | `no` |
+| `QUIDRA_COUNTERS_STEP` | Runtime counters, once, only with `QUIDRA_COUNTERS` | `none`: a backward does not end a step. Anything else or unset: each backward ends a step. | `no` |
+| `QUIDRA_UNIFIED_MEMORY` | Runtime: `.gpu(n)` and `.cpu()` on unified memory, once | `0`, `off` or `false`: every transfer copies. `upload`: only `.gpu(n)` may become a view. Anything else or unset: both may become views. | `no` |
+| `QUIDRA_UNIFIED_MEMORY_STATS` | Runtime, once | Non-empty and not `0`, `off` or `false`: transfer counters are printed on stderr at exit. | `no` |
+| `QUIDRA_GPU_ZERO_FILL` | Runtime: write-only GPU outputs, once | `always`: they are zero-filled. Anything else or unset: Metal and the test backend skip the fill. | `no` |
+| `QUIDRA_METAL_STREAM` | Metal command stream, once | `0`: every operation commits its own command buffer. Anything else or unset: the stream batches work. | `no` |
+| `QUIDRA_METAL_MAX_OPS` | Metal command stream, once | Decimal operation count after which the open command buffer is committed, at least 1. Default 100. | `no` |
+| `QUIDRA_METAL_MAX_BYTES` | Metal command stream, once | Decimal byte count after which the open command buffer is committed, at least 1. Default 41943040 (40 MiB). | `no` |
+| `QUIDRA_METAL_IDLE_OPS` | Metal command stream, once | Decimal operation count after which work is committed while the GPU is idle. Default 8. | `no` |
+| `QUIDRA_METAL_IDLE_NS` | Metal command stream, once | Decimal nanoseconds after which work is committed while the GPU is idle. Default 50000. | `no` |
+| `QUIDRA_METAL_POOL` | Metal buffer pool, once | `0`: no pool. Anything else or unset: freed buffers are recycled. | `no` |
+| `QUIDRA_METAL_POOL_BYTES` | Metal buffer pool, once | Decimal byte capacity of each device's pool. Default 268435456 (256 MiB). | `no` |
+| `QUIDRA_METAL_FAST_MATH` | Metal kernel compilation, once | `1`: fast math, whatever `QUIDRA_METAL_SAFE_MATH` says. Any other value or unset: `QUIDRA_METAL_SAFE_MATH` decides. | `no` |
+| `QUIDRA_METAL_SAFE_MATH` | Metal kernel compilation, once | `0`: fast math. Any other non-empty value: safe math with precise functions. Unset or empty: the mode `metal_safe_math_default` in `src/device_compute.inc` selects. | `no` |
+| `QUIDRA_METAL_UPLOAD` | Metal uploads, fills and copies, once | `blit`: blit encoders. Anything else or unset: host writes to idle buffers, compute kernels otherwise. Either way Core runs no transfer inside a package encode scope (a protocol violation, see `docs/packages.md`). | `no` |
+| `QUIDRA_METAL_HOST_FILL_MAX` | Metal fills and copies, once | Decimal byte count up to which the host fills or copies an idle buffer itself instead of encoding a kernel. Default 65536. | `no` |
+| `QUIDRA_TEST_POOL_POISON` | Metal buffer allocation, once (test hook) | An integer in C notation (decimal, `0x` hex or leading-`0` octal): every Metal buffer handed out is filled with its low byte first. No leading number: off. | `no` |
+| `QUIDRA_TEST_METAL_FAIL_COMMAND` | Metal, test-GPU builds only, once | Decimal serial of a command buffer that is reported as failed. Unset: none. | `no` |
+| `QUIDRA_TEST_FAKE_GPU_COUNT` | Test-GPU builds only: device enumeration, once | Decimal 0 to 16: that many fake GPUs replace the real devices. Any other set value: no GPU at all. Unset: the real devices. | `no` |
+| `QUIDRA_TEST_FAKE_GPU_SYNC_FAIL` | Test-GPU builds only: each fake GPU synchronization | Set to anything, the empty string included: every synchronization fails. | `no` |
+| `QUIDRA_TEST_FAKE_GPU_SYNC_FAIL_INDEX` | Test-GPU builds only: each fake GPU synchronization | Decimal index of the GPU whose synchronizations fail. | `no` |
+| `QUIDRA_TEST_FAKE_GPU_UNIFIED` | Test-GPU builds only, once | `1`: fake GPUs behave as unified memory, so transfers may become views. | `no` |
+
+The Metal decimal variables (the `QUIDRA_METAL_*` counts, byte sizes and
+nanoseconds, and `QUIDRA_TEST_METAL_FAIL_COMMAND`) are parsed with `strtoull`
+in base 10: an empty value, or one with characters after the number, keeps the
+default. As `strtoull` does, leading white space and a sign are accepted, a
+negative value wraps modulo 2^64 (`-1` is 2^64 - 1) and a value above
+2^64 - 1 becomes 2^64 - 1. `QUIDRA_METAL_MAX_OPS` (after its at-least-1 bound)
+and `QUIDRA_METAL_IDLE_OPS` then keep only the low 32 bits: 2^32 gives 0 and
+`-1` gives 2^32 - 1. With 0, the open command buffer is committed every time
+work is added to it (`MAX_OPS`) or whenever work is added while the GPU is idle
+(`IDLE_OPS`).
+
+## The run cache in tests
+
+Direct runs (`quidra FILE.qui`, `quidra run`) reuse executables from the
+run cache, so every test suite or harness that runs programs that way sets
+`QUIDRA_CACHE_DIR` to a fresh directory of its own: shell suites export
+`QUIDRA_CACHE_DIR="$TMP/quidra-cache"` next to their `TMP`, Python suites
+point it at a temporary directory. Each suite run then starts from an empty
+cache, and its sequence of builds and hits is the same on every run; the
+user's cache is never read or written. A test that must not use the cache
+at all passes `--no-cache`, or sets a directory that cannot be created
+(`QUIDRA_CACHE_DIR=/dev/null/x` runs uncached, silently).
+`tests/metadata_ssot_tests.py` (`check_test_cache_isolation`) fails when a
+suite that runs programs does not set the variable. `tests/run_cache_tests.sh`
+checks the cache itself (`--full` adds every `value` variable of the table
+above), and `quidra cache clean` empties a cache by hand.
+
 ## Normal development
 
 1. Fetch the current remote `develop` HEAD. Never start from a remembered SHA.
@@ -126,6 +235,24 @@ frozen measurement window, so it owns its own metadata under
    packaging behavior consistent.
 4. Do not merge ordinary unfinished development into `main`.
 5. Do not create release tags from `develop` or any other unreleased ref.
+
+## Compiler source layout
+
+`docs/spec/architecture.md` ("Compiler source layout") maps the compiler's
+directories to its pipeline, lists the instruction domains and the
+reserved terms, and states the include layering. New code goes to the
+directory and the domain it belongs to: a new instruction is added to its
+domain's IR header, emitter and lowering unit; a code or layout that the
+compiler and the runtime share goes to `include/quidra/abi/`; a runtime
+entry point is declared in `include/quidra/abi/runtime_entry_points.hpp`,
+gets an entry in its family in `src/llvm_backend/runtime_abi.hpp`, through
+which generated code calls it, and a `declare()` item in the prelude's list
+in `src/llvm_backend/runtime_prelude.cpp` (`tests/metadata_ssot_tests.py`
+checks that every entry has exactly one); host and toolchain services go to
+`src/platform/` and `src/toolchain/`.
+`scripts/refactor/check_headers.sh` checks the layering, and
+`tests/golden/README.md` describes the equivalence gates that a change of
+structure, without a change of output, is held to.
 
 ## Releasing Quidra
 

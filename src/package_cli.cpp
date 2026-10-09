@@ -8,6 +8,8 @@
 #include "quidra/project.hpp"
 #include "quidra/toml_subset.hpp"
 #include "native_build.hpp"
+#include "platform/environment.hpp"
+#include "platform/process.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -48,9 +50,9 @@ bool version_newer(const SemanticVersion& left, const SemanticVersion& right) {
 
 fs::path package_root() {
 #ifdef _WIN32
-    const auto home = import_environment_value("USERPROFILE");
+    const auto home = platform::environment_value("USERPROFILE");
 #else
-    const auto home = import_environment_value("HOME");
+    const auto home = platform::environment_value("HOME");
 #endif
     if (!home || home->empty()) {
         throw std::runtime_error(
@@ -392,7 +394,7 @@ std::string run_command_capture(
     const auto error = temp.path() / "stderr.txt";
 
     const int status =
-        native::run_program(program, arguments, output, error);
+        platform::run_program(program, arguments, output, error);
     if (status != 0) {
         auto detail = read_text_file(error);
         if (detail.empty()) detail = read_text_file(output);
@@ -412,36 +414,6 @@ std::string run_git_capture(
     const std::vector<std::string>& arguments) {
     return run_command_capture(
         fs::path("git"), arguments, "git command failed");
-}
-
-std::optional<std::string> package_asset_platform() {
-#if defined(_WIN32)
-#  if defined(_M_X64) || defined(__x86_64__)
-    return "windows-x86_64";
-#  elif defined(_M_ARM64) || defined(__aarch64__)
-    return "windows-arm64";
-#  else
-    return std::nullopt;
-#  endif
-#elif defined(__APPLE__)
-#  if defined(__aarch64__)
-    return "macos-arm64";
-#  elif defined(__x86_64__)
-    return "macos-x86_64";
-#  else
-    return std::nullopt;
-#  endif
-#elif defined(__linux__)
-#  if defined(__x86_64__)
-    return "linux-x86_64";
-#  elif defined(__aarch64__)
-    return "linux-arm64";
-#  else
-    return std::nullopt;
-#  endif
-#else
-    return std::nullopt;
-#endif
 }
 
 std::string asset_filename(std::string_view url) {
@@ -466,7 +438,7 @@ void validate_asset_url(std::string_view url) {
     if (url.starts_with("https://")) return;
     if (url.starts_with("file://")) {
         const auto allowed =
-            import_environment_value("QUIDRA_ALLOW_FILE_PACKAGE_ASSETS");
+            platform::environment_value("QUIDRA_ALLOW_FILE_PACKAGE_ASSETS");
         if (allowed && *allowed == "1") return;
     }
     throw std::runtime_error(
@@ -533,7 +505,7 @@ void validate_asset_archive_types(std::string_view verbose_listing) {
 void hydrate_release_asset(
     const PackageManifest& manifest,
     const fs::path& source) {
-    const auto platform = package_asset_platform();
+    const auto platform = package_host_platform();
 
     const std::string* url = nullptr;
     if (platform) {

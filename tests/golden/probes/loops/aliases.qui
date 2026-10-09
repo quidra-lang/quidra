@@ -1,0 +1,32 @@
+// A value loop over a reference parameter iterates the value at loop entry
+// while the body writes the same array through another reference.
+void write_last(int[] &values, int &last)
+    for v in values
+        print("{v} ")
+        last = 77
+
+void append_other(int[] &values, int[] &other)
+    for v in values
+        print("{v} ")
+        other = other.append(v)
+
+void grow(int[] &values)
+    values = values.append(0)
+
+void grow_other(int[] &values, int[] &other)
+    for v in values
+        print("{v} ")
+        grow(&other)
+
+int[] a = [1, 2, 3]
+write_last(&a, &a[2])
+print("| {a[2]}")
+print(NL)
+int[] b = [1, 2, 3]
+append_other(&b, &b)
+print("| {len(b)}")
+print(NL)
+int[] c = [1, 2, 3]
+grow_other(&c, &c)
+print("| {len(c)}")
+print(NL)

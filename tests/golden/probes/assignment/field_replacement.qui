@@ -1,0 +1,48 @@
+// A compound assignment to a field whose right-hand side replaces the
+// object, or grows an array field, stores into the current object.
+class Box
+    int n
+    int[] items
+
+int replace(Box &b)
+    Box fresh
+    fresh.n = 1000
+    fresh.items = [7, 7, 7]
+    b = fresh
+    return 1
+
+int grow(int[] &values)
+    for i in range(1000)
+        values = values.append(i)
+    return 1
+
+int replace_int(int &v)
+    v = 1000
+    return 1
+
+Box o
+o.n = 5
+o.items = [5, 0, 0]
+o.n += replace(&o)
+print("field: {o.n} {o.items[0]}")
+print(NL)
+Box p
+p.n = 5
+p.items = [5, 0, 0]
+p.items[0] += grow(&p.items)
+print("nested: {p.items[0]} {len(p.items)}")
+print(NL)
+Box q
+q.n = 5
+q.items = [5, 0, 0]
+q.items[1] += replace(&q)
+print("nested replaced: {q.items[1]} {q.n}")
+print(NL)
+int x = 5
+x += replace_int(&x)
+print("local: {x}")
+print(NL)
+Box[] boxes = [o, p]
+boxes[1].n += replace(&boxes[1])
+print("element field: {boxes[1].n} {boxes[0].n}")
+print(NL)

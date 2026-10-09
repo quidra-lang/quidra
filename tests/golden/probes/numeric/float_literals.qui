@@ -1,0 +1,18 @@
+// Real literals that sit near rounding boundaries, in both formats, and
+// the shortest round-trip text of each.
+real64 f64a = 0.1
+real64 f64b = 0.30000000000000004
+real64 f64c = 1.7976931348623157e308
+real64 f64d = 4.9e-324
+real64 f64e = 2.2250738585072014e-308
+real32 f32a = 0.1
+real32 f32b = 3.4028235e38
+real32 f32c = 1.0e-45
+real32 f32d = 16777217.0
+real32 f32e = 1.17549435e-38
+print("{f64a} {f64b} {f64c} {f64d} {f64e}")
+print(NL)
+print("{f32a} {f32b} {f32c} {f32d} {f32e}")
+print(NL)
+print("{f64a + 0.2} {f32a + real32(0.2)} {f64a / 3.0} {f32a / real32(3.0)}")
+print(NL)

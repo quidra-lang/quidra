@@ -1,0 +1,33 @@
+// A value loop iterates the value at loop entry while its body replaces
+// the iterated array, or the object it is a field of.
+class Holder
+    int[] items
+
+int[] values = [1, 2, 3]
+for v in values
+    print("{v} ")
+    values = [7, 8]
+print("| {len(values)}")
+print(NL)
+Holder h
+h.items = [1, 2, 3]
+for v in h.items
+    print("{v} ")
+    h.items = [9]
+print("| {len(h.items)}")
+print(NL)
+Holder g
+g.items = [1, 2, 3]
+for v in g.items
+    print("{v} ")
+    Holder fresh
+    fresh.items = [5, 5, 5, 5]
+    g = fresh
+print("| {len(g.items)}")
+print(NL)
+int[][] rows = [[1, 2, 3], [4]]
+for v in rows[0]
+    print("{v} ")
+    rows[0] = [0]
+print("| {len(rows[0])}")
+print(NL)

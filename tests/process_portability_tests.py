@@ -7,6 +7,11 @@ import tempfile
 
 quidra = pathlib.Path(sys.argv[1]).resolve()
 
+# `quidra run` keeps the programs it builds in a run cache of this suite run
+# only, so every run of the suite sees the same hits and misses.
+RUN_CACHE = tempfile.TemporaryDirectory(prefix="quidra-cache-")
+os.environ["QUIDRA_CACHE_DIR"] = RUN_CACHE.name
+
 with tempfile.TemporaryDirectory(prefix="quidra process ") as temporary:
     root = pathlib.Path(temporary)
     output = root / "shell output.txt"

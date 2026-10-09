@@ -1,4 +1,7 @@
-#include "runtime_internal.hpp"
+#include "runtime_report.hpp"
+#include "quidra/abi/layout.hpp"
+#include "quidra/abi/process_status.hpp"
+#include "quidra/abi/runtime_entry_points.hpp"
 
 #include <cerrno>
 #include <cstdio>
@@ -21,6 +24,9 @@
 #include <unistd.h>
 #endif
 
+// The ABI this runtime shares with generated code (include/quidra/abi).
+namespace abi = quidra::abi;
+
 namespace {
 
 bool runtime_valid_text(const std::string& value) {
@@ -34,8 +40,7 @@ char* runtime_copy_text(const std::string& value) {
 }
 
 [[noreturn]] void runtime_process_failure(const char* message) {
-    std::fprintf(stderr, "Quidra runtime error: %s\n", message);
-    std::exit(101);
+    quidra::runtime::report_uncoded(message ? message : "process failure");
 }
 
 std::string read_process_stream(FILE* stream) {
@@ -61,7 +66,9 @@ void* make_process_result(long long status, std::string output, std::string erro
     auto* raw = static_cast<unsigned char*>(quidra_managed_alloc(bytes));
     auto* output_text = runtime_copy_text(output);
     auto* error_text = runtime_copy_text(error);
-    std::memcpy(raw, &status, sizeof(status));
+    // status is an int field: the inline word of the status.
+    const long long status_word = status << 1;
+    std::memcpy(raw, &status_word, sizeof(status_word));
     std::memcpy(raw + 8, &output_text, sizeof(output_text));
     std::memcpy(raw + 16, &error_text, sizeof(error_text));
     raw[24] = started ? 1 : 0;
@@ -86,7 +93,7 @@ extern "C" void* quidra_process_run(const char* program, void* args_array) {
     auto* bytes = static_cast<unsigned char*>(args_array);
     for (long long i = 0; i < count; ++i) {
         char* value = nullptr;
-        std::memcpy(&value, bytes + 8 + static_cast<std::size_t>(i) * sizeof(char*), sizeof(value));
+        std::memcpy(&value, bytes + abi::array_layout::payload_offset + static_cast<std::size_t>(i) * sizeof(char*), sizeof(value));
         if (!value) return make_process_result(-1, "", "process argument is null", false);
         arguments.emplace_back(value);
     }
@@ -370,12 +377,12 @@ extern "C" void* quidra_process_shell(const char* command) {
 
     const long long count = static_cast<long long>(arguments.size());
     std::vector<unsigned char> encoded(
-        8 + arguments.size() * sizeof(char*));
+        abi::array_layout::payload_offset + arguments.size() * sizeof(char*));
     std::memcpy(encoded.data(), &count, sizeof(count));
     for (std::size_t i = 0; i < arguments.size(); ++i) {
         char* value = arguments[i].data();
         std::memcpy(
-            encoded.data() + 8 + i * sizeof(char*),
+            encoded.data() + abi::array_layout::payload_offset + i * sizeof(char*),
             &value, sizeof(value));
     }
     return quidra_process_run(program, encoded.data());

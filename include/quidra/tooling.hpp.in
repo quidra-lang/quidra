@@ -24,9 +24,16 @@ inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
     "fields": ["source_revision", "node_id", "node_kind", "span"],
     "node_addressing": "smallest containing source node when unambiguous; revision plus span fallback otherwise",
     "runtime_provenance": {
-      "schema_version": 1,
+      "schema_version": 2,
       "fields": ["source_revision", "node_id", "node_kind", "source_file"],
-      "format": "source-bearing runtime and test failures append a bracketed key/value provenance suffix; absent when no public source node is attributable"
+      "format": "runtime and test failure reports carry a provenance object in the JSON report (QUIDRA_ERROR_FORMAT=json); human text carries none"
+    },
+    "runtime_errors": {
+      "schema_version": 1,
+      "variable": "QUIDRA_ERROR_FORMAT",
+      "value": "json",
+      "format": "each runtime failure or test assertion report is one line of JSON on stderr in place of the text",
+      "fields": ["schema_version", "kind", "status", "code", "message", "details", "location", "provenance", "deferred_origin", "hops", "unhandled_at", "path", "path_complete", "causes"]
     }
   },
   "structural_syntax": {

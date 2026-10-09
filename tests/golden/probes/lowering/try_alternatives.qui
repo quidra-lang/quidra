@@ -1,0 +1,20 @@
+// try over a union with two success alternatives: the residual value is
+// rebuilt case by case.
+int | string | error pick(bool number, bool fail)
+    if fail
+        return error("no value")
+    if number
+        return 1
+    return "one"
+
+int | string | error relay(bool number, bool fail)
+    auto value = try pick(number, fail)
+    return value
+
+match relay(true, false)
+    int value
+        print("{value}{NL}")
+    string text
+        print("{text}{NL}")
+    error problem
+        print("{problem}{NL}")

@@ -1,0 +1,8 @@
+// A probe provider of exact-real atoms and operations, so that Core's
+// golden probes never depend on Math: one atom (the square root of two,
+// given by its decimal expansion) and one unary operation (negation, its
+// own inverse).
+const real root2 = real.atom("exactprobe", 1)
+
+real flip(real value)
+    return real.unary("exactprobe", 1, value)

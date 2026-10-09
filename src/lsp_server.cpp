@@ -537,6 +537,10 @@ void consider_expression(const Expr& expression,std::size_t offset,const Expr*& 
             consider_expression(*node.operand,offset,best);
         } else if constexpr(std::is_same_v<T,TryExpr>) {
             consider_expression(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,IfExpr>) {
+            for(const auto& condition:node.conditions) consider_expression(*condition,offset,best);
+            for(const auto& value:node.values) consider_expression(*value,offset,best);
+            consider_expression(*node.otherwise,offset,best);
         } else if constexpr(std::is_same_v<T,ArrayExpr>) {
             for(const auto& element:node.elements) consider_expression(*element,offset,best);
         } else if constexpr(std::is_same_v<T,IndexExpr>) {
@@ -598,7 +602,11 @@ void consider_call(const Expr& expression,std::size_t offset,const Expr*& best) 
         using T=std::decay_t<decltype(node)>;
         if constexpr(std::is_same_v<T,UnaryExpr>) consider_call(*node.operand,offset,best);
         else if constexpr(std::is_same_v<T,TryExpr>) consider_call(*node.value,offset,best);
-        else if constexpr(std::is_same_v<T,ArrayExpr>) {
+        else if constexpr(std::is_same_v<T,IfExpr>) {
+            for(const auto& condition:node.conditions) consider_call(*condition,offset,best);
+            for(const auto& value:node.values) consider_call(*value,offset,best);
+            consider_call(*node.otherwise,offset,best);
+        } else if constexpr(std::is_same_v<T,ArrayExpr>) {
             for(const auto& element:node.elements) consider_call(*element,offset,best);
         } else if constexpr(std::is_same_v<T,IndexExpr>) {
             consider_call(*node.base,offset,best);
@@ -766,11 +774,6 @@ std::optional<SourceSpan> definition_span(
                 if(parameter.name==name&&parameter.span.start.offset<=offset) return parameter.span;
             }
             if(auto local=local_definition(method.body,name,offset,tokens)) return local;
-            for(const auto& field:declaration.fields) {
-                if(field.name==name) {
-                    if(auto found=identifier_span(tokens,field.span,name)) return found;
-                }
-            }
         }
     }
 
@@ -889,6 +892,32 @@ std::vector<CompletionSymbol> member_completions_at(
     return result;
 }
 
+// After `this.` inside a method or constructor body: the enclosing class's
+// fields (methods are called without `this.`).
+std::vector<CompletionSymbol> this_field_completions(
+    const Program& program,std::string_view source,std::size_t offset) {
+    std::vector<CompletionSymbol> result;
+    for(const auto& declaration:program.classes) {
+        if(!contains_offset(declaration.span,offset)) continue;
+        for(const auto& method:declaration.methods) {
+            if(!contains_offset(method.span,offset)) continue;
+            for(const auto& field:declaration.fields)
+                result.push_back({field.name,5,source_type_name(field.type,source)});
+        }
+    }
+    std::sort(result.begin(),result.end(),[](const auto& left,const auto& right) {
+        return left.name<right.name;
+    });
+    return result;
+}
+
+bool this_qualifier_before(std::string_view source,std::size_t offset) {
+    if(offset<5||source.substr(offset-5,5)!="this.") return false;
+    if(offset==5) return true;
+    const auto previous=static_cast<unsigned char>(source[offset-6]);
+    return !(std::isalnum(previous)||previous=='_'||previous=='.');
+}
+
 std::vector<CompletionSymbol> completions_at(
     const Program& program,std::string_view source,std::size_t offset) {
     std::vector<CompletionSymbol> result;
@@ -907,8 +936,6 @@ std::vector<CompletionSymbol> completions_at(
         for(const auto& method:declaration.methods) {
             if(!contains_offset(method.span,offset)) continue;
             inside_callable=true;
-            for(const auto& field:declaration.fields)
-                result.push_back({field.name,5,source_type_name(field.type,source)});
             for(const auto& parameter:method.parameters)
                 result.push_back({parameter.name,6,source_type_name(parameter.type,source)});
             add_local_completions(result,method.body,offset,source);
@@ -1180,7 +1207,7 @@ std::string semantic_tokens_json(const Program& program,std::string_view source)
         std::optional<int> type;
         if(is_keyword_token(token.kind)) type=8;
         else if(token.kind==TokenKind::String) type=9;
-        else if(token.kind==TokenKind::Integer||token.kind==TokenKind::Float) type=10;
+        else if(token.kind==TokenKind::Integer||token.kind==TokenKind::RealLiteral||token.kind==TokenKind::ImaginaryLiteral) type=10;
         else if(is_operator_token(token.kind)) type=11;
         else if(token.kind==TokenKind::Identifier)
             type=identifier_semantic_type(program,token,tokens);
@@ -1456,7 +1483,14 @@ private:
         const auto offset=raw_offset(source,request_position(message));
         try {
             std::vector<CompletionSymbol> items;
-            if(offset>0&&source[offset-1]=='.') {
+            if(this_qualifier_before(source,offset)) {
+                // `this` alone is not an expression; parse with a placeholder
+                // operand of the same length so every span keeps its offset.
+                std::string probe(source);
+                probe.replace(offset-5,5,"0    ");
+                const auto program=root_program(probe);
+                items=this_field_completions(program,probe,offset);
+            } else if(offset>0&&source[offset-1]=='.') {
                 std::string probe(source);
                 probe.erase(offset-1,1);
                 const auto checked=semantic_check(uri,probe);

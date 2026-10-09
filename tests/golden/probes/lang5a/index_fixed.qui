@@ -1,0 +1,7 @@
+// A fixed array indexed past its length at run time.
+int[4] slots = [1, 2, 3, 4]
+nat at = len(slots) + 1
+print("before {slots[0]}")
+print(NL)
+print("{slots[at]}")
+print(NL)

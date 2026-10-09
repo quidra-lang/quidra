@@ -6,10 +6,10 @@ namespace quidra {
 
 enum class TokenKind {
     Eof, Newline, Indent, Dedent, Pipe, Ampersand,
-    Identifier, Integer, Float, String,
+    Identifier, Integer, RealLiteral, ImaginaryLiteral, String,
     KwClass, KwEnum, KwPrivate, KwPublic, KwImport, KwConst,
-    KwReturn, KwIf, KwElif, KwElse, KwWhile, KwFor, KwIn, KwMatch, KwTry,
-    KwBreak, KwContinue,
+    KwReturn, KwIf, KwThen, KwElif, KwElse, KwWhile, KwFor, KwIn, KwMatch, KwTry,
+    KwBreak, KwContinue, KwThis,
     KwTrue, KwFalse, KwNot, KwAnd, KwOr,
     KwBitNot, KwBitAnd, KwBitOr, KwBitXor,
     LParen, RParen, LBracket, RBracket, Colon, Comma, Semicolon, Dot,

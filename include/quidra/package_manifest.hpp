@@ -9,6 +9,8 @@
 
 namespace quidra {
 
+class CompileInputs;
+
 struct SemanticVersion {
     unsigned long long major{};
     unsigned long long minor{};
@@ -94,8 +96,11 @@ std::map<std::string, std::filesystem::path> package_compiler_extension_paths(
     const std::filesystem::path& package_root,
     const PackageManifest& manifest);
 
-PackageManifest read_package_manifest(const std::filesystem::path& package_root);
+// Reading a manifest also reads project.toml when the package has one. With
+// `inputs`, both reads (and a missing file) are recorded.
+PackageManifest read_package_manifest(
+    const std::filesystem::path& package_root, CompileInputs* inputs = nullptr);
 std::optional<PackageManifest> try_read_package_manifest(
-    const std::filesystem::path& package_root);
+    const std::filesystem::path& package_root, CompileInputs* inputs = nullptr);
 
 } // namespace quidra

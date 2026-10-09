@@ -1,0 +1,45 @@
+// Members and methods of temporaries the expression owns: the temporary is
+// released after the access (a fixed array temporary also after its
+// conversion to a runtime-sized one).
+class Box
+    string label
+    int size
+
+Box make_box()
+    Box box
+    box.label = "a"
+    box.size = 2
+    return box
+
+print(make_box().label)
+print(NL)
+print(make_box().size)
+print(NL)
+
+atomic.Counter make_counter()
+    return atomic.counter(5)
+
+print(make_counter().load())
+print(NL)
+
+string[] names()
+    return ["x", "y"]
+
+string[3] fixed_names()
+    string[3] values = ["p", "q", "r"]
+    return values
+
+string all = names().join(",")
+string fixed = fixed_names().join(",")
+int[] numbers()
+    int[] values = [1, 2]
+    return values
+
+int[3] fixed_numbers()
+    int[3] values = [3, 1, 2]
+    return values
+
+int[] grown = numbers().append(3)
+int[] joined = numbers().concat(numbers())
+int[] mixed = numbers().concat(fixed_numbers())
+print("{all} {fixed} {len(grown)} {len(joined)} {len(mixed)}{NL}")

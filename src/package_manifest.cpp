@@ -1,12 +1,12 @@
 #include "quidra/package_manifest.hpp"
 
+#include "quidra/compile_inputs.hpp"
 #include "quidra/toml_subset.hpp"
 #include "quidra/project.hpp"
 
 #include <algorithm>
 #include <charconv>
 #include <cctype>
-#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -66,11 +66,13 @@ bool clause_matches(const VersionClause& clause, const SemanticVersion& candidat
 }
 
 std::optional<PackageProject> read_package_project(
-    const fs::path& package_root, const PackageManifest& manifest) {
+    const fs::path& package_root, const PackageManifest& manifest,
+    CompileInputs* inputs) {
     const auto path =
         package_root / std::string(package_project_filename);
-    const auto document = try_read_toml_subset(path);
-    if (!document) return std::nullopt;
+    const auto text = read_input_file(path, InputFileKind::project, inputs);
+    if (!text) return std::nullopt;
+    const auto document = std::optional(parse_toml_subset(*text, path.string()));
 
     const auto required = [&](std::string_view key) -> const std::string& {
         if (const auto* value = document->find("package", key)) return *value;
@@ -252,8 +254,7 @@ std::optional<fs::path> package_native_library_path(
             *configured);
     }
 
-    std::error_code error;
-    if (!fs::is_regular_file(resolved, error) || error) {
+    if (input_path_state(resolved) != InputPathState::regular_file) {
         throw std::runtime_error(
             "package native library is missing or is not a regular file: " +
             resolved.string());
@@ -288,8 +289,7 @@ std::vector<fs::path> package_native_source_paths(
                 "package native source path may not escape the package root: " +
                 configured);
         }
-        std::error_code error;
-        if (!fs::is_regular_file(resolved, error) || error) {
+        if (input_path_state(resolved) != InputPathState::regular_file) {
             throw std::runtime_error(
                 "package native source is missing or is not a regular file: " +
                 resolved.string());
@@ -342,8 +342,7 @@ std::map<std::string, fs::path> package_compiler_extension_paths(
                 "package compiler extension path may not escape the package "
                 "root: " + configured);
         }
-        std::error_code error;
-        if (!fs::is_regular_file(resolved, error) || error) {
+        if (input_path_state(resolved) != InputPathState::regular_file) {
             throw std::runtime_error(
                 "package compiler extension descriptor is missing or is not a "
                 "regular file: " + resolved.string());
@@ -424,14 +423,16 @@ bool VersionRequirement::matches(const SemanticVersion& candidate_version) const
     return true;
 }
 
-PackageManifest read_package_manifest(const fs::path& package_root) {
+PackageManifest read_package_manifest(
+    const fs::path& package_root, CompileInputs* inputs) {
     const auto path =
         package_root / std::string(package_manifest_filename);
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
+    const auto text = read_input_file(path, InputFileKind::manifest, inputs);
+    if (!text) {
         throw std::runtime_error("package is missing quidra.package: " +
                                  path.string());
     }
+    std::istringstream input(*text);
 
     std::unordered_map<std::string, std::string> fields;
     std::string line;
@@ -624,21 +625,21 @@ PackageManifest read_package_manifest(const fs::path& package_root) {
         manifest.requirements.emplace(
             dependency, parse_version_requirement(value));
     }
-    manifest.project = read_package_project(package_root, manifest);
+    manifest.project = read_package_project(package_root, manifest, inputs);
     return manifest;
 }
 
 std::optional<PackageManifest> try_read_package_manifest(
-    const fs::path& package_root) {
-    std::error_code error;
+    const fs::path& package_root, CompileInputs* inputs) {
     const auto path =
         package_root / std::string(package_manifest_filename);
-    if (!fs::exists(path, error) && !error) return std::nullopt;
-    if (error || !fs::is_regular_file(path, error) || error) {
+    const auto state = probe_input_path(path, inputs);
+    if (state == InputPathState::missing) return std::nullopt;
+    if (state != InputPathState::regular_file) {
         throw std::runtime_error(
             "quidra.package exists but is not a regular file");
     }
-    return read_package_manifest(package_root);
+    return read_package_manifest(package_root, inputs);
 }
 
 } // namespace quidra

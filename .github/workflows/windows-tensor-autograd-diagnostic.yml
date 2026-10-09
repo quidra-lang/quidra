@@ -32,26 +32,26 @@ jobs:
           -DQUIDRA_WARNINGS_AS_ERRORS=ON
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config Release --parallel ${{ runner.os == 'macOS' && 3 || 4 }}
       - name: Autograd compiler phases
         shell: pwsh
         run: |
           Set-Content -Path build/autograd-smoke.qui -Value @'
           class WindowsTensorState
-              tensor<float32> weight
+              tensor<real32> weight
 
           WindowsTensorState state
-          state.weight = tensor.ones<float32>([1])
-          float32 before = state.weight[0].item()
+          state.weight = tensor.ones<real32>([1])
+          real32 before = state.weight[0].item()
 
           state.weight = state.weight.track()
-          tensor<float32> loss = (state.weight * state.weight).reshape([])
+          tensor<real32> loss = (state.weight * state.weight).reshape([])
           loss.backward(&state.weight)
           print(state.weight.has_grad())
           print(NL)
-          tensor<float32> gradient = state.weight.grad
+          tensor<real32> gradient = state.weight.grad
           state.weight.clear_grad()
-          state.weight = state.weight.untrack() - gradient * float32(0.1)
+          state.weight = state.weight.untrack() - gradient * real32(0.1)
           print(state.weight[0].item() < before and not state.weight.has_grad())
           print(NL)
           '@

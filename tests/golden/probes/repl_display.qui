@@ -1,0 +1,9 @@
+class Box
+    int value
+    string label
+
+int[] values = [1, 2, 3]
+Box box
+box.value = 4
+box.label = "four"
+box

@@ -1,0 +1,15 @@
+// Powers in each family, the edge cases included.
+int base = 3
+int two = 2
+int zero = 0
+int minus = -2
+print("{base ^ 4} {two ^ 62} {zero ^ zero} {minus ^ 3}")
+print(NL)
+real64 half = 0.5
+real64 four = 4.0
+real64 none_real = 0.0
+print("{half ^ 2.0} {four ^ 0.5} {none_real ^ none_real}")
+print(NL)
+int big = 2
+print("{big ^ 100}")
+print(NL)

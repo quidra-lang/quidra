@@ -1,0 +1,5 @@
+name = exactprobe
+version = 0.1.0
+repository = https://example.invalid/exactprobe
+native.source.cpu = native/exactprobe.cpp
+requires.quidra = >=0.5.0 <0.6.0

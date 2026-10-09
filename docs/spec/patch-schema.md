@@ -132,4 +132,4 @@ Syntax, type, initialization, effect, module, and backend failures after editing
 
 ## Machine discovery
 
-`quidra describe llm` advertises inspect schema version 1, supported patch schema versions 1/2/3 with preferred version 3, structural syntax schema version 1, compiler diagnostic schema version 2, runtime provenance schema version 1, the grammar fingerprint, and supported patch operations. `quidra describe grammar` returns the authoritative grammar contract.
+`quidra describe llm` advertises inspect schema version 1, supported patch schema versions 1/2/3 with preferred version 3, structural syntax schema version 1, compiler diagnostic schema version 2, runtime provenance schema version 2 (the provenance object of the JSON runtime report), runtime error report schema version 1, the grammar fingerprint, and supported patch operations. `quidra describe grammar` returns the authoritative grammar contract.

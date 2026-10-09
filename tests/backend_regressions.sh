@@ -5,6 +5,7 @@ QUIDRA="$1"
 OPT="$2"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+export QUIDRA_CACHE_DIR="$TMP/quidra-cache"  # a run cache of this suite run only
 
 verify_and_run() {
     local name="$1"
@@ -104,15 +105,15 @@ QUI
 verify_and_run short-circuit "$(printf 'mod\narith\nor')"
 
 cat > "$TMP/contextual-literals.qui" <<'QUI'
-float x = float(3)
-float32 y = float32(2)
-float[] xs = [1.0, 2.0, 3.0]
+real64 x = real64(3)
+real32 y = real32(2)
+real64[] xs = [1.0, 2.0, 3.0]
 
-float half(float value)
+real64 half(real64 value)
     return value / 2.0
 
-float negative = -3.0
-float mixed = 2.0 * 3.0
+real64 negative = -3.0
+real64 mixed = 2.0 * 3.0
 int8 small = 5
 int8 sum = small + 100
 
@@ -134,8 +135,8 @@ QUI
 verify_and_run contextual-literals "$(printf '3.0\n2.0\n3.0\n1.5\n-3.0\n6.0\n105')"
 
 cat > "$TMP/bitwise.qui" <<'QUI'
-uint8 a = 240
-uint8 b = 204
+nat8 a = 240
+nat8 b = 204
 print(a AND b)
 print(NL)
 print(a OR b)
@@ -144,10 +145,10 @@ print(a XOR b)
 print(NL)
 print(NOT a)
 print(NL)
-uint8 small = 3
+nat8 small = 3
 print(small << 2)
 print(NL)
-uint8 high = 128
+nat8 high = 128
 print(high >> 7)
 print(NL)
 int8 signed_value = -8
@@ -163,8 +164,8 @@ QUI
 verify_and_run bitwise "$(printf '192\n252\n60\n15\n12\n1\n-2\n-1\n-128')"
 
 cat > "$TMP/shift-count-runtime.qui" <<'QUI'
-uint8 value = 1
-uint8 count = 8
+nat8 value = 1
+nat8 count = 8
 print(value << count)
 print(NL)
 QUI
@@ -191,12 +192,12 @@ QUI
 
 
 cat > "$TMP/frame-scratch-loop.qui" <<'QUI'
-tensor<float32> values = tensor.ones<float32>([2])
+tensor<real32> values = tensor.ones<real32>([2])
 int i = 0
 while i < 20
     int | error parsed = int.parse("42")
-    tensor<float32> shifted = values + 1.0
-    tensor<float32> first = shifted[0:1]
+    tensor<real32> shifted = values + 1.0
+    tensor<real32> first = shifted[0:1]
     values[0] = 2.0
     string joined = "x" + "y"
     i += 1
@@ -213,9 +214,9 @@ last_alloca_line="$(grep -n ' = alloca ' "$TMP/frame-scratch-main.ll" | tail -n1
 [[ "$("$QUIDRA" run "$TMP/frame-scratch-loop.qui")" == "2.0" ]]
 
 cat > "$TMP/float32-rounding.qui" <<'QUI'
-float32 rounded = 0.000001
-float source = 0.1
-float32 narrowed = float32(source)
+real32 rounded = 0.000001
+real64 source = 0.1
+real32 narrowed = real32(source)
 print(rounded > 0.0000009 and rounded < 0.0000011)
 print(NL)
 print(narrowed > 0.099 and narrowed < 0.101)
@@ -224,8 +225,8 @@ QUI
 verify_and_run float32-rounding "$(printf 'true\ntrue')"
 
 cat > "$TMP/float32-range-error.qui" <<'QUI'
-float source = 1.0e100
-float32 narrowed = float32(source)
+real64 source = 1.0e100
+real32 narrowed = real32(source)
 print(narrowed)
 print(NL)
 QUI
@@ -242,8 +243,8 @@ class Pair
     int b
 
     construct(int a_value, int b_value)
-        a = a_value
-        b = b_value
+        this.a = a_value
+        this.b = b_value
 
 Pair | error make(bool ok)
     if ok
@@ -283,11 +284,11 @@ grep -Eq '^@\.quidra\.source\.[0-9]+ = private constant \{ ptr, ptr, ptr, ptr, i
 grep -Eq 'call void @quidra_runtime_set_source_provenance\(ptr @\.quidra\.source\.[0-9]+\)' "$TMP/source-provenance-pointer.ll"
 
 set +e
-"$QUIDRA" run "$TMP/source-provenance-pointer.qui" >"$TMP/source-provenance-pointer.out" 2>"$TMP/source-provenance-pointer.err"
+QUIDRA_ERROR_FORMAT=json "$QUIDRA" run "$TMP/source-provenance-pointer.qui" >"$TMP/source-provenance-pointer.out" 2>"$TMP/source-provenance-pointer.err"
 status=$?
 set -e
 [[ "$status" -eq 101 ]]
-grep -Fq 'source_revision=' "$TMP/source-provenance-pointer.err"
-grep -Fq 'node_id=' "$TMP/source-provenance-pointer.err"
-grep -Fq 'node_kind=' "$TMP/source-provenance-pointer.err"
-grep -Fq 'source_file=' "$TMP/source-provenance-pointer.err"
+grep -Fq '"provenance": {"source_revision": "' "$TMP/source-provenance-pointer.err"
+grep -Fq '"node_id": "' "$TMP/source-provenance-pointer.err"
+grep -Fq '"node_kind": "' "$TMP/source-provenance-pointer.err"
+grep -Fq '"source_file": "' "$TMP/source-provenance-pointer.err"

@@ -1,0 +1,8 @@
+// Checked integer arithmetic that overflows, after one that does not.
+int8 base = 100
+int8 sum = base + 20
+print("sum {sum}")
+print(NL)
+int8 more = sum + base
+print("{more}")
+print(NL)

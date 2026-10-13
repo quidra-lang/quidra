@@ -1,0 +1,17 @@
+print("zero-based range")
+// The lower bound is inclusive and the upper bound is exclusive.
+for nat i < 3
+    print(i)
+    print(NL)
+
+print("custom start and step")
+// This visits 2, 5, and 8; the range stops before 9.
+for 2 <= int j < 9 step 3
+    print(j)
+    print(NL)
+
+print("array values")
+int[] values = [4, 7, 9]
+for auto value = values[]
+    print(value)
+    print(NL)

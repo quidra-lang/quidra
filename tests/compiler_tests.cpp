@@ -3741,6 +3741,83 @@ func<tensor<real32>{A, B}>(tensor<real32>{nat A, nat B}) operation = square
 )", "FUNCTION_REFERENCE_SIGNATURE");
 }
 
+static void function_values_consume_managed_parameters() {
+    struct Case { const char* type; const char* value; };
+    const Case cases[] = {
+        {"tensor<real32>", "tensor.zeros<real32>([2, 3, 4])"},
+        {"tensor<real32>{2, ...}", "tensor.zeros<real32>([2, 3, 4])"},
+        {"int64[]", "[1, 2]"},
+        {"(tensor<real32>, int64[])", "(tensor.zeros<real32>([2, 3, 4]), [1, 2])"},
+    };
+    const auto require = [](bool condition, const char* message) {
+        if (!condition) {
+            std::cerr << message << "\n";
+            std::exit(1);
+        }
+    };
+    for (const auto& test : cases) {
+        const std::string type = test.type;
+        const std::string source =
+            "void read(" + type + " value)\n    return\n"
+            "void direct(" + type + " value)\n    return\n"
+            "void reference(" + type + " &value)\n    return\n"
+            "func<void>(" + type + ") operation = read\n" +
+            type + " source = " + test.value + "\n"
+            "operation(source)\nread(source)\ndirect(source)\nreference(&source)\n";
+        capture_source("function_value_ownership", source);
+        const auto verify = [&](const quidra::Compilation& compilation) {
+            bool owned_target = false, borrowed_direct = false, reference_parameter = false;
+            bool explicit_target = false, indirect_call = false;
+            bool shaped_wrapper = false, checked_body = false, forwarding_move = false;
+            for (const auto& function : compilation.ir.functions) {
+                if (function.name == "read" || function.name == "read.shape_checked") {
+                    require(!function.parameters.at(0).borrowed,
+                            "function-value target borrows an owned argument");
+                    owned_target = true;
+                    shaped_wrapper = shaped_wrapper || function.shape_wrapper;
+                    checked_body = checked_body || function.name == "read.shape_checked";
+                }
+                if (function.name == "direct" || function.name == "direct.shape_checked") {
+                    require(function.parameters.at(0).borrowed,
+                            "ordinary direct function lost borrow inference");
+                    borrowed_direct = true;
+                }
+                if (function.name == "reference" || function.name == "reference.shape_checked") {
+                    const auto& parameter = function.parameters.at(0);
+                    require(parameter.writable && !parameter.borrowed,
+                            "explicit reference parameter changed ownership form");
+                    reference_parameter = true;
+                }
+                for (const auto& block : function.blocks)
+                    for (const auto& instruction : block.instructions) {
+                        if (const auto* ref = std::get_if<quidra::ir::FunctionRef>(&instruction))
+                            explicit_target = explicit_target || ref->function == "read";
+                        indirect_call = indirect_call ||
+                            std::holds_alternative<quidra::ir::IndirectCall>(instruction);
+                        if (function.name == "read" && function.shape_wrapper)
+                            if (const auto* load = std::get_if<quidra::ir::LoadLocal>(&instruction);
+                                load && load->name == "value") {
+                                // The final forwarding load transfers ownership to the
+                                // checked body; earlier shape checks merely inspect it.
+                                forwarding_move = forwarding_move || load->move_out;
+                            }
+                    }
+            }
+            require(owned_target && borrowed_direct && reference_parameter &&
+                        explicit_target && indirect_call,
+                    "function-value ownership test did not reach every call form");
+            require(!shaped_wrapper || (checked_body && forwarding_move),
+                    "shape wrapper did not transfer its owned parameter to the checked body");
+        };
+        verify(quidra::compile(source));
+        quidra::CompileOptions options;
+        options.lowering.check_every_shape_constraint = true;
+        verify(quidra::compile(source, options));
+        // The backend's parallel call receipt also requires a consuming target.
+        (void)quidra::compile(source + "parallel\n    operation(" + test.value + ")\n");
+    }
+}
+
 static void shape_entries_preserve_call_paths() {
     const std::string source = R"(tensor<real32>{N, N} square(tensor<real32>{nat N, N} value)
     return value
@@ -3791,6 +3868,7 @@ auto indirect = operation(tensor.ones<real32>([2, 2]))
 
 int main(){
     string_templates_release_owned_inputs();
+    function_values_consume_managed_parameters();
     inspect_contains("int[] x = [1]\nint[] y = [2]\nfor int a = x[], int b = y[]\n    print(a + b)\n", "\"collection_count\":2");
     inspect_contains("int[] x = [1]\nint[] y = [2]\nfor int a = x[], int b = y[]\n    print(a + b)\n", "ForCollectionBinding");
     good("nat[2] expected_shape = [2, 3]\nparallel\n    tensor<real32>{nat N, N + 1} a = tensor.zeros<real32>([2, 3])\n    tensor<real32>{N, N + 1} b = tensor.ones<real32>()\n    print(b.shape() == expected_shape)\n");

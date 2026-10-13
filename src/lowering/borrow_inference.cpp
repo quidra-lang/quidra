@@ -151,6 +151,11 @@ bool BorrowInference::statement_mutates_parameter(const Stmt& statement, const s
 }
 
 BorrowInference::BorrowInference(const CheckedProgram& checked) : checked_(checked) {
+    std::unordered_set<std::string> function_value_targets;
+    for (const auto& [expression, name] : checked_.function_references) {
+        (void)expression;
+        function_value_targets.insert(name);
+    }
     // Whether the body observes the address of const parameter `index`, or
     // of a part of it; unknown without summaries, so then it does.
     const auto address_observed = [&](const std::string& internal_name, std::size_t index) {
@@ -167,6 +172,10 @@ BorrowInference::BorrowInference(const CheckedProgram& checked) : checked_(check
             if (signature_index >= signature->second.parameters.size()) continue;
             const auto& parameter = signature->second.parameters[signature_index];
             if (parameter.writable || !clone_needing(parameter.type)) continue;
+            // Function values have a consuming by-value ABI: an indirect
+            // caller cannot know a concrete target's inferred borrows. Keep
+            // its direct entry and any checked shape entry on that same ABI.
+            if (function_value_targets.contains(internal_name)) continue;
             // `&b == &a` is false for a const parameter b: it has storage of
             // its own, a copy.
             if (parameter.is_const && address_observed(internal_name, signature_index)) continue;

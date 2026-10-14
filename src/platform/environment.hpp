@@ -34,7 +34,9 @@
 #endif
 #include <windows.h>
 #else
+extern "C" {
 extern char** environ;
+}
 #endif
 
 namespace quidra::platform {

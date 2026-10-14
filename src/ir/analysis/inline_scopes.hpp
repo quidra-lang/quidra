@@ -18,10 +18,14 @@ inline bool unknown_cleanup_type(const Type& type) {
 }
 inline const InlineScope& inline_scope(const Function& fn,std::uint64_t identity) {
     const InlineScope* result=nullptr;
-    for(const auto& scope:fn.inline_scopes)if(scope.identity==identity){
-        if(!identity || result)throw std::invalid_argument("IR inline scope identity is ambiguous");result=&scope;
+    for (const auto& scope : fn.inline_scopes) {
+        if (scope.identity != identity) continue;
+        if (!identity || result)
+            throw std::invalid_argument("IR inline scope identity is ambiguous");
+        result = &scope;
     }
-    if(!result)throw std::invalid_argument("IR inline scope identity is absent");return *result;
+    if (!result) throw std::invalid_argument("IR inline scope identity is absent");
+    return *result;
 }
 inline std::optional<Type> cleanup_result_type(const Instruction& ins) {
     return std::visit([](const auto& n)->std::optional<Type>{
@@ -39,28 +43,54 @@ inline std::optional<Type> cleanup_result_type(const Instruction& ins) {
 }
 inline Type cleanup_operand_type(const Function& fn,ValueId value) {
     Type result;std::size_t found=0;
-    for(const auto& block:fn.blocks)for(const auto& ins:block.instructions)std::visit([&](const auto& n){
-        if constexpr(requires{n.out;})if(n.out==value){++found;
-            if(const auto type=cleanup_result_type(ins))result=*type;
-            else if constexpr(std::is_same_v<std::decay_t<decltype(n)>,AddressLocal>){
-                for(const auto& p:fn.parameters)if(p.name==n.name)result=p.type;
-                for(const auto& s:fn.inline_scopes)for(const auto& slot:s.slots)if(slot.name==n.name)result=slot.type;
-                for(const auto& b:fn.blocks)for(const auto& i:b.instructions){
-                    if(const auto* d=std::get_if<DeclareLocal>(&i);d && d->name==n.name)result=d->type;
-                    if(const auto* d=std::get_if<StoreLocal>(&i);d && d->name==n.name)result=d->type;
+    for (const auto& block : fn.blocks) {
+        for (const auto& ins : block.instructions) {
+            std::visit([&](const auto& n) {
+                if constexpr (requires { n.out; }) {
+                    if (n.out == value) {
+                        ++found;
+                        if (const auto type = cleanup_result_type(ins)) result = *type;
+                        else if constexpr (std::is_same_v<std::decay_t<decltype(n)>, AddressLocal>) {
+                            for (const auto& p : fn.parameters) if (p.name == n.name) result = p.type;
+                            for (const auto& s : fn.inline_scopes)
+                                for (const auto& slot : s.slots) if (slot.name == n.name) result = slot.type;
+                            for (const auto& b : fn.blocks) {
+                                for (const auto& i : b.instructions) {
+                                    if (const auto* d = std::get_if<DeclareLocal>(&i); d && d->name == n.name) result = d->type;
+                                    if (const auto* d = std::get_if<StoreLocal>(&i); d && d->name == n.name) result = d->type;
+                                }
+                            }
+                        }
+                    }
                 }
-            }
+            }, ins);
         }
-    },ins);return found==1?result:Type{};
+    }
+    return found==1?result:Type{};
 }
 inline bool inline_cleanup_unknown(const Function& fn,const InlineScope& scope) {
     for(const auto& slot:scope.slots)if((slot.kind==InlineSlotKind::OwnedLocal || slot.kind==InlineSlotKind::PinnedReference) && unknown_cleanup_type(slot.type))return true;
     // Node shadows can hold owned temporaries beyond the named slots.
-    if(scope.node_cleanup)for(const auto& block:fn.blocks)if(std::find(scope.blocks.begin(),scope.blocks.end(),block.label)!=scope.blocks.end())
-        for(const auto& ins:block.instructions){bool unknown=false;std::visit([&](const auto& n){
-            if constexpr(requires{n.out;})if(n.out)if(const auto type=cleanup_result_type(ins))unknown=unknown_cleanup_type(*type);
-            if constexpr(std::is_same_v<std::decay_t<decltype(n)>,Pin>)unknown=unknown_cleanup_type(cleanup_operand_type(fn,n.value));
-        },ins);if(unknown)return true;}
+    if (scope.node_cleanup) {
+        for (const auto& block : fn.blocks) {
+            if (std::find(scope.blocks.begin(), scope.blocks.end(), block.label) == scope.blocks.end())
+                continue;
+            for (const auto& ins : block.instructions) {
+                bool unknown = false;
+                std::visit([&](const auto& n) {
+                    if constexpr (requires { n.out; }) {
+                        if (n.out) {
+                            if (const auto type = cleanup_result_type(ins))
+                                unknown = unknown_cleanup_type(*type);
+                        }
+                    }
+                    if constexpr (std::is_same_v<std::decay_t<decltype(n)>, Pin>)
+                        unknown = unknown_cleanup_type(cleanup_operand_type(fn, n.value));
+                }, ins);
+                if (unknown) return true;
+            }
+        }
+    }
     return false;
 }
 } // namespace quidra::ir::analysis

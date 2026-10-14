@@ -50,7 +50,10 @@ Module lower(
     }
     if(artifact!=CompileArtifact::Library)l.lower_main(checked.program.statements);
     l.flush_outlined_functions();
-    lowering::place_reference_storage(l.module(), checked, options);
+    lowering::place_reference_storage(l.module(), checked, options,
+        [&](const auto& function,const auto& boundaries,const auto& removed) {
+            l.binding_origins().remap_reference_storage(function,boundaries,removed);
+        });
     if (checked.effects) {
         // Reference storage only appends hidden root arguments. Preserve all
         // original source indices and mark appended arguments as unmapped.
@@ -72,6 +75,8 @@ Module lower(
     const auto& interfaces = checked.interface_sources ? checked.interface_sources : checked.program.interface_sources;
     if (interfaces)
         l.module().interface_sources = semantics::enrich_interface_contracts(*interfaces,checked,l.module());
+    l.module().binding_origins=l.binding_origins().finish(l.module(),l.summary_bindings(),
+        checked.binding_entry_initialization.get());
     return std::move(l.module());
 }
 

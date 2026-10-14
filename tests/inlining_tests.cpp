@@ -50,10 +50,24 @@ int main(){
     Module budget;budget.functions={caller(),managed_helper()};auto br=RuleRegistry::build(budget);InliningOptions off;off.maximum_operations=0;
     require(BudgetedInliner::run(budget,br,off).inlined_calls==0,"operation exhaustion preserves original call");
     Module nested;auto leaf=managed_helper();leaf.name="leaf";auto mid=caller();mid.name="middle";mid.entrypoint=false;for(auto& n:mid.blocks[0].instructions)if(auto*q=std::get_if<Call>(&n))q->callee="leaf";auto top=caller();for(auto& n:top.blocks[0].instructions)if(auto*q=std::get_if<Call>(&n))*q=Call{4,"middle",{},top.result};mid.parameters.clear();
-    for(ValueId id=200;id<240;++id)top.blocks[0].instructions.insert(top.blocks[0].instructions.begin()+1,ConstantBool{id,true});Function reserve;reserve.name="unrelated";for(ValueId id=1;id<=100;++id)reserve.blocks.push_back({"unused"+std::to_string(id),{ConstantBool{id,true},ReturnVoid{}}});top.blocks[0].instructions.insert(top.blocks[0].instructions.end()-1,Call{5,"leaf",{{2,{}},{1,{}},{0,3}},top.result});std::get<Return>(top.blocks[0].instructions.back()).value=5;nested.functions={top,mid,leaf,reserve};auto nr=RuleRegistry::build(nested);auto nrep=BudgetedInliner::run(nested,nr);
+    for(ValueId id=200;id<240;++id)top.blocks[0].instructions.insert(top.blocks[0].instructions.begin()+1,ConstantBool{id,true});Function reserve;reserve.name="unrelated";for(ValueId id=1;id<=100;++id)reserve.blocks.push_back({"unused"+std::to_string(id),{ConstantBool{id,true},ReturnVoid{}}});top.blocks[0].instructions.insert(top.blocks[0].instructions.end()-1,Call{5,"leaf",{{2,{}},{1,{}},{0,3}},top.result});std::get<Return>(top.blocks[0].instructions.back()).value=5;nested.functions={mid,top,leaf,reserve};auto nr=RuleRegistry::build(nested);auto nrep=BudgetedInliner::run(nested,nr);
     require(nrep.inlined_calls>=2,"nested direct CFG mechanism executes");
     std::set<std::uint64_t> scope_ids,statement_ids;
-    for(const auto& scope:nested.functions[0].inline_scopes){require(scope_ids.insert(scope.identity).second,"nested scope identities unique");if(scope.callee=="leaf"&&!scope.parent)require(scope.caller_location&&scope.caller_location->source_file=="caller","later caller continuation keeps opaque caller attribution");if(scope.parent){const auto& scopes=nested.functions[0].inline_scopes;const auto p=std::find_if(scopes.begin(),scopes.end(),[&](const auto& x){return x.identity==scope.parent;});require(p!=scopes.end()&&std::any_of(p->slots.begin(),p->slots.end(),[](const auto& x){return x.name.ends_with("result");}),"nested return result is owned by the enclosing frame");}}
-    for(const auto& scope:nested.functions[0].inline_scopes)for(const auto& statement:scope.statements)require(statement.remapped!=1&&statement_ids.insert(statement.remapped).second,"different inline statements have distinct remapped identities");
+    for(const auto& scope:nested.functions[1].inline_scopes){require(scope_ids.insert(scope.identity).second,"nested scope identities unique");if(scope.callee=="leaf"&&!scope.parent)require(scope.caller_location&&scope.caller_location->source_file=="caller","later caller continuation keeps opaque caller attribution");if(scope.parent){const auto& scopes=nested.functions[1].inline_scopes;const auto p=std::find_if(scopes.begin(),scopes.end(),[&](const auto& x){return x.identity==scope.parent;});require(p!=scopes.end()&&std::any_of(p->slots.begin(),p->slots.end(),[](const auto& x){return x.name.ends_with("result");}),"nested return result is owned by the enclosing frame");}}
+    for(const auto& scope:nested.functions[1].inline_scopes)for(const auto& statement:scope.statements)require(statement.remapped!=1&&statement_ids.insert(statement.remapped).second,"different inline statements have distinct remapped identities");
+    bool copied_exit = false;
+    for (const auto& block : nested.functions[1].blocks)
+        for (std::size_t i = 0; i < block.instructions.size(); ++i)
+            if (const auto* exit = std::get_if<InlineExit>(&block.instructions[i])) {
+                require(i != 0, "nested inline exit retains child cleanup");
+                const auto* cleanup = std::get_if<InlineScopeCleanup>(&block.instructions[i - 1]);
+                require(cleanup && cleanup->scope == exit->scope,
+                        "copied nested exit cleans its active child scope only");
+                const auto& scopes = nested.functions[1].inline_scopes;
+                const auto child = std::find_if(scopes.begin(), scopes.end(),
+                    [&](const auto& scope) { return scope.identity == exit->scope; });
+                copied_exit = copied_exit || (child != scopes.end() && child->parent != 0);
+            }
+    require(copied_exit, "already inlined child exit is copied into another caller");
     return 0;
 }

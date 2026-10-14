@@ -298,7 +298,7 @@ void check_arities() {
     check_arity<ir::ParallelNodeMetadata>("ParallelNodeMetadata", 3);
     check_arity<ir::Function>("Function", 19);
     check_arity<ir::ClassLayout>("ClassLayout", 5);
-    check_arity<ir::Module>("Module", 8);
+    check_arity<ir::Module>("Module", 9);
     check_arity<ir::UserSource>("UserSource", 5);
     check_arity<ir::StringQuote>("StringQuote", 2);
     check_arity<ir::ReferenceBoundCheck>("ReferenceBoundCheck", 3);

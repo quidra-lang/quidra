@@ -2,53 +2,13 @@
 
 #include "ir/analysis/local_ssa.hpp"
 #include "ir/analysis/def_use.hpp"
-#include <compare>
+#include "ir/binding_metadata.hpp"
 #include "ir/summaries.hpp"
-#include "semantics/storage_path.hpp"
 
 namespace quidra::semantics {struct InterfaceSources;}
 namespace quidra::ir::analysis {
-struct ClassIdentity {
-    std::string package,module_path,source_name;
-    std::vector<std::string> generic_arguments;
-    auto operator<=>(const ClassIdentity&) const = default;
-};
-struct BindingField {
-    std::string name;Type type;
-    bool is_const{},is_private{},reference{};
-};
-struct BindingClass {ClassIdentity identity;std::vector<BindingField> fields;bool complete{};bool ordinary_value_layout{};};
-struct CollectionOrigin {
-    InstrRef at;ValueId array{},root{};Type target;
-    std::vector<std::vector<semantics::PathStep>> paths;
-    bool complete{};
-};
-struct FunctionBindingSource {
-    DeclarationIdentity declaration;
-    bool complete{},rebind{},constructor_allocation_proven{};
-    std::optional<std::uint32_t> receiver_ir_parameter;
-    std::vector<std::optional<std::size_t>> semantic_parameter_for_ir_parameter;
-    // Already validated at this entry, not declared type/initialization requirements.
-    std::map<std::uint32_t,std::vector<std::vector<semantics::PathStep>>> validated_initialization;
-    std::map<std::string,semantics::StoragePath,std::less<>> local_storage_paths;
-    std::vector<CollectionOrigin> collections;
-};
-struct BindingSources {
-    // Runtime names are lookup keys only; proofs retain original identities.
-    std::map<std::string,BindingClass,std::less<>> classes;
-    std::map<std::string,FunctionBindingSource,std::less<>> functions;
-};
-struct BindingOriginInputs {
-    std::set<std::string,std::less<>> rebind_declarations;
-    std::map<std::string,FunctionBindingSource,std::less<>> functions;
-};
 BindingSources adapt_binding_sources(const Module&,const ModuleSummaries&,
                                     const semantics::InterfaceSources&,const BindingOriginInputs& = {});
-enum class BindingGap : std::uint8_t {
-    MissingOrigin,MissingClass,MissingEffect,InitializationUnavailable,Ambiguous,
-    DynamicIndex,ArrayAlias,Escaped,ReferenceUnavailable,UnknownCall,
-    OrdinaryWriter,UnknownWriter,Unreachable,AllocationIdentityUnavailable,InlineOriginUnavailable
-};
 struct ObjectRoot {
     enum Kind : std::uint8_t {Parameter,Allocation,ConstructorCall,Copy} kind{Parameter};
     std::string function;InstrRef at{};std::uint32_t parameter{};

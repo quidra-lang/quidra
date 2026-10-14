@@ -1,5 +1,7 @@
 #include "ir/analysis/analysis_cache.hpp"
 #include "ir/facts/entry.hpp"
+#include "semantics/interface_contracts.hpp"
+#include "ir/binding_origins.hpp"
 
 #include <stdexcept>
 
@@ -127,6 +129,60 @@ const LoopInvariants& AnalysisCache::loop_invariants(std::size_t function) {
     }
     return *value;
 }
-void AnalysisCache::invalidate(std::size_t function) { entries_.erase(function); }
-void AnalysisCache::invalidate_all() noexcept { entries_.clear(); }
+const BindingSources& AnalysisCache::binding_sources() {
+    if (!binding_sources_) {
+        const ModuleSummaries empty_summaries;
+        const semantics::InterfaceSources empty_interfaces;
+        auto origins=read_binding_origins(module_);
+        binding_sources_ = adapt_binding_sources(module_,
+            module_.summaries ? *module_.summaries : empty_summaries,
+            module_.interface_sources ? *module_.interface_sources : empty_interfaces,origins.inputs);
+        binding_sources_->issues.insert(binding_sources_->issues.end(),origins.unavailable.begin(),origins.unavailable.end());
+        evaluated(Kind::BindingSources);
+    }
+    return *binding_sources_;
+}
+const ObjectProvenance& AnalysisCache::object_provenance(std::size_t function) {
+    auto& value = entry(function).object_provenance;
+    if (!value) {
+        const ModuleSummaries empty_summaries;
+        value = analysis::object_provenance(module_.functions[function], cfg(function),
+            dominators(function), local_ssa(function), slots(function), def_use(function),
+            module_.summaries ? *module_.summaries : empty_summaries, binding_sources());
+        evaluated(Kind::ObjectProvenance);
+    }
+    return *value;
+}
+const BindingProof& AnalysisCache::binding_proof() {
+    if (!binding_proof_) {
+        const ModuleSummaries empty_summaries;
+        const auto& sources = binding_sources();
+        std::vector<ObjectProvenance> observations;
+        observations.reserve(module_.functions.size());
+        for (std::size_t index = 0; index < module_.functions.size(); ++index)
+            observations.push_back(object_provenance(index));
+        binding_proof_ = analysis::binding_proof(module_,
+            module_.summaries ? *module_.summaries : empty_summaries,
+            sources, std::move(observations));
+        evaluated(Kind::BindingProof);
+    }
+    return *binding_proof_;
+}
+void AnalysisCache::invalidate(std::size_t function) {
+    binding_proof_.reset();
+    // Concrete source rows are locked to current bodies. Other functions can
+    // depend on a rewritten constructor's origins too, so only the ordinary
+    // intraprocedural components survive another function's invalidation.
+    binding_sources_.reset();
+    for (auto& [index, value] : entries_) {
+        (void)index;
+        value->object_provenance.reset();
+    }
+    entries_.erase(function);
+}
+void AnalysisCache::invalidate_all() noexcept {
+    binding_proof_.reset();
+    entries_.clear();
+    binding_sources_.reset();
+}
 } // namespace quidra::ir::analysis

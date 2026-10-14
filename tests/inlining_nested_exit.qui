@@ -1,0 +1,40 @@
+extern void watch() = "watch"
+string stop(bool finish)
+    string owned = "callee" + "-owned"
+    if finish
+        process.exit(7)
+    return owned
+string relay(bool finish)
+    string owned = "relay" + "-owned"
+    string combined = owned + "-first" + "-second" + "-third"
+    print(combined + NL)
+    return stop(finish)
+string caller = "caller" + "-live"
+string keep0 = caller + "-owned-0"
+string keep1 = caller + "-owned-1"
+string keep2 = caller + "-owned-2"
+string keep3 = caller + "-owned-3"
+string keep4 = caller + "-owned-4"
+string keep5 = caller + "-owned-5"
+string keep6 = caller + "-owned-6"
+string keep7 = caller + "-owned-7"
+string keep8 = caller + "-owned-8"
+string keep9 = caller + "-owned-9"
+string keep10 = caller + "-owned-10"
+string keep11 = caller + "-owned-11"
+string keep12 = caller + "-owned-12"
+string keep13 = caller + "-owned-13"
+string keep14 = caller + "-owned-14"
+string keep15 = caller + "-owned-15"
+string keep16 = caller + "-owned-16"
+string keep17 = caller + "-owned-17"
+string keep18 = caller + "-owned-18"
+string keep19 = caller + "-owned-19"
+string keep20 = caller + "-owned-20"
+string keep21 = caller + "-owned-21"
+string keep22 = caller + "-owned-22"
+string keep23 = caller + "-owned-23"
+print(caller + NL)
+watch()
+print(relay(true))
+print("unexpected")

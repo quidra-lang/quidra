@@ -17,6 +17,7 @@ namespace quidra {
 namespace semantics {
 class EffectSummaries;
 struct InterfaceSources;
+struct BindingEntryInitializations;
 }
 
 struct FunctionParameterType {
@@ -315,6 +316,7 @@ struct CheckedProgram {
     std::unordered_map<const Expr*,std::vector<std::vector<std::size_t>>> stored_target_initialization_checks;
     std::unordered_map<const Expr*,std::unordered_set<std::string>> reference_invalidations;
     std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
+    std::shared_ptr<const semantics::BindingEntryInitializations> binding_entry_initialization{};
 };
 
 // What a compilation produces: an executable (quidra build, run, a direct
@@ -332,6 +334,7 @@ public:
 
 private:
     std::unordered_map<std::string, FunctionType> functions_;
+    std::shared_ptr<semantics::BindingEntryInitializations> binding_entry_initialization_;
     std::unordered_map<std::string, ClassTypeInfo> classes_;
     std::unordered_set<std::string> class_names_;
     std::unordered_map<std::string, Type> enum_types_;

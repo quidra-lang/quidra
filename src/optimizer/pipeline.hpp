@@ -47,6 +47,7 @@ constexpr bool always(const PassContext&) { return true; }
 
 bool run_rule_dispatch(ir::Module&, const PassContext&);
 bool run_helper_specialization(ir::Module&, const PassContext&);
+bool run_budgeted_inlining(ir::Module&, const PassContext&);
 constexpr bool interproc_on(const PassContext& context) {
     return context.options.exact_binding == DeclarationBindingMode::On;
 }
@@ -61,8 +62,9 @@ inline constexpr std::array<Pass, 2> rewrite_passes{{
 // The finite checks of real arithmetic are merged after the rewrites,
 // which do not move scalar operations. The regions are formed and annotated
 // last, so that they describe the rewritten module; no rewrite reads them.
-inline constexpr std::array<PipelineEntry, 6> pipeline{{
+inline constexpr std::array<PipelineEntry, 7> pipeline{{
     Pass{"helper-specialization", interproc_on, run_helper_specialization},
+    Pass{"budgeted-inlining", interproc_on, run_budgeted_inlining},
     FixpointGroup{"rewrites", rewrite_passes},
     Pass{"rule-dispatch", always, run_rule_dispatch},
     Pass{"finite-check-merging", FiniteCheckMerging::enabled, FiniteCheckMerging::run},

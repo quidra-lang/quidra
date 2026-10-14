@@ -144,6 +144,7 @@ Function FunctionLowering::function_header(
     binding.semantic_key = name; // Exact checked signature key supplied by this caller.
     for (std::size_t i = 0; i < out.parameters.size(); ++i)
         binding.semantic_parameter_for_ir_parameter.push_back(i);
+    lowerer_.binding_origins().header(out,binding);
     lowerer_.summary_bindings().emplace(name, std::move(binding));
     return out;
 }
@@ -190,6 +191,7 @@ void FunctionLowering::lower_prologue_and_body(
     if (enclosing_class_.in_constructor()) {
     const auto self=Type::class_type(enclosing_class_.name());
     scope_.bind_parameter("$receiver",self);
+    lowerer_.binding_origins().local(*builder_.function(),"$receiver","this");
     builder_.emit(DeclareLocal{"$receiver",self,"$receiver",
         static_cast<std::uint32_t>(source.span.start.line),
         static_cast<std::uint32_t>(source.span.start.column)});
@@ -280,6 +282,7 @@ void FunctionLowering::finish_shape_entry() {
     if (checked.result.kind == TypeKind::Void) forward.emit(ReturnVoid{});
     else if (checked.result.kind != TypeKind::Never) forward.emit(Return{result, checked.result});
     forward.finish();
+    lowerer_.binding_origins().split_shape_entry(wrapper.name,checked.name,shape_entry_block_,shape_entry_offset_);
     *builder_.function() = std::move(wrapper);
     module_.functions.push_back(std::move(checked));
     split_shape_entry_ = false;

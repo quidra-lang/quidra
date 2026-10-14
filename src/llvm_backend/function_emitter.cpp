@@ -204,11 +204,11 @@ struct FunctionEmitter {
             else if(const auto location=debug_module->location_of_subprogram(*debug_id))
                 debug_.locate_declarations(*location);
             call_sites_.emplace(*call_site_metadata,context,&attribution_,*call_site_function,scope,
-                                debug_file_id,f.source_line);
+                                debug_file_id,f.source_line,&f);
             const bool recorded = std::any_of(tail_calls_.sites.begin(), tail_calls_.sites.end(),
                 [&](const auto& entry) { return entry.second.owner == f.name && entry.second.recorded; });
             if (recorded) tail_records_.emplace(builder_, names_, self_depth_recursive_,
-                                                call_site_metadata->next_site());
+                                                *call_site_function);
         }
     }
 
@@ -530,6 +530,7 @@ void FunctionEmitter::emit_blocks(){
         symbols_.select_block(b.label);
         const auto scope=inline_scopes_.block_scope(b.label);
         attribution_.select_inline_scope(scope?&inline_scopes_.at(scope):nullptr);
+        if(call_sites_)call_sites_->select_inline_scope(scope);
         builder_.block(b.label);
         if(bi==0) emit_entry_frame();
         for(const auto&i:b.instructions)emit_instruction(i);
@@ -572,7 +573,6 @@ std::string FunctionEmitter::emit(){
     builder_.end_function();
     self_depth_.emit_wrapper();
     auto text=function_text_.str()+emit_parallel_node_wrapper(fn_,call_sites_?call_site_metadata_:nullptr);
-    if (tail_records_) TailRecordEmitter::resolve_range(text, call_site_metadata_->next_site());
     debug_.attach_locations(text);
     if(node_values_) {
         const auto replace=[&](const std::string& marker,const std::string& replacement) {

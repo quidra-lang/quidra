@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ir/fact_sources.hpp"
+#include "ir/binding_origins.hpp"
 
 #include <span>
 
@@ -11,12 +12,12 @@ struct CloneReference {
     CloneIrProofs ir_proofs{CloneIrProofs::Invalidate};
 };
 struct SynthesizedFunctionReference { std::string function; };
-enum class CloneContractComponent : std::uint8_t { Reference, Semantic, IrProofs, TensorFacts, Policy };
+enum class CloneContractComponent : std::uint8_t { Reference, Semantic, IrProofs, TensorFacts, Policy, BindingOrigins };
 enum class CloneUnavailable : std::uint8_t {
     InvalidReference, DuplicateReference, MissingFunction, AmbiguousFunction,
     DestinationExists, MissingSourceSummary, MissingSemanticSnapshot,
     AbiMismatch, FormalMappingMismatch, MissingSourceFacts, ChangedBody,
-    UncomparableBody, InitialSummaryOmission
+    UncomparableBody, InitialSummaryOmission, MissingSourceOrigins
 };
 struct CloneContractIssue {
     CloneContractComponent component;
@@ -31,12 +32,14 @@ struct CloneContractStatus {
     // proof that the function cannot read/write a policy.
     ClonePolicyAvailability policy_setter{ClonePolicyAvailability::Unavailable};
     ClonePolicyAvailability policy_write{ClonePolicyAvailability::Unavailable};
+    bool binding_origins_available{};
 };
 struct CloneContractResult {
     std::shared_ptr<const analysis::ModuleSummaries> summaries;
     std::shared_ptr<const facts::FactSources> fact_sources;
     std::vector<CloneContractStatus> bindings;
     std::vector<CloneContractIssue> unavailable;
+    std::shared_ptr<const analysis::BindingOriginSnapshots> binding_origins;
 };
 
 // CloneReference is an explicit obligation from a transformation that preserves

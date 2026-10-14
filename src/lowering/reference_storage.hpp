@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <functional>
 
 namespace quidra::lowering {
 
@@ -35,7 +36,8 @@ inline bool contains_reference_fields(const ir::Module& module,const Type& type)
 // Address provenance is materialized only for bindings, stores and calls
 // that require a root. Reads retain the ordinary address-only representation.
 inline void place_reference_storage(ir::Module& module, const CheckedProgram& checked,
-                                    ir::LoweringOptions options) {
+                                    ir::LoweringOptions options,
+    const std::function<void(const std::string&,const std::vector<std::vector<std::size_t>>&,const std::set<std::string>&)>& observe={}) {
     if (!checked.effects) return;
     const auto token_type = Type::simple(TypeKind::Int64);
     const bool reference_fields = std::any_of(module.classes.begin(),module.classes.end(),[](const auto& layout){return !layout.reference_fields.empty();});
@@ -197,7 +199,11 @@ inline void place_reference_storage(ir::Module& module, const CheckedProgram& ch
         builder.finish();
         next=entry.next_value;
         const auto root=[&](ir::ValueId value){const auto found=roots.find(value);return found==roots.end()?zero:found->second;};
+        std::vector<std::vector<std::size_t>> boundary_maps;
         for(auto& block:function.blocks) {
+            boundary_maps.emplace_back(block.instructions.size()+1,0);
+            auto& boundary_map=boundary_maps.back();
+            std::size_t old_index=0;
             ir::Function rewritten;rewritten.blocks.push_back(ir::Block{block.label,{}});
             ir::FunctionBuilder out(rewritten,next,0,0);out.enter(rewritten.blocks.front());
             ir::SourceLocation site;
@@ -213,6 +219,10 @@ inline void place_reference_storage(ir::Module& module, const CheckedProgram& ch
                     out.emit(ir::StoredTargetsCheck{value,type,destination,std::move(path),site.position});
             };
             for(const auto& instruction:block.instructions) {
+                struct BoundaryCapture {
+                    std::vector<std::size_t>& map;std::size_t index;const ir::FunctionBuilder& out;
+                    ~BoundaryCapture()noexcept{map[index+1]=out.block()->instructions.size();}
+                } capture{boundary_map,old_index++,out};
                 if(const auto* location=std::get_if<ir::SourceLocation>(&instruction))site=*location;
                 if(std::holds_alternative<ir::Return>(instruction) || std::holds_alternative<ir::ReturnVoid>(instruction)) {
                     for(auto box=boxes.rbegin();box!=boxes.rend();++box) {
@@ -279,6 +289,12 @@ inline void place_reference_storage(ir::Module& module, const CheckedProgram& ch
         auto& instructions=function.blocks.front().instructions;
         instructions.insert(instructions.begin(),entry.blocks.front().instructions.begin(),entry.blocks.front().instructions.end());
         function.next_value=next;
+        if(observe) {
+            for(auto& boundary:boundary_maps.front())boundary+=entry.blocks.front().instructions.size();
+            std::set<std::string> removed;
+            for(const auto& [name,box]:boxes){(void)box;removed.insert(name);}
+            observe(function.name,boundary_maps,removed);
+        }
     }
 }
 

@@ -155,6 +155,11 @@ void NodeValueOwnership::load_borrowed_local(ir::ValueId id,const std::string& n
         shadow_.copy_link(alias_cell(id),local_link(name));
         if(unproven_holders_.contains(name))unproven_origins_.insert(id);
     }
+    else if(symbols_.is_writable_parameter(name)) {
+        // A writable ABI binding is the actual caller storage, not a node
+        // owned value. A consuming operation must clear that same address.
+        storage_origin(id,symbols_.storage(name),type);
+    }
     else if(const auto* slot=symbols_.cleanup_slot(name);slot && !slot->pin) {
         const auto clear=".quidra.local.clear."+sanitize_identifier(function_.name)+"."+sanitize_identifier(name);
         local_clears_.emplace(clear,type);shadow_.link_slot(alias_cell(id),symbols_.storage(name),clear);

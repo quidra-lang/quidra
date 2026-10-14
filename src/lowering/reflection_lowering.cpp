@@ -250,17 +250,21 @@ void ReflectionLowering::collect_reflected_paths(
 void ReflectionLowering::collect_reflected_values(
     ValueId object,const Type& type,const Type& target,
     const std::string& destination,
-    std::unordered_set<std::string>& active) {
+    std::unordered_set<std::string>& active,CollectionCapture* capture,
+    std::vector<semantics::PathStep> path) {
     if(type==target){
+        if(capture)capture->paths.push_back(path);
         append_collected_value(destination,target,object);
         return;
     }
     if(type.kind==TypeKind::Array){
+        if(capture)capture->complete=false;
+        path.push_back(semantics::PathStep::any_element());
         for_each_collected_array_element(
             object,type,"reflect.collect",
             [&](ValueId child,const Type& child_type,ValueId) {
                 collect_reflected_values(
-                    child,child_type,target,destination,active);
+                    child,child_type,target,destination,active,capture,path);
             });
         return;
     }
@@ -278,8 +282,9 @@ void ReflectionLowering::collect_reflected_values(
         auto child=builder_.fresh();
         builder_.emit(
             FieldGet{child,object,field.index,field.type});
+        auto field_path=path;field_path.push_back(semantics::PathStep::field_named(field.name));
         collect_reflected_values(
-            child,field.type,target,destination,active);
+            child,field.type,target,destination,active,capture,std::move(field_path));
     }
     active.erase(type.class_name);
 }
@@ -305,6 +310,8 @@ ValueId ReflectionLowering::lower_reflect_collection(
         *result_type.first,
         path_query?"reflect.paths.result":"reflect.collect.result");
     std::unordered_set<std::string> active;
+    CollectionCapture capture;
+    const bool value_query=*resolution.builtin==BuiltinCallable::ReflectCollect;
     if(*resolution.builtin==BuiltinCallable::ReflectEachPaths) {
         const auto prefix=builder_.fresh();builder_.emit(ConstantString{prefix,""});
         collect_traversal_paths(object,checked_.traversal_plans.at(&e).tree,prefix,true,destination);
@@ -322,11 +329,19 @@ ValueId ReflectionLowering::lower_reflect_collection(
     }else{
         collect_reflected_values(
             object,type_of(checked_,*n.args[0].value),*result_type.first,
-            destination,active);
+            destination,active,value_query?&capture:nullptr);
     }
     auto out=builder_.fresh();
     builder_.emit(
         LoadLocal{out,destination,result_type});
+    if(value_query) {
+        ir::analysis::CollectionOrigin origin;origin.at=BindingOriginRecorder::site(builder_);origin.array=out;origin.root=object;
+        origin.target=*result_type.first;origin.paths=std::move(capture.paths);origin.complete=capture.complete;
+        lowerer_.binding_origins().collection(*builder_.function(),type_of(checked_,*n.args[0].value),std::move(origin));
+    }
+    if(*resolution.builtin==BuiltinCallable::ReflectEachPaths)
+        lowerer_.binding_origins().traversal(builder_,checked_.traversal_plans.at(&e),
+            ir::analysis::BindingTraversalOrigin::Kind::EachPaths,object,out);
     lifetime_.release_temporary(*n.args[0].value,object);
     return out;
 }

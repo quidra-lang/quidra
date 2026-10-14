@@ -13,6 +13,7 @@
 // traversal order follows authored blocks and successors, never hash order.
 
 #include "quidra/ir/function.hpp"
+#include "ir/instruction_site.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -22,12 +23,6 @@
 
 namespace quidra::ir::analysis {
 
-using BlockId = std::uint32_t;
-struct InstrRef {
-    BlockId block{};
-    std::uint32_t index{}; // SourceLocation instructions count too.
-    bool operator==(const InstrRef&) const = default;
-};
 inline constexpr std::uint32_t kNoRpo = std::numeric_limits<std::uint32_t>::max();
 
 struct Cfg {

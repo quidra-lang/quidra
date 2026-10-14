@@ -16,7 +16,7 @@
 namespace quidra::semantics { struct InterfaceSources; }
 
 namespace quidra::ir {
-namespace analysis { struct ModuleSummaries; }
+namespace analysis { struct ModuleSummaries; struct BindingOriginSnapshots; }
 namespace facts { struct FactSources; }
 
 struct ClassLayout {
@@ -55,6 +55,8 @@ struct Module {
     std::shared_ptr<const facts::FactSources> fact_sources{};
     std::vector<DeclarationIdentity> declaration_catalog{};
     std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
+    // Original typed lowering origins, bound to exact final body fields.
+    std::shared_ptr<const analysis::BindingOriginSnapshots> binding_origins{};
 };
 
 std::string dump(const Module& module);

@@ -3,6 +3,7 @@
 #include "ir/analysis/liveness.hpp"
 #include "ir/analysis/tensor_facts.hpp"
 #include "ir/analysis/loop_invariants.hpp"
+#include "ir/analysis/binding_proof.hpp"
 #include "quidra/ir/module.hpp"
 
 #include <array>
@@ -20,7 +21,8 @@ class AnalysisCache {
 public:
     enum class Kind : std::uint8_t { Cfg, Dominators, PostDominators, DefUse, Slots,
                                      LocalSsa, Aliases, Liveness, TensorFacts, Loops,
-                                     LoopInvariants, Count };
+                                     LoopInvariants, ObjectProvenance, BindingSources,
+                                     BindingProof, Count };
     explicit AnalysisCache(const Module& module) : module_(module) {}
     AnalysisCache(const AnalysisCache&) = delete;
     AnalysisCache& operator=(const AnalysisCache&) = delete;
@@ -42,6 +44,16 @@ public:
     // Region-specific queries use loop_invariants directly. This cached query
     // has no proposed region membership or physical ownership assumption.
     const LoopInvariants& loop_invariants(std::size_t function);
+    // Depends on module-wide source/callee metadata; any function mutation
+    // invalidates this observation even when its own body is unchanged.
+    const ObjectProvenance& object_provenance(std::size_t function);
+    // Owned metadata adaptation is independent of body analysis. Missing
+    // concrete lowering origins are explicit unavailable components. Body
+    // changes invalidate this owned view before its staleness guards rerun.
+    const BindingSources& binding_sources();
+    // A module proof reuses each cached per-function observation. References
+    // to this proof survive other queries, but no function invalidation.
+    const BindingProof& binding_proof();
 
     void invalidate(std::size_t function);
     void invalidate_all() noexcept;
@@ -60,11 +72,14 @@ private:
         std::optional<TensorFactAnalysis> tensor_facts;
         std::optional<LoopNest> loops;
         std::optional<LoopInvariants> loop_invariants;
+        std::optional<ObjectProvenance> object_provenance;
     };
     Entry& entry(std::size_t function);
     void evaluated(Kind kind) noexcept;
     const Module& module_;
     std::unordered_map<std::size_t, std::unique_ptr<Entry>> entries_;
+    std::optional<BindingSources> binding_sources_;
+    std::optional<BindingProof> binding_proof_;
     std::array<std::uint64_t, static_cast<std::size_t>(Kind::Count)> evaluations_{};
 };
 

@@ -125,6 +125,7 @@ set(QUIDRA_CORE_SOURCES
     src/lexer.cpp
     src/parser.cpp
     src/class_initialization.cpp
+    src/semantics/binding_entry.cpp
     src/checker.cpp
     src/parallel_for_check.cpp
     src/traversal_plan.cpp
@@ -143,9 +144,11 @@ set(QUIDRA_CORE_SOURCES
     src/ir/analysis/loop_invariants.cpp
     src/ir/analysis/object_provenance.cpp
     src/ir/analysis/binding_proof.cpp
+    src/ir/analysis/object_bindings.cpp
     src/ir/summaries.cpp
     src/ir/fact_sources.cpp
     src/ir/clone_contracts.cpp
+    src/ir/binding_origins.cpp
     src/ir/facts/tensor.cpp
     src/ir/canonical_encoding.cpp
     src/ir/content_hash.cpp
@@ -190,6 +193,7 @@ set(QUIDRA_CORE_SOURCES
     src/lowering/json_lowering.cpp
     src/lowering/lifetime_lowering.cpp
     src/lowering/lower_module.cpp
+    src/lowering/binding_origins.cpp
     src/lowering/lowerer.cpp
     src/lowering/operator_lowering.cpp
     src/lowering/random_lowering.cpp
@@ -758,7 +762,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_include_directories(quidra_shape_relation_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   add_test(NAME quidra_shape_relation_tests COMMAND quidra_shape_relation_tests)
 
-  foreach(analysis IN ITEMS analysis dominator def_use local_ssa alias liveness analysis_cache summary content_hash tensor_facts loop_invariant clone_contracts binding_proof)
+  foreach(analysis IN ITEMS analysis dominator def_use local_ssa alias liveness analysis_cache summary content_hash tensor_facts loop_invariant clone_contracts binding_proof binding_origin object_bindings)
     add_executable(quidra_ir_${analysis}_tests tests/ir_${analysis}_tests.cpp)
     target_include_directories(quidra_ir_${analysis}_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(quidra_ir_${analysis}_tests PRIVATE quidra_core)
@@ -774,12 +778,28 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   add_test(NAME quidra_compiler_extension
       COMMAND quidra_compiler_extension_tests ${CMAKE_BINARY_DIR}/compiler-extension-unit)
 
-  foreach(feature IN ITEMS declaration_binding rule_dispatch statement_sites helper_specialization interface_fingerprint inlining)
+  foreach(feature IN ITEMS declaration_binding rule_dispatch statement_sites helper_specialization interface_fingerprint inlining inlining_hot_sites)
     add_executable(quidra_${feature}_tests tests/${feature}_tests.cpp)
     target_include_directories(quidra_${feature}_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(quidra_${feature}_tests PRIVATE quidra_core)
     add_test(NAME quidra_${feature} COMMAND quidra_${feature}_tests)
   endforeach()
+
+  # Emits baseline/inlined programs for the native ownership and trace gate.
+  add_executable(quidra_inlining_native_driver
+      tests/inlining_native_driver.cpp
+      src/toolchain/call_site_table.cpp
+      src/toolchain/dwarf_lines.cpp
+      src/toolchain/object_file.cpp)
+  target_include_directories(quidra_inlining_native_driver PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(quidra_inlining_native_driver PRIVATE quidra_core)
+  if(MSVC)
+    target_compile_options(quidra_inlining_native_driver PRIVATE /bigobj)
+  endif()
+  add_test(NAME quidra_inlining_nested_exit
+      COMMAND quidra_inlining_native_driver emit
+        ${CMAKE_SOURCE_DIR}/tests/inlining_nested_exit.qui
+        ${CMAKE_BINARY_DIR}/inlining-nested-exit ordinary stop nested)
 
   # The refactoring equivalence harness (tests/golden, driven by
   # tests/ir_golden.sh). The dump tool prints every observable compiler output
@@ -1470,6 +1490,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     quidra_ir_loop_invariant
     quidra_ir_clone_contracts
     quidra_ir_binding_proof
+    quidra_ir_binding_origin
+    quidra_ir_object_bindings
     quidra_compiler_extension
     quidra_declaration_binding
     quidra_rule_dispatch
@@ -1477,6 +1499,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     quidra_helper_specialization
     quidra_interface_fingerprint
     quidra_inlining
+    quidra_inlining_hot_sites
+    quidra_inlining_nested_exit
     quidra_ir_instruction_text
     quidra_ir_optimizer_operands
     quidra_ir_value_allocator

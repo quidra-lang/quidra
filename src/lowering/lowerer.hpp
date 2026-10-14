@@ -57,6 +57,7 @@
 
 #include "ir/function_builder.hpp"
 #include "ir/summaries.hpp"
+#include "lowering/binding_origins.hpp"
 #include "lowering/aggregate_lowering.hpp"
 #include "lowering/assignment_lowering.hpp"
 #include "lowering/assignment_order.hpp"
@@ -131,6 +132,7 @@ public:
     // and takes when every function is lowered.
     ir::Module& module() { return module_; }
     ir::analysis::SummaryBindings& summary_bindings() { return summary_bindings_; }
+    BindingOriginRecorder& binding_origins() { return binding_origins_; }
     StatementSites& statement_sites() { return statement_sites_; }
     void emit_statement_location(const Stmt& statement) {
         const auto& name = builder_.function()->name;
@@ -244,6 +246,7 @@ private:
     const ir::LoweringOptions options_;
     ir::Module module_;
     ir::analysis::SummaryBindings summary_bindings_;
+    BindingOriginRecorder binding_origins_;
     std::vector<ir::Function> outlined_functions_;
     std::unordered_set<const Stmt*> parallel_hoisted_;
     std::unordered_map<const Stmt*,ShapeConstraintLowering::BraceShape> parallel_brace_shapes_;

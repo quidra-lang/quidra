@@ -60,7 +60,15 @@ struct Engine {
         return r;
     }
     ObjectFact materialize(ObjectFact f,const Env& env)const{
-        if(f.allocation && f.allocation->function==fn.name)if(const auto fields=env.fields.find({f.allocation->at.block,f.allocation->at.index});fields!=env.fields.end())f.elements=fields->second;
+        if(f.allocation && f.allocation->function==fn.name)if(const auto fields=env.fields.find({f.allocation->at.block,f.allocation->at.index});fields!=env.fields.end()) {
+            f.elements=fields->second;
+            const auto* c=layout(sources,f.type);
+            if(c && c->complete) {
+                f.initialized=true;
+                for(std::size_t i=0;i<c->fields.size();++i)if(!c->fields[i].reference)
+                    f.initialized &= i<f.elements.size() && f.elements[i].initialized;
+            } else f.initialized=false;
+        }
         if(f.type.kind==TypeKind::Class){const auto* c=layout(sources,f.type);f.references_closed=c && c->complete;
             if(c)for(std::size_t i=0;i<c->fields.size();++i)if(c->fields[i].reference)f.references_closed &= i<f.elements.size() && f.elements[i].available && f.elements[i].address;
         }
@@ -105,7 +113,11 @@ struct Engine {
     }
     Env external()const{
         Env env;
-        for(std::size_t i=0;i<fn.parameters.size();++i){const auto& p=fn.parameters[i];ObjectFact f;f.type=p.type;f.available=true;f.initialized=true;
+        for(std::size_t i=0;i<fn.parameters.size();++i){const auto& p=fn.parameters[i];ObjectFact f;f.type=p.type;f.available=true;f.initialized=!p.writable;
+            if(p.writable && origin && origin->complete && origin->availability.validated_initialization) {
+                const auto proof=origin->validated_initialization.find(static_cast<std::uint32_t>(i));
+                if(proof!=origin->validated_initialization.end())f.initialized=std::find(proof->second.begin(),proof->second.end(),std::vector<semantics::PathStep>{})!=proof->second.end();
+            }
             auto r=root(ObjectRoot::Parameter,{},p.type);r.parameter=static_cast<std::uint32_t>(i);f.sources.push_back({r,{}});f.references_closed=!references(layout(sources,p.type));
             env.locals.emplace(p.name,std::move(f));}
         return env;
@@ -156,13 +168,17 @@ struct Engine {
     void instruction(const Instruction& instruction,Env& env,InstrRef at){
         std::visit([&](const auto& n){using T=std::decay_t<decltype(n)>;
             if constexpr(std::is_same_v<T,ConstantInt>){ObjectFact f;f.type=n.type;f.available=f.initialized=true;std::int64_t v{};const auto [end,error]=std::from_chars(n.value.data(),n.value.data()+n.value.size(),v);if(error==std::errc{} && end==n.value.data()+n.value.size())f.integer=v;put(n.out,std::move(f),env,at);}
+            else if constexpr(std::is_same_v<T,ConstantBool> || std::is_same_v<T,ConstantString>) {
+                ObjectFact f;f.type=Type::simple(std::is_same_v<T,ConstantBool>?TypeKind::Bool:TypeKind::String);
+                f.available=f.initialized=true;put(n.out,std::move(f),env,at);
+            }
             else if constexpr(std::is_same_v<T,LoadLocal>){const auto found=env.locals.find(n.name);auto f=found==env.locals.end()?unavailable(n.type,BindingGap::Ambiguous):materialize(found->second,env);f.type=n.type;
                 if(f.type.kind==TypeKind::Array && !safe_array(n.out)){f.array_closed=false;gap(f,BindingGap::ArrayAlias);}put(n.out,std::move(f),env,at);if(n.move_out)env.locals.erase(n.name);}
             else if constexpr(std::is_same_v<T,StoreLocal>){auto f=get(n.value,env);if(env.raw_bindings.contains(n.name)){
                     const auto old=env.locals.find(n.name);if(old!=env.locals.end())out.exposures.push_back({at,old->second});
                     f=unavailable(n.type,BindingGap::InlineOriginUnavailable);
                 }if(origin)if(const auto path=origin->local_storage_paths.find(n.name);path!=origin->local_storage_paths.end())f.holding_paths.push_back(path->second);env.locals.insert_or_assign(n.name,std::move(f));}
-            else if constexpr(std::is_same_v<T,ClassMake>){ObjectFact f;f.type=n.type;f.available=f.initialized=true;f.allocation=root(ObjectRoot::Allocation,at,n.type);f.allocation_identity_available=true;f.sources.push_back({*f.allocation,{}});
+            else if constexpr(std::is_same_v<T,ClassMake>){ObjectFact f;f.type=n.type;f.available=true;f.initialized=false;f.allocation=root(ObjectRoot::Allocation,at,n.type);f.allocation_identity_available=true;f.sources.push_back({*f.allocation,{}});
                 const auto* c=layout(sources,n.type);auto& fields=env.fields[{at.block,at.index}];fields.assign(c?c->fields.size():n.fields.size(),{});
                 for(std::size_t i=0;i<n.fields.size();++i)if(n.fields[i]){if(i>=fields.size())fields.resize(i+1);fields[i]=get(*n.fields[i],env);out.writes.push_back({at,f,fields[i],i,false,false,semantic_owner(at.block)});}
                 put(n.out,materialize(std::move(f),env),env,at);}
@@ -224,25 +240,115 @@ ObjectFact ObjectProvenance::at(InstrRef site,ValueId value)const{
 ObjectProvenance object_provenance(const Function& f,const Cfg& cfg,const DomTree& dom,const LocalSsa&,const Slots&,const DefUse& uses,const ModuleSummaries& summaries,const BindingSources& sources){return Engine(f,cfg,dom,uses,summaries,sources).run();}
 BindingSources adapt_binding_sources(const Module& module,const ModuleSummaries& summaries,const semantics::InterfaceSources& interfaces,const BindingOriginInputs& input){
     BindingSources result;
-    for(const auto& layout:module.classes)for(const auto& original:interfaces.modules){const auto n=original.contracts.named_types.find(layout.name);if(n==original.contracts.named_types.end())continue;
-        const auto& identity=n->second;const auto c=std::find_if(original.contracts.classes.begin(),original.contracts.classes.end(),[&](const auto& c){return c.source_name==identity.source_name;});if(c==original.contracts.classes.end())continue;
-        BindingClass value;value.identity={identity.module.package,identity.module.module_path,identity.source_name,identity.generic_arguments};
-        const auto instance=c->instances.find(identity.generic_arguments);const auto& fields=instance==c->instances.end()?c->fields:instance->second.fields;
-        value.ordinary_value_layout=!layout.standard_library;
-        value.complete=original.contracts.classes_complete && original.contracts.declarations_complete && fields.size()<=layout.fields.size() && fields.size()<=layout.field_names.size();
-        for(std::size_t i=0;i<fields.size();++i){value.complete &= i<layout.field_names.size() && fields[i].name==layout.field_names[i] && i<layout.fields.size() && fields[i].type.semantic.has_value();
-            value.fields.push_back({fields[i].name,i<layout.fields.size()?layout.fields[i]:Type{},fields[i].is_const,fields[i].is_private,fields[i].reference});}
-        if(!c->generic_parameters.empty() && instance==c->instances.end())value.complete=false;
-        const auto existing=result.classes.find(layout.name);if(existing==result.classes.end())result.classes.emplace(layout.name,std::move(value));
-        else if(existing->second.identity!=value.identity || existing->second.fields.size()!=value.fields.size())existing->second.complete=false;
+    const auto issue=[&](BindingSourceComponent component,BindingGap reason,const std::string& lookup){
+        result.issues.push_back({component,reason,lookup});
+    };
+    for(const auto& layout:module.classes){
+        bool found=false;
+        for(const auto& original:interfaces.modules){
+            const auto n=original.contracts.named_types.find(layout.name);
+            if(n==original.contracts.named_types.end())continue;
+            const auto& identity=n->second;
+            const auto c=std::find_if(original.contracts.classes.begin(),original.contracts.classes.end(),[&](const auto& value){return value.source_name==identity.source_name;});
+            if(c==original.contracts.classes.end())continue;
+            found=true;
+            BindingClass value;value.identity={identity.module.package,identity.module.module_path,identity.source_name,identity.generic_arguments};
+            const auto instance=c->instances.find(identity.generic_arguments);
+            const auto& fields=instance==c->instances.end()?c->fields:instance->second.fields;
+            value.ordinary_value_layout=!layout.standard_library;
+            value.complete=identity.module==original.module && original.contracts.classes_complete && original.contracts.declarations_complete && fields.size()<=layout.fields.size() && fields.size()<=layout.field_names.size();
+            for(std::size_t i=0;i<fields.size();++i){
+                value.complete &= i<layout.field_names.size() && fields[i].name==layout.field_names[i] && i<layout.fields.size() && fields[i].type.semantic.has_value();
+                if(i<layout.fields.size() && fields[i].type.semantic)
+                    value.complete &= *fields[i].type.semantic==layout.fields[i] && fields[i].reference==layout.reference_fields.contains(i);
+                value.fields.push_back({fields[i].name,i<layout.fields.size()?layout.fields[i]:Type{},fields[i].is_const,fields[i].is_private,fields[i].reference});
+            }
+            if(!c->generic_parameters.empty() && instance==c->instances.end())value.complete=false;
+            if(!value.complete)issue(BindingSourceComponent::ClassLayout,BindingGap::MissingClass,layout.name);
+            const auto existing=result.classes.find(layout.name);
+            if(existing==result.classes.end())result.classes.emplace(layout.name,std::move(value));
+            else {
+                const bool same=existing->second.identity==value.identity && existing->second.fields.size()==value.fields.size() &&
+                    std::equal(existing->second.fields.begin(),existing->second.fields.end(),value.fields.begin(),[](const auto& a,const auto& b){
+                        return a.name==b.name && a.type==b.type && a.is_const==b.is_const && a.is_private==b.is_private && a.reference==b.reference;
+                    });
+                existing->second.complete &= value.complete && same;
+                if(!same)issue(BindingSourceComponent::ClassLayout,BindingGap::Ambiguous,layout.name);
+            }
+        }
+        if(!found)issue(BindingSourceComponent::ClassLayout,BindingGap::MissingClass,layout.name);
     }
-    for(const auto& fn:module.functions){if(!fn.declaration)continue;FunctionBindingSource origin;origin.declaration=*fn.declaration;
-        if(const auto* summary=summaries.find(fn.name)){origin.semantic_parameter_for_ir_parameter=summary->semantic_parameter_for_ir_parameter;origin.complete=summary->semantic!=nullptr;}
-        const bool matched=std::any_of(interfaces.modules.begin(),interfaces.modules.end(),[&](const auto& m){return m.contracts.declarations_complete && std::any_of(m.contracts.functions.begin(),m.contracts.functions.end(),[&](const auto& f){return same_declaration(f.declaration,*fn.declaration);});});origin.complete &= matched;
-        origin.rebind=input.rebind_declarations.contains(declaration_key(*fn.declaration));
-        if(fn.declaration->kind==DeclarationIdentity::Kind::Method)for(std::size_t i=0;i<origin.semantic_parameter_for_ir_parameter.size();++i)if(origin.semantic_parameter_for_ir_parameter[i]==0){origin.receiver_ir_parameter=static_cast<std::uint32_t>(i);break;}
-        if(const auto supplied=input.functions.find(fn.name);supplied!=input.functions.end())if(same_declaration(supplied->second.declaration,*fn.declaration) && supplied->second.declaration.generic_args==fn.declaration->generic_args){origin.validated_initialization=supplied->second.validated_initialization;origin.local_storage_paths=supplied->second.local_storage_paths;origin.collections=supplied->second.collections;}
-        result.functions.emplace(fn.name,std::move(origin));
-    }return result;
+    for(const auto& fn:module.functions){
+        FunctionBindingSource origin;
+        if(fn.declaration)origin.declaration=*fn.declaration;
+        std::size_t declarations=0;
+        if(fn.declaration)for(const auto& original:interfaces.modules)if(original.contracts.declarations_complete)
+            for(const auto& declaration:original.contracts.functions)
+                if(same_declaration(declaration.declaration,*fn.declaration))++declarations;
+        origin.complete=declarations==1;
+        if(!origin.complete)issue(BindingSourceComponent::Declaration,declarations>1?BindingGap::Ambiguous:BindingGap::MissingOrigin,fn.name);
+        const auto* summary=summaries.find(fn.name);
+        const auto owned=summary?summaries.semantic_snapshots().find(summary->semantic_key):summaries.semantic_snapshots().end();
+        const bool exact_summary=summary && summary->semantic && owned!=summaries.semantic_snapshots().end() && summary->semantic==&owned->second;
+        if(exact_summary){
+            origin.semantic_parameter_for_ir_parameter=summary->semantic_parameter_for_ir_parameter;
+            origin.availability.parameter_map=origin.semantic_parameter_for_ir_parameter.size()==fn.parameters.size() &&
+                std::all_of(origin.semantic_parameter_for_ir_parameter.begin(),origin.semantic_parameter_for_ir_parameter.end(),[&](const auto& index){return !index || *index<summary->semantic->exposed_reads.size();});
+        }
+        origin.complete &= exact_summary && origin.availability.parameter_map;
+        if(!exact_summary)issue(BindingSourceComponent::ParameterMap,BindingGap::MissingEffect,fn.name);
+        else if(!origin.availability.parameter_map)issue(BindingSourceComponent::ParameterMap,BindingGap::Ambiguous,fn.name);
+        if(fn.declaration && fn.declaration->kind==DeclarationIdentity::Kind::Method){
+            std::size_t receivers=0;
+            if(origin.availability.parameter_map)for(std::size_t i=0;i<origin.semantic_parameter_for_ir_parameter.size();++i)
+                if(origin.semantic_parameter_for_ir_parameter[i]==0){++receivers;origin.receiver_ir_parameter=static_cast<std::uint32_t>(i);}
+            origin.availability.receiver=receivers==1;
+            if(!origin.availability.receiver){origin.receiver_ir_parameter.reset();issue(BindingSourceComponent::Receiver,receivers?BindingGap::Ambiguous:BindingGap::MissingOrigin,fn.name);}
+            origin.complete &= origin.availability.receiver;
+        }
+        const auto supplied=input.functions.find(fn.name);
+        const bool exact_origin=fn.declaration && origin.complete && supplied!=input.functions.end() && supplied->second.complete &&
+            same_declaration(supplied->second.declaration,*fn.declaration) && supplied->second.declaration.generic_args==fn.declaration->generic_args &&
+            supplied->second.semantic_parameter_for_ir_parameter==origin.semantic_parameter_for_ir_parameter &&
+            supplied->second.receiver_ir_parameter==origin.receiver_ir_parameter;
+        if(exact_origin){
+            const auto& source=supplied->second;
+            origin.availability.validated_initialization=source.availability.validated_initialization;
+            origin.availability.local_storage_paths=source.availability.local_storage_paths;
+            origin.availability.collections=source.availability.collections;
+            origin.availability.rebind_role=source.availability.rebind_role;
+            origin.availability.rebind_events=source.availability.rebind_events;
+            if(origin.availability.rebind_events)origin.rebind_events=source.rebind_events;
+            origin.availability.traversals=source.availability.traversals;
+            if(origin.availability.traversals)origin.traversals=source.traversals;
+            if(origin.availability.validated_initialization)origin.validated_initialization=source.validated_initialization;
+            if(origin.availability.local_storage_paths)origin.local_storage_paths=source.local_storage_paths;
+            if(origin.availability.collections)origin.collections=source.collections;
+            if(origin.availability.rebind_role)origin.rebind=source.rebind;
+        }
+        // This set is an explicitly captured positive role, not a spelling
+        // heuristic. Its absence never proves an ordinary/non-rebind origin.
+        if(fn.declaration && origin.complete && input.rebind_declarations.contains(declaration_key(*fn.declaration))){
+            origin.availability.rebind_role=true;origin.rebind=true;
+        }
+        if(origin.rebind && (!fn.declaration || fn.declaration->kind!=DeclarationIdentity::Kind::Method || !fn.declaration->mutation_marker)){
+            origin.rebind=false;origin.availability.rebind_role=false;
+        }
+        if(!origin.availability.validated_initialization)issue(BindingSourceComponent::ValidatedInitialization,BindingGap::MissingOrigin,fn.name);
+        if(!origin.availability.local_storage_paths)issue(BindingSourceComponent::LocalStoragePaths,BindingGap::MissingOrigin,fn.name);
+        if(!origin.availability.collections)issue(BindingSourceComponent::Collections,BindingGap::MissingOrigin,fn.name);
+        if(!origin.availability.rebind_role)issue(BindingSourceComponent::RebindRole,BindingGap::MissingOrigin,fn.name);
+        if(!origin.availability.rebind_events)issue(BindingSourceComponent::RebindEvents,BindingGap::MissingOrigin,fn.name);
+        if(!origin.availability.traversals)issue(BindingSourceComponent::Traversals,BindingGap::MissingOrigin,fn.name);
+        // Allocation birth is proved from the current body by binding_proof,
+        // never imported from a constructor role or a stale source boolean.
+        if(!result.functions.emplace(fn.name,std::move(origin)).second){
+            auto& duplicate=result.functions.at(fn.name);duplicate.complete=false;duplicate.availability={};
+            duplicate.rebind=false;duplicate.receiver_ir_parameter.reset();duplicate.validated_initialization.clear();
+            duplicate.local_storage_paths.clear();duplicate.collections.clear();
+            issue(BindingSourceComponent::Declaration,BindingGap::Ambiguous,fn.name);
+        }
+    }
+    return result;
 }
 } // namespace quidra::ir::analysis

@@ -81,8 +81,10 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
             const auto& parameter=signature.parameters.at(argument.parameter);
             if(argument.reference) {
                 scope_.bind_capture(parameter.name,argument.storage,parameter.type,true);
+                lowerer_.binding_origins().local_unknown(*builder_.function(),argument.storage);
             }else {
                 const auto storage=scope_.bind_source_local(builder_,parameter.name,parameter.type);
+                lowerer_.binding_origins().local_unknown(*builder_.function(),storage);
                 builder_.emit(StoreLocal{storage,argument.value,parameter.type,true});
             }
         }
@@ -92,6 +94,7 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
             const auto value=lowerer_.lower(*parameter.default_value);
             const auto owned=lifetime_.expression_owns_result(*parameter.default_value)?value:lifetime_.copy_value(value,parameter.type);
             const auto storage=scope_.bind_source_local(builder_,parameter.name,parameter.type);
+            lowerer_.binding_origins().local_unknown(*builder_.function(),storage);
             builder_.emit(StoreLocal{storage,owned,parameter.type,true});
             argument_values.emplace_back(owned,parameter.type);lifetime_.enter_loop_value(owned,parameter.type);
         }
@@ -113,6 +116,9 @@ void ControlFlowLowering::lower_traversal_for(const ForStmt& n) {
         });
     if(copied) root=lifetime_.copy_value(root,plan.root);
     const bool owned=!n.writable&&(copied||lifetime_.expression_owns_result(source));
+    lowerer_.binding_origins().traversal(builder_,plan,
+        ir::analysis::BindingTraversalOrigin::Kind::Each,root,{},
+        root_address?std::optional<ValueId>(root_address):std::nullopt);
     if(owned) lifetime_.enter_loop_value(root,plan.root);
     // A stored reference carries a serial for provenance, but its actual
     // target address is what managed_pin protects. Preserve that address

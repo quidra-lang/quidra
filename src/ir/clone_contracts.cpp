@@ -70,9 +70,11 @@ CloneContractResult bind_clone_contracts(const Module& module, std::span<const C
     CloneContractResult result;
     auto summaries = analysis::CloneContractAccess::share(module.summaries.get());
     auto sources = module.fact_sources ? *module.fact_sources : facts::FactSources{};
+    auto origins=module.binding_origins?*module.binding_origins:analysis::BindingOriginSnapshots{};
     std::map<std::string,std::vector<const Function*>,std::less<>> functions;
     for (const auto& function : module.functions) functions[function.name].push_back(&function);
     std::erase_if(summaries.by_function,[&](const auto& row) { return !functions.contains(row.first); });
+    std::erase_if(origins.functions,[&](const auto& row) { return !functions.contains(row.first); });
     std::map<std::string,std::size_t,std::less<>> targets;
     for (const auto& clone : clones) ++targets[clone.clone];
     for (const auto& generated : synthesized) ++targets[generated.function];
@@ -95,7 +97,7 @@ CloneContractResult bind_clone_contracts(const Module& module, std::span<const C
             issue(status,CloneContractComponent::Reference,CloneUnavailable::DuplicateReference); return nullptr;
         }
         if (summaries.by_function.contains(status.function) || sources.functions.contains(status.function) ||
-            sources.policies.setters.contains(status.function) || sources.policies.writes_policy.contains(status.function)) {
+            sources.policies.setters.contains(status.function) || sources.policies.writes_policy.contains(status.function) || origins.functions.contains(status.function)) {
             issue(status,CloneContractComponent::Reference,CloneUnavailable::DestinationExists); return nullptr;
         }
         return function;
@@ -157,6 +159,15 @@ CloneContractResult bind_clone_contracts(const Module& module, std::span<const C
             sources.functions.emplace(reference.clone,*fact);
             status.result_extents_available = true;
         }
+        const auto source_origin=module.binding_origins?module.binding_origins->functions.find(reference.source):origins.functions.end();
+        if(module.binding_origins && source_origin!=module.binding_origins->functions.end() && status.semantic_available &&
+           reference.ir_proofs==CloneIrProofs::PreserveUnchangedBody &&
+           module.binding_origins->class_fields==canonical_encode_value(module.classes).bytes) {
+            std::vector<analysis::BindingSourceIssue> issues;
+            if(auto snapshot=analysis::clone_binding_origin(*source,*clone,source_origin->second,issues)) {
+                origins.functions.emplace(reference.clone,std::move(*snapshot));status.binding_origins_available=true;
+            } else issue(status,CloneContractComponent::BindingOrigins,CloneUnavailable::ChangedBody);
+        } else issue(status,CloneContractComponent::BindingOrigins,CloneUnavailable::MissingSourceOrigins);
         if (module.fact_sources) {
             const auto& policies = module.fact_sources->policies;
             const auto setter = policies.setters.find(reference.source);
@@ -188,6 +199,7 @@ CloneContractResult bind_clone_contracts(const Module& module, std::span<const C
     }
     result.summaries = std::make_shared<const analysis::ModuleSummaries>(std::move(summaries));
     result.fact_sources = std::make_shared<const facts::FactSources>(std::move(sources));
+    if(module.binding_origins)result.binding_origins=std::make_shared<const analysis::BindingOriginSnapshots>(std::move(origins));
     return result;
 }
 } // namespace quidra::ir

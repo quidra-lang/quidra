@@ -50,7 +50,8 @@ std::string ModuleEmitter::emit() {
     emit_constants();
     emit_helpers();
     emit_metadata();
-    return text_.str();
+    auto text=text_.str();
+    return call_sites_ ? call_sites_->resolve_tail_operands(std::move(text)) : std::move(text);
 }
 
 void ModuleEmitter::analyze() {

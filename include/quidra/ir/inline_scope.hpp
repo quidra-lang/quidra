@@ -24,6 +24,7 @@ struct InlineScope {
     std::uint64_t identity{}, parent{}, caller_statement{};
     std::string callee;
     std::string source_file;
+    // Exact position of the removed Call; callee declaration metadata stays on Function.
     SourcePosition position{1,1};
     std::vector<std::string> blocks;
     std::vector<InlineSlot> slots;

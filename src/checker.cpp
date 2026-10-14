@@ -1,6 +1,7 @@
 #include "quidra/pattern_selection.hpp"
 #include "for_loop_constants.hpp"
 #include "quidra/checker.hpp"
+#include "semantics/binding_entry.hpp"
 
 #include "quidra/abi/error_record.hpp"
 #include "quidra/abi/symbols.hpp"
@@ -6457,6 +6458,8 @@ FunctionType* Checker::begin_member_body(const ClassDecl& class_decl, const Func
             }
         }
     }
+    if(binding_entry_initialization_)binding_entry_initialization_->functions[internal_it->second]=
+        semantics::binding_value_parameter_entry(signature,classes_,method.is_constructor?0:1);
     bind_signature_shape_variables(method);
     current_return_ = signature.result;
     current_class_ = class_decl.name;
@@ -10725,6 +10728,7 @@ void Checker::check_library_root(const Program& program) {
 
 CheckedProgram Checker::check(ConcreteProgram concrete) {
     Program program = std::move(concrete.program);
+    binding_entry_initialization_=std::make_shared<semantics::BindingEntryInitializations>();
     auto compiler_extensions = std::move(concrete.compiler_extensions);
     if (!program.imports.empty()) {
         throw std::logic_error("ConcreteProgram contains unresolved imports.");
@@ -11527,6 +11531,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 }
             }
         }
+        binding_entry_initialization_->functions[function.name]=
+            semantics::binding_value_parameter_entry(signature,classes_,0);
         bind_signature_shape_variables(function);
         current_return_ = signature.result;
         current_class_.clear();
@@ -11702,6 +11708,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         throw CompileErrors(std::move(markers), truncated);
     }
     checked.interface_sources = checked.program.interface_sources;
+    checked.binding_entry_initialization=std::move(binding_entry_initialization_);
     return checked;
 }
 

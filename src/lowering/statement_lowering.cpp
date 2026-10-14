@@ -252,11 +252,18 @@ void StatementLowering::lower_rebind(const RebindStmt& n) {
                 }
             }
         }
+        const auto rebind_at=BindingOriginRecorder::site(builder_);
         builder_.emit(BindFieldReference{object,field.index,address,0});
+        ir::analysis::BindingRebindEvent event;event.kind=ir::analysis::BindingRebindEvent::Kind::Field;
+        event.at=rebind_at;event.object=object;event.address=address;event.field=field.index;
+        lowerer_.binding_origins().rebind(*builder_.function(),std::move(event));
         return;
     }
     auto address=lowerer_.lower_address(*n.target);
+    const auto rebind_at=BindingOriginRecorder::site(builder_);
     builder_.emit(BindReference{scope_.source_reference(n.name),address});
+    ir::analysis::BindingRebindEvent event;event.at=rebind_at;event.local=scope_.source_reference(n.name);event.address=address;
+    lowerer_.binding_origins().rebind(*builder_.function(),std::move(event));
 }
 
 void StatementLowering::lower_loop_control(const LoopControlStmt& n) {

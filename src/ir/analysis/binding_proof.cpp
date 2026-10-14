@@ -2,13 +2,40 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <set>
 
 namespace quidra::ir::analysis {
 namespace {
 void gap(std::vector<BindingGap>& gaps,BindingGap why){if(std::find(gaps.begin(),gaps.end(),why)==gaps.end())gaps.push_back(why);}
 const BindingClass* layout(const BindingSources& s,const Type& t){const auto found=s.classes.find(t.class_name);return t.kind==TypeKind::Class && found!=s.classes.end()?&found->second:nullptr;}
 const FunctionBindingSource* origin(const BindingSources& s,const Function& f){const auto p=s.functions.find(f.name);return p==s.functions.end()?nullptr:&p->second;}
-bool owner_matches(const FunctionBindingSource& f,const ClassIdentity& c){return f.declaration.owner_class==c.source_name && f.declaration.package==c.package && f.declaration.module_path==c.module_path;}
+bool owner_matches(const FunctionBindingSource& f,const ClassIdentity& c){return f.declaration.owner_class==c.source_name && f.declaration.package==c.package && f.declaration.module_path==c.module_path && f.declaration.generic_args==c.generic_arguments;}
+std::string semantic_owner(const Function& fn,BlockId block) {
+    const InlineScope* best=nullptr;std::size_t best_depth=0;
+    for(const auto& scope:fn.inline_scopes) {
+        if(std::find(scope.blocks.begin(),scope.blocks.end(),fn.blocks.at(block).label)==scope.blocks.end())continue;
+        std::set<std::uint64_t> seen;const auto* current=&scope;std::size_t depth=1;
+        while(current->parent){if(!seen.insert(current->identity).second)return {};
+            const auto parent=std::find_if(fn.inline_scopes.begin(),fn.inline_scopes.end(),[&](const auto& p){return p.identity==current->parent;});
+            if(parent==fn.inline_scopes.end())return {};
+            current=&*parent;++depth;}
+        if(depth==best_depth && best && best->identity!=scope.identity)return {};
+        if(depth>best_depth){best=&scope;best_depth=depth;}
+    }
+    return best?best->callee:fn.name;
+}
+bool own_fresh_target(const Function& fn,const ObjectWrite& write) {
+    if(!write.object.allocation || write.object.allocation->kind!=ObjectRoot::Allocation || write.object.allocation->function!=fn.name)return false;
+    const auto birth=write.object.allocation->at;
+    return birth.block<fn.blocks.size() && birth.index<fn.blocks[birth.block].instructions.size() &&
+        std::holds_alternative<ClassMake>(fn.blocks[birth.block].instructions[birth.index]) &&
+        semantic_owner(fn,birth.block)==write.semantic_function;
+}
+bool own_receiver(const Function& fn,const FunctionBindingSource& source,const ObjectWrite& write) {
+    return source.receiver_ir_parameter && write.object.sources.size()==1 && write.object.sources[0].steps.empty() &&
+        write.object.sources[0].root.kind==ObjectRoot::Parameter && write.object.sources[0].root.function==fn.name &&
+        write.object.sources[0].root.parameter==*source.receiver_ir_parameter && write.semantic_function==fn.name;
+}
 struct Key {ClassIdentity owner;std::size_t field{};auto operator<=>(const Key&)const=default;};
 }
 BindingProof binding_proof(const Module& module,const ModuleSummaries& summaries,const BindingSources& sources){
@@ -30,8 +57,8 @@ BindingProof binding_proof(const Module& module,const ModuleSummaries& summaries
             auto& proof=result.fields[fields.at({c->identity,write.field})];
             const auto semantic=sources.functions.find(write.semantic_function);const auto* writer_source=semantic==sources.functions.end()?nullptr:&semantic->second;
             const bool allocation=write.object.allocation && write.object.allocation->kind==ObjectRoot::Allocation && write.object.allocation->at==write.at;
-            const bool constructor=allocation || (writer_source && writer_source->complete && writer_source->declaration.kind==DeclarationIdentity::Kind::Constructor && owner_matches(*writer_source,c->identity));
-            const bool rebind=writer_source && writer_source->complete && writer_source->rebind && writer_source->declaration.kind==DeclarationIdentity::Kind::Method && writer_source->declaration.mutation_marker && owner_matches(*writer_source,c->identity);
+            const bool constructor=allocation || (writer_source && writer_source->complete && writer_source->declaration.kind==DeclarationIdentity::Kind::Constructor && owner_matches(*writer_source,c->identity) && own_fresh_target(fn,write));
+            const bool rebind=writer_source && writer_source->complete && writer_source->rebind && writer_source->declaration.kind==DeclarationIdentity::Kind::Method && writer_source->declaration.mutation_marker && owner_matches(*writer_source,c->identity) && own_receiver(fn,*writer_source,write);
             proof.writers.push_back({fn.name,write.at,write.semantic_function,constructor,rebind,write.unknown || (!allocation && (!writer_source || !writer_source->complete))});
             if(write.semantic_function.empty())gap(proof.gaps,BindingGap::InlineOriginUnavailable);
         }
@@ -73,8 +100,8 @@ BindingProof binding_proof(const Module& module,const ModuleSummaries& summaries
                 const auto callee_source=sources.functions.find(call->callee);const auto* callee=callee_source==sources.functions.end()?nullptr:&callee_source->second;
                 for(const auto& object_path:object.sources)if(object_path.root.class_identity){
                     const auto& identity=*object_path.root.class_identity;
-                    const bool ctor=callee && callee->complete && callee->declaration.kind==DeclarationIdentity::Kind::Constructor && owner_matches(*callee,identity);
-                    const bool rebind=callee && callee->complete && callee->rebind && callee->declaration.kind==DeclarationIdentity::Kind::Method && callee->declaration.mutation_marker && owner_matches(*callee,identity);
+                    const bool ctor=false; // Caller arguments are foreign to the callee constructor allocation.
+                    const bool rebind=callee && callee->complete && callee->rebind && callee->declaration.kind==DeclarationIdentity::Kind::Method && callee->declaration.mutation_marker && owner_matches(*callee,identity) && callee->receiver_ir_parameter==p;
                     if(index<effect.exposed_writes.size())for(const auto& path:effect.exposed_writes[index])path_writer(object_path,path.steps,{fn.name,{b,i},call->callee,ctor,rebind,false});
                     if((index<effect.mutates_shared_of_parameter.size() && effect.mutates_shared_of_parameter[index]) ||
                        (index<effect.reference_target_escapes.size() && effect.reference_target_escapes[index]))path_writer(object_path,{}, {fn.name,{b,i},call->callee,false,false,true});

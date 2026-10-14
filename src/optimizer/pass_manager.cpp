@@ -13,6 +13,7 @@
 #include "optimizer/rule_registry.hpp"
 #include "optimizer/rule_dispatch.hpp"
 #include "optimizer/helper_specialization.hpp"
+#include "optimizer/inlining.hpp"
 
 #include <algorithm>
 #include <map>
@@ -65,9 +66,10 @@ void refresh_summaries(ir::Module& module) {
 void import_contracts(ir::Module& module, const ir::OptimizerOptions& options,
                       std::span<const ir::CloneReference> clones,
                       std::span<const ir::SynthesizedFunctionReference> synthesized = {}) {
-    if (!module.summaries && !module.fact_sources) return;
+    if (!module.summaries && !module.fact_sources && !module.binding_origins) return;
     const bool had_summaries = static_cast<bool>(module.summaries);
     const bool had_sources = static_cast<bool>(module.fact_sources);
+    const bool had_origins = static_cast<bool>(module.binding_origins);
     auto imported = ir::bind_clone_contracts(module, clones, synthesized);
     if (options.diagnostics)
         for (const auto& issue : imported.unavailable)
@@ -76,6 +78,7 @@ void import_contracts(ir::Module& module, const ir::OptimizerOptions& options,
                 " unavailable (reason " + std::to_string(static_cast<unsigned>(issue.reason)) + ")", {}, {}});
     if (had_summaries) module.summaries = std::move(imported.summaries);
     if (had_sources) module.fact_sources = std::move(imported.fact_sources);
+    if (had_origins) module.binding_origins = std::move(imported.binding_origins);
 }
 
 void report_bindings(const RuleRegistry& registry, const ir::OptimizerOptions& options) {
@@ -148,6 +151,89 @@ bool run_helper_specialization(ir::Module& module, const PassContext& context) {
     return changed;
 }
 
+bool run_budgeted_inlining(ir::Module& module, const PassContext& context) {
+    if (!interproc_on(context)) return false;
+    InliningOptions options;
+    std::uint64_t work = 0;
+    const auto tick = [&]() {
+        if (work == options.maximum_operations) return false;
+        ++work;
+        return true;
+    };
+    const auto exhausted = [&]() {
+        if (context.options.diagnostics)
+            context.options.diagnostics->push_back({ir::OptimizerDiagnostic::Kind::UnavailableAnalysis,
+                {}, "inlining candidate budget exhausted", {}, {}});
+        return false;
+    };
+    // A typed reachability candidate selects the larger instruction budget.
+    // It does not certify motion, error order, aliasing or a final step region.
+    std::map<std::string, std::vector<std::size_t>, std::less<>> names;
+    std::vector<bool> candidate(module.functions.size());
+    std::vector<std::vector<std::size_t>> callers(module.functions.size());
+    std::vector<std::size_t> pending;
+    const auto mark = [&](std::size_t function) {
+        if (!candidate[function]) {
+            candidate[function] = true;
+            pending.push_back(function);
+        }
+    };
+    for (std::size_t f = 0; f < module.functions.size(); ++f) {
+        if (!tick()) return exhausted();
+        names[module.functions[f].name].push_back(f);
+    }
+    for (std::size_t f = 0; f < module.functions.size(); ++f) {
+        const auto& fn = module.functions[f];
+        if (fn.result.kind == TypeKind::Tensor ||
+            std::any_of(fn.parameters.begin(), fn.parameters.end(), [](const auto& p) { return p.type.kind == TypeKind::Tensor; }))
+            mark(f);
+        if (const auto* summary = module.summaries ? module.summaries->find(fn.name) : nullptr;
+            summary && summary->effects_complete && (summary->effects &
+                (ir::analysis::effect_bit::DeviceWork | ir::analysis::effect_bit::MayFailDeferred)))
+            mark(f);
+        for (const auto& block : fn.blocks) for (const auto& instruction : block.instructions) {
+            if (!tick()) return exhausted();
+            if (const auto* call = std::get_if<ir::Call>(&instruction)) {
+                const auto target = names.find(call->callee);
+                if (target != names.end() && target->second.size() == 1)
+                    callers[target->second.front()].push_back(f);
+                if (call->result.kind == TypeKind::Tensor) mark(f);
+            }
+            const bool tensor = std::visit([](const auto& node) {
+                using T = std::decay_t<decltype(node)>;
+                if constexpr (ir::InstructionTraits<T>::domain == ir::Domain::tensor ||
+                              ir::InstructionTraits<T>::domain == ir::Domain::autograd) return true;
+                else if constexpr (std::is_same_v<T, ir::Unary>) return node.type.kind == TypeKind::Tensor;
+                else if constexpr (std::is_same_v<T, ir::Binary>) return node.result_type.kind == TypeKind::Tensor;
+                else return false;
+            }, instruction);
+            if (tensor) mark(f);
+        }
+    }
+    for (std::size_t p = 0; p < pending.size(); ++p)
+        for (const auto caller : callers[pending[p]]) {
+            if (!tick()) return exhausted();
+            mark(caller);
+        }
+    for (const auto& fn : module.functions)
+        for (std::size_t b = 0; b < fn.blocks.size(); ++b)
+            for (std::size_t i = 0; i < fn.blocks[b].instructions.size(); ++i) {
+                if (!tick()) return exhausted();
+                const auto* call = std::get_if<ir::Call>(&fn.blocks[b].instructions[i]);
+                if (!call) continue;
+                const auto target = names.find(call->callee);
+                if (target != names.end() && target->second.size() == 1 && candidate[target->second.front()])
+                    options.hot_sites.push_back({fn.name, b, i});
+            }
+    options.maximum_operations -= work;
+    const auto report = BudgetedInliner::run(module, context.registry, std::move(options));
+    if (context.options.diagnostics)
+        for (const auto& issue : report.unavailable)
+            context.options.diagnostics->push_back({ir::OptimizerDiagnostic::Kind::UnavailableAnalysis,
+                issue.caller, issue.callee + ": " + issue.reason, {}, {}});
+    return report.changed();
+}
+
 bool run_rule_dispatch(ir::Module& module, const PassContext& context) {
     const auto report = RuleDispatchPass::run(module, context.registry, context.analyses);
     if (context.options.diagnostics) {
@@ -180,7 +266,7 @@ ir::Module PassManager::run(ir::Module module) const {
         } else if (const auto& pass = std::get<Pass>(entry); pass.enabled(context)) {
             changed = pass.run(module, context);
             entries_validated = pass.run == run_helper_specialization;
-            contracts_changed = changed && (pass.run == run_rule_dispatch || pass.run == run_helper_specialization ||
+            contracts_changed = changed && (pass.run == run_rule_dispatch || pass.run == run_helper_specialization || pass.run == run_budgeted_inlining ||
                 module.functions.size() != function_count);
         }
         if (changed) {

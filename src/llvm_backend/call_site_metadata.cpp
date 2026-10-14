@@ -8,6 +8,8 @@
 #include "quidra/member_function_names.hpp"
 
 #include <algorithm>
+#include <charconv>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 
@@ -87,6 +89,9 @@ CallSiteMetadata::CallSiteMetadata(const ir::Module& module, const ModuleContext
         info_.functions.push_back(std::move(function));
     }
     subprograms_.assign(info_.functions.size(), 0);
+    if (mode_ == Mode::debug)
+        for (std::size_t i=0;i<function_ids_.size();++i)
+            if (function_ids_[i]) subprograms_[*function_ids_[i]] = *debug_->subprogram_id(i);
 }
 
 std::uint32_t CallSiteMetadata::export_entry_id(std::size_t index, const std::string& symbol) {
@@ -142,12 +147,13 @@ std::optional<std::uint32_t> CallSiteMetadata::symbol_function(std::string_view 
 }
 
 std::size_t CallSiteMetadata::locate(const CallSite& site, std::size_t scope, std::size_t file,
-                                     std::uint32_t line, std::uint32_t column) {
+                                     std::uint32_t line, std::uint32_t column, std::size_t inlined_at) {
     const auto id = static_cast<std::uint32_t>(info_.sites.size());
     info_.sites.push_back(site);
     Location location;
     location.scope = scope;
     location.site = id;
+    location.inlined_at = inlined_at;
     if (mode_ == Mode::debug) {
         location.block = next_id();
         location.file = file;
@@ -169,7 +175,63 @@ void CallSiteMetadata::emit_anchor_reference(llvm_text::LlvmModule& module) cons
     module.append(llvm_text::LlvmModule::Section::constants, text);
 }
 
-void CallSiteMetadata::emit_metadata(llvm_text::LlvmModule& module) const {
+void CallSiteMetadata::group_sites() {
+    if (!site_remap_.empty()) return;
+    if (info_.sites.size()>std::numeric_limits<std::uint32_t>::max())
+        throw std::length_error("call-site id overflow");
+    std::vector<std::uint32_t> order;
+    order.reserve(info_.sites.size()-1);
+    for (std::size_t id=1;id<info_.sites.size();++id) {
+        if (info_.sites[id].owner>=info_.functions.size())
+            throw std::logic_error("call-site logical owner unavailable");
+        order.push_back(static_cast<std::uint32_t>(id));
+    }
+    std::stable_sort(order.begin(),order.end(),[&](auto a,auto b){return info_.sites[a].owner<info_.sites[b].owner;});
+    std::vector<CallSite> grouped;
+    grouped.reserve(info_.sites.size());grouped.push_back(info_.sites[0]);
+    site_remap_.resize(info_.sites.size());site_ranges_.resize(info_.functions.size());
+    for (const auto old:order) {
+        const auto id=static_cast<std::uint32_t>(grouped.size());
+        const auto& site=info_.sites[old];auto& range=site_ranges_[site.owner];
+        if (!range.second) range.first=id;
+        ++range.second;site_remap_[old]=id;grouped.push_back(site);
+    }
+    for (auto& location:locations_) location.site=site_remap_.at(location.site);
+    info_.sites=std::move(grouped);
+}
+
+std::string CallSiteMetadata::resolve_tail_operands(std::string text) const {
+    const auto resolve=[&](std::string_view marker,const auto& lookup) {
+        std::size_t line=0;
+        while (line<text.size()) {
+            auto end=text.find('\n',line);if(end==std::string::npos)end=text.size();
+            // Never rewrite source-string constants or metadata payloads.
+            const auto generated=std::string_view(text).substr(line,end-line);
+            if (generated.starts_with("  call void @"+std::string(runtime_abi::tail::record.symbol())+"(") ||
+                generated.starts_with("  call void @"+std::string(runtime_abi::tail::return_cleanup.symbol())+"(")) {
+                auto at=text.find(marker,line);
+                while (at!=std::string::npos && at<end) {
+                    const auto begin=at+marker.size(),close=text.find("__",begin);
+                    if(close==std::string::npos||close>end)throw std::logic_error("unterminated tail site operand");
+                    std::uint32_t id{};
+                    const auto parsed=std::from_chars(text.data()+begin,text.data()+close,id);
+                    if(parsed.ec!=std::errc{}||parsed.ptr!=text.data()+close)throw std::logic_error("invalid tail site operand");
+                    const auto value=std::to_string(lookup(id));
+                    const auto bytes=close+2-at;text.replace(at,bytes,value);end=end-bytes+value.size();
+                    at=text.find(marker,at+value.size());
+                }
+            }
+            line=end==text.size()?end:end+1;
+        }
+    };
+    resolve("__quidra_tail_site_",[&](auto id){return site_remap_.at(id);});
+    resolve("__quidra_tail_begin_",[&](auto id){return site_ranges_.at(id).first;});
+    resolve("__quidra_tail_end_",[&](auto id){const auto& range=site_ranges_.at(id);return range.first+range.second;});
+    return text;
+}
+
+void CallSiteMetadata::emit_metadata(llvm_text::LlvmModule& module) {
+    group_sites();
     std::ostringstream out;
     if (mode_ == Mode::release) {
         out << "\n!llvm.dbg.cu = !{!0}\n"
@@ -193,9 +255,12 @@ void CallSiteMetadata::emit_metadata(llvm_text::LlvmModule& module) const {
             if (info.kind == CallSiteFunctionKind::synthesized) out << "flags: DIFlagArtificial, ";
             out << "spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0)\n";
         }
-        for (const auto& location : locations_)
+        for (const auto& location : locations_) {
             out << "!" << location.id << " = !DILocation(line: " << location.site
-                << ", scope: !" << location.scope << ")\n";
+                << ", scope: !" << location.scope;
+            if (location.inlined_at) out << ", inlinedAt: !" << location.inlined_at;
+            out << ")\n";
+        }
     } else {
         for(const auto& scope:parallel_scopes_) {
             const auto& symbol=info_.functions[scope.function].symbols.front();
@@ -208,7 +273,9 @@ void CallSiteMetadata::emit_metadata(llvm_text::LlvmModule& module) const {
             out << "!" << location.block << " = !DILexicalBlockFile(scope: !" << location.scope
                 << ", file: !" << location.file << ", discriminator: " << location.site << ")\n";
             out << "!" << location.id << " = !DILocation(line: " << location.line
-                << ", column: " << location.column << ", scope: !" << location.block << ")\n";
+                << ", column: " << location.column << ", scope: !" << location.block;
+            if (location.inlined_at) out << ", inlinedAt: !" << location.inlined_at;
+            out << ")\n";
         }
     }
     module.append(llvm_text::LlvmModule::Section::metadata, out.view());
@@ -217,13 +284,49 @@ void CallSiteMetadata::emit_metadata(llvm_text::LlvmModule& module) const {
 FunctionCallSites::FunctionCallSites(CallSiteMetadata& metadata, const ModuleContext& context,
                                      const StatementAttribution* attribution, std::uint32_t owner,
                                      std::size_t scope, std::size_t file,
-                                     std::uint32_t function_line)
+                                     std::uint32_t function_line, const ir::Function* function)
     : metadata_(metadata), context_(context), attribution_(attribution), owner_(owner),
-      scope_(scope), file_(file), function_line_(function_line) {}
+      scope_(scope), file_(file), function_line_(function_line) {
+    if (!function) return;
+    // Each removed call is one real inline edge in the existing cold table.
+    // Parent identity chooses the exact logical caller; no runtime stack work.
+    std::size_t remaining=function->inline_scopes.size();
+    while (remaining) {
+        bool progress=false;
+        for (const auto& frame:function->inline_scopes) {
+            if (inline_locations_.contains(frame.identity)) continue;
+            if (frame.parent && !inline_locations_.contains(frame.parent)) continue;
+            const auto parent=frame.parent ? inline_locations_.at(frame.parent) : InlineLocation{owner_,scope_,file_,0};
+            const auto callee=metadata_.symbol_function(abi::user_symbol(frame.callee));
+            if (!callee) throw std::logic_error("inline call lacks its exact callee table identity");
+            const auto& caller_file=frame.caller_location && !frame.caller_location->source_file.empty()
+                ? frame.caller_location->source_file
+                : frame.parent
+                    ? std::find_if(function->inline_scopes.begin(),function->inline_scopes.end(),[&](const auto& f){return f.identity==frame.parent;})->source_file
+                    : function->source_file;
+            CallSite site;
+            site.owner=parent.owner;site.callee=*callee;site.callee_kind=CallSiteCallee::function;
+            if (const auto user=context_.user_source_index.find(caller_file);user!=context_.user_source_index.end()) {
+                site.flags=call_site_flags::user;site.file=static_cast<std::uint32_t>(user->second);
+                site.line=frame.position.line;site.column=frame.position.column;
+            }
+            const auto caller_debug_file=metadata_.mode()==CallSiteMetadata::Mode::debug
+                ? metadata_.source_file_id(caller_file) : 0;
+            const auto at=metadata_.locate(site,parent.scope,caller_debug_file,frame.position.line,frame.position.column,parent.at);
+            const auto callee_scope=metadata_.subprogram(*callee);
+            const auto callee_file=metadata_.mode()==CallSiteMetadata::Mode::debug
+                ? metadata_.source_file_id(frame.source_file) : 0;
+            inline_locations_.emplace(frame.identity,InlineLocation{*callee,callee_scope,callee_file,at});
+            --remaining;progress=true;
+        }
+        if (!progress) throw std::logic_error("inline call metadata has cyclic or unavailable parents");
+    }
+}
 
 std::size_t FunctionCallSites::call_location(std::string_view symbol) {
     CallSite site;
-    site.owner = owner_;
+    const auto logical=inline_scope_ ? inline_locations_.at(inline_scope_) : InlineLocation{owner_,scope_,file_,0};
+    site.owner = logical.owner;
     if (symbol.empty()) {
         site.callee_kind = CallSiteCallee::indirect;
     } else if (const auto function = metadata_.symbol_function(symbol)) {
@@ -259,6 +362,10 @@ std::size_t FunctionCallSites::call_location(std::string_view symbol) {
     }
     if (symbol == runtime_abi::tail::record.symbol()) site.flags |= call_site_flags::tail_record_helper;
     const auto* tail = tail_site_;
+    // Producer-expanded returns cross explicit cleanup/end barriers, so
+    // actual TailCallAnalysis cannot authorize a copied scope call. Keep
+    // this invariant explicit before physical-frame tail bookkeeping.
+    if (tail && inline_scope_) throw std::logic_error("inline scope call cannot carry a physical tail record");
     if (tail && (tail->callee.empty() ? symbol.empty() :
         symbol == abi::user_symbol(tail->callee) || symbol == abi::user_symbol(tail->callee) + ".depth")) {
         // Clear the pending site before emitting the record's own calls.
@@ -267,11 +374,11 @@ std::size_t FunctionCallSites::call_location(std::string_view symbol) {
         if (tail->recorded) site.flags |= call_site_flags::recorded_tail;
         if (tail->self) site.flags |= call_site_flags::self_tail;
         const auto id = metadata_.next_site();
-        const auto location = metadata_.locate(site, scope_, file_, line, column);
+        const auto location = metadata_.locate(site, logical.scope, logical.file, line, column, logical.at);
         if (tail->recorded) tail_records_->record(id, tail->self);
         return location;
     }
-    return metadata_.locate(site, scope_, file_, line, column);
+    return metadata_.locate(site, logical.scope, logical.file, line, column, logical.at);
 }
 
 } // namespace quidra::llvm_backend

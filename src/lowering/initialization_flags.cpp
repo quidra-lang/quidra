@@ -54,7 +54,7 @@ void InitializationFlags::check(const Expr& read) {
         auto address=builder_.fresh();
         builder_.emit(ReferenceAddress{address,scope_.source_reference(path)});
         builder_.emit(ReferenceBoundCheck{address,path,
-            static_cast<std::uint32_t>(read.span.start.line),static_cast<std::uint32_t>(read.span.start.column)});
+            {static_cast<std::uint32_t>(read.span.start.line),static_cast<std::uint32_t>(read.span.start.column)}});
     }
     const auto found = checked_.initialization_checks.find(&read);
     if (found == checked_.initialization_checks.end() ||
@@ -65,8 +65,8 @@ void InitializationFlags::check(const Expr& read) {
     builder_.emit(LoadLocal{value, flag->second, Type::simple(TypeKind::Bool)});
     builder_.emit(InitializedCheck{
         value, ir_subject(found->second.subject), found->second.path,
-        static_cast<std::uint32_t>(read.span.start.line),
-        static_cast<std::uint32_t>(read.span.start.column)});
+        {static_cast<std::uint32_t>(read.span.start.line),
+        static_cast<std::uint32_t>(read.span.start.column)}});
 }
 
 void InitializationFlags::check_field(const Expr& read, ValueId object) {
@@ -76,7 +76,7 @@ void InitializationFlags::check_field(const Expr& read, ValueId object) {
        (bound!=checked_.runtime_bound_checks.end() || check_every_reference_access_)) {
         auto address=builder_.fresh();builder_.emit(FieldReferenceAddress{address,object,access->second.index});
         builder_.emit(ReferenceBoundCheck{address,reference_path(read),
-            static_cast<std::uint32_t>(read.span.start.line),static_cast<std::uint32_t>(read.span.start.column)});
+            {static_cast<std::uint32_t>(read.span.start.line),static_cast<std::uint32_t>(read.span.start.column)}});
     }
     if(const auto access=checked_.field_accesses.find(&read);access!=checked_.field_accesses.end() &&
        checked_.classes.at(access->second.owner).fields.at(access->second.index).reference)return;
@@ -98,8 +98,8 @@ void InitializationFlags::check_field(const Expr& read, ValueId object) {
     builder_.emit(Binary{set, "!=", selected, zero, word, Type::simple(TypeKind::Bool)});
     builder_.emit(InitializedCheck{
         set, ir_subject(found->second.subject), found->second.path,
-        static_cast<std::uint32_t>(read.span.start.line),
-        static_cast<std::uint32_t>(read.span.start.column)});
+        {static_cast<std::uint32_t>(read.span.start.line),
+        static_cast<std::uint32_t>(read.span.start.column)}});
 }
 
 void InitializationFlags::set_all(const std::vector<const Stmt*>& declarations) {

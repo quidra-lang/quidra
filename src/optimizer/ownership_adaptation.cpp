@@ -243,6 +243,7 @@ bool OwnershipAdaptation::apply(Function& function, Block& block,
                 Clone{cloned, original, type});
             call.args[argument_index].value = cloned;
         }
+        values.finish();
     }
 
     call.callee = target->name;

@@ -40,14 +40,14 @@ void TextEmitter::reserve(const ir::StringParseTwoSigned&,const ir::Instruction&
 
 void TextEmitter::emit(const ir::StringIndex& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::String));
-    builder_.call(symbols_.value(n.out),runtime_abi::text::index,{{ptr,symbols_.value(n.text)},{i64,symbols_.value(n.index)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::text::index,{{ptr,symbols_.value(n.text)},{i64,symbols_.value(n.index)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
 void TextEmitter::emit(const ir::StringIndexAsciiCompare& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::Bool));
     const auto compared=names_.value("string.index.ascii");
-    builder_.call(compared,runtime_abi::text::index_equal_ascii,{{ptr,symbols_.value(n.text)},{i64,symbols_.value(n.index)},{i8,static_cast<unsigned>(n.byte)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(compared,runtime_abi::text::index_equal_ascii,{{ptr,symbols_.value(n.text)},{i64,symbols_.value(n.index)},{i8,static_cast<unsigned>(n.byte)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     if(n.negate) builder_.binary(symbols_.value(n.out),BinaryOp::xor_,i1,compared,"true");
     else copy_by_xor_false(builder_,symbols_.value(n.out),compared);
 }
@@ -116,7 +116,7 @@ void TextEmitter::emit(const ir::StringFind& n,const ir::Instruction&){
 
 void TextEmitter::emit(const ir::StringSlice& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::String));
-    builder_.call(symbols_.value(n.out),runtime_abi::text::slice,{{ptr,symbols_.value(n.text)},{i64,symbols_.value(n.start)},{i64,symbols_.value(n.end)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::text::slice,{{ptr,symbols_.value(n.text)},{i64,symbols_.value(n.start)},{i64,symbols_.value(n.end)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
@@ -131,7 +131,7 @@ void TextEmitter::emit(const ir::StringSliceStepped& n,const ir::Instruction&){
         {ptr,text},{i64,start},{i32,static_cast<int>(n.bounds.start_form)},
         {i64,end},{i32,static_cast<int>(n.bounds.end_form)},
         {i64,step},{i32,n.bounds.step?1:0},{i32,static_cast<int>(n.bounds.direction)},
-        {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
@@ -208,7 +208,7 @@ void TextEmitter::emit(const ir::StringFromUtf8& n,const ir::Instruction&){
     union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
     const auto error_payload=names_.value("string.from_utf8.error.payload");
     union_box_.payload_slot(error_payload,result);
-    records_.store(error_payload,"@"+records_.record(abi::ErrorValueCode::utf8_decode,{},n.line,n.column),
+    records_.store(error_payload,"@"+records_.record(abi::ErrorValueCode::utf8_decode,{},n.position.line,n.position.column),
                    error_payload);
     builder_.br(done);
     builder_.block(done);
@@ -225,7 +225,7 @@ void TextEmitter::emit(const ir::StringFromUtf8ArrayDirect& n,const ir::Instruct
     // The error is named on every path, so it is the site's constant record
     // in package code too: nothing is made on success.
     copy_by_zero_gep(builder_,symbols_.value(n.error),Inbounds::yes,
-                     LlvmOperand::global(records_.record(abi::ErrorValueCode::utf8_decode,{},n.line,n.column)));
+                     LlvmOperand::global(records_.record(abi::ErrorValueCode::utf8_decode,{},n.position.line,n.position.column)));
 }
 
 void TextEmitter::emit(const ir::StringCodepoints& n,const ir::Instruction&){
@@ -236,7 +236,7 @@ void TextEmitter::emit(const ir::StringCodepoints& n,const ir::Instruction&){
 
 void TextEmitter::emit(const ir::StringJoin& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::String));
-    builder_.call(symbols_.value(n.out),runtime_abi::text::join,{{ptr,symbols_.value(n.values)},{ptr,symbols_.value(n.separator)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::text::join,{{ptr,symbols_.value(n.values)},{ptr,symbols_.value(n.separator)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 

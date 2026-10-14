@@ -148,7 +148,7 @@ std::optional<ValueId> ExpressionLowering::try_scaled_expression(const Expr& e,c
     }
     auto result=builder_.fresh();
     if(cast_target) builder_.emit(ExactScaledConvert{result,numerator,denominator,*cast_target,
-        static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),result_type});
+        {static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)},result_type});
     else if(comparison) builder_.emit(ExactScaledCompare{result,numerator,denominator,*p,*q,op});
     else builder_.emit(ExactFromScaled{result,numerator,denominator});
     builder_.emit(StoreLocal{result_name,result,result_type});

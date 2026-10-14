@@ -14,7 +14,7 @@ ValueId RandomLowering::lower_random_generator(const CallExpr& n) {
 ValueId RandomLowering::lower_random_int(const Expr& e, const CallExpr& n) {
     auto generator=load_receiver(builder_,enclosing_class_);
     auto start=lowerer_.lower(*n.args[0].value),end=lowerer_.lower(*n.args[1].value),out=builder_.fresh();
-    builder_.emit(RandomInt{out,generator,start,end,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(RandomInt{out,generator,start,end,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lowerer_.release_temporary(*n.args[0].value,start);
     lowerer_.release_temporary(*n.args[1].value,end);
     return out;

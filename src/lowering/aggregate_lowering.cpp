@@ -41,8 +41,8 @@ std::optional<ValueId> AggregateLowering::try_array_method(
         auto out=builder_.fresh();
         builder_.emit(ArraySorted{
             out,source,source_type,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column),
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)},
             descending_constant,descending});
         if(source_owned) release_owned(builder_,source,source_type);
         return out;
@@ -64,8 +64,8 @@ std::optional<ValueId> AggregateLowering::try_array_method(
         auto out=builder_.fresh();
         builder_.emit(StringJoin{
             out,source,separator,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
         lifetime_.release_temporary(*n.args[0].value,separator);
         if(source_owned) release_owned(builder_,source,source_type);
         return out;
@@ -146,7 +146,7 @@ ValueId AggregateLowering::lower_array_allocation(const Expr& e, const CallExpr&
     builder_.enter(builder_.add_block(body));
     auto value=conversions_.convert(fill,*t.first,*t.first,true);
     builder_.emit(ArraySet{
-        out,idx,value,*t.first,0,0,true,true});
+        out,idx,value,*t.first,{0,0},true,true});
     auto one=builder_.const_int(1),next=builder_.fresh();
     builder_.emit(
         Binary{next,"+",idx,one,scope_.local_type(idxname),scope_.local_type(idxname)});

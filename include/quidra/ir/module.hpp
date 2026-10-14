@@ -8,11 +8,16 @@
 #include "quidra/types.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <set>
 #include <vector>
 
+namespace quidra::semantics { struct InterfaceSources; }
+
 namespace quidra::ir {
+namespace analysis { struct ModuleSummaries; }
+namespace facts { struct FactSources; }
 
 struct ClassLayout {
     std::string name;
@@ -44,6 +49,12 @@ struct Module {
     std::vector<Function> functions;
     std::vector<CompilerExtensionRegistration> compiler_extensions;
     std::vector<UserSource> user_sources;
+    // Immutable owned copies of checked effects and exact lowering provenance.
+    // Operational checker/AST maps are not retained or rendered by ir::dump.
+    std::shared_ptr<const analysis::ModuleSummaries> summaries{};
+    std::shared_ptr<const facts::FactSources> fact_sources{};
+    std::vector<DeclarationIdentity> declaration_catalog{};
+    std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
 };
 
 std::string dump(const Module& module);

@@ -18,6 +18,7 @@
 #include <vector>
 
 using namespace quidra;
+static_assert(static_cast<int>(SliceDirection::ascending)==0&&static_cast<int>(SliceDirection::descending)==1&&static_cast<int>(SliceDirection::by_step_sign)==2&&static_cast<int>(SliceDirection::by_bounds)==3);
 
 namespace {
 
@@ -103,7 +104,7 @@ void written_cases() {
     // Rule 5: a start past the end is empty with an exclusive side.
     expect(10, request(I, 5, EA, 3), {});
     expect(10, request(SD, 3, EI, 5), {});
-    expect_status(10, request(I, 5, EI, 3), SliceStatus::out_of_bounds);
+    expect(10, request(I, 5, EI, 3), {5, 4, 3});
     expect_status(10, request(I, 3, EI, 5, -1), SliceStatus::out_of_bounds);
     expect_status(10, request(I, 12, EA, 3), SliceStatus::out_of_bounds);
     // Empty results.
@@ -114,6 +115,19 @@ void written_cases() {
     expect(5, request(SA, 2, EA, 3), {});
     expect(5, request(I, 4, EA, 1), {});
     expect(5, request(I, 3, EA, 3), {});
+    // Two explicit unmarked endpoints choose the default direction. A
+    // written step never flips, even when one endpoint is exclusive.
+    expect(5, request(I, 4, EI, 0), {4, 3, 2, 1, 0});
+    expect(5, request(I, 4, EI, 1), {4, 3, 2, 1});
+    expect(5, request(I, 2, EI, 2), {2});
+    expect(5, request(I, 4, EI, 0, -2), {4, 2, 0});
+    expect_status(5, request(I, 4, EI, 0, 2), SliceStatus::out_of_bounds);
+    expect_status(5, request(I, 0, EI, 4, -2), SliceStatus::out_of_bounds);
+    expect_status(5, request(I, 4, EA, 0, 2), SliceStatus::out_of_bounds);
+    expect_status(5, request(SD, 0, EI, 4, -2), SliceStatus::out_of_bounds);
+    // Without an explicit step, direction markers retain their empty cases.
+    expect(5, request(I, 4, EA, 0), {});
+    expect(5, request(I, 0, ED, 4), {});
     // Steps that skip the end, and the extreme steps.
     expect(6, request(I, 1, EA, 6, 3), {1, 4});
     expect(6, request(I, 1, EA, 6, std::numeric_limits<std::int64_t>::max()), {1});
@@ -125,15 +139,20 @@ void written_cases() {
     expect_status(5, request(I, 1, ED, 4, 1), SliceStatus::step_against_marker);
     expect_status(5, request(SA, 0, ED, 4), SliceStatus::marker_conflict);
     expect_status(5, request(SD, 0, EA, 4), SliceStatus::marker_conflict);
-    expect_status(5, request(I, 4, EI, 1), SliceStatus::out_of_bounds);
+    expect(5, request(I, 4, EI, 1), {4, 3, 2, 1});
     expect_status(5, request(I, 5, EI, 0), SliceStatus::out_of_bounds);
+    // The positive-only tensor adapter keeps reversed exclusive empties;
+    // opting out does not allow both-inclusive wrong-direction selections.
+    const auto tensor_empty = plan_slice(5, request(I, 4, EA, 1, 1), false);
+    CHECK(tensor_empty && tensor_empty.plan.count == 0 && tensor_empty.plan.step == 1);
+    CHECK(plan_slice(5, request(I, 4, EI, 1, 1), false).status == SliceStatus::out_of_bounds);
     // Operands far outside, and the largest lengths.
     expect_status(5, request(I, std::numeric_limits<std::int64_t>::min(), EI, 2),
                   SliceStatus::out_of_bounds);
     expect_status(5, request(I, 0, EA, std::numeric_limits<std::int64_t>::max()),
                   SliceStatus::out_of_bounds);
     constexpr auto max = std::numeric_limits<std::int64_t>::max();
-    expect(static_cast<std::uint64_t>(max), request(I, max - 1, ED, max, -1), {});
+    expect_status(static_cast<std::uint64_t>(max), request(I, max - 1, ED, max, -1), SliceStatus::out_of_bounds);
     expect(static_cast<std::uint64_t>(max), request(SD, max, EI, max - 2), {max - 1, max - 2});
     expect(static_cast<std::uint64_t>(max), request(SA, -1, EI, 1), {0, 1});
     expect_status(static_cast<std::uint64_t>(max) + 1u, request(SO, 0, EO, 0),
@@ -165,10 +184,12 @@ Expected oracle(std::int64_t length, SliceStart start_form, std::int64_t s0, Sli
         d = sign;
         k = *k0;
     } else {
-        if (d == 0) d = 1;
+        if (d == 0) d = start_form != SO && end_form != EO && s0 > e0 ? -1 : 1;
         k = d;
     }
     const bool s_omit = start_form == SO, e_omit = end_form == EO;
+    if (k0 && !s_omit && !e_omit && (d > 0 ? s0 > e0 : s0 < e0))
+        return {Outcome::bounds_error, {}};
     const std::int64_t s = s_omit ? (d > 0 ? 0 : length - 1) : s0;
     const std::int64_t e = e_omit ? (d > 0 ? length : -1) : e0;
     const bool s_excl = sm != 0;

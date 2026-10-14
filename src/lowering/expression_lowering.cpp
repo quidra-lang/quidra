@@ -55,8 +55,8 @@ ValueId ExpressionLowering::lower_int64(const Expr& e) {
     auto out = builder_.fresh();
     builder_.emit(NumericConvert{
         out, value, source, target, false,
-        static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column),
+        {static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)},
         facts_.integer_ranges.conversion_inline_proven(e, source, target)});
     if (fail_fast) release_owned(builder_,value, source);
     else lifetime_.release_temporary(e, value);
@@ -86,11 +86,11 @@ ValueId ExpressionLowering::lower_string_slice(
        !item.step){
         auto start=lower_int64(*item.start),end=lower_int64(*item.stop);
         out=builder_.fresh();
-        builder_.emit(StringSlice{out,text,start,end,line,column});
+        builder_.emit(StringSlice{out,text,start,end,{line,column}});
     }else{
         auto bounds=lower_slice_bounds(e,item);
         out=builder_.fresh();
-        builder_.emit(StringSliceStepped{out,text,std::move(bounds),line,column});
+        builder_.emit(StringSliceStepped{out,text,std::move(bounds),{line,column}});
     }
     if(text_owned) release_owned(builder_,text,text_type);
     return out;
@@ -100,7 +100,7 @@ ValueId ExpressionLowering::bare_from_int64(
     ValueId value, const Type& target, bool proven_inline) {
     auto out = builder_.fresh();
     builder_.emit(NumericConvert{
-        out, value, Type::simple(TypeKind::Int64), target, false, 0, 0, proven_inline});
+        out, value, Type::simple(TypeKind::Int64), target, false, {0, 0}, proven_inline});
     return out;
 }
 
@@ -188,8 +188,8 @@ ValueId ExpressionLowering::lower_address(const Expr& e, bool may_write) {
         const auto& at=n->items.front().index->span.start;
         builder_.emit(AddressElement{
             out,array,index,array_type,element_type,array_type.kind==TypeKind::Bin,
-            static_cast<std::uint32_t>(at.line),
-            static_cast<std::uint32_t>(at.column)});
+            {static_cast<std::uint32_t>(at.line),
+            static_cast<std::uint32_t>(at.column)}});
         return out;
     }
     throw std::runtime_error("invalid address target");
@@ -318,7 +318,7 @@ ValueId ExpressionLowering::lower_literal_constant(const Expr& e, const LiteralC
     }
     auto value=lower(*n.value);
     builder_.emit(ExactRound{out,value,type,"",
-        static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        {static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.value,value);
     return out;
 }
@@ -454,7 +454,7 @@ ValueId ExpressionLowering::lower_name(const Expr& e, const NameExpr& n) {
     if(const auto* value=scope_.source_value(n.name)) return *value;
     auto out=builder_.fresh(); const auto raw=checked_.raw_types.at(&e);
     if(const auto* bit=scope_.bit_place(n.name)) {
-        builder_.emit(BinGet{out,bit->array,bit->index,0,0,true});
+        builder_.emit(BinGet{out,bit->array,bit->index,{0,0},true});
         return out;
     }
     if(scope_.is_source_reference(n.name)){
@@ -543,7 +543,7 @@ ValueId ExpressionLowering::lower_array_comprehension(const Expr& e,
     builder_.emit(Binary{more, "<", index, length, integer, Type::simple(TypeKind::Bool)});
     builder_.emit(Branch{more, body, done}); builder_.enter(builder_.add_block(body));
     auto element = builder_.fresh();
-    builder_.emit(ArrayGet{element, source, index, item_type, line, column, false, true});
+    builder_.emit(ArrayGet{element, source, index, item_type, {line, column}, false, true});
     element = lifetime_.copy_value(element, item_type);
     builder_.emit(StoreLocal{item_name, element, item_type});
     if (n.condition) {
@@ -560,8 +560,8 @@ ValueId ExpressionLowering::lower_array_comprehension(const Expr& e,
     builder_.emit(ArrayGrowMove{grown, current, result_type});
     builder_.emit(StoreLocal{result_name, grown, result_type, false, true});
     builder_.emit(ArraySet{grown, old_length, value, *result_type.first,
-        static_cast<std::uint32_t>(n.value->span.start.line),
-        static_cast<std::uint32_t>(n.value->span.start.column), true, true});
+        {static_cast<std::uint32_t>(n.value->span.start.line),
+        static_cast<std::uint32_t>(n.value->span.start.column)}, true, true});
     builder_.emit(Jump{step}); builder_.enter(builder_.add_block(step));
     auto consumed = builder_.fresh(); builder_.emit(LoadLocal{consumed, item_name, item_type, true});
     release_owned(builder_, consumed, item_type);
@@ -620,8 +620,8 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
         }
         builder_.emit(TensorIndex{
             out,a,std::move(items),base_type,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
     }else{
         if(base_type.kind==TypeKind::Bin) {
             const auto& item=n.items.front();
@@ -631,8 +631,8 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
             if(item.slice && !half_open){
                 // Every other form plans the bits it selects.
                 builder_.emit(BinSlicePlanned{out,a,lower_slice_bounds(e,item),
-                    static_cast<std::uint32_t>(e.span.start.line),
-                    static_cast<std::uint32_t>(e.span.start.column)});
+                    {static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)}});
             }else if(item.slice){
                 auto start=item.start?lower_int64(*item.start):builder_.const_int(0);
                 ValueId stop;
@@ -640,14 +640,14 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
                 else { stop=builder_.fresh(); builder_.emit(BinLength{stop,a}); }
                 // A slice reports the indexing expression.
                 builder_.emit(BinSlice{out,a,start,stop,
-                    static_cast<std::uint32_t>(e.span.start.line),
-                    static_cast<std::uint32_t>(e.span.start.column)});
+                    {static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)}});
             }else{
                 // An element index failure reports the index operand.
                 auto i=lower_int64(*item.index);
                 builder_.emit(BinGet{
-                    out,a,i,static_cast<std::uint32_t>(item.index->span.start.line),
-                    static_cast<std::uint32_t>(item.index->span.start.column),
+                    out,a,i,{static_cast<std::uint32_t>(item.index->span.start.line),
+                    static_cast<std::uint32_t>(item.index->span.start.column)},
                     checked_.bounds_proven.contains(item.index.get())});
             }
         } else if(base_type.kind==TypeKind::Array && n.items.front().slice) {
@@ -656,15 +656,15 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
             auto bounds=lower_slice_bounds(e,n.items.front());
             builder_.emit(ArraySlice{
                 out,a,std::move(bounds),base_type,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column),
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)},
                 false,initialization_proven});
         } else if(base_type.kind==TypeKind::String) {
             const auto& index=*n.items.front().index;
             auto i=lower_int64(index);
             builder_.emit(StringIndex{
-                out,a,i,static_cast<std::uint32_t>(index.span.start.line),
-                static_cast<std::uint32_t>(index.span.start.column)});
+                out,a,i,{static_cast<std::uint32_t>(index.span.start.line),
+                static_cast<std::uint32_t>(index.span.start.column)}});
         } else {
             auto i=lower_int64(*n.items.front().index);
             const auto initialization_guard = initialization_proven
@@ -682,8 +682,8 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
                     *n.base, *n.items.front().index);
             builder_.emit(ArrayGet{
                 out,a,i,checked_.raw_types.at(&e),
-                static_cast<std::uint32_t>(n.items.front().index->span.start.line),
-                static_cast<std::uint32_t>(n.items.front().index->span.start.column),
+                {static_cast<std::uint32_t>(n.items.front().index->span.start.line),
+                static_cast<std::uint32_t>(n.items.front().index->span.start.column)},
                 initialization_proven, bounds_proven,
                 initialization_guard, bounds_guard});
             if(base_owned && owns_managed(checked_.raw_types.at(&e)))
@@ -715,8 +715,8 @@ ValueId ExpressionLowering::lower_unary(const Expr& e, const UnaryExpr& n) {
     }
     auto v=lower(*n.operand), out=builder_.fresh();
     builder_.emit(Unary{
-        out,n.op,v,type_of(checked_,e),static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column),
+        out,n.op,v,type_of(checked_,e),{static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)},
         facts_.integer_ranges.inline_proven(e)});
     // Tensor, bigint and bigreal negation return a new value and
     // leave the operand alone; release an owned temporary operand

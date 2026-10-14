@@ -29,20 +29,20 @@ void CallEmitter::reserve(const ir::Call& n,const ir::Instruction& ins) {
         for(const auto& parameter:target.parameters)
             if(is_foreign_tensor_array(parameter.type))
                 scratch_.reserve(ins,LlvmType::array(abi::tensor_array_borrow_layout::words,i64),Align::eight);
-    if(!node_values_)return;
+    if(!node_values_ || !node_values_->active())return;
     const auto contract=node_call_contract(n,target);
     acceptance_->reserve(ins,contract.owning_arguments.size());
 }
 void CallEmitter::reserve(const ir::IndirectCall& n,const ir::Instruction& ins) {
     if(tuple_indirect_result(n.result)) scratch_.reserve(ins,llvm_type(n.result),Align::eight);
-    if(!node_values_)return;
+    if(!node_values_ || !node_values_->active())return;
     if(n.args.size()!=n.parameter_types.size())throw std::logic_error("node indirect parameter count mismatch");
     std::size_t owning=0;for(const auto& type:n.parameter_types)if(node_owns_value(type))++owning;
     acceptance_->reserve(ins,owning);
 }
 void CallEmitter::emit(const ir::FunctionRef& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    if(node_values_) {
+    if(node_values_ && node_values_->active()) {
         const auto& target=*callable_functions_.at(n.function);
         // Checker function values exclude extern/reference signatures. Keep
         // internal IR producers to the same by-value ownership contract.
@@ -57,8 +57,8 @@ void CallEmitter::emit(const ir::FunctionRef& n,const ir::Instruction&){
 void CallEmitter::emit(const ir::IndirectCall& n,const ir::Instruction& ins){
     const bool has_result=n.result.kind!=TypeKind::Void&&n.result.kind!=TypeKind::Never;
     if(has_result)symbols_.set_type(n.out,n.result);
-    builder_.store({i64,sites_.line(n.line)},"@.quidra.source.line",Align::none);
-    builder_.store({i64,sites_.column(n.column)},"@.quidra.source.column",Align::none);
+    builder_.store({i64,sites_.line(n.position.line)},"@.quidra.source.line",Align::none);
+    builder_.store({i64,sites_.column(n.position.column)},"@.quidra.source.column",Align::none);
     // The names the call refers to, alive until the call is written.
     const auto result=has_result?symbols_.value(n.out):std::string{};
     const auto callee=symbols_.value(n.callee);
@@ -71,14 +71,14 @@ void CallEmitter::emit(const ir::IndirectCall& n,const ir::Instruction& ins){
     if(has_result && !indirect) call.result(result);
     for(std::size_t i=0;i<n.args.size();++i) call.argument({llvm_type(n.parameter_types[i]),arguments[i]});
     std::string ticket;
-    if(node_values_) {
+    if(node_values_ && node_values_->active()) {
         std::vector<CallArgumentOwnerLocation> owners;
         for(std::size_t i=0;i<n.args.size();++i)
             if(node_owns_value(n.parameter_types[i]))owners.push_back(node_values_->argument(n.args[i],n.parameter_types[i]));
         ticket=acceptance_->begin(ins,callee,owners,true);
     }
     builder_.call(call);
-    if(node_values_)acceptance_->end(ticket);
+    if(node_values_ && node_values_->active())acceptance_->end(ticket);
     if(indirect) builder_.load(result,llvm_type(n.result),scratch_.instruction_slot(ins),Align::eight);
     if(has_result)symbols_.acquire_owned(n.out,n.result,result);
     if(n.result.kind==TypeKind::Never)builder_.unreachable();
@@ -113,7 +113,7 @@ void CallEmitter::emit(const ir::Call& n,const ir::Instruction& ins){
                 {{ptr,view},{ptr,symbols_.value(*n.args[i].writable_address)},
                  {i32,abi::dtype_code(ir::dtype_of(*parameter.type.first->first))},
                  {i1,writable?"true":"false"},{ptr,clone},{ptr,drop},
-                 {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+                 {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             argument=view;
             array_views[i]=view;
         }else if(ffi_borrowed_managed){
@@ -151,13 +151,13 @@ void CallEmitter::emit(const ir::Call& n,const ir::Instruction& ins){
         builder_.icmp(too_deep,IntPredicate::ugt,i64,next,abi::self_call_depth_limit);
         builder_.br(too_deep,fail,ok);
         builder_.block(fail);
-        builder_.call(runtime_abi::prelude::fail_at,{{ptr,"@.code.stack"},{ptr,"@.msg.stack"},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(runtime_abi::prelude::fail_at,{{ptr,"@.code.stack"},{ptr,"@.msg.stack"},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         builder_.unreachable();
         builder_.block(ok);
         self_depth_argument=next;
     } else if(recursive_callees_.contains(n.callee)) {
-        builder_.store({i64,sites_.line(n.line)},"@.quidra.source.line",Align::none);
-        builder_.store({i64,sites_.column(n.column)},"@.quidra.source.column",Align::none);
+        builder_.store({i64,sites_.line(n.position.line)},"@.quidra.source.line",Align::none);
+        builder_.store({i64,sites_.column(n.position.column)},"@.quidra.source.column",Align::none);
     }
     const bool has_result=n.result.kind!=TypeKind::Void&&n.result.kind!=TypeKind::Never;
     const auto result=has_result?symbols_.value(n.out):std::string{};
@@ -188,7 +188,7 @@ void CallEmitter::emit(const ir::Call& n,const ir::Instruction& ins){
     }
     if(self_depth_argument) call.argument({i64,*self_depth_argument});
     std::string ticket;
-    if(node_values_) {
+    if(node_values_ && node_values_->active()) {
         const auto contract=node_call_contract(n,*callable_functions_.at(n.callee));
         std::vector<CallArgumentOwnerLocation> owners;
         for(const auto argument:contract.owning_arguments)
@@ -196,7 +196,7 @@ void CallEmitter::emit(const ir::Call& n,const ir::Instruction& ins){
         ticket=acceptance_->begin(ins,resolver_.call_symbol(n.callee),owners);
     }
     builder_.call(call);
-    if(node_values_)acceptance_->end(ticket);
+    if(node_values_ && node_values_->active())acceptance_->end(ticket);
     if(indirect) builder_.load(result,llvm_type(n.result),scratch_.instruction_slot(ins),Align::eight);
     if(has_result)symbols_.acquire_owned(n.out,n.result,result);
     if(external&&n.result.kind!=TypeKind::Never&&!n.no_normal_return)
@@ -217,7 +217,7 @@ void CallEmitter::emit(const ir::Call& n,const ir::Instruction& ins){
                     const auto name=pool_.intern(callable_functions_.at(n.callee)->name);
                     builder_.call(runtime_abi::tensor::array_validate_package,
                         {{ptr,array_views[i]},{ptr,LlvmOperand::global(symbol)},{ptr,LlvmOperand::global(name)},
-                         {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+                         {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
                 }
                 builder_.call(runtime_abi::tensor::array_borrow_end,{{ptr,array_views[i]}});
                 continue;
@@ -231,7 +231,7 @@ void CallEmitter::emit(const ir::Call& n,const ir::Instruction& ins){
             const auto name=pool_.intern(callable_functions_.at(n.callee)->name);
             builder_.call(runtime_abi::finite_support::validate_package,
                           {{ptr,written},{ptr,LlvmOperand::global(symbol)},{ptr,LlvmOperand::global(name)},
-                           {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+                           {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         }
     }
 }
@@ -249,7 +249,7 @@ void CallEmitter::check_foreign_real(const ir::Call& n,const std::string& result
     builder_.call(runtime_abi::finite_support::extern_nonfinite,
                   {{i32,abi::dtype_code(*numeric_kind_info(n.result.kind)->dtype)},
                    {ptr,LlvmOperand::global(name)},
-                   {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+                   {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     builder_.unreachable();
     builder_.block(ok);
 }

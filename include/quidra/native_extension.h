@@ -43,6 +43,15 @@ enum qcore_dtype {
 
 unsigned int qcore_native_abi_version(void);
 
+// For an unrecoverable failure whose operation owner cannot be proved. Call
+// after releasing native handles/locks and printing the package diagnostic.
+// Flushes enabled observation reports, then exits with runtime-failure status
+// 101 without running managed cleanup or capturing a parallel-node failure.
+#ifdef __cplusplus
+[[noreturn]]
+#endif
+void qcore_runtime_immediate_failure_exit(void);
+
 // Generic exact-real providers let packages own named mathematical constants
 // without teaching Core their names or values. The callback returns a stable,
 // NUL-terminated certified decimal prefix for an opcode, or NULL when the
@@ -854,9 +863,24 @@ int qcore_tensor_attach_custom_autograd(
 // owner/function/status instead of silently taking a slower path.
 void qcore_counter_note_refusal(const char* owner, const char* function,
                                 int status);
+// Records successful package kernel or vendor-operation enqueues on backends
+// that do not use Core's Metal encode scope. Metal encodes are counted by
+// qcore_metal_note_work and must not report the same work here as well.
+// Failed launches, empty work and capability queries do not count.
+void qcore_counter_note_dispatches(uint64_t dispatches);
+// One relaxed atomic observation guard for optional package-side bookkeeping.
+// This query does not own a report or record any work.
+int qcore_counters_enabled(void);
 // Ends one program step of the QUIDRA_COUNTERS report. Steps also end at
 // every backward() unless QUIDRA_COUNTERS_STEP=none.
 void qcore_counters_mark(const char* label);
+// Optional named host range, with the current statement's attribution.
+// Device -1 means host; other device ids must fit the signed 32-bit runtime
+// device id. Disabled or unavailable observation returns token 0. Ending 0
+// is a no-op. These calls do not submit, seal or synchronize device work.
+uint64_t qcore_profile_range_begin(const char* owner, const char* name,
+                                 long long device);
+void qcore_profile_range_end(uint64_t token);
 // Test hook: process total of the named counter, 0 for an unknown name or
 // when counting is off.
 uint64_t qcore_counter_value(const char* name);

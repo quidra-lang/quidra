@@ -51,8 +51,8 @@ ValueId ConversionLowering::consume_fail_fast(ValueId container, const Type& sou
     }
     builder_.emit(FailError{
         problem,
-        static_cast<std::uint32_t>(span.start.line),
-        static_cast<std::uint32_t>(span.start.column)});
+        {static_cast<std::uint32_t>(span.start.line),
+        static_cast<std::uint32_t>(span.start.column)}});
 
     std::vector<Type> remaining;
     remaining.reserve(source.cases.size() - 1);
@@ -224,7 +224,7 @@ std::optional<ValueId> ConversionLowering::try_parse_method(
         const auto target=builtin_scalar_type(receiver_name->name);
         if(target && is_numeric(*target)){
             auto text=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-            builder_.emit(ParseNumber{out,text,*target,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            builder_.emit(ParseNumber{out,text,*target,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
             lifetime_.release_temporary(*n.args[0].value,text);
             return out;
         }
@@ -233,7 +233,7 @@ std::optional<ValueId> ConversionLowering::try_parse_method(
             builder_.emit(ParseBin{
                 out,text,checked_.raw_types.at(&e),
                 std::holds_alternative<StringExpr>(n.args[0].value->data),
-                static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
             lifetime_.release_temporary(*n.args[0].value,text);
             return out;
         }
@@ -280,20 +280,20 @@ ValueId ConversionLowering::lower_numeric_cast(
     if(source.kind==TypeKind::Bin){
         builder_.emit(BinConvert{
             out,value,source,target,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
         lifetime_.release_temporary(*n.args[0].value,value);
     }else if(source.kind==TypeKind::Tensor){
         builder_.emit(TensorCast{
             out,value,source,target,result_type,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
         lifetime_.release_temporary(*n.args[0].value,value);
     }else if(source.kind==TypeKind::Array){
         builder_.emit(ArrayNumericCast{
             out,value,source,target,result_type,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
         lifetime_.release_temporary(*n.args[0].value,value);
     }else{
         auto conversion_value=value;
@@ -305,8 +305,8 @@ ValueId ConversionLowering::lower_numeric_cast(
             // The stored IEEE value becomes an exact real, without rounding;
             // reuse exact integrality, range and reason reporting.
             builder_.emit(NumericConvert{conversion_value,value,source,conversion_source,false,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
         }
         const bool recoverable_range =
             result_type.kind == TypeKind::Union &&
@@ -316,15 +316,15 @@ ValueId ConversionLowering::lower_numeric_cast(
         if (recoverable_range) {
             builder_.emit(FallibleNumericConvert{
                 out,conversion_value,conversion_source,target,result_type,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
         } else {
             const bool checked_range =
                 numeric_conversion_policy(conversion_source,target)==NumericConversionPolicy::ExplicitRangeCheck;
             builder_.emit(NumericConvert{
                 out,conversion_value,conversion_source,target,checked_range,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column),
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)},
                 lowerer_.facts().integer_ranges.conversion_inline_proven(*n.args[0].value,source,target)});
         }
         if(ieee_integer)release_owned(builder_,conversion_value,conversion_source);

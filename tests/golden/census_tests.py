@@ -228,10 +228,46 @@ def census_values(text: str) -> dict[str, int]:
     return parse(text)
 
 
+def mixed_aggregation() -> None:
+    """Keep alternative counts separate from named counts across components."""
+    with tempfile.TemporaryDirectory() as scratch:
+        root = Path(scratch)
+        entries = ("examples/a.qui", "probes/b.qui")
+        (root / "entries.tsv").write_text(
+            "".join(f"{name}\tfile\tunused\tunused\tunused\n" for name in entries),
+            encoding="utf-8")
+        views = {
+            (entries[0], "census"): "alt 0:SourceLocation 1 1\nalt 1:ConstantInt 2 1\n"
+            "count loop.steps 4 3\nkey known 1\nkind int64 2\n",
+            (entries[1], "census"): "alt 0:SourceLocation 3 2\nalt 1:ConstantInt 5 4\n"
+            "count loop.steps 6 5\nkey known 2\nkind int64 3\n",
+            (entries[1], "census.repl"): "alt 0:SourceLocation 2 1\nalt 1:ConstantInt 1 1\n"
+            "count loop.steps 7 6\nkey known 1\nkind int64 4\n",
+        }
+        for (entry, view), text in views.items():
+            path = root / "out" / entry / view
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).with_name("corpus.py")), "census",
+             "--captures", str(root / "out"), "--root", str(root), "--require-all"],
+            capture_output=True, text=True)
+        if result.returncode:
+            raise AssertionError(f"mixed census aggregation failed:\n{result.stderr}")
+        for row in ("0:SourceLocation\t1/1\t5/3\t6/4",
+                    "1:ConstantInt\t2/1\t6/5\t8/6",
+                    "count\tcore-examples\tprobes\ttotal",
+                    "loop.steps\t4/3\t13/11\t17/14",
+                    "known\t1\t3\t4", "int64\t2\t7\t9"):
+            if row not in result.stdout.splitlines():
+                raise AssertionError(f"missing aggregate {row!r}:\n{result.stdout}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tool", required=True)
     args = parser.parse_args()
+    mixed_aggregation()
     failures: list[str] = []
     with tempfile.TemporaryDirectory() as scratch:
         root = Path(scratch) / "programs"

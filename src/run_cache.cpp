@@ -445,7 +445,8 @@ int finished(const platform::ProgramRun& run) {
     return run.status;
 }
 
-int build_and_run(Context& context, const DirectRun& run, const std::function<int()>& uncached) {
+int build_and_run(Context& context, const DirectRun& run, const std::function<int()>& uncached,
+                  const platform::RuntimeEnvironment& environment) {
     std::optional<run_artifact::TemporaryArtifact> artifact;
     artifact.emplace(run.source);
     auto staging = context.store.create_staging();
@@ -538,7 +539,7 @@ int build_and_run(Context& context, const DirectRun& run, const std::function<in
     }
     // The program must not hold the staging lease.
     staging.reset();
-    return finished(platform::run_program_reporting_start(executable, run.program_arguments));
+    return finished(platform::run_program_reporting_start(executable, run.program_arguments, environment));
 }
 
 std::string mebibytes(std::uint64_t bytes) {
@@ -583,7 +584,8 @@ int clean_cache(std::ostream& out, std::ostream& err) {
     return 0;
 }
 
-int run_cached(const DirectRun& run, const std::function<int()>& uncached) {
+int run_cached(const DirectRun& run, const std::function<int()>& uncached,
+               const platform::RuntimeEnvironment& environment) {
     auto context = prepare(run);
     if (!context) return uncached();
     for (const auto& key : context->store.index_keys(context->pre_key)) {
@@ -611,7 +613,7 @@ int run_cached(const DirectRun& run, const std::function<int()>& uncached) {
         (void)platform::touch_file(*directory / std::string(run_cache_used_file));
         if (!hit.build_log.empty()) (void)platform::write_standard_error(hit.build_log);
         const auto result =
-            platform::run_program_reporting_start(artifact->executable(), run.program_arguments);
+            platform::run_program_reporting_start(artifact->executable(), run.program_arguments, environment);
         if (result.started) return result.status;
         // A cached program that cannot be started is discarded and built
         // once more.
@@ -619,7 +621,7 @@ int run_cached(const DirectRun& run, const std::function<int()>& uncached) {
         context->store.discard(key);
         break;
     }
-    return build_and_run(*context, run, uncached);
+    return build_and_run(*context, run, uncached, environment);
 }
 
 } // namespace quidra::run_cache

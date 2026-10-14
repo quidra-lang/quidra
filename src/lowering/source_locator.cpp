@@ -15,8 +15,8 @@ SourceLocator::SourceLocator(const CheckedProgram& checked) {
 
 ir::SourceLocation SourceLocator::locate(SourceSpan span, const ir::Function* function) const {
     ir::SourceLocation location{};
-    location.line = static_cast<std::uint32_t>(span.start.line);
-    location.column = static_cast<std::uint32_t>(span.start.column);
+    location.position.line = static_cast<std::uint32_t>(span.start.line);
+    location.position.column = static_cast<std::uint32_t>(span.start.column);
     if (!function || function->source_file.empty()) return location;
     // The file is known for every statement of a function with a file,
     // whether or not a public node is found for it.

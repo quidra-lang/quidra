@@ -1,0 +1,8 @@
+// The shared intermediate has two consumers. Each arithmetic expression
+// retains its source order, including the two uses in the final join.
+tensor<real32> input = tensor.ones<real32>([2])
+tensor<real32> shared = input + input
+tensor<real32> left = shared * shared
+tensor<real32> right = shared + input
+tensor<real32> result = left - right
+print("{result[0].item()} {shared[1].item()}{NL}")

@@ -44,7 +44,7 @@ ValueId ScanLowering::lower_scan(const Expr& e){
     const auto fail_make=[&](abi::ErrorValueCode code,std::vector<ErrorDetailOperand> details){
         auto made=builder_.fresh();
         builder_.emit(ErrorMake{made,static_cast<std::uint32_t>(code),{},std::move(details),std::nullopt,
-            static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
         fail_with(made);
     };
     const auto constant=[](std::string text){return ErrorDetailOperand{std::nullopt,std::move(text),false};};
@@ -66,7 +66,7 @@ ValueId ScanLowering::lower_scan(const Expr& e){
 
     // 1. One line of input.
     auto raw=builder_.fresh();
-    builder_.emit(Input{raw,line_type,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(Input{raw,line_type,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     auto tag=builder_.fresh();
     builder_.emit(VariantTag{tag,raw});
     {
@@ -161,7 +161,7 @@ ValueId ScanLowering::lower_scan(const Expr& e){
         }
         const auto parsed_type=Type::union_of({target_type,error_type});
         auto parsed=builder_.fresh();
-        builder_.emit(ParseNumber{parsed,field,target_type,parsed_type,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        builder_.emit(ParseNumber{parsed,field,target_type,parsed_type,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
         auto parsed_tag=builder_.fresh();
         builder_.emit(VariantTag{parsed_tag,parsed});
         auto error_index=builder_.const_int(case_index(parsed_type,error_type)),is_error=builder_.fresh();
@@ -175,8 +175,8 @@ ValueId ScanLowering::lower_scan(const Expr& e){
             builder_.emit(ErrorMake{made,static_cast<std::uint32_t>(abi::ErrorValueCode::input_format),{},
                 {constant("UNREADABLE_FIELD"),absent,constant(type_name(target_type)),
                  ErrorDetailOperand{field,{},false}},
-                std::nullopt,static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                std::nullopt,{static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             release_owned(builder_,field,string_type);
             fail_with(made);
         }

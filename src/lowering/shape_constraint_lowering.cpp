@@ -39,8 +39,8 @@ ValueId ShapeConstraintLowering::extent_value(const Expr& expression) {
         NumericConversionPolicy::ExplicitRangeCheck;
     builder_.emit(NumericConvert{
         out, value, source, target, checked_range,
-        static_cast<std::uint32_t>(expression.span.start.line),
-        static_cast<std::uint32_t>(expression.span.start.column)});
+        {static_cast<std::uint32_t>(expression.span.start.line),
+        static_cast<std::uint32_t>(expression.span.start.column)}});
     return out;
 }
 
@@ -90,8 +90,8 @@ void ShapeConstraintLowering::bind_shape_variable(
     auto value = builder_.fresh();
     builder_.emit(NumericConvert{
         value, word, Type::simple(TypeKind::Int64), nat, checked,
-        static_cast<std::uint32_t>(span.start.line),
-        static_cast<std::uint32_t>(span.start.column), !checked});
+        {static_cast<std::uint32_t>(span.start.line),
+        static_cast<std::uint32_t>(span.start.column)}, !checked});
     builder_.emit(StoreLocal{local, value, nat});
 }
 
@@ -135,7 +135,7 @@ void ShapeConstraintLowering::finish_brace_shape(
     if (!reads.empty() && value) {
         if (plan.rank_unknown && !proof_.rank(expression)) {
             builder_.emit(ShapedConstraintCheck{
-                *value, kind, std::vector<std::optional<ValueId>>(rank), line, column, {}, {}, plan.ellipsis});
+                *value, kind, std::vector<std::optional<ValueId>>(rank), {line, column}, {}, {}, plan.ellipsis});
         }
         const auto shape_type = Type::array(int64, plan.ellipsis ? -1 : static_cast<long long>(rank));
         auto extents = builder_.fresh();
@@ -145,7 +145,7 @@ void ShapeConstraintLowering::finish_brace_shape(
             auto extent = builder_.fresh();
             builder_.emit(ArrayGet{
                 extent, extents, shape_axis(extents, axis, rank, plan.ellipsis, span), int64,
-                line, column, true, true});
+                {line, column}, true, true});
             const auto local = shape.extents[axis] ? *shape.extents[axis] : builder_.hidden("shape.extent");
             if(!shape.extents[axis]) {
                 scope_.local_type(local) = int64;
@@ -202,7 +202,7 @@ void ShapeConstraintLowering::finish_brace_shape(
     if (proof_.rank(expression) && std::none_of(loads.begin(), loads.end(),
         [](const auto& extent) { return extent.has_value(); })) return;
     builder_.emit(ShapedConstraintCheck{
-        *value, kind, std::move(loads), line, column, std::move(variables),
+        *value, kind, std::move(loads), {line, column}, std::move(variables),
         named ? subject : std::string{}, plan.ellipsis});
 }
 
@@ -228,7 +228,7 @@ ShapeConstraintLowering::capture_signature_shape(
         if (!reads) continue;
         if (proofs && part.parameter <= proofs->size() && (*proofs)[part.parameter - 1].rank) continue;
         builder_.emit(ShapedConstraintCheck{parameters.at(part.parameter - 1), TypeKind::Tensor,
-            std::vector<std::optional<ValueId>>(part.size), line, column, {}, part.subject, part.ellipsis});
+            std::vector<std::optional<ValueId>>(part.size), {line, column}, {}, part.subject, part.ellipsis});
     }
     // Plain parameter declarations bind before any axis expression runs.
     for (const auto& part : unit.parts) {
@@ -246,7 +246,7 @@ ShapeConstraintLowering::capture_signature_shape(
             const auto extent = builder_.fresh();
             builder_.emit(ArrayGet{extent, *dimensions,
                 shape_axis(*dimensions, variable.axis - part.offset, part.size, part.ellipsis, span),
-                int64, line, column, true, true});
+                int64, {line, column}, true, true});
             const auto local = builder_.hidden("shape.extent");
             scope_.local_type(local) = int64;
             builder_.emit(DeclareLocal{local, int64, {}, 0, 0});
@@ -332,7 +332,7 @@ ShapeConstraintLowering::capture_signature_shape(
                     scope_.source_local_type(part.subject)});
             }
             builder_.emit(ShapedConstraintCheck{current, TypeKind::Tensor,
-                std::move(extents), line, column, std::move(names), part.subject, part.ellipsis});
+                std::move(extents), {line, column}, std::move(names), part.subject, part.ellipsis});
         }
     }
     // Derived result extents are captured after argument checks.
@@ -416,8 +416,8 @@ void ShapeConstraintLowering::lower_case_shape(
         if (!needed[axis]) continue;
         auto extent = builder_.fresh();
         builder_.emit(ArrayGet{
-            extent, extents, shape_axis(extents, axis, rank, plan.ellipsis, span), int64, line,
-            column, true, true});
+            extent, extents, shape_axis(extents, axis, rank, plan.ellipsis, span), int64, {line,
+            column}, true, true});
         axis_extents[axis] = extent;
     }
     release_owned(builder_,extents, shape_type);
@@ -499,8 +499,8 @@ void ShapeConstraintLowering::emit_shaped_constraint(
         [](const auto& extent) { return extent.has_value(); })) return;
     builder_.emit(ShapedConstraintCheck{
         value, kind, load_captured_extents(remaining),
-        static_cast<std::uint32_t>(span.start.line),
-        static_cast<std::uint32_t>(span.start.column), {}, {}, captured.ellipsis});
+        {static_cast<std::uint32_t>(span.start.line),
+        static_cast<std::uint32_t>(span.start.column)}, {}, {}, captured.ellipsis});
 }
 
 bool ShapeConstraintLowering::deeper_array_constraint(
@@ -526,8 +526,8 @@ void ShapeConstraintLowering::emit_array_constraints(
             LoadLocal{expected, *captured[axis], Type::simple(TypeKind::Int64)});
         builder_.emit(ExtentEqualCheck{
             actual, expected,
-            static_cast<std::uint32_t>(span.start.line),
-            static_cast<std::uint32_t>(span.start.column)});
+            {static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)}});
     }
 
     if (axis + 1 >= captured.size() || !array_type.first ||
@@ -570,8 +570,8 @@ void ShapeConstraintLowering::emit_array_constraints(
     auto child = builder_.fresh();
     builder_.emit(ArrayGet{
         child, array, index, *array_type.first,
-        static_cast<std::uint32_t>(span.start.line),
-        static_cast<std::uint32_t>(span.start.column),
+        {static_cast<std::uint32_t>(span.start.line),
+        static_cast<std::uint32_t>(span.start.column)},
         false, true});
     emit_array_constraints(
         child, *array_type.first, captured, axis + 1, span, expression);
@@ -607,8 +607,8 @@ ValueId ShapeConstraintLowering::generated_shape_array(
         builder_.emit(ArraySet{
             storage, builder_.const_int(static_cast<long long>(i)), extent,
             Type::simple(TypeKind::Int64),
-            static_cast<std::uint32_t>(span.start.line),
-            static_cast<std::uint32_t>(span.start.column),
+            {static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)},
             false, true});
     }
     return storage;

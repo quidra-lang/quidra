@@ -49,14 +49,14 @@ void AssignmentLowering::lower_pattern_impl(const PatternExpansion& expansion,co
     for(std::size_t i=0;i<targets.size();++i) {
         auto& target=targets[i];const auto& place=*target.assignment->target_expr();lowerer_.initialization_flags().check(place);const auto type=checked_.binding_types.at(target.statement);auto value=values[i];
         if(const auto* name=std::get_if<NameExpr>(&place.data);name && !checked_.field_accesses.contains(&place)) {
-            if(const auto* bit=scope_.bit_place(name->name)){builder_.emit(BinSet{bit->array,bit->index,value,0,0,true});release_owned(builder_,value,type);}
+            if(const auto* bit=scope_.bit_place(name->name)){builder_.emit(BinSet{bit->array,bit->index,value,{0,0},true});release_owned(builder_,value,type);}
             else if(scope_.is_source_reference(name->name))builder_.emit(StoreReference{scope_.source_reference(name->name),value,type});
             else builder_.emit(StoreLocal{scope_.source_local(name->name),value,type});
-        } else if(target.slice){const auto& index=std::get<IndexExpr>(place.data);std::optional<std::size_t> replay{0};auto array=lower_path_value(*index.base,target.indices,replay);builder_.emit(ArraySliceSet{array,*target.slice,value,type_of(checked_,*index.base),static_cast<std::uint32_t>(place.span.start.line),static_cast<std::uint32_t>(place.span.start.column),false});release_owned(builder_,value,type);
+        } else if(target.slice){const auto& index=std::get<IndexExpr>(place.data);std::optional<std::size_t> replay{0};auto array=lower_path_value(*index.base,target.indices,replay);builder_.emit(ArraySliceSet{array,*target.slice,value,type_of(checked_,*index.base),{static_cast<std::uint32_t>(place.span.start.line),static_cast<std::uint32_t>(place.span.start.column)},false});release_owned(builder_,value,type);
         } else if(const auto* index=std::get_if<IndexExpr>(&place.data);index && type_of(checked_,*index->base).kind==TypeKind::Tensor) {
-            std::optional<std::size_t> replay{0};auto tensor=lower_path_value(*index->base,target.indices,replay);std::vector<ValueId> coordinates(target.indices.begin()+static_cast<std::ptrdiff_t>(*replay),target.indices.end());builder_.emit(TensorSet{tensor,std::move(coordinates),value,type,static_cast<std::uint32_t>(place.span.start.line),static_cast<std::uint32_t>(place.span.start.column)});release_owned(builder_,value,type);
+            std::optional<std::size_t> replay{0};auto tensor=lower_path_value(*index->base,target.indices,replay);std::vector<ValueId> coordinates(target.indices.begin()+static_cast<std::ptrdiff_t>(*replay),target.indices.end());builder_.emit(TensorSet{tensor,std::move(coordinates),value,type,{static_cast<std::uint32_t>(place.span.start.line),static_cast<std::uint32_t>(place.span.start.column)}});release_owned(builder_,value,type);
         } else if(const auto* index=std::get_if<IndexExpr>(&place.data);index && type_of(checked_,*index->base).kind==TypeKind::Bin) {
-            std::optional<std::size_t> replay{0};auto array=lower_path_value(*index->base,target.indices,replay);builder_.emit(BinSet{array,target.indices.at(*replay),value,static_cast<std::uint32_t>(place.span.start.line),static_cast<std::uint32_t>(place.span.start.column)});release_owned(builder_,value,type);
+            std::optional<std::size_t> replay{0};auto array=lower_path_value(*index->base,target.indices,replay);builder_.emit(BinSet{array,target.indices.at(*replay),value,{static_cast<std::uint32_t>(place.span.start.line),static_cast<std::uint32_t>(place.span.start.column)}});release_owned(builder_,value,type);
         } else {
             std::optional<std::size_t> replay{0};auto indices=target.indices;
             auto address=std::holds_alternative<NameExpr>(place.data)?lowerer_.lower_address(place):lower_target_address(place,indices,replay);builder_.emit(StoreAddress{address,value,type});
@@ -76,8 +76,8 @@ void AssignmentLowering::lower_assignment(const Stmt& s, const AssignStmt& n) {
                 const auto coordinate=lowerer_.lower_int64(*index->items.front().index);
                 const auto value=lowerer_.lower_into(*n.value,type);
                 builder_.emit(ArraySet{prepared->second.first,coordinate,value,type,
-                    static_cast<std::uint32_t>(index->items.front().index->span.start.line),
-                    static_cast<std::uint32_t>(index->items.front().index->span.start.column),
+                    {static_cast<std::uint32_t>(index->items.front().index->span.start.line),
+                    static_cast<std::uint32_t>(index->items.front().index->span.start.column)},
                     false,false,{},{},prepared->second.second});
                 return;
             }
@@ -88,7 +88,7 @@ void AssignmentLowering::lower_assignment(const Stmt& s, const AssignStmt& n) {
             ValueId old{};
             if(!n.compound_op.empty()) {
                 old=builder_.fresh();
-                builder_.emit(BinGet{old,bit->array,bit->index,0,0,true});
+                builder_.emit(BinGet{old,bit->array,bit->index,{0,0},true});
             }
             auto value=lowerer_.lower_into(*n.value,t);
             if(!n.compound_op.empty()) {
@@ -99,7 +99,7 @@ void AssignmentLowering::lower_assignment(const Stmt& s, const AssignStmt& n) {
                 release_owned(builder_,old,t);release_owned(builder_,value,t);
                 value=result;
             }
-            builder_.emit(BinSet{bit->array,bit->index,value,0,0,true});
+            builder_.emit(BinSet{bit->array,bit->index,value,{0,0},true});
             release_owned(builder_,value,t);
             return;
         }
@@ -297,8 +297,8 @@ ValueId AssignmentLowering::lower_target_address(
     const auto& at=ix.items.front().index->span.start;
     builder_.emit(AddressElement{
         out,array,index,array_type,element_type,array_type.kind==TypeKind::Bin,
-        static_cast<std::uint32_t>(at.line),
-        static_cast<std::uint32_t>(at.column)});
+        {static_cast<std::uint32_t>(at.line),
+        static_cast<std::uint32_t>(at.column)}});
     return out;
 }
 
@@ -342,8 +342,8 @@ ValueId AssignmentLowering::lower_path_value(
         : facts_.array_bounds.reference_guard(*ix.base, item);
     builder_.emit(ArrayGet{
         out,array,index,checked_.raw_types.at(&expression),
-        static_cast<std::uint32_t>(item.span.start.line),
-        static_cast<std::uint32_t>(item.span.start.column),
+        {static_cast<std::uint32_t>(item.span.start.line),
+        static_cast<std::uint32_t>(item.span.start.column)},
         initialization_proven, bounds_proven,
         initialization_guard, bounds_guard});
     return out;
@@ -479,8 +479,8 @@ bool AssignmentLowering::lower_array_append_assignment(
             builder_.emit(ArrayGrowMove{grown,source,t});
             builder_.emit(ArraySet{
                 grown,old_length,appended,*t.first,
-                static_cast<std::uint32_t>(s.span.start.line),
-                static_cast<std::uint32_t>(s.span.start.column),true});
+                {static_cast<std::uint32_t>(s.span.start.line),
+                static_cast<std::uint32_t>(s.span.start.column)},true});
             builder_.emit(FieldSet{
                 object,target_field->second.index,grown,t,true});
             builder_.emit(Jump{done});
@@ -523,8 +523,8 @@ bool AssignmentLowering::lower_array_append_assignment(
             builder_.emit(ArrayGrowMove{grown,source,t});
             builder_.emit(ArraySet{
                 grown,old_length,appended,*t.first,
-                static_cast<std::uint32_t>(s.span.start.line),
-                static_cast<std::uint32_t>(s.span.start.column),true});
+                {static_cast<std::uint32_t>(s.span.start.line),
+                static_cast<std::uint32_t>(s.span.start.column)},true});
             builder_.emit(
                 StoreLocal{local_name,grown,t,false,true});
             builder_.emit(Jump{done});
@@ -605,8 +605,8 @@ void AssignmentLowering::lower_plain_assignment(
             for(const auto& item:ix.items) indices.push_back(lowerer_.lower_int64(*item.index));
             builder_.emit(TensorSet{
                 a,std::move(indices),v,t,
-                static_cast<std::uint32_t>(n.target_expr()->span.start.line),
-                static_cast<std::uint32_t>(n.target_expr()->span.start.column)});
+                {static_cast<std::uint32_t>(n.target_expr()->span.start.line),
+                static_cast<std::uint32_t>(n.target_expr()->span.start.column)}});
         }else if(base_type.kind==TypeKind::Array && ix.items.front().slice){
             // A slice assignment (L6): the value is a complete, independent
             // array, stored element by element into the selected elements
@@ -614,8 +614,8 @@ void AssignmentLowering::lower_plain_assignment(
             auto bounds=lowerer_.lower_slice_bounds(*n.target_expr(),ix.items.front());
             builder_.emit(ArraySliceSet{
                 a,std::move(bounds),v,base_type,
-                static_cast<std::uint32_t>(n.target_expr()->span.start.line),
-                static_cast<std::uint32_t>(n.target_expr()->span.start.column),false});
+                {static_cast<std::uint32_t>(n.target_expr()->span.start.line),
+                static_cast<std::uint32_t>(n.target_expr()->span.start.column)},false});
             release_owned(builder_,v,t);
         }else{
             // An element index failure reports the index operand.
@@ -623,8 +623,8 @@ void AssignmentLowering::lower_plain_assignment(
             auto i=lowerer_.lower_int64(*ix.items.front().index);
             if(base_type.kind==TypeKind::Bin) {
                 builder_.emit(BinSet{
-                    a,i,v,static_cast<std::uint32_t>(at.line),
-                    static_cast<std::uint32_t>(at.column),
+                    a,i,v,{static_cast<std::uint32_t>(at.line),
+                    static_cast<std::uint32_t>(at.column)},
                     checked_.bounds_proven.contains(ix.items.front().index.get())});
                 release_owned(builder_,v,t);
             } else {
@@ -642,8 +642,8 @@ void AssignmentLowering::lower_plain_assignment(
                     : facts_.array_bounds.reference_guard(
                         *ix.base, *ix.items.front().index);
                 builder_.emit(ArraySet{
-                    a,i,v,t,static_cast<std::uint32_t>(at.line),
-                    static_cast<std::uint32_t>(at.column),
+                    a,i,v,t,{static_cast<std::uint32_t>(at.line),
+                    static_cast<std::uint32_t>(at.column)},
                     initialization_proven, bounds_proven,
                     initialization_guard, bounds_guard});
             }

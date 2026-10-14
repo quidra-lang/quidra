@@ -231,7 +231,7 @@ void AggregateEmitter::emit(const ir::ArrayGrowMove& n,const ir::Instruction&){
 void AggregateEmitter::emit(const ir::ArraySorted& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.array_type);
     const auto sort=[&](const std::string& result,const llvm_text::LlvmCallee& callee){
-        builder_.call(result,callee,{{ptr,symbols_.value(n.array)},{i32,ir::sort_element_kind_of(*n.array_type.first)},{i64,array_element_stride(n.array_type,array_layout_)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(result,callee,{{ptr,symbols_.value(n.array)},{i32,ir::sort_element_kind_of(*n.array_type.first)},{i64,array_element_stride(n.array_type,array_layout_)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     };
     if(n.descending_constant){
         sort(symbols_.value(n.out),runtime_abi::array::sorted_desc);
@@ -315,7 +315,7 @@ void AggregateEmitter::emit(const ir::ArrayGet& n,const ir::Instruction&){
     const auto& array_type=symbols_.type_at(n.array);
     const auto stride=array_element_stride(array_type,array_layout_);
     auto slot="%arr.get.slot."+std::to_string(n.out);
-    emit_slot(ArraySlot{n.array,n.index,array_type,stride,n.line,n.column},slot,n.bounds_proven,n.bounds_guard);
+    emit_slot(ArraySlot{n.array,n.index,array_type,stride,n.position.line,n.position.column},slot,n.bounds_proven,n.bounds_guard);
     if(is_fixed_array(array_type)&&array_layout_.inline_fixed_child(array_type)){
         copy_by_zero_gep(builder_,symbols_.value(n.out),Inbounds::yes,slot);
     }else{
@@ -325,11 +325,11 @@ void AggregateEmitter::emit(const ir::ArrayGet& n,const ir::Instruction&){
                 const auto ready_label=names_.label("array.init.ready");
                 builder_.br(symbols_.value(*n.initialization_guard),ready_label,check_label);
                 builder_.block(check_label);
-                builder_.call(runtime_abi::memory::init_check,{{ptr,slot},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+                builder_.call(runtime_abi::memory::init_check,{{ptr,slot},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
                 builder_.br(ready_label);
                 builder_.block(ready_label);
             }else{
-                builder_.call(runtime_abi::memory::init_check,{{ptr,slot},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+                builder_.call(runtime_abi::memory::init_check,{{ptr,slot},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             }
         }
         builder_.load(symbols_.value(n.out),llvm_type(n.element_type),slot,Align::one);
@@ -343,7 +343,7 @@ void AggregateEmitter::emit(const ir::ArraySet& n,const ir::Instruction&){
     const auto& array_type=symbols_.type_at(n.array);
     const auto stride=array_element_stride(array_type,array_layout_);
     auto slot="%arr.set.slot."+std::to_string(n.index)+"."+std::to_string(n.value);
-    emit_slot(ArraySlot{n.array,n.index,array_type,stride,n.line,n.column},slot,n.bounds_proven,n.bounds_guard);
+    emit_slot(ArraySlot{n.array,n.index,array_type,stride,n.position.line,n.position.column},slot,n.bounds_proven,n.bounds_guard);
     if(is_fixed_array(array_type)&&array_layout_.inline_fixed_child(array_type)){
         builder_.call(void_type,drop_name(n.element_type),{{ptr,slot}});
         if(symbols_.has_node_ownership())
@@ -402,7 +402,7 @@ void AggregateEmitter::emit(const ir::ArraySlice& n,const ir::Instruction&){
         {i64,end},{i32,static_cast<int>(n.bounds.end_form)},
         {i64,step},{i32,n.bounds.step?1:0},{i32,static_cast<int>(n.bounds.direction)},
         {i1,n.initialization_proven?"false":"true"},
-        {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
@@ -416,7 +416,7 @@ void AggregateEmitter::emit(const ir::SliceLoopPlan& n,const ir::Instruction&){
         {i32,static_cast<int>(n.bounds.start_form)}, {i64,operand(n.bounds.end)},
         {i32,static_cast<int>(n.bounds.end_form)}, {i64,operand(n.bounds.step)},
         {i32,n.bounds.step?1:0}, {i32,static_cast<int>(n.bounds.direction)},
-        {i64,sites_.line(n.line)}, {i64,sites_.column(n.column)},
+        {i64,sites_.line(n.position.line)}, {i64,sites_.column(n.position.column)},
         {ptr,symbols_.value(n.first_address)}});
 }
 
@@ -431,7 +431,7 @@ void AggregateEmitter::emit(const ir::ArraySliceSet& n,const ir::Instruction&){
         {ptr,array},{i64,start},{i32,static_cast<int>(n.bounds.start_form)},
         {i64,end},{i32,static_cast<int>(n.bounds.end_form)},
         {i64,step},{i32,n.bounds.step?1:0},{i32,static_cast<int>(n.bounds.direction)},
-        {ptr,value},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        {ptr,value},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 
 void AggregateEmitter::emit(const ir::VariantMake& n,const ir::Instruction&){

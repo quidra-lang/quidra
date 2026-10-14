@@ -450,6 +450,8 @@ NativeLinkRecipe native_link_recipe(
 #endif
     for (const auto& flag : pkg_link_flags)
         arguments.emplace_back(platform::native_text(flag));
+    for (const auto& library : system_link_libraries())
+        arguments.emplace_back(platform::native_text(library));
     if (uses_cuda) {
         const auto cuda_library = cuda_runtime_library_directory();
         arguments.emplace_back(L"-L" + cuda_library.native());

@@ -69,30 +69,7 @@ void ModuleEmitter::analyze() {
             for (const auto& instruction : block.instructions)
                 if (const auto* ref = std::get_if<ir::FunctionRef>(&instruction))
                     context_.address_taken_functions.insert(ref->function);
-    std::vector<std::string> pending_nodes;
-    for(const auto& function:module_.functions)
-        if(function.name.starts_with("$par.")) pending_nodes.push_back(function.name);
-    for(std::size_t i=0;i<pending_nodes.size();++i) {
-        const auto name=pending_nodes[i];
-        if(!context_.node_cleanup_functions.insert(name).second) continue;
-        const auto found=context_.callable_functions.find(name);
-        if(found==context_.callable_functions.end() || found->second->external_symbol) continue;
-        for(const auto& block:found->second->blocks) for(const auto& instruction:block.instructions) {
-            bool unknown_callback=std::holds_alternative<ir::IndirectCall>(instruction);
-            if(const auto* call=std::get_if<ir::Call>(&instruction)) {
-                const auto callee=context_.callable_functions.find(call->callee);
-                if(callee!=context_.callable_functions.end()) {
-                    if(callee->second->external_symbol) unknown_callback=true;
-                    else pending_nodes.push_back(call->callee);
-                }
-            }
-            if(unknown_callback) {
-                for(const auto& target:context_.address_taken_functions) pending_nodes.push_back(target);
-                for(const auto& target:module_.functions)
-                    if(target.c_export_symbol) pending_nodes.push_back(target.name);
-            }
-        }
-    }
+    context_.node_cleanup_functions = ir::analysis::node_cleanup_functions(module_);
     context_.self_depth_recursive_functions =
         debug_info_ ? std::unordered_set<std::string>{}
                     : ir::analysis::self_depth_recursive_functions(module_,context_.recursive_functions,context_.address_taken_functions);

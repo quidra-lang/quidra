@@ -1,6 +1,6 @@
 // Field-complete serialization of the typed IR (the golden view `ir.full`).
 //
-// `quidra ir` omits fields, types and whole instructions (README.md, Views),
+// `quidra ir` omits fields and types (README.md, Views),
 // so it cannot prove that a refactoring leaves the typed IR unchanged. This
 // serializer prints every field of every instruction, block, function, region,
 // class layout and compiler extension, and the full recursive Type.
@@ -17,6 +17,7 @@
 #pragma once
 
 #include "quidra/ir.hpp"
+#include "ir/field_walk.hpp"
 
 #include <array>
 #include <cstddef>
@@ -30,7 +31,7 @@ namespace quidra::golden {
 
 // The variant's alternatives in variant order. The arity test checks each
 // name against the compiler's spelling of the alternative's type.
-inline constexpr std::array<std::string_view, 225> instruction_names{
+inline constexpr std::array<std::string_view, 231> instruction_names{
     "SourceLocation", "ConstantInt", "ConstantFloat", "ConstantExact", "ConstantBool",
     "ConstantString", "ArrayMake", "ArrayAlloc", "ClassMake", "FieldGet", "FieldSet",
     "DeclareLocal", "DeclareReference", "AddressLocal", "AddressField", "AddressElement",
@@ -67,47 +68,15 @@ inline constexpr std::array<std::string_view, 225> instruction_names{
     "Input", "Exit", "FailError", "ForStepCheck", "Return", "ReturnVoid", "Jump", "Branch",
     "Pin", "Unpin", "IterationShapeCheck", "InitializedCheck", "ErrorMake", "ErrorMessage",
     "ErrorCode", "ErrorCause", "ErrorDetail", "ErrorHop", "ArraySlice",
-    "ArraySliceSet", "StringSliceStepped", "BinSlicePlanned", "FiniteCheck", "FiniteFlagUpdate", "FiniteFlagCheck", "ComplexMake", "ComplexPart", "RealLoopCount", "RealLoopValue", "ExactLoopPlan", "ExactFromScaled", "ExactLoopValue", "ExactScaledCompare", "ExactScaledConvert", "SliceLoopPlan", "ParallelBlock", "AddressReferenceSlot", "TupleMake", "TupleGet", "AddressTupleElement", "TraversalSiteCheck", "StringQuote", "ReferenceBoundCheck", "FieldReferenceAddress", "FieldReferenceRoot", "BindFieldReference", "RootSerial", "SelfReferenceCheck", "StoredTargetsCheck"};
+    "ArraySliceSet", "StringSliceStepped", "BinSlicePlanned", "FiniteCheck", "FiniteFlagUpdate", "FiniteFlagCheck", "ComplexMake", "ComplexPart", "RealLoopCount", "RealLoopValue", "ExactLoopPlan", "ExactFromScaled", "ExactLoopValue", "ExactScaledCompare", "ExactScaledConvert", "SliceLoopPlan", "ParallelBlock", "AddressReferenceSlot", "TupleMake", "TupleGet", "AddressTupleElement", "TraversalSiteCheck", "StringQuote", "ReferenceBoundCheck", "FieldReferenceAddress", "FieldReferenceRoot", "BindFieldReference", "RootSerial", "SelfReferenceCheck", "StoredTargetsCheck", "StatementBoundary", "InlineScopeBegin", "InlineScopeCleanup", "InlineScopeEnd", "InlineBindAddress", "InlineExit"};
 static_assert(instruction_names.size() == std::variant_size_v<ir::Instruction>,
               "every Instruction alternative needs a name in instruction_names");
 
-// Aggregates with more fields than this stop the build in the binding ladder.
-inline constexpr std::size_t max_aggregate_arity = 13;
-
-namespace detail {
-
-// Converts to any field type. The rvalue ref-qualifier keeps the conversion
-// from competing with converting constructor templates such as optional(U&&).
-template <std::size_t>
-struct AnyField {
-    template <class T>
-    operator T() const&&;
-};
-
-template <class T, std::size_t... I>
-constexpr bool brace_constructible(std::index_sequence<I...>) {
-    return requires { T{AnyField<I>{}...}; };
-}
-
-template <class T, std::size_t N>
-constexpr std::size_t aggregate_arity_from() {
-    if constexpr (N == 0) {
-        return 0;
-    } else if constexpr (brace_constructible<T>(std::make_index_sequence<N>{})) {
-        return N;
-    } else {
-        return aggregate_arity_from<T, N - 1>();
-    }
-}
-
-} // namespace detail
-
-// Number of fields of an aggregate, found by brace-constructibility. The search
-// starts above max_aggregate_arity so that a struct that grows past the ladder
-// is detected and rejected instead of silently truncated.
+// The shared complete walker rejects growth beyond its binding ladder.
+inline constexpr std::size_t max_aggregate_arity = ir::fields::max_aggregate_arity;
 template <class T>
 constexpr std::size_t aggregate_arity() {
-    return detail::aggregate_arity_from<T, max_aggregate_arity + 4>();
+    return ir::fields::aggregate_arity<T>();
 }
 
 // The `ir.full` view of a module.

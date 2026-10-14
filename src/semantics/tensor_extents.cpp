@@ -1,5 +1,6 @@
 #include "semantics/tensor_extents.hpp"
 #include "semantics/effect_summary.hpp"
+#include "ir/facts/tensor.hpp"
 
 #include "constant_integer_eval.hpp"
 #include "quidra/member_function_names.hpp"
@@ -18,6 +19,9 @@
 
 namespace quidra::semantics {
 namespace {
+using ir::facts::TensorShapeOp;
+using ir::facts::TensorShapeTransfer;
+using ir::facts::transfer_tensor_shape;
 
 struct CallableShape {
     const TypeName* type{};
@@ -502,43 +506,14 @@ private:
             call_signature(expression, *declaration, found->second, arguments, scalar_arguments, result);
         if (result.kind != TypeKind::Tensor || found->second.result_extents.empty())
             return seed(result, &expression);
-        const auto& origins = found->second.result_extents;
-        const auto declared_result = result;
-        result.length = static_cast<long long>(origins.size());
-        result.tensor_known_shape_prefix.clear();
-        const auto input = [&](std::size_t parameter, std::size_t axis) {
-            if (axis == std::numeric_limits<std::size_t>::max())
-                return parameter < scalar_arguments.size() ? scalar_arguments[parameter] : ShapeExtent{};
-            return parameter < arguments.size() ? tensor_extent(arguments[parameter], axis) : ShapeExtent{};
-        };
-        for (std::size_t axis = 0; axis < origins.size(); ++axis) {
-            const auto& origin = origins[axis];
-            ShapeExtent extent;
-            if (origin.kind == ExtentOrigin::Kind::Known) extent = origin.value;
-            else if (origin.kind == ExtentOrigin::Kind::ParameterAxis)
-                extent = input(origin.parameter, origin.axis);
-            else if (origin.kind == ExtentOrigin::Kind::ParameterValue)
-                extent = input(origin.parameter, std::numeric_limits<std::size_t>::max());
-            else if (origin.kind == ExtentOrigin::Kind::Broadcast) {
-                extent = 1;
-                for (const auto& [parameter, input_axis] : origin.axes)
-                    extent = broadcast_extent(extent, input(parameter, input_axis));
-                if (origin.local) extent = broadcast_extent(extent, fresh(&expression, axis));
-            }
-            else if (origin.kind == ExtentOrigin::Kind::Expr) {
-                extent = substitute_extent(origin.expression, [&](std::int64_t id) {
-                    const auto found = origin.expression_axes.find(id);
-                    return found == origin.expression_axes.end() ? fresh(&expression, axis)
-                        : input(found->second.first, found->second.second);
-                });
-            }
-            if (const auto declared = tensor_extent(declared_result, axis);
-                declared.kind != ShapeExtent::Kind::Unknown) extent = declared;
-            if (const auto known = tensor_known_extent(original(expression), axis)) extent = *known;
-            if (extent.kind == ShapeExtent::Kind::Unknown) extent = fresh(&expression, axis);
-            result.tensor_known_shape_prefix.push_back(std::move(extent));
-        }
-        return result;
+        TensorShapeTransfer transfer;
+        transfer.operation = TensorShapeOp::CallOrigins;
+        transfer.result = result; transfer.inputs = arguments;
+        transfer.scalar_inputs = scalar_arguments;
+        transfer.result_origins = found->second.result_extents;
+        transfer.known_result = original(expression);
+        transfer.fresh = [&](std::size_t axis) { return fresh(&expression, axis); };
+        return transfer_tensor_shape(transfer);
     }
 
     static std::vector<ShapeExtent> ordered_scalars(
@@ -623,24 +598,18 @@ private:
             const auto left = expression_type(*binary->left, environment);
             const auto right = expression_type(*binary->right, environment);
             if (result.kind == TypeKind::Tensor) {
-                const auto& tensor = left.kind == TypeKind::Tensor ? left : right;
-                result.length = tensor.length;
-                result.tensor_known_shape_prefix = tensor.tensor_known_shape_prefix;
-                if (left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor &&
-                    binary->op != "==" && binary->op != "!=" && binary->op != "<" &&
-                    binary->op != "<=" && binary->op != ">" && binary->op != ">=") {
-                    result.tensor_known_shape_prefix.clear();
-                    for (long long axis = 0; axis < result.length; ++axis)
-                        result.tensor_known_shape_prefix.push_back(broadcast_extent(
-                            tensor_extent(left, static_cast<std::size_t>(axis)),
-                            tensor_extent(right, static_cast<std::size_t>(axis))));
-                }
+                TensorShapeTransfer transfer;
+                const auto comparison = binary->op == "==" || binary->op == "!=" || binary->op == "<" ||
+                    binary->op == "<=" || binary->op == ">" || binary->op == ">=";
+                transfer.operation = comparison ? TensorShapeOp::Preserve : TensorShapeOp::Broadcast;
+                transfer.result = result; transfer.inputs = {left, right};
+                result = transfer_tensor_shape(transfer);
             }
         } else if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
             const auto value = expression_type(*unary->operand, environment);
             if (result.kind == TypeKind::Tensor) {
-                result.length = value.length;
-                result.tensor_known_shape_prefix = value.tensor_known_shape_prefix;
+                TensorShapeTransfer transfer; transfer.result = result; transfer.inputs = {value};
+                result = transfer_tensor_shape(transfer);
             }
         } else if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
             std::vector<Type> arguments;
@@ -676,18 +645,19 @@ private:
             else if (result.kind == TypeKind::Tensor) {
                 if (resolution != checked_.call_resolutions.end() && resolution->second.kind == CallKind::NumericCast &&
                     !arguments.empty() && arguments.front().kind == TypeKind::Tensor) {
-                    result.length = arguments.front().length;
-                    result.tensor_known_shape_prefix = arguments.front().tensor_known_shape_prefix;
+                    TensorShapeTransfer transfer; transfer.result = result; transfer.inputs = {arguments.front()};
+                    result = transfer_tensor_shape(transfer);
                 } else if (resolution != checked_.call_resolutions.end() && resolution->second.builtin &&
                            (*resolution->second.builtin == BuiltinCallable::TensorCreate ||
                             *resolution->second.builtin == BuiltinCallable::TensorZeros ||
                             *resolution->second.builtin == BuiltinCallable::TensorOnes)) {
                     for (const auto& argument : call->args) {
                         if (const auto* shape = std::get_if<ArrayExpr>(&argument.value->data)) {
-                            result.length = static_cast<long long>(shape->elements.size());
-                            result.tensor_known_shape_prefix.clear();
+                            TensorShapeTransfer transfer; transfer.operation = TensorShapeOp::ExplicitShape;
+                            transfer.result = result; transfer.explicit_shape.emplace();
                             for (const auto& extent : shape->elements)
-                                result.tensor_known_shape_prefix.push_back(captured_scalar(*extent, environment));
+                                transfer.explicit_shape->push_back(captured_scalar(*extent, environment));
+                            result = transfer_tensor_shape(transfer);
                             break;
                         }
                     }
@@ -719,23 +689,22 @@ private:
                     const auto index = method->method == "reshape" ? 0U : 1U;
                     if (index < method->args.size()) {
                         if (const auto* shape = std::get_if<ArrayExpr>(&method->args[index].value->data)) {
-                            result.length = static_cast<long long>(shape->elements.size());
-                            result.tensor_known_shape_prefix.clear();
+                            TensorShapeTransfer transfer; transfer.operation = TensorShapeOp::ExplicitShape;
+                            transfer.result = result; transfer.explicit_shape.emplace();
                             for (const auto& extent : shape->elements)
-                                result.tensor_known_shape_prefix.push_back(captured_scalar(*extent, environment));
+                                transfer.explicit_shape->push_back(captured_scalar(*extent, environment));
+                            result = transfer_tensor_shape(transfer);
                         }
                     }
                 } else {
-                    result.length = receiver.length;
-                    result.tensor_known_shape_prefix = receiver.tensor_known_shape_prefix;
+                    TensorShapeTransfer transfer; transfer.result = result; transfer.inputs = {receiver};
                     if (method->method == "transpose" && method->args.size() == 2) {
+                        transfer.operation = TensorShapeOp::Transpose;
                         const auto a = constant_eval::integer(*method->args[0].value);
                         const auto b = constant_eval::integer(*method->args[1].value);
-                        if (a && b && *a >= 0 && *b >= 0 && *a < result.length && *b < result.length)
-                            std::swap(result.tensor_known_shape_prefix[static_cast<std::size_t>(*a)],
-                                      result.tensor_known_shape_prefix[static_cast<std::size_t>(*b)]);
-                        else result.tensor_known_shape_prefix.clear();
+                        if (a && b) transfer.axes = std::pair{*a, *b};
                     }
+                    result = transfer_tensor_shape(transfer);
                 }
             }
             for (std::size_t index = 0; index < method->args.size(); ++index)
@@ -744,21 +713,13 @@ private:
         } else if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
             const auto base = expression_type(*index->base, environment);
             if (base.kind == TypeKind::Tensor && result.kind == TypeKind::Tensor && base.length >= 0) {
-                result.tensor_known_shape_prefix.clear();
-                std::size_t output_axis = 0;
-                for (std::size_t axis = 0; axis < static_cast<std::size_t>(base.length); ++axis) {
-                    if (axis < index->items.size() && !index->items[axis].slice) continue;
-                    auto extent = tensor_extent(base, axis);
-                    if (axis < index->items.size()) {
-                        const auto& item = index->items[axis];
-                        if (item.start || item.stop || item.step) {
-                            extent = tensor_extent(original(expression), output_axis);
-                            if (extent.kind == ShapeExtent::Kind::Unknown) extent = fresh(&expression, output_axis);
-                        }
-                    }
-                    result.tensor_known_shape_prefix.push_back(extent);
-                    ++output_axis;
-                }
+                TensorShapeTransfer transfer; transfer.operation = TensorShapeOp::Index;
+                transfer.result = result; transfer.inputs = {base}; transfer.known_result = original(expression);
+                transfer.fresh = [&](std::size_t axis) { return fresh(&expression, axis); };
+                for (const auto& item : index->items)
+                    transfer.indices.push_back({!item.slice ? TensorShapeTransfer::IndexAxis::Drop :
+                        (item.start || item.stop || item.step) ? TensorShapeTransfer::IndexAxis::Slice : TensorShapeTransfer::IndexAxis::Preserve});
+                result = transfer_tensor_shape(transfer);
             }
             for (const auto& item : index->items) {
                 if (item.index) expression_type(*item.index, environment);
@@ -824,22 +785,9 @@ private:
 
     Type join_types(const void* site, const std::string& name, Type base, const std::vector<Type>& states,
                     bool header = false) {
-        if (base.kind != TypeKind::Tensor || states.empty()) return base;
-        base.length = states.front().length;
-        for (const auto& state : states)
-            if (state.kind != TypeKind::Tensor || state.length != base.length) base.length = -1;
-        base.tensor_known_shape_prefix.clear();
-        for (long long axis = 0; axis < base.length; ++axis) {
-            auto extent = tensor_extent(states.front(), static_cast<std::size_t>(axis));
-            bool equal = extent.kind != ShapeExtent::Kind::Unknown;
-            for (const auto& state : states) {
-                const auto current = tensor_extent(state, static_cast<std::size_t>(axis));
-                equal = equal && same_extent(extent, current) && (!header || !from_loop(current));
-            }
-            if (!equal) extent = merge_symbol(site, name, static_cast<std::size_t>(axis));
-            base.tensor_known_shape_prefix.push_back(std::move(extent));
-        }
-        return base;
+        return ir::facts::merge_tensor_shapes(std::move(base), states,
+            [&](std::size_t axis) { return merge_symbol(site, name, axis); },
+            [&](const ShapeExtent& extent) { return !header || !from_loop(extent); });
     }
 
     Environment join(const void* site, const Environment& before, const std::vector<Environment>& states,
@@ -1023,11 +971,9 @@ private:
                     const auto right = value;
                     value = previous;
                     if (right.kind == TypeKind::Tensor) {
-                        value.tensor_known_shape_prefix.clear();
-                        for (long long axis = 0; axis < value.length; ++axis)
-                            value.tensor_known_shape_prefix.push_back(broadcast_extent(
-                                tensor_extent(previous, static_cast<std::size_t>(axis)),
-                                tensor_extent(right, static_cast<std::size_t>(axis))));
+                        TensorShapeTransfer transfer; transfer.operation = TensorShapeOp::Broadcast;
+                        transfer.result = value; transfer.inputs = {previous, right};
+                        value = transfer_tensor_shape(transfer);
                     }
                 }
                 if (const auto* name = std::get_if<NameExpr>(&assignment->target->data); name && !name->this_qualifier) {

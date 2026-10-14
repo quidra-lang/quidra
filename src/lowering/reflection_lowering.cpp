@@ -41,7 +41,7 @@ void ReflectionLowering::append_collected_value(
         ArrayGrowMove{grown,current,array_type});
     auto owned=borrow?retain_owned(builder_,value,element_type):lifetime_.copy_value(value,element_type);
     builder_.emit(ArraySet{
-        grown,length,owned,element_type,0,0,true,true});
+        grown,length,owned,element_type,{0,0},true,true});
     builder_.emit(
         StoreLocal{destination,grown,array_type,true,true});
 }
@@ -75,7 +75,7 @@ void ReflectionLowering::for_each_collected_array_element(
     builder_.enter(builder_.add_block(body));
     auto child=builder_.fresh();
     builder_.emit(ArrayGet{
-        child,array,index,*array_type.first,0,0,
+        child,array,index,*array_type.first,{0,0},
         array_type.length>=0,true});
     visit(child,*array_type.first,index);
     auto next=builder_.fresh();

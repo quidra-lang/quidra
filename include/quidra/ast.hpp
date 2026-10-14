@@ -2,6 +2,7 @@
 #include "quidra/shape_extent.hpp"
 #include "quidra/diagnostic.hpp"
 #include "quidra/compiler_extension.hpp"
+#include "quidra/declaration_identity.hpp"
 #include "quidra/slice_form.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -15,6 +16,7 @@
 #include <vector>
 
 namespace quidra {
+namespace semantics { struct InterfaceSources; }
 
 struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
@@ -365,6 +367,7 @@ struct FunctionDecl {
     // `extern void .set(...)`. The function may change
     // existing state that its `&` parameters do not expose.
     bool mutation_marker{};
+    std::optional<DeclarationIdentity> declaration{};
 };
 
 struct FieldDecl {
@@ -452,6 +455,8 @@ struct Program {
     // The source offset of every mutation marker the parser accepted, on a
     // definition or a call, in source order (the formatter keeps them).
     std::vector<std::size_t> mutation_markers;
+    std::vector<DeclarationIdentity> declaration_catalog{};
+    std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
 };
 
 struct ResolvedProgram {

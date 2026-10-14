@@ -56,6 +56,7 @@
 // bind_source_local) is part of the output.
 
 #include "ir/function_builder.hpp"
+#include "ir/summaries.hpp"
 #include "lowering/aggregate_lowering.hpp"
 #include "lowering/assignment_lowering.hpp"
 #include "lowering/assignment_order.hpp"
@@ -93,6 +94,7 @@
 #include "lowering/shape_constraint_lowering.hpp"
 #include "lowering/shape_constraint_state.hpp"
 #include "lowering/source_locator.hpp"
+#include "lowering/statement_sites.hpp"
 #include "lowering/statement_lowering.hpp"
 #include "lowering/storage_writes.hpp"
 #include "lowering/syntax_queries.hpp"
@@ -128,6 +130,13 @@ public:
     // The module being built, which ir::lower starts with the class layouts
     // and takes when every function is lowered.
     ir::Module& module() { return module_; }
+    ir::analysis::SummaryBindings& summary_bindings() { return summary_bindings_; }
+    StatementSites& statement_sites() { return statement_sites_; }
+    void emit_statement_location(const Stmt& statement) {
+        const auto& name = builder_.function()->name;
+        builder_.emit(ir::StatementBoundary{statement_sites_.identity(name, statement)});
+        builder_.emit(locator_.locate(statement.span, builder_.function()));
+    }
     void flush_outlined_functions() {
         for(auto& function:outlined_functions_) module_.functions.push_back(std::move(function));
         outlined_functions_.clear();
@@ -234,6 +243,7 @@ private:
     const CheckedProgram& checked_;
     const ir::LoweringOptions options_;
     ir::Module module_;
+    ir::analysis::SummaryBindings summary_bindings_;
     std::vector<ir::Function> outlined_functions_;
     std::unordered_set<const Stmt*> parallel_hoisted_;
     std::unordered_map<const Stmt*,ShapeConstraintLowering::BraceShape> parallel_brace_shapes_;
@@ -254,6 +264,7 @@ private:
     // The declared extents of the function being lowered.
     ShapeConstraintState shapes_;
     // The public syntax nodes of every source text, for source locations.
+    StatementSites statement_sites_;
     SourceLocator locator_;
     // Which by-value parameters callers pass borrowed (after the locator: the
     // source texts are inspected first).

@@ -66,15 +66,15 @@ void ControlFlowLowering::lower_real_header_range_for(const ForStmt& n) {
         if(!literal_plan) {
             builder_.emit(ExactLoopPlan{plan,start,end,step,header.descending,
                 header.start_inclusive,header.end_inclusive,
-                static_cast<std::uint32_t>(n.iterable->span.start.line),
-                static_cast<std::uint32_t>(n.iterable->span.start.column)});
+                {static_cast<std::uint32_t>(n.iterable->span.start.line),
+                static_cast<std::uint32_t>(n.iterable->span.start.column)}});
             plan_name=own(plan,array,"plan");
         }
         const auto field=[&](int index) {
             auto value=builder_.fresh();
             if(literal_plan) builder_.emit(ConstantExact{value,(*literal_plan)[index].text(),integer});
             else builder_.emit(ArrayGet{value,plan,constant(index,Type::simple(TypeKind::Int64)),
-                integer,0,0,true,true});
+                integer,{0,0},true,true});
             return value;
         };
         const auto own_field=[&](int index,const std::string& suffix) {
@@ -110,8 +110,8 @@ void ControlFlowLowering::lower_real_header_range_for(const ForStmt& n) {
         builder_.emit(ConstantExact{count,known->text(),integer});
     } else builder_.emit(RealLoopCount{count,start,end,step,type,header.descending,
         header.start_inclusive,header.end_inclusive,
-        static_cast<std::uint32_t>(n.iterable->span.start.line),
-        static_cast<std::uint32_t>(n.iterable->span.start.column)});
+        {static_cast<std::uint32_t>(n.iterable->span.start.line),
+        static_cast<std::uint32_t>(n.iterable->span.start.column)}});
     scope_.local_type(count_name)=scope_.local_type(counter)=integer;
     builder_.emit(StoreLocal{count_name,count,integer});
     builder_.emit(StoreLocal{counter,constant(0,integer),integer});

@@ -2076,11 +2076,20 @@ void Checker::check_slice_item(const IndexPart& item) {
 SliceDirection Checker::slice_item_direction(const IndexPart& item) const {
     const int start_direction = slice_marker_direction(item.start_form);
     const int marked = start_direction != 0 ? start_direction : slice_marker_direction(item.end_form);
+    if (item.step) {
+        if (const auto step = constant_eval::integer(*item.step))
+            return *step < 0 ? SliceDirection::descending : SliceDirection::ascending;
+        if (marked != 0) return marked > 0 ? SliceDirection::ascending : SliceDirection::descending;
+        return SliceDirection::by_step_sign;
+    }
     if (marked != 0) return marked > 0 ? SliceDirection::ascending : SliceDirection::descending;
-    if (!item.step) return SliceDirection::ascending;
-    if (const auto step = constant_eval::integer(*item.step))
-        return *step < 0 ? SliceDirection::descending : SliceDirection::ascending;
-    return SliceDirection::by_step_sign;
+    if (item.start && item.stop) {
+        const auto start = constant_eval::integer(*item.start);
+        const auto end = constant_eval::integer(*item.stop);
+        if (start && end) return *start > *end ? SliceDirection::descending : SliceDirection::ascending;
+        return SliceDirection::by_bounds;
+    }
+    return SliceDirection::ascending;
 }
 
 namespace {
@@ -11692,6 +11701,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         if (truncated) markers.resize(max_errors_);
         throw CompileErrors(std::move(markers), truncated);
     }
+    checked.interface_sources = checked.program.interface_sources;
     return checked;
 }
 

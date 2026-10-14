@@ -150,6 +150,7 @@ bool ConditionalRulePass::run(Module& module, const PassContext& context) {
                 }
 
                 for (const auto& rule : conditional_rules) {
+                    if (rule.runtime_dispatch) continue; // Full rules preserve priority through guarded dispatch.
                     if (!bindings.call_has_operation(*call, rule.operation))
                         continue;
                     if (!rule.constraints.same_shape.empty()) {

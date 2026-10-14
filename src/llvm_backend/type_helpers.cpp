@@ -1069,7 +1069,12 @@ void begin_slice_plan(LlvmBuilder& b, const Type& array, std::string_view array_
     b.load("%first", i64, "%first.slot", Align::none);
     b.icmp("%descending", IntPredicate::eq, i32, "%direction",
            static_cast<int>(SliceDirection::descending));
-    b.select("%unit.step", "%descending", {i64, -1}, {i64, 1});
+    b.icmp("%by.bounds", IntPredicate::eq, i32, "%direction",
+           static_cast<int>(SliceDirection::by_bounds));
+    b.icmp("%bounds.descending", IntPredicate::sgt, i64, "%start", "%end");
+    b.binary("%inferred.descending", BinaryOp::and_, i1, "%by.bounds", "%bounds.descending");
+    b.binary("%resolved.descending", BinaryOp::or_, i1, "%descending", "%inferred.descending");
+    b.select("%unit.step", "%resolved.descending", {i64, -1}, {i64, 1});
     b.icmp("%stepped", IntPredicate::ne, i32, "%has.step", 0);
     b.select("%k", "%stepped", {i64, "%step"}, {i64, "%unit.step"});
 }

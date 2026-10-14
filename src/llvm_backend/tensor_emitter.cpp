@@ -75,46 +75,46 @@ void TensorEmitter::reserve(const ir::TensorSet& n,const ir::Instruction& ins){
 
 void TensorEmitter::emit(const ir::TensorCreate& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::create,{{ptr,symbols_.value(n.shape)},{i32,dtype_code_of(*n.type.first)},{i32,n.fill_mode},{i1,n.gpu?"1":"0"},{i64,n.gpu?symbols_.value(*n.gpu):"0"},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::create,{{ptr,symbols_.value(n.shape)},{i32,dtype_code_of(*n.type.first)},{i32,n.fill_mode},{i1,n.gpu?"1":"0"},{i64,n.gpu?symbols_.value(*n.gpu):"0"},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
 void TensorEmitter::emit(const ir::TensorTransfer& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
     if(n.gpu)
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::to_gpu,{{ptr,symbols_.value(n.tensor)},{i64,symbols_.value(*n.gpu)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::to_gpu,{{ptr,symbols_.value(n.tensor)},{i64,symbols_.value(*n.gpu)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     else
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::to_cpu,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::to_cpu,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
 void TensorEmitter::emit(const ir::TensorReshape& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::reshape,{{ptr,symbols_.value(n.tensor)},{ptr,symbols_.value(n.shape)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::reshape,{{ptr,symbols_.value(n.tensor)},{ptr,symbols_.value(n.shape)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
 void TensorEmitter::emit(const ir::TensorGather& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::gather,{{ptr,symbols_.value(n.tensor)},{ptr,symbols_.value(n.indices)},{ptr,symbols_.value(n.shape)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::gather,{{ptr,symbols_.value(n.tensor)},{ptr,symbols_.value(n.indices)},{ptr,symbols_.value(n.shape)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
 void TensorEmitter::emit(const ir::TensorScatter& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::scatter,{{ptr,symbols_.value(n.tensor)},{ptr,symbols_.value(n.indices)},{ptr,symbols_.value(n.shape)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::scatter,{{ptr,symbols_.value(n.tensor)},{ptr,symbols_.value(n.indices)},{ptr,symbols_.value(n.shape)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
 void TensorEmitter::emit(const ir::TensorTranspose& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::transpose,{{ptr,symbols_.value(n.tensor)},{i64,symbols_.value(n.axis0)},{i64,symbols_.value(n.axis1)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::transpose,{{ptr,symbols_.value(n.tensor)},{i64,symbols_.value(n.axis0)},{i64,symbols_.value(n.axis1)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
 void TensorEmitter::emit(const ir::TensorContiguous& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::contiguous,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::contiguous,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
@@ -140,7 +140,7 @@ void TensorEmitter::emit(const ir::TensorIsContiguous& n,const ir::Instruction&)
 void TensorEmitter::emit(const ir::TensorItem& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.element_type);
     const auto slot=names_.value("tensor.item");
-    builder_.call(slot,runtime_abi::tensor::item_ptr,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(slot,runtime_abi::tensor::item_ptr,{{ptr,symbols_.value(n.tensor)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     builder_.load(symbols_.value(n.out),llvm_type(n.element_type),slot,Align::one);
 }
 
@@ -150,12 +150,12 @@ void TensorEmitter::emit(const ir::TensorCast& n,const ir::Instruction&){
         case_index(n.result_type,Type::simple(TypeKind::Error))>=0;
     if(!fallible){
         symbols_.set_type(n.out,n.target_type);
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::cast,{{ptr,symbols_.value(n.tensor)},{i32,dtype_code_of(*n.target_type.first)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::cast,{{ptr,symbols_.value(n.tensor)},{i32,dtype_code_of(*n.target_type.first)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         symbols_.acquire_owned(n.out,n.target_type,symbols_.value(n.out));
     }else{
         symbols_.set_type(n.out,n.result_type);
         const auto raw=names_.value("tensor.cast.raw");
-        builder_.call(raw,runtime_abi::tensor::try_cast,{{ptr,symbols_.value(n.tensor)},{i32,dtype_code_of(*n.target_type.first)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(raw,runtime_abi::tensor::try_cast,{{ptr,symbols_.value(n.tensor)},{i32,dtype_code_of(*n.target_type.first)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         symbols_.acquire_temporary(raw,n.target_type);
         const auto ok=names_.value("tensor.cast.ok");
         builder_.icmp(ok,IntPredicate::ne,ptr,raw,"null");
@@ -181,7 +181,7 @@ void TensorEmitter::emit(const ir::TensorCast& n,const ir::Instruction&){
         records_.store_conversion(error_payload,dtype_code_of(*n.target_type.first),
                                   abi::ConversionSubject::tensor_element,
                                   reason,abi::conversion_reason_spellings.size(),
-                                  n.line,n.column);
+                                  n.position.line,n.position.column);
         builder_.br(done);
         builder_.block(done);
     }
@@ -192,7 +192,7 @@ void TensorEmitter::emit(const ir::TensorCompare& n,const ir::Instruction& ins){
     const bool left_tensor=n.left_type.kind==TypeKind::Tensor;
     const bool right_tensor=n.right_type.kind==TypeKind::Tensor;
     if(left_tensor && right_tensor){
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::compare,{{ptr,symbols_.value(n.left)},{ptr,symbols_.value(n.right)},{ptr,"null"},{i32,abi::scalar_side::none},{i32,comparison_opcode(n.op)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::compare,{{ptr,symbols_.value(n.left)},{ptr,symbols_.value(n.right)},{ptr,"null"},{i32,abi::scalar_side::none},{i32,comparison_opcode(n.op)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else{
         const auto scalar=left_tensor?n.right:n.left;
         const auto scalar_type=left_tensor?n.right_type:n.left_type;
@@ -200,14 +200,14 @@ void TensorEmitter::emit(const ir::TensorCompare& n,const ir::Instruction& ins){
         builder_.store({llvm_type(scalar_type),symbols_.value(scalar)},slot,Align::one);
         const auto tensor=left_tensor?n.left:n.right;
         const int side=left_tensor?abi::scalar_side::right:abi::scalar_side::left;
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::compare,{{ptr,symbols_.value(tensor)},{ptr,"null"},{ptr,slot},{i32,side},{i32,comparison_opcode(n.op)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::compare,{{ptr,symbols_.value(tensor)},{ptr,"null"},{ptr,slot},{i32,side},{i32,comparison_opcode(n.op)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
 void TensorEmitter::emit(const ir::TensorBoolReduce& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::Bool));
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::bool_reduce,{{ptr,symbols_.value(n.tensor)},{i1,n.all?"1":"0"},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::bool_reduce,{{ptr,symbols_.value(n.tensor)},{i1,n.all?"1":"0"},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 
 void TensorEmitter::emit(const ir::TensorBinary& n,const ir::Instruction& ins){
@@ -215,7 +215,7 @@ void TensorEmitter::emit(const ir::TensorBinary& n,const ir::Instruction& ins){
     const bool left_tensor=n.left_type.kind==TypeKind::Tensor;
     const bool right_tensor=n.right_type.kind==TypeKind::Tensor;
     if(left_tensor && right_tensor){
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::binary,{{ptr,symbols_.value(n.left)},{ptr,symbols_.value(n.right)},{ptr,"null"},{i32,abi::scalar_side::none},{i32,binary_opcode(n.op)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::binary,{{ptr,symbols_.value(n.left)},{ptr,symbols_.value(n.right)},{ptr,"null"},{i32,abi::scalar_side::none},{i32,binary_opcode(n.op)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else{
         const auto scalar=n.left_type.kind==TypeKind::Tensor?n.right:n.left;
         const auto scalar_type=n.left_type.kind==TypeKind::Tensor?n.right_type:n.left_type;
@@ -223,7 +223,7 @@ void TensorEmitter::emit(const ir::TensorBinary& n,const ir::Instruction& ins){
         builder_.store({llvm_type(scalar_type),symbols_.value(scalar)},slot,Align::one);
         const auto tensor=n.left_type.kind==TypeKind::Tensor?n.left:n.right;
         const int side=n.left_type.kind==TypeKind::Tensor?abi::scalar_side::right:abi::scalar_side::left;
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::binary,{{ptr,symbols_.value(tensor)},{ptr,"null"},{ptr,slot},{i32,side},{i32,binary_opcode(n.op)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::binary,{{ptr,symbols_.value(tensor)},{ptr,"null"},{ptr,slot},{i32,side},{i32,binary_opcode(n.op)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
@@ -260,7 +260,7 @@ void TensorEmitter::emit(const ir::TensorIndex& n,const ir::Instruction& ins){
             emit_slot(spec::first_part_field+2,std::to_string(missing));
         }
     }
-    builder_.call(symbols_.value(n.out),runtime_abi::tensor::index,{{ptr,symbols_.value(n.tensor)},{ptr,specs},{i64,count},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(symbols_.value(n.out),runtime_abi::tensor::index,{{ptr,symbols_.value(n.tensor)},{ptr,specs},{i64,count},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     symbols_.acquire_owned(n.out,symbols_.type_at(n.out),symbols_.value(n.out));
 }
 
@@ -274,11 +274,11 @@ void TensorEmitter::emit(const ir::TensorSet& n,const ir::Instruction& ins){
     }
     const auto& scalar=scratch_.instruction_slot(ins,1);
     builder_.store({llvm_type(n.element_type),symbols_.value(n.value)},scalar,Align::one);
-    builder_.call(runtime_abi::tensor::set,{{ptr,symbols_.value(n.tensor)},{ptr,indices},{i64,count},{ptr,scalar},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(runtime_abi::tensor::set,{{ptr,symbols_.value(n.tensor)},{ptr,indices},{i64,count},{ptr,scalar},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 
 void TensorEmitter::emit(const ir::GpuSync& n,const ir::Instruction&){
-    builder_.call(runtime_abi::tensor::gpu_sync,{{i64,symbols_.value(n.index)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(runtime_abi::tensor::gpu_sync,{{i64,symbols_.value(n.index)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 
 } // namespace quidra::llvm_backend

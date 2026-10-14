@@ -68,7 +68,7 @@ tmp = pathlib.Path(sys.argv[1])
 STARTS = ["incl", "asc", "desc", "omit"]
 ENDS = ["incl", "asc", "desc", "omit"]
 
-def oracle(length, sf, s0, ef, e0, k0):
+def oracle(length, sf, s0, ef, e0, k0, strict_step=True):
     """The index set of the slice rules, or 'step' / 'bounds'."""
     sm = {"asc": 1, "desc": -1}.get(sf, 0)
     em = {"asc": 1, "desc": -1}.get(ef, 0)
@@ -83,12 +83,15 @@ def oracle(length, sf, s0, ef, e0, k0):
             return "step"
         d, k = sign, k0
     else:
-        d = d or 1
+        if not d:
+            d = -1 if sf != "omit" and ef != "omit" and s0 > e0 else 1
         k = d
     s_omit, e_omit = sf == "omit", ef == "omit"
     s = (0 if d > 0 else length - 1) if s_omit else s0
     e = (length if d > 0 else -1) if e_omit else e0
     s_excl, e_excl = sm != 0, e_omit or em != 0
+    if strict_step and k0 is not None and not s_omit and not e_omit and (s > e if d > 0 else s < e):
+        return "bounds"
     indices, j = [], 1 if s_excl else 0
     while True:
         i = s + j * k
@@ -251,6 +254,9 @@ for collection in ("bin", "tensor"):
             continue
         if collection == "tensor" and (sf == "desc" or ef == "desc"):
             continue
+        if collection == "tensor":
+            rows = [(n, s, e, k, oracle(n, sf, s, ef, e, 1 if k is None else k, strict_step=False))
+                    for n, s, e, k, _ in rows]
         valid = [row for row in rows if isinstance(row[4], list)]
         if not valid:
             continue
@@ -570,11 +576,11 @@ int stop = int(len(values)) + 3
 print("before" + NL)
 int[] part = values[1:stop]
 QUI
-fails reversed_inclusive INDEX_BOUNDS "slice 4:2 out of bounds for length 6" <<'QUI'
+fails reversed_inclusive INDEX_BOUNDS "slice 4:2:1 out of bounds for length 6" <<'QUI'
 int[] values = [1, 2, 3, 4, 5, 6]
 int stop = 2
 print("before" + NL)
-int[] part = values[4:stop]
+int[] part = values[4:stop:1]
 QUI
 fails excluded_far INDEX_BOUNDS "slice -2<:2 out of bounds for length 6" <<'QUI'
 int[] values = [1, 2, 3, 4, 5, 6]

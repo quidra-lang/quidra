@@ -19,7 +19,7 @@ void RandomEmitter::emit(const ir::RandomInt& n,const ir::Instruction&){
     symbols_.set_type(n.out,Type::simple(TypeKind::Int));
     builder_.call(symbols_.value(n.out),runtime_abi::random::integer_value,
         {{ptr,symbols_.value(n.generator)},{i64,symbols_.value(n.start)},
-         {i64,symbols_.value(n.end)},{i64,n.line},{i64,n.column}});
+         {i64,symbols_.value(n.end)},{i64,n.position.line},{i64,n.position.column}});
 }
 
 void RandomEmitter::emit(const ir::RandomFloat& n,const ir::Instruction&){

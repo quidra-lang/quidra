@@ -15,7 +15,7 @@ std::optional<ValueId> TextLowering::try_string_type_method(
     const auto* receiver_name=std::get_if<NameExpr>(&n.receiver->data);
     if(receiver_name && receiver_name->name=="string" && n.method=="from_utf8"){
         auto data=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-        builder_.emit(StringFromUtf8{out,data,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        builder_.emit(StringFromUtf8{out,data,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
         lifetime_.release_temporary(*n.args[0].value,data);
         return out;
     }

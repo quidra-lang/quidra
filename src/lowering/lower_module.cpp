@@ -11,7 +11,11 @@
 #include "quidra/ir/initialization_mask.hpp"
 #include "lowering/user_sources.hpp"
 #include "lowering/reference_storage.hpp"
+#include "ir/fact_sources.hpp"
+#include "semantics/interface_contracts.hpp"
 #include "quidra/member_function_names.hpp"
+
+#include <stdexcept>
 
 namespace quidra::ir {
 
@@ -20,6 +24,7 @@ Module lower(
     std::size_t replay_prefix_bytes, LoweringOptions options, CompileArtifact artifact) {
     lowering::Lowerer l(checked, repl_expression, replay_prefix_bytes, options);
     l.module().compiler_extensions = checked.compiler_extensions;
+    l.module().declaration_catalog = checked.program.declaration_catalog;
     l.module().user_sources=lowering::user_source_table(checked.program);
     for(const auto& [name,info]:checked.classes){
         ClassLayout layout;layout.name=name;layout.standard_library=info.standard_library;
@@ -46,6 +51,27 @@ Module lower(
     if(artifact!=CompileArtifact::Library)l.lower_main(checked.program.statements);
     l.flush_outlined_functions();
     lowering::place_reference_storage(l.module(), checked, options);
+    if (checked.effects) {
+        // Reference storage only appends hidden root arguments. Preserve all
+        // original source indices and mark appended arguments as unmapped.
+        for (const auto& function : l.module().functions) {
+            const auto binding = l.summary_bindings().find(function.name);
+            if (binding == l.summary_bindings().end()) continue;
+            if (binding->second.semantic_parameter_for_ir_parameter.size() > function.parameters.size())
+                throw std::logic_error("lowered summary signature lost a source parameter");
+            binding->second.semantic_parameter_for_ir_parameter.resize(function.parameters.size());
+        }
+        l.module().summaries = std::make_shared<const analysis::ModuleSummaries>(
+            analysis::adapt_summaries(l.module(), *checked.effects, l.summary_bindings()));
+        facts::ResultExtentSources extent_sources;
+        for (const auto& [name, function] : checked.functions)
+            extent_sources.emplace(name, function.result_extents);
+        l.module().fact_sources = std::make_shared<const facts::FactSources>(
+            facts::adapt_fact_sources(l.module(), l.summary_bindings(), extent_sources));
+    }
+    const auto& interfaces = checked.interface_sources ? checked.interface_sources : checked.program.interface_sources;
+    if (interfaces)
+        l.module().interface_sources = semantics::enrich_interface_contracts(*interfaces,checked,l.module());
     return std::move(l.module());
 }
 

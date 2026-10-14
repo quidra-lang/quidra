@@ -1,4 +1,5 @@
 #include "runtime_parallel.hpp"
+#include "runtime_counters.hpp"
 
 #include "platform/environment.hpp"
 #include "quidra/native_extension.h"
@@ -954,6 +955,30 @@ void test_concurrent_callers() {
 int main(int argc, char** argv) {
     if (argc == 5 && std::string(argv[1]) == "--reject-inside-body")
         return run_rejected_call(argv[2], argv[3], argv[4]);
+    {
+        const bool was_enabled = quidra::counters::enabled();
+        quidra::counters::set_enabled(true);
+        quidra::counters::reset();
+        configure(Backend::Pool, 1);
+        const auto body = +[](std::uint64_t, std::uint64_t, void*) { return 0; };
+        expect(qcore_parallel_for(0, 0, 1, body, nullptr) == QCORE_PARALLEL_OK,
+               "empty observation region succeeds");
+        expect(qcore_parallel_for(0, 4, 0, body, nullptr) == QCORE_PARALLEL_INVALID_ARGUMENT,
+               "invalid observation region is refused");
+        expect(quidra::counters::value(quidra::counters::Id::CpuParallelRegions) == 0,
+               "empty and invalid calls record no region");
+        expect(qcore_parallel_for(0, 4, 1, body, nullptr) == QCORE_PARALLEL_OK,
+               "nonempty serial observation region succeeds");
+        expect(quidra::counters::value(quidra::counters::Id::CpuParallelRegions) == 1 &&
+               quidra::counters::value(quidra::counters::Id::CpuParallelSerialRegions) == 1,
+               "serial region counted exactly once");
+        quidra::counters::set_enabled(false);
+        expect(qcore_parallel_for(0, 4, 1, body, nullptr) == QCORE_PARALLEL_OK,
+               "disabled observation region succeeds");
+        expect(quidra::counters::value(quidra::counters::Id::CpuParallelRegions) == 1,
+               "disabled observation adds no region");
+        quidra::counters::set_enabled(was_enabled);
+    }
     test_parse_thread_count();
     test_invalid_arguments();
     test_chunk_coverage();

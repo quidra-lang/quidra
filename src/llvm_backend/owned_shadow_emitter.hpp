@@ -15,6 +15,7 @@ struct OwnedShadowSlot {
     std::string drop_symbol;
     std::string clear_symbol;
     std::string custom_release;
+    std::uint64_t scope{};
 };
 // A shadow is an independent cleanup obligation, never a refcount inferred
 // from a pointer. Slots are reserved before entry and published immediately
@@ -25,16 +26,22 @@ public:
     OwnedShadowEmitter(llvm_text::LlvmBuilder& builder,TemporaryNames& names,
                        const std::unordered_map<std::string,ir::ClassLayout>& layouts)
         :builder_(builder),names_(names),layouts_(layouts){}
-    void reserve(const std::string& name,const Type& type,bool pin=false,const std::string& custom_release={});
+    void reserve(const std::string& name,const Type& type,bool pin=false,const std::string& custom_release={},std::uint64_t scope=0);
     bool empty()const{return slots_.empty();}
     void prepare(const std::string& function);
-    void entry(const std::string& function);
-    std::string entry_code(const std::string& function)const;
+    void entry(const std::string& function,std::uint64_t scope=0);
+    std::string entry_code(const std::string& function,std::uint64_t scope=0)const;
+    std::string scope_allocations()const;
+    bool has_scope(std::uint64_t scope)const{return scope_bytes_.contains(scope);}
+    static std::string suffix(std::uint64_t scope){return scope?".inline."+std::to_string(scope):"";}
+    std::string frame(std::uint64_t scope)const{return "%quidra.shadow.frame"+suffix(scope);}
+    std::string base(std::uint64_t scope)const{return "%quidra.shadow.base"+suffix(scope);}
+    std::string cleanup_symbol(std::uint64_t scope)const{return prefix_+suffix(scope)+".cleanup";}
     void publish(const std::string& name,const std::string& value);
     // Clear only after destination installation, or immediately before a
     // release/return. Neither this operation nor its clear callback drops.
     void consume(const std::string& name);
-    void cleanup();
+    void cleanup(std::uint64_t scope=0);
     CallArgumentOwnerLocation argument(const std::string& name)const;
     // An alias link contains the address of the actual owning shadow cell,
     // not the referent value. Null links denote borrowed external storage.
@@ -60,6 +67,6 @@ private:
     std::vector<OwnedShadowSlot> slots_;
     std::string prefix_;
     bool entry_emitted_{};
-    std::uint64_t bytes_{};
+    std::map<std::uint64_t,std::uint64_t> scope_bytes_;
 };
 }

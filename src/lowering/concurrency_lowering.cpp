@@ -83,8 +83,8 @@ void ConcurrencyLowering::lower_parallel(const Stmt& statement,const ParallelStm
     }
     ParallelBlock instruction;
     instruction.out=builder_.fresh();instruction.table_name=owner+"."+table;
-    instruction.line=static_cast<std::uint32_t>(statement.span.start.line);
-    instruction.column=static_cast<std::uint32_t>(statement.span.start.column);
+    instruction.position.line=static_cast<std::uint32_t>(statement.span.start.line);
+    instruction.position.column=static_cast<std::uint32_t>(statement.span.start.column);
     bool any_fallible=false;
     for(std::size_t index=0;index<block.body.size();++index) {
         const auto& source=*block.body[index];
@@ -107,7 +107,7 @@ void ConcurrencyLowering::lower_parallel(const Stmt& statement,const ParallelStm
         // Until managed result-graph transfer is established, fallible
         // results are made on the joining thread. No foreign registry is read.
         node.worker_safe=!fallible && index<plan->worker_safe.size() && plan->worker_safe[index];
-        node.predecessors=plan->predecessors[index];node.line=function.source_line;node.column=function.source_column;
+        node.predecessors=plan->predecessors[index];node.position.line=function.source_line;node.position.column=function.source_column;
         struct Capture {std::string source,storage;Type type;bool reference;const Stmt* binding;};
         std::vector<Capture> captures;
         const auto add=[&](std::string source_name,std::string storage,Type type,bool reference,const Stmt* binding){

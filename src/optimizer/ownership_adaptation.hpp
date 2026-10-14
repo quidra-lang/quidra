@@ -63,8 +63,8 @@ struct OwnershipAdaptation {
         const FunctionIndex& functions);
 
     // Makes the call, the instruction `instruction` of block in function, a
-    // call of target: its clones before it, taking the values after the
-    // largest one of the function; the release it takes over erased; its
+    // call of target: its clones before it, allocated from the function's
+    // persistent cursor; the release it takes over erased; its
     // borrowed releases after it. False, with nothing changed, when the
     // function has no value numbers left for the clones.
     bool apply(ir::Function& function, ir::Block& block, ir::Instruction& instruction) const;

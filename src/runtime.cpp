@@ -1,7 +1,11 @@
 #include "device_backend.hpp"
 #include "ieee_decimal.hpp"
 #include "platform/environment.hpp"
+#include "platform/clock.hpp"
 #include "runtime_counters.hpp"
+#include "runtime/profile.hpp"
+#include "runtime/timeline.hpp"
+#include "runtime/device_observation.hpp"
 #include "runtime_internal.hpp"
 #include "runtime_parallel.hpp"
 #include "runtime_report.hpp"
@@ -71,6 +75,7 @@
 
 // The ABI this runtime shares with generated code (include/quidra/abi).
 namespace abi = quidra::abi;
+extern "C" void quidra_runtime_start_observation() noexcept;
 
 namespace {
 
@@ -2245,6 +2250,7 @@ std::vector<long long> tensor_int_array_from_array(
 
 std::vector<long long> tensor_shape_from_array(
     void* raw, unsigned long long line, unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if (!raw) tensor_fail("shape array is null", line, column);
     auto shape = tensor_int_array_from_array(raw, line, column);
     if (shape.size() > 64)
@@ -2412,6 +2418,7 @@ void tensor_require_untracked_transform(
 void tensor_require_cpu(
     const TensorStorage& storage, const char* operation,
     unsigned long long line, unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     if (!tensor_on_cpu(storage)) {
         tensor_gpu_unsupported(operation, storage, line, column);
     }
@@ -2437,6 +2444,7 @@ TensorStorage* tensor_storage_create(
     if (count != 0 && width > std::numeric_limits<std::size_t>::max() / count) {
         runtime_allocation_failure();
     }
+    quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     if (device_index < -1) {
         tensor_fail("invalid internal tensor device", line, column);
     }
@@ -2461,7 +2469,22 @@ TensorStorage* tensor_storage_create(
         }
 
         if (device_index < 0) {
+            const auto allocation_begin = quidra::profile::enabled()
+                ? quidra::platform::monotonic_ns() : 0;
             storage->data.resize(bytes);
+            if (bytes != 0) {
+                quidra::counters::add(quidra::counters::Id::HostTensorAllocations);
+                quidra::counters::add(quidra::counters::Id::HostTensorAllocationBytes, bytes);
+                if (quidra::profile::enabled()) {
+                    quidra::profile::ProfileEvent event;
+                    event.kind = quidra::profile::ProfileEvent::Kind::Alloc;
+                    event.owner = "core"; event.name = "tensor storage";
+                    event.host_begin_ns = allocation_begin;
+                    event.host_end_ns = quidra::platform::monotonic_ns();
+                    event.bytes = bytes;
+                    quidra::profile::record(event);
+                }
+            }
         }
     } catch (...) {
         partial_storage.relinquish();forget_tensor_storage_partial(storage);delete storage;
@@ -2631,6 +2654,7 @@ TensorStorage* tensor_gpu_materialize_storage(
     const TensorValue& source,
     unsigned long long line,
     unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     if (tensor_on_cpu(*source.storage)) {
         tensor_fail("internal GPU materialization received a CPU tensor", line, column);
     }
@@ -2828,6 +2852,8 @@ TensorStorage* tensor_transfer_storage(
             tensor_fail(backend_error.c_str(), line, column);
         }
         mark_fully_initialized();
+        if (bytes != 0 && source.storage->device != target_device)
+            quidra::counters::add(quidra::counters::Id::UnifiedCopies);
         partial_output.relinquish();return output;
     }
 
@@ -2863,6 +2889,9 @@ TensorStorage* tensor_transfer_storage(
         }
         tracker_set(output->initialization, logical);
     }
+    if (output->initialization.initialized_count != 0 &&
+        source.storage->device != target_device)
+        quidra::counters::add(quidra::counters::Id::UnifiedCopies);
     partial_output.relinquish();return output;
 }
 
@@ -3081,6 +3110,10 @@ bool cpu_borrow_refused_in_hold(const TensorValue& tensor) {
 
 extern "C" unsigned int qcore_native_abi_version() {
     return 1U;
+}
+
+extern "C" [[noreturn]] void qcore_runtime_immediate_failure_exit() {
+    quidra::runtime::immediate_failure_exit();
 }
 
 extern "C" int qcore_tensor_dtype(const void* raw) {
@@ -3706,11 +3739,13 @@ extern "C" void quidra_numeric_cast_element(
 extern "C" void* quidra_tensor_create(
     void* shape_array, int dtype, int fill_mode, bool has_gpu, long long gpu,
     unsigned long long line, unsigned long long column) {
+    quidra::profile::Range create_range("core", "tensor create");
     if (fill_mode < abi::tensor_fill_mode::uninitialized || fill_mode > abi::tensor_fill_mode::ones) {
         tensor_fail("invalid tensor fill mode", line, column);
     }
     int device_index = -1;
     if (has_gpu) {
+        quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
         if (gpu < 0 || gpu > std::numeric_limits<int>::max()) {
             tensor_fail("gpu index must be a non-negative supported index", line, column);
         }
@@ -3729,6 +3764,7 @@ extern "C" void* quidra_tensor_create(
 extern "C" void* quidra_tensor_to_gpu(
     void* raw, long long gpu,
     unsigned long long line, unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     if (!raw) tensor_fail("null tensor", line, column);
     if (gpu < 0 || gpu > std::numeric_limits<int>::max()) {
         tensor_fail("gpu index must be a non-negative supported index", line, column);
@@ -3835,6 +3871,7 @@ extern "C" void* quidra_tensor_shape(void* raw) {
 }
 
 extern "C" void* quidra_tensor_shape_fixed(void* raw, unsigned long long expected_rank) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if (!raw) runtime_text_failure("null tensor");
     const auto& shape = static_cast<TensorValue*>(raw)->shape;
     if (shape.size() != expected_rank) {
@@ -3875,6 +3912,8 @@ void tensor_attach_cast_graph(
 extern "C" void* quidra_tensor_reshape(void* raw, void* shape_array,
                                          unsigned long long line,
                                          unsigned long long column) {
+    quidra::profile::Range operation_range("core", "tensor reshape");
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
     if (!tensor_is_contiguous_value(*source)) {
@@ -3905,6 +3944,7 @@ extern "C" void* quidra_tensor_reshape(void* raw, void* shape_array,
 extern "C" void* quidra_tensor_transpose(
     void* raw, long long axis0, long long axis1,
     unsigned long long line, unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
     const auto rank = static_cast<long long>(source->shape.size());
@@ -3979,6 +4019,7 @@ extern "C" void* quidra_tensor_contiguous(
 
 extern "C" void* quidra_tensor_item_ptr(void* raw, unsigned long long line,
                                          unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if (!raw) tensor_fail("null tensor", line, column);
     auto* tensor = static_cast<TensorValue*>(raw);
     if (!tensor->shape.empty()) {
@@ -4162,6 +4203,7 @@ extern "C" void* quidra_tensor_try_cast(
 extern "C" void quidra_tensor_rank_check(
     void* raw, long long expected_rank,
     unsigned long long line, unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(!raw) tensor_fail("null tensor",line,column);
     const auto* tensor=static_cast<TensorValue*>(raw);
     // Negative ranks encode a minimum: -1 permits every rank, -2
@@ -4176,6 +4218,7 @@ extern "C" void quidra_tensor_rank_check(
 extern "C" void quidra_tensor_extent_check(
     void* raw, long long axis, long long expected,
     unsigned long long line, unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(!raw) tensor_fail("null tensor",line,column);
     const auto* tensor=static_cast<TensorValue*>(raw);
     if(axis < 0) axis += static_cast<long long>(tensor->shape.size());
@@ -4190,6 +4233,7 @@ extern "C" void quidra_tensor_extent_check(
 extern "C" void quidra_tensor_shape_variable_check(
     void* raw, long long axis, long long expected, const char* variable, const char* subject,
     unsigned long long line, unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(!raw) tensor_fail("null tensor",line,column);
     const auto* tensor=static_cast<TensorValue*>(raw);
     if(axis < 0) axis += static_cast<long long>(tensor->shape.size());
@@ -4465,7 +4509,15 @@ private:
 
 struct AutogradNode {
     explicit AutogradNode(int element_dtype=QCORE_DTYPE_FLOAT32)
-        : dtype(element_dtype), data(element_dtype), aux(element_dtype) {}
+        : dtype(element_dtype), data(element_dtype), aux(element_dtype) {
+        quidra::counters::add(quidra::counters::Id::AutogradNodes);
+    }
+    // Called once after this node successfully retains its tensor value.
+    // Sharing and empty values are still one logical save; parents and
+    // scalar/index metadata do not create additional saved tensors.
+    void note_saved_value() const {
+        quidra::counters::add(quidra::counters::Id::AutogradSavedTensors);
+    }
 
     int dtype{10};
     std::vector<long long> shape;
@@ -4778,6 +4830,7 @@ std::shared_ptr<AutogradNode> autograd_constant_node(const TensorValue& tensor,
         if(!node->device_tensor)
             autograd_fail("failed to retain GPU tensor for autograd graph",line,column);
     }
+    node->note_saved_value();
     return node;
 }
 
@@ -4797,6 +4850,7 @@ void tensor_attach_view_graph(
         node->data=tensor_float_values(*result,line,column);
     else
         node->device_tensor=static_cast<TensorValue*>(quidra_tensor_clone(result));
+    node->note_saved_value();
     result->graph=std::move(node);
 }
 
@@ -4814,6 +4868,7 @@ void tensor_attach_cast_graph(
         node->data=tensor_float_values(*result,line,column);
     else
         node->device_tensor=static_cast<TensorValue*>(quidra_tensor_clone(result));
+    node->note_saved_value();
     result->graph=std::move(node);
 }
 
@@ -4990,6 +5045,7 @@ std::size_t autograd_node_count(const AutogradNode& node) {
 void autograd_require_same_node_device(
     const char* operation,const AutogradNode& left,const AutogradNode& right,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     const bool left_gpu=left.device_tensor!=nullptr;
     const bool right_gpu=right.device_tensor!=nullptr;
     if(left_gpu!=right_gpu){
@@ -5007,6 +5063,7 @@ void autograd_require_same_node_device(
 
 void autograd_require_same_shape(const AutogradNode& a,const AutogradNode& b,
                                unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(a.shape!=b.shape || autograd_node_count(a)!=autograd_node_count(b))
         autograd_fail("autograd operand shapes must match",line,column);
     if(a.dtype!=b.dtype)
@@ -5033,6 +5090,7 @@ TensorValue autograd_device_view(const AutogradNode& node) {
 // retained, when it already is one). The caller owns the result.
 TensorValue* autograd_device_dense_value(
     const TensorValue& value,unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     if(tensor_on_cpu(*value.storage))
         autograd_fail("internal autograd GPU path received a CPU tensor",line,column);
     if(tensor_is_contiguous_value(value)&&value.offset==0){
@@ -5061,6 +5119,7 @@ std::shared_ptr<AutogradNode> autograd_device_symbolic_node(
     node->parents=std::move(parents);
     node->device_tensor=value;
     partial_value.relinquish();
+    node->note_saved_value();
     return node;
 }
 
@@ -5074,7 +5133,8 @@ std::shared_ptr<AutogradNode> autograd_device_symbolic_node_safe(
     value->graph.reset();value->grad_slot.reset();
     auto node=std::make_shared<AutogradNode>(dtype);
     node->shape=shape;node->op=operation;node->parents=parents;
-    node->device_tensor=value;partial.relinquish();return node;
+    node->device_tensor=value;partial.relinquish();
+    node->note_saved_value();return node;
 }
 
 template <typename T>
@@ -5085,6 +5145,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_binary_t(
     unsigned long long line,unsigned long long column) {
     const auto& a=left->data.typed<T>();
     const auto& b=right->data.typed<T>();
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(a.size()!=b.size()) autograd_fail("higher-order gradient shape mismatch",line,column);
     std::vector<T> values(a.size(),T{0});
     for(std::size_t i=0;i<values.size();++i){
@@ -5103,6 +5164,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_binary_t(
         operation==abi::tensor_binary_opcode::subtract?AutogradOp::Sub:
         operation==abi::tensor_binary_opcode::multiply?AutogradOp::Mul:AutogradOp::Div;
     node->data=AutogradBuffer(std::move(values));
+    node->note_saved_value();
     return node;
 }
 
@@ -5168,6 +5230,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_scalar_t(
         static_cast<std::size_t>(operation),
         scalar_left?std::size_t{1}:std::size_t{0}};
     node->data=AutogradBuffer(std::move(values));
+    node->note_saved_value();
     return node;
 }
 
@@ -5242,6 +5305,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_neg(
     };
     if(input->dtype==QCORE_DTYPE_FLOAT32) negate(float{});
     else negate(double{});
+    node->note_saved_value();
     return node;
 }
 
@@ -5249,6 +5313,7 @@ template <typename T>
 std::vector<T> autograd_gather_values(
     const HostValues<T>& input,const std::vector<std::size_t>& indices,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     std::vector<T> output(indices.size());
     for(std::size_t i=0;i<indices.size();++i){
         if(indices[i]>=input.size())
@@ -5263,6 +5328,7 @@ std::vector<T> autograd_gather_backward_values(
     const HostValues<T>& gradient,std::size_t source_count,
     const std::vector<std::size_t>& indices,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(gradient.size()!=indices.size())
         autograd_fail("tensor gather backward size mismatch",line,column);
     std::vector<T> output(source_count,T{0});
@@ -5295,6 +5361,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_reshape(
     const std::vector<long long>& output_shape,
     unsigned long long line,unsigned long long column) {
     if(!input) autograd_fail("null higher-order reshape operand",line,column);
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(tensor_element_count(input->shape,line,column)!=
        tensor_element_count(output_shape,line,column))
         autograd_fail("higher-order reshape cannot change element count",line,column);
@@ -5311,6 +5378,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_reshape(
             auto* storage=tensor_gpu_materialize_storage(*source,line,column);
             node->device_tensor=tensor_descriptor(
                 storage,output_shape,tensor_contiguous_strides(output_shape),0);
+            node->note_saved_value();
             return node;
         }
         if(source->storage->owners==std::numeric_limits<std::size_t>::max())
@@ -5325,6 +5393,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_reshape(
     }else{
         node->data=input->data;
     }
+    node->note_saved_value();
     return node;
 }
 
@@ -5335,6 +5404,7 @@ AutogradBuffer autograd_transpose_values(
     unsigned long long line,unsigned long long column) {
     const auto count=tensor_element_count(input_shape,line,column);
     const auto& values=input.typed<T>();
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(values.size()!=count) autograd_fail("transpose graph size mismatch",line,column);
     std::vector<long long> output_shape=input_shape;
     std::swap(output_shape[axis0],output_shape[axis1]);
@@ -5363,6 +5433,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_transpose(
     std::size_t axis0,std::size_t axis1,
     unsigned long long line,unsigned long long column) {
     if(!input) autograd_fail("null higher-order transpose operand",line,column);
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(axis0>=input->shape.size()||axis1>=input->shape.size())
         autograd_fail("higher-order transpose axis is outside rank",line,column);
     auto node=std::make_shared<AutogradNode>(input->dtype);
@@ -5391,6 +5462,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_transpose(
         node->data=autograd_transpose_values<double>(
             input->data,input->shape,axis0,axis1,line,column);
     }
+    node->note_saved_value();
     return node;
 }
 
@@ -5400,6 +5472,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_gather(
     const std::vector<std::size_t>& indices,
     unsigned long long line,unsigned long long column) {
     if(!input) autograd_fail("null higher-order gather operand",line,column);
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(tensor_element_count(output_shape,line,column)!=indices.size())
         autograd_fail("tensor gather output shape does not match index count",line,column);
     if(input->device_tensor){
@@ -5430,6 +5503,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_gather(
             input->data.typed<double>(),indices,line,column));
     else
         autograd_fail("tensor gather autograd requires a floating dtype",line,column);
+    node->note_saved_value();
     return node;
 }
 
@@ -5443,6 +5517,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_gather_backward(
     if(gradient->device_tensor){
         if(gradient->dtype!=QCORE_DTYPE_FLOAT64&&gradient->dtype!=QCORE_DTYPE_FLOAT32)
             autograd_fail("tensor gather autograd requires a floating dtype",line,column);
+        quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
         if(autograd_node_count(*gradient)!=indices.size())
             autograd_fail("tensor gather backward size mismatch",line,column);
         std::vector<std::uint64_t> device_indices(indices.size());
@@ -5491,6 +5566,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_gather_backward(
             gradient->data.typed<double>(),source_count,indices,line,column));
     else
         autograd_fail("tensor gather autograd requires a floating dtype",line,column);
+    node->note_saved_value();
     return node;
 }
 
@@ -5501,6 +5577,7 @@ std::vector<std::size_t> autograd_broadcast_indices(
     const std::vector<long long>& source_shape,
     const std::vector<long long>& output_shape,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeBroadcastValidations);
     if(source_shape.size()!=output_shape.size())
         autograd_fail("invalid tensor broadcast graph",line,column);
     const auto count=tensor_element_count(output_shape,line,column);
@@ -5563,6 +5640,7 @@ std::vector<TensorValue*> autograd_custom_backward_tracked_tensors(
     if(node.op!=AutogradOp::CustomNative || !node.custom_backward_tracked ||
        node.parents.empty())
         autograd_fail("invalid tracked custom native autograd node",line,column);
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(!gradient || gradient->dtype!=node.dtype || gradient->shape!=node.shape)
         autograd_fail("tracked custom native gradient output does not match forward output",line,column);
 
@@ -5696,6 +5774,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_seed(
         }else{
             node->data.assign(count,ones?1.0:0.0);
         }
+        node->note_saved_value();
         return node;
     };
     return exact(exact(loss,3,0.0,false),1,1.0,true);
@@ -5735,6 +5814,7 @@ std::shared_ptr<AutogradNode> autograd_symbolic_cast(
     node->shape=input->shape;node->op=AutogradOp::Cast;node->parents={input};
     node->data=tensor_float_values(*converted,line,column);
     partial_converted.relinquish();release_managed_tensor(converted);
+    node->note_saved_value();
     return node;
 }
 
@@ -5748,6 +5828,7 @@ void autograd_validate_cast_graph(
             autograd_fail("backward(track = true) is not available for real16 and real16b tensors",
                           line,column);
         if(node->op==AutogradOp::Cast){
+            quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
             if(node->parents.size()!=1||!autograd_dtype(node->parents[0]->dtype)||
                node->shape!=node->parents[0]->shape)
                 autograd_fail("invalid autograd cast graph",line,column);
@@ -5946,6 +6027,7 @@ void autograd_add_gradient(std::unordered_map<const AutogradNode*,HostValues<T>>
     auto& current=gradients[node.get()];
     if(current.empty()) current=std::move(value);
     else{
+        quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
         if(current.size()!=value.size()) runtime_text_failure("autograd gradient size mismatch");
         const auto count=current.size();
         auto* out=current.mutable_data();
@@ -6071,6 +6153,7 @@ int attach_custom_autograd(
         for(std::uint64_t index=0;index<input_count;++index){
             if(!input_raws[index]) return -1;
             const auto* input=static_cast<const TensorValue*>(input_raws[index]);
+            quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
             if(!input->storage ||
                input->storage->dtype!=output->storage->dtype ||
                input->storage->device!=output->storage->device)
@@ -6100,6 +6183,7 @@ int attach_custom_autograd(
                 static_cast<const TensorValue*>(saved_raws[index]);
             if(!saved_source->storage) return -5;
             node->custom_saved.push_back(autograd_saved_snapshot(*saved_source));
+            quidra::counters::add(quidra::counters::Id::AutogradSavedTensors);
         }
         if(metadata_size!=0){
             const auto* bytes=static_cast<const unsigned char*>(metadata);
@@ -6122,7 +6206,9 @@ int attach_custom_autograd(
         else
             node->device_tensor=static_cast<TensorValue*>(
                 quidra_tensor_clone(output));
+        node->note_saved_value();
         output->graph=std::move(node);
+        quidra::counters::add(quidra::counters::Id::AutogradCustomNodes);
         return 0;
     } catch (...) {
         return -9;
@@ -6308,6 +6394,7 @@ TensorValue* tensor_gather_logical_indices(
     TensorValue& source,std::vector<std::size_t> logical_indices,
     std::vector<long long> output_shape,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     const auto output_count=tensor_element_count(output_shape,line,column);
     if(logical_indices.size()!=output_count)
         tensor_fail(
@@ -6402,6 +6489,7 @@ TensorValue* tensor_gather_logical_indices(
         else
             node->device_tensor=static_cast<TensorValue*>(
                 quidra_tensor_clone(result));
+        node->note_saved_value();
         result->graph=std::move(node);
     }
     partial_graph_result_4.relinquish();
@@ -6433,6 +6521,7 @@ extern "C" void* quidra_tensor_gather(
 extern "C" void* quidra_tensor_scatter(
     void* raw,void* indices_array,void* shape_array,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(!raw) tensor_fail("tensor.scatter received a null tensor",line,column);
     auto& source=*static_cast<TensorValue*>(raw);
     if(!abi::numeric_dtype_code(source.storage->dtype))
@@ -6550,6 +6639,7 @@ extern "C" void* quidra_tensor_scatter(
         else
             node->device_tensor=static_cast<TensorValue*>(
                 quidra_tensor_clone(result));
+        node->note_saved_value();
         result->graph=std::move(node);
     }
     partial_graph_result_5.relinquish();
@@ -6583,6 +6673,7 @@ public:
                 owned_=nullptr;
             }
         }
+        quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
         if(tensor_on_cpu(*value.storage))
             autograd_fail("internal autograd GPU path received a CPU tensor",line,column);
         if(tensor_is_contiguous_value(value)&&value.offset==0){
@@ -6669,6 +6760,7 @@ void autograd_device_binary_backward(
     if(reads_right && !shared_parent) bd.reset(*right,line,column);
     const TensorValue* a=reads_left ? ad.get() : gd.get();
     const TensorValue* b=!reads_right ? gd.get() : shared_parent ? a : bd.get();
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(gd->shape!=left->shape||gd->shape!=right->shape||
        gd->shape!=a->shape||gd->shape!=b->shape)
         autograd_fail("autograd binary backward shape mismatch",line,column);
@@ -6764,6 +6856,7 @@ void autograd_add_device_gradient(
 TensorValue* autograd_device_filled_like(
     const AutogradNode& node,bool ones,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     if(!node.device_tensor)
         autograd_fail("internal autograd GPU fill requires a device tensor",line,column);
     const auto count=tensor_logical_count(*node.device_tensor);
@@ -6820,6 +6913,8 @@ public:
     }
 
     void report() const {
+        quidra::counters::add(quidra::counters::Id::AutogradFormulas, formulas_);
+        quidra::counters::add(quidra::counters::Id::AutogradPruned, pruned_);
         static const bool enabled=[]{
             const auto value=quidra::platform::environment_value("QUIDRA_TEST_AUTOGRAD_STATS");
             return value && *value=="1";
@@ -6851,6 +6946,7 @@ std::vector<TensorValue*> autograd_custom_backward_tensors(
        (!node.custom_backward && !node.custom_backward_masked) ||
        node.parents.empty() || needed.size()!=node.parents.size())
         autograd_fail("invalid custom native autograd node",line,column);
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(!gradient || !gradient->storage || gradient->storage->dtype!=node.dtype ||
        gradient->shape!=node.shape)
         autograd_fail("custom native gradient output does not match forward output",line,column);
@@ -6990,6 +7086,10 @@ void autograd_grad_device(
     bool cast_graph=false;
     autograd_topological(loss,seen,order,&cast_graph);
     if(cast_graph) autograd_validate_cast_graph(order,false,line,column);
+
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
+
+    quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
 
     if(!loss->device_tensor||tensor_logical_count(*loss->device_tensor)!=1)
         autograd_fail("grad requires a scalar GPU loss",line,column);
@@ -7150,6 +7250,7 @@ void autograd_grad_device(
                    operation==abi::tensor_binary_opcode::power){
                     xd.reset(*input->device_tensor,line,column);
                     input_dense=xd.get();
+                    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
                     if(gd->shape!=xd->shape)
                         autograd_fail("autograd scalar backward shape mismatch",line,column);
                 }
@@ -7202,6 +7303,7 @@ void autograd_grad_device(
             auto shape=g->shape;
             auto strides=g->strides;
             const auto axis0=node->aux_index[0],axis1=node->aux_index[1];
+            quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
             if(axis0>=shape.size()||axis1>=shape.size())
                 autograd_fail("invalid GPU tensor transpose axis",line,column);
             std::swap(shape[axis0],shape[axis1]);
@@ -7209,6 +7311,7 @@ void autograd_grad_device(
             auto* result=tensor_descriptor(g->storage,std::move(shape),std::move(strides),g->offset);
             quidra::runtime::NodeRuntimeOwner partial_result(&result,cleanup_node_tensor_cell);
             partial_retained_8.relinquish();
+            quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
             if(result->shape!=parent->shape){
                 release_managed_tensor(std::exchange(result,nullptr));
                 autograd_fail("GPU tensor transpose backward shape mismatch",line,column);
@@ -7244,6 +7347,7 @@ void autograd_grad_device(
             const auto& input=node->parents[0];
             const auto input_count=autograd_node_count(*input);
             AutogradDeviceDenseInput gd(*g,line,column);
+            quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
             if(gd->shape!=node->shape)
                 autograd_fail("GPU tensor broadcast backward shape mismatch",line,column);
             // One kernel thread per source element writes it (fill mode write_only).
@@ -7334,6 +7438,7 @@ void autograd_add_cast_gradient(
     auto& current=entry->second.typed<T>();
     if(inserted||current.empty()) current=std::move(value);
     else{
+        quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
         if(current.size()!=value.size()) runtime_text_failure("autograd gradient size mismatch");
         const auto count=current.size();
         auto* out=current.mutable_data();
@@ -7531,6 +7636,7 @@ void autograd_grad_cast_step(
     }else if(node->op==AutogradOp::Reshape){
         if(node->parents.size()!=1)
             autograd_fail("invalid tensor reshape graph",line,column);
+        quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
         if(g.size()!=node->parents[0]->data.size())
             autograd_fail("tensor reshape backward size mismatch",line,column);
         // Reshape keeps element order and this node's gradient is erased
@@ -7796,6 +7902,7 @@ void autograd_grad_t(
         }else if(node->op==AutogradOp::Reshape){
             if(node->parents.size()!=1)
                 autograd_fail("invalid tensor reshape graph",line,column);
+            quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
             if(g.size()!=node->parents[0]->data.size())
                 autograd_fail("tensor reshape backward size mismatch",line,column);
             // Reshape keeps element order and this node's gradient is erased
@@ -7849,6 +7956,7 @@ TensorValue* autograd_backward_loss(
     auto* tensor=static_cast<TensorValue*>(raw);
     if(!tensor->graph)
         autograd_fail("backward() requires a tracked tensor",line,column);
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if(autograd_node_count(*tensor->graph)!=1)
         autograd_fail("backward() requires a scalar tensor",line,column);
     return tensor;
@@ -7877,6 +7985,10 @@ extern "C" void quidra_tensor_backward_many(
     unsigned long long target_count,bool track,
     unsigned long long line,unsigned long long column) {
     quidra::counters::step_boundary(quidra::counters::StepEvent::Backward); // qcount
+    quidra::device::observation_step_boundary();
+    quidra::profile::advance_capture_step();
+    quidra::timeline::note_point(quidra::timeline::Point::StepBoundary);
+    quidra::profile::Range backward_range("quidra", "backward");
     auto* tensor=autograd_backward_loss(raw,line,column);
     if(target_count==0)
         autograd_fail("backward() requires at least one gradient target",line,column);
@@ -7985,6 +8097,7 @@ std::vector<long long> tensor_broadcast_shape(const TensorValue& left,
                                               const TensorValue& right,
                                               unsigned long long line,
                                               unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeBroadcastValidations);
     if (left.shape.size() != right.shape.size()) {
         tensor_fail("tensor broadcasting requires identical ranks", line, column);
     }
@@ -8006,6 +8119,7 @@ std::vector<long long> tensor_broadcast_shape(const TensorValue& left,
 std::vector<std::size_t> tensor_broadcast_logical_indices(
     const TensorValue& source,const std::vector<long long>& output_shape,
     unsigned long long line,unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeBroadcastValidations);
     if(source.shape.size()!=output_shape.size())
         tensor_fail("tensor broadcasting requires identical ranks",line,column);
     const auto count=tensor_element_count(output_shape,line,column);
@@ -8453,6 +8567,7 @@ extern "C" unsigned long long quidra_integer_pow_unsigned(
 extern "C" void* quidra_tensor_unary(void* raw, int operation,
                                       unsigned long long line,
                                       unsigned long long column) {
+    quidra::profile::Range operation_range("core", "tensor unary");
     if (!raw || operation != abi::tensor_unary_opcode::negate) {
         tensor_fail("invalid tensor unary operation", line, column);
     }
@@ -8553,9 +8668,11 @@ extern "C" void* quidra_tensor_compare(
         tensor_fail("invalid tensor scalar comparison side", line, column);
     if (other && primary->storage->dtype != other->storage->dtype)
         tensor_fail("tensor comparison requires identical element types", line, column);
+    if (other) quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     if (other && primary->storage->device != other->storage->device)
         tensor_fail("tensor operands are on different devices; use an explicit .gpu(n) or .cpu() transfer",
                     line, column);
+    if (other) quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if (other && primary->shape != other->shape)
         tensor_fail("tensor comparison requires identical shape", line, column);
     if (operation < abi::tensor_comparison_opcode::equal || operation > abi::tensor_comparison_opcode::greater_equal)
@@ -8764,6 +8881,7 @@ void tensor_attach_binary_graph(
                     node->op=AutogradOp::Broadcast;
                     node->parents={operand->graph};
                 }
+                node->note_saved_value();
                 return node;
             }
         }
@@ -8813,6 +8931,7 @@ void tensor_attach_binary_graph(
         node->data=tensor_float_values(*result,line,column);
     else
         node->device_tensor=static_cast<TensorValue*>(quidra_tensor_clone(result));
+    node->note_saved_value();
     result->graph=std::move(node);
 }
 
@@ -9029,6 +9148,7 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
                                         int operation,
                                         unsigned long long line,
                                         unsigned long long column) {
+    quidra::profile::Range operation_range("core", "tensor binary");
     if (!primary_raw) tensor_fail("null tensor operand", line, column);
     auto* primary = static_cast<TensorValue*>(primary_raw);
     auto* other = static_cast<TensorValue*>(other_raw);
@@ -9044,6 +9164,7 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
     if (other && primary->storage->dtype != other->storage->dtype) {
         tensor_fail("tensor operands must have identical element types", line, column);
     }
+    if (other) quidra::counters::add(quidra::counters::Id::RuntimeDeviceChecks);
     if (other && primary->storage->device != other->storage->device) {
         tensor_fail("tensor operands are on different devices; use an explicit .gpu(n) or .cpu() transfer",
                     line, column);
@@ -9255,6 +9376,7 @@ extern "C" void* quidra_tensor_index(void* raw, const long long* specs,
                                        unsigned long long count,
                                        unsigned long long line,
                                        unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
     tensor_require_untracked_transform(*source,"indexing",line,column);
@@ -9300,7 +9422,7 @@ extern "C" void* quidra_tensor_index(void* raw, const long long* specs,
             if (step <= 0) tensor_slice_step_fail(step, start_form, end_form, line, column);
             const auto planned = quidra::plan_slice(
                 static_cast<std::uint64_t>(dimension),
-                quidra::SliceRequest{start_form, first, end_form, second, step});
+                quidra::SliceRequest{start_form, first, end_form, second, step}, false);
             if (planned.status == quidra::SliceStatus::step_against_marker) {
                 tensor_slice_step_fail(step, start_form, end_form, line, column);
             }
@@ -9366,7 +9488,7 @@ extern "C" void* quidra_tensor_index(void* raw, const long long* specs,
                                      .start = start,
                                      .end_form = quidra::SliceEnd::exclusive_ascending,
                                      .end = stop,
-                                     .step = step});
+                                     .step = step}, false);
             if (!selection) tensor_fail("invalid checked tensor slice plan", line, column);
             length = static_cast<long long>(selection.plan.count);
         }
@@ -9400,6 +9522,7 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
                                     unsigned long long count, const void* value,
                                     unsigned long long line,
                                     unsigned long long column) {
+    quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
     if (!raw || !value) tensor_fail("invalid tensor element assignment", line, column);
     auto* tensor = static_cast<TensorValue*>(raw);
     if (count != tensor->shape.size()) {
@@ -9721,7 +9844,7 @@ static quidra::SliceIndexPlan plan_slice_or_fail(long long length, long long sta
                                                  unsigned long long line,
                                                  unsigned long long column) {
     if (length < 0 || start_form < 0 || start_form > 3 || end_form < 0 || end_form > 3 ||
-        direction < 0 || direction > 2) {
+        direction < 0 || direction > static_cast<int>(quidra::SliceDirection::by_bounds)) {
         runtime_text_failure("invalid slice plan request");
     }
     const auto start_kind = static_cast<quidra::SliceStart>(start_form);
@@ -11298,6 +11421,7 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
 
 extern "C" void quidra_runtime_set_args(int argc, char** argv) {
     quidra::counters::mark_program_started();
+    quidra_runtime_start_observation();
     std::lock_guard<std::mutex> lock(runtime_args_mutex);
     runtime_argc = argc;
     runtime_argv = argv;

@@ -21,6 +21,9 @@
 // copied: a copy of an unordered container may iterate in another order.
 
 #include "ir/function_builder.hpp"
+#include "ir/facts/integer_range.hpp"
+#include "ir/facts/initialization.hpp"
+#include "ir/facts/shape_proof.hpp"
 #include "lowering/local_scope.hpp"
 #include "quidra/checker.hpp"
 #include <cstddef>
@@ -41,11 +44,7 @@ struct ActiveRangeBound {
     const std::vector<StmtPtr>* body{};
 };
 
-// The inclusive range of a nonnegative int64 or bare integer value.
-struct NonnegativeIntegerRange {
-    std::uint64_t minimum{};
-    std::uint64_t maximum{};
-};
+using ir::facts::NonnegativeIntegerRange;
 
 // A local whose range may be proven: its initial range and the modulo
 // assignments that keep it below the modulus.
@@ -57,21 +56,9 @@ struct IntegerRangeCandidate {
     bool invalid{};
 };
 
-// The source arrays known to be fully initialized at a point of the function.
-using FullArrays = std::unordered_set<std::string>;
-
-// The arrays fully initialized on both of two joining paths.
-FullArrays intersect_full_arrays(const FullArrays& left, const FullArrays& right);
-
-class ShapeProof {
-public:
-    ShapeProof(const CheckedProgram& checked, bool force = false) : checked_(checked), force_(force) {}
-    bool rank(const Expr* expression) const;
-    bool axis(const Expr* expression, std::size_t axis) const;
-private:
-    const CheckedProgram& checked_;
-    bool force_{};
-};
+using ir::facts::FullArrays;
+using ir::facts::intersect_full_arrays;
+using ir::facts::ShapeProof;
 
 class IntegerRangeFacts {
 public:

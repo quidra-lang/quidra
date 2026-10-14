@@ -9,6 +9,50 @@
 
 namespace quidra::ir::analysis {
 
+std::unordered_set<std::string> node_cleanup_functions(const ir::Module& module) {
+    std::unordered_map<std::string, const ir::Function*> callable;
+    std::unordered_set<std::string> address_taken;
+    std::vector<std::string> pending;
+    for (const auto& function : module.functions) {
+        if (!function.entrypoint) callable[function.name] = &function;
+        if (function.parallel_node) {
+            address_taken.insert(function.name);
+            pending.push_back(function.name);
+        }
+        for (const auto& block : function.blocks)
+            for (const auto& instruction : block.instructions) {
+                if (const auto* ref = std::get_if<ir::FunctionRef>(&instruction))
+                    address_taken.insert(ref->function);
+                if (const auto* parallel = std::get_if<ir::ParallelBlock>(&instruction))
+                    for (const auto& node : parallel->nodes) pending.push_back(node.function);
+            }
+    }
+    std::unordered_set<std::string> result;
+    for (std::size_t index = 0; index < pending.size(); ++index) {
+        const auto name = pending[index];
+        if (!result.insert(name).second) continue;
+        const auto found = callable.find(name);
+        if (found == callable.end() || found->second->external_symbol) continue;
+        for (const auto& block : found->second->blocks)
+            for (const auto& instruction : block.instructions) {
+                bool callback = std::holds_alternative<ir::IndirectCall>(instruction);
+                if (const auto* call = std::get_if<ir::Call>(&instruction)) {
+                    const auto callee = callable.find(call->callee);
+                    if (callee != callable.end()) {
+                        if (callee->second->external_symbol) callback = true;
+                        else pending.push_back(call->callee);
+                    }
+                }
+                if (callback) {
+                    for (const auto& target : address_taken) pending.push_back(target);
+                    for (const auto& target : module.functions)
+                        if (target.c_export_symbol) pending.push_back(target.name);
+                }
+            }
+    }
+    return result;
+}
+
 std::unordered_set<std::string> recursive_functions(const ir::Module& module) {
     std::unordered_set<std::string> names;
     for (const auto& function : module.functions) names.insert(function.name);

@@ -17,6 +17,9 @@
 #include "run_cache.hpp"
 #include "jit.hpp"
 #include "device_cli.hpp"
+#include "profile_cli.hpp"
+#include "runtime/capture_request.hpp"
+#include "platform/environment.hpp"
 #include "platform/file_names.hpp"
 #include "platform/process.hpp"
 #include "platform/temporary_directory.hpp"
@@ -247,17 +250,28 @@ int build_library_archive(const fs::path& source, const fs::path& output, bool k
 int run_native(const fs::path& source, std::size_t max_errors = 20,
                const std::vector<std::string>& program_args = {},
                const std::vector<fs::path>& link_inputs = {},
-               bool use_cache = true) {
+               bool use_cache = true,
+               const quidra::platform::RuntimeEnvironment& runtime_environment = {}) {
+    auto program_environment = runtime_environment;
+    if (const auto capture = quidra::platform::environment_value("QUIDRA_METAL_CAPTURE");
+        capture && quidra::profile::parse_capture_step(*capture)) {
+        const auto host = quidra::package_host_platform();
+        program_environment = quidra::profile::capture_child_environment(
+            runtime_environment, *capture, host && host->starts_with("macos-"));
+    }
     const auto uncached = [&]() {
         quidra::run_artifact::TemporaryArtifact temp(source);
         const auto& executable = temp.executable();
         if (build_native(source, executable, false, max_errors, false, link_inputs) != 0) return 1;
-        return quidra::platform::run_program(executable, program_args);
+        return quidra::platform::run_program(
+            program_environment.empty() ? executable : fs::absolute(executable), program_args,
+            std::nullopt, std::nullopt, program_environment);
     };
     if (!use_cache) return uncached();
     require_qui_source(source);
     return quidra::run_cache::run_cached(
-        quidra::run_cache::DirectRun{source, max_errors, program_args, link_inputs}, uncached);
+        quidra::run_cache::DirectRun{source, max_errors, program_args, link_inputs}, uncached,
+        program_environment);
 }
 
 std::string description_json() {
@@ -282,8 +296,10 @@ void usage(std::ostream& out) {
         << quidra::package_lock_filename << "\n"
         << "  " << cli << " package-path               print the default package store path\n"
         << "  " << cli << " cache clean                remove the run cache's programs\n"
-        << "  " << cli << " gpu                        list supported GPU devices and backends\n"
+        << "  " << cli << " gpu [--verbose]            list GPU devices and optional capabilities\n"
         << "  " << cli << " info                       print CPU/GPU backend information\n"
+        << "  " << cli << " profile " << source << " [--top N] [--split] [--roofline]\n"
+        << "                                      [--trace PATH] [--timeline PATH] [-- ARGS...]\n"
         << "  " << cli << " [--no-cache] " << source << " [ARGS...]\n"
         << "                                      AOT compile/link and run with program arguments\n"
         << "  " << cli << " run " << source << " [--no-cache] [--link FILE] [-- ARGS...]\n"
@@ -462,6 +478,9 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    if (argc == 3 && std::string(argv[1]) == "gpu" && std::string(argv[2]) == "--verbose") {
+        return quidra::cli::run_gpu_cli(true);
+    }
     if (argc == 2 && std::string(argv[1]) == "gpu") {
         return quidra::cli::run_gpu_cli(false);
     }
@@ -472,6 +491,26 @@ int main(int argc, char** argv) {
 
     if (argc >= 2 && std::string(argv[1]) == "describe") {
         return describe_command(argc, argv);
+    }
+
+    if (argc >= 3 && std::string(argv[1]) == "profile") {
+        const fs::path source = argv[2];
+        std::vector<std::string> arguments;
+        for (int i = 3; i < argc; ++i) arguments.emplace_back(argv[i]);
+        try {
+            return quidra::cli::run_profile_cli(source, arguments,
+                [](const fs::path& input, const std::vector<std::string>& program_arguments,
+                   const quidra::cli::RuntimeEnvironment& environment) {
+                    return run_native(input, 20, program_arguments, {}, true, environment);
+                }, std::cout, std::cerr);
+        } catch (const quidra::CompileErrors& error) {
+            print_compile_errors(source, error, false);
+        } catch (const quidra::CompileError& error) {
+            print_compile_error(source, error, false);
+        } catch (const std::exception& error) {
+            std::cerr << "quidra: " << error.what() << '\n';
+        }
+        return 1;
     }
 
     if (argc == 3 && std::string(argv[1]) == "__jit-run") {

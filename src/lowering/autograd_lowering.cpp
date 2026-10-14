@@ -22,8 +22,8 @@ ValueId AutogradLowering::lower_tensor_grad(const Expr& e, const MemberExpr& n) 
     auto tensor=lowerer_.lower(*n.base),out=builder_.fresh();
     builder_.emit(TensorGrad{
         out,tensor,type_of(checked_,e),
-        static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column)});
+        {static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)}});
     if(base_owned) release_owned(builder_,tensor,tensor_type);
     return out;
 }
@@ -46,8 +46,8 @@ std::optional<ValueId> AutogradLowering::try_autograd_target_method(
         if(n.method=="clear_grad"){
             builder_.emit(AutogradTargetClearGrad{
                 target,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             finish(0);
             return 0;
         }
@@ -55,8 +55,8 @@ std::optional<ValueId> AutogradLowering::try_autograd_target_method(
             auto out=builder_.fresh();
             builder_.emit(AutogradTargetGradient{
                 out,target,type_of(checked_,e),
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
     }
@@ -80,15 +80,15 @@ std::optional<ValueId> AutogradLowering::try_tensor_autograd_method(
                        ir::tensor_track_mode::untrack;
         builder_.emit(TensorTrack{
             out,receiver,target,type_of(checked_,e),mode,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
         return finish(out);
     }
     if(n.method=="clear_grad"){
         builder_.emit(TensorClearGrad{
             receiver,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
         if(receiver_owned) release_owned(builder_,receiver,receiver_type);
         return 0;
     }
@@ -128,8 +128,8 @@ std::optional<ValueId> AutogradLowering::try_tensor_autograd_method(
         }
         builder_.emit(TensorBackward{
             receiver,std::move(targets),dynamic_targets,track,
-            static_cast<std::uint32_t>(e.span.start.line),
-            static_cast<std::uint32_t>(e.span.start.column)});
+            {static_cast<std::uint32_t>(e.span.start.line),
+            static_cast<std::uint32_t>(e.span.start.column)}});
         if(dynamic_targets!=0)
             release_owned(builder_,dynamic_targets,autograd_target_array);
         if(receiver_owned) release_owned(builder_,receiver,receiver_type);

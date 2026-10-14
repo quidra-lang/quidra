@@ -1,5 +1,6 @@
 #pragma once
 #include "quidra/ir/module.hpp"
+#include "llvm_backend/inline_scope_plan.hpp"
 #include <deque>
 #include <map>
 #include <set>
@@ -15,9 +16,11 @@ namespace quidra::llvm_backend {
 struct NodePinPlan {
     std::map<const ir::Instruction*,std::string> acquisitions;
     std::vector<std::string> acquisition_order;
+    std::map<std::string,std::uint64_t> scopes;
     std::map<const ir::Instruction*,std::set<std::string>> releases;
 
-    explicit NodePinPlan(const ir::Function& function) {
+    explicit NodePinPlan(const ir::Function& function):NodePinPlan(function,InlineScopePlan(function)){}
+    NodePinPlan(const ir::Function& function,const InlineScopePlan& ownership,bool root_cleanup=true) {
         using Candidates=std::set<std::string>;
         using Stack=std::vector<Candidates>;
         using State=std::map<ir::ValueId,Stack>;
@@ -25,8 +28,9 @@ struct NodePinPlan {
         for(std::size_t i=0;i<function.blocks.size();++i) {
             labels.emplace(function.blocks[i].label,i);
             for(const auto& instruction:function.blocks[i].instructions)
-                if(std::holds_alternative<ir::Pin>(instruction)) {
+                if(std::holds_alternative<ir::Pin>(instruction) && ownership.enabled(ownership.instruction_scope(instruction),root_cleanup)) {
                     auto key="%quidra.pin."+std::to_string(acquisition_order.size());
+                    scopes.emplace(key,ownership.instruction_scope(instruction));
                     acquisitions.emplace(&instruction,key);acquisition_order.push_back(std::move(key));
                 }
         }
@@ -61,17 +65,30 @@ struct NodePinPlan {
             auto state=entries[index];
             for(const auto& instruction:function.blocks[index].instructions) {
                 if(const auto* pin=std::get_if<ir::Pin>(&instruction)) {
+                    if(!acquisitions.contains(&instruction))continue;
                     auto& stack=state[pin->value];
                     if(stack.size()>=acquisitions.size())
                         throw std::logic_error("parallel pin obligations accumulate across a loop");
                     stack.push_back(Candidates{acquisitions.at(&instruction)});
                 } else if(const auto* unpin=std::get_if<ir::Unpin>(&instruction)) {
+                    if(!ownership.enabled(ownership.instruction_scope(instruction),root_cleanup))continue;
                     const auto found=state.find(unpin->value);
                     if(found==state.end() || found->second.empty())
                         throw std::logic_error("parallel unpin lacks a reaching acquisition");
                     auto& candidates=releases[&instruction];
                     candidates.insert(found->second.back().begin(),found->second.back().end());
                     found->second.pop_back();if(found->second.empty())state.erase(found);
+                } else if(const auto* cleanup=std::get_if<ir::InlineScopeCleanup>(&instruction)) {
+                    for(auto at=state.begin();at!=state.end();) {
+                        auto& stack=at->second;
+                        std::erase_if(stack,[&](const auto& candidates) {
+                            bool own=false,foreign=false;
+                            for(const auto& key:candidates) {if(scopes.at(key)==cleanup->scope)own=true;else foreign=true;}
+                            if(own && foreign)throw std::logic_error("pin cleanup merges different inline scope owners");
+                            return own;
+                        });
+                        if(stack.empty())at=state.erase(at);else ++at;
+                    }
                 } else if(const auto* jump=std::get_if<ir::Jump>(&instruction)) {
                     propagate(jump->target,state);break;
                 } else if(const auto* branch=std::get_if<ir::Branch>(&instruction)) {
@@ -79,6 +96,7 @@ struct NodePinPlan {
                 } else if(std::holds_alternative<ir::Return>(instruction) ||
                           std::holds_alternative<ir::ReturnVoid>(instruction) ||
                           std::holds_alternative<ir::Exit>(instruction) ||
+                          std::holds_alternative<ir::InlineExit>(instruction) ||
                           std::holds_alternative<ir::FailError>(instruction))break;
                 else if(const auto* call=std::get_if<ir::Call>(&instruction)) {
                     if(call->result.kind==TypeKind::Never || call->no_normal_return)break;

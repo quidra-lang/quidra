@@ -6,13 +6,16 @@
 #include "quidra/ir/instruction.hpp"
 #include "quidra/ir/region.hpp"
 #include "quidra/types.hpp"
+#include "quidra/declaration_identity.hpp"
 
 #include <cstdint>
 #include <optional>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace quidra::ir {
+namespace facts { struct ValidatedEntryFacts; }
 
 struct Block { std::string label; std::vector<Instruction> instructions; };
 struct Parameter {
@@ -47,6 +50,13 @@ struct Function {
     // The public source function represented by a checked shape entry.
     std::string source_function;
     bool shape_wrapper{};
+    // Allocation metadata, copied with the function and retained after value
+    // removal. UINT32_MAX+1 represents exhaustion without a wrapped ValueId.
+    std::uint64_t next_value{1};
+    std::optional<DeclarationIdentity> declaration{};
+    bool dispatch_stub{};
+    std::shared_ptr<const facts::ValidatedEntryFacts> validated_entry{};
+    std::vector<InlineScope> inline_scopes{};
 };
 
 } // namespace quidra::ir

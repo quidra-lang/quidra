@@ -3920,8 +3920,9 @@ int main(){
                 "INDEX_BOUNDS", "Slice 1:3 out of bounds for length 3.");
     bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[4>:0]\n",
                 "INDEX_BOUNDS", "Slice 4>:0 out of bounds for length 3.");
-    bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[2:0]\n",
-                "INDEX_BOUNDS", "Slice 2:0 out of bounds for length 3.");
+    good("int[3] fixed = [1, 2, 3]\nint[] part = fixed[2:0]\n");
+    bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[2:0:1]\n",
+                "INDEX_BOUNDS", "Slice 2:0:1 out of bounds for length 3.");
     bad_message("int[3] fixed = [1, 2, 3]\nint[] part = fixed[-1<:-1]\n",
                 "INDEX_BOUNDS", "Slice -1<:-1 out of bounds for length 3.");
     bad_message("int[] values = [1, 2, 3]\nint[] part = values[0:1, 1:2]\n",

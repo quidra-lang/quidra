@@ -18,7 +18,7 @@ using namespace llvm_text::types;
 
 void CheckEmitter::emit(const ir::ShapedConstraintCheck& n,const ir::Instruction&){
     const auto rank = static_cast<long long>(n.extents.size());
-    builder_.call(runtime_abi::tensor::rank_check,{{ptr,symbols_.value(n.value)},{i64,n.ellipsis ? -rank - 1 : rank},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(runtime_abi::tensor::rank_check,{{ptr,symbols_.value(n.value)},{i64,n.ellipsis ? -rank - 1 : rank},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     for(std::size_t axis=0;axis<n.extents.size();++axis){
         if(!n.extents[axis]) continue;
         const auto runtime_axis = n.ellipsis && axis >= *n.ellipsis
@@ -29,10 +29,10 @@ void CheckEmitter::emit(const ir::ShapedConstraintCheck& n,const ir::Instruction
         if(axis<n.shape_variables.size()&&!n.shape_variables[axis].empty()){
             const auto variable=pool_.intern(n.shape_variables[axis]);
             const auto subject=pool_.intern(n.subject);
-            builder_.call(runtime_abi::shape_variable_support::check,{{ptr,symbols_.value(n.value)},{i64,runtime_axis},{i64,symbols_.value(*n.extents[axis])},{ptr,"@"+variable},{ptr,"@"+subject},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(runtime_abi::shape_variable_support::check,{{ptr,symbols_.value(n.value)},{i64,runtime_axis},{i64,symbols_.value(*n.extents[axis])},{ptr,"@"+variable},{ptr,"@"+subject},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             continue;
         }
-        builder_.call(runtime_abi::tensor::extent_check,{{ptr,symbols_.value(n.value)},{i64,runtime_axis},{i64,symbols_.value(*n.extents[axis])},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(runtime_abi::tensor::extent_check,{{ptr,symbols_.value(n.value)},{i64,runtime_axis},{i64,symbols_.value(*n.extents[axis])},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }
 }
 
@@ -43,8 +43,8 @@ void CheckEmitter::emit(const ir::ExtentEqualCheck& n,const ir::Instruction&){
         const auto reason=abi::FailureReason::for_lengths_mismatch;
         const auto code=pool_.intern(std::string(abi::spelling(abi::failure_reason_info(reason).code)));
         const auto message=pool_.intern(abi::format(reason,{}));
-        fail_fast_.fail_if(bad,"@"+code,"@"+message,"for.length",n.line,n.column);
-    } else fail_fast_.fail_if(bad,"@.code.shape","@.msg.shape","shape.extent",n.line,n.column);
+        fail_fast_.fail_if(bad,"@"+code,"@"+message,"for.length",n.position.line,n.position.column);
+    } else fail_fast_.fail_if(bad,"@.code.shape","@.msg.shape","shape.extent",n.position.line,n.position.column);
 }
 
 void CheckEmitter::emit(const ir::TestAssert& n,const ir::Instruction&){
@@ -54,7 +54,7 @@ void CheckEmitter::emit(const ir::TestAssert& n,const ir::Instruction&){
 void CheckEmitter::emit(const ir::ForStepCheck& n,const ir::Instruction&){
     builder_.call(runtime_abi::check::for_step,
         {{i64,symbols_.value(n.step)},{i1,n.descending?1:0},
-         {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+         {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 
 void CheckEmitter::emit(const ir::IterationShapeCheck& n,const ir::Instruction&){
@@ -74,7 +74,7 @@ void CheckEmitter::emit(const ir::IterationShapeCheck& n,const ir::Instruction&)
     const auto& reason=abi::failure_reason_info(abi::FailureReason::iterated_array_reshaped);
     const auto code=pool_.intern(std::string(abi::spelling(reason.code)));
     const auto message=pool_.intern(std::string(reason.message));
-    fail_fast_.fail_if(bad,"@"+code,"@"+message,"for.iteration",n.line,n.column);
+    fail_fast_.fail_if(bad,"@"+code,"@"+message,"for.iteration",n.position.line,n.position.column);
 }
 
 void CheckEmitter::emit(const ir::TraversalSiteCheck& n,const ir::Instruction&) {
@@ -83,7 +83,7 @@ void CheckEmitter::emit(const ir::TraversalSiteCheck& n,const ir::Instruction&) 
     const auto& reason=abi::failure_reason_info(abi::FailureReason::iterated_array_reshaped);
     const auto code=pool_.intern(std::string(abi::spelling(reason.code)));
     const auto message=pool_.intern(std::string(reason.message));
-    fail_fast_.fail_if(bad,"@"+code,"@"+message,"for.traversal",n.line,n.column);
+    fail_fast_.fail_if(bad,"@"+code,"@"+message,"for.traversal",n.position.line,n.position.column);
 }
 
 void CheckEmitter::emit(const ir::SelfReferenceCheck& n,const ir::Instruction&){
@@ -94,7 +94,7 @@ void CheckEmitter::emit(const ir::SelfReferenceCheck& n,const ir::Instruction&){
     const auto reason=abi::FailureReason::reference_interior;
     const auto code=pool_.intern(std::string(abi::spelling(abi::failure_reason_info(reason).code)));
     const auto message=pool_.intern(abi::format(reason,{.path=n.holder_path}));
-    fail_fast_.fail_if(bad,"@"+code,"@"+message,"reference.self",n.line,n.column);
+    fail_fast_.fail_if(bad,"@"+code,"@"+message,"reference.self",n.position.line,n.position.column);
 }
 void CheckEmitter::emit(const ir::StoredTargetsCheck& n,const ir::Instruction&){
     const auto bad=names_.value("reference.stored.interior");
@@ -103,7 +103,7 @@ void CheckEmitter::emit(const ir::StoredTargetsCheck& n,const ir::Instruction&){
     const auto reason=abi::FailureReason::reference_interior;
     const auto code=pool_.intern(std::string(abi::spelling(abi::failure_reason_info(reason).code)));
     const auto message=pool_.intern(abi::format(reason,{.path=n.destination_path}));
-    fail_fast_.fail_if(bad,"@"+code,"@"+message,"reference.store",n.line,n.column);
+    fail_fast_.fail_if(bad,"@"+code,"@"+message,"reference.store",n.position.line,n.position.column);
 }
 
 void CheckEmitter::emit(const ir::ReferenceBoundCheck& n,const ir::Instruction&){
@@ -112,7 +112,7 @@ void CheckEmitter::emit(const ir::ReferenceBoundCheck& n,const ir::Instruction&)
     const auto reason=abi::FailureReason::reference_unbound;
     const auto code=pool_.intern(std::string(abi::spelling(abi::failure_reason_info(reason).code)));
     const auto message=pool_.intern(abi::format(reason,{.path=n.path}));
-    fail_fast_.fail_if(bad,"@"+code,"@"+message,"reference.check",n.line,n.column);
+    fail_fast_.fail_if(bad,"@"+code,"@"+message,"reference.check",n.position.line,n.position.column);
 }
 
 void CheckEmitter::emit(const ir::InitializedCheck& n,const ir::Instruction&){
@@ -121,7 +121,7 @@ void CheckEmitter::emit(const ir::InitializedCheck& n,const ir::Instruction&){
     const auto reason=abi::FailureReason::path_uninitialized;
     const auto code=pool_.intern(std::string(abi::spelling(abi::failure_reason_info(reason).code)));
     const auto message=pool_.intern(abi::format(reason,{.path=n.path}));
-    fail_fast_.fail_if(bad,"@"+code,"@"+message,"init.check",n.line,n.column);
+    fail_fast_.fail_if(bad,"@"+code,"@"+message,"init.check",n.position.line,n.position.column);
 }
 
 namespace {
@@ -175,7 +175,7 @@ void CheckEmitter::report(const ir::CheckedReal& value){
     }
     builder_.call(runtime_abi::finite_support::real_fail,
                   {{i32,real_type_code(value.type)},{i32,static_cast<int>(real_operation(value.cause))},
-                   {i1,zero_divisor},{i64,sites_.line(value.line)},{i64,sites_.column(value.column)}});
+                   {i1,zero_divisor},{i64,sites_.line(value.position.line)},{i64,sites_.column(value.position.column)}});
     builder_.unreachable();
 }
 

@@ -41,6 +41,8 @@
 #include <string>
 #include <vector>
 
+#include "platform/process.hpp"
+
 namespace quidra::run_cache {
 
 struct DirectRun {
@@ -53,7 +55,10 @@ struct DirectRun {
 
 // Runs `run` through the cache and returns its exit status. `uncached`
 // runs it as `--no-cache` does.
-int run_cached(const DirectRun& run, const std::function<int()>& uncached);
+// Runtime changes reach only the generated-program child. `uncached` must
+// close over the same changes; preparation and compilation use the parent env.
+int run_cached(const DirectRun& run, const std::function<int()>& uncached,
+               const platform::RuntimeEnvironment& environment = {});
 
 // `quidra cache clean`: empties the cache (toolchain/run_cache_eviction.hpp)
 // and prints "removed N entries (X MiB)" on `out`, and how many files in use

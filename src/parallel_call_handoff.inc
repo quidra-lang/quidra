@@ -38,5 +38,5 @@ extern "C" void quidra_parallel_call_require_accept(bool accepted) {
     std::fwrite(reason.message.data(),1,reason.message.size(),stderr);
     std::fputc('\n',stderr);
     std::fflush(stderr);
-    std::_Exit(101);
+    quidra::runtime::immediate_failure_exit();
 }

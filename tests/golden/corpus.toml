@@ -421,6 +421,24 @@ entry = "probes/recursion.qui"
 [[run]]
 entry = "probes/repl_display.qui"
 
+[[run]]
+entry = "probes/step7/analyses/control_flow.qui"
+
+[[run]]
+entry = "probes/step7/donation/owned_views.qui"
+
+[[run]]
+entry = "probes/step7/errors/first_failure.qui"
+
+[[run]]
+entry = "probes/step7/fusion/diamond.qui"
+
+[[run]]
+entry = "probes/step7/plans/host_barrier.qui"
+
+[[run]]
+entry = "probes/step7/regions/state_loop.qui"
+
 [[entry]]
 name = "benchmarks/adversarial/ADV-01_C.qui"
 status = "ok"
@@ -13740,6 +13758,36 @@ sha256 = "0c7384d3bee71123bfb633af3a5576cb510df76df3b399bcd9339e329e99078a"
 name = "probes/repl_display.qui"
 status = "ok"
 sha256 = "637716c641d8e1dacc2b9f1d8ccf4bf89ac7412de5810d7cb5c02e8b47deaf6c"
+
+[[entry]]
+name = "probes/step7/analyses/control_flow.qui"
+status = "ok"
+sha256 = "5c7bd186ad84773717098114f96ce9630f01be8d26e60afebd3e843e22a1ee84"
+
+[[entry]]
+name = "probes/step7/donation/owned_views.qui"
+status = "ok"
+sha256 = "efadddb6418f09a8cd161e481375051a13a69641f3b6dfe0b1e89ad73bc5e1c6"
+
+[[entry]]
+name = "probes/step7/errors/first_failure.qui"
+status = "ok"
+sha256 = "931e500743678d2815b248f445e5fe1d40f56c25a215e81a6653dfa73af22f76"
+
+[[entry]]
+name = "probes/step7/fusion/diamond.qui"
+status = "ok"
+sha256 = "196d7ea2a1f8e1f248ee4933ff46287296fda6e5a7e32e49e70bf6b3b4b5db91"
+
+[[entry]]
+name = "probes/step7/plans/host_barrier.qui"
+status = "ok"
+sha256 = "abc2521dbb73a6efd8313d079cbf07ffe54678c2592a4c17875a189a699206a2"
+
+[[entry]]
+name = "probes/step7/regions/state_loop.qui"
+status = "ok"
+sha256 = "e48ab91f40c41bd7e388f2c14eb541bd797f677215d7f08af793f64a08a84d28"
 
 [[entry]]
 name = "store/dnn/examples/training.qui"

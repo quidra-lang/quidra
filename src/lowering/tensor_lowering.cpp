@@ -59,16 +59,16 @@ std::optional<ValueId> TensorLowering::try_tensor_method(
             auto gpu=lowerer_.lower_int64(*n.args[0].value),out=builder_.fresh();
             builder_.emit(TensorTransfer{
                 out,receiver,gpu,receiver_type,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="cpu"){
             auto out=builder_.fresh();
             builder_.emit(TensorTransfer{
                 out,receiver,std::nullopt,receiver_type,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="transpose"){
@@ -77,16 +77,16 @@ std::optional<ValueId> TensorLowering::try_tensor_method(
             auto out=builder_.fresh();
             builder_.emit(TensorTranspose{
                 out,receiver,axis0,axis1,type_of(checked_,e),
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="contiguous"){
             auto out=builder_.fresh();
             builder_.emit(TensorContiguous{
                 out,receiver,receiver_type,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="reshape"){
@@ -94,8 +94,8 @@ std::optional<ValueId> TensorLowering::try_tensor_method(
             auto shape=lower_runtime_array(*n.args[0].value,shape_converted),out=builder_.fresh();
             builder_.emit(TensorReshape{
                 out,receiver,shape,receiver_type,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             release_runtime_array(*n.args[0].value,shape,shape_converted);
             return finish(out);
         }
@@ -106,8 +106,8 @@ std::optional<ValueId> TensorLowering::try_tensor_method(
             auto out=builder_.fresh();
             builder_.emit(TensorGather{
                 out,receiver,indices,shape,type_of(checked_,e),
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             release_runtime_array(*n.args[0].value,indices,indices_converted);
             release_runtime_array(*n.args[1].value,shape,shape_converted);
             return finish(out);
@@ -119,8 +119,8 @@ std::optional<ValueId> TensorLowering::try_tensor_method(
             auto out=builder_.fresh();
             builder_.emit(TensorScatter{
                 out,receiver,indices,shape,type_of(checked_,e),
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             release_runtime_array(*n.args[0].value,indices,indices_converted);
             release_runtime_array(*n.args[1].value,shape,shape_converted);
             return finish(out);
@@ -150,16 +150,16 @@ std::optional<ValueId> TensorLowering::try_tensor_method(
             auto out=builder_.fresh();
             builder_.emit(TensorItem{
                 out,receiver,*receiver_type.first,
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="all" || n.method=="any"){
             auto out=builder_.fresh();
             builder_.emit(TensorBoolReduce{
                 out,receiver,n.method=="all",
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
     }
@@ -198,8 +198,8 @@ ValueId TensorLowering::lower_tensor_create(
         ir::tensor_fill_mode::uninitialized;
     builder_.emit(TensorCreate{
         out,shape,gpu,type,fill_mode,
-        static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column)});
+        {static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)}});
     if(generated) release_owned(builder_,shape,shape_type);
     else release_runtime_array(*n.args[*shape_argument].value,shape,shape_converted);
     return out;
@@ -207,7 +207,7 @@ ValueId TensorLowering::lower_tensor_create(
 
 ValueId TensorLowering::lower_gpu_sync(const Expr& e, const CallExpr& n) {
     auto index=lowerer_.lower_int64(*n.args[0].value);
-    builder_.emit(GpuSync{index,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(GpuSync{index,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     return 0;
 }
 } // namespace quidra::lowering

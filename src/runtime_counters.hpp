@@ -61,6 +61,22 @@ enum class Id : unsigned {
     // Validations of real values that Core's kernels did not compute
     // (package outputs, gradients), one per validated range.
     FiniteValidations,
+    PackageDispatches,    // successful package stream encodes
+    HostTensorAllocations, // nonempty CPU tensor data allocations
+    HostTensorAllocationBytes,
+    AutogradNodes,        // runtime graph nodes constructed
+    AutogradCustomNodes,  // native callback nodes attached
+    AutogradSavedTensors, // successful node value snapshots and explicit native saves
+    AutogradFormulas,     // formulas needed by the selected targets
+    AutogradPruned,       // formulas excluded by target pruning
+    RuntimeShapeValidations,
+    RuntimeBroadcastValidations,
+    RuntimeDeviceChecks,
+    CpuParallelRegions,   // nonempty valid qcore_parallel_for calls
+    CpuParallelSerialRegions,
+    MetalPipelineCompilesTimed, // program-thread requests, excluding warmups
+    UnifiedViews,         // explicit transfers served as shared views
+    UnifiedCopies,        // copying transfers and shared-view relocations
     Count
 };
 
@@ -91,6 +107,11 @@ void note_refusal(const char* owner, const char* function, int status);
 // Program-step delimiters for the QUIDRA_COUNTERS report.
 enum class StepEvent { Backward, Mark };
 void step_boundary(StepEvent event, const char* label = nullptr);
+// QUIDRA_COUNTERS_STEP=marks additionally closes records at time.now/since.
+void time_mark();
+// Writes buffered steps and exactly one final total. Safe before an immediate
+// failure exit; repeated calls do not duplicate the report.
+void flush_report() noexcept;
 
 // Test hooks: totals since the process started (or since reset()).
 void set_enabled(bool value);

@@ -14,6 +14,8 @@
 //   pkg_config_modules  follow from the package manifests, which are
 //                       recorded by content, and are part of the toolchain
 //                       snapshot with pkg-config's output
+//   optimizer.diagnostics receives analysis output and cannot change the
+//                       produced executable; its address is never key material
 // The artifact is keyed only when it is not an executable: a run always
 // builds one, so the keys of runs stay as they were; likewise the optimizer
 // switches, only when one is set (tests set them, runs never do).
@@ -38,7 +40,8 @@ inline std::vector<toolchain::RunCacheOption> cache_key_options(
                  reorder_every_assignment, check_every_shape_constraint,
                  exact_real_loop_values, box_every_address_taken_local,
                  check_every_reference_access] = lowering;
-    const auto& [keep_every_finite_check] = optimizer;
+    const auto& [keep_every_finite_check, exact_binding, diagnostics] = optimizer;
+    (void)diagnostics;
     const auto& [debug, optimize, inputs, pkg_config_modules] = link;
     (void)inputs;
     (void)pkg_config_modules;
@@ -62,6 +65,9 @@ inline std::vector<toolchain::RunCacheOption> cache_key_options(
     };
     if (keep_every_finite_check)
         options.push_back({"compile.optimizer.keep_every_finite_check", "true"});
+    if (exact_binding != DeclarationBindingMode::Off)
+        options.push_back({"compile.optimizer.exact_binding",
+            exact_binding == DeclarationBindingMode::Verify ? "verify" : "on"});
     if (artifact != CompileArtifact::Executable) {
         options.push_back({"compile.artifact",
                            artifact == CompileArtifact::Library ? "library" : "interactive"});

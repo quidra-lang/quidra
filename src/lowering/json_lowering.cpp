@@ -8,7 +8,7 @@ namespace quidra::lowering {
 
 ValueId JsonLowering::lower_json_parse(const Expr& e, const CallExpr& n) {
     auto text=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(JsonParse{out,text,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonParse{out,text,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,text);
     return out;
 }
@@ -21,51 +21,51 @@ ValueId JsonLowering::lower_json_kind() {
 
 ValueId JsonLowering::lower_json_size(const Expr& e) {
     auto value=load_receiver(builder_,enclosing_class_),out=builder_.fresh();
-    builder_.emit(JsonSize{out,value,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonSize{out,value,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 
 ValueId JsonLowering::lower_json_get(const Expr& e, const CallExpr& n) {
     auto value=load_receiver(builder_,enclosing_class_),key=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(JsonGet{out,value,key,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonGet{out,value,key,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,key);
     return out;
 }
 
 ValueId JsonLowering::lower_json_at(const Expr& e, const CallExpr& n) {
     auto value=load_receiver(builder_,enclosing_class_),index=lowerer_.lower_int64(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(JsonAt{out,value,index,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonAt{out,value,index,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 
 ValueId JsonLowering::lower_json_text(const Expr& e) {
     auto value=load_receiver(builder_,enclosing_class_),out=builder_.fresh();
-    builder_.emit(JsonText{out,value,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonText{out,value,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 
 ValueId JsonLowering::lower_json_integer(const Expr& e) {
     // An exact read of the number's preserved text.
     auto value=load_receiver(builder_,enclosing_class_),out=builder_.fresh();
-    builder_.emit(JsonBigInt{out,value,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonBigInt{out,value,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 
 ValueId JsonLowering::lower_json_number(const Expr& e) {
     auto value=load_receiver(builder_,enclosing_class_),out=builder_.fresh();
-    builder_.emit(JsonNumber{out,value,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonNumber{out,value,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 
 ValueId JsonLowering::lower_json_big_real(const Expr& e) {
     auto value=load_receiver(builder_,enclosing_class_),out=builder_.fresh();
-    builder_.emit(JsonBigReal{out,value,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonBigReal{out,value,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 
 ValueId JsonLowering::lower_json_boolean(const Expr& e) {
     auto value=load_receiver(builder_,enclosing_class_),out=builder_.fresh();
-    builder_.emit(JsonBoolean{out,value,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(JsonBoolean{out,value,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 

@@ -136,7 +136,7 @@ void ErrorValueEmitter::emit_user(const ir::ErrorMake& n) {
     const auto out = symbols_.value(n.out);
     const auto& text = n.details.front();
     if (!text.value && !n.cause && records_.user_code()) {
-        const auto record = records_.user_record(pool_.intern(text.constant), n.code, n.line, n.column);
+        const auto record = records_.user_record(pool_.intern(text.constant), n.code, n.position.line, n.position.column);
         copy_by_zero_gep(builder_, out, Inbounds::yes, LlvmOperand::global(record));
         return;
     }
@@ -146,7 +146,7 @@ void ErrorValueEmitter::emit_user(const ir::ErrorMake& n) {
     const std::string cause = n.cause ? symbols_.value(*n.cause) : "null";
     builder_.call(out, runtime_abi::error::make_user,
                   {{ptr, text_operand}, {ptr, code}, {ptr, cause},
-                   {i64, records_.line(n.line)}, {i64, records_.column(n.column)}});
+                   {i64, records_.line(n.position.line)}, {i64, records_.column(n.position.column)}});
 }
 
 void ErrorValueEmitter::emit_core(const ir::ErrorMake& n, const ir::Instruction& ins) {
@@ -164,7 +164,7 @@ void ErrorValueEmitter::emit_core(const ir::ErrorMake& n, const ir::Instruction&
                 : abi::ErrorDetailValue{true, kind, n.details[i].constant, 0};
         }
         const auto record = records_.record(code, std::span(details.data(), schema.details.size()),
-                                            n.line, n.column);
+                                            n.position.line, n.position.column);
         if (records_.user_code()) {
             copy_by_zero_gep(builder_, out, Inbounds::yes, LlvmOperand::global(record));
         } else {
@@ -192,7 +192,7 @@ void ErrorValueEmitter::emit_core(const ir::ErrorMake& n, const ir::Instruction&
     }
     builder_.call(out, runtime_abi::error::make,
                   {{i32, static_cast<long long>(n.schema)}, {ptr, slots},
-                   {i64, records_.line(n.line)}, {i64, records_.column(n.column)}});
+                   {i64, records_.line(n.position.line)}, {i64, records_.column(n.position.column)}});
 }
 
 void ErrorValueEmitter::reserve(const ir::ErrorDetail& n, const ir::Instruction& ins) {
@@ -280,7 +280,7 @@ void ErrorValueEmitter::emit(const ir::ErrorHop& n, const ir::Instruction&) {
     // runtime hop accepts this obligation immediately on entry, with no
     // allocation before its local owner guard is active.
     symbols_.transfer_temporary(payload,Type::simple(TypeKind::Error));
-    const auto site = "@" + records_.hop_site(n.name, n.kind, n.line, n.column);
+    const auto site = "@" + records_.hop_site(n.name, n.kind, n.position.line, n.position.column);
     if (n.callee != 0)
         builder_.call(out, runtime_abi::error::hop_indirect,
                       {{ptr, payload}, {ptr, site}, {ptr, symbols_.value(n.callee)}});

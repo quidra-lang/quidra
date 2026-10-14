@@ -113,6 +113,7 @@ template <auto Member> struct EmittedBy {
 struct FunctionEmitter {
     // The function and the module state it shares.
     const ir::Function& fn_;
+    InlineScopePlan inline_scopes_{fn_};
     const ir::analysis::TailCalls& tail_calls_;
     CallSiteMetadata* call_site_metadata_{};
     const std::unordered_map<std::string,const ir::Function*>& callable_functions_;
@@ -193,6 +194,7 @@ struct FunctionEmitter {
          errors_(builder_,names_,symbols_,union_box_,records_),
          repl_printer_(builder_,names_,pool_,layouts_,array_layout_,union_box_),
          resolver_(fn_,external_symbols_,self_depth_recursive_),self_depth_(builder_,fn_,symbols_,self_depth_recursive_){
+        symbols_.inline_scopes(inline_scopes_);
         if(call_site_metadata&&call_site_function){
             // Release: the function's own subprogram; --debug: DebugModule's,
             // in which each call's location is a block of the call's site.
@@ -223,6 +225,8 @@ struct FunctionEmitter {
     void emit_external_declaration();
     void emit_definition_header();
     void emit_entry_frame();
+    void emit_inline_begin(std::uint64_t scope);
+    void emit_inline_end(std::uint64_t scope);
     void emit_missing_terminator(const ir::Block& b);
     void emit_blocks();
 
@@ -272,6 +276,7 @@ void FunctionEmitter::prepass(){
             emitter_for<domain>().reserve(n,instruction);
     });
     if(node_values_) {
+        symbols_.select_scope(0);
         const auto reserve_call=[&](const ir::Instruction& instruction) {
             if(const auto* call=std::get_if<ir::Call>(&instruction))call_.reserve(*call,instruction);
             else if(const auto* call=std::get_if<ir::IndirectCall>(&instruction))call_.reserve(*call,instruction);
@@ -285,6 +290,7 @@ void FunctionEmitter::prepass(){
 void FunctionEmitter::emit_instruction(const ir::Instruction& ins){
     // A source location opens the location of the instructions that follow;
     // it is written before any segment, so it never belongs to one.
+    if(std::holds_alternative<ir::StatementBoundary>(ins)) return;
     if(const auto* location=std::get_if<ir::SourceLocation>(&ins)){debug_.emit(*location,ins);return;}
     if (!emitting_tail_suffix_) {
         const auto edge = tail_continuations_.edges.find(&ins);
@@ -311,14 +317,32 @@ void FunctionEmitter::emit_instruction(const ir::Instruction& ins){
         if(call_sites_){
             // The position of the instruction's calls in the call-site
             // table: its own where it has one.
-            if constexpr(requires{n.line;n.column;})
-                call_sites_->set_instruction_position(static_cast<std::uint32_t>(n.line),
-                                                      static_cast<std::uint32_t>(n.column));
+            if constexpr(requires{n.position.line;n.position.column;})
+                call_sites_->set_instruction_position(static_cast<std::uint32_t>(n.position.line),
+                                                      static_cast<std::uint32_t>(n.position.column));
             else call_sites_->set_instruction_position(0,0);
         }
-        emitter_for<ir::InstructionTraits<std::decay_t<decltype(n)>>::domain>().emit(n,ins);
+        using Node=std::decay_t<decltype(n)>;
+        if constexpr(std::is_same_v<Node,ir::InlineScopeBegin>)emit_inline_begin(n.scope);
+        else if constexpr(std::is_same_v<Node,ir::InlineScopeCleanup>) {
+            (void)inline_scopes_.at(n.scope);
+            if(symbols_.selected_scope()!=n.scope)throw std::logic_error("inline cleanup leaves its declared scope");
+            lifetime_.cleanup_scope(n.scope);
+        }
+        else if constexpr(std::is_same_v<Node,ir::InlineScopeEnd>)emit_inline_end(n.scope);
+        else if constexpr(std::is_same_v<Node,ir::InlineBindAddress>) {
+            if(!symbols_.storage_scope(n.name) || symbols_.storage_scope(n.name)!=symbols_.selected_scope() ||
+               !symbols_.is_writable_parameter(n.name))throw std::logic_error("inline raw address lacks an explicit ABI slot");
+            builder_.getelementptr(symbols_.arg(n.name),Inbounds::no,i8,symbols_.value(n.address),{{i64,0}});
+        } else if constexpr(std::is_same_v<Node,ir::InlineExit>) {
+            (void)inline_scopes_.at(n.scope);
+            if(symbols_.selected_scope()!=n.scope)throw std::logic_error("inline exit leaves its declared scope");
+            const auto status=names_.value("inline.exit.status");
+            builder_.cast(status,CastOp::trunc,{i64,symbols_.value(n.status)},i32);
+            builder_.call(runtime_abi::program::process_exit,{{i32,status}});
+            builder_.unreachable();
+        } else emitter_for<ir::InstructionTraits<Node>::domain>().emit(n,ins);
         if(node_values_) {
-            using Node=std::decay_t<decltype(n)>;
             // These operations return one owning result and do not perform
             // another fallible operation after publishing that SSA value.
             if constexpr(std::is_same_v<Node,ir::Unary> || std::is_same_v<Node,ir::Binary> ||
@@ -407,7 +431,7 @@ void FunctionEmitter::emit_entry_frame(){
         } else builder_.alloca_slot(symbols_.local(name),type,Align::none);
     };
     for(const auto&[name,type]:symbols_.locals())
-        if(!symbols_.is_writable_parameter(name)){
+        if(!symbols_.storage_scope(name) && !symbols_.is_writable_parameter(name)){
             owned_slot(name,llvm_type(type));
             if(type.kind==TypeKind::Tuple)builder_.store({llvm_type(type),"zeroinitializer"},symbols_.local(name),Align::none);
             else if(type.kind==TypeKind::Real)builder_.store({exact_real_type,exact_real_none},symbols_.local(name),Align::none);
@@ -415,8 +439,14 @@ void FunctionEmitter::emit_entry_frame(){
             else if(requires_lifetime_management(type))builder_.store({ptr,"null"},symbols_.local(name),Align::none);
         }
     for(const auto&[name,type]:symbols_.references()){
+        if(symbols_.storage_scope(name))continue;
         owned_slot(name,ptr);
         builder_.store({ptr,"null"},symbols_.local(name),Align::none);
+    }
+    for(const auto& [name,type]:symbols_.locals())if(symbols_.storage_scope(name) && !symbols_.is_writable_parameter(name))
+        builder_.alloca_slot(symbols_.local(name)+(symbols_.cleanup_slot(name)?".stack":""),llvm_type(type),Align::none);
+    for(const auto& [name,type]:symbols_.references())if(symbols_.storage_scope(name)) {
+        (void)type;builder_.alloca_slot(symbols_.local(name)+(symbols_.cleanup_slot(name)?".stack":""),ptr,Align::none);
     }
     scratch_.emit_allocas(builder_);
     if(node_values_)function_text_.append(NodeValueOwnership::entry_marker);
@@ -436,6 +466,41 @@ void FunctionEmitter::emit_entry_frame(){
     }
 }
 
+void FunctionEmitter::emit_inline_begin(std::uint64_t identity) {
+    const auto& scope=inline_scopes_.at(identity);
+    if(symbols_.selected_scope()!=identity)throw std::logic_error("inline Begin lacks its declared block ownership");
+    attribution_.begin_inline_scope(scope);
+    if(symbols_.node_cleanup(identity)) {
+        builder_.call(symbols_.frame(identity),runtime_abi::program::parallel_frame_create,
+            {{i64,symbols_.cleanup_bytes(identity)},{i64,8},{ptr,LlvmOperand::global(symbols_.cleanup_symbol(identity))}});
+        builder_.icmp(symbols_.frame_active(identity),IntPredicate::ne,ptr,symbols_.frame(identity),"null");
+    }
+    const auto storage=[&](const std::string& name) {
+        if(const auto* slot=symbols_.cleanup_slot(name)) {
+            const auto heap="%quidra.node.slot."+llvm_text::sanitize_identifier(name);
+            builder_.getelementptr(heap,Inbounds::no,i8,symbols_.frame(identity),{{i64,slot->offset}});
+            builder_.select(symbols_.local(name),symbols_.frame_active(identity),
+                {ptr,heap},{ptr,symbols_.local(name)+".stack"});
+        }
+    };
+    for(const auto& [name,type]:symbols_.locals()) {
+        if(symbols_.storage_scope(name)!=identity || symbols_.is_writable_parameter(name))continue;
+        storage(name);
+        if(type.kind==TypeKind::Tuple)builder_.store({llvm_type(type),"zeroinitializer"},symbols_.local(name),Align::none);
+        else if(type.kind==TypeKind::Real)builder_.store({exact_real_type,exact_real_none},symbols_.local(name),Align::none);
+        else if(is_bare_integer(type))builder_.store({bare_integer_type,0},symbols_.local(name),Align::none);
+        else if(requires_lifetime_management(type))builder_.store({ptr,"null"},symbols_.local(name),Align::none);
+    }
+    for(const auto& [name,type]:symbols_.references())if(symbols_.storage_scope(name)==identity) {
+        (void)type;storage(name);builder_.store({ptr,"null"},symbols_.local(name),Align::none);
+    }
+    if(node_values_)function_text_.append(NodeValueOwnership::scope_entry_marker(identity));
+}
+void FunctionEmitter::emit_inline_end(std::uint64_t identity) {
+    if(symbols_.selected_scope()!=identity)throw std::logic_error("inline End leaves its declared scope");
+    attribution_.end_inline_scope(inline_scopes_.at(identity));
+}
+
 // The backend's rule for a block that needs no "unreachable" after its last
 // instruction: a terminator, a call that never returns, or an indirect call
 // with a Never result. The lowering has a rule of its own, which does not
@@ -445,7 +510,7 @@ bool block_ends_in_backend(const ir::Block& b){
     if(!b.instructions.empty()){
         const auto&last=b.instructions.back();
         term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||
-             std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::FailError>(last)||
+             std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::InlineExit>(last)||std::holds_alternative<ir::FailError>(last)||
              std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||
              (std::holds_alternative<ir::Call>(last)&&(std::get<ir::Call>(last).result.kind==TypeKind::Never||
                                                       std::get<ir::Call>(last).no_normal_return))||
@@ -462,12 +527,17 @@ void FunctionEmitter::emit_missing_terminator(const ir::Block& b){
 void FunctionEmitter::emit_blocks(){
     for(std::size_t bi=0;bi<fn_.blocks.size();++bi){
         const auto&b=fn_.blocks[bi];
+        symbols_.select_block(b.label);
+        const auto scope=inline_scopes_.block_scope(b.label);
+        attribution_.select_inline_scope(scope?&inline_scopes_.at(scope):nullptr);
         builder_.block(b.label);
         if(bi==0) emit_entry_frame();
         for(const auto&i:b.instructions)emit_instruction(i);
         emit_missing_terminator(b);
     }
     emitting_tail_suffix_ = true;
+    symbols_.select_scope(0);
+    attribution_.select_inline_scope(nullptr);
     for (const auto& block : tail_continuations_.blocks) {
         builder_.block(block.label);
         for (const auto& instruction : block.instructions) emit_instruction(instruction);
@@ -482,13 +552,17 @@ std::string FunctionEmitter::emit(){
         return function_text_.str();
     }
     if (call_sites_) tail_continuations_ = tail_continuations(fn_, tail_calls_, names_);
-    if(node_cleanup_) {
-        node_values_.emplace(fn_,symbols_,builder_,function_text_,names_,layouts_);
+    const auto scoped_cleanup=std::any_of(fn_.inline_scopes.begin(),fn_.inline_scopes.end(),
+        [&](const auto& scope){return inline_scopes_.enabled(scope.identity,node_cleanup_);});
+    if(node_cleanup_ || scoped_cleanup) {
+        node_values_.emplace(fn_,symbols_,builder_,function_text_,names_,layouts_,inline_scopes_,node_cleanup_);
         symbols_.node_ownership(&*node_values_);
         call_.node_ownership(&*node_values_,&call_acceptance_);
     }
     prepass();
-    if(node_cleanup_) symbols_.plan_node_cleanup(fn_.name);
+    if(node_cleanup_)symbols_.plan_node_cleanup(fn_.name);
+    for(const auto& scope:fn_.inline_scopes)if(inline_scopes_.enabled(scope.identity,node_cleanup_))
+        symbols_.plan_node_cleanup(fn_.name,scope.identity);
     emit_definition_header();
     builder_.observe_calls(&attribution_);
     if(call_sites_) builder_.locate_calls(&*call_sites_);
@@ -509,6 +583,10 @@ std::string FunctionEmitter::emit(){
         };
         replace(NodeValueOwnership::entry_marker,node_values_->finish_entry());
         replace(NodeValueOwnership::cleanup_marker,node_values_->finish_cleanup());
+        for(const auto& scope:fn_.inline_scopes) {
+            replace(NodeValueOwnership::scope_entry_marker(scope.identity),node_values_->finish_entry(scope.identity));
+            replace(NodeValueOwnership::scope_cleanup_marker(scope.identity),node_values_->finish_cleanup(scope.identity));
+        }
     }
     return text+lifetime_.node_cleanup_helpers()+
         (node_values_?node_values_->helpers():std::string{});

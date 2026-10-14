@@ -308,7 +308,7 @@ ValueId CallLowering::lower_user_method_call(const Expr& e, const MethodCallExpr
     lowered.args[0]=CallArgument{receiver,std::nullopt};
     const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:builder_.fresh();
     const auto shape = prepare_shaped_call(e, internal, sig, lowered);
-    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)},sig.no_normal_return});
     if (sig.result.kind != TypeKind::Never && !sig.no_normal_return)
         finish_shaped_call(e, sig, lowered, shape);
     if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)
@@ -361,8 +361,8 @@ ValueId CallLowering::lower_function_value_call(
     const auto out=(result.kind==TypeKind::Void||result.kind==TypeKind::Never)?0:builder_.fresh();
     builder_.emit(IndirectCall{
         out,callee,std::move(args),callable_type.parameters,result,
-        static_cast<std::uint32_t>(e.span.start.line),
-        static_cast<std::uint32_t>(e.span.start.column)});
+        {static_cast<std::uint32_t>(e.span.start.line),
+        static_cast<std::uint32_t>(e.span.start.column)}});
     return out;
 }
 
@@ -373,7 +373,7 @@ ValueId CallLowering::lower_enclosing_method_call(
     lowered.args[0]=CallArgument{load_receiver(builder_,enclosing_class_),std::nullopt};
     const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:builder_.fresh();
     const auto shape = prepare_shaped_call(e, resolution.target, sig, lowered);
-    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)},sig.no_normal_return});
     if (sig.result.kind != TypeKind::Never && !sig.no_normal_return)
         finish_shaped_call(e, sig, lowered, shape);
     if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)
@@ -397,8 +397,8 @@ ValueId CallLowering::lower_constructor_call(
             auto value=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
             builder_.emit(BinConvert{
                 out,value,type_of(checked_,*n.args[0].value),Type::simple(TypeKind::Bin),
-                static_cast<std::uint32_t>(e.span.start.line),
-                static_cast<std::uint32_t>(e.span.start.column)});
+                {static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)}});
             lifetime_.release_temporary(*n.args[0].value,value);
             return out;
         }
@@ -441,7 +441,7 @@ ValueId CallLowering::lower_function_call(
     auto lowered=lower_call_arguments(n.args,sig,0,resolution.target);
     const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:builder_.fresh();
     const auto shape = prepare_shaped_call(e, resolution.target, sig, lowered);
-    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+    builder_.emit(Call{out,shape.callee,lowered.args,sig.result,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)},sig.no_normal_return});
     if (sig.result.kind != TypeKind::Never && !sig.no_normal_return)
         finish_shaped_call(e, sig, lowered, shape);
     if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)

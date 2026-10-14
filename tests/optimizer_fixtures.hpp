@@ -89,7 +89,7 @@ inline ir::Module calls_form_tensor_regions() {
     bridged.blocks.back().instructions.push_back(bridged_first);
 
     bridged.blocks.back().instructions.push_back(
-        TensorContiguous{2, 1, tensor, 0, 0});
+        TensorContiguous{2, 1, tensor, {0, 0}});
 
     Call bridged_second;
     bridged_second.out = 3;
@@ -383,7 +383,7 @@ inline ir::Module memory_reuse_respects_tensor_storage_aliases() {
 
     // A fresh temporary is unique and may use the package's in-place target.
     user.blocks.back().instructions.push_back(
-        TensorCreate{1, 90, std::nullopt, tensor, 1, 0, 0});
+        TensorCreate{1, 90, std::nullopt, tensor, 1, {0, 0}});
     Call temporary_relu;
     temporary_relu.out = 2;
     temporary_relu.callee = "alias.relu";
@@ -396,7 +396,7 @@ inline ir::Module memory_reuse_respects_tensor_storage_aliases() {
     // now detaches through Core's copy-on-write boundary, but that allocation is
     // not buffer reuse, so a shared clone must not satisfy owned=true.
     user.blocks.back().instructions.push_back(
-        TensorCreate{3, 91, std::nullopt, tensor, 1, 0, 0});
+        TensorCreate{3, 91, std::nullopt, tensor, 1, {0, 0}});
     user.blocks.back().instructions.push_back(
         StoreLocal{"named", 3, tensor});
     user.blocks.back().instructions.push_back(
@@ -467,7 +467,7 @@ inline ir::Module conditional_replacement_preserves_owned_argument_lifetime() {
     user.blocks.push_back(Block{"entry", {}});
 
     user.blocks.back().instructions.push_back(
-        TensorCreate{1, 90, std::nullopt, tensor, 1, 0, 0});
+        TensorCreate{1, 90, std::nullopt, tensor, 1, {0, 0}});
     Call call;
     call.out = 2;
     call.callee = "alias.portable";
@@ -529,7 +529,7 @@ inline ir::Module conditional_replacement_clones_borrowed_argument() {
     user.result = Type::simple(TypeKind::Int64);
     user.blocks.push_back(Block{"entry", {}});
     user.blocks.back().instructions.push_back(
-        TensorCreate{1, 90, std::nullopt, tensor, 1, 0, 0});
+        TensorCreate{1, 90, std::nullopt, tensor, 1, {0, 0}});
     Call call;
     call.out = 2;
     call.callee = "alias.portable";
@@ -594,9 +594,9 @@ inline ir::Module backend_selection_tracks_transfer_layout() {
     user.blocks.push_back(Block{"entry", {}});
 
     user.blocks.back().instructions.push_back(
-        TensorCreate{1, 90, std::nullopt, tensor, 1, 0, 0});
+        TensorCreate{1, 90, std::nullopt, tensor, 1, {0, 0}});
     user.blocks.back().instructions.push_back(
-        TensorTransfer{2, 1, ValueId{91}, tensor, 0, 0});
+        TensorTransfer{2, 1, ValueId{91}, tensor, {0, 0}});
     Call call;
     call.out = 3;
     call.callee = "alias.portable";

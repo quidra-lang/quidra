@@ -18,9 +18,17 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace quidra::platform {
+
+// Child-only changes to the inherited environment. nullopt removes a name;
+// an empty string sets it empty. Last change wins (case-insensitive on Windows).
+// Names must be nonempty with no '=' or NUL; values must have no NUL.
+// Nonempty overrides require an absolute executable on POSIX, so envp can be
+// prepared before fork and executed without a PATH search in the child.
+using RuntimeEnvironment = std::vector<std::pair<std::string, std::optional<std::string>>>;
 
 // Runs `program` with arguments in native text (native_text, or a path's
 // native()), passed to the OS as they are.
@@ -37,7 +45,8 @@ int run_native_program(
     const std::vector<NativeText>& arguments,
     const std::optional<std::filesystem::path>& stdout_path,
     const std::optional<std::filesystem::path>& stderr_path,
-    const std::optional<std::filesystem::path>& stdin_path);
+    const std::optional<std::filesystem::path>& stdin_path,
+    const RuntimeEnvironment& environment = {});
 
 // Runs `program` with UTF-8 arguments on every platform: each is converted
 // to native text once.
@@ -45,7 +54,8 @@ int run_program(
     const std::filesystem::path& program,
     const std::vector<std::string>& arguments = {},
     const std::optional<std::filesystem::path>& stdout_path = std::nullopt,
-    const std::optional<std::filesystem::path>& stderr_path = std::nullopt);
+    const std::optional<std::filesystem::path>& stderr_path = std::nullopt,
+    const RuntimeEnvironment& environment = {});
 
 // How a program run through run_program_reporting_start ended. `started`
 // is false when the program could not be started at all (POSIX reports the
@@ -62,7 +72,8 @@ struct ProgramRun {
 // run_program with the start of the program reported apart from its exit.
 // Throws only where run_program throws for anything but a failed start.
 ProgramRun run_program_reporting_start(
-    const std::filesystem::path& program, const std::vector<std::string>& arguments = {});
+    const std::filesystem::path& program, const std::vector<std::string>& arguments = {},
+    const RuntimeEnvironment& environment = {});
 
 // Writes `data` to this process's standard error unchanged (no newline
 // translation on Windows), for relaying a child's captured stderr. Returns

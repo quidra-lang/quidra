@@ -19,6 +19,8 @@
 
 #include "nesting_budget.hpp"
 #include "shape_relations.hpp"
+#include "compiler_extension_binding.hpp"
+#include "semantics/interface_contracts.hpp"
 
 #include <algorithm>
 #include <array>
@@ -1627,6 +1629,11 @@ void rename_function(
 
 
 std::string canonical_signature_type(const TypeName& type, const FunctionDecl& function);
+DeclarationIdentity original_declaration_identity(const FunctionDecl&, std::string package,
+    std::string module_path, std::string owner_class, std::string source_name,
+    const std::vector<std::string>& class_parameters = {},
+    const std::vector<std::string>& class_constraints = {});
+
 
 bool same_parameter_contract(const Parameter& a, const Parameter& b, std::string_view source) {
     (void)source;
@@ -2255,6 +2262,8 @@ public:
                 }
             }
         }
+        semantics::finalize_original_interfaces(*interface_sources_);
+        merged.interface_sources = interface_sources_;
         return merged;
     }
 
@@ -2272,6 +2281,8 @@ private:
     std::map<std::string, fs::path> loaded_packages_;
     std::vector<fs::path> stack_;
     std::unordered_set<std::string> loaded_standard_declarations_;
+    std::shared_ptr<semantics::InterfaceSources> interface_sources_{std::make_shared<semantics::InterfaceSources>()};
+    std::map<std::string,std::size_t> interface_namespaces_;
 
     void record_package(
         const std::string& name, const fs::path& package_main, SourceSpan span) {
@@ -2393,219 +2404,9 @@ private:
                          normalized.parent_path(), *manifest)) {
                     const auto descriptor = read_text(
                         descriptor_path, InputFileKind::descriptor, inputs_);
-                    const auto document = parse_toml_subset(
-                        descriptor, descriptor_path.string());
-                    const auto* extension_version =
-                        document.find("extension", "version");
-                    const auto* phase =
-                        document.find("extension", "phase");
-                    if (!extension_version || *extension_version != "2") {
-                        throw std::runtime_error(
-                            "compiler extension descriptor requires "
-                            "[extension] version = 2: " +
-                            descriptor_path.string());
-                    }
-                    if (!phase || *phase != "tensor-region") {
-                        throw std::runtime_error(
-                            "compiler extension descriptor has unsupported "
-                            "phase; expected 'tensor-region': " +
-                            descriptor_path.string());
-                    }
-                    for (const auto& [table_name, fields] : document.tables) {
-                        if (!table_name.starts_with("specialization.") &&
-                            !table_name.starts_with("backend.") &&
-                            !table_name.starts_with("memory.")) continue;
-                        const auto dtype = fields.find("dtype");
-                        if (dtype != fields.end() &&
-                            !abi::canonical_tensor_dtype_name(dtype->second)) {
-                            throw std::runtime_error(
-                                "compiler extension rule '" + table_name +
-                                "' requires a canonical tensor dtype, not '" +
-                                dtype->second + "': " + descriptor_path.string());
-                        }
-                    }
-                    std::unordered_set<std::string> operation_ids;
-                    for (const auto& [table_name, fields] :
-                         document.tables) {
-                        if (!table_name.starts_with("operation.")) continue;
-                        const auto operation_id = table_name.substr(
-                            std::string("operation.").size());
-                        if (operation_id.empty()) {
-                            throw std::runtime_error(
-                                "compiler extension operation table requires "
-                                "a non-empty id: " +
-                                descriptor_path.string());
-                        }
-                        const auto function = fields.find("function");
-                        if (function == fields.end() ||
-                            function->second.empty()) {
-                            throw std::runtime_error(
-                                "compiler extension operation '" +
-                                operation_id +
-                                "' requires a non-empty function: " +
-                                descriptor_path.string());
-                        }
-                        operation_ids.insert(operation_id);
-                    }
-
-                    std::unordered_set<std::string> execution_policy_ids;
-                    for (const auto& [table_name, fields] :
-                         document.tables) {
-                        if (!table_name.starts_with(
-                                "execution_policy.")) {
-                            continue;
-                        }
-                        const auto policy_id = table_name.substr(
-                            std::string("execution_policy.").size());
-                        const auto function = fields.find("function");
-                        if (policy_id.empty() ||
-                            function == fields.end() ||
-                            function->second.empty()) {
-                            throw std::runtime_error(
-                                "compiler extension execution policy table "
-                                "requires a non-empty id and function: " +
-                                descriptor_path.string());
-                        }
-                        execution_policy_ids.insert(policy_id);
-                    }
-
-                    for (const auto& [table_name, fields] :
-                         document.tables) {
-                        if (!table_name.starts_with("fusion.")) continue;
-                        const auto fusion_id = table_name.substr(
-                            std::string("fusion.").size());
-                        const auto configured = fields.find("operations");
-                        if (fusion_id.empty() ||
-                            configured == fields.end() ||
-                            configured->second.empty()) {
-                            throw std::runtime_error(
-                                "compiler extension fusion table requires "
-                                "a non-empty id and operations list: " +
-                                descriptor_path.string());
-                        }
-
-                        std::size_t start = 0;
-                        while (start <= configured->second.size()) {
-                            const auto comma =
-                                configured->second.find(',', start);
-                            const auto end =
-                                comma == std::string::npos
-                                    ? configured->second.size()
-                                    : comma;
-                            auto operation = configured->second.substr(
-                                start, end - start);
-                            const auto first =
-                                operation.find_first_not_of(" \t\r");
-                            const auto last =
-                                operation.find_last_not_of(" \t\r");
-                            if (first == std::string::npos) {
-                                throw std::runtime_error(
-                                    "compiler extension fusion '" +
-                                    fusion_id +
-                                    "' contains an empty operation id: " +
-                                    descriptor_path.string());
-                            }
-                            operation =
-                                operation.substr(first, last - first + 1);
-                            if (!operation_ids.contains(operation)) {
-                                throw std::runtime_error(
-                                    "compiler extension fusion '" +
-                                    fusion_id +
-                                    "' references unknown operation '" +
-                                    operation + "': " +
-                                    descriptor_path.string());
-                            }
-                            if (comma == std::string::npos) break;
-                            start = comma + 1;
-                        }
-
-                        if (const auto replacement =
-                                fields.find("replacement");
-                            replacement != fields.end()) {
-                            if (replacement->second.empty() ||
-                                !operation_ids.contains(replacement->second)) {
-                                throw std::runtime_error(
-                                    "compiler extension fusion '" +
-                                    fusion_id +
-                                    "' references unknown replacement operation '" +
-                                    replacement->second + "': " +
-                                    descriptor_path.string());
-                            }
-                        }
-                    }
-                    for (const auto& [table_name, fields] :
-                         document.tables) {
-                        std::string rule_kind;
-                        std::string rule_prefix;
-                        if (table_name.starts_with("specialization.")) {
-                            rule_kind = "specialization";
-                            rule_prefix = "specialization.";
-                        } else if (table_name.starts_with("backend.")) {
-                            rule_kind = "backend";
-                            rule_prefix = "backend.";
-                        } else if (table_name.starts_with("memory.")) {
-                            rule_kind = "memory";
-                            rule_prefix = "memory.";
-                        } else {
-                            continue;
-                        }
-
-                        const auto rule_id =
-                            table_name.substr(rule_prefix.size());
-                        const auto operation = fields.find("operation");
-                        const auto replacement = fields.find("replacement");
-                        if (rule_id.empty() ||
-                            operation == fields.end() ||
-                            operation->second.empty() ||
-                            replacement == fields.end() ||
-                            replacement->second.empty()) {
-                            throw std::runtime_error(
-                                "compiler extension " + rule_kind +
-                                " table requires a non-empty id, operation, "
-                                "and replacement: " +
-                                descriptor_path.string());
-                        }
-                        if (!operation_ids.contains(operation->second)) {
-                            throw std::runtime_error(
-                                "compiler extension " + rule_kind + " '" +
-                                rule_id +
-                                "' references unknown operation '" +
-                                operation->second + "': " +
-                                descriptor_path.string());
-                        }
-                        if (!operation_ids.contains(replacement->second)) {
-                            throw std::runtime_error(
-                                "compiler extension " + rule_kind + " '" +
-                                rule_id +
-                                "' references unknown replacement operation '" +
-                                replacement->second + "': " +
-                                descriptor_path.string());
-                        }
-                        if (const auto relation = fields.find("same_shape"); relation != fields.end())
-                            (void)shape_relation_parameters(relation->second);
-                        if (const auto policy = fields.find("policy");
-                            policy != fields.end()) {
-                            if (policy->second.empty() ||
-                                !execution_policy_ids.contains(
-                                    policy->second)) {
-                                throw std::runtime_error(
-                                    "compiler extension " + rule_kind + " '" +
-                                    rule_id +
-                                    "' references unknown execution policy '" +
-                                    policy->second + "': " +
-                                    descriptor_path.string());
-                            }
-                        }
-                    }
-                    compiler_extensions_->push_back(
-                        CompilerExtensionRegistration{
-                            name,
-                            extension_name,
-                            normalized.parent_path().string(),
-                            descriptor_path.string(),
-                            descriptor,
-                            *phase,
-                            document.tables});
+                    compiler_extensions_->push_back(parse_compiler_extension_descriptor(
+                        name, extension_name, normalized.parent_path(), descriptor_path,
+                        descriptor, inputs_));
                 }
             } catch (const std::exception& error) {
                 frontend_error(
@@ -2749,11 +2550,56 @@ private:
         resolve_local_prototypes(program, source);
         SourceOrderValidator(program).run();
         for (auto& function : program.functions) function.source_file = source_file;
+        std::string identity_package, identity_module;
+        std::size_t identity_root_size = 0;
+        for (const auto& [package, main] : loaded_packages_) {
+            const auto relative = absolute.lexically_relative(main.parent_path());
+            if (relative.empty() || relative.is_absolute() || *relative.begin() == "..") continue;
+            const auto root_size = main.parent_path().native().size();
+            if (root_size < identity_root_size) continue;
+            identity_root_size = root_size; identity_package = package;
+            if (absolute == main) identity_module.clear();
+            else {
+                auto module = relative; module.replace_extension();
+                identity_module = module.generic_string();
+                std::replace(identity_module.begin(), identity_module.end(), '/', '.');
+            }
+        }
+        if (identity_package.empty()) identity_module = ns;
+        const auto record_identity = [&](FunctionDecl& function, const std::string& owner,
+            const std::string& source_name, const auto& class_parameters, const auto& class_constraints) {
+            function.declaration = original_declaration_identity(function, identity_package,
+                identity_module, owner, source_name, class_parameters, class_constraints);
+            if (std::none_of(merged.declaration_catalog.begin(), merged.declaration_catalog.end(),
+                            [&](const auto& existing) { return same_declaration(existing, *function.declaration); }))
+                merged.declaration_catalog.push_back(*function.declaration);
+        };
+        for (auto& function : program.functions)
+            record_identity(function, {}, function.name, std::vector<std::string>{}, std::vector<std::string>{});
         for (auto& declaration : program.enums) declaration.source_file = source_file;
         for (auto& declaration : program.classes) {
             declaration.source_file = source_file;
-            for (auto& method : declaration.methods) method.source_file = source_file;
+            std::size_t constructor = 0;
+            for (auto& method : declaration.methods) {
+                method.source_file = source_file;
+                record_identity(method, declaration.name,
+                    method.is_constructor ? std::to_string(constructor++) : method.name,
+                    declaration.type_parameters, declaration.type_constraints);
+            }
         }
+
+        const auto interface_index = interface_sources_->modules.size();
+        interface_sources_->modules.push_back(semantics::capture_original_interfaces(
+            program, {identity_package,identity_module}, source,
+            [](const TypeName& type) {
+                FunctionDecl signature;
+                signature.return_type = type;
+                return canonical_signature_type(type,signature);
+            }));
+        interface_namespaces_[ns] = interface_index;
+        for (const auto& binding : interface_sources_->modules[interface_index].bindings)
+            semantics::bind_interface_name(interface_sources_->modules[interface_index],binding.kind,
+                binding.original_name,qualify(ns,binding.original_name));
 
         for (const auto& enum_decl : program.enums) {
             if ((root && is_reserved_value_name(enum_decl.name)) || enum_decl.name == "main")
@@ -2938,6 +2784,8 @@ private:
                 record_package(import_decl.target, *package_path, import_decl.span);
                 const auto child_ns = qualify(ns, import_decl.alias);
                 auto child_exports = load_file(*package_path, child_ns, false, false, merged);
+                semantics::bind_interface_import(interface_sources_->modules[interface_index],
+                    import_decl.alias,interface_sources_->modules.at(interface_namespaces_.at(child_ns)).module);
                 if (import_decl.is_public) {
                     exports.namespaces[import_decl.alias] = std::make_shared<Exports>(child_exports);
                 }
@@ -2958,6 +2806,8 @@ private:
 
             const auto child_ns = qualify(ns, import_decl.alias);
             auto child_exports = load_file(target, child_ns, false, user, merged);
+            semantics::bind_interface_import(interface_sources_->modules[interface_index],
+                import_decl.alias,interface_sources_->modules.at(interface_namespaces_.at(child_ns)).module);
             if (import_decl.is_public) {
                 exports.namespaces[import_decl.alias] = std::make_shared<Exports>(child_exports);
             }
@@ -3289,6 +3139,37 @@ std::string canonical_signature_type(const TypeName& type, const FunctionDecl& f
     return canonical_type(type, &shapes);
 }
 
+DeclarationIdentity original_declaration_identity(const FunctionDecl& function, std::string package,
+    std::string module_path, std::string owner_class, std::string source_name,
+    const std::vector<std::string>& class_parameters, const std::vector<std::string>& class_constraints) {
+    DeclarationIdentity result;
+    result.kind = function.is_constructor ? DeclarationIdentity::Kind::Constructor :
+        owner_class.empty() ? DeclarationIdentity::Kind::Function : DeclarationIdentity::Kind::Method;
+    result.package = std::move(package); result.module_path = std::move(module_path);
+    result.owner_class = std::move(owner_class); result.source_name = std::move(source_name);
+    result.source_file = function.source_file;
+    result.generic_parameters = class_parameters;
+    result.generic_constraints = class_constraints;
+    result.generic_constraints.resize(result.generic_parameters.size());
+    result.generic_parameters.insert(result.generic_parameters.end(), function.type_parameters.begin(), function.type_parameters.end());
+    for (std::size_t i = 0; i < function.type_parameters.size(); ++i)
+        result.generic_constraints.push_back(i < function.type_constraints.size() ? function.type_constraints[i] : "");
+    result.signature = "(";
+    for (const auto& parameter : function.parameters) {
+        if (!result.parameters.empty()) result.signature += ",";
+        const auto type = canonical_signature_type(parameter.type, function);
+        result.parameters.push_back({parameter.name, type, parameter.writable, parameter.is_const});
+        if (parameter.is_const) result.signature += "const ";
+        result.signature += type;
+        if (parameter.writable) result.signature += "&";
+    }
+    result.signature += ")";
+    result.result_type = canonical_signature_type(function.return_type, function);
+    result.mutation_marker = function.mutation_marker; result.external = function.external_symbol.has_value();
+    return result;
+}
+
+
 
 std::uint64_t fnv1a(std::string_view text) {
     std::uint64_t value = 1469598103934665603ULL;
@@ -3444,6 +3325,8 @@ public:
         output_.source_texts = source_.source_texts;
         output_.user_sources = source_.user_sources;
         output_.package_directories = source_.package_directories;
+        output_.declaration_catalog = source_.declaration_catalog;
+        output_.interface_sources = source_.interface_sources;
         validate_declarations();
 
         for (auto& class_decl : source_.classes) {
@@ -5869,6 +5752,15 @@ private:
             out.name = source.name;
             out.source_file = source.source_file;
             out.module_namespace = source.module_namespace;
+            out.declaration = source.declaration;
+            if (out.declaration && !substitution.empty()) {
+                out.declaration->specialization_of = declaration_key(*out.declaration);
+                out.declaration->generic_args.clear();
+                for (const auto& parameter : out.declaration->generic_parameters) {
+                    const auto argument = substitution.find(parameter);
+                    out.declaration->generic_args.push_back(argument == substitution.end() ? "" : canonical_type(argument->second));
+                }
+            }
             out.return_type = materialize_type(source.return_type, substitution, deferred,true);
             traversal_expected_result_=out.return_type.name=="$std.reflect.Each"?std::optional<TypeName>{substitute_raw(source.return_type,substitution)}:std::nullopt;
             out.span = source.span;
@@ -6437,6 +6329,7 @@ std::map<std::string, fs::path> resolve_package_dependencies_source(
 
 void validate_same_shape_declarations(const ResolvedProgram& program) {
     for (const auto& extension : program.compiler_extensions) {
+        if (extension.schema_revision == 2) continue;
         for (const auto& [table, fields] : extension.tables) {
             if (!table.starts_with("specialization.") && !table.starts_with("backend.") &&
                 !table.starts_with("memory.")) continue;
@@ -6494,6 +6387,7 @@ void validate_same_shape_declarations(const ResolvedProgram& program) {
 }
 
 ConcreteProgram expand_generics(ResolvedProgram program) {
+    optimizer::validate_extension_declarations(program.compiler_extensions, program.program.declaration_catalog);
     validate_same_shape_declarations(program);
     return ConcreteProgram{
         GenericExpander(std::move(program.program)).run(),

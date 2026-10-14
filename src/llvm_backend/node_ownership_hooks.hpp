@@ -8,7 +8,9 @@ namespace quidra::llvm_backend {
 class NodeOwnershipHooks {
 public:
     virtual ~NodeOwnershipHooks()=default;
+    virtual bool active()const{return true;}
     virtual void cleanup()=0;
+    virtual void cleanup_scope(std::uint64_t){cleanup();}
     virtual void pin(const ir::Instruction& instruction,ir::ValueId target)=0;
     virtual void unpin(const ir::Instruction& instruction,ir::ValueId target)=0;
     virtual void acquire(ir::ValueId value,const Type& type,const std::string& raw)=0;

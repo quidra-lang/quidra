@@ -18,6 +18,7 @@ namespace quidra::lowering {
 void StatementLowering::lower_block(
     const std::vector<StmtPtr>& statements,
     const std::function<void(std::size_t)>& before_statement) {
+    lowerer_.statement_sites().register_tree(builder_.function()->name, statements);
     const auto guard = nesting_depth_.statement(
         statements.empty() ? SourceSpan{} : statements.front()->span);
     for (std::size_t i = 0; i < statements.size(); ++i) {
@@ -36,6 +37,8 @@ void StatementLowering::lower_block(
 
 void StatementLowering::lower_statement(const Stmt& s) {
     const auto guard = nesting_depth_.statement(s.span);
+    builder_.emit(ir::StatementBoundary{
+        lowerer_.statement_sites().identity(builder_.function()->name, s)});
     builder_.emit(locator_.locate(s.span, builder_.function()));
     lower_statement_kind(s);
     lowerer_.initialization_flags().after(s);
@@ -60,6 +63,8 @@ void StatementLowering::lower_binding(const Stmt& s, const BindingStmt& n) {
     // A contextual constant has no storage: each use is its own value.
     if(n.pattern) {
         const auto& expansion=checked_.pattern_expansions.at(&s);
+        lowerer_.statement_sites().register_expansion(builder_.function()->name,
+            lowerer_.statement_sites().current_identity(builder_.function()->name), expansion.bindings);
         bool move=false;ir::ValueId subject=0;
         if(n.reference){auto name=scope_.bind_source_reference(builder_,expansion.subject,expansion.type);builder_.emit(DeclareReference{name,expansion.type});auto address=lowerer_.lower_address(*n.value);builder_.emit(BindReference{name,address});}
         else {subject=lowerer_.lower_into(*n.value,expansion.type);scope_.bind_source_value(expansion.subject,subject);move=lifetime_.expression_owns_result(*n.value) || checked_.fail_fast_expressions.contains(n.value.get());if(move)lifetime_.enter_tuple_move(expansion.subject);}
@@ -242,7 +247,7 @@ void StatementLowering::lower_rebind(const RebindStmt& n) {
                         auto selected=builder_.fresh();builder_.emit(Binary{selected,"AND",mask,bit,word,word});
                         auto zero=builder_.fresh();builder_.emit(ConstantInt{zero,"0",word});
                         auto set=builder_.fresh();builder_.emit(Binary{set,"!=",selected,zero,word,Type::simple(TypeKind::Bool)});
-                        builder_.emit(InitializedCheck{set,InitializedSubject::field,"reference target",static_cast<std::uint32_t>(n.target->span.start.line),static_cast<std::uint32_t>(n.target->span.start.column)});
+                        builder_.emit(InitializedCheck{set,InitializedSubject::field,"reference target",{static_cast<std::uint32_t>(n.target->span.start.line),static_cast<std::uint32_t>(n.target->span.start.column)}});
                     } else {auto child=builder_.fresh();const auto& child_type=info.fields[index].type;builder_.emit(FieldGet{child,parent,index,child_type});parent=child;type=child_type;}
                 }
             }
@@ -310,8 +315,8 @@ void StatementLowering::lower_expression_statement(const Stmt& s, const ExprStmt
                                           *hop,abi::ErrorHopKind::fail_fast);
         }
         builder_.emit(FailError{
-            problem,static_cast<std::uint32_t>(s.span.start.line),
-            static_cast<std::uint32_t>(s.span.start.column)});
+            problem,{static_cast<std::uint32_t>(s.span.start.line),
+            static_cast<std::uint32_t>(s.span.start.column)}});
         return;
     }
     if((!displayed_result || residual_is_void()) &&

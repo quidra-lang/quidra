@@ -1,6 +1,8 @@
 #include "platform/process.hpp"
+#include "platform/environment.hpp"
 
 #include <algorithm>
+#include <map>
 #include <stdexcept>
 #include <string_view>
 
@@ -14,14 +16,55 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 #endif
 
 namespace fs = std::filesystem;
 
 namespace quidra::platform {
 
+namespace {
+void validate_environment(const RuntimeEnvironment& environment) {
+    for (const auto& [name, value] : environment)
+        if (name.empty() || name.find('=') != std::string::npos || name.find('\0') != std::string::npos ||
+                (value && value->find('\0') != std::string::npos))
+            throw std::runtime_error("invalid child environment name or value");
+}
+} // namespace
+
 #ifdef _WIN32
 namespace {
+
+struct WindowsEnvironmentLess {
+    bool operator()(const std::wstring& left, const std::wstring& right) const {
+        return CompareStringOrdinal(left.c_str(), -1, right.c_str(), -1, TRUE) == CSTR_LESS_THAN;
+    }
+};
+std::vector<wchar_t> child_environment(const RuntimeEnvironment& overrides) {
+    validate_environment(overrides);
+    std::map<std::wstring, std::wstring, WindowsEnvironmentLess> values;
+    for (const auto& record : environment_native_snapshot()) {
+        // Windows stores drive working directories as =C:=..., with the
+        // separator at the second '='. Keep those inherited records intact.
+        const auto separator = record.find(L'=', record.front() == L'=' ? 1 : 0);
+        if (separator == std::wstring::npos)
+            throw std::runtime_error("invalid inherited process environment");
+        values.insert_or_assign(record.substr(0, separator), record.substr(separator + 1));
+    }
+    for (const auto& [name, value] : overrides) {
+        const auto key = native_text(name);
+        if (value) values.insert_or_assign(key, native_text(*value));
+        else values.erase(key);
+    }
+    std::vector<wchar_t> block;
+    for (const auto& [name, value] : values) {
+        block.insert(block.end(), name.begin(), name.end()); block.push_back(L'=');
+        block.insert(block.end(), value.begin(), value.end()); block.push_back(L'\0');
+    }
+    if (block.empty()) block.push_back(L'\0');
+    block.push_back(L'\0');
+    return block;
+}
 
 std::wstring windows_quote_wide(std::wstring_view value) {
     std::wstring out = L"\"";
@@ -53,7 +96,10 @@ int run_native_program(
     const std::vector<NativeText>& arguments,
     const std::optional<fs::path>& stdout_path,
     const std::optional<fs::path>& stderr_path,
-    const std::optional<fs::path>& stdin_path) {
+    const std::optional<fs::path>& stdin_path,
+    const RuntimeEnvironment& environment) {
+    std::vector<wchar_t> environment_block;
+    if (!environment.empty()) environment_block = child_environment(environment);
     std::wstring command = windows_quote_wide(program.native());
     for (const auto& argument : arguments) {
         command.push_back(L' ');
@@ -110,7 +156,9 @@ int run_native_program(
 
     PROCESS_INFORMATION process{};
     const BOOL created = CreateProcessW(
-        nullptr, command.data(), nullptr, nullptr, inherit, 0, nullptr, nullptr,
+        nullptr, command.data(), nullptr, nullptr, inherit,
+        environment.empty() ? 0 : CREATE_UNICODE_ENVIRONMENT,
+        environment.empty() ? nullptr : environment_block.data(), nullptr,
         &startup, &process);
     const DWORD create_error = created ? ERROR_SUCCESS : GetLastError();
 
@@ -134,12 +182,35 @@ int run_native_program(
     return static_cast<int>(exit_code);
 }
 #else
+namespace {
+struct PosixEnvironment {
+    std::vector<std::string> storage;
+    std::vector<char*> pointers;
+    PosixEnvironment(const fs::path& program, const RuntimeEnvironment& overrides) {
+        if (overrides.empty()) return;
+        validate_environment(overrides);
+        if (!program.is_absolute())
+            throw std::runtime_error("child environment overrides require an absolute executable");
+        storage = environment_native_snapshot();
+        for (const auto& [name, value] : overrides) {
+            const auto prefix = name + '=';
+            std::erase_if(storage, [&](const std::string& entry) { return entry.starts_with(prefix); });
+            if (value) storage.push_back(prefix + *value);
+        }
+        pointers.reserve(storage.size() + 1);
+        for (auto& entry : storage) pointers.push_back(entry.data());
+        pointers.push_back(nullptr);
+    }
+};
+} // namespace
 int run_native_program(
     const fs::path& program,
     const std::vector<NativeText>& arguments,
     const std::optional<fs::path>& stdout_path,
     const std::optional<fs::path>& stderr_path,
-    const std::optional<fs::path>& stdin_path) {
+    const std::optional<fs::path>& stdin_path,
+    const RuntimeEnvironment& environment) {
+    const PosixEnvironment child_environment(program, environment);
     std::vector<std::string> storage;
     storage.reserve(arguments.size() + 1);
     storage.push_back(program.string());
@@ -162,7 +233,8 @@ int run_native_program(
         redirect(stdin_path, STDIN_FILENO, O_RDONLY);
         redirect(stdout_path, STDOUT_FILENO, O_WRONLY | O_CREAT | O_TRUNC);
         redirect(stderr_path, STDERR_FILENO, O_WRONLY | O_CREAT | O_TRUNC);
-        ::execvp(program.c_str(), argv.data());
+        if (environment.empty()) ::execvp(program.c_str(), argv.data());
+        else ::execve(program.c_str(), argv.data(), child_environment.pointers.data());
         _exit(errno == ENOENT ? 127 : 126);
     }
 
@@ -189,22 +261,24 @@ int run_program(
     const fs::path& program,
     const std::vector<std::string>& arguments,
     const std::optional<fs::path>& stdout_path,
-    const std::optional<fs::path>& stderr_path) {
+    const std::optional<fs::path>& stderr_path,
+    const RuntimeEnvironment& environment) {
 #ifdef _WIN32
     std::vector<NativeText> native_arguments;
     native_arguments.reserve(arguments.size());
     for (const auto& argument : arguments) native_arguments.push_back(native_text(argument));
-    return run_native_program(program, native_arguments, stdout_path, stderr_path);
+    return run_native_program(program, native_arguments, stdout_path, stderr_path, std::nullopt, environment);
 #else
-    return run_native_program(program, arguments, stdout_path, stderr_path);
+    return run_native_program(program, arguments, stdout_path, stderr_path, std::nullopt, environment);
 #endif
 }
 
 #ifdef _WIN32
 ProgramRun run_program_reporting_start(
-    const fs::path& program, const std::vector<std::string>& arguments) {
+    const fs::path& program, const std::vector<std::string>& arguments,
+    const RuntimeEnvironment& environment) {
     try {
-        return ProgramRun{true, run_program(program, arguments), {}};
+        return ProgramRun{true, run_program(program, arguments, std::nullopt, std::nullopt, environment), {}};
     } catch (const std::runtime_error& error) {
         const std::string_view message = error.what();
         if (message.rfind("cannot start process", 0) != 0) throw;
@@ -213,7 +287,9 @@ ProgramRun run_program_reporting_start(
 }
 #else
 ProgramRun run_program_reporting_start(
-    const fs::path& program, const std::vector<std::string>& arguments) {
+    const fs::path& program, const std::vector<std::string>& arguments,
+    const RuntimeEnvironment& environment) {
+    const PosixEnvironment child_environment(program, environment);
     std::vector<std::string> storage;
     storage.reserve(arguments.size() + 1);
     storage.push_back(program.string());
@@ -235,7 +311,8 @@ ProgramRun run_program_reporting_start(
     }
     if (pid == 0) {
         ::close(report[0]);
-        ::execvp(program.c_str(), argv.data());
+        if (environment.empty()) ::execvp(program.c_str(), argv.data());
+        else ::execve(program.c_str(), argv.data(), child_environment.pointers.data());
         const int error = errno;
         (void)!::write(report[1], &error, sizeof(error));
         _exit(error == ENOENT ? 127 : 126);

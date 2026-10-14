@@ -32,6 +32,9 @@ struct Info {
     std::string name;
     std::string driver;
     std::string runtime;
+    // Captured only for observation/explicit metadata discovery; never a
+    // persistent cache key or an enumeration-index substitute.
+    std::uint64_t observation_identity{};
 };
 
 struct Buffer;

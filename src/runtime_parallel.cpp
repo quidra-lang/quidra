@@ -24,6 +24,7 @@
 #include "deferred_hooks.hpp"
 #include "device_backend.hpp"
 #include "runtime_counters.hpp"
+#include "runtime/profile.hpp"
 
 #include "platform/environment.hpp"
 #include "quidra/abi/process_status.hpp"
@@ -431,7 +432,7 @@ std::optional<DeferredFailure> finish_deferred_node(const std::shared_ptr<Deferr
                     std::fflush(stdout);
                     std::fprintf(stderr,"Quidra runtime error[%.*s]: operation owner unknown: GPU drain failed with pending work\n",
                         static_cast<int>(code.size()),code.data());
-                    std::fflush(stderr);std::_Exit(abi::failure_exit_status);
+                    std::fflush(stderr);quidra::runtime::immediate_failure_exit();
                 }
             }
         }
@@ -610,6 +611,8 @@ extern "C" int qcore_parallel_for(
     const auto configured = configured_thread_count();
     if (!body || grain == 0 || begin > end) return QCORE_PARALLEL_INVALID_ARGUMENT;
     if (begin == end) return QCORE_PARALLEL_OK;
+    quidra::counters::add(quidra::counters::Id::CpuParallelRegions);
+    quidra::profile::Range parallel_range("core", "parallel_for");
 
     Job job;
     job.begin = begin;
@@ -629,6 +632,7 @@ extern "C" int qcore_parallel_for(
     const auto threads = serial_depth != 0 ? 1 : configured;
     const auto participants = std::min(threads, job.chunks);
     const bool serial = participants <= 1 || !run_parallel(job, participants);
+    if (serial) quidra::counters::add(quidra::counters::Id::CpuParallelSerialRegions);
     const auto serial_status = serial ? run_serial(job) : QCORE_PARALLEL_OK;
     // Every helper has finished: dispatch_apply_f returned, or the pool caller
     // waited for each helper that joined.

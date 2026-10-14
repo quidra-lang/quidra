@@ -45,8 +45,8 @@ void ControlFlowLowering::lower_multi_array_for(const ForStmt& loop) {
     const auto origin=loop.iterable->span.start;
     for(std::size_t i=1;i<collections.size();++i)
         builder_.emit(ExtentEqualCheck{collections[i].length,collections.front().length,
-            static_cast<std::uint32_t>(origin.line),
-            static_cast<std::uint32_t>(origin.column),true});
+            {static_cast<std::uint32_t>(origin.line),
+            static_cast<std::uint32_t>(origin.column)},true});
     for(auto& collection:collections) {
         if(collection.name=="_") continue;
         const auto item=*collection.snapshot.type.first;
@@ -77,7 +77,7 @@ void ControlFlowLowering::lower_multi_array_for(const ForStmt& loop) {
         // Snapshot copies preserve initialized storage, but unknown array
         // initialization is still checked by ArrayGet before publishing it.
         builder_.emit(ArrayGet{element,array,index,item,
-            static_cast<std::uint32_t>(start.line),static_cast<std::uint32_t>(start.column),
+            {static_cast<std::uint32_t>(start.line),static_cast<std::uint32_t>(start.column)},
             collection.initialized,true});
         element=lifetime_.copy_value(element,item);
         builder_.emit(StoreLocal{collection.local,element,item});

@@ -31,7 +31,7 @@ void JsonEmitter::emit(const ir::JsonParse& n,const ir::Instruction&){
     builder_.block(bad);
     union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
     const auto message=names_.value("json.parse.message"),error_payload=names_.value("json.parse.error.payload");
-    builder_.call(message,runtime_abi::error::json_last,{{i64,records_.line(n.line)},{i64,records_.column(n.column)}});
+    builder_.call(message,runtime_abi::error::json_last,{{i64,records_.line(n.position.line)},{i64,records_.column(n.position.column)}});
     union_box_.payload_slot(error_payload,result);
     builder_.store({ptr,message},error_payload,Align::none);
     builder_.br(done);
@@ -71,7 +71,7 @@ void JsonEmitter::emit(const ir::JsonSize& n,const ir::Instruction&){
     union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
     const auto error_payload=names_.value("json.size.error.payload");
     union_box_.payload_slot(error_payload,result);
-    store_kind_error(error_payload,n.line,n.column);
+    store_kind_error(error_payload,n.position.line,n.position.column);
     builder_.br(done);
     builder_.block(done);
 }
@@ -136,11 +136,11 @@ void JsonEmitter::emit_lookup(const JsonLookup& lookup,ir::ValueId result_value,
 }
 
 void JsonEmitter::emit(const ir::JsonGet& n,const ir::Instruction&){
-    emit_lookup(json_member,n.out,n.value,n.key,n.result_type,n.line,n.column);
+    emit_lookup(json_member,n.out,n.value,n.key,n.result_type,n.position.line,n.position.column);
 }
 
 void JsonEmitter::emit(const ir::JsonAt& n,const ir::Instruction&){
-    emit_lookup(json_element,n.out,n.value,n.index,n.result_type,n.line,n.column);
+    emit_lookup(json_element,n.out,n.value,n.index,n.result_type,n.position.line,n.position.column);
 }
 
 void JsonEmitter::emit(const ir::JsonText& n,const ir::Instruction&){
@@ -163,7 +163,7 @@ void JsonEmitter::emit(const ir::JsonText& n,const ir::Instruction&){
     union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
     const auto error_payload=names_.value("json.text.error.payload");
     union_box_.payload_slot(error_payload,result);
-    store_kind_error(error_payload,n.line,n.column);
+    store_kind_error(error_payload,n.position.line,n.position.column);
     builder_.br(done);
     builder_.block(done);
 }
@@ -214,11 +214,11 @@ void JsonEmitter::emit_scalar_read(const JsonScalarRead& read,ir::ValueId result
 }
 
 void JsonEmitter::emit(const ir::JsonInteger& n,const ir::Instruction&){
-    emit_scalar_read(json_integer,n.out,n.value,n.result_type,n.line,n.column);
+    emit_scalar_read(json_integer,n.out,n.value,n.result_type,n.position.line,n.position.column);
 }
 
 void JsonEmitter::emit(const ir::JsonNumber& n,const ir::Instruction&){
-    emit_scalar_read(json_number,n.out,n.value,n.result_type,n.line,n.column);
+    emit_scalar_read(json_number,n.out,n.value,n.result_type,n.position.line,n.position.column);
 }
 
 template <class T>
@@ -262,7 +262,7 @@ void JsonEmitter::emit_big_number(const T& n){
     union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
     const auto error_payload=names_.value("json.exact.error.payload");
     union_box_.payload_slot(error_payload,result);
-    store_kind_error(error_payload,n.line,n.column);
+    store_kind_error(error_payload,n.position.line,n.position.column);
     builder_.br(done);
     builder_.block(done);
 }
@@ -276,7 +276,7 @@ void JsonEmitter::emit(const ir::JsonBigReal& n,const ir::Instruction&){
 }
 
 void JsonEmitter::emit(const ir::JsonBoolean& n,const ir::Instruction&){
-    emit_scalar_read(json_boolean,n.out,n.value,n.result_type,n.line,n.column);
+    emit_scalar_read(json_boolean,n.out,n.value,n.result_type,n.position.line,n.position.column);
 }
 
 void JsonEmitter::emit(const ir::JsonEncode& n,const ir::Instruction&){

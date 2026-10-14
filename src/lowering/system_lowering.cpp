@@ -81,8 +81,8 @@ ValueId SystemLowering::lower_time_seconds(const CallExpr& n) {
         seconds=builder_.fresh();
         builder_.emit(NumericConvert{seconds,value,source,target,
             numeric_conversion_policy(source,target)==NumericConversionPolicy::ExplicitRangeCheck,
-            static_cast<std::uint32_t>(n.args[0].span.start.line),
-            static_cast<std::uint32_t>(n.args[0].span.start.column)});
+            {static_cast<std::uint32_t>(n.args[0].span.start.line),
+            static_cast<std::uint32_t>(n.args[0].span.start.column)}});
     }
     auto out=builder_.fresh();
     builder_.emit(TimeSeconds{out,seconds});
@@ -92,7 +92,7 @@ ValueId SystemLowering::lower_time_seconds(const CallExpr& n) {
 
 ValueId SystemLowering::lower_time_sleep(const Expr& e, const CallExpr& n) {
     auto duration=lowerer_.lower(*n.args[0].value);
-    builder_.emit(TimeSleep{duration,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(TimeSleep{duration,{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,duration);
     return 0;
 }

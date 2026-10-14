@@ -26,6 +26,10 @@ namespace quidra::ir::analysis {
 // The functions of the module that reach themselves through direct calls to
 // functions of the module.
 std::unordered_set<std::string> recursive_functions(const ir::Module& module);
+// The exact functions whose managed values require parallel failure cleanup.
+// Roots are typed outlined-node metadata and ParallelBlock references; callback
+// reachability follows the same rules as backend frame generation.
+std::unordered_set<std::string> node_cleanup_functions(const ir::Module& module);
 // The recursive functions that may keep their call depth in a parameter: they
 // call themselves directly, make no indirect call, are not address-taken, and
 // neither reach nor are reached by another recursive function (which would

@@ -1,5 +1,8 @@
 #include "device_backend.hpp"
 #include "runtime_counters.hpp"
+#include "runtime/profile.hpp"
+#include "runtime/timeline.hpp"
+#include "runtime/device_observation.hpp"
 #include "runtime_internal.hpp"
 #include "runtime_location.hpp"
 #include "runtime_report.hpp"
@@ -34,6 +37,36 @@ thread_local const abi::SourceProvenanceRecord* source_provenance{};
 // deferred checks, holds, test assertions) is reported.
 thread_local const abi::SourceProvenanceRecord* user_statement{};
 
+void finish_observation() noexcept {
+    quidra::timeline::note_point(quidra::timeline::Point::ExitBegin);
+    quidra::profile::statement_changed(nullptr);
+    quidra::device::finish_metal_capture(true);
+    quidra::timeline::note_point(quidra::timeline::Point::ExitEnd);
+    quidra::counters::flush_report();
+    (void)quidra::timeline::flush_report();
+    (void)quidra::profile::flush_report();
+}
+
+void begin_exit_observation() noexcept {
+    quidra::timeline::note_point(quidra::timeline::Point::ExitBegin);
+    quidra::profile::statement_changed(nullptr);
+    // Host exit callbacks registered before program entry may still enter
+    // Quidra. The library's original shutdown finalizers run after them.
+}
+
+void start_program_observation() noexcept {
+    quidra::timeline::mark_program_started();
+    quidra::profile::mark_program_started();
+    // Registered at program entry, before device resources arm their exit
+    // drains. Exit callbacks run in reverse registration order.
+    if (quidra::timeline::enabled() || quidra::profile::enabled() ||
+        quidra::profile::capture_requested()) {
+        static std::atomic<bool> registered{false};
+        if (!registered.exchange(true, std::memory_order_relaxed))
+            (void)std::atexit(begin_exit_observation);
+    }
+}
+
 bool source_site_of(const abi::SourceProvenanceRecord* record,
                     quidra::counters::SourceSite& site) {
     if (!record) return false;
@@ -64,6 +97,8 @@ struct SourceSiteRegistration {
     SourceSiteRegistration() {
         quidra::counters::set_source_site_provider(current_source_site);
         quidra::counters::set_user_source_site_provider(current_user_source_site);
+        quidra::timeline::remember_runtime_initialized();
+        quidra::profile::configure_runtime();
     }
 };
 SourceSiteRegistration source_site_registration;
@@ -124,13 +159,22 @@ extern "C" void quidra_runtime_export_leave() {
 // statement and the user's statement; null (the entry's return) clears both.
 extern "C" void quidra_runtime_set_source_provenance(
     const void* provenance) {
-    if (provenance) quidra::counters::mark_program_started();
+    if (provenance) {
+        quidra::counters::mark_program_started();
+        start_program_observation();
+    }
     quidra::device::seal_native_package_work();
     if (quidra::device::open_package_holds.load(std::memory_order_relaxed) != 0)
         quidra_runtime_check_package_hold(
             "the package code returned to Quidra code");
     source_provenance = static_cast<const abi::SourceProvenanceRecord*>(provenance);
     user_statement = source_provenance;
+    if (quidra::profile::enabled() || quidra::timeline::enabled()) {
+        quidra::counters::SourceSite site{};
+        const bool known = source_site_of(source_provenance, site);
+        if (known) quidra::timeline::note_point(quidra::timeline::Point::FirstStatement, &site);
+        quidra::profile::statement_changed(known ? &site : nullptr);
+    }
 }
 
 // Runs at every statement of package code: it names the innermost statement
@@ -142,6 +186,10 @@ extern "C" void quidra_runtime_set_package_source_provenance(
         quidra_runtime_check_package_hold(
             "the package code returned to Quidra code");
     source_provenance = static_cast<const abi::SourceProvenanceRecord*>(provenance);
+    if (quidra::profile::enabled()) {
+        quidra::counters::SourceSite site{};
+        quidra::profile::statement_changed(source_site_of(source_provenance, site) ? &site : nullptr);
+    }
 }
 
 // Package code saves the user's statement before a call that may enter user
@@ -265,6 +313,8 @@ quidra::runtime::ReportData trap_details(const abi::FailureReason& reason,
 struct DeviceFailureRegistration {
     DeviceFailureRegistration() {
         quidra::counters::set_unlocated_failure_reporter(report_device_failure);
+        quidra::runtime::set_failure_flush_handler(finish_observation);
+        quidra::profile::set_capture_finalizer(quidra::device::finish_metal_capture);
     }
 };
 DeviceFailureRegistration device_failure_registration;
@@ -280,6 +330,10 @@ void restore_node_source_state(NodeSourceState state) noexcept {
     source_provenance = state.provenance;
     user_statement = state.user_statement;
     last_failure_reason = state.failure_reason;
+    if (quidra::profile::enabled()) {
+        quidra::counters::SourceSite site{};
+        quidra::profile::statement_changed(source_site_of(source_provenance, site) ? &site : nullptr);
+    }
 }
 
 const abi::SourceProvenanceRecord* current_user_statement() {
@@ -551,8 +605,20 @@ extern "C" double quidra_time_now(bool sync) {
                                             abi::FailureArgs{.message = error}, 0, 0);
         }
     }
+    quidra::timeline::note_point(quidra::timeline::Point::TimeMark);
+    quidra::counters::time_mark();
+    if (quidra::timeline::time_marks_are_steps() ||
+        quidra::profile::capture_time_marks_are_steps()) {
+        quidra::device::observation_step_boundary();
+        quidra::profile::advance_capture_step();
+        quidra::timeline::note_point(quidra::timeline::Point::StepBoundary);
+    }
     using clock=std::chrono::steady_clock;
     return std::chrono::duration<double>(clock::now().time_since_epoch()).count();
+}
+
+extern "C" void quidra_runtime_start_observation() noexcept {
+    start_program_observation();
 }
 extern "C" void quidra_gpu_sync(long long index,
                                 unsigned long long line,

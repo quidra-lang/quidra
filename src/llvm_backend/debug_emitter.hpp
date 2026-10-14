@@ -42,6 +42,7 @@ public:
     // The handler of the debug domain. FunctionEmitter calls it before the
     // segment of any instruction opens, so the statement's call is part of
     // no segment. Defined in the class: it runs for every source location.
+    void emit(const ir::StatementBoundary&,const ir::Instruction&) {}
     void emit(const ir::SourceLocation& location,const ir::Instruction&){
         attribution_.begin_statement(location);
         record_location(location);
@@ -62,8 +63,8 @@ public:
             const auto id=module_->next_id();
             module_->record_location(DebugLocationRecord{
                 id,*debug_subprogram_,
-                std::max<std::uint32_t>(1,location.line),
-                std::max<std::uint32_t>(1,location.column)});
+                std::max<std::uint32_t>(1,location.position.line),
+                std::max<std::uint32_t>(1,location.position.column)});
             pending_debug_location_=id;
         }
     }

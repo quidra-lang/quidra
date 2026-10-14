@@ -6,7 +6,7 @@ namespace quidra::lowering {
 
 ValueId HttpLowering::lower_http_get(const Expr& e, const CallExpr& n) {
     auto url=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(HttpGet{out,url,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(HttpGet{out,url,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,url);
     return out;
 }

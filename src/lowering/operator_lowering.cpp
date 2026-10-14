@@ -175,8 +175,8 @@ std::optional<ValueId> OperatorLowering::lower_ascii_character_test(const Binary
             const auto& at=indexed->items.front().index->span.start;
             builder_.emit(StringIndexAsciiCompare{
                 out,text,index,byte,n.op=="!=",
-                static_cast<std::uint32_t>(at.line),
-                static_cast<std::uint32_t>(at.column)});
+                {static_cast<std::uint32_t>(at.line),
+                static_cast<std::uint32_t>(at.column)}});
             if(base_owned)
                 release_owned(builder_,text,Type::simple(TypeKind::String));
             return out;
@@ -277,8 +277,8 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
             if(comparison){
                 builder_.emit(TensorCompare{
                     out,binary->op,left,right,left_type,right_type,type_of(checked_,*current),
-                    static_cast<std::uint32_t>(current->span.start.line),
-                    static_cast<std::uint32_t>(current->span.start.column)});
+                    {static_cast<std::uint32_t>(current->span.start.line),
+                    static_cast<std::uint32_t>(current->span.start.column)}});
             }else{
                 if(left_type.kind!=TypeKind::Tensor && left_type!=element){
                     left=conversions_.convert(left,left_type,element);
@@ -290,8 +290,8 @@ ValueId OperatorLowering::lower_operator_tree(const Expr& e) {
                 }
                 builder_.emit(TensorBinary{
                     out,binary->op,left,right,left_type,right_type,type_of(checked_,*current),
-                    static_cast<std::uint32_t>(current->span.start.line),
-                    static_cast<std::uint32_t>(current->span.start.column)});
+                    {static_cast<std::uint32_t>(current->span.start.line),
+                    static_cast<std::uint32_t>(current->span.start.column)}});
             }
         }else{
             emit_checked_binary(builder_,Binary{

@@ -41,6 +41,7 @@ public:
     void run(Reserve&& reserve){
         for(const auto& p:fn_.parameters) symbols_.declare_parameter(p);
         for(const auto& b:fn_.blocks){
+            symbols_.select_block(b.label);
             for(const auto& i:b.instructions){
                 symbols_.record_storage(i);
                 std::visit([&](const auto& n){reserve(n,i);},i);

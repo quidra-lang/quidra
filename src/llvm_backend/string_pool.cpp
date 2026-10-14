@@ -10,8 +10,8 @@ std::string StringPool::intern_provenance(const ir::SourceLocation& location) {
         intern(location.source_revision),
         intern(location.node_id),
         intern(location.node_kind),
-        location.line,
-        location.column});
+        location.position.line,
+        location.position.column});
     return name;
 }
 

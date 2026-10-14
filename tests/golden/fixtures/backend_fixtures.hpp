@@ -61,8 +61,8 @@ inline ir::Function external(std::string name, std::string symbol, Type paramete
 inline std::vector<ir::Instruction> two_tensors() {
     return {ir::ConstantInt{1, "2", int_type()},
             ir::ArrayMake{2, {1}, Type::array(int_type())},
-            ir::TensorCreate{3, 2, std::nullopt, float32_tensor(), 1, 0, 0},
-            ir::TensorCreate{4, 2, std::nullopt, float32_tensor(), 1, 0, 0}};
+            ir::TensorCreate{3, 2, std::nullopt, float32_tensor(), 1, {0, 0}},
+            ir::TensorCreate{4, 2, std::nullopt, float32_tensor(), 1, {0, 0}}};
 }
 
 inline ir::Module module_of(std::vector<ir::Function> functions) {
@@ -78,13 +78,13 @@ inline ir::Module debug_no_source() { return module_of({entry("", {})}); }
 inline ir::Module debug_function_without_source() {
     return module_of({helper("helper", ""),
                       entry("/virtual/main.qui",
-                            {ir::SourceLocation{1, 1, "/virtual/main.qui", "r", "n000000", "x"}})});
+                            {ir::SourceLocation{{1, 1}, "/virtual/main.qui", "r", "n000000", "x"}})});
 }
 
 // No recorded variable: no llvm.dbg.declare declaration.
 inline ir::Module debug_no_variables() {
     return module_of({entry("/virtual/main.qui",
-                            {ir::SourceLocation{2, 3, "/virtual/main.qui", "r", "n000001", "x"}})});
+                            {ir::SourceLocation{{2, 3}, "/virtual/main.qui", "r", "n000001", "x"}})});
 }
 
 // One recorded variable: the llvm.dbg.declare declaration appears.
@@ -119,14 +119,14 @@ inline ir::Module extern_conflicting_duplicate() {
 inline ir::Module error_tensor_binary_operator() {
     auto body = two_tensors();
     body.push_back(ir::TensorBinary{5, "??", 3, 4, float32_tensor(), float32_tensor(),
-                                    float32_tensor(), 0, 0});
+                                    float32_tensor(), {0, 0}});
     return module_of({entry("/virtual/main.qui", std::move(body))});
 }
 
 inline ir::Module error_tensor_comparison_operator() {
     auto body = two_tensors();
     body.push_back(ir::TensorCompare{5, "~~", 3, 4, float32_tensor(), float32_tensor(),
-                                     Type::tensor(Type::simple(TypeKind::Bool), 1), 0, 0});
+                                     Type::tensor(Type::simple(TypeKind::Bool), 1), {0, 0}});
     return module_of({entry("/virtual/main.qui", std::move(body))});
 }
 
@@ -136,18 +136,18 @@ inline ir::Module error_tensor_element_type() {
                              ir::ArrayMake{2, {1}, Type::array(int_type())},
                              ir::TensorCreate{3, 2, std::nullopt,
                                               Type::tensor(Type::simple(TypeKind::String), 1), 1,
-                                              0, 0}})});
+                                              {0, 0}}})});
 }
 
 inline ir::Module error_sorted_element_type() {
     const auto array = Type::array(Type::simple(TypeKind::Address));
     return module_of({entry("/virtual/main.qui",
-                            {ir::ArrayMake{1, {}, array}, ir::ArraySorted{2, 1, array, 0, 0}})});
+                            {ir::ArrayMake{1, {}, array}, ir::ArraySorted{2, 1, array, {0, 0}}})});
 }
 
 inline ir::Module error_backward_without_target() {
     auto body = two_tensors();
-    body.push_back(ir::TensorBackward{3, {}, 0, 0, 0, 0});
+    body.push_back(ir::TensorBackward{3, {}, 0, 0, {0, 0}});
     return module_of({entry("/virtual/main.qui", std::move(body))});
 }
 
@@ -156,7 +156,7 @@ inline ir::Module error_array_cast_structure() {
     return module_of({entry("/virtual/main.qui",
                             {ir::ConstantInt{1, "2", int_type()},
                              ir::ArrayNumericCast{2, 1, int_type(), Type::simple(TypeKind::Real64),
-                                                  Type::simple(TypeKind::Real64), 0, 0}})});
+                                                  Type::simple(TypeKind::Real64), {0, 0}}})});
 }
 
 // The scalar types a numeric conversion converts between, in a fixed order.
@@ -194,7 +194,7 @@ inline ir::Module numeric_convert_matrix() {
         for (std::size_t source = 0; source < types.size(); ++source)
             for (const auto& target : types)
                 body.push_back(ir::NumericConvert{next++, static_cast<ir::ValueId>(source + 1),
-                                                  types[source], target, checked, 3, 7});
+                                                  types[source], target, checked, {3, 7}});
     return module_of({entry("/virtual/main.qui", std::move(body))});
 }
 
@@ -218,7 +218,7 @@ inline ir::Module fallible_numeric_convert_matrix() {
             if (!supported) continue;
             body.push_back(ir::FallibleNumericConvert{
                 next++, static_cast<ir::ValueId>(source + 1), from, target,
-                Type::union_of({target, Type::simple(TypeKind::Error)}), 3, 7});
+                Type::union_of({target, Type::simple(TypeKind::Error)}), {3, 7}});
         }
     return module_of({entry("/virtual/main.qui", std::move(body))});
 }
@@ -259,12 +259,12 @@ inline ir::Module operation_shapes() {
          ir::Binary{3, "+", 1, 2, u8, u8, 0, 0, true},
          ir::ConstantInt{4, "2", int_type()},
          ir::BinAlloc{5, 4, 1},
-         ir::AddressElement{6, 5, 4, bin, u8, true, 3, 7},
+         ir::AddressElement{6, 5, 4, bin, u8, true, {3, 7}},
          ir::ConstantBool{7, true},
          ir::Branch{7, "call", "done"}}});
     main.blocks.push_back(ir::Block{
         "call",
-        {ir::IndirectCall{8, 6, {4}, {int_type()}, Type::simple(TypeKind::Never), 3, 9}}});
+        {ir::IndirectCall{8, 6, {4}, {int_type()}, Type::simple(TypeKind::Never), {3, 9}}}});
     main.blocks.push_back(ir::Block{"done", {ir::ReturnVoid{}}});
     return module_of({std::move(main)});
 }
@@ -274,8 +274,8 @@ inline ir::Module operation_shapes() {
 // index.
 inline ir::Module tensor_shapes() {
     auto body = two_tensors();
-    body.push_back(ir::TensorBackward{3, {{4, true}}, 0, 0, 3, 7});
-    body.push_back(ir::TensorIndex{5, 3, {ir::TensorIndexPart{}}, float32_tensor(), 3, 9});
+    body.push_back(ir::TensorBackward{3, {{4, true}}, 0, 0, {3, 7}});
+    body.push_back(ir::TensorIndex{5, 3, {ir::TensorIndexPart{}}, float32_tensor(), {3, 9}});
     return module_of({entry("/virtual/main.qui", std::move(body))});
 }
 
@@ -337,7 +337,7 @@ inline ir::Function self_recursive(std::string name, Type result) {
     function.parameters.push_back(ir::Parameter{"value", int_type(), true, false, false});
     function.result = result;
     std::vector<ir::Instruction> body{ir::AddressLocal{1, "value"},
-                                      ir::Call{2, name, {ir::CallArgument{1, 1}}, result, 3, 7}};
+                                      ir::Call{2, name, {ir::CallArgument{1, 1}}, result, {3, 7}}};
     if (result.kind == TypeKind::Void) body.push_back(ir::ReturnVoid{});
     function.blocks.push_back(ir::Block{"entry", std::move(body)});
     return function;
@@ -375,7 +375,7 @@ inline ir::Module helper_shapes() {
         const auto source = Type::array(from);
         const auto target = Type::array(to);
         body.push_back(ir::ArrayMake{next, {}, source});
-        body.push_back(ir::ArrayNumericCast{next + 1, next, source, target, target, 3, 7});
+        body.push_back(ir::ArrayNumericCast{next + 1, next, source, target, target, {3, 7}});
         next += 2;
     }
     const auto choice = Type::union_of({int_type(), Type::simple(TypeKind::String),

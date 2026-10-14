@@ -1,5 +1,6 @@
 #pragma once
 #include "llvm_backend/node_owned_type.hpp"
+#include "llvm_backend/inline_scope_plan.hpp"
 
 // SymbolTable: the names and types of one function's storage.
 //
@@ -41,8 +42,28 @@ struct NodeOwnedSlot {
 
 class SymbolTable {
 public:
+    void inline_scopes(const InlineScopePlan& scopes) {
+        inline_scopes_=&scopes;
+        for(const auto& [id,scope]:scopes.scopes())for(const auto& slot:scope->slots) {
+            switch(slot.kind) {
+                case ir::InlineSlotKind::OwnedLocal:locals_[slot.name]=slot.type;break;
+                case ir::InlineSlotKind::BorrowedLocal:locals_[slot.name]=slot.type;borrowed_locals_.insert(slot.name);break;
+                case ir::InlineSlotKind::PinnedReference:references_[slot.name]=slot.type;break;
+                case ir::InlineSlotKind::RawAddress:locals_[slot.name]=slot.type;writable_params_.insert(slot.name);break;
+                default:throw std::logic_error("unsupported inline ABI slot kind");
+            }
+            (void)id;
+        }
+    }
+    void select_scope(std::uint64_t scope){scope_=scope;}
+    void select_block(const std::string& label){scope_=inline_scopes_?inline_scopes_->block_scope(label):0;}
+    std::uint64_t selected_scope()const{return scope_;}
+    std::uint64_t storage_scope(const std::string& name)const{return inline_scopes_?inline_scopes_->slot_scope(name):0;}
+    std::string frame(std::uint64_t scope)const{return "%quidra.node.frame"+scope_suffix(scope);}
+    std::string frame_active(std::uint64_t scope)const{return frame(scope)+".active";}
+    static std::string scope_suffix(std::uint64_t scope){return scope?".inline."+std::to_string(scope):"";}
     void node_ownership(NodeOwnershipHooks* hooks){ownership_=hooks;}
-    bool has_node_ownership()const{return ownership_!=nullptr;}
+    bool has_node_ownership()const{return ownership_ && ownership_->active();}
     NodeOwnershipHooks* ownership_hooks()const{return ownership_;}
     void acquire_owned(ir::ValueId value,const Type& type,const std::string& raw){
         if(ownership_ && node_owns_value(type))ownership_->acquire(value,type,raw);
@@ -108,30 +129,34 @@ public:
         if(const auto* r=std::get_if<ir::DeclareReference>(&i)) references_[r->name]=r->type;
     }
 
-    void plan_node_cleanup(const std::string& function) {
-        cleanup_symbol_=".quidra.node.cleanup."+llvm_text::sanitize_identifier(function);
+    void plan_node_cleanup(const std::string& function,std::uint64_t scope=0) {
+        auto& plan=cleanup_plans_[scope];
+        plan.symbol=".quidra.node.cleanup."+llvm_text::sanitize_identifier(function)+scope_suffix(scope);
         const auto append=[&](const std::string& name,const Type& type,bool pin) {
-            cleanup_bytes_=(cleanup_bytes_+7)&~std::uint64_t{7};
-            const auto index=cleanup_slots_.size();
-            cleanup_slots_.push_back(NodeOwnedSlot{name,type,pin,cleanup_bytes_,
-                cleanup_symbol_+".slot."+std::to_string(index)});
-            cleanup_bytes_+=pin?8:runtime_storage_bytes(type);
+            plan.bytes=(plan.bytes+7)&~std::uint64_t{7};
+            const auto index=plan.slots.size();
+            plan.slots.push_back(NodeOwnedSlot{name,type,pin,plan.bytes,plan.symbol+".slot."+std::to_string(index)});
+            plan.bytes+=pin?8:runtime_storage_bytes(type);
         };
         for(const auto& [name,type]:locals_)
-            if(!is_writable_parameter(name) && !is_borrowed_parameter(name) &&
-               !is_borrowed_local(name) && node_owns_value(type))
-                append(name,type,false);
+            if(storage_scope(name)==scope && !is_writable_parameter(name) && !is_borrowed_parameter(name) &&
+               !is_borrowed_local(name) && node_owns_value(type))append(name,type,false);
         for(const auto& [name,type]:references_)
-            if(!is_captured_reference_slot(name)) append(name,type,true);
+            if(storage_scope(name)==scope && !is_captured_reference_slot(name))append(name,type,true);
     }
-    const std::vector<NodeOwnedSlot>& cleanup_slots() const {return cleanup_slots_;}
-    const NodeOwnedSlot* cleanup_slot(const std::string& name) const {
-        for(const auto& slot:cleanup_slots_) if(slot.name==name) return &slot;
+    const std::vector<NodeOwnedSlot>& cleanup_slots(std::uint64_t scope=0)const {
+        static const std::vector<NodeOwnedSlot> empty;
+        const auto found=cleanup_plans_.find(scope);return found==cleanup_plans_.end()?empty:found->second.slots;
+    }
+    const NodeOwnedSlot* cleanup_slot(const std::string& name)const {
+        for(const auto& slot:cleanup_slots(storage_scope(name)))if(slot.name==name)return &slot;
         return nullptr;
     }
-    const std::string& cleanup_symbol() const {return cleanup_symbol_;}
-    std::uint64_t cleanup_bytes() const {return cleanup_bytes_;}
-    bool node_cleanup() const {return !cleanup_slots_.empty();}
+    const std::string& cleanup_symbol(std::uint64_t scope=0)const{return cleanup_plans_.at(scope).symbol;}
+    std::uint64_t cleanup_bytes(std::uint64_t scope=0)const{return cleanup_plans_.at(scope).bytes;}
+    bool node_cleanup()const{return node_cleanup(scope_);}
+    bool node_cleanup(std::uint64_t scope)const{return !cleanup_slots(scope).empty();}
+    const auto& cleanup_plans()const{return cleanup_plans_;}
     const std::map<std::string,Type>& locals()const{return locals_;}
     const std::map<std::string,Type>& references()const{return references_;}
     bool is_writable_parameter(const std::string& name)const{return writable_params_.contains(name);}
@@ -140,9 +165,10 @@ public:
 
 private:
     NodeOwnershipHooks* ownership_{};
-    std::vector<NodeOwnedSlot> cleanup_slots_;
-    std::uint64_t cleanup_bytes_{};
-    std::string cleanup_symbol_;
+    struct CleanupPlan {std::vector<NodeOwnedSlot> slots;std::uint64_t bytes{};std::string symbol;};
+    std::map<std::uint64_t,CleanupPlan> cleanup_plans_;
+    const InlineScopePlan* inline_scopes_{};
+    std::uint64_t scope_{};
     std::unordered_map<ir::ValueId,Type> values_;
     std::map<std::string,Type> locals_;
     std::map<std::string,Type> references_;

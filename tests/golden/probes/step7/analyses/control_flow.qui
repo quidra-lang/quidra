@@ -1,0 +1,17 @@
+// A join, a loop back edge and a reference write keep value and local uses
+// distinct. The branch condition is passed into a helper, not folded here.
+int choose(bool positive, int left, int right)
+    int result = right
+    if positive
+        result = left
+    return result
+
+void increment(int &value)
+    value = value + 1
+
+int total = 0
+for 0 <= nat i < 3
+    int selected = choose(i < 2, int(i), 4)
+    increment(&selected)
+    total = total + selected
+print("{total}{NL}")

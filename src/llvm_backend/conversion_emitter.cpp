@@ -143,7 +143,7 @@ void ConversionEmitter::emit(const ir::ArrayNumericCast& n,const ir::Instruction
         case_index(n.result_type,Type::simple(TypeKind::Error))>=0;
     if(!fallible){
         symbols_.set_type(n.out,n.target_type);
-        builder_.call(symbols_.value(n.out),ptr,array_cast_name(n.source_type,n.target_type),{{ptr,symbols_.value(n.array)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),ptr,array_cast_name(n.source_type,n.target_type),{{ptr,symbols_.value(n.array)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         // The helper returns one complete owning array. Keep it in a stable
         // Node mirror before subsequent handoff or cleanup can fail.
         symbols_.acquire_owned(n.out,n.target_type,symbols_.value(n.out));
@@ -155,11 +155,11 @@ void ConversionEmitter::emit(const ir::ArrayNumericCast& n,const ir::Instruction
         const auto bad=names_.label("array.cast.error");
         const auto done=names_.label("array.cast.done");
         union_box_.allocate(result,n.result_type);
-        builder_.call(ok,i1,array_cast_validate_name(n.source_type,n.target_type),{{ptr,symbols_.value(n.array)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(ok,i1,array_cast_validate_name(n.source_type,n.target_type),{{ptr,symbols_.value(n.array)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         builder_.br(ok,yes,bad);
         builder_.block(yes);
         const auto converted=names_.value("array.cast.value");
-        builder_.call(converted,ptr,array_cast_name(n.source_type,n.target_type),{{ptr,symbols_.value(n.array)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(converted,ptr,array_cast_name(n.source_type,n.target_type),{{ptr,symbols_.value(n.array)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         union_box_.store_tag(result,case_index(n.result_type,n.target_type));
         const auto payload=names_.value("array.cast.payload");
         union_box_.payload_slot(payload,result);
@@ -179,7 +179,7 @@ void ConversionEmitter::emit(const ir::ArrayNumericCast& n,const ir::Instruction
             : reason_operand(abi::ConversionReason::out_of_range);
         store_conversion_error(error_payload,conversion_type(array_leaf(n.target_type)),
                                abi::ConversionSubject::array_element,reason,
-                               recorded?abi::conversion_reason_spellings.size():1,n.line,n.column);
+                               recorded?abi::conversion_reason_spellings.size():1,n.position.line,n.position.column);
         builder_.br(done);
         builder_.block(done);
     }
@@ -374,7 +374,7 @@ void ConversionEmitter::emit(const ir::FallibleNumericConvert& n,const ir::Instr
         union_box_.payload_slot(err_payload,result);
         store_conversion_error(err_payload,conversion_type(n.target_type),abi::ConversionSubject::value,
                                recorded_failure_reason(err_payload),abi::conversion_reason_spellings.size(),
-                               n.line,n.column);
+                               n.position.line,n.position.column);
         builder_.br(done_label);
         builder_.block(ok_label);
         const auto converted=names_.value("cast.value");
@@ -560,7 +560,7 @@ void ConversionEmitter::emit(const ir::FallibleNumericConvert& n,const ir::Instr
         reasons=abi::conversion_reason_spellings.size();
     }
     store_conversion_error(err_payload,conversion_type(n.target_type),abi::ConversionSubject::value,
-                           reason,reasons,n.line,n.column);
+                           reason,reasons,n.position.line,n.position.column);
     builder_.br(done_label);
     builder_.block(ok_label);
     if(!retain_on_success.empty())
@@ -591,7 +591,7 @@ void ConversionEmitter::emit(const ir::NumericConvert& n,const ir::Instruction& 
                                           subject_code(abi::ConversionSubject::value),
                                           [&](const std::string& label){
                                               return recorded_failure_reason("%"+label);
-                                          },"cast",n.line,n.column);
+                                          },"cast",n.position.line,n.position.column);
         }
         ComplexArithmetic(builder_,names_,sites_).load_parts(n.target_type,symbols_.value(n.out),slot);
         symbols_.acquire_owned(n.out,n.target_type,symbols_.value(n.out));
@@ -610,7 +610,7 @@ void ConversionEmitter::emit(const ir::NumericConvert& n,const ir::Instruction& 
         const auto bad=any_check(conditions);
         fail_fast_.fail_conversion_if(bad,conversion_type(n.target_type),
                                       subject_code(abi::ConversionSubject::value),reason,"cast",
-                                      n.line,n.column);
+                                      n.position.line,n.position.column);
     };
     if(n.source_type==n.target_type &&
        (is_fixed_integer(n.source_type)||is_fixed_real(n.source_type))){
@@ -625,19 +625,19 @@ void ConversionEmitter::emit(const ir::NumericConvert& n,const ir::Instruction& 
         builder_.call(void_type,LlvmOperand::global(real_helper::retain),{{exact_real_type,symbols_.value(n.value)}});
         copy_by_select_true(builder_,symbols_.value(n.out),exact_real_type,symbols_.value(n.value));
     }else if(n.source_type.kind==TypeKind::Int&&n.target_type.kind==TypeKind::Nat){
-        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_from_int),{{bare_integer_type,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_from_int),{{bare_integer_type,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(n.target_type.kind==TypeKind::Nat&&is_signed_integer(n.source_type)){
         std::string widened=symbols_.value(n.value);
         if(source_width<64){
             widened=names_.value("cast.nat.widen");
             builder_.cast(widened,CastOp::sext,{source_ty,symbols_.value(n.value)},i64);
         }
-        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_from_i64),{{i64,widened},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_from_i64),{{i64,widened},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(n.source_type.kind==TypeKind::Real&&n.target_type.kind==TypeKind::Nat){
         const auto exact=names_.value("cast.nat.exact");
-        builder_.call(exact,bare_integer_type,LlvmOperand::global(real_helper::to_bigint),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(exact,bare_integer_type,LlvmOperand::global(real_helper::to_bigint),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         symbols_.acquire_temporary(exact,Type::simple(TypeKind::Int));
-        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_from_int),{{bare_integer_type,exact},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_from_int),{{bare_integer_type,exact},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         symbols_.acquire_owned(n.out,n.target_type,symbols_.value(n.out));
         symbols_.transfer_temporary(exact,Type::simple(TypeKind::Int));
         builder_.call(void_type,LlvmOperand::global(int_helper::release),{{bare_integer_type,exact}});
@@ -688,32 +688,32 @@ void ConversionEmitter::emit(const ir::NumericConvert& n,const ir::Instruction& 
         }
         builder_.call(symbols_.value(n.out),exact_real_type,LlvmOperand::global(real_helper::from_float64),{{double_type,widened}});
     }else if(n.source_type.kind==TypeKind::Real&&is_bare_integer(n.target_type)){
-        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(real_helper::to_bigint),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(real_helper::to_bigint),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(is_bare_integer(n.source_type)&&is_fixed_integer(n.target_type)){
         const auto raw=names_.value("cast.bigint.integer");
-        builder_.call(raw,bare_integer_type,LlvmOperand::global(is_signed_integer(n.target_type)?int_helper::to_i64:int_helper::to_u64),{{bare_integer_type,symbols_.value(n.value)},{i32,target_width},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(raw,bare_integer_type,LlvmOperand::global(is_signed_integer(n.target_type)?int_helper::to_i64:int_helper::to_u64),{{bare_integer_type,symbols_.value(n.value)},{i32,target_width},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         if(target_width<64) builder_.cast(symbols_.value(n.out),CastOp::trunc,{i64,raw},target_ty);
         else copy_by_add_zero(builder_,symbols_.value(n.out),i64,raw);
     }else if(n.source_type.kind==TypeKind::Real&&is_fixed_integer(n.target_type)){
         const auto exact=names_.value("cast.bigreal.integer.exact");
         const auto raw=names_.value("cast.bigreal.integer");
-        builder_.call(exact,bare_integer_type,LlvmOperand::global(real_helper::to_bigint),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(exact,bare_integer_type,LlvmOperand::global(real_helper::to_bigint),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         symbols_.acquire_temporary(exact,Type::simple(TypeKind::Int));
-        builder_.call(raw,bare_integer_type,LlvmOperand::global(is_signed_integer(n.target_type)?int_helper::to_i64:int_helper::to_u64),{{bare_integer_type,exact},{i32,target_width},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(raw,bare_integer_type,LlvmOperand::global(is_signed_integer(n.target_type)?int_helper::to_i64:int_helper::to_u64),{{bare_integer_type,exact},{i32,target_width},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         symbols_.transfer_temporary(exact,Type::simple(TypeKind::Int));
         builder_.call(void_type,LlvmOperand::global(int_helper::release),{{bare_integer_type,exact}});
         if(target_width<64) builder_.cast(symbols_.value(n.out),CastOp::trunc,{i64,raw},target_ty);
         else copy_by_add_zero(builder_,symbols_.value(n.out),i64,raw);
     }else if(is_bare_integer(n.source_type)&&is_fixed_real(n.target_type)){
         if(n.target_type.kind==TypeKind::Real32)
-            builder_.call(symbols_.value(n.out),float_type,LlvmOperand::global(int_helper::to_float32),{{bare_integer_type,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(symbols_.value(n.out),float_type,LlvmOperand::global(int_helper::to_float32),{{bare_integer_type,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         else
-            builder_.call(symbols_.value(n.out),double_type,LlvmOperand::global(int_helper::to_float64),{{bare_integer_type,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(symbols_.value(n.out),double_type,LlvmOperand::global(int_helper::to_float64),{{bare_integer_type,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(n.source_type.kind==TypeKind::Real&&is_fixed_real(n.target_type)){
         if(n.target_type.kind==TypeKind::Real32)
-            builder_.call(symbols_.value(n.out),float_type,LlvmOperand::global(real_helper::to_float32),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(symbols_.value(n.out),float_type,LlvmOperand::global(real_helper::to_float32),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         else
-            builder_.call(symbols_.value(n.out),double_type,LlvmOperand::global(real_helper::to_float64),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(symbols_.value(n.out),double_type,LlvmOperand::global(real_helper::to_float64),{{exact_real_type,symbols_.value(n.value)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(is_fixed_integer(n.source_type)&&is_fixed_integer(n.target_type)){
         std::vector<std::string> checks;
         if(n.checked_range) add_integer_range_checks(checks,n.source_type,n.target_type,symbols_.value(n.value));
@@ -798,7 +798,7 @@ void ConversionEmitter::emit(const ir::ParseBin& n,const ir::Instruction&){
             union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
             const auto err_payload=names_.value("bin.parse.error.payload");
             union_box_.payload_slot(err_payload,result);
-            records_.store(err_payload,"@"+records_.record(abi::ErrorValueCode::bin_parse,{},n.line,n.column),err_payload);
+            records_.store(err_payload,"@"+records_.record(abi::ErrorValueCode::bin_parse,{},n.position.line,n.position.column),err_payload);
             builder_.br(done_label);
             builder_.block(done_label);
         }
@@ -886,11 +886,11 @@ void ConversionEmitter::emit(const ir::ParseNumber& n,const ir::Instruction& ins
         // fixed-width one may also be out of its part's range (the reason the
         // runtime recorded).
         if(n.target_type.kind==TypeKind::Com){
-            store_parse_error(ep,n.target_type,"0",1,n.line,n.column);
+            store_parse_error(ep,n.target_type,"0",1,n.position.line,n.position.column);
         }else{
             const auto reason=ep+".reason";
             builder_.call(reason,runtime_abi::failure::last_reason,{});
-            store_parse_error(ep,n.target_type,reason,abi::parse_reasons.size(),n.line,n.column);
+            store_parse_error(ep,n.target_type,reason,abi::parse_reasons.size(),n.position.line,n.position.column);
         }
         builder_.br(done);
         builder_.block(done);
@@ -924,7 +924,7 @@ void ConversionEmitter::emit(const ir::ParseNumber& n,const ir::Instruction& ins
         const auto ep=names_.value("parse.exact.error.payload");
         union_box_.payload_slot(ep,result);
         // An exact number fails only on text that is not a number.
-        store_parse_error(ep,n.target_type,"0",1,n.line,n.column);
+        store_parse_error(ep,n.target_type,"0",1,n.position.line,n.position.column);
         builder_.br(done);
         builder_.block(done);
         return;
@@ -957,7 +957,7 @@ void ConversionEmitter::emit(const ir::ParseNumber& n,const ir::Instruction& ins
         const auto ep=names_.value("parse.exact.error.payload");
         union_box_.payload_slot(ep,result);
         // An exact number fails only on text that is not a number.
-        store_parse_error(ep,n.target_type,"0",1,n.line,n.column);
+        store_parse_error(ep,n.target_type,"0",1,n.position.line,n.position.column);
         builder_.br(done);
         builder_.block(done);
         return;
@@ -1034,7 +1034,7 @@ void ConversionEmitter::emit(const ir::ParseNumber& n,const ir::Instruction& ins
         reason=fail_payload+".range.reason";
         builder_.select(reason,parse_ok,{i32,1},{i32,recorded});
     }
-    store_parse_error(fail_payload,n.target_type,reason,abi::parse_reasons.size(),n.line,n.column);
+    store_parse_error(fail_payload,n.target_type,reason,abi::parse_reasons.size(),n.position.line,n.position.column);
     builder_.br(done_label);
     builder_.block(ok_label);
     union_box_.store_tag(result,target_tag);
@@ -1125,7 +1125,7 @@ void ConversionEmitter::emit(const ir::ParseNumberDirect& n,const ir::Instructio
     const std::array details{abi::ErrorDetailValue::name_value(type),
                              abi::ErrorDetailValue::name_value(abi::parse_reasons[0])};
     copy_by_zero_gep(builder_,symbols_.value(n.error_out),Inbounds::yes,
-                     LlvmOperand::global(records_.record(abi::ErrorValueCode::numeric_parse,details,n.line,n.column)));
+                     LlvmOperand::global(records_.record(abi::ErrorValueCode::numeric_parse,details,n.position.line,n.position.column)));
 }
 
 void ConversionEmitter::emit(const ir::ToString& n,const ir::Instruction&){

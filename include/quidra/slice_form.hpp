@@ -22,10 +22,11 @@ enum class SliceEnd : std::uint8_t {
 };
 
 // The direction the checker resolves for a slice item: from its markers,
-// else from a constant step's sign, else ascending; by_step_sign when a
-// run-time step decides it. The enumerator values are part of the runtime
+// else from a constant step's sign; by_step_sign when a run-time step
+// decides it, or by_bounds for two written unmarked endpoints without a
+// step. Other omitted forms default to ascending. The enumerator values are part of the runtime
 // ABI (quidra_slice_plan), like the forms'.
-enum class SliceDirection : std::uint8_t { ascending, descending, by_step_sign };
+enum class SliceDirection : std::uint8_t { ascending, descending, by_step_sign, by_bounds };
 
 // The direction a side's marker gives: +1 ascending, -1 descending, 0 none.
 constexpr int slice_marker_direction(SliceStart form) {

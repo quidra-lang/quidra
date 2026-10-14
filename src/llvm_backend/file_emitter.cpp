@@ -81,21 +81,21 @@ void FileEmitter::emit_open(FileOpenMode mode,ir::ValueId result_value,ir::Value
 }
 
 void FileEmitter::emit(const ir::FileOpen& n,const ir::Instruction&){
-    emit_open(FileOpenMode::open,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_open,0,symbols_.value(n.path),"null",n.line,n.column});
+    emit_open(FileOpenMode::open,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_open,0,symbols_.value(n.path),"null",n.position.line,n.position.column});
 }
 
 void FileEmitter::emit(const ir::FileCreate& n,const ir::Instruction&){
-    emit_open(FileOpenMode::create,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_open,1,symbols_.value(n.path),"null",n.line,n.column});
+    emit_open(FileOpenMode::create,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_open,1,symbols_.value(n.path),"null",n.position.line,n.position.column});
 }
 
 void FileEmitter::emit(const ir::FileAppend& n,const ir::Instruction&){
-    emit_open(FileOpenMode::append,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_open,2,symbols_.value(n.path),"null",n.line,n.column});
+    emit_open(FileOpenMode::append,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_open,2,symbols_.value(n.path),"null",n.position.line,n.position.column});
 }
 
 void FileEmitter::emit(const ir::FileHandleRead& n,const ir::Instruction&){
     const auto raw=names_.value("file.handle.read.raw");
     builder_.call(raw,runtime_abi::file::handle_read_raw,{{ptr,symbols_.value(n.handle)}});
-    errors_.string_result(n.out,n.result_type,raw,"file.handle.read",failure_store(FileFailure{abi::ErrorValueCode::file_read,0,"null","null",n.line,n.column}));
+    errors_.string_result(n.out,n.result_type,raw,"file.handle.read",failure_store(FileFailure{abi::ErrorValueCode::file_read,0,"null","null",n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileHandleReadLine& n,const ir::Instruction& ins){
@@ -126,7 +126,7 @@ void FileEmitter::emit(const ir::FileHandleReadLine& n,const ir::Instruction& in
     union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
     const auto error_payload=names_.value("file.handle.read_line.error.payload");
     union_box_.payload_slot(error_payload,result);
-    store_failure(error_payload,FileFailure{abi::ErrorValueCode::file_read,0,"null","null",n.line,n.column});
+    store_failure(error_payload,FileFailure{abi::ErrorValueCode::file_read,0,"null","null",n.position.line,n.position.column});
     builder_.br(done);
     builder_.block(done);
 }
@@ -172,26 +172,26 @@ void FileEmitter::emit_bin_read(const BinRead& source,ir::ValueId result_value,i
 }
 
 void FileEmitter::emit(const ir::FileHandleReadBin& n,const ir::Instruction&){
-    emit_bin_read(bin_read_from_handle,n.out,n.handle,n.result_type,FileFailure{abi::ErrorValueCode::file_read,0,"null","null",n.line,n.column});
+    emit_bin_read(bin_read_from_handle,n.out,n.handle,n.result_type,FileFailure{abi::ErrorValueCode::file_read,0,"null","null",n.position.line,n.position.column});
 }
 
 void FileEmitter::emit(const ir::FileHandleWrite& n,const ir::Instruction&){
     const auto ok=names_.value("file.handle.write.ok");
     builder_.call(ok,runtime_abi::file::handle_write_raw,{{ptr,symbols_.value(n.handle)},{ptr,symbols_.value(n.text)},{i1,n.newline?"true":"false"}});
     errors_.void_result(n.out,n.result_type,ok,n.newline?"file.handle.write_line":"file.handle.write",
-                        failure_store(FileFailure{abi::ErrorValueCode::file_write,0,"null","null",n.line,n.column}));
+                        failure_store(FileFailure{abi::ErrorValueCode::file_write,0,"null","null",n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileHandleFlush& n,const ir::Instruction&){
     const auto ok=names_.value("file.handle.flush.ok");
     builder_.call(ok,runtime_abi::file::handle_flush_raw,{{ptr,symbols_.value(n.handle)}});
-    errors_.void_result(n.out,n.result_type,ok,"file.handle.flush",failure_store(FileFailure{abi::ErrorValueCode::file_write,0,"null","null",n.line,n.column}));
+    errors_.void_result(n.out,n.result_type,ok,"file.handle.flush",failure_store(FileFailure{abi::ErrorValueCode::file_write,0,"null","null",n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileHandleSeek& n,const ir::Instruction&){
     const auto ok=names_.value("file.handle.seek.ok");
-    builder_.call(ok,runtime_abi::file::handle_seek_raw,{{ptr,symbols_.value(n.handle)},{i64,symbols_.value(n.position)}});
-    errors_.void_result(n.out,n.result_type,ok,"file.handle.seek",failure_store(FileFailure{abi::ErrorValueCode::file_seek,0,"null","null",n.line,n.column}));
+    builder_.call(ok,runtime_abi::file::handle_seek_raw,{{ptr,symbols_.value(n.handle)},{i64,symbols_.value(n.offset)}});
+    errors_.void_result(n.out,n.result_type,ok,"file.handle.seek",failure_store(FileFailure{abi::ErrorValueCode::file_seek,0,"null","null",n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileHandleClose& n,const ir::Instruction&){
@@ -201,23 +201,23 @@ void FileEmitter::emit(const ir::FileHandleClose& n,const ir::Instruction&){
 void FileEmitter::emit(const ir::FileRead& n,const ir::Instruction&){
     const auto raw=names_.value("file.read.raw");
     builder_.call(raw,runtime_abi::file::read_raw,{{ptr,symbols_.value(n.path)}});
-    errors_.string_result(n.out,n.result_type,raw,"file.read",failure_store(FileFailure{abi::ErrorValueCode::file_read,0,symbols_.value(n.path),"null",n.line,n.column}));
+    errors_.string_result(n.out,n.result_type,raw,"file.read",failure_store(FileFailure{abi::ErrorValueCode::file_read,0,symbols_.value(n.path),"null",n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileReadBin& n,const ir::Instruction&){
-    emit_bin_read(bin_read_from_path,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_read,0,symbols_.value(n.path),"null",n.line,n.column});
+    emit_bin_read(bin_read_from_path,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_read,0,symbols_.value(n.path),"null",n.position.line,n.position.column});
 }
 
 void FileEmitter::emit(const ir::FileWrite& n,const ir::Instruction&){
     const auto ok=names_.value("file.write.ok");
     builder_.call(ok,runtime_abi::file::write_raw,{{ptr,symbols_.value(n.path)},{ptr,symbols_.value(n.text)}});
-    errors_.void_result(n.out,n.result_type,ok,"file.write",failure_store(FileFailure{abi::ErrorValueCode::file_write,0,symbols_.value(n.path),"null",n.line,n.column}));
+    errors_.void_result(n.out,n.result_type,ok,"file.write",failure_store(FileFailure{abi::ErrorValueCode::file_write,0,symbols_.value(n.path),"null",n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileWriteBin& n,const ir::Instruction&){
     const auto ok=names_.value("file.write_bin.ok");
     builder_.call(ok,runtime_abi::file::write_bin_raw,{{ptr,symbols_.value(n.path)},{ptr,symbols_.value(n.bin)}});
-    errors_.void_result(n.out,n.result_type,ok,"file.write_bin",failure_store(FileFailure{abi::ErrorValueCode::file_write,0,symbols_.value(n.path),"null",n.line,n.column}));
+    errors_.void_result(n.out,n.result_type,ok,"file.write_bin",failure_store(FileFailure{abi::ErrorValueCode::file_write,0,symbols_.value(n.path),"null",n.position.line,n.position.column}));
 }
 
 namespace {
@@ -271,37 +271,37 @@ void FileEmitter::emit_path_query(PathPredicate predicate,ir::ValueId result_val
 }
 
 void FileEmitter::emit(const ir::FileExists& n,const ir::Instruction&){
-    emit_path_query(PathPredicate::exists,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_status,0,symbols_.value(n.path),"null",n.line,n.column});
+    emit_path_query(PathPredicate::exists,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_status,0,symbols_.value(n.path),"null",n.position.line,n.position.column});
 }
 
 void FileEmitter::emit(const ir::FileIsDirectory& n,const ir::Instruction&){
-    emit_path_query(PathPredicate::is_directory,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_status,0,symbols_.value(n.path),"null",n.line,n.column});
+    emit_path_query(PathPredicate::is_directory,n.out,n.path,n.result_type,FileFailure{abi::ErrorValueCode::file_status,0,symbols_.value(n.path),"null",n.position.line,n.position.column});
 }
 
 void FileEmitter::emit(const ir::FileRemove& n,const ir::Instruction&){
     const auto ok=names_.value("file.remove.ok");
     builder_.call(ok,runtime_abi::file::remove_raw,{{ptr,symbols_.value(n.path)}});
-    errors_.void_result(n.out,n.result_type,ok,"file.remove",failure_store(FileFailure{abi::ErrorValueCode::file_remove,0,symbols_.value(n.path),"null",n.line,n.column}));
+    errors_.void_result(n.out,n.result_type,ok,"file.remove",failure_store(FileFailure{abi::ErrorValueCode::file_remove,0,symbols_.value(n.path),"null",n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileCopy& n,const ir::Instruction&){
     const auto ok=names_.value("file.copy.ok");
     builder_.call(ok,runtime_abi::file::copy_raw,{{ptr,symbols_.value(n.source)},{ptr,symbols_.value(n.destination)}});
     errors_.void_result(n.out,n.result_type,ok,"file.copy",
-                        failure_store(FileFailure{abi::ErrorValueCode::file_copy,0,symbols_.value(n.source),symbols_.value(n.destination),n.line,n.column}));
+                        failure_store(FileFailure{abi::ErrorValueCode::file_copy,0,symbols_.value(n.source),symbols_.value(n.destination),n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileMove& n,const ir::Instruction&){
     const auto ok=names_.value("file.move.ok");
     builder_.call(ok,runtime_abi::file::move_raw,{{ptr,symbols_.value(n.source)},{ptr,symbols_.value(n.destination)}});
     errors_.void_result(n.out,n.result_type,ok,"file.move",
-                        failure_store(FileFailure{abi::ErrorValueCode::file_move,0,symbols_.value(n.source),symbols_.value(n.destination),n.line,n.column}));
+                        failure_store(FileFailure{abi::ErrorValueCode::file_move,0,symbols_.value(n.source),symbols_.value(n.destination),n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileMkdir& n,const ir::Instruction&){
     const auto ok=names_.value("file.mkdir.ok");
     builder_.call(ok,runtime_abi::file::mkdir_raw,{{ptr,symbols_.value(n.path)}});
-    errors_.void_result(n.out,n.result_type,ok,"file.mkdir",failure_store(FileFailure{abi::ErrorValueCode::file_mkdir,0,symbols_.value(n.path),"null",n.line,n.column}));
+    errors_.void_result(n.out,n.result_type,ok,"file.mkdir",failure_store(FileFailure{abi::ErrorValueCode::file_mkdir,0,symbols_.value(n.path),"null",n.position.line,n.position.column}));
 }
 
 void FileEmitter::emit(const ir::FileList& n,const ir::Instruction&){
@@ -324,7 +324,7 @@ void FileEmitter::emit(const ir::FileList& n,const ir::Instruction&){
     union_box_.store_tag(result,case_index(n.result_type,Type::simple(TypeKind::Error)));
     const auto error_payload=names_.value("file.list.error.payload");
     union_box_.payload_slot(error_payload,result);
-    store_failure(error_payload,FileFailure{abi::ErrorValueCode::file_list,0,symbols_.value(n.path),"null",n.line,n.column});
+    store_failure(error_payload,FileFailure{abi::ErrorValueCode::file_list,0,symbols_.value(n.path),"null",n.position.line,n.position.column});
     builder_.br(done);
     builder_.block(done);
 }

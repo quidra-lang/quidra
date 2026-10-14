@@ -1249,8 +1249,15 @@ std::string msl_bfloat_soften(const std::string& source) {
 
 id<MTLComputePipelineState> compile_metal_pipeline(
     id<MTLDevice> device, std::uint32_t pipeline_id, const std::string& source,
-    std::string& error) {
+    std::string& error,int device_index) {
+    observation::Scope observed(observation::Kind::Compile,device_index,"metal pipeline compile",
+                                 counters::WaitReason::Sync,pipeline_id);
     counters::add(counters::Id::MetalPipelineCompiles); // qcount
+    if (counters::enabled()) {
+        counters::SourceSite site;
+        if (counters::current_source_site(site))
+            counters::detail::add_slow(counters::Id::MetalPipelineCompilesTimed, 1);
+    }
     @autoreleasepool {
         const bool force_safe=metal_numeric_safe_pipeline(pipeline_id);
         const auto numeric_source=msl_bfloat_soften(source);
@@ -1309,7 +1316,7 @@ id<MTLComputePipelineState> metal_pipeline(
         found != stream->pipelines.end())
         return found->second;
     id<MTLComputePipelineState> pipeline =
-        compile_metal_pipeline(stream->device, pipeline_id, make_source(), error);
+        compile_metal_pipeline(stream->device, pipeline_id, make_source(), error,stream->global_index);
     if (pipeline) stream->pipelines.emplace(pipeline_id, pipeline);
     return pipeline;
 }
@@ -1499,6 +1506,18 @@ id<MTLComputePipelineState> metal_fill_pipeline(
     }, error);
 }
 
+void metal_observe_core_dispatch(MetalStream& stream,id<MTLComputePipelineState> pipeline) noexcept {
+    if(!stream.observation || stream.observation->current_compute>=stream.observation->passes.size()) return;
+    auto& pass=stream.observation->passes[stream.observation->current_compute];
+    std::optional<std::uint32_t> identity;
+    if(profile::enabled()) try {
+        std::lock_guard pipeline_lock(stream.pipeline_mutex);
+        for(const auto& [key,value]:stream.pipelines) if(value==pipeline) {identity=key;break;}
+    } catch (...) {}
+    pass.attribution.core_dispatch(identity);
+    pass.kernel.clear();
+    if(const auto exact=pass.attribution.kernel()) try {pass.kernel="core."+std::to_string(*exact);} catch (...) {}
+}
 void metal_dispatch_locked(MetalStream& stream, id<MTLComputeCommandEncoder> encoder,
                            id<MTLComputePipelineState> pipeline, std::size_t count) {
     const auto max_threads =
@@ -1506,7 +1525,11 @@ void metal_dispatch_locked(MetalStream& stream, id<MTLComputeCommandEncoder> enc
     const auto threads = std::max<std::size_t>(1, std::min<std::size_t>(256, max_threads));
     [encoder dispatchThreads:MTLSizeMake(count,1,1)
        threadsPerThreadgroup:MTLSizeMake(threads,1,1)];
-    (void)stream;
+    metal_observe_core_dispatch(stream,pipeline);
+    if(profile::split_enabled() && stream.hold==MetalHold::None) {
+        metal_end_encoder_locked(stream);
+        stream.observation_reopen=true;
+    }
 }
 
 void metal_poison_in_queue(MetalStream& stream, id<MTLBuffer> buffer,
@@ -1744,6 +1767,11 @@ bool dispatch_metal_1d(Buffer* output, id<MTLComputePipelineState> pipeline,
         [encoder dispatchThreads:MTLSizeMake(count,1,1)
            threadsPerThreadgroup:MTLSizeMake(threads,1,1)];
         counters::add(counters::Id::CoreDispatches); // qcount
+        metal_observe_core_dispatch(*stream,pipeline);
+        if(profile::split_enabled() && stream->hold==MetalHold::None) {
+            metal_end_encoder_locked(*stream);
+            stream->observation_reopen=true;
+        }
         metal_note_work_locked(*stream, 1, output->bytes);
         return true;
     }
@@ -4427,6 +4455,9 @@ std::uint64_t begin_package_encode(int index, bool command_buffer,
             if (command_buffer) {
                 if (metal_open_locked(*stream, error)) {
                     metal_end_encoder_locked(*stream);
+                    stream->observation_reopen=false;
+                    if(stream->observation) stream->observation->gap(
+                        stream->next_serial.load(std::memory_order_relaxed),timeline::current_step(),"package_owned_encoders");
                     stream->hold = MetalHold::CommandBuffer;
                     handle = reinterpret_cast<std::uint64_t>(
                         (__bridge void*)stream->open);
@@ -4487,8 +4518,13 @@ bool end_package_encode(int index, std::uint32_t dispatches,
             return false;
         }
         const bool lent_queue = stream->hold_lent_queue;
+        const bool package_encoder = stream->hold==MetalHold::Encoder;
         stream->hold = MetalHold::None;
+        if(profile::split_enabled() && package_encoder && stream->encoder) {
+            metal_end_encoder_locked(*stream); stream->observation_reopen=true;
+        }
         metal_note_work_locked(*stream, dispatches, bytes);
+        counters::add(counters::Id::PackageDispatches, dispatches);
         // The package may commit command buffers of its own on the queue it
         // received during the hold: they must run after the hold's work.
         if (lent_queue && stream->open) {
@@ -4613,9 +4649,7 @@ LeftHold end_left_package_hold(const char* returned, std::string& message) {
 void exit_failed_program() {
     // Package callbacks and unreleased failed holds cannot run exit handlers.
     if (running_package_callback || keeping_failed_hold) {
-        std::fflush(stdout);
-        std::fflush(stderr);
-        std::_Exit(abi::failure_exit_status);
+        runtime::immediate_failure_exit();
     }
     std::exit(abi::failure_exit_status);
 }
@@ -4638,6 +4672,7 @@ void check_package_hold_returned(const char* returned) {
 }
 
 bool flush(int index, std::string& error) {
+    profile::Range observed("core","gpu flush",index,profile::ProfileEvent::Kind::CommandBuffer);
     const auto* info = find(index);
     if (!info) {
         error = "gpu(" + std::to_string(index) + ") is not available";

@@ -22,33 +22,33 @@ std::optional<ValueId> FileLowering::try_file_handle_method(
         };
         if(n.method=="read"){
             auto out=builder_.fresh();
-            builder_.emit(FileHandleRead{out,handle,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            builder_.emit(FileHandleRead{out,handle,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="read_line"){
             auto out=builder_.fresh();
-            builder_.emit(FileHandleReadLine{out,handle,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            builder_.emit(FileHandleReadLine{out,handle,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="read_bin"){
             auto out=builder_.fresh();
-            builder_.emit(FileHandleReadBin{out,handle,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            builder_.emit(FileHandleReadBin{out,handle,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="write" || n.method=="write_line"){
             auto text=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-            builder_.emit(FileHandleWrite{out,handle,text,checked_.raw_types.at(&e),n.method=="write_line",static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            builder_.emit(FileHandleWrite{out,handle,text,checked_.raw_types.at(&e),n.method=="write_line",{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
             lifetime_.release_temporary(*n.args[0].value,text);
             return finish(out);
         }
         if(n.method=="flush"){
             auto out=builder_.fresh();
-            builder_.emit(FileHandleFlush{out,handle,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            builder_.emit(FileHandleFlush{out,handle,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="seek"){
             auto position=lowerer_.lower_int64(*n.args[0].value),out=builder_.fresh();
-            builder_.emit(FileHandleSeek{out,handle,position,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            builder_.emit(FileHandleSeek{out,handle,position,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
             return finish(out);
         }
         if(n.method=="close"){
@@ -63,25 +63,25 @@ ValueId FileLowering::lower_file_open(
     const Expr& e, const CallExpr& n, const CallResolution& resolution) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
     if(*resolution.builtin==BuiltinCallable::FileOpen)
-        builder_.emit(FileOpen{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        builder_.emit(FileOpen{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     else if(*resolution.builtin==BuiltinCallable::FileCreate)
-        builder_.emit(FileCreate{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        builder_.emit(FileCreate{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     else
-        builder_.emit(FileAppend{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+        builder_.emit(FileAppend{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;
 }
 
 ValueId FileLowering::lower_file_read(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(FileRead{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileRead{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;
 }
 
 ValueId FileLowering::lower_file_read_bin(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(FileReadBin{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileReadBin{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;
 }
@@ -89,14 +89,14 @@ ValueId FileLowering::lower_file_read_bin(const Expr& e, const CallExpr& n) {
 ValueId FileLowering::lower_file_list(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
     ValueId recursive=n.args.size()==2?lowerer_.lower(*n.args[1].value):builder_.const_bool(false);
-    builder_.emit(FileList{out,path,recursive,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileList{out,path,recursive,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;
 }
 
 ValueId FileLowering::lower_file_write(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),text=lowerer_.lower(*n.args[1].value),out=builder_.fresh();
-    builder_.emit(FileWrite{out,path,text,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileWrite{out,path,text,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     lifetime_.release_temporary(*n.args[1].value,text);
     return out;
@@ -104,7 +104,7 @@ ValueId FileLowering::lower_file_write(const Expr& e, const CallExpr& n) {
 
 ValueId FileLowering::lower_file_write_bin(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),bin=lowerer_.lower(*n.args[1].value),out=builder_.fresh();
-    builder_.emit(FileWriteBin{out,path,bin,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileWriteBin{out,path,bin,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     lifetime_.release_temporary(*n.args[1].value,bin);
     return out;
@@ -112,28 +112,28 @@ ValueId FileLowering::lower_file_write_bin(const Expr& e, const CallExpr& n) {
 
 ValueId FileLowering::lower_file_exists(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(FileExists{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileExists{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;
 }
 
 ValueId FileLowering::lower_file_is_directory(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(FileIsDirectory{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileIsDirectory{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;
 }
 
 ValueId FileLowering::lower_file_remove(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(FileRemove{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileRemove{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;
 }
 
 ValueId FileLowering::lower_file_copy(const Expr& e, const CallExpr& n) {
     auto source=lowerer_.lower(*n.args[0].value),destination=lowerer_.lower(*n.args[1].value),out=builder_.fresh();
-    builder_.emit(FileCopy{out,source,destination,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileCopy{out,source,destination,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,source);
     lifetime_.release_temporary(*n.args[1].value,destination);
     return out;
@@ -141,7 +141,7 @@ ValueId FileLowering::lower_file_copy(const Expr& e, const CallExpr& n) {
 
 ValueId FileLowering::lower_file_move(const Expr& e, const CallExpr& n) {
     auto source=lowerer_.lower(*n.args[0].value),destination=lowerer_.lower(*n.args[1].value),out=builder_.fresh();
-    builder_.emit(FileMove{out,source,destination,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileMove{out,source,destination,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,source);
     lifetime_.release_temporary(*n.args[1].value,destination);
     return out;
@@ -149,7 +149,7 @@ ValueId FileLowering::lower_file_move(const Expr& e, const CallExpr& n) {
 
 ValueId FileLowering::lower_file_mkdir(const Expr& e, const CallExpr& n) {
     auto path=lowerer_.lower(*n.args[0].value),out=builder_.fresh();
-    builder_.emit(FileMkdir{out,path,checked_.raw_types.at(&e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+    builder_.emit(FileMkdir{out,path,checked_.raw_types.at(&e),{static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}});
     lifetime_.release_temporary(*n.args[0].value,path);
     return out;
 }

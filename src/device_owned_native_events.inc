@@ -8,6 +8,7 @@ detail::OwnedNativeFences& owned_native_fences() {
 struct NativeEventHandle {
     Backend backend{};
     int backend_index{};
+    int global_index{-1};
     void* event{};
     bool recorded{};
     bool package_boundary{};
@@ -38,8 +39,8 @@ struct NativeEventHandle {
         if(!recorded) {
             // Work has already been launched. A failed record cannot become
             // an immediate-success event: drain the backend before cleanup.
-            const auto status=backend==Backend::Cuda
-                ?cuda().ctx_synchronize():hip().device_synchronize();
+            const auto status=observation::wait(global_index,counters::WaitReason::Status,"native failed fence drain",[&]{
+                return backend==Backend::Cuda ?cuda().ctx_synchronize():hip().device_synchronize();});
             return {Status::unattributed_failure,
                 "native GPU completion fence recording failed (record status "+
                 std::to_string(record_status)+", drain status "+std::to_string(status)+")"};
@@ -49,13 +50,13 @@ struct NativeEventHandle {
         // the existing context/device synchronization API as the completion
         // proof; any shared fault follows the unknown-owner fatal policy.
         if(package_boundary) {
-            const auto context_status=backend==Backend::Cuda
-                ?cuda().ctx_synchronize():hip().device_synchronize();
+            const auto context_status=observation::wait(global_index,counters::WaitReason::Status,"native package fence",[&]{
+                return backend==Backend::Cuda ?cuda().ctx_synchronize():hip().device_synchronize();});
             if(context_status!=0) return {Status::unattributed_failure,
                 "package GPU context completion returned backend status "+std::to_string(context_status)};
         }
-        const auto status=backend==Backend::Cuda
-            ?cuda().event_synchronize(event):hip().event_synchronize(event);
+        const auto status=observation::wait(global_index,counters::WaitReason::Status,"native completion fence",[&]{
+            return backend==Backend::Cuda ?cuda().event_synchronize(event):hip().event_synchronize(event);});
         if(status==0) return {};
         // Driver/runtime event waits can surface a shared-context fault. No
         // proof here identifies the operation that originally caused it.
@@ -127,7 +128,7 @@ std::optional<PreparedNativeFence> prepare_native_fence(
         runtime::locate_report_site(*prepared.source),std::string_view{},data,prepared.source);
     prepared.submission.emplace(owned_native_fences().submission(global_index));
     prepared.event=std::make_shared<NativeEventHandle>();
-    auto& event=*prepared.event;event.backend=backend;event.backend_index=backend_index;
+    auto& event=*prepared.event;event.backend=backend;event.backend_index=backend_index;event.global_index=global_index;
     if(auto selection=event.select();!selection.empty()) {error=std::move(selection);return std::nullopt;}
     int status=-1;
     if(backend==Backend::Cuda) {
@@ -172,7 +173,7 @@ std::optional<PreparedNativeFence> prepare_native_fence(
     std::fprintf(stderr,"Quidra runtime error[%.*s]: operation owner unknown: %s\n",
         static_cast<int>(code.size()),code.data(),detail.c_str());
     std::fflush(stderr);
-    std::_Exit(abi::failure_exit_status);
+    runtime::immediate_failure_exit();
 }
 void drain_native_fences(int index,std::uint64_t covered) {
     owned_native_fences().drain_or_fail(index,covered,fail_unattributed_native);

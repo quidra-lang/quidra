@@ -60,12 +60,12 @@ void MemoryEmitter::emit(const ir::AddressElement& n,const ir::Instruction&){
         } else builder_.call(symbols_.value(n.out),runtime_abi::prelude::array_slot_proven,
                 {{ptr,symbols_.value(n.array)},{i64,symbols_.value(n.index)},{i64,stride}});
     }else if(n.bin_element||!is_fixed_array(n.array_type)){
-        builder_.call(symbols_.value(n.out),runtime_abi::prelude::array_slot,{{ptr,symbols_.value(n.array)},{i64,symbols_.value(n.index)},{i64,stride},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::prelude::array_slot,{{ptr,symbols_.value(n.array)},{i64,symbols_.value(n.index)},{i64,stride},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else{
         if(array_layout_.inline_fixed_child(n.array_type)){
             throw std::logic_error("address-taken fixed-array edge was not boxed");
         }
-        builder_.call(symbols_.value(n.out),runtime_abi::prelude::fixed_array_slot,{{ptr,symbols_.value(n.array)},{i64,symbols_.value(n.index)},{i64,n.array_type.length},{i64,stride},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::prelude::fixed_array_slot,{{ptr,symbols_.value(n.array)},{i64,symbols_.value(n.index)},{i64,n.array_type.length},{i64,stride},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }
 }
 

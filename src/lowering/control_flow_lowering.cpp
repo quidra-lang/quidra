@@ -215,8 +215,8 @@ void ControlFlowLowering::lower_header_range_for(const ForStmt& n) {
     const auto step_origin=header.step?header.step->span.start:n.iterable->span.start;
     if(header.step && !constant_eval::integer(*header.step,nullptr))
         builder_.emit(ForStepCheck{step,header.descending,
-            static_cast<std::uint32_t>(step_origin.line),
-            static_cast<std::uint32_t>(step_origin.column)});
+            {static_cast<std::uint32_t>(step_origin.line),
+            static_cast<std::uint32_t>(step_origin.column)}});
     auto magnitude=step;
     if(header.descending) {
         magnitude=builder_.fresh();
@@ -255,7 +255,7 @@ void ControlFlowLowering::lower_header_range_for(const ForStmt& n) {
             const auto fast=builder_.label("for.range.inline_entry"),slow=builder_.label("for.range.boxed_entry");
             builder_.emit(Branch{guard,fast,slow});builder_.enter(builder_.add_block(fast));
             for(const auto& pair:{std::pair{raw_counter,first},std::pair{raw_end,limit}}) {
-                auto value=builder_.fresh();builder_.emit(NumericConvert{value,pair.second,at,raw,false,0,0,true});
+                auto value=builder_.fresh();builder_.emit(NumericConvert{value,pair.second,at,raw,false,{0,0},true});
                 builder_.emit(StoreLocal{pair.first,value,raw});
             }
             builder_.emit(Jump{condition});builder_.enter(builder_.add_block(slow));
@@ -269,7 +269,7 @@ void ControlFlowLowering::lower_header_range_for(const ForStmt& n) {
             auto guard=builder_.fresh();builder_.emit(LoadLocal{guard,inline_slot,boolean});builder_.emit(Branch{guard,fast,slow});
             builder_.enter(builder_.add_block(fast));auto current=builder_.fresh(),end_value=builder_.fresh();
             builder_.emit(LoadLocal{current,raw_counter,raw});builder_.emit(LoadLocal{end_value,raw_end,raw});
-            auto element=builder_.fresh();builder_.emit(NumericConvert{element,current,raw,at,false,0,0,true});
+            auto element=builder_.fresh();builder_.emit(NumericConvert{element,current,raw,at,false,{0,0},true});
             builder_.emit(StoreLocal{view,element,at,true});builder_.emit(Branch{binary("<",current,end_value,raw,boolean),body,done});
             builder_.enter(builder_.add_block(slow));current=builder_.fresh();builder_.emit(LoadLocal{current,counter,at});
             builder_.emit(StoreLocal{view,current,at,true});builder_.emit(Branch{binary("<",current,limit,at,boolean),body,done});
@@ -381,7 +381,7 @@ void ControlFlowLowering::lower_header_range_for(const ForStmt& n) {
         builder_.emit(Branch{guard,initialize,entry});builder_.enter(builder_.add_block(initialize));
         for(const auto& pair:{std::pair{raw_counter,counter},std::pair{raw_last,last_name},std::pair{raw_stride,stride_name}}) {
             auto word_value=builder_.fresh(),value=builder_.fresh();builder_.emit(LoadLocal{word_value,pair.second,counter_type});
-            builder_.emit(NumericConvert{value,word_value,counter_type,raw,false,0,0,true});builder_.emit(StoreLocal{pair.first,value,raw});
+            builder_.emit(NumericConvert{value,word_value,counter_type,raw,false,{0,0},true});builder_.emit(StoreLocal{pair.first,value,raw});
         }
         builder_.emit(Jump{entry});
     } else builder_.emit(Jump{entry});
@@ -390,7 +390,7 @@ void ControlFlowLowering::lower_header_range_for(const ForStmt& n) {
         const auto fast=builder_.label("for.range.inline_value"),slow=builder_.label("for.range.boxed_value");
         auto guard=builder_.fresh();builder_.emit(LoadLocal{guard,inline_slot,boolean});builder_.emit(Branch{guard,fast,slow});
         builder_.enter(builder_.add_block(fast));auto current=builder_.fresh(),element=builder_.fresh();
-        builder_.emit(LoadLocal{current,raw_counter,raw});builder_.emit(NumericConvert{element,current,raw,counter_type,false,0,0,true});
+        builder_.emit(LoadLocal{current,raw_counter,raw});builder_.emit(NumericConvert{element,current,raw,counter_type,false,{0,0},true});
         builder_.emit(StoreLocal{view,element,counter_type,true});builder_.emit(Jump{body});
         builder_.enter(builder_.add_block(slow));current=builder_.fresh();builder_.emit(LoadLocal{current,counter,counter_type});
         builder_.emit(StoreLocal{view,current,counter_type,true});builder_.emit(Jump{body});
@@ -537,14 +537,37 @@ void ControlFlowLowering::lower_sequence_for(const ForStmt& n) {
     ValueId slice_first=0,slice_stride=0;
     if(direct_slice) {
         const auto first_slot=builder_.hidden("for.slice.first");scope_.local_type(first_slot)=Type::simple(TypeKind::Int64);
+        builder_.emit(DeclareLocal{first_slot,Type::simple(TypeKind::Int64),{}});
         auto address=builder_.fresh();builder_.emit(AddressLocal{address,first_slot});
         auto count=builder_.fresh();
         builder_.emit(SliceLoopPlan{count,len,address,*slice_bounds,
-            static_cast<std::uint32_t>(n.iterable->span.start.line),
-            static_cast<std::uint32_t>(n.iterable->span.start.column)});
+            {static_cast<std::uint32_t>(n.iterable->span.start.line),
+            static_cast<std::uint32_t>(n.iterable->span.start.column)}});
         len=count;slice_first=builder_.fresh();builder_.emit(LoadLocal{slice_first,first_slot,Type::simple(TypeKind::Int64)});
-        slice_stride=slice_bounds->step?*slice_bounds->step:
-            builder_.const_int(slice_bounds->direction==SliceDirection::descending?-1:1);
+        if (slice_bounds->step) slice_stride = *slice_bounds->step;
+        else if (slice_bounds->direction == SliceDirection::by_bounds) {
+            // Reuse the already-evaluated endpoints. A direct slice loop
+            // traverses the same progression as materializing the slice.
+            const auto integer = Type::simple(TypeKind::Int64);
+            const auto descending = builder_.fresh();
+            builder_.emit(Binary{descending, ">", *slice_bounds->start, *slice_bounds->end,
+                integer, Type::simple(TypeKind::Bool)});
+            const auto down = builder_.label("for.slice.descending");
+            const auto up = builder_.label("for.slice.ascending");
+            const auto ready = builder_.label("for.slice.stride");
+            const auto stride = builder_.hidden("for.slice.stride");
+            scope_.local_type(stride) = integer;
+            builder_.emit(Branch{descending,down,up});
+            builder_.enter(builder_.add_block(down));
+            builder_.emit(StoreLocal{stride,builder_.const_int(-1),integer});
+            builder_.emit(Jump{ready});
+            builder_.enter(builder_.add_block(up));
+            builder_.emit(StoreLocal{stride,builder_.const_int(1),integer});
+            builder_.emit(Jump{ready});
+            builder_.enter(builder_.add_block(ready));
+            slice_stride = builder_.fresh();
+            builder_.emit(LoadLocal{slice_stride,stride,integer});
+        } else slice_stride = builder_.const_int(slice_bounds->direction==SliceDirection::descending?-1:1);
     }
     auto zero=builder_.const_int(0); builder_.emit(StoreLocal{idx_name,zero,scope_.local_type(idx_name)}); builder_.emit(StoreLocal{len_name,len,scope_.local_type(len_name)});
     // A reference loop over a reference binding pins the array it enters
@@ -600,18 +623,18 @@ void ControlFlowLowering::lower_sequence_for(const ForStmt& n) {
             scope_.bind_bit_place(n.name,current,ix);
         } else {
             auto address=builder_.fresh();
-            builder_.emit(AddressElement{address,current,ix,array_type,item,false,0,0,true});
-            if(n.pattern){auto initialized=builder_.fresh();builder_.emit(ArrayGet{initialized,current,ix,item,static_cast<std::uint32_t>(n.iterable->span.start.line),static_cast<std::uint32_t>(n.iterable->span.start.column),iterable_initialization_proven,true,iterable_initialization_guard});lower_control_pattern(*n.pattern,address,true);}
+            builder_.emit(AddressElement{address,current,ix,array_type,item,false,{0,0},true});
+            if(n.pattern){auto initialized=builder_.fresh();builder_.emit(ArrayGet{initialized,current,ix,item,{static_cast<std::uint32_t>(n.iterable->span.start.line),static_cast<std::uint32_t>(n.iterable->span.start.column)},iterable_initialization_proven,true,iterable_initialization_guard});lower_control_pattern(*n.pattern,address,true);}
             else builder_.emit(BindReference{iter_name,address});
         }
     } else {
     if(array_type.kind==TypeKind::Bin) {
-        builder_.emit(BinGet{element,current,physical_index,0,0,true});
+        builder_.emit(BinGet{element,current,physical_index,{0,0},true});
     } else {
         builder_.emit(ArrayGet{
             element,current,physical_index,item,
-            static_cast<std::uint32_t>(n.iterable->span.start.line),
-            static_cast<std::uint32_t>(n.iterable->span.start.column),
+            {static_cast<std::uint32_t>(n.iterable->span.start.line),
+            static_cast<std::uint32_t>(n.iterable->span.start.column)},
             iterable_initialization_proven,true,iterable_initialization_guard});
     }
     if(n.pattern)lower_control_pattern(*n.pattern,element,false);
@@ -702,14 +725,14 @@ void ControlFlowLowering::lower_pinned_body(
         for(const auto& prefix:prefixes) {
             auto current=lowerer_.lower(*prefix.expression);
             builder_.emit(IterationShapeCheck{current,prefix.array,prefix.length,
-                static_cast<std::uint32_t>(statement.span.start.line),
-                static_cast<std::uint32_t>(statement.span.start.column)});
+                {static_cast<std::uint32_t>(statement.span.start.line),
+                static_cast<std::uint32_t>(statement.span.start.column)}});
         }
         auto current=lowerer_.lower(*n.iterable);
         builder_.emit(IterationShapeCheck{
             current,entry_array,entry_length,
-            static_cast<std::uint32_t>(statement.span.start.line),
-            static_cast<std::uint32_t>(statement.span.start.column)});
+            {static_cast<std::uint32_t>(statement.span.start.line),
+            static_cast<std::uint32_t>(statement.span.start.column)}});
     };
     // The statements before `checked` have been checked after, or need no
     // check; the check after a run of statements is located at the last one

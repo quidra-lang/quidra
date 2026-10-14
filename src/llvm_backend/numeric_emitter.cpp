@@ -66,7 +66,7 @@ void NumericEmitter::emit(const ir::RealLoopCount& n,const ir::Instruction&) {
     builder_.call(symbols_.value(n.out),runtime_abi::real_loop::count,
         {{double_type,start},{double_type,end},{double_type,step},{i1,n.descending?1:0},
          {i1,n.start_inclusive?1:0},{i1,n.end_inclusive?1:0},
-         {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+         {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 void NumericEmitter::emit(const ir::RealLoopValue& n,const ir::Instruction&) {
     symbols_.set_type(n.out,n.type);
@@ -140,7 +140,7 @@ void NumericEmitter::emit(const ir::ExactLoopPlan& n,const ir::Instruction&) {
     builder_.call(symbols_.value(n.out),runtime_abi::real_loop::plan,
         {{i64,start[0]},{i64,start[1]},{i64,end[0]},{i64,end[1]},{i64,step[0]},{i64,step[1]},
          {i1,n.descending?1:0},{i1,n.start_inclusive?1:0},{i1,n.end_inclusive?1:0},
-         {i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+         {i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
 }
 void NumericEmitter::emit(const ir::ExactFromScaled& n,const ir::Instruction& ins) {
     symbols_.set_type(n.out,Type::simple(TypeKind::Real));
@@ -192,12 +192,12 @@ void NumericEmitter::emit(const ir::ExactScaledConvert& n,const ir::Instruction&
         const auto payload=names_.value("exact.scaled.error_payload");
         box.payload_slot(payload,symbols_.value(n.out));
         records_.store_conversion(payload,abi::dtype_code(ir::dtype_of(n.target)),abi::ConversionSubject::value,
-            std::to_string(static_cast<int>(abi::ConversionReason::out_of_range)),1,n.line,n.column);
+            std::to_string(static_cast<int>(abi::ConversionReason::out_of_range)),1,n.position.line,n.position.column);
         builder_.br(done);
     } else {
         builder_.call(runtime_abi::failure::conversion_fail,
             {{i32,abi::dtype_code(ir::dtype_of(n.target))},{i32,static_cast<int>(abi::ConversionSubject::value)},
-             {i32,static_cast<int>(abi::ConversionReason::out_of_range)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+             {i32,static_cast<int>(abi::ConversionReason::out_of_range)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         builder_.unreachable();
     }
     builder_.block(success);
@@ -254,7 +254,7 @@ void NumericEmitter::emit(const ir::ExactRound& n,const ir::Instruction&){
     symbols_.set_type(n.out,n.type);
     const bool single=n.type.kind==TypeKind::Real32;
     const auto rounded=single?names_.value("exact.round"):symbols_.value(n.out);
-    builder_.call(rounded,double_type,LlvmOperand::global(exact_helper::round),{{exact_real_type,symbols_.value(n.value)},{i32,single?1:0},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+    builder_.call(rounded,double_type,LlvmOperand::global(exact_helper::round),{{exact_real_type,symbols_.value(n.value)},{i32,single?1:0},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     if(single)builder_.cast(symbols_.value(n.out),CastOp::fptrunc,{double_type,rounded},float_type);
     if(!n.slot.empty())
         builder_.store({single?float_type:double_type,symbols_.value(n.out)},
@@ -301,9 +301,9 @@ void NumericEmitter::emit(const ir::Unary& n,const ir::Instruction&){
         builder_.binary(tag,BinaryOp::and_,bare_integer_type,symbols_.value(n.operand),1);
         builder_.icmp(symbols_.value(n.out),IntPredicate::eq,bare_integer_type,tag,0);
     }else if(n.type.kind==TypeKind::Tensor){
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::unary,{{ptr,symbols_.value(n.operand)},{i32,1},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),runtime_abi::tensor::unary,{{ptr,symbols_.value(n.operand)},{i32,1},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(n.type.kind==TypeKind::Com){
-        complex_.com_negate(symbols_.value(n.out),symbols_.value(n.operand),n.line,n.column);
+        complex_.com_negate(symbols_.value(n.out),symbols_.value(n.operand),n.position.line,n.position.column);
     }else if(is_fixed_complex(n.type)){
         complex_.negate(n.type,symbols_.value(n.out),symbols_.value(n.operand));
     }else if(n.op=="not"){
@@ -313,15 +313,15 @@ void NumericEmitter::emit(const ir::Unary& n,const ir::Instruction&){
     }else if(n.type.kind==TypeKind::Nat){
         // A nat is never negative: its negation is 0 - value, which fails
         // unless the value is 0.
-        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_sub),{{bare_integer_type,0},{bare_integer_type,symbols_.value(n.operand)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_sub),{{bare_integer_type,0},{bare_integer_type,symbols_.value(n.operand)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(is_bare_integer(n.type)&&n.inline_proven){
         // An inline word negated is the negated word, and the result is
         // proven inline.
         builder_.binary(symbols_.value(n.out),BinaryOp::sub,NoWrap::nsw,bare_integer_type,0,symbols_.value(n.operand));
     }else if(is_bare_integer(n.type)){
-        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::neg),{{bare_integer_type,symbols_.value(n.operand)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::neg),{{bare_integer_type,symbols_.value(n.operand)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(n.type.kind==TypeKind::Real){
-        builder_.call(symbols_.value(n.out),exact_real_type,LlvmOperand::global(real_helper::neg),{{exact_real_type,symbols_.value(n.operand)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(symbols_.value(n.out),exact_real_type,LlvmOperand::global(real_helper::neg),{{exact_real_type,symbols_.value(n.operand)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else if(is_fixed_integer(n.type)){
         const auto ty=llvm_type(n.type);
         const auto width=integer_width(n.type);
@@ -330,7 +330,7 @@ void NumericEmitter::emit(const ir::Unary& n,const ir::Instruction&){
         builder_.call(pair,LlvmType::structure(ty,i1),intrinsic,{{ty,0},{ty,symbols_.value(n.operand)}});
         builder_.extractvalue(symbols_.value(n.out),LlvmType::structure(ty,i1),pair,0);
         builder_.extractvalue(overflow,LlvmType::structure(ty,i1),pair,1);
-        fail_fast_.fail_if(overflow,"@.code.overflow","@.msg.overflow","neg",n.line,n.column);
+        fail_fast_.fail_if(overflow,"@.code.overflow","@.msg.overflow","neg",n.position.line,n.position.column);
     }else if(n.type.kind==TypeKind::Real16b){
         // The sign bit of the bfloat16 bits.
         builder_.binary(symbols_.value(n.out),BinaryOp::xor_,i16,symbols_.value(n.operand),-32768);
@@ -341,15 +341,15 @@ void NumericEmitter::emit(const ir::Unary& n,const ir::Instruction&){
 
 void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbols_.set_type(n.out,n.result_type);const auto&ot=n.operand_type;
     if(ot.kind==TypeKind::Com){
-        complex_.com_binary(n.op,symbols_.value(n.out),symbols_.value(n.left),symbols_.value(n.right),n.line,n.column);
+        complex_.com_binary(n.op,symbols_.value(n.out),symbols_.value(n.left),symbols_.value(n.right),n.position.line,n.position.column);
         return;
     }
     if(is_fixed_complex(ot)){
         if(n.op=="^")
             complex_.power(ot,symbols_.value(n.out),symbols_.value(n.left),symbols_.value(n.right),
-                           scratch_.instruction_slot(ins),n.line,n.column);
+                           scratch_.instruction_slot(ins),n.position.line,n.position.column);
         else
-            complex_.binary(n.op,ot,symbols_.value(n.out),symbols_.value(n.left),symbols_.value(n.right),n.line,n.column);
+            complex_.binary(n.op,ot,symbols_.value(n.out),symbols_.value(n.left),symbols_.value(n.right),n.position.line,n.position.column);
         return;
     }
     if((n.op=="=="||n.op=="!=")&&ot.kind==TypeKind::Address){builder_.icmp(symbols_.value(n.out),(n.op=="=="?IntPredicate::eq:IntPredicate::ne),ptr,symbols_.value(n.left),symbols_.value(n.right));return;}
@@ -363,8 +363,8 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
         LlvmCall call(i1,callee);
         call.result(eq).argument({llvm_type(ot),left}).argument({llvm_type(ot),right});
         if(holds_reference_fields(ot,layouts_)) {
-            call.argument({i64,sites_.line(n.line)});
-            call.argument({i64,sites_.column(n.column)});
+            call.argument({i64,sites_.line(n.position.line)});
+            call.argument({i64,sites_.column(n.position.column)});
         }
         builder_.call(call);
         if(n.op=="==")copy_by_xor_false(builder_,symbols_.value(n.out),eq);
@@ -375,17 +375,17 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
         // The operand names outlive the calls that name them.
         const auto left=symbols_.value(n.left),right=symbols_.value(n.right);
         if(n.op=="^"){
-            builder_.call(symbols_.value(n.out),exact_real_type,LlvmOperand::global(real_helper::pow),{{exact_real_type,left},{exact_real_type,right},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(symbols_.value(n.out),exact_real_type,LlvmOperand::global(real_helper::pow),{{exact_real_type,left},{exact_real_type,right},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             return;
         }
         if(n.op=="+"||n.op=="-"||n.op=="*"||n.op=="/"){
             const int opcode=n.op=="+"?abi::exact_binary_opcode::add:n.op=="-"?abi::exact_binary_opcode::subtract:
                              n.op=="*"?abi::exact_binary_opcode::multiply:abi::exact_binary_opcode::divide;
-            builder_.call(symbols_.value(n.out),exact_real_type,LlvmOperand::global(real_helper::binary),{{exact_real_type,left},{exact_real_type,right},{i32,opcode},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(symbols_.value(n.out),exact_real_type,LlvmOperand::global(real_helper::binary),{{exact_real_type,left},{exact_real_type,right},{i32,opcode},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             return;
         }
         const auto comparison=names_.value("exact.compare");
-        builder_.call(comparison,i32,LlvmOperand::global(real_helper::compare),{{exact_real_type,left},{exact_real_type,right},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(comparison,i32,LlvmOperand::global(real_helper::compare),{{exact_real_type,left},{exact_real_type,right},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         IntPredicate pred;
         if(n.op=="==")pred=IntPredicate::eq;else if(n.op=="!=")pred=IntPredicate::ne;
         else if(n.op=="<")pred=IntPredicate::slt;else if(n.op=="<=")pred=IntPredicate::sle;
@@ -399,7 +399,7 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
         const auto left=symbols_.value(n.left),right=symbols_.value(n.right);
         if(ot.kind==TypeKind::Nat&&n.op=="-"){
             // A nat difference fails when it would be negative.
-            builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_sub),{{bare_integer_type,left},{bare_integer_type,right},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(int_helper::nat_sub),{{bare_integer_type,left},{bare_integer_type,right},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             return;
         }
         if(n.inline_proven&&(n.op=="+"||n.op=="-")){
@@ -430,7 +430,7 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
         }
         if(n.op=="/"||n.op=="%"||n.op=="^"){
             const auto helper=n.op=="/"?int_helper::div:n.op=="%"?int_helper::rem:int_helper::pow;
-            builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(helper),{{bare_integer_type,left},{bare_integer_type,right},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(symbols_.value(n.out),bare_integer_type,LlvmOperand::global(helper),{{bare_integer_type,left},{bare_integer_type,right},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             return;
         }
         const auto helper=n.op=="=="?int_helper::eq:n.op=="!="?int_helper::ne:n.op=="<"?int_helper::lt:
@@ -459,7 +459,7 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
                 invalid=high;
                 builder_.icmp(high,IntPredicate::uge,ty,symbols_.value(n.right),width);
             }
-            fail_fast_.fail_if(invalid,"@.code.shift","@.msg.shift","shift",n.line,n.column);
+            fail_fast_.fail_if(invalid,"@.code.shift","@.msg.shift","shift",n.position.line,n.position.column);
             const auto instruction=n.op=="<<"?BinaryOp::shl:(is_signed_integer(ot)?BinaryOp::ashr:BinaryOp::lshr);
             builder_.binary(symbols_.value(n.out),instruction,ty,symbols_.value(n.left),symbols_.value(n.right));
             return;
@@ -476,7 +476,7 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
                 exponent=wide_exponent;
             }
             const auto wide_result=names_.value("power.result");
-            builder_.call(wide_result,is_signed_integer(ot)?runtime_abi::numeric::integer_pow_signed:runtime_abi::numeric::integer_pow_unsigned,{{i64,base},{i64,exponent},{i32,width},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            builder_.call(wide_result,is_signed_integer(ot)?runtime_abi::numeric::integer_pow_signed:runtime_abi::numeric::integer_pow_unsigned,{{i64,base},{i64,exponent},{i32,width},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             if(width<64)
                 builder_.cast(symbols_.value(n.out),CastOp::trunc,{i64,wide_result},ty);
             else
@@ -496,20 +496,20 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
             builder_.call(pair,LlvmType::structure(ty,i1),intrinsic,{{ty,symbols_.value(n.left)},{ty,symbols_.value(n.right)}});
             builder_.extractvalue(symbols_.value(n.out),LlvmType::structure(ty,i1),pair,0);
             builder_.extractvalue(overflow,LlvmType::structure(ty,i1),pair,1);
-            fail_fast_.fail_if(overflow,"@.code.overflow","@.msg.overflow","arith",n.line,n.column);
+            fail_fast_.fail_if(overflow,"@.code.overflow","@.msg.overflow","arith",n.position.line,n.position.column);
             return;
         }
         if(n.op=="/"||n.op=="%"){
             const auto zero=names_.value("arith.zero");
             builder_.icmp(zero,IntPredicate::eq,ty,symbols_.value(n.right),0);
-            fail_fast_.fail_if(zero,"@.code.divzero","@.msg.divzero","arith.zero",n.line,n.column);
+            fail_fast_.fail_if(zero,"@.code.divzero","@.msg.divzero","arith.zero",n.position.line,n.position.column);
             if(is_signed_integer(ot)){
                 const std::string min_value=width==64?"-9223372036854775808":std::to_string(-(1LL<<(width-1)));
                 const auto ismin=names_.value("arith.min"),isnegone=names_.value("arith.negone"),special=names_.value("arith.special");
                 builder_.icmp(ismin,IntPredicate::eq,ty,symbols_.value(n.left),min_value);
                 builder_.icmp(isnegone,IntPredicate::eq,ty,symbols_.value(n.right),-1);
                 builder_.binary(special,BinaryOp::and_,i1,ismin,isnegone);
-                fail_fast_.fail_if(special,"@.code.overflow","@.msg.overflow","arith.div.overflow",n.line,n.column);
+                fail_fast_.fail_if(special,"@.code.overflow","@.msg.overflow","arith.div.overflow",n.position.line,n.position.column);
             }
             const auto operation=n.op=="/"?(is_signed_integer(ot)?BinaryOp::sdiv:BinaryOp::udiv)
                                           :(is_signed_integer(ot)?BinaryOp::srem:BinaryOp::urem);
@@ -533,7 +533,7 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
         builder_.call(right,float_type,LlvmOperand::global(half_helper::bf16_widen),{{i16,symbols_.value(n.right)}});
         if(n.op=="+"||n.op=="-"||n.op=="*"||n.op=="/"||n.op=="^"){
             const auto result=names_.value("bf16.result");
-            if(n.op=="^")builder_.call(result,float_type,LlvmOperand::global(power_helper::real32),{{float_type,left},{float_type,right},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+            if(n.op=="^")builder_.call(result,float_type,LlvmOperand::global(power_helper::real32),{{float_type,left},{float_type,right},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
             else builder_.binary(result,n.op=="+"?BinaryOp::fadd:n.op=="-"?BinaryOp::fsub:n.op=="*"?BinaryOp::fmul:BinaryOp::fdiv,float_type,left,right);
             builder_.call(symbols_.value(n.out),i16,LlvmOperand::global(half_helper::bf16_narrow),{{float_type,result}});
             return;
@@ -547,7 +547,7 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
         const auto left=names_.value("half.left"),right=names_.value("half.right"),result=names_.value("half.power");
         builder_.cast(left,CastOp::fpext,{half_type,symbols_.value(n.left)},float_type);
         builder_.cast(right,CastOp::fpext,{half_type,symbols_.value(n.right)},float_type);
-        builder_.call(result,float_type,LlvmOperand::global(power_helper::real32),{{float_type,left},{float_type,right},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        builder_.call(result,float_type,LlvmOperand::global(power_helper::real32),{{float_type,left},{float_type,right},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         builder_.cast(symbols_.value(n.out),CastOp::fptrunc,{float_type,result},half_type);
         return;
     }
@@ -557,7 +557,7 @@ void NumericEmitter::emit(const ir::Binary& n,const ir::Instruction& ins){symbol
         else if(n.op=="-")builder_.binary(symbols_.value(n.out),BinaryOp::fsub,ty,symbols_.value(n.left),symbols_.value(n.right));
         else if(n.op=="*")builder_.binary(symbols_.value(n.out),BinaryOp::fmul,ty,symbols_.value(n.left),symbols_.value(n.right));
         else if(n.op=="/")builder_.binary(symbols_.value(n.out),BinaryOp::fdiv,ty,symbols_.value(n.left),symbols_.value(n.right));
-        else if(n.op=="^")builder_.call(symbols_.value(n.out),ty,LlvmOperand::global(ot.kind==TypeKind::Real32?power_helper::real32:power_helper::real64),{{ty,symbols_.value(n.left)},{ty,symbols_.value(n.right)},{i64,sites_.line(n.line)},{i64,sites_.column(n.column)}});
+        else if(n.op=="^")builder_.call(symbols_.value(n.out),ty,LlvmOperand::global(ot.kind==TypeKind::Real32?power_helper::real32:power_helper::real64),{{ty,symbols_.value(n.left)},{ty,symbols_.value(n.right)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
         else{FloatPredicate p;if(n.op=="==")p=FloatPredicate::oeq;else if(n.op=="!=")p=FloatPredicate::une;else if(n.op=="<")p=FloatPredicate::olt;else if(n.op=="<=")p=FloatPredicate::ole;else if(n.op==">")p=FloatPredicate::ogt;else p=FloatPredicate::oge;builder_.fcmp(symbols_.value(n.out),p,ty,symbols_.value(n.left),symbols_.value(n.right));}
         return;
     }

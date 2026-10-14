@@ -6,6 +6,7 @@
 // specializations (quidra/ir/domain.hpp). The fields, their order and their
 // default member initializers are the IR data model.
 
+#include "quidra/ir/debug.hpp"
 #include "quidra/ir/domain.hpp"
 #include "quidra/ir/value_id.hpp"
 #include "quidra/types.hpp"
@@ -14,32 +15,32 @@
 
 namespace quidra::ir {
 
-struct JsonParse { ValueId out; ValueId text; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct JsonParse { ValueId out; ValueId text; Type result_type; SourcePosition position{}; };
 struct JsonKind { ValueId out; ValueId value; };
-struct JsonSize { ValueId out; ValueId value; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct JsonGet { ValueId out; ValueId value; ValueId key; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct JsonAt { ValueId out; ValueId value; ValueId index; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct JsonText { ValueId out; ValueId value; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct JsonInteger { ValueId out; ValueId value; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct JsonNumber { ValueId out; ValueId value; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct JsonBigInt { ValueId out; ValueId value; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct JsonBigReal { ValueId out; ValueId value; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct JsonBoolean { ValueId out; ValueId value; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct JsonSize { ValueId out; ValueId value; Type result_type; SourcePosition position{}; };
+struct JsonGet { ValueId out; ValueId value; ValueId key; Type result_type; SourcePosition position{}; };
+struct JsonAt { ValueId out; ValueId value; ValueId index; Type result_type; SourcePosition position{}; };
+struct JsonText { ValueId out; ValueId value; Type result_type; SourcePosition position{}; };
+struct JsonInteger { ValueId out; ValueId value; Type result_type; SourcePosition position{}; };
+struct JsonNumber { ValueId out; ValueId value; Type result_type; SourcePosition position{}; };
+struct JsonBigInt { ValueId out; ValueId value; Type result_type; SourcePosition position{}; };
+struct JsonBigReal { ValueId out; ValueId value; Type result_type; SourcePosition position{}; };
+struct JsonBoolean { ValueId out; ValueId value; Type result_type; SourcePosition position{}; };
 struct JsonEncode { ValueId out; ValueId value; };
 struct JsonEqual { ValueId out; ValueId left; ValueId right; };
 
-template <> struct InstructionTraits<JsonParse> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonKind> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonSize> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonGet> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonAt> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonText> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonInteger> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonNumber> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonBigInt> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonBigReal> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonBoolean> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonEncode> : InDomain<Domain::json> {};
-template <> struct InstructionTraits<JsonEqual> : InDomain<Domain::json> {};
+template <> struct InstructionTraits<JsonParse> : WithOperands<Domain::json, JsonParse> {};
+template <> struct InstructionTraits<JsonKind> : WithOperands<Domain::json, JsonKind> {};
+template <> struct InstructionTraits<JsonSize> : WithOperands<Domain::json, JsonSize> {};
+template <> struct InstructionTraits<JsonGet> : WithOperands<Domain::json, JsonGet> {};
+template <> struct InstructionTraits<JsonAt> : WithOperands<Domain::json, JsonAt> {};
+template <> struct InstructionTraits<JsonText> : WithOperands<Domain::json, JsonText> {};
+template <> struct InstructionTraits<JsonInteger> : WithOperands<Domain::json, JsonInteger> {};
+template <> struct InstructionTraits<JsonNumber> : WithOperands<Domain::json, JsonNumber> {};
+template <> struct InstructionTraits<JsonBigInt> : WithOperands<Domain::json, JsonBigInt> {};
+template <> struct InstructionTraits<JsonBigReal> : WithOperands<Domain::json, JsonBigReal> {};
+template <> struct InstructionTraits<JsonBoolean> : WithOperands<Domain::json, JsonBoolean> {};
+template <> struct InstructionTraits<JsonEncode> : WithOperands<Domain::json, JsonEncode> {};
+template <> struct InstructionTraits<JsonEqual> : WithOperands<Domain::json, JsonEqual> {};
 
 } // namespace quidra::ir

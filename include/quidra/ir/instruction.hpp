@@ -23,6 +23,7 @@
 #include "quidra/ir/http.hpp"
 #include "quidra/ir/json.hpp"
 #include "quidra/ir/lifetime.hpp"
+#include "quidra/ir/inline_scope.hpp"
 #include "quidra/ir/memory.hpp"
 #include "quidra/ir/numeric.hpp"
 #include "quidra/ir/random.hpp"
@@ -71,7 +72,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  ErrorMake, ErrorMessage, ErrorCode, ErrorCause, ErrorDetail,
                                  ErrorHop,
                                  ArraySlice, ArraySliceSet, StringSliceStepped,
-                                 BinSlicePlanned, FiniteCheck, FiniteFlagUpdate, FiniteFlagCheck, ComplexMake, ComplexPart, RealLoopCount, RealLoopValue, ExactLoopPlan, ExactFromScaled, ExactLoopValue, ExactScaledCompare, ExactScaledConvert, SliceLoopPlan, ParallelBlock, AddressReferenceSlot, TupleMake, TupleGet, AddressTupleElement, TraversalSiteCheck, StringQuote, ReferenceBoundCheck, FieldReferenceAddress, FieldReferenceRoot, BindFieldReference, RootSerial, SelfReferenceCheck, StoredTargetsCheck>;
+                                 BinSlicePlanned, FiniteCheck, FiniteFlagUpdate, FiniteFlagCheck, ComplexMake, ComplexPart, RealLoopCount, RealLoopValue, ExactLoopPlan, ExactFromScaled, ExactLoopValue, ExactScaledCompare, ExactScaledConvert, SliceLoopPlan, ParallelBlock, AddressReferenceSlot, TupleMake, TupleGet, AddressTupleElement, TraversalSiteCheck, StringQuote, ReferenceBoundCheck, FieldReferenceAddress, FieldReferenceRoot, BindFieldReference, RootSerial, SelfReferenceCheck, StoredTargetsCheck, StatementBoundary, InlineScopeBegin, InlineScopeCleanup, InlineScopeEnd, InlineBindAddress, InlineExit>;
 
 namespace detail {
 

@@ -16,6 +16,7 @@ namespace quidra {
 
 namespace semantics {
 class EffectSummaries;
+struct InterfaceSources;
 }
 
 struct FunctionParameterType {
@@ -313,6 +314,7 @@ struct CheckedProgram {
     std::unordered_map<const Expr*, std::string> runtime_bound_checks;
     std::unordered_map<const Expr*,std::vector<std::vector<std::size_t>>> stored_target_initialization_checks;
     std::unordered_map<const Expr*,std::unordered_set<std::string>> reference_invalidations;
+    std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
 };
 
 // What a compilation produces: an executable (quidra build, run, a direct

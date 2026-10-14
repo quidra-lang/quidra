@@ -84,12 +84,15 @@ Each side of a slice is inclusive, exclusive, or omitted. A side without a marke
 
 Anywhere else, `<` and `>` are comparisons: `a[x < y]` is an index, `a[f(x < 3):]` and `a[(x < 3):5]` compare inside the call or the parentheses, and `a[s < :e]` and `a[s: <e]` are errors, because the marker is separated from its colon. `a[s<: e]` is a valid exclusive start (only the marker has to touch the colon), `<=` and `>=` are never markers, and no marker belongs to the second colon (the step). A marker needs its value: `a[s:<]`, `a[<:e]` are errors.
 
-The direction comes from the markers (`<` ascending, `>` descending), else from the step's sign, else the slice ascends. Two markers that point different ways (`a[s<:>e]`) and a marker against the step's sign (`a[0:<5:-1]`) are `SLICE_STEP` errors, at compile time for a constant step and at run time otherwise, and so is a step of 0. The default step is `1` ascending and `-1` descending, so a marker alone makes a descending slice: `a[len(a)>:0]` steps by -1 and reverses the whole array.
+The direction follows an explicit step's sign, then any marker (`<` ascending, `>` descending). With neither, two explicit endpoints choose ascending when start <= end and descending when start > end; if either endpoint is omitted, the default is ascending. The comparison uses the evaluated values, so dynamic endpoints can change direction. Two markers that point different ways (`a[s<:>e]`) and a marker against the step's sign (`a[0:<5:-1]`) are `SLICE_STEP` errors, at compile time for a constant step and at run time otherwise, and so is a step of 0. The default step is `1` ascending and `-1` descending, so a marker alone makes a descending slice: `a[len(a)>:0]` steps by -1 and reverses the whole array.
 
 The start anchors the progression `s`, `s + step`, `s + 2·step`, ...: an exclusive start drops `s` itself, so `a[0<:6:2]` selects 2, 4, 6 while `a[1:6:2]` selects 1, 3, 5. The progression continues while it has not passed the end (an inclusive end is still a bound when the step skips it), and stops before an exclusive end. These are the rules of `for` range headers, and the forms map onto them:
 
 | Slice | Selected positions | As a range |
 | --- | --- | --- |
+| `a[1:4]` | 1, 2, 3, 4 | `1 <= i <= 4` |
+| `a[4:1]` | 4, 3, 2, 1 | `4 >= i >= 1` |
+| `a[4:0]` | 4, 3, 2, 1, 0 | `4 >= i` |
 | `a[0:<N]` | 0, 1, ..., N - 1 | `0 <= i < N` |
 | `a[0:<N:2]` | 0, 2, 4, ... below N | `0 <= i < N` step 2 |
 | `a[N>:0]` | N - 1, ..., 1, 0 | `N > i >= 0` |
@@ -98,7 +101,11 @@ The start anchors the progression `s`, `s + step`, `s + 2·step`, ...: an exclus
 | `a[10>:0:-2]` | 8, 6, 4, 2, 0 | `10 > i >= 0` step -2 |
 | `a[0<:5]` | 1, 2, 3, 4, 5 | `0 < i <= 5` |
 
+When direction must stay fixed, write `a[start:end:1]` or `a[start:end:-1]`. If two explicit endpoints oppose that step's sign, the slice fails with `INDEX_BOUNDS`; it never reverses automatically or silently returns an empty slice, even when a side is exclusive. The same constant/runtime checking rules apply.
+
 An omitted start is the first element in the slice's direction (index 0 ascending, the last index descending), included; an omitted end runs through the last element in that direction. So `a[:]` is the whole array, `a[s:]` runs to the end and is empty when `s` is the length, and `a[::-1]` reverses (an empty array gives an empty slice). The omitted descending start is an inclusive anchor, unlike the exclusive start `len(a)>:`: both reverse with step -1, but over five elements `a[::-2]` selects 4, 2, 0 and `a[5>::-2]` selects 3, 1.
+
+Omitted slice endpoints denote the sequence's beginning or end in the selected direction. They do not use the zero default of a `for` range's omitted endpoint: `a[4:]` runs to the sequence's end, whereas `for 4 >= int i` runs to zero.
 
 Slices are checked strictly, with no clamping. For a value of length `len`:
 
@@ -106,11 +113,12 @@ Slices are checked strictly, with no clamping. For a value of length `len`:
 2. an excluded endpoint lies in `[-1, len]`, at most one position outside: `a[-1<:2]` is `a[0:2]`, and `a[2:>-1]` is `a[2:0:-1]`;
 3. an inclusive end is a valid position, or `len` when the slice is empty;
 4. so is an inclusive start;
-5. the start may pass the end in the slice's direction only when a side is exclusive, and the slice is then empty, as a range whose start is past its end runs zero times; a slice inclusive on both sides is never empty.
+5. without an explicit step, the start may pass an explicitly marked direction's end only when a side is exclusive, and the slice is then empty; an explicit step with two explicit endpoints rejects reversed endpoints. A slice inclusive on both sides is never empty.
 
 | Form | Bounds | Empty when |
 | --- | --- | --- |
-| `a[s:e]` (ascending) | `0 <= s <= e < len` | never |
+| `a[s:e]`, `s <= e` | `0 <= s <= e < len` | never |
+| `a[s:e]`, `s > e` | `len > s > e >= 0` | never |
 | `a[s:<e]` | `0 <= s <= len`, `-1 <= e <= len` | `s >= e` |
 | `a[s<:e]` | `-1 <= s <= len`; `0 <= e < len`, or `e = len` when empty | `s + step > e` |
 | `a[s<:<e]` | `-1 <= s <= len`, `-1 <= e <= len` | `s + step >= e` |
@@ -119,7 +127,7 @@ Slices are checked strictly, with no clamping. For a value of length `len`:
 | `a[s>:e]` | `-1 <= s <= len`; `0 <= e < len`, or `e = len` when empty | `s + step < e` |
 | `a[s>:>e]` | `-1 <= s <= len`, `-1 <= e <= len` | `s + step <= e` |
 
-Over ten elements `a[5:<3]` and `a[3>:5]` are empty, while `a[5:3]`, `a[3:5:-1]` and `a[12:<3]` fail. A slice outside these bounds fails with `INDEX_BOUNDS`, which shows the slice as written with its operands' values (`slice 2:<7 out of bounds for length 5`), at compile time when the operands are constant and the length is known (a fixed array), at run time otherwise. Reading a slice reads the selected elements, so each must be initialized.
+Over ten elements `a[5:3]` selects 5, 4, 3, while `a[5:<3]` and `a[3>:5]` are empty. `a[5:3:1]`, `a[5:<3:1]`, `a[3:5:-1]` and `a[12:<3]` fail. A slice outside these bounds fails with `INDEX_BOUNDS`, which shows the slice as written with its operands' values (`slice 2:<7 out of bounds for length 5`), at compile time when the operands are constant and the length is known (a fixed array), at run time otherwise. Reading a slice reads the selected elements, so each must be initialized.
 
 ```quidra
 int[] values = [10, 20, 30, 40, 50]

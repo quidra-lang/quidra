@@ -6,6 +6,7 @@
 // specializations (quidra/ir/domain.hpp). The fields, their order and their
 // default member initializers are the IR data model.
 
+#include "quidra/ir/debug.hpp"
 #include "quidra/ir/domain.hpp"
 #include "quidra/ir/call.hpp"
 #include <string>
@@ -23,7 +24,7 @@ struct ParallelNode {
     std::string function;
     std::vector<CallArgument> captures;
     std::vector<std::uint32_t> predecessors;
-    std::uint32_t line{},column{};
+    SourcePosition position{};
     bool fallible{};
     bool worker_safe{};
 };
@@ -39,10 +40,10 @@ struct ParallelBlock {
     ValueId out{}; // Nullable owned void|error; null means every node succeeded.
     std::string table_name;
     std::vector<ParallelNode> nodes;
-    std::uint32_t line{},column{};
+    SourcePosition position{};
     std::optional<ParallelIteration> iterations{};
 };
-template <> struct InstructionTraits<ParallelBlock> : InDomain<Domain::concurrency> {};
+template <> struct InstructionTraits<ParallelBlock> : WithOperands<Domain::concurrency, ParallelBlock> {};
 
 
 

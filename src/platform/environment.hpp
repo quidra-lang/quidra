@@ -5,7 +5,7 @@
 // The compiler and CLI (toolchain overrides, the package store), the
 // generated-program runtime (switches, test hooks, the language's environment
 // builtins) and the device backends all read environment variables through
-// these two functions. docs/development.md ("Environment variables") lists
+// these helpers. docs/development.md ("Environment variables") lists
 // every variable Core reads, with its default and the values it accepts.
 //
 // The functions only read. What an unset, empty or malformed value means is
@@ -22,8 +22,49 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include <stdexcept>
+#include <vector>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#else
+extern char** environ;
+#endif
 
 namespace quidra::platform {
+
+#ifdef _WIN32
+using NativeEnvironmentSnapshot = std::vector<std::wstring>;
+#else
+using NativeEnvironmentSnapshot = std::vector<std::string>;
+#endif
+
+// Owned native name=value records for constructing a child-only environment.
+// Windows hidden drive records (=C:=...) remain intact; values are UTF-16.
+// No borrowed OS storage survives this call, and the parent's env is unchanged.
+inline NativeEnvironmentSnapshot environment_native_snapshot() {
+    NativeEnvironmentSnapshot snapshot;
+#ifdef _WIN32
+    struct Inherited {
+        LPWCH block{GetEnvironmentStringsW()};
+        ~Inherited() { if (block) FreeEnvironmentStringsW(block); }
+    } inherited;
+    if (!inherited.block) throw std::runtime_error("cannot read inherited process environment");
+    for (const wchar_t* entry = inherited.block; *entry;) {
+        snapshot.emplace_back(entry);
+        entry += snapshot.back().size() + 1;
+    }
+#else
+    for (char** entry = ::environ; entry && *entry; ++entry) snapshot.emplace_back(*entry);
+#endif
+    return snapshot;
+}
 
 // The value of environment variable `name`, or nullopt when it is not set. A
 // variable set to the empty string yields an empty value.

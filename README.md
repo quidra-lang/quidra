@@ -965,6 +965,7 @@ quidra lock program.qui
 quidra lock program.qui --check
 quidra package-path
 quidra gpu
+quidra gpu --verbose
 quidra info
 quidra --version
 quidra program.qui
@@ -982,6 +983,10 @@ quidra build program.qui --debug -o program-debug
 quidra debug program.qui -- arg1 arg2
 quidra describe
 ```
+
+`quidra gpu --verbose` and `quidra info` include CPU topology and GPU capability
+metadata, with unavailable fields shown as `unknown`. Device keys identify the
+backend, hardware, software and math mode for persistent device-specific data.
 
 Released packages are installed from immutable `vMAJOR.MINOR.PATCH` tags, never
 from `main`, `develop`, or another moving branch. A canonical first-party

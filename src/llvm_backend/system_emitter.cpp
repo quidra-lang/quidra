@@ -180,7 +180,7 @@ void SystemEmitter::emit(const ir::TimeSleep& n,const ir::Instruction&){
     builder_.load(seconds,double_type,symbols_.value(n.duration),Align::one);
     builder_.call(ok,runtime_abi::system::time_sleep,{{double_type,seconds}});
     builder_.binary(bad,BinaryOp::xor_,i1,ok,"true");
-    fail_fast_.fail_if(bad,"@.code.time.sleep","@.msg.time.sleep","time.sleep",n.line,n.column);
+    fail_fast_.fail_if(bad,"@.code.time.sleep","@.msg.time.sleep","time.sleep",n.position.line,n.position.column);
 }
 
 void SystemEmitter::emit(const ir::ProcessRun& n,const ir::Instruction&){

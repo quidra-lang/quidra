@@ -94,7 +94,7 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
         std::vector<CallArgument>{
             CallArgument{object, std::nullopt},
             CallArgument{key, std::nullopt}},
-        int_type, line, column});
+        int_type, {line, column}});
 
     auto index = builder_.fresh();
     builder_.emit(Call{
@@ -103,7 +103,7 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
             CallArgument{object, std::nullopt},
             CallArgument{key, std::nullopt},
             CallArgument{hash, std::nullopt}},
-        int_type, line, column});
+        int_type, {line, column}});
 
     auto load_field = [&](const ClassFieldType& field) {
         auto out = builder_.fresh();
@@ -144,7 +144,7 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
     auto values = load_field(*values_field);
     auto payload = builder_.fresh();
     builder_.emit(ArrayGet{
-        payload, values, index, value_type, line, column, true, true});
+        payload, values, index, value_type, {line, column}, true, true});
     builder_.emit(Jump{value_case_label});
 
     builder_.enter(builder_.add_block(missing));
@@ -168,7 +168,7 @@ bool CollectionIdioms::lower_standard_map_get_match(const MatchStmt& match) {
 
     builder_.enter(builder_.add_block(missing_set_key));
     builder_.emit(ArraySet{
-        last_key, zero, key, key_type, line, column, true, true});
+        last_key, zero, key, key_type, {line, column}, true, true});
     builder_.emit(Jump{none_case_label});
 
     const auto before = scope_.snapshot_local_names();

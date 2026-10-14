@@ -15,11 +15,15 @@
 // and the current block is re-entered from the reference add_block returns.
 //
 // The constructor takes the counters to start from, so that a pass can
-// resume a function it did not build. finish() is called once the function
-// is complete; it has nothing to record yet.
+// resume a function it did not build. The value seed cannot lower the
+// Function's persistent cursor. Allocation updates that cursor immediately;
+// finish() also retains a supplied seed when no value was allocated.
 
 #include "quidra/ir/function.hpp"
+#include "quidra/ir/value_allocator.hpp"
+#include <algorithm>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -29,9 +33,9 @@ namespace quidra::ir {
 class FunctionBuilder {
 public:
     FunctionBuilder() = default;
-    FunctionBuilder(Function& function, ValueId next_value, std::uint32_t next_label,
+    FunctionBuilder(Function& function, std::uint64_t next_value, std::uint32_t next_label,
                     std::uint32_t next_hidden)
-        : function_(&function), next_value_(next_value), next_label_(next_label),
+        : function_(&function), next_value_(std::max(function.next_value, next_value)), next_label_(next_label),
           next_hidden_(next_hidden) {}
 
     // The function being built; null before the first function.
@@ -39,7 +43,13 @@ public:
     // The block instructions are appended to; null until a block is entered.
     Block* block() const { return block_; }
 
-    ValueId fresh() { return next_value_++; }
+    ValueId fresh() {
+        finish();
+        const auto value = allocate_value(*function_);
+        if (!value) throw std::overflow_error("IR value IDs exhausted");
+        next_value_ = function_->next_value;
+        return *value;
+    }
     std::string label(std::string_view p) { return std::string(p)+"."+std::to_string(next_label_++); }
     std::string hidden(std::string_view p) { return "$"+std::string(p)+"."+std::to_string(next_hidden_++); }
 
@@ -57,12 +67,12 @@ public:
     ValueId const_float(double x) { auto v=fresh(); emit(ConstantFloat{v,x,Type::simple(TypeKind::Real64),{}}); return v; }
     ValueId const_bool(bool b) { auto v=fresh(); emit(ConstantBool{v,b}); return v; }
 
-    void finish() {}
+    void finish() { function_->next_value = std::max(function_->next_value, next_value_); }
 
 private:
     Function* function_{};
     Block* block_{};
-    ValueId next_value_{1};
+    std::uint64_t next_value_{1};
     std::uint32_t next_label_{};
     std::uint32_t next_hidden_{};
 };

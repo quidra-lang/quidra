@@ -1,4 +1,7 @@
 #include "runtime_counters.hpp"
+#include "runtime/profile.hpp"
+#include "runtime/timeline.hpp"
+#include "runtime/device_observation.hpp"
 #include "platform/environment.hpp"
 #include "runtime_parallel.hpp"
 #include "quidra/abi/process_status.hpp"
@@ -9,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <limits>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -62,11 +66,29 @@ constexpr std::array<const char*, count> names{
     "package_scope_violations",
     "package_warmups",
     "finite_validations",
+    "package_dispatches",
+    "host_tensor_allocations",
+    "host_tensor_allocation_bytes",
+    "autograd_nodes",
+    "autograd_custom_nodes",
+    "autograd_saved_tensors",
+    "autograd_formulas",
+    "autograd_pruned",
+    "runtime_shape_validations",
+    "runtime_broadcast_validations",
+    "runtime_device_checks",
+    "cpu_parallel_regions",
+    "cpu_parallel_serial_regions",
+    "metal_pipeline_compiles_timed",
+    "unified_views",
+    "unified_copies",
 };
 
 std::array<std::atomic<std::uint64_t>, count>& values() {
-    static auto* storage = new std::array<std::atomic<std::uint64_t>, count>{};
-    return *storage;
+    // Atomics have trivial destruction, so this stays usable by exit handlers
+    // without requiring the first observation (possibly at failure) to allocate.
+    static std::array<std::atomic<std::uint64_t>, count> storage{};
+    return storage;
 }
 
 std::atomic<SourceSiteProvider> provider{nullptr};
@@ -75,6 +97,16 @@ std::atomic<UnlocatedFailureReporter> unlocated_reporter{nullptr};
 
 // Per-step attribution maps and the report file. Everything here is touched
 // only while counting is enabled, under one mutex.
+struct Record {
+    bool totals{};
+    std::uint64_t step{};
+    const char* event{};
+    std::string label;
+    std::array<std::uint64_t, count> values{};
+    std::map<std::string, std::uint64_t> wait_sites;
+    std::map<std::string, std::uint64_t> refusals;
+};
+
 struct Report {
     std::mutex mutex;
     std::string path;
@@ -84,6 +116,10 @@ struct Report {
     bool program{};
     std::FILE* file{};
     bool step_on_backward{true};
+    bool time_marks{};
+    bool flush_steps{};
+    bool finalized{};
+    std::vector<Record> records;
     std::uint64_t step{};
     std::array<std::uint64_t, count> last{};
     std::map<std::string, std::uint64_t> wait_sites;
@@ -99,37 +135,32 @@ Report& report() {
     return state;
 }
 
-void append_escaped(std::string& out, const std::string& text) {
+void emit_escaped(std::FILE* file, const std::string& text) {
     for (const char c : text) {
         if (c == '"' || c == '\\') {
-            out += '\\';
-            out += c;
+            std::fputc('\\', file);
+            std::fputc(c, file);
         } else if (static_cast<unsigned char>(c) < 0x20) {
-            char buffer[8];
-            std::snprintf(buffer, sizeof(buffer), "\\u%04x",
-                          static_cast<unsigned>(static_cast<unsigned char>(c)));
-            out += buffer;
+            std::fprintf(file, "\\u%04x",
+                         static_cast<unsigned>(static_cast<unsigned char>(c)));
         } else {
-            out += c;
+            std::fputc(c, file);
         }
     }
 }
 
-void append_map(std::string& out, const char* key,
-                const std::map<std::string, std::uint64_t>& map) {
-    out += ",\"";
-    out += key;
-    out += "\":{";
+void emit_map(std::FILE* file, const char* key,
+              const std::map<std::string, std::uint64_t>& map) {
+    std::fprintf(file, ",\"%s\":{", key);
     bool first = true;
     for (const auto& [site, amount] : map) {
-        if (!first) out += ',';
+        if (!first) std::fputc(',', file);
         first = false;
-        out += '"';
-        append_escaped(out, site);
-        out += "\":";
-        out += std::to_string(amount);
+        std::fputc('"', file);
+        emit_escaped(file, site);
+        std::fprintf(file, "\":%llu", static_cast<unsigned long long>(amount));
     }
-    out += '}';
+    std::fputc('}', file);
 }
 
 std::FILE* report_file_locked(Report& state) {
@@ -150,48 +181,70 @@ std::FILE* report_file_locked(Report& state) {
     return state.file;
 }
 
-// Writes one JSON line: deltas since the previous record (or totals).
-void write_record_locked(Report& state, const char* record, const char* event,
-                         const char* label, bool totals) {
+// File I/O is confined to shutdown, failure, and explicit step-flush mode.
+void emit_record_locked(Report& state, const Record& record,
+                        const std::map<std::string, std::uint64_t>& wait_sites,
+                        const std::map<std::string, std::uint64_t>& refusals) {
     std::FILE* file = report_file_locked(state);
-    std::array<std::uint64_t, count> now{};
-    for (std::size_t i = 0; i < count; ++i)
-        now[i] = values()[i].load(std::memory_order_relaxed);
     if (file) {
-        std::string out = "{\"record\":\"";
-        out += record;
-        out += '"';
-        if (!totals) {
-            out += ",\"step\":" + std::to_string(state.step);
-            out += ",\"event\":\"";
-            out += event;
-            out += '"';
-            if (label && *label) {
-                out += ",\"label\":\"";
-                append_escaped(out, label);
-                out += '"';
+#ifdef _WIN32
+        _lock_file(file);
+#else
+        flockfile(file);
+#endif
+        // Stream from retained records instead of building an allocating JSON
+        // string: the failure which brings us here may be an allocation failure.
+        std::fprintf(file, "{\"record\":\"%s\"", record.totals ? "total" : "step");
+        if (!record.totals) {
+            std::fprintf(file, ",\"step\":%llu,\"event\":\"%s\"",
+                         static_cast<unsigned long long>(record.step), record.event);
+            if (!record.label.empty()) {
+                std::fputs(",\"label\":\"", file);
+                emit_escaped(file, record.label);
+                std::fputc('"', file);
             }
         }
         for (std::size_t i = 0; i < count; ++i) {
-            out += ",\"";
-            out += names[i];
-            out += "\":";
-            out += std::to_string(totals ? now[i] : now[i] - state.last[i]);
+            std::fprintf(file, ",\"%s\":%llu", names[i],
+                         static_cast<unsigned long long>(record.values[i]));
         }
-        append_map(out, "wait_sites",
-                   totals ? state.total_wait_sites : state.wait_sites);
-        append_map(out, "refusals",
-                   totals ? state.total_refusals : state.refusals);
-        out += "}\n";
-        std::fputs(out.c_str(), file);
+        emit_map(file, "wait_sites", wait_sites);
+        emit_map(file, "refusals", refusals);
+        std::fputs("}\n", file);
         std::fflush(file);
+#ifdef _WIN32
+        _unlock_file(file);
+#else
+        funlockfile(file);
+#endif
     }
-    if (!totals) {
-        state.last = now;
+}
+
+void capture_record_locked(Report& state, const char* event,
+                           const char* label) {
+    Record record;
+    record.step = state.step;
+    record.event = event;
+    if (label) record.label = label;
+    std::array<std::uint64_t, count> now{};
+    for (std::size_t i = 0; i < count; ++i) {
+        now[i] = values()[i].load(std::memory_order_relaxed);
+        record.values[i] = now[i] - state.last[i];
+    }
+    if (state.flush_steps) {
+        emit_record_locked(state, record, state.wait_sites, state.refusals);
         state.wait_sites.clear();
         state.refusals.clear();
-        ++state.step;
+    } else {
+        // Grow the vector before consuming this step's maps and delta. If
+        // growth fails, the exit record still observes all of this work.
+        state.records.push_back(std::move(record));
+        auto& retained = state.records.back();
+        retained.wait_sites = std::move(state.wait_sites);
+        retained.refusals = std::move(state.refusals);
     }
+    state.last = now;
+    ++state.step;
 }
 
 // Reads QUIDRA_COUNTERS once at load. The destructor writes the last step and
@@ -207,17 +260,13 @@ struct Startup {
         configured = true;
         if (const auto step = platform::environment_value("QUIDRA_COUNTERS_STEP"))
             state.step_on_backward = *step != "none";
+        state.flush_steps = platform::environment_value("QUIDRA_COUNTERS_FLUSH") == "step";
+        state.time_marks = platform::environment_value_is("QUIDRA_COUNTERS_STEP", "marks");
         detail::enabled.store(true, std::memory_order_relaxed);
     }
     ~Startup() {
         if (!configured || !enabled()) return;
-        auto& state = report();
-        std::lock_guard lock(state.mutex);
-        if (state.path.empty() || !state.program) return;
-        write_record_locked(state, "step", "exit", nullptr, false);
-        write_record_locked(state, "total", nullptr, nullptr, true);
-        if (state.file && state.file != stderr) std::fclose(state.file);
-        state.file = nullptr;
+        flush_report();
     }
 };
 
@@ -279,12 +328,52 @@ void note_refusal(const char* owner, const char* function, int status) {
 
 void step_boundary(StepEvent event, const char* label) {
     if (!enabled()) return;
-    auto& state = report();
-    std::lock_guard lock(state.mutex);
-    if (event == StepEvent::Backward && !state.step_on_backward) return;
-    write_record_locked(
-        state, "step", event == StepEvent::Backward ? "backward" : "mark",
-        label, false);
+    try {
+        auto& state = report();
+        std::lock_guard lock(state.mutex);
+        if (event == StepEvent::Backward && !state.step_on_backward) return;
+        if (state.finalized || !state.program || state.path.empty()) return;
+        capture_record_locked(state, event == StepEvent::Backward ? "backward" : "mark",
+                              label);
+    } catch (...) {
+        // Losing an optional report must not turn a successful operation
+        // into a language-level failure.
+    }
+}
+
+void time_mark() {
+    if (!enabled() || !report().time_marks) return;
+    step_boundary(StepEvent::Mark, "time");
+}
+
+void flush_report() noexcept {
+    if (!enabled()) return;
+    try {
+        auto& state = report();
+        std::lock_guard lock(state.mutex);
+        if (state.finalized || state.path.empty() || !state.program) return;
+        Record exit;
+        exit.step = state.step;
+        exit.event = "exit";
+        Record total;
+        total.totals = true;
+        for (std::size_t i = 0; i < count; ++i) {
+            total.values[i] = values()[i].load(std::memory_order_relaxed);
+            exit.values[i] = total.values[i] - state.last[i];
+        }
+        for (const auto& record : state.records)
+            emit_record_locked(state, record, record.wait_sites, record.refusals);
+        // Final records do not grow the buffer or copy attribution maps.
+        emit_record_locked(state, exit, state.wait_sites, state.refusals);
+        emit_record_locked(state, total, state.total_wait_sites, state.total_refusals);
+        state.records.clear();
+        if (state.file && state.file != stderr) std::fclose(state.file);
+        state.file = nullptr;
+        state.finalized = true;
+    } catch (...) {
+        // An observation failure must not replace the program's result or its
+        // original error, including allocation failures on the failure path.
+    }
 }
 
 void set_enabled(bool value) {
@@ -312,6 +401,9 @@ void reset() {
     state.refusals.clear();
     state.total_wait_sites.clear();
     state.total_refusals.clear();
+    state.records.clear();
+    state.finalized = false;
+    state.step = 0;
 }
 
 void set_source_site_provider(SourceSiteProvider value) {
@@ -328,6 +420,10 @@ void mark_program_started() {
     auto& state = report();
     std::lock_guard lock(state.mutex);
     state.program = true;
+    if (!state.flush_steps && !state.path.empty()) {
+        try { state.records.reserve(4096); }
+        catch (...) { state.flush_steps = true; }
+    }
 }
 
 bool current_source_site(SourceSite& site) {
@@ -352,6 +448,7 @@ void report_unlocated_failure(abi::FailureReason reason, std::string_view messag
                               bool immediate_exit) {
     if (const auto reporter = unlocated_reporter.load(std::memory_order_acquire))
         reporter(reason, message, immediate_exit);
+    flush_report();
     std::fflush(stdout);
     const auto code = abi::spelling(abi::failure_reason_info(reason).code);
     std::fprintf(stderr, "Quidra runtime error[%.*s]: %.*s\n", static_cast<int>(code.size()),
@@ -381,9 +478,33 @@ extern "C" void qcore_counter_note_refusal(
     quidra::counters::note_refusal(owner, function, status);
 }
 
+extern "C" void qcore_counter_note_dispatches(std::uint64_t dispatches) {
+    quidra::runtime_parallel::reject_inside_parallel_body(__func__);
+    quidra::counters::add(quidra::counters::Id::PackageDispatches, dispatches);
+}
+
+extern "C" int qcore_counters_enabled() {
+    return quidra::counters::enabled() ? 1 : 0;
+}
+
 extern "C" void qcore_counters_mark(const char* label) {
     quidra::runtime_parallel::reject_inside_parallel_body(__func__);
     quidra::counters::step_boundary(quidra::counters::StepEvent::Mark, label);
+    quidra::device::observation_step_boundary();
+    quidra::profile::advance_capture_step();
+    quidra::timeline::note_point(quidra::timeline::Point::StepBoundary);
+}
+
+extern "C" uint64_t qcore_profile_range_begin(const char* owner, const char* name,
+                                              long long device) {
+    if (!quidra::profile::enabled() || device < -1 ||
+        device > std::numeric_limits<std::int32_t>::max()) return 0;
+    return quidra::profile::range_begin(owner, name, static_cast<std::int32_t>(device),
+                                       quidra::profile::ProfileEvent::Kind::PackageRange);
+}
+
+extern "C" void qcore_profile_range_end(uint64_t token) {
+    quidra::profile::range_end(token);
 }
 
 extern "C" uint64_t qcore_counter_value(const char* name) {

@@ -1,4 +1,5 @@
 #include "llvm_backend/call_site_metadata.hpp"
+#include "llvm_backend/authored_display_name.hpp"
 
 #include "llvm_backend/runtime_abi.hpp"
 #include "llvm_backend/statement_attribution.hpp"
@@ -35,6 +36,7 @@ std::string class_display_name(std::string name) {
 
 std::string call_site_display_name(const ir::Function& function) {
     if (function.entrypoint) return "<top-level>";
+    if (const auto source=authored_specialization_display_name(function))return source->name+"()";
     const std::string& name = function.source_function.empty() ? function.name : function.source_function;
     using member_function_name::constructor_prefix;
     using member_function_name::method_prefix;

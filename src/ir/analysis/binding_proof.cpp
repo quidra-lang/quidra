@@ -1,4 +1,5 @@
 #include "ir/analysis/binding_proof.hpp"
+#include "ir/inline_binding_origins.hpp"
 
 #include <algorithm>
 #include <stdexcept>
@@ -51,11 +52,19 @@ BindingProof binding_proof(const Module& module,const ModuleSummaries& summaries
         FieldProof proof;proof.owner=c.identity;proof.field=i;proof.name=c.fields[i].name;proof.available=c.complete;
         if(!c.complete)proof.gaps.push_back(BindingGap::MissingClass);
         fields.emplace(key,result.fields.size());contracts.emplace(key,&c.fields[i]);result.fields.push_back(std::move(proof));}}
-    for(std::size_t f=0;f<module.functions.size();++f){const auto& fn=module.functions[f];const auto& facts=result.objects[f];const auto* source=origin(sources,fn);
+    for(std::size_t f=0;f<module.functions.size();++f){const auto& fn=module.functions[f];const auto& facts=result.objects[f];
         const auto& reachable=facts.reachable;
         for(const auto& write:facts.writes){const auto* c=layout(sources,write.object.type);if(!c || write.field>=c->fields.size())continue;
             auto& proof=result.fields[fields.at({c->identity,write.field})];
-            const auto semantic=sources.functions.find(write.semantic_function);const auto* writer_source=semantic==sources.functions.end()?nullptr:&semantic->second;
+            const FunctionBindingSource* writer_source=nullptr;
+            if(write.semantic_scope) {
+                if(const auto host=sources.scopes.find(fn.name);host!=sources.scopes.end())
+                    if(const auto row=host->second.find(write.semantic_scope);row!=host->second.end() && row->second.complete)
+                        writer_source=&row->second.source;
+            } else {
+                const auto semantic=sources.functions.find(write.semantic_function);
+                if(semantic!=sources.functions.end())writer_source=&semantic->second;
+            }
             const bool allocation=write.object.allocation && write.object.allocation->kind==ObjectRoot::Allocation && write.object.allocation->at==write.at;
             const bool constructor=allocation || (writer_source && writer_source->complete && writer_source->declaration.kind==DeclarationIdentity::Kind::Constructor && owner_matches(*writer_source,c->identity) && own_fresh_target(fn,write));
             const bool rebind=writer_source && writer_source->complete && writer_source->rebind && writer_source->declaration.kind==DeclarationIdentity::Kind::Method && writer_source->declaration.mutation_marker && owner_matches(*writer_source,c->identity) && own_receiver(fn,*writer_source,write);
@@ -108,11 +117,11 @@ BindingProof binding_proof(const Module& module,const ModuleSummaries& summaries
                 }
             }
         }
-        if(source)for(const auto& query:source->collections){FixedCollection collection;collection.function=fn.name;collection.at=query.at;collection.array=query.array;collection.target=query.target;
+        for(const auto* context:function_binding_sources(sources,fn.name))if(context->availability.collections)for(const auto& query:context->collections){FixedCollection collection;collection.function=fn.name;collection.at=query.at;collection.array=query.array;collection.target=query.target;
             const auto array=facts.at(query.at,query.array),root=facts.at(query.at,query.root);const auto* target=layout(sources,query.target);
-            collection.available=source->complete && query.complete && target && target->complete && array.available && array.array_closed && array.type.kind==TypeKind::Array && array.type.first && root.available && root.sources.size()==1 && array.elements.size()==query.paths.size();
+            collection.available=context->complete && query.complete && target && target->complete && array.available && array.array_closed && array.type.kind==TypeKind::Array && array.type.first && root.available && root.sources.size()==1 && array.elements.size()==query.paths.size();
             collection.paths_available=collection.available;collection.initialized=true;
-            if(!source->complete || !query.complete)gap(collection.gaps,BindingGap::MissingOrigin);
+            if(!context->complete || !query.complete)gap(collection.gaps,BindingGap::MissingOrigin);
             if(!target || !target->complete)gap(collection.gaps,BindingGap::MissingClass);
             if(!array.array_closed)gap(collection.gaps,BindingGap::ArrayAlias);
             if(root.sources.size()!=1 || array.elements.size()!=query.paths.size())gap(collection.gaps,BindingGap::Ambiguous);

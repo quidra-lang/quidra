@@ -179,9 +179,17 @@ extern "C" void* quidra_tensor_unary(
 extern "C" void* quidra_tensor_compare(
     void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
     unsigned long long line, unsigned long long column);
+// Compiler-proven compatibility only; all other Tensor validations remain.
+extern "C" void* quidra_tensor_compare_proven(
+    void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
+    unsigned long long line, unsigned long long column);
 extern "C" bool quidra_tensor_bool_reduce(
     void* raw, bool all, unsigned long long line, unsigned long long column);
 extern "C" void* quidra_tensor_binary(
+    void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
+    unsigned long long line, unsigned long long column);
+// Compiler-proven compatibility only; all other Tensor validations remain.
+extern "C" void* quidra_tensor_binary_proven(
     void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
     unsigned long long line, unsigned long long column);
 extern "C" void* quidra_tensor_index(

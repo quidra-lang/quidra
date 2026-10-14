@@ -145,10 +145,14 @@ set(QUIDRA_CORE_SOURCES
     src/ir/analysis/object_provenance.cpp
     src/ir/analysis/binding_proof.cpp
     src/ir/analysis/object_bindings.cpp
+    src/ir/analysis/step_regions.cpp
+    src/ir/analysis/step_region_annotations.cpp
     src/ir/summaries.cpp
     src/ir/fact_sources.cpp
     src/ir/clone_contracts.cpp
     src/ir/binding_origins.cpp
+    src/ir/inline_binding_origins.cpp
+    src/ir/helper_binding_origins.cpp
     src/ir/facts/tensor.cpp
     src/ir/canonical_encoding.cpp
     src/ir/content_hash.cpp
@@ -233,6 +237,8 @@ set(QUIDRA_CORE_SOURCES
     src/optimizer/rule_dispatch.cpp
     src/optimizer/helper_specialization.cpp
     src/optimizer/inlining.cpp
+    src/optimizer/check_elimination.cpp
+    src/optimizer/foundation_passes.cpp
     src/optimizer/static_tensor_facts.cpp
     src/optimizer/textual_uses.cpp
     src/llvm_backend/aggregate_emitter.cpp
@@ -532,6 +538,9 @@ add_executable(quidra
     src/run_artifact.cpp
     src/run_cache.cpp
     src/jit.cpp
+    src/ir_cli.cpp
+    src/ir_report.cpp
+    src/optimization_cli.cpp
     src/platform/cache_files.cpp
     src/platform/executable.cpp
     src/platform/file_descriptor.cpp
@@ -762,7 +771,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_include_directories(quidra_shape_relation_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   add_test(NAME quidra_shape_relation_tests COMMAND quidra_shape_relation_tests)
 
-  foreach(analysis IN ITEMS analysis dominator def_use local_ssa alias liveness analysis_cache summary content_hash tensor_facts loop_invariant clone_contracts binding_proof binding_origin object_bindings)
+  foreach(analysis IN ITEMS analysis dominator def_use local_ssa alias liveness analysis_cache summary content_hash tensor_facts loop_invariant clone_contracts binding_proof binding_origin object_bindings inline_binding_origin helper_binding_origin step_regions step_region_annotation node_cleanup_query object_binding_inline)
     add_executable(quidra_ir_${analysis}_tests tests/ir_${analysis}_tests.cpp)
     target_include_directories(quidra_ir_${analysis}_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(quidra_ir_${analysis}_tests PRIVATE quidra_core)
@@ -778,12 +787,14 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   add_test(NAME quidra_compiler_extension
       COMMAND quidra_compiler_extension_tests ${CMAKE_BINARY_DIR}/compiler-extension-unit)
 
-  foreach(feature IN ITEMS declaration_binding rule_dispatch statement_sites helper_specialization interface_fingerprint inlining inlining_hot_sites)
+  foreach(feature IN ITEMS declaration_binding rule_dispatch statement_sites helper_specialization interface_fingerprint inlining inlining_hot_sites check_elimination)
     add_executable(quidra_${feature}_tests tests/${feature}_tests.cpp)
     target_include_directories(quidra_${feature}_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(quidra_${feature}_tests PRIVATE quidra_core)
     add_test(NAME quidra_${feature} COMMAND quidra_${feature}_tests)
   endforeach()
+  add_test(NAME quidra_ir_cli
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/ir_cli_tests.py $<TARGET_FILE:quidra>)
 
   # Emits baseline/inlined programs for the native ownership and trace gate.
   add_executable(quidra_inlining_native_driver
@@ -954,6 +965,13 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   add_test(NAME quidra_runtime_counter_flush_exceptions
            COMMAND quidra_runtime_counter_flush_exception_tests)
   add_executable(quidra_runtime_observation_probe tests/runtime_observation_probe.cpp)
+  add_executable(quidra_runtime_tensor_proven_tests tests/runtime_tensor_proven_tests.cpp)
+  target_include_directories(quidra_runtime_tensor_proven_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+  target_link_libraries(quidra_runtime_tensor_proven_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_tensor_proven
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/runtime_tensor_proven_tests.py
+          $<TARGET_FILE:quidra_runtime_tensor_proven_tests>)
   target_include_directories(quidra_runtime_observation_probe PRIVATE ${CMAKE_SOURCE_DIR}/include
       ${CMAKE_SOURCE_DIR}/src)
   target_link_libraries(quidra_runtime_observation_probe PRIVATE quidra_runtime)
@@ -1492,6 +1510,12 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     quidra_ir_binding_proof
     quidra_ir_binding_origin
     quidra_ir_object_bindings
+    quidra_ir_inline_binding_origin
+    quidra_ir_helper_binding_origin
+    quidra_ir_step_regions
+    quidra_ir_step_region_annotation
+    quidra_ir_node_cleanup_query
+    quidra_ir_object_binding_inline
     quidra_compiler_extension
     quidra_declaration_binding
     quidra_rule_dispatch
@@ -1501,6 +1525,9 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
     quidra_inlining
     quidra_inlining_hot_sites
     quidra_inlining_nested_exit
+    quidra_check_elimination
+    quidra_ir_cli
+    quidra_runtime_tensor_proven
     quidra_ir_instruction_text
     quidra_ir_optimizer_operands
     quidra_ir_value_allocator

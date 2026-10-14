@@ -30,12 +30,14 @@ struct ObjectFact {
     std::vector<ObjectFact> call_arguments;
     std::optional<std::int64_t> integer;
     std::vector<BindingGap> gaps;
+    std::vector<ScopedStoragePath> scoped_holding_paths;
     bool operator==(const ObjectFact&) const;
 };
 struct ObjectWrite {
     InstrRef at;ObjectFact object,value;std::size_t field{};
     bool reference{},unknown{};
     std::string semantic_function;
+    std::uint64_t semantic_scope{};
 };
 struct ObjectExposure {InstrRef at;ObjectFact object;};
 struct ObjectProvenance {

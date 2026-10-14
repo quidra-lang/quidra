@@ -1,4 +1,5 @@
 #include "ir/analysis/object_provenance.hpp"
+#include "ir/inline_binding_origins.hpp"
 #include "semantics/interface_contracts.hpp"
 
 #include <algorithm>
@@ -53,7 +54,14 @@ struct Engine {
         }
         return best?best->callee:fn.name;
     }
-    const FunctionBindingSource* semantic_source(BlockId block)const {return function_source(sources,semantic_owner(block));}
+    const FunctionBindingSource* semantic_source(BlockId block)const {
+        if(const auto* scoped=scoped_binding_source(sources,fn,block))return &scoped->source;
+        return semantic_owner(block)==fn.name?origin:nullptr;
+    }
+    std::uint64_t semantic_scope(BlockId block)const {
+        if(const auto* scoped=inline_binding_scope(fn,block))return scoped->identity;
+        return 0;
+    }
     ObjectRoot root(ObjectRoot::Kind kind,InstrRef at,const Type& type)const{
         ObjectRoot r;r.kind=kind;r.function=fn.name;r.at=at;
         if(const auto* c=layout(sources,type))r.class_identity=c->identity;
@@ -151,7 +159,7 @@ struct Engine {
         return f;
     }
     void change_field(ObjectFact object,std::size_t index,ObjectFact value,Env& env,InstrRef at,bool reference){
-        out.writes.push_back({at,object,value,index,reference,!object.available,semantic_owner(at.block)});
+        out.writes.push_back({at,object,value,index,reference,!object.available,semantic_owner(at.block),semantic_scope(at.block)});
         if(!object.allocation || object.allocation->function!=fn.name)return;
         auto& fields=env.fields[{object.allocation->at.block,object.allocation->at.index}];
         if(index>=fields.size())fields.resize(index+1);
@@ -177,10 +185,20 @@ struct Engine {
             else if constexpr(std::is_same_v<T,StoreLocal>){auto f=get(n.value,env);if(env.raw_bindings.contains(n.name)){
                     const auto old=env.locals.find(n.name);if(old!=env.locals.end())out.exposures.push_back({at,old->second});
                     f=unavailable(n.type,BindingGap::InlineOriginUnavailable);
-                }if(origin)if(const auto path=origin->local_storage_paths.find(n.name);path!=origin->local_storage_paths.end())f.holding_paths.push_back(path->second);env.locals.insert_or_assign(n.name,std::move(f));}
+                }
+                // Storage ownership may be outer even in a nested return block.
+                // Resolve the explicit renamed local first, never the block alone.
+                if(origin && origin->availability.local_storage_paths) {
+                    if(const auto path=origin->local_storage_paths.find(n.name);path!=origin->local_storage_paths.end())f.holding_paths.push_back(path->second);
+                }
+                if(const auto own=sources.scopes.find(fn.name);own!=sources.scopes.end())
+                    for(const auto& [id,row]:own->second)if(row.complete && row.source.availability.local_storage_paths)
+                        if(const auto path=row.source.local_storage_paths.find(n.name);path!=row.source.local_storage_paths.end())
+                            f.scoped_holding_paths.push_back({fn.name,id,path->second});
+                env.locals.insert_or_assign(n.name,std::move(f));}
             else if constexpr(std::is_same_v<T,ClassMake>){ObjectFact f;f.type=n.type;f.available=true;f.initialized=false;f.allocation=root(ObjectRoot::Allocation,at,n.type);f.allocation_identity_available=true;f.sources.push_back({*f.allocation,{}});
                 const auto* c=layout(sources,n.type);auto& fields=env.fields[{at.block,at.index}];fields.assign(c?c->fields.size():n.fields.size(),{});
-                for(std::size_t i=0;i<n.fields.size();++i)if(n.fields[i]){if(i>=fields.size())fields.resize(i+1);fields[i]=get(*n.fields[i],env);out.writes.push_back({at,f,fields[i],i,false,false,semantic_owner(at.block)});}
+                for(std::size_t i=0;i<n.fields.size();++i)if(n.fields[i]){if(i>=fields.size())fields.resize(i+1);fields[i]=get(*n.fields[i],env);out.writes.push_back({at,f,fields[i],i,false,false,semantic_owner(at.block),semantic_scope(at.block)});}
                 put(n.out,materialize(std::move(f),env),env,at);}
             else if constexpr(std::is_same_v<T,FieldGet>)put(n.out,field(get(n.object,env),n.index,n.field_type,env),env,at);
             else if constexpr(std::is_same_v<T,FieldSet>)change_field(get(n.object,env),n.index,get(n.value,env),env,at,false);
@@ -230,7 +248,7 @@ struct Engine {
     }return std::move(out);}
 };
 } // namespace
-bool ObjectFact::operator==(const ObjectFact& o)const{return type==o.type && type.length==o.type.length && available==o.available && initialized==o.initialized && array_closed==o.array_closed && address==o.address && references_closed==o.references_closed && allocation_identity_available==o.allocation_identity_available && sources==o.sources && allocation==o.allocation && holding_paths==o.holding_paths && elements==o.elements && call_arguments==o.call_arguments && integer==o.integer && gaps==o.gaps;}
+bool ObjectFact::operator==(const ObjectFact& o)const{return type==o.type && type.length==o.type.length && available==o.available && initialized==o.initialized && array_closed==o.array_closed && address==o.address && references_closed==o.references_closed && allocation_identity_available==o.allocation_identity_available && sources==o.sources && allocation==o.allocation && holding_paths==o.holding_paths && elements==o.elements && call_arguments==o.call_arguments && integer==o.integer && gaps==o.gaps && scoped_holding_paths==o.scoped_holding_paths;}
 ObjectFact ObjectProvenance::at(InstrRef site,ValueId value)const{
     if(site.block>=scopes.size() || !reachable[site.block] || site.index>scopes[site.block].instruction_count)return unavailable({},BindingGap::Unreachable);
     const auto d=definitions.find(value);if(d==definitions.end() || !dominance.dominates(d->second,site) || d->second==site)return unavailable({},BindingGap::Ambiguous);
@@ -347,6 +365,16 @@ BindingSources adapt_binding_sources(const Module& module,const ModuleSummaries&
             duplicate.rebind=false;duplicate.receiver_ir_parameter.reset();duplicate.validated_initialization.clear();
             duplicate.local_storage_paths.clear();duplicate.collections.clear();
             issue(BindingSourceComponent::Declaration,BindingGap::Ambiguous,fn.name);
+        }
+    }
+    // Rows were checked against the actual scope/bind instructions by the
+    // owned origin reader. Keep each original semantic namespace distinct.
+    for(const auto& [host,rows]:input.scopes) {
+        const auto owner=std::find_if(module.functions.begin(),module.functions.end(),[&](const auto& f){return f.name==host;});
+        if(owner==module.functions.end())continue;
+        for(const auto& [id,row]:rows) {
+            if(id==row.scope && valid_scoped_binding_source(module,*owner,row))result.scopes[host].emplace(id,row);
+            else issue(BindingSourceComponent::Body,BindingGap::InlineOriginUnavailable,host);
         }
     }
     return result;

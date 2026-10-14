@@ -3,6 +3,8 @@
 #include "ir/summaries.hpp"
 #include "ir/fact_sources.hpp"
 #include "ir/binding_origins.hpp"
+#include "ir/step_region_annotations.hpp"
+#include "ir/analysis/step_regions.hpp"
 #include "ir/facts/entry.hpp"
 #include "semantics/interface_contracts.hpp"
 #include "quidra/compiler_extension_model.hpp"
@@ -443,13 +445,14 @@ std::string serialize_instruction(const ir::Instruction& instruction) {
 std::string serialize_module(const ir::Module& module) {
     // Module, Function and Block gain a field -> these bindings stop compiling.
     const auto& [classes, functions, compiler_extensions, user_sources, summaries,
-                 fact_sources, declaration_catalog, interface_sources, binding_origins] = module;
+                 fact_sources, declaration_catalog, interface_sources, binding_origins, step_regions] = module;
     std::string out = "module\n";
     if (summaries) put_summaries(out, *summaries);
     if (fact_sources) { out += "fact_sources "; put(out, *fact_sources); out += '\n'; }
     if (!declaration_catalog.empty()) { out += "declaration_catalog "; put(out, declaration_catalog); out += '\n'; }
     if (interface_sources) { out += "interface_sources "; put(out, *interface_sources); out += '\n'; }
     if (binding_origins) { out += "binding_origins "; put(out, *binding_origins); out += '\n'; }
+    if (step_regions) { out += "step_regions "; put(out, step_regions->data()); out += '\n'; }
     for (std::size_t i = 0; i < user_sources.size(); ++i) {
         out += "user_source #" + std::to_string(i) + ' ';
         put(out, user_sources[i]);

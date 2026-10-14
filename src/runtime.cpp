@@ -8093,20 +8093,25 @@ std::size_t tensor_broadcast_index(const TensorValue& tensor,
     return index;
 }
 
+template<bool CompatibilityProven = false>
 std::vector<long long> tensor_broadcast_shape(const TensorValue& left,
                                               const TensorValue& right,
                                               unsigned long long line,
                                               unsigned long long column) {
-    quidra::counters::add(quidra::counters::Id::RuntimeBroadcastValidations);
-    if (left.shape.size() != right.shape.size()) {
-        tensor_fail("tensor broadcasting requires identical ranks", line, column);
+    if constexpr (!CompatibilityProven) {
+        quidra::counters::add(quidra::counters::Id::RuntimeBroadcastValidations);
+        if (left.shape.size() != right.shape.size()) {
+            tensor_fail("tensor broadcasting requires identical ranks", line, column);
+        }
     }
     std::vector<long long> shape(left.shape.size());
     for (std::size_t i = 0; i < shape.size(); ++i) {
         const auto a = left.shape[i];
         const auto b = right.shape[i];
-        if (a != b && a != 1 && b != 1) {
-            tensor_fail("tensor shapes are not broadcast-compatible", line, column);
+        if constexpr (!CompatibilityProven) {
+            if (a != b && a != 1 && b != 1) {
+                tensor_fail("tensor shapes are not broadcast-compatible", line, column);
+            }
         }
         // A singleton axis takes the other side's extent, including 0;
         // max() would instead give 1 and read one element of an empty
@@ -8116,12 +8121,15 @@ std::vector<long long> tensor_broadcast_shape(const TensorValue& left,
     return shape;
 }
 
+template<bool RankProven = false>
 std::vector<std::size_t> tensor_broadcast_logical_indices(
     const TensorValue& source,const std::vector<long long>& output_shape,
     unsigned long long line,unsigned long long column) {
-    quidra::counters::add(quidra::counters::Id::RuntimeBroadcastValidations);
-    if(source.shape.size()!=output_shape.size())
-        tensor_fail("tensor broadcasting requires identical ranks",line,column);
+    if constexpr (!RankProven) {
+        quidra::counters::add(quidra::counters::Id::RuntimeBroadcastValidations);
+        if(source.shape.size()!=output_shape.size())
+            tensor_fail("tensor broadcasting requires identical ranks",line,column);
+    }
     const auto count=tensor_element_count(output_shape,line,column);
     const auto source_strides=tensor_contiguous_strides(source.shape);
     std::vector<std::size_t> indices;
@@ -8657,7 +8665,8 @@ extern "C" void* quidra_tensor_unary(void* raw, int operation,
     return result;
 }
 
-extern "C" void* quidra_tensor_compare(
+template<bool ShapeProven>
+static void* tensor_compare_entry(
     void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
     unsigned long long line, unsigned long long column) {
     if (!primary_raw) tensor_fail("null tensor comparison operand", line, column);
@@ -8672,9 +8681,11 @@ extern "C" void* quidra_tensor_compare(
     if (other && primary->storage->device != other->storage->device)
         tensor_fail("tensor operands are on different devices; use an explicit .gpu(n) or .cpu() transfer",
                     line, column);
-    if (other) quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
-    if (other && primary->shape != other->shape)
-        tensor_fail("tensor comparison requires identical shape", line, column);
+    if constexpr (!ShapeProven) {
+        if (other) quidra::counters::add(quidra::counters::Id::RuntimeShapeValidations);
+        if (other && primary->shape != other->shape)
+            tensor_fail("tensor comparison requires identical shape", line, column);
+    }
     if (operation < abi::tensor_comparison_opcode::equal || operation > abi::tensor_comparison_opcode::greater_equal)
         tensor_fail("invalid tensor comparison operation", line, column);
     tensor_require_initialized(*primary, line, column);
@@ -8794,6 +8805,18 @@ extern "C" void* quidra_tensor_compare(
                              tensor_contiguous_strides(primary->shape), 0);
 }
 
+extern "C" void* quidra_tensor_compare(
+    void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
+    unsigned long long line, unsigned long long column) {
+    return tensor_compare_entry<false>(primary_raw, other_raw, scalar, scalar_side, operation, line, column);
+}
+
+extern "C" void* quidra_tensor_compare_proven(
+    void* primary_raw, void* other_raw, void* scalar, int scalar_side, int operation,
+    unsigned long long line, unsigned long long column) {
+    return tensor_compare_entry<true>(primary_raw, other_raw, scalar, scalar_side, operation, line, column);
+}
+
 extern "C" bool quidra_tensor_bool_reduce(
     void* raw, bool all, unsigned long long line, unsigned long long column) {
     if (!raw) tensor_fail("null boolean tensor", line, column);
@@ -8822,6 +8845,7 @@ extern "C" bool quidra_tensor_bool_reduce(
     return result;
 }
 
+template<bool CompatibilityProven = false>
 void tensor_attach_binary_graph(
     TensorValue* result,TensorValue* primary,TensorValue* other,
     void* scalar,int scalar_side,int operation,
@@ -8886,7 +8910,7 @@ void tensor_attach_binary_graph(
             }
         }
 
-        auto indices=tensor_broadcast_logical_indices(
+        auto indices=tensor_broadcast_logical_indices<CompatibilityProven>(
             *operand,result->shape,line,column);
         auto* expanded=tensor_gather_logical_indices(
             *operand,std::move(indices),result->shape,line,column);
@@ -9143,7 +9167,8 @@ extern "C" void quidra_tensor_array_validate_package(
         quidra_tensor_validate_package(tensor_array_borrow_element(view, index), symbol, name, line, column);
 }
 
-extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
+template<bool BroadcastProven>
+static void* tensor_binary_entry(void* primary_raw, void* other_raw,
                                         void* scalar, int scalar_side,
                                         int operation,
                                         unsigned long long line,
@@ -9170,7 +9195,7 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
                     line, column);
     }
     const auto output_shape =
-        other ? tensor_broadcast_shape(*primary, *other, line, column) : primary->shape;
+        other ? tensor_broadcast_shape<BroadcastProven>(*primary, *other, line, column) : primary->shape;
     const auto count = tensor_element_count(output_shape, line, column);
 
     if (!tensor_on_cpu(*primary->storage)) {
@@ -9217,7 +9242,7 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
                     output, output_shape,
                     tensor_contiguous_strides(output_shape), 0);
                 quidra::runtime::NodeRuntimeOwner partial_graph_result_13(result,+[](void* raw){release_managed_tensor(raw);});
-                tensor_attach_binary_graph(
+                tensor_attach_binary_graph<BroadcastProven>(
                     result, primary, other, scalar, scalar_side, operation,
                     line, column);
                 partial_graph_result_13.relinquish();
@@ -9272,7 +9297,7 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
         auto* result=tensor_descriptor(
             output, output_shape, tensor_contiguous_strides(output_shape), 0);
         quidra::runtime::NodeRuntimeOwner partial_graph_result_14(result,+[](void* raw){release_managed_tensor(raw);});
-        tensor_attach_binary_graph(
+        tensor_attach_binary_graph<BroadcastProven>(
             result,primary,other,scalar,scalar_side,operation,line,column);
         partial_graph_result_14.relinquish();
         return result;
@@ -9304,10 +9329,26 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
     auto* result=tensor_descriptor(
         output, output_shape, tensor_contiguous_strides(output_shape), 0);
     quidra::runtime::NodeRuntimeOwner partial_graph_result_15(result,+[](void* raw){release_managed_tensor(raw);});
-    tensor_attach_binary_graph(
+    tensor_attach_binary_graph<BroadcastProven>(
         result,primary,other,scalar,scalar_side,operation,line,column);
     partial_graph_result_15.relinquish();
     return result;
+}
+
+extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
+                                        void* scalar, int scalar_side,
+                                        int operation,
+                                        unsigned long long line,
+                                        unsigned long long column) {
+    return tensor_binary_entry<false>(primary_raw, other_raw, scalar, scalar_side, operation, line, column);
+}
+
+extern "C" void* quidra_tensor_binary_proven(void* primary_raw, void* other_raw,
+                                        void* scalar, int scalar_side,
+                                        int operation,
+                                        unsigned long long line,
+                                        unsigned long long column) {
+    return tensor_binary_entry<true>(primary_raw, other_raw, scalar, scalar_side, operation, line, column);
 }
 
 

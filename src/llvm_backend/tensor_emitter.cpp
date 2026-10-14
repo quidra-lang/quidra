@@ -192,7 +192,8 @@ void TensorEmitter::emit(const ir::TensorCompare& n,const ir::Instruction& ins){
     const bool left_tensor=n.left_type.kind==TypeKind::Tensor;
     const bool right_tensor=n.right_type.kind==TypeKind::Tensor;
     if(left_tensor && right_tensor){
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::compare,{{ptr,symbols_.value(n.left)},{ptr,symbols_.value(n.right)},{ptr,"null"},{i32,abi::scalar_side::none},{i32,comparison_opcode(n.op)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
+        const auto& entry=n.shape_proven?runtime_abi::tensor::compare_proven:runtime_abi::tensor::compare;
+        builder_.call(symbols_.value(n.out),entry,{{ptr,symbols_.value(n.left)},{ptr,symbols_.value(n.right)},{ptr,"null"},{i32,abi::scalar_side::none},{i32,comparison_opcode(n.op)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else{
         const auto scalar=left_tensor?n.right:n.left;
         const auto scalar_type=left_tensor?n.right_type:n.left_type;
@@ -215,7 +216,8 @@ void TensorEmitter::emit(const ir::TensorBinary& n,const ir::Instruction& ins){
     const bool left_tensor=n.left_type.kind==TypeKind::Tensor;
     const bool right_tensor=n.right_type.kind==TypeKind::Tensor;
     if(left_tensor && right_tensor){
-        builder_.call(symbols_.value(n.out),runtime_abi::tensor::binary,{{ptr,symbols_.value(n.left)},{ptr,symbols_.value(n.right)},{ptr,"null"},{i32,abi::scalar_side::none},{i32,binary_opcode(n.op)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
+        const auto& entry=n.broadcast_proven?runtime_abi::tensor::binary_proven:runtime_abi::tensor::binary;
+        builder_.call(symbols_.value(n.out),entry,{{ptr,symbols_.value(n.left)},{ptr,symbols_.value(n.right)},{ptr,"null"},{i32,abi::scalar_side::none},{i32,binary_opcode(n.op)},{i64,sites_.line(n.position.line)},{i64,sites_.column(n.position.column)}});
     }else{
         const auto scalar=n.left_type.kind==TypeKind::Tensor?n.right:n.left;
         const auto scalar_type=n.left_type.kind==TypeKind::Tensor?n.right_type:n.left_type;

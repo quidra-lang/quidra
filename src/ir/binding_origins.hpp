@@ -12,6 +12,8 @@ struct BindingOriginSnapshot {
     // stale-metadata guard only, never a purity/ownership or equivalence proof.
     std::string body_fields;
     std::vector<BindingSourceIssue> unavailable;
+    std::map<std::uint64_t,ScopedBindingSource> scopes;
+    bool root_source_available{true}; // False: typed carrier, no fabricated host declaration.
 };
 struct BindingOriginSnapshots {
     std::map<std::string,BindingOriginSnapshot,std::less<>> functions;

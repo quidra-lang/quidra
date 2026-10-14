@@ -234,7 +234,7 @@ std::string instruction_text(const Instruction& i){ std::ostringstream out; std:
         else if constexpr(std::is_same_v<T,TensorDevice>)out<<"%"<<n.out<<" = tensor.device %"<<n.tensor;
         else if constexpr(std::is_same_v<T,TensorIsContiguous>)out<<"%"<<n.out<<" = tensor.is_contiguous %"<<n.tensor;
         else if constexpr(std::is_same_v<T,TensorItem>)out<<"%"<<n.out<<" = tensor.item %"<<n.tensor<<" : "<<type_name(n.element_type);
-        else if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
+        else if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type)<<(n.broadcast_proven?" broadcast-proven":"");
         else if constexpr(std::is_same_v<T,TensorIndex>){
             out<<"%"<<n.out<<" = tensor.index %"<<n.tensor;
             for(const auto& item:n.items){
@@ -258,7 +258,7 @@ std::string instruction_text(const Instruction& i){ std::ostringstream out; std:
             out<<" : "<<type_name(n.type);
         }
         else if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.numeric_cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
-        else if constexpr(std::is_same_v<T,TensorCompare>)out<<"%"<<n.out<<" = tensor.compare "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
+        else if constexpr(std::is_same_v<T,TensorCompare>)out<<"%"<<n.out<<" = tensor.compare "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type)<<(n.shape_proven?" shape-proven":"");
         else if constexpr(std::is_same_v<T,TensorBoolReduce>)out<<"%"<<n.out<<" = tensor."<<(n.all?"all":"any")<<" %"<<n.tensor;
         else if constexpr(std::is_same_v<T,TensorSet>){
             out<<"tensor.set %"<<n.tensor<<" [";

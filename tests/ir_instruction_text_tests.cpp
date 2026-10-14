@@ -35,6 +35,12 @@ void every_instruction(std::index_sequence<I...>) {
 }
 
 void important_missing_operands() {
+    TensorBinary binary{20,"+",11,12,{},{},{},{801,802}};
+    const auto ordinary_binary=instruction_text(binary);binary.broadcast_proven=true;
+    require(instruction_text(binary)==ordinary_binary+" broadcast-proven","binary proof flag must be visible without changing ordinary text");
+    TensorCompare proven_compare{20,"<",11,12,{},{},{},{801,802}};
+    const auto ordinary_compare=instruction_text(proven_compare);proven_compare.shape_proven=true;
+    require(instruction_text(proven_compare)==ordinary_compare+" shape-proven","compare proof flag must be visible without changing ordinary text");
     const auto compare = instruction_text(TensorCompare{20, "<", 11, 12, {}, {}, {}, {801, 802}});
     require(compare.find("tensor.compare < %11, %12") != std::string::npos,
             "tensor comparison displays its operation and both inputs");

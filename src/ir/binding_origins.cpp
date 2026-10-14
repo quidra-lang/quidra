@@ -1,5 +1,6 @@
 #include "ir/binding_origins.hpp"
 #include "ir/summaries.hpp"
+#include "ir/inline_binding_origins.hpp"
 
 namespace quidra::ir::analysis {
 std::string binding_origin_body_fields(const Function& function) {
@@ -36,17 +37,24 @@ BindingOriginRead read_binding_origins(const Module& module) {
         const auto found=module.binding_origins->functions.find(fn.name);
         if(found==module.binding_origins->functions.end()){fail(BindingSourceComponent::Body,BindingGap::MissingOrigin);continue;}
         const auto& snapshot=found->second;
-        if(!declaration_matches(fn,snapshot.source)){fail(BindingSourceComponent::Declaration,BindingGap::MissingOrigin);continue;}
+        if(snapshot.root_source_available && !declaration_matches(fn,snapshot.source)){fail(BindingSourceComponent::Declaration,BindingGap::MissingOrigin);continue;}
         bool body=false;
         try {body=snapshot.body_fields==binding_origin_body_fields(fn);}
         catch(const std::invalid_argument&) {}
         if(!body){fail(BindingSourceComponent::Body,BindingGap::StaleOrigin);continue;}
         const auto* summary=module.summaries?module.summaries->find(fn.name):nullptr;
-        if(!summary || snapshot.source.semantic_parameter_for_ir_parameter!=summary->semantic_parameter_for_ir_parameter ||
-           snapshot.source.semantic_parameter_for_ir_parameter.size()!=fn.parameters.size()) {
-            fail(BindingSourceComponent::ParameterMap,BindingGap::MissingEffect);continue;
+        if(snapshot.root_source_available) {
+            if(!summary || snapshot.source.semantic_parameter_for_ir_parameter!=summary->semantic_parameter_for_ir_parameter ||
+               snapshot.source.semantic_parameter_for_ir_parameter.size()!=fn.parameters.size()) {
+                fail(BindingSourceComponent::ParameterMap,BindingGap::MissingEffect);continue;
+            }
+            result.inputs.functions.emplace(fn.name,snapshot.source);
+        } else fail(BindingSourceComponent::Declaration,BindingGap::MissingOrigin);
+        for(const auto& [id,row]:snapshot.scopes) {
+            if(id==row.scope && valid_scoped_binding_source(module,fn,row))
+                result.inputs.scopes[fn.name].emplace(id,row);
+            else fail(BindingSourceComponent::Body,BindingGap::InlineOriginUnavailable);
         }
-        result.inputs.functions.emplace(fn.name,snapshot.source);
         result.unavailable.insert(result.unavailable.end(),snapshot.unavailable.begin(),snapshot.unavailable.end());
     }
     return result;

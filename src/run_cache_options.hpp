@@ -16,15 +16,19 @@
 //                       snapshot with pkg-config's output
 //   optimizer.diagnostics receives analysis output and cannot change the
 //                       produced executable; its address is never key material
+//   optimizer.inspection receives observational reports; its address and
+//                       capture flags are never executable key material
 // The artifact is keyed only when it is not an executable: a run always
-// builds one, so the keys of runs stay as they were; likewise the optimizer
-// switches, only when one is set (tests set them, runs never do).
+// builds one, so the keys of runs stay as they were. Unspecified optimizer
+// modes keep the historical key fields; explicit optional modes, including
+// Off, remain distinct because their defaults depend on other switches.
 
 #include "quidra/compiler.hpp"
 #include "toolchain/native_link_recipe.hpp"
 #include "toolchain/run_cache_key.hpp"
 
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 namespace quidra::run_cache {
@@ -40,8 +44,11 @@ inline std::vector<toolchain::RunCacheOption> cache_key_options(
                  reorder_every_assignment, check_every_shape_constraint,
                  exact_real_loop_values, box_every_address_taken_local,
                  check_every_reference_access] = lowering;
-    const auto& [keep_every_finite_check, exact_binding, diagnostics] = optimizer;
+    const auto& [keep_every_finite_check, exact_binding, diagnostics, cfg_facts,
+                 interproc, inline_functions, check_elimination, step_regions,
+                 inspection] = optimizer;
     (void)diagnostics;
+    (void)inspection;
     const auto& [debug, optimize, inputs, pkg_config_modules] = link;
     (void)inputs;
     (void)pkg_config_modules;
@@ -68,6 +75,24 @@ inline std::vector<toolchain::RunCacheOption> cache_key_options(
     if (exact_binding != DeclarationBindingMode::Off)
         options.push_back({"compile.optimizer.exact_binding",
             exact_binding == DeclarationBindingMode::Verify ? "verify" : "on"});
+    const auto mode = [](ir::OptimizerMode value) -> std::string {
+        switch (value) {
+        case ir::OptimizerMode::Off: return "off";
+        case ir::OptimizerMode::Verify: return "verify";
+        case ir::OptimizerMode::On: return "on";
+        }
+        throw std::invalid_argument("unknown optimizer cache mode");
+    };
+    if (cfg_facts)
+        options.push_back({"compile.optimizer.cfg_facts", mode(*cfg_facts)});
+    if (interproc)
+        options.push_back({"compile.optimizer.interproc", mode(*interproc)});
+    if (inline_functions)
+        options.push_back({"compile.optimizer.inline_functions", mode(*inline_functions)});
+    if (check_elimination != ir::OptimizerMode::Off)
+        options.push_back({"compile.optimizer.check_elimination", mode(check_elimination)});
+    if (step_regions != ir::OptimizerMode::Off)
+        options.push_back({"compile.optimizer.step_regions", mode(step_regions)});
     if (artifact != CompileArtifact::Executable) {
         options.push_back({"compile.artifact",
                            artifact == CompileArtifact::Library ? "library" : "interactive"});

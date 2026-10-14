@@ -14,6 +14,7 @@
 // changes a function's symbol must keep each root and its symbol (it may
 // still inline an exported function's body into its Quidra callers).
 
+#include <cstdint>
 #include <string>
 #include <unordered_set>
 
@@ -30,6 +31,19 @@ std::unordered_set<std::string> recursive_functions(const ir::Module& module);
 // Roots are typed outlined-node metadata and ParallelBlock references; callback
 // reachability follows the same rules as backend frame generation.
 std::unordered_set<std::string> node_cleanup_functions(const ir::Module& module);
+// A bounded query never publishes partial cleanup decisions. A successful
+// result may naturally contain no functions; budget exhaustion is unavailable.
+struct NodeCleanupReachability {
+    bool available{};
+    bool budget_exhausted{};
+    std::uint64_t operations{};
+    std::unordered_set<std::string> functions;
+};
+// Charges discovered functions/instructions, pending insertions/attempts,
+// reachable instructions and each expanded callback edge. The unbounded API
+// above uses the same traversal without a budget.
+NodeCleanupReachability node_cleanup_functions(
+    const ir::Module& module, std::uint64_t maximum_operations);
 // The recursive functions that may keep their call depth in a parameter: they
 // call themselves directly, make no indirect call, are not address-taken, and
 // neither reach nor are reached by another recursive function (which would

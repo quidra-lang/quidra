@@ -159,8 +159,8 @@ void check_arities() {
     check_arity<ir::TensorCast>("TensorCast", 6);
     check_arity<ir::ShapedConstraintCheck>("ShapedConstraintCheck", 7);
     check_arity<ir::ExtentEqualCheck>("ExtentEqualCheck", 4);
-    check_arity<ir::TensorBinary>("TensorBinary", 8);
-    check_arity<ir::TensorCompare>("TensorCompare", 8);
+    check_arity<ir::TensorBinary>("TensorBinary", 9);
+    check_arity<ir::TensorCompare>("TensorCompare", 9);
     check_arity<ir::TensorBoolReduce>("TensorBoolReduce", 4);
     check_arity<ir::TensorIndex>("TensorIndex", 5);
     check_arity<ir::TensorSet>("TensorSet", 5);
@@ -298,7 +298,7 @@ void check_arities() {
     check_arity<ir::ParallelNodeMetadata>("ParallelNodeMetadata", 3);
     check_arity<ir::Function>("Function", 19);
     check_arity<ir::ClassLayout>("ClassLayout", 5);
-    check_arity<ir::Module>("Module", 9);
+    check_arity<ir::Module>("Module", 10);
     check_arity<ir::UserSource>("UserSource", 5);
     check_arity<ir::StringQuote>("StringQuote", 2);
     check_arity<ir::ReferenceBoundCheck>("ReferenceBoundCheck", 3);

@@ -13,6 +13,19 @@ void require(bool ok, const char* message) {
 struct SemanticWithSpan { bool writes{}; SourceSpan site; };
 
 void mutation_and_stitch() {
+    const auto tensor = Type::tensor(Type::simple(TypeKind::Real32));
+    TensorBinary binary{7,"+",3,4,tensor,tensor,tensor,{41,7}};
+    TensorCompare compare{8,"==",3,4,tensor,tensor,Type::tensor(Type::simple(TypeKind::Bool)),{42,7}};
+    const auto checked_binary=canonical_encode_value(binary).bytes;
+    const auto checked_compare=canonical_encode_value(compare).bytes;
+    binary.broadcast_proven=true;compare.shape_proven=true;
+    require(canonical_encode_value(binary).bytes!=checked_binary && canonical_encode_value(compare).bytes!=checked_compare,
+            "Tensor compatibility proof flags must enter field-complete structural encoding");
+    Function tensor_function;tensor_function.name="tensor";tensor_function.blocks={{"entry",{binary,compare,ReturnVoid{}}}};
+    const auto tensor_identity=identify(tensor_function);
+    std::get<TensorBinary>(tensor_function.blocks[0].instructions[0]).broadcast_proven=false;
+    require(identify(tensor_function).structural!=tensor_identity.structural,
+            "Tensor compatibility proof flags must invalidate structural identity");
     const auto integer = Type::simple(TypeKind::Int64);
     Function function;
     function.name = "add";

@@ -6,9 +6,15 @@
 #include "quidra/declaration_identity.hpp"
 
 #include <string>
+#include <cstdint>
+#include <optional>
 #include <vector>
 
+namespace quidra::optimizer { struct OptimizerInspection; }
+
 namespace quidra::ir {
+
+enum class OptimizerMode : std::uint8_t { Off, Verify, On };
 
 struct OptimizerDiagnostic {
     enum class Kind { BindingDifference, BindingIssue, UnavailableRule, UnavailableAnalysis } kind;
@@ -24,6 +30,15 @@ struct OptimizerOptions {
     DeclarationBindingMode exact_binding{DeclarationBindingMode::Off};
     // Optional owned output for verification differences and declined rules.
     std::vector<OptimizerDiagnostic>* diagnostics{};
+    // Unspecified interprocedural switches retain the original exact-binding
+    // API behavior. Explicit modes provide independent compile-time controls.
+    std::optional<OptimizerMode> cfg_facts;
+    std::optional<OptimizerMode> interproc;
+    std::optional<OptimizerMode> inline_functions;
+    OptimizerMode check_elimination{OptimizerMode::Off};
+    OptimizerMode step_regions{OptimizerMode::Off};
+    // Observational output only; never an externally supplied proof source.
+    optimizer::OptimizerInspection* inspection{};
 };
 
 Module optimize(Module module, OptimizerOptions options = {});

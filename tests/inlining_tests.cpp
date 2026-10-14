@@ -49,6 +49,23 @@ int main(){
     require(BudgetedInliner::run(parallel_cycle,pr).inlined_calls==0,"parallel node call edges participate in recursion refusal");
     Module budget;budget.functions={caller(),managed_helper()};auto br=RuleRegistry::build(budget);InliningOptions off;off.maximum_operations=0;
     require(BudgetedInliner::run(budget,br,off).inlined_calls==0,"operation exhaustion preserves original call");
+    for(const ValueId ignored:{ValueId{0},ValueId{7}}) {
+        Function callee;callee.name="typed_void";
+        callee.blocks={{"entry",{ConstantBool{7,true},Return{ignored,Type::simple(TypeKind::Void)}}}};
+        Function root;root.name="typed_void_caller";root.entrypoint=true;
+        Block entry{"entry",{}};for(ValueId id=1;id<=20;++id)entry.instructions.push_back(ConstantBool{id,false});
+        entry.instructions.push_back(Call{0,callee.name,{},root.result});entry.instructions.push_back(ReturnVoid{});
+        root.blocks.push_back(std::move(entry));root.next_value=21;
+        Module typed_void;typed_void.functions={root,callee};auto vr=RuleRegistry::build(typed_void);
+        require(BudgetedInliner::run(typed_void,vr).inlined_calls==1,"typed semantic Void return is actually expanded");
+        bool renamed=false;
+        for(const auto& b:typed_void.functions[0].blocks)for(const auto& n:b.instructions) {
+            if(const auto* store=std::get_if<StoreLocal>(&n))require(store->type.kind!=TypeKind::Void,"Void return never emits result storage");
+            if(const auto* load=std::get_if<LoadLocal>(&n))require(load->type.kind!=TypeKind::Void,"Void return never emits a result load");
+            if(const auto* value=std::get_if<ConstantBool>(&n);value&&value->value)renamed=value->out!=7;
+        }
+        require(renamed,"ignored nonzero Void operand definition keeps its exact SSA rename");
+    }
     Module nested;auto leaf=managed_helper();leaf.name="leaf";auto mid=caller();mid.name="middle";mid.entrypoint=false;for(auto& n:mid.blocks[0].instructions)if(auto*q=std::get_if<Call>(&n))q->callee="leaf";auto top=caller();for(auto& n:top.blocks[0].instructions)if(auto*q=std::get_if<Call>(&n))*q=Call{4,"middle",{},top.result};mid.parameters.clear();
     for(ValueId id=200;id<240;++id)top.blocks[0].instructions.insert(top.blocks[0].instructions.begin()+1,ConstantBool{id,true});Function reserve;reserve.name="unrelated";for(ValueId id=1;id<=100;++id)reserve.blocks.push_back({"unused"+std::to_string(id),{ConstantBool{id,true},ReturnVoid{}}});top.blocks[0].instructions.insert(top.blocks[0].instructions.end()-1,Call{5,"leaf",{{2,{}},{1,{}},{0,3}},top.result});std::get<Return>(top.blocks[0].instructions.back()).value=5;nested.functions={mid,top,leaf,reserve};auto nr=RuleRegistry::build(nested);auto nrep=BudgetedInliner::run(nested,nr);
     require(nrep.inlined_calls>=2,"nested direct CFG mechanism executes");

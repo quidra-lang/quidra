@@ -18,6 +18,7 @@
 #include "jit.hpp"
 #include "device_cli.hpp"
 #include "profile_cli.hpp"
+#include "ir_cli.hpp"
 #include "runtime/capture_request.hpp"
 #include "platform/environment.hpp"
 #include "platform/file_names.hpp"
@@ -317,6 +318,10 @@ void usage(std::ostream& out) {
         << "                                      build with debug symbols and launch lldb/gdb\n"
         << "  " << cli << " fmt " << source << " [--check]     format source; --check only verifies canonical form\n"
         << "  " << cli << " ir " << source << "                print typed Quidra IR\n"
+        << "                                      --proofs, --step-regions add analysis reports\n"
+        << "                                      --opt=<key>=off|verify|on selects a mode\n"
+        << "                                      keys: cfg-facts, exact-binding, interproc, inline,\n"
+        << "                                            check-elimination, step-regions\n"
         << "  " << cli << " llvm " << source << "              print generated LLVM IR\n"
         << "  " << cli << " inspect " << source << " [--no-source] [--no-effects] [--kind KIND] [--depth N]\n"
         << "                                      print filtered typed source nodes as JSON\n"
@@ -580,13 +585,27 @@ int main(int argc, char** argv) {
     }
 
     const std::string command = argv[1];
-    const fs::path input = argv[2];
+    fs::path input = argv[2];
     bool json = false;
     for (int i = 3; i < argc; ++i) {
         if (std::string(argv[i]) == "--json") json = true;
     }
 
     try {
+        if (command == "ir") {
+            std::vector<std::string> arguments;
+            for (int i = 2; i < argc; ++i) arguments.emplace_back(argv[i]);
+            const auto options = quidra::cli::parse_ir_options(arguments);
+            input = options.source;
+            require_qui_source(input);
+            return quidra::cli::run_ir_cli(options,
+                [](const fs::path& source, const quidra::ir::OptimizerOptions& optimizer_options) {
+                    quidra::CompileOptions compile_options;
+                    compile_options.optimizer = optimizer_options;
+                    auto compilation = quidra::compile_file(source, compile_options, fs::current_path());
+                    return std::move(compilation.ir);
+                }, std::cout);
+        }
         require_qui_source(input);
 
         if (command == "check") {
@@ -622,13 +641,6 @@ int main(int argc, char** argv) {
             const auto formatted=quidra::format_source(source);
             if(check_only) return formatted==source?0:1;
             if(formatted!=source) write_file_atomic(input,formatted);
-            return 0;
-        }
-
-        if (command == "ir") {
-            if (argc != 3) throw std::runtime_error("quidra ir does not accept additional options");
-            auto c = quidra::compile_file(input, {}, fs::current_path());
-            std::cout << quidra::ir::dump(c.ir);
             return 0;
         }
 

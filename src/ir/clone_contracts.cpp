@@ -42,16 +42,10 @@ bool same_abi(const Function& source, const Function& clone) {
     return capture(source) == capture(clone);
 }
 bool unchanged_body(const Function& source, const Function& clone) {
-    const auto capture = [](Function function) {
-        // These fields are permitted clone provenance/export/allocation
-        // differences. Every appended executable field is still traversed.
-        function.name.clear();
-        function.c_export_symbol.reset();
-        function.next_value = 1;
-        normalize_origin(function.declaration);
-        return canonical_encode(function).bytes;
-    };
-    return capture(source) == capture(clone);
+    // Same concrete declaration/generic/formal ABI is checked independently.
+    // Use the central BODY projection so specialized entry obligations and
+    // other non-body analyses do not conceal an unchanged instruction body.
+    return analysis::binding_origin_body_fields(source) == analysis::binding_origin_body_fields(clone);
 }
 bool semantic_binding_valid(const analysis::ModuleSummaries& owner,
                             const analysis::FunctionSummary& source, const Function& function) {

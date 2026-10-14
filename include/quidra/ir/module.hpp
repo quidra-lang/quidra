@@ -18,6 +18,7 @@ namespace quidra::semantics { struct InterfaceSources; }
 namespace quidra::ir {
 namespace analysis { struct ModuleSummaries; struct BindingOriginSnapshots; }
 namespace facts { struct FactSources; }
+class StepRegionAnnotations;
 
 struct ClassLayout {
     std::string name;
@@ -57,6 +58,8 @@ struct Module {
     std::shared_ptr<const semantics::InterfaceSources> interface_sources{};
     // Original typed lowering origins, bound to exact final body fields.
     std::shared_ptr<const analysis::BindingOriginSnapshots> binding_origins{};
+    // Owned annotation receipts; consumers validate against current inputs.
+    std::shared_ptr<const StepRegionAnnotations> step_regions{};
 };
 
 std::string dump(const Module& module);

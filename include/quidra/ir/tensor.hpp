@@ -40,6 +40,8 @@ struct TensorBinary {
     Type right_type;
     Type result_type;
     SourcePosition position{};
+    // Identical rank and every axis compatible, from validated before-site facts. Does not prove dtype/device/init/size.
+    bool broadcast_proven{};
 };
 struct TensorCompare {
     ValueId out;
@@ -50,6 +52,8 @@ struct TensorCompare {
     Type right_type;
     Type result_type;
     SourcePosition position{};
+    // Identical rank and extents, from validated before-site facts. Does not prove dtype/device/init/size.
+    bool shape_proven{};
 };
 struct TensorBoolReduce {
     ValueId out;

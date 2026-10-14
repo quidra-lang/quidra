@@ -1,5 +1,6 @@
 #include "ir/analysis/object_bindings.hpp"
 #include "ir/analysis/inline_scopes.hpp"
+#include "ir/inline_binding_origins.hpp"
 #include "quidra/ir/initialization_mask.hpp"
 #include "quidra/numeric_types.hpp"
 #include <algorithm>
@@ -178,11 +179,72 @@ bool unmapped_scalar_argument(const Call &call, std::size_t ir,
          !value.allocation && value.references.empty() &&
          scalar_abi_matches(value.type, target->parameters[ir].type);
 }
+bool owned_scope(const Module &module, const Function &fn,
+                 const ScopedBindingSource &row) {
+  if (!module.binding_origins ||
+      module.binding_origins->class_fields !=
+          canonical_encode_value(module.classes).bytes ||
+      !valid_scoped_binding_source(module, fn, row))
+    return false;
+  const auto owner = module.binding_origins->functions.find(fn.name);
+  if (owner == module.binding_origins->functions.end() ||
+      owner->second.body_fields != binding_origin_body_fields(fn))
+    return false;
+  const auto actual = owner->second.scopes.find(row.scope);
+  return actual != owner->second.scopes.end() &&
+         canonical_encode_value(actual->second).bytes ==
+             canonical_encode_value(row).bytes;
+}
+const ScopedBindingSource *scope_row(const Module &module,
+                                     const BindingSources &sources,
+                                     const Function &fn, std::uint64_t id) {
+  const auto host = sources.scopes.find(fn.name);
+  if (host == sources.scopes.end())
+    return nullptr;
+  const auto row = host->second.find(id);
+  return row != host->second.end() && owned_scope(module, fn, row->second)
+             ? &row->second
+             : nullptr;
+}
+std::optional<std::uint64_t> slot_scope(const Function &fn,
+                                        std::string_view name) {
+  std::optional<std::uint64_t> found;
+  for (const auto &scope : fn.inline_scopes)
+    for (const auto &slot : scope.slots)
+      if (slot.name == name) {
+        if (found)
+          return {};
+        found = scope.identity;
+      }
+  return found.value_or(0);
+}
+bool descendant(const Function &fn, std::uint64_t scope, std::uint64_t parent) {
+  std::set<std::uint64_t> seen;
+  while (scope) {
+    if (!seen.insert(scope).second)
+      return false;
+    if (scope == parent)
+      return true;
+    const auto it =
+        std::find_if(fn.inline_scopes.begin(), fn.inline_scopes.end(),
+                     [&](const auto &row) { return row.identity == scope; });
+    if (it == fn.inline_scopes.end())
+      return false;
+    scope = it->parent;
+  }
+  return false;
+}
 struct Env {
   std::map<ValueId, ObjectIdentityFact> values;
   std::map<std::string, ObjectIdentityFact, std::less<>> locals, references;
   std::map<ObjectRoot, std::map<std::size_t, ObjectPath>, RootLess> fields;
+  std::set<std::string, std::less<>> empty_locals, empty_references;
   bool operator==(const Env &) const = default;
+};
+struct InlineBirthState {
+  InlineConstructorBirth witness;
+  ObjectIdentityFact value;
+  bool operator==(const InlineBirthState &) const = default;
 };
 struct Engine {
   const Module &module;
@@ -194,6 +256,8 @@ struct Engine {
   const FunctionBindingSource *source;
   ObjectIdentityAnalysis result;
   std::vector<std::optional<Env>> exits;
+  std::map<std::uint64_t, const ScopedBindingSource *> verified_scopes;
+  std::map<std::uint64_t, InlineBirthState> inline_contracts;
   Engine(const Module &m, std::size_t f, const ModuleSummaries &s,
          const BindingSources &b, const ConstructorIdentities &c, Work &w)
       : module(m), fn(m.functions.at(f)), summaries(s), sources(b),
@@ -207,6 +271,27 @@ struct Engine {
     for (const auto &v : uses.values)
       if (v.definitions.size() == 1)
         result.definitions.emplace(v.value, v.definitions.front());
+    bool classes_owned = false;
+    if (module.interface_sources && module.binding_origins &&
+        sources.scopes.contains(fn.name)) {
+      const auto read = read_binding_origins(module);
+      const auto actual = adapt_binding_sources(
+          module, summaries, *module.interface_sources, read.inputs);
+      classes_owned = canonical_encode_value(actual.classes).bytes ==
+                      canonical_encode_value(sources.classes).bytes;
+    }
+    if (const auto rows = sources.scopes.find(fn.name);
+        classes_owned && rows != sources.scopes.end())
+      for (const auto &[id, row] : rows->second) {
+        if (!work.take())
+          break;
+        if (id == row.scope && owned_scope(module, fn, row))
+          verified_scopes.emplace(id, &row);
+      }
+  }
+  const ScopedBindingSource *verified_scope(std::uint64_t id) const {
+    const auto found = verified_scopes.find(id);
+    return found == verified_scopes.end() ? nullptr : found->second;
   }
   ObjectRoot root(ObjectRoot::Kind kind, InstrRef at, const Type &type) const {
     ObjectRoot r;
@@ -253,6 +338,8 @@ struct Engine {
     }
   }
   void unknown(Env &env, InstrRef at, ObjectBindingGap why) {
+    env.empty_locals.clear();
+    env.empty_references.clear();
     event(at, {}, why);
     for (auto &[id, f] : env.values) {
       if (f.object) {
@@ -377,6 +464,20 @@ struct Engine {
     meet(env.locals, &Env::locals);
     meet(env.references, &Env::references);
     meet(env.fields, &Env::fields);
+    auto empty_meet = [&](auto &values, auto member) {
+      for (auto it = values.begin(); it != values.end();) {
+        const bool all =
+            std::all_of(inputs.begin(), inputs.end(), [&](const auto *input) {
+              return (input->*member).contains(*it);
+            });
+        if (all)
+          ++it;
+        else
+          it = values.erase(it);
+      }
+    };
+    empty_meet(env.empty_locals, &Env::empty_locals);
+    empty_meet(env.empty_references, &Env::empty_references);
     return env;
   }
   std::optional<ObjectPath> substitute(const ObjectPath &formal,
@@ -503,7 +604,329 @@ struct Engine {
       env.fields[output.object->root] = output.references;
     put(call.out, std::move(output), env, at);
   }
+  const ScopedBindingSource *context(InstrRef at) const {
+    const auto *scope = inline_binding_scope(fn, at.block);
+    return scope ? verified_scope(scope->identity) : nullptr;
+  }
+  const FunctionBindingSource *context_source(InstrRef at) const {
+    if (inline_binding_scope(fn, at.block)) {
+      const auto *row = context(at);
+      return row ? &row->source : nullptr;
+    }
+    return source;
+  }
+  void holder(ObjectIdentityFact &fact, std::string_view name, InstrRef at,
+              bool parameter_alias = false) {
+    const auto owner = slot_scope(fn, name);
+    if (!owner) {
+      fact.holders.clear();
+      fact.scoped_holders.clear();
+      return;
+    }
+    if (!parameter_alias) {
+      fact.holders.clear();
+      fact.scoped_holders.clear();
+    }
+    if (!*owner) {
+      if (source && source->availability.local_storage_paths)
+        if (const auto p = source->local_storage_paths.find(name);
+            p != source->local_storage_paths.end())
+          fact.holders.push_back(p->second);
+      return;
+    }
+    const auto *row = verified_scope(*owner);
+    if (!row || !row->source.availability.local_storage_paths)
+      return;
+    const auto path = row->source.local_storage_paths.find(name);
+    if (path == row->source.local_storage_paths.end())
+      return;
+    ScopedStoragePath scoped{fn.name, *owner, path->second};
+    if (std::find(fact.scoped_holders.begin(), fact.scoped_holders.end(),
+                  scoped) == fact.scoped_holders.end())
+      fact.scoped_holders.push_back(std::move(scoped));
+    (void)at;
+  }
+  bool alias_parameter(std::string_view name, InstrRef at) const {
+    const auto owner = slot_scope(fn, name);
+    const auto *row = owner && *owner ? verified_scope(*owner) : nullptr;
+    if (!row)
+      return false;
+    return std::any_of(
+        row->parameters.begin(), row->parameters.end(), [&](const auto &p) {
+          return p.storage == name && p.at == at && (p.borrowed || p.writable);
+        });
+  }
+  bool synthetic_reference(InstrRef at, std::string_view name) const {
+    // Captured-empty authored rebind events distinguish lowered iteration
+    // aliases from a source-level persistent reference reassignment.
+    const auto *row = context(at);
+    const auto owner = slot_scope(fn, name);
+    if (!row || !row->source.availability.rebind_events || !owner ||
+        *owner != row->scope)
+      return false;
+    const auto &frame = inline_scope(fn, row->scope);
+    if (std::none_of(frame.slots.begin(), frame.slots.end(),
+                     [&](const auto &slot) {
+                       return slot.name == name &&
+                              slot.kind == InlineSlotKind::PinnedReference;
+                     }))
+      return false;
+    return std::none_of(
+        row->source.rebind_events.begin(), row->source.rebind_events.end(),
+        [&](const auto &event) {
+          return event.kind == BindingRebindEvent::Kind::Reference &&
+                 event.at == at && event.local == name;
+        });
+  }
+  bool result_transfer(std::string_view name, InstrRef at) const {
+    const auto rows = sources.scopes.find(fn.name);
+    if (rows == sources.scopes.end())
+      return false;
+    for (const auto &[id, row] : rows->second) {
+      (void)id;
+      if (!verified_scope(row.scope) || !row.returns_complete)
+        continue;
+      for (const auto &ret : row.returns)
+        if (ret.load && *ret.load == at && ret.storage &&
+            *ret.storage == name && ret.load_move_out)
+          return true;
+    }
+    return false;
+  }
+  void holder_write(InstrRef at, const ObjectIdentityFact &fact) {
+    if (fact.object && fact.object_type.kind == TypeKind::Class)
+      event(at, fact.object, ObjectBindingGap::HolderWrite);
+    else if (fact.type.kind == TypeKind::Class ||
+             fact.object_type.kind == TypeKind::Class)
+      event(at, {}, ObjectBindingGap::HolderWrite);
+  }
+  bool cleanup_unknown(const InlineScope &scope, const Env &env) const {
+    for (const auto &slot : scope.slots) {
+      if (slot.kind == InlineSlotKind::OwnedLocal &&
+          !env.empty_locals.contains(slot.name) &&
+          unknown_cleanup_type(slot.type))
+        return true;
+      if (slot.kind == InlineSlotKind::PinnedReference &&
+          !env.empty_references.contains(slot.name) &&
+          unknown_cleanup_type(slot.type))
+        return true;
+    }
+    // No node shadow ownership theorem is supplied by source/binding metadata.
+    if (scope.node_cleanup && inline_cleanup_unknown(fn, scope))
+      return true;
+    return false;
+  }
+  void end_scope(Env &env, InstrRef at, std::uint64_t id) {
+    const auto erase = [&](auto &fact) {
+      std::erase_if(fact.scoped_holders,
+                    [&](const auto &path) { return path.scope == id; });
+    };
+    for (auto &[value, fact] : env.values) {
+      erase(fact);
+      result.scopes[at.block].changes[value].emplace_back(at.index + 1, fact);
+    }
+    for (auto &[name, fact] : env.locals) {
+      (void)name;
+      erase(fact);
+    }
+    for (auto &[name, fact] : env.references) {
+      (void)name;
+      erase(fact);
+    }
+  }
+  const InlineBirthState *returned_birth(InstrRef at) const {
+    for (const auto &[scope, birth] : inline_contracts) {
+      (void)scope;
+      if (birth.witness.completion == at)
+        return &birth;
+    }
+    return nullptr;
+  }
+  bool outer_result_owned(const ScopedBindingSource &row,
+                          const InlineReturnBinding &ret) const {
+    if (!ret.storage || !ret.store || !ret.load || !ret.output ||
+        ret.store_borrowed || ret.store_replace_without_release ||
+        !ret.load_move_out || ret.type != row.result_type)
+      return false;
+    const auto owner = slot_scope(fn, *ret.storage);
+    if (!owner || *owner != row.parent)
+      return false;
+    if (*owner) {
+      const auto &parent = inline_scope(fn, *owner);
+      return std::any_of(
+          parent.slots.begin(), parent.slots.end(), [&](const auto &s) {
+            return s.name == *ret.storage && s.type == row.result_type &&
+                   s.kind == InlineSlotKind::OwnedLocal;
+          });
+    }
+    for (BlockId b = 0; b < fn.blocks.size(); ++b)
+      for (std::uint32_t i = 0; i < fn.blocks[b].instructions.size(); ++i)
+        if (const auto *decl =
+                std::get_if<DeclareLocal>(&fn.blocks[b].instructions[i]);
+            decl && decl->name == *ret.storage &&
+            decl->type == row.result_type &&
+            result.dominance.dominates(InstrRef{b, i}, row.begin))
+          return true;
+    return false;
+  }
+  std::map<std::uint64_t, InlineBirthState> births() {
+    std::map<std::uint64_t, InlineBirthState> next;
+    for (const auto &[id, ptr] : verified_scopes) {
+      if (!work.take())
+        return {};
+      const auto &row = *ptr;
+      if (!row.returns_complete || row.returns.empty() ||
+          row.source.declaration.kind !=
+              DeclarationIdentity::Kind::Constructor ||
+          row.source.declaration.external)
+        continue;
+      // The owned original concrete ABI is verified against its exact target.
+      const Function *target = nullptr;
+      bool unique = true;
+      for (const auto &f : module.functions) {
+        if (!work.take())
+          return {};
+        if (f.name == row.source_function) {
+          if (target)
+            unique = false;
+          target = &f;
+        }
+      }
+      if (!unique || !target || !target->declaration ||
+          !same_declaration(*target->declaration, row.source.declaration) ||
+          target->declaration->generic_args !=
+              row.source.declaration.generic_args ||
+          target->result != row.result_type ||
+          target->parameters.size() != row.parameters.size())
+        continue;
+      bool abi = true;
+      for (std::size_t p = 0; p < row.parameters.size(); ++p) {
+        if (!work.take())
+          return {};
+        const auto &formal = target->parameters[p];
+        const auto &actual = row.parameters[p];
+        const auto &frame = inline_scope(fn, id);
+        const auto slot = std::find_if(
+            frame.slots.begin(), frame.slots.end(),
+            [&](const auto &s) { return s.name == actual.storage; });
+        abi &= actual.ir_parameter == p && actual.type == formal.type &&
+               actual.writable == formal.writable &&
+               actual.borrowed == formal.borrowed &&
+               slot != frame.slots.end() && slot->is_const == formal.is_const &&
+               slot->target_escapes == formal.target_escapes;
+      }
+      if (!abi)
+        continue;
+      InlineBirthState candidate;
+      candidate.witness.scope = id;
+      candidate.witness.declaration = row.source.declaration;
+      candidate.witness.result_type = row.result_type;
+      candidate.witness.parameters = row.parameters;
+      candidate.witness.returns = row.returns;
+      bool first = true, bad = false, has_error = false;
+      for (const auto &ret : row.returns) {
+        if (!work.take())
+          return {};
+        if (ret.kind != InlineReturnBinding::Kind::Value ||
+            !outer_result_owned(row, ret)) {
+          bad = true;
+          break;
+        }
+        const auto value = result.at(*ret.store, ret.value);
+        if (value.error_return) {
+          has_error = true;
+          continue;
+        }
+        const auto *type = layout(sources, value.object_type);
+        if (!value.available || !value.object || !value.allocation ||
+            value.object->root != *value.allocation ||
+            !value.object->steps.empty() ||
+            value.allocation->kind != ObjectRoot::Allocation ||
+            value.allocation->function != fn.name || !type || !type->complete ||
+            !type->ordinary_value_layout || !exact_owner(row.source, *type) ||
+            (value.type.kind == TypeKind::Union && !value.value_carrier) ||
+            (value.type.kind != TypeKind::Union &&
+             value.type != value.object_type)) {
+          bad = true;
+          break;
+        }
+        const auto allocation = value.allocation->at;
+        if (allocation.block >= fn.blocks.size() ||
+            allocation.index >=
+                fn.blocks[allocation.block].instructions.size() ||
+            !result.dominance.dominates(row.begin, allocation)) {
+          bad = true;
+          break;
+        }
+        const auto *make = std::get_if<ClassMake>(
+            &fn.blocks[allocation.block].instructions[allocation.index]);
+        const auto *frame = inline_binding_scope(fn, allocation.block);
+        if (!make || make->type != value.object_type || !frame ||
+            !descendant(fn, frame->identity, id)) {
+          bad = true;
+          break;
+        }
+        if (first) {
+          candidate.value = value;
+          candidate.witness.allocation = *value.allocation;
+          candidate.witness.object_type = value.object_type;
+          candidate.witness.completion = *ret.load;
+          first = false;
+        } else if (candidate.witness.allocation != *value.allocation ||
+                   candidate.value.references != value.references ||
+                   candidate.witness.object_type != value.object_type ||
+                   candidate.witness.completion != *ret.load) {
+          bad = true;
+          break;
+        }
+        candidate.witness.successful_returns.push_back(*ret.store);
+      }
+      if (bad || first)
+        continue;
+      // A second possible returned-class allocation is not a unique birth.
+      for (BlockId b = 0; b < fn.blocks.size() && !bad; ++b) {
+        const auto *frame = inline_binding_scope(fn, b);
+        if (!frame || !descendant(fn, frame->identity, id))
+          continue;
+        for (std::uint32_t i = 0; i < fn.blocks[b].instructions.size(); ++i) {
+          if (!work.take())
+            return {};
+          if (const auto *make =
+                  std::get_if<ClassMake>(&fn.blocks[b].instructions[i]);
+              make && make->type == candidate.witness.object_type &&
+              InstrRef{b, i} != candidate.witness.allocation.at)
+            bad = true;
+        }
+      }
+      for (const auto &event : result.events) {
+        if (!work.take())
+          return {};
+        const auto *frame = inline_binding_scope(fn, event.at.block);
+        if (!frame || !descendant(fn, frame->identity, id))
+          continue;
+        if (!event.object ||
+            (event.object->root == candidate.witness.allocation &&
+             (event.gap == ObjectBindingGap::Container ||
+              event.gap == ObjectBindingGap::Escaped ||
+              event.gap == ObjectBindingGap::ParallelCapture ||
+              event.gap == ObjectBindingGap::UnboundedSharedWrite)))
+          bad = true;
+      }
+      if (bad)
+        continue;
+      candidate.value.type = row.result_type;
+      candidate.value.holders.clear();
+      candidate.value.scoped_holders.clear();
+      candidate.value.conditional_carrier = has_error;
+      candidate.value.value_carrier =
+          !has_error && row.result_type.kind == TypeKind::Union;
+      next.emplace(id, std::move(candidate));
+    }
+    return next;
+  }
   void instruction(const Instruction &instruction, Env &env, InstrRef at) {
+    if (inline_binding_scope(fn, at.block) && !context(at))
+      unknown(env, at, ObjectBindingGap::MissingOrigin);
     std::visit(
         [&](const auto &n) {
           using T = std::decay_t<decltype(n)>;
@@ -526,6 +949,11 @@ struct Engine {
           } else if constexpr (std::is_same_v<T, LoadLocal>) {
             const auto p = env.locals.find(n.name);
             auto f = p == env.locals.end() ? ObjectIdentityFact{} : p->second;
+            if (const auto *birth = returned_birth(at)) {
+              f = birth->value;
+              if (f.object)
+                env.fields[f.object->root] = f.references;
+            }
             f.type = n.type;
             if (f.object && f.object->steps.empty())
               if (const auto refs = env.fields.find(f.object->root);
@@ -533,19 +961,19 @@ struct Engine {
                 f.references = refs->second;
             put(n.out, f, env, at);
             if (n.move_out) {
-              event(at, f.object, ObjectBindingGap::HolderWrite);
+              if (!result_transfer(n.name, at))
+                holder_write(at, f);
               env.locals.erase(n.name);
+              env.empty_locals.insert(n.name);
             }
           } else if constexpr (std::is_same_v<T, StoreLocal>) {
             auto f = get(n.value, env);
             if (const auto old = env.locals.find(n.name);
                 old != env.locals.end() && old->second.object != f.object)
               event(at, old->second.object, ObjectBindingGap::HolderWrite);
-            f.holders.clear();
-            if (source && source->availability.local_storage_paths)
-              if (const auto p = source->local_storage_paths.find(n.name);
-                  p != source->local_storage_paths.end())
-                f.holders.push_back(p->second);
+            f.type = n.type;
+            holder(f, n.name, at, alias_parameter(n.name, at));
+            env.empty_locals.erase(n.name);
             env.locals.insert_or_assign(n.name, std::move(f));
           } else if constexpr (std::is_same_v<T, AddressLocal>) {
             const auto p = env.locals.find(n.name);
@@ -554,37 +982,49 @@ struct Engine {
             put(n.out, std::move(f), env, at);
           } else if constexpr (std::is_same_v<T, InlineScopeCleanup>) {
             const auto &scope = inline_scope(fn, n.scope);
-            if (inline_cleanup_unknown(fn, scope))
+            if (cleanup_unknown(scope, env))
               unknown(env, at, ObjectBindingGap::UnboundedSharedWrite);
             for (const auto &slot : scope.slots)
               if (slot.kind == InlineSlotKind::OwnedLocal) {
                 const auto p = env.locals.find(slot.name);
                 if (p != env.locals.end()) {
-                  event(at, p->second.object, ObjectBindingGap::HolderWrite);
+                  holder_write(at, p->second);
                   env.locals.erase(p);
+                  env.empty_locals.insert(slot.name);
                 }
               }
+          } else if constexpr (std::is_same_v<T, InlineScopeEnd>) {
+            end_scope(env, at, n.scope);
           } else if constexpr (std::is_same_v<T, DeclareLocal>) {
             if (const auto p = env.locals.find(n.name); p != env.locals.end()) {
-              event(at, p->second.object, ObjectBindingGap::HolderWrite);
+              holder_write(at, p->second);
               env.locals.erase(p);
             }
+            env.empty_locals.insert(n.name);
           } else if constexpr (std::is_same_v<T, DeclareReference>) {
             if (const auto p = env.references.find(n.name);
                 p != env.references.end()) {
-              event(at, p->second.object, ObjectBindingGap::HolderWrite);
+              holder_write(at, p->second);
               env.references.erase(p);
             }
+            env.empty_references.insert(n.name);
           } else if constexpr (std::is_same_v<T, InlineBindAddress>) {
             auto f = get(n.address, env);
             f.address = false;
             f.type = f.object_type = n.type;
+            holder(f, n.name, at, alias_parameter(n.name, at));
+            env.empty_locals.erase(n.name);
             env.locals.insert_or_assign(n.name, std::move(f));
           } else if constexpr (std::is_same_v<T, BindReference>) {
             auto f = get(n.address, env);
             if (const auto old = env.references.find(n.name);
-                old != env.references.end() && old->second.object != f.object)
-              event(at, old->second.object, ObjectBindingGap::HolderWrite);
+                old != env.references.end() && old->second.object != f.object &&
+                !synthetic_reference(at, n.name))
+              holder_write(at, old->second);
+            if (!n.address)
+              env.empty_references.insert(n.name);
+            else
+              env.empty_references.erase(n.name);
             env.references.insert_or_assign(n.name, std::move(f));
           } else if constexpr (std::is_same_v<T, ReferenceAddress>) {
             const auto p = env.references.find(n.name);
@@ -719,11 +1159,25 @@ struct Engine {
             auto f = get(n.payload, env);
             f.type = n.container_type;
             f.error_return = n.payload_type.kind == TypeKind::Error;
+            f.value_carrier =
+                n.payload_type.kind == TypeKind::Class && f.available;
             put(n.out, std::move(f), env, at);
           } else if constexpr (std::is_same_v<T, VariantPayload>) {
             auto f = get(n.container, env);
             f.type = n.payload_type;
-            f.error_return = n.payload_type.kind == TypeKind::Error;
+            if (f.conditional_carrier) {
+              if (n.payload_type == f.object_type) {
+                f.conditional_carrier = false;
+                f.value_carrier = true;
+              } else {
+                f.available = false;
+                f.object.reset();
+                f.allocation.reset();
+                f.references.clear();
+                f.value_carrier = false;
+                f.error_return = n.payload_type.kind == TypeKind::Error;
+              }
+            }
             put(n.out, std::move(f), env, at);
           } else if constexpr (std::is_same_v<T, Call>)
             call(n, env, at);
@@ -757,33 +1211,50 @@ struct Engine {
         instruction);
   }
   ObjectIdentityAnalysis run() {
-    bool changed = true;
-    while (changed) {
-      changed = false;
-      result.events.clear();
-      result.returns.clear();
-      for (const auto b : result.cfg.rpo) {
-        if (!work.take())
-          return std::move(result);
-        auto env = incoming(b);
-        auto &s = result.scopes[b];
-        s.incoming = env.values;
-        s.changes.clear();
-        s.instruction_count =
-            static_cast<std::uint32_t>(fn.blocks[b].instructions.size());
-        for (std::uint32_t i = 0; i < s.instruction_count; ++i) {
+    for (;;) {
+      exits.assign(fn.blocks.size(), std::nullopt);
+      result.complete = false;
+      bool changed = true;
+      while (changed) {
+        changed = false;
+        result.events.clear();
+        result.returns.clear();
+        for (const auto b : result.cfg.rpo) {
           if (!work.take())
             return std::move(result);
-          instruction(fn.blocks[b].instructions[i], env, {b, i});
-        }
-        if (!exits[b] || *exits[b] != env) {
-          exits[b] = std::move(env);
-          changed = true;
+          auto env = incoming(b);
+          auto &s = result.scopes[b];
+          s.incoming = env.values;
+          s.changes.clear();
+          s.instruction_count =
+              static_cast<std::uint32_t>(fn.blocks[b].instructions.size());
+          for (std::uint32_t i = 0; i < s.instruction_count; ++i) {
+            if (!work.take())
+              return std::move(result);
+            instruction(fn.blocks[b].instructions[i], env, {b, i});
+          }
+          if (!exits[b] || *exits[b] != env) {
+            exits[b] = std::move(env);
+            changed = true;
+          }
         }
       }
+      result.complete = true;
+      auto next = births();
+      if (work.exhausted) {
+        result.complete = false;
+        result.inline_births.clear();
+        return std::move(result);
+      }
+      if (next == inline_contracts) {
+        for (const auto &[id, state] : next) {
+          (void)id;
+          result.inline_births.push_back(state.witness);
+        }
+        return std::move(result);
+      }
+      inline_contracts = std::move(next);
     }
-    result.complete = true;
-    return std::move(result);
   }
 };
 void gap(ObjectBindingResult &result, ObjectBindingGap value) {
@@ -914,6 +1385,17 @@ bool path_certificate(const Type &type,
   return current == target;
 }
 } // namespace
+bool InlineConstructorBirth::operator==(
+    const InlineConstructorBirth &other) const {
+  return declaration == other.declaration && scope == other.scope &&
+         result_type == other.result_type && object_type == other.object_type &&
+         allocation == other.allocation && completion == other.completion &&
+         successful_returns == other.successful_returns &&
+         canonical_encode_value(parameters).bytes ==
+             canonical_encode_value(other.parameters).bytes &&
+         canonical_encode_value(returns).bytes ==
+             canonical_encode_value(other.returns).bytes;
+}
 ObjectIdentityFact ObjectIdentityAnalysis::at(InstrRef site,
                                               ValueId value) const {
   if (!complete || site.block >= scopes.size() || !cfg.reachable[site.block] ||
@@ -1010,24 +1492,57 @@ object_binding_closure(const Module &module, const ModuleSummaries &summaries,
     }
     const auto &loop = identities.loops.loops[request.loop];
     const auto object = identities.at(request.use, request.object);
-    if (!object.available || !object.object || !object.allocation ||
+    if (!object.available || object.type.kind != TypeKind::Class ||
+        object.conditional_carrier || !object.object || !object.allocation ||
         object.object->root != *object.allocation ||
         !object.object->steps.empty()) {
       gap(result, ObjectBindingGap::AmbiguousIdentity);
       report.results.push_back(std::move(result));
       continue;
     }
-    if (object.holders.size() != 1) {
+    std::optional<ScopedStoragePath> scoped_holder;
+    if (object.holders.empty()) {
+      for (const auto &path : object.scoped_holders) {
+        if (!work.take())
+          break;
+        const auto *row = scope_row(module, sources, fn, path.scope);
+        if (path.function != fn.name || !row ||
+            !identities.dominance.dominates(row->begin,
+                                            InstrRef{loop.header, 0}))
+          continue;
+        if (scoped_holder && *scoped_holder != path) {
+          gap(result, ObjectBindingGap::MissingHolder);
+          break;
+        }
+        scoped_holder = path;
+      }
+    }
+    if (object.holders.size() > 1 ||
+        (object.holders.empty() && !scoped_holder) || !result.gaps.empty()) {
       gap(result, ObjectBindingGap::MissingHolder);
       report.results.push_back(std::move(result));
       continue;
     }
     const auto birth = object.allocation->at;
+    const InlineConstructorBirth *inline_birth = nullptr;
+    for (const auto &candidate : identities.inline_births)
+      if (candidate.allocation == *object.allocation) {
+        if (inline_birth) {
+          inline_birth = nullptr;
+          break;
+        }
+        inline_birth = &candidate;
+      }
+    const bool call_birth =
+        object.allocation->kind == ObjectRoot::ConstructorCall &&
+        report.constructors.contains(object.allocation->constructor_function);
+    const bool actual_birth =
+        object.allocation->kind == ObjectRoot::Allocation && inline_birth;
+    const auto completed = actual_birth ? inline_birth->completion : birth;
     if (object.allocation->function != fn.name ||
-        object.allocation->kind != ObjectRoot::ConstructorCall ||
-        !report.constructors.contains(
-            object.allocation->constructor_function) ||
-        !identities.dominance.dominates(birth, InstrRef{loop.header, 0})) {
+        (!call_birth && !actual_birth) ||
+        !identities.dominance.dominates(birth, InstrRef{loop.header, 0}) ||
+        !identities.dominance.dominates(completed, InstrRef{loop.header, 0})) {
       gap(result, ObjectBindingGap::BirthUnavailable);
       report.results.push_back(std::move(result));
       continue;
@@ -1055,12 +1570,31 @@ object_binding_closure(const Module &module, const ModuleSummaries &summaries,
       if (!model || !model->complete)
         continue;
       std::optional<std::vector<std::vector<semantics::PathStep>>> paths;
+      std::vector<const FunctionBindingSource *> contexts;
       for (const auto &[name, source] : sources.functions) {
+        (void)name;
+        contexts.push_back(&source);
+      }
+      for (const auto &[host, rows] : sources.scopes) {
+        const auto host_fn =
+            std::find_if(module.functions.begin(), module.functions.end(),
+                         [&](const auto &f) { return f.name == host; });
+        if (host_fn == module.functions.end())
+          continue;
+        for (const auto &[id, row] : rows) {
+          (void)id;
+          if (!work.take())
+            break;
+          if (owned_scope(module, *host_fn, row))
+            contexts.push_back(&row.source);
+        }
+      }
+      for (const auto *source_ptr : contexts) {
+        const auto &source = *source_ptr;
         if (!work.take()) {
           gap(result, ObjectBindingGap::Budget);
           break;
         }
-        (void)name;
         if (!source.complete || !source.availability.traversals)
           continue;
         for (const auto &traversal : source.traversals) {
@@ -1095,7 +1629,12 @@ object_binding_closure(const Module &module, const ModuleSummaries &summaries,
       ObjectBindingFact fact;
       fact.allocation = *object.allocation;
       fact.loop_header = loop.header;
-      fact.holder = object.holders.front();
+      fact.root_holder_available = !object.holders.empty();
+      if (fact.root_holder_available)
+        fact.holder = object.holders.front();
+      fact.scoped_holder = scoped_holder;
+      if (inline_birth)
+        fact.inline_birth = *inline_birth;
       fact.model = target;
       fact.model_type = model_type;
       fact.model_identity = model->identity;
@@ -1113,7 +1652,7 @@ object_binding_closure(const Module &module, const ModuleSummaries &summaries,
       report.results.push_back(std::move(result));
       continue;
     }
-    const auto window = closure_window(birth, identities.cfg, loop, work);
+    const auto window = closure_window(completed, identities.cfg, loop, work);
     if (window.empty()) {
       gap(result, ObjectBindingGap::Budget);
       report.results.push_back(std::move(result));
@@ -1121,13 +1660,16 @@ object_binding_closure(const Module &module, const ModuleSummaries &summaries,
     }
     auto in_window = [&](InstrRef site) {
       return site.block < window.size() && window[site.block] &&
-             (site.block != birth.block || site.index > birth.index);
+             (site.block != completed.block || site.index > completed.index);
     };
     auto binding = *object.object;
     binding.steps.push_back(semantics::PathStep::field_named(
         owner->fields[candidate->reference_field].name));
-    if (const auto *current_source = origin(sources, fn);
-        current_source && current_source->availability.rebind_events) {
+    for (const auto *current_source :
+         function_binding_sources(sources, fn.name)) {
+      if (!current_source->complete ||
+          !current_source->availability.rebind_events)
+        continue;
       for (const auto &rebind : current_source->rebind_events) {
         if (!in_window(rebind.at))
           continue;

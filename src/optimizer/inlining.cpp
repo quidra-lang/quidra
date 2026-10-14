@@ -1,6 +1,7 @@
 #include "optimizer/inlining.hpp"
 #include "optimizer/rule_registry.hpp"
 #include "ir/mutable_operands.hpp"
+#include "ir/inline_binding_origins.hpp"
 #include "ir/facts/entry.hpp"
 #include "ir/analysis/call_graph.hpp"
 #include <algorithm>
@@ -47,7 +48,29 @@ bool terminal(const Instruction& n){
 }
 using SiteKey=std::tuple<std::size_t,std::string,std::size_t>;
 using HotSites=std::set<SiteKey>;
-struct Expansion {Function function;HotSites hot;};
+struct PendingSites {
+    using Emitted=std::pair<std::string,std::uint32_t>;
+    std::map<ir::analysis::InstrRef,std::optional<Emitted>,ir::analysis::InlineSiteLess> instructions;
+    std::map<ir::analysis::InstrRef,Emitted,ir::analysis::InlineSiteLess> boundaries;
+    static std::uint32_t index(std::size_t i) {
+        if(i>std::numeric_limits<std::uint32_t>::max())throw Refused("inline origin instruction count overflow");
+        return static_cast<std::uint32_t>(i);
+    }
+    void finish(const Function& fn,ir::analysis::InlineOriginMap& result)const {
+        std::map<std::string,ir::analysis::BlockId,std::less<>> blocks;
+        for(std::size_t b=0;b<fn.blocks.size();++b) {
+            if(b>std::numeric_limits<ir::analysis::BlockId>::max() ||
+               !blocks.emplace(fn.blocks[b].label,static_cast<ir::analysis::BlockId>(b)).second)
+                throw Refused("inline origin block identity is ambiguous");
+        }
+        for(const auto& [old,target]:instructions) {
+            if(target)result.instructions.emplace(old,ir::analysis::InstrRef{blocks.at(target->first),target->second});
+            else result.instructions.emplace(old,std::nullopt);
+        }
+        for(const auto& [old,target]:boundaries)result.boundaries.emplace(old,ir::analysis::InstrRef{blocks.at(target.first),target.second});
+    }
+};
+struct Expansion {Function function;HotSites hot;ir::analysis::InlineOriginTransfer origins;};
 struct Engine {
     Module& module;const RuleRegistry& rules;InliningOptions options;InliningReport report;
     std::vector<std::size_t> caller_base;std::size_t module_base{},module_current{};
@@ -59,7 +82,25 @@ struct Engine {
     bool tick(std::uint64_t n=1){if(n>options.maximum_operations-report.operations){++report.budget_fallbacks;return false;}report.operations+=n;return true;}
     void reject(std::size_t caller,const Call& call,std::string reason){report.unavailable.push_back({module.functions[caller].name,call.callee,std::move(reason)});}
     void setup(){
-        if(!options.node_cleanup_modes){const auto modes=ir::analysis::node_cleanup_functions(module);options.node_cleanup_modes.emplace();for(const auto& f:module.functions)options.node_cleanup_modes->emplace(f.name,modes.contains(f.name));}
+        if (!options.node_cleanup_modes) {
+            const auto cleanup = ir::analysis::node_cleanup_functions(
+                module, options.maximum_operations - report.operations);
+            report.operations += cleanup.operations;
+            if (!cleanup.available)
+                throw Refused(cleanup.budget_exhausted
+                    ? "node cleanup reachability budget exhausted"
+                    : "node cleanup reachability unavailable");
+            std::map<std::string, bool, std::less<>> modes;
+            for (const auto& function : module.functions) {
+                if (report.operations == options.maximum_operations)
+                    throw Refused("node cleanup mode assembly budget exhausted");
+                ++report.operations;
+                modes.emplace(function.name, cleanup.functions.contains(function.name));
+            }
+            // Publish only a fully assembled authoritative map. An unavailable
+            // query or partial assembly never becomes an empty success fallback.
+            options.node_cleanup_modes = std::move(modes);
+        }
         for(std::size_t i=0;i<module.functions.size();++i){const auto& f=module.functions[i];const auto count=size(f);caller_base.push_back(count);if(count>std::numeric_limits<std::size_t>::max()-module_base)throw Refused("module instruction count overflow");module_base+=count;if(!functions.emplace(f.name,i).second)ambiguous.insert(f.name);if(f.parallel_node)parallel_context=true;
             for(const auto& b:f.blocks)for(const auto& n:b.instructions){if(const auto*p=std::get_if<FunctionRef>(&n))address_taken.insert(p->function);if(std::holds_alternative<ParallelBlock>(n))parallel_context=true;}
         }module_current=module_base;
@@ -106,6 +147,27 @@ struct Engine {
     }
     Expansion expand(const Function& original,const Function& callee,std::size_t ci,std::size_t bi,std::size_t ii){
         Function f=original;const auto call=std::get<Call>(f.blocks[bi].instructions[ii]);
+        ir::analysis::InlineOriginTransfer origins;
+        origins.caller=original.name;origins.callee=callee.name;
+        origins.caller_body=ir::analysis::binding_origin_body_fields(original);
+        origins.callee_body=ir::analysis::binding_origin_body_fields(callee);
+        if(bi>std::numeric_limits<ir::analysis::BlockId>::max())throw Refused("inline origin block count overflow");
+        origins.call={static_cast<ir::analysis::BlockId>(bi),PendingSites::index(ii)};origins.removed_call=call;
+        PendingSites retained,copied_sites;
+        for(std::size_t b=0;b<original.blocks.size();++b) {
+            if(b>std::numeric_limits<ir::analysis::BlockId>::max())throw Refused("inline origin block count overflow");
+            const auto block=static_cast<ir::analysis::BlockId>(b);const auto& old=original.blocks[b];
+            origins.retained.labels.emplace(old.label,old.label);
+            for(std::size_t i=0;i<=old.instructions.size();++i) {
+                const ir::analysis::InstrRef at{block,PendingSites::index(i)};
+                if(b==bi && i>ii)continue; // Authored below while emitting the continuation.
+                retained.boundaries.emplace(at,PendingSites::Emitted{old.label,PendingSites::index(i)});
+                if(i<old.instructions.size()) {
+                    if(b==bi && i==ii)retained.instructions.emplace(at,std::nullopt);
+                    else retained.instructions.emplace(at,PendingSites::Emitted{old.label,PendingSites::index(i)});
+                }
+            }
+        }
         const bool inherited_hot=hot.contains({ci,f.blocks[bi].label,ii});
         HotSites transferred_hot;
         for(const auto& site:hot) {
@@ -113,7 +175,13 @@ struct Engine {
             transferred_hot.insert(site);
         }
         auto source=inventory(callee,{&report,options.maximum_operations});for(auto use:source.uses)if(!source.definitions.contains(use))throw Refused("callee SSA use has no definition");
-        auto target=inventory(f,{&report,options.maximum_operations});f.next_value=std::max(f.next_value,std::uint64_t(target.maximum)+1);
+        auto target=inventory(f,{&report,options.maximum_operations});
+        for(const auto id:target.definitions)origins.retained.values.emplace(id,id);
+        for(const auto id:target.uses)origins.retained.values.emplace(id,id);
+        for(const auto& name:target.locals)origins.retained.locals.emplace(name,name);
+        for(const auto& param:original.parameters)origins.retained.locals.emplace(param.name,param.name);
+        for(const auto& old:original.inline_scopes)origins.retained.scopes.emplace(old.identity,old.identity);
+        f.next_value=std::max(f.next_value,std::uint64_t(target.maximum)+1);
         std::map<ValueId,ValueId> values;for(auto id:source.definitions){if(!f.next_value||f.next_value>std::numeric_limits<ValueId>::max())throw Refused("SSA allocation exhausted");values.emplace(id,static_cast<ValueId>(f.next_value++));}
         std::uint64_t scope_id=0,statement_id=0;for(const auto&s:f.inline_scopes)scope_id=std::max(scope_id,s.identity);
         for(const auto& b:f.blocks)for(const auto& n:b.instructions)if(const auto*p=std::get_if<StatementBoundary>(&n))statement_id=std::max(statement_id,p->identity);
@@ -154,18 +222,78 @@ struct Engine {
         for(const auto&[old,fresh]:names){(void)old;if(!slots.contains(fresh))throw Refused("inline storage declaration unavailable");}
         // Nested slots belong only to their innermost frame.
         for(const auto&s:callee.inline_scopes)for(const auto&ss:s.slots){const auto renamed=names.at(ss.name);std::erase_if(scope.slots,[&](const auto&x){return x.name==renamed;});}
+        origins.scope=root_id;origins.parent=scope.parent;
+        origins.copied.values=values;origins.copied.locals=names;origins.copied.scopes=scopes;
+        origins.copied.statements=statements;origins.copied.labels=labels;
         Rename rename({&report,options.maximum_operations},values,names,labels);std::vector<Block> copied;Block bind{binding,{InlineScopeBegin{root_id}}};
-        for(std::size_t p=0;p<callee.parameters.size();++p){const auto&param=callee.parameters[p];const auto&arg=call.args[p];if(param.writable)bind.instructions.push_back(InlineBindAddress{names.at(param.name),*arg.writable_address,param.type});else bind.instructions.push_back(StoreLocal{names.at(param.name),arg.value,param.type,param.borrowed});}
+        std::vector<PendingSites::Emitted> parameter_sites;
+        for(std::size_t p=0;p<callee.parameters.size();++p){const auto&param=callee.parameters[p];const auto&arg=call.args[p];
+            parameter_sites.emplace_back(binding,PendingSites::index(bind.instructions.size()));
+            ir::analysis::InlineParameterBinding actual;actual.ir_parameter=p;actual.storage=names.at(param.name);actual.type=param.type;
+            actual.writable=param.writable;actual.borrowed=param.borrowed;actual.value=arg.value;actual.address=arg.writable_address;
+            origins.parameters.push_back(std::move(actual));
+            if(param.writable)bind.instructions.push_back(InlineBindAddress{names.at(param.name),*arg.writable_address,param.type});else bind.instructions.push_back(StoreLocal{names.at(param.name),arg.value,param.type,param.borrowed});}
         bind.instructions.push_back(Jump{labels.at(callee.blocks[0].label)});copied.push_back(std::move(bind));
+        struct PendingReturn {
+            ir::analysis::InlineReturnBinding row;
+            std::optional<PendingSites::Emitted> store,load;
+            PendingSites::Emitted cleanup,end,jump;
+        };
+        std::vector<PendingReturn> returned;
         bool has_return=false;
-        for(const auto& b:callee.blocks){Block nb{labels.at(b.label),{}};if(b.instructions.empty())throw Refused("callee missing explicit terminator");for(std::size_t i=0;i<b.instructions.size();++i){auto n=b.instructions[i];if(i+1<b.instructions.size()&&terminal(n))throw Refused("callee instruction after terminator");mutate_operands(n,rename);
+        for(std::size_t cb=0;cb<callee.blocks.size();++cb){const auto& b=callee.blocks[cb];Block nb{labels.at(b.label),{}};if(b.instructions.empty())throw Refused("callee missing explicit terminator");
+            if(cb>std::numeric_limits<ir::analysis::BlockId>::max())throw Refused("inline origin block count overflow");
+            const auto old_block=static_cast<ir::analysis::BlockId>(cb);
+            copied_sites.boundaries.emplace(ir::analysis::InstrRef{old_block,0},PendingSites::Emitted{nb.label,0});
+            bool boundary_overflow=false;
+            for(std::size_t i=0;i<b.instructions.size();++i){
+                const ir::analysis::InstrRef old_site{old_block,PendingSites::index(i)};
+                auto [end_boundary,inserted]=copied_sites.boundaries.emplace(
+                    ir::analysis::InstrRef{old_site.block,PendingSites::index(i+1)},PendingSites::Emitted{nb.label,0});
+                if(!inserted)throw Refused("inline origin boundary collides");
+                struct Boundary {
+                    std::uint32_t& index;const Block& block;bool& overflow;
+                    ~Boundary()noexcept {
+                        if(block.instructions.size()>std::numeric_limits<std::uint32_t>::max())overflow=true;
+                        else index=static_cast<std::uint32_t>(block.instructions.size());
+                    }
+                } boundary{end_boundary->second.second,nb,boundary_overflow};
+                const auto& original_ins=b.instructions[i];
+                if(std::holds_alternative<Return>(original_ins) || std::holds_alternative<ReturnVoid>(original_ins) || std::holds_alternative<Exit>(original_ins))
+                    copied_sites.instructions.emplace(old_site,std::nullopt);
+                else copied_sites.instructions.emplace(old_site,PendingSites::Emitted{nb.label,PendingSites::index(nb.instructions.size())});
+                auto n=b.instructions[i];if(i+1<b.instructions.size()&&terminal(n))throw Refused("callee instruction after terminator");mutate_operands(n,rename);
             if(auto*p=std::get_if<StatementBoundary>(&n))p->identity=statements.at(p->identity);
             auto scope_ref=[&](std::uint64_t& id){const auto p=scopes.find(id);if(p==scopes.end())throw Refused("unmapped nested scope");id=p->second;};
             if(auto*p=std::get_if<InlineScopeBegin>(&n))scope_ref(p->scope);
             if(auto*p=std::get_if<InlineScopeCleanup>(&n))scope_ref(p->scope);
             if(auto*p=std::get_if<InlineScopeEnd>(&n))scope_ref(p->scope);
-            if(const auto*p=std::get_if<Return>(&n)){if(p->type!=callee.result||call.no_normal_return)throw Refused("return ABI mismatch");nb.instructions.push_back(StoreLocal{result_name,p->value,p->type});has_return=true;}
-            else if(std::holds_alternative<ReturnVoid>(n)){if(callee.result.kind!=TypeKind::Void||call.no_normal_return)throw Refused("void return ABI mismatch");has_return=true;}
+            PendingReturn disposition;
+            disposition.row.original=old_site;disposition.row.continuation=continuation;
+            if(const auto*p=std::get_if<Return>(&n)) {
+                if(p->type!=callee.result||call.no_normal_return)throw Refused("return ABI mismatch");
+                const auto& authored=std::get<Return>(original_ins);
+                disposition.row.original_value=authored.value;disposition.row.type=authored.type;
+                disposition.row.value=p->value;
+                if(p->type.kind==TypeKind::Void) {
+                    if(call.out)throw Refused("void return ABI mismatch");
+                    disposition.row.kind=ir::analysis::InlineReturnBinding::Kind::Void;
+                } else {
+                    disposition.row.kind=ir::analysis::InlineReturnBinding::Kind::Value;
+                    disposition.row.storage=result_name;
+                    const StoreLocal store{result_name,p->value,p->type};
+                    disposition.row.store_borrowed=store.borrowed;
+                    disposition.row.store_replace_without_release=store.replace_without_release;
+                    disposition.store=PendingSites::Emitted{nb.label,PendingSites::index(nb.instructions.size())};
+                    nb.instructions.push_back(store);
+                }
+                has_return=true;
+            }
+            else if(std::holds_alternative<ReturnVoid>(n)) {
+                if(callee.result.kind!=TypeKind::Void||call.no_normal_return)throw Refused("void return ABI mismatch");
+                disposition.row.kind=ir::analysis::InlineReturnBinding::Kind::Void;
+                disposition.row.type=callee.result;has_return=true;
+            }
             else if(const auto*p=std::get_if<Exit>(&n)){nb.instructions.push_back(InlineScopeCleanup{root_id});nb.instructions.push_back(InlineExit{root_id,p->status});continue;}
             else if(auto*p=std::get_if<InlineExit>(&n)){scope_ref(p->scope);nb.instructions.push_back(std::move(n));continue;}
             else {
@@ -173,9 +301,24 @@ struct Engine {
                     transferred_hot.emplace(ci,nb.label,nb.instructions.size());
                 nb.instructions.push_back(std::move(n));continue;
             }
-            nb.instructions.push_back(InlineScopeCleanup{root_id});nb.instructions.push_back(InlineScopeEnd{root_id});nb.instructions.push_back(Jump{continuation});
-        }if(!terminal(b.instructions.back()))throw Refused("callee missing explicit terminator");copied.push_back(std::move(nb));}
-        Block cont{continuation,{}};if(call.out&&has_return)cont.instructions.push_back(LoadLocal{call.out,result_name,call.result,owns_managed(call.result)});
+            disposition.cleanup={nb.label,PendingSites::index(nb.instructions.size())};
+            nb.instructions.push_back(InlineScopeCleanup{root_id});
+            disposition.end={nb.label,PendingSites::index(nb.instructions.size())};
+            nb.instructions.push_back(InlineScopeEnd{root_id});
+            disposition.jump={nb.label,PendingSites::index(nb.instructions.size())};
+            nb.instructions.push_back(Jump{continuation});
+            returned.push_back(std::move(disposition));
+        }if(boundary_overflow)throw Refused("inline origin instruction count overflow");
+        if(!terminal(b.instructions.back()))throw Refused("callee missing explicit terminator");copied.push_back(std::move(nb));}
+        Block cont{continuation,{}};
+        if(call.out&&has_return) {
+            const LoadLocal load{call.out,result_name,call.result,owns_managed(call.result)};
+            for(auto& disposition:returned) {
+                disposition.load=PendingSites::Emitted{cont.label,PendingSites::index(cont.instructions.size())};
+                disposition.row.output=load.out;disposition.row.load_move_out=load.move_out;
+            }
+            cont.instructions.push_back(load);
+        }
         // Later calls of the split block now live in its continuation. The
         // optional result load is a real prefix instruction of that block.
         const auto continuation_prefix=cont.instructions.size();
@@ -186,20 +329,54 @@ struct Engine {
                 site=transferred_hot.erase(site);
             } else ++site;
         }
-        cont.instructions.insert(cont.instructions.end(),f.blocks[bi].instructions.begin()+ii+1,f.blocks[bi].instructions.end());
+        for(std::size_t i=ii+1;i<=original.blocks[bi].instructions.size();++i) {
+            const ir::analysis::InstrRef old_site{static_cast<ir::analysis::BlockId>(bi),PendingSites::index(i)};
+            const PendingSites::Emitted actual{cont.label,PendingSites::index(cont.instructions.size())};
+            retained.boundaries.emplace(old_site,actual);
+            if(i<original.blocks[bi].instructions.size()) {
+                retained.instructions.emplace(old_site,actual);
+                cont.instructions.push_back(original.blocks[bi].instructions[i]);
+            }
+        }
         if(!has_return&&call.out)throw Refused("nonreturning result has no value");
         auto& prefix_block=f.blocks[bi];prefix_block.instructions.erase(prefix_block.instructions.begin()+ii,prefix_block.instructions.end());if(call.out)prefix_block.instructions.push_back(DeclareLocal{result_name,call.result,"",0,0});prefix_block.instructions.push_back(Jump{binding});
         // Outer scopes cover the copied descendants and outer continuation.
         for(auto&s:f.inline_scopes)if(std::find(s.blocks.begin(),s.blocks.end(),prefix_block.label)!=s.blocks.end()){s.blocks.insert(s.blocks.end(),scope.blocks.begin(),scope.blocks.end());s.blocks.push_back(continuation);}
         for(const auto& original_scope:callee.inline_scopes){auto ns=original_scope;ns.identity=scopes.at(ns.identity);ns.parent=ns.parent?scopes.at(ns.parent):root_id;ns.caller_statement=ns.caller_statement?statements.at(ns.caller_statement):scope.caller_statement;for(auto&label:ns.blocks)label=labels.at(label);for(auto& ss:ns.slots)ss.name=names.at(ss.name);for(auto& st:ns.statements)st.remapped=statements.at(st.remapped);f.inline_scopes.push_back(std::move(ns));}
-        f.inline_scopes.push_back(std::move(scope));copied.push_back(std::move(cont));f.blocks.insert(f.blocks.begin()+bi+1,std::make_move_iterator(copied.begin()),std::make_move_iterator(copied.end()));return {std::move(f),std::move(transferred_hot)};
+        f.inline_scopes.push_back(std::move(scope));copied.push_back(std::move(cont));f.blocks.insert(f.blocks.begin()+bi+1,std::make_move_iterator(copied.begin()),std::make_move_iterator(copied.end()));
+        retained.finish(f,origins.retained);copied_sites.finish(f,origins.copied);
+        const auto bind_block=std::find_if(f.blocks.begin(),f.blocks.end(),[&](const auto& b){return b.label==binding;});
+        origins.begin={static_cast<ir::analysis::BlockId>(bind_block-f.blocks.begin()),0};
+        for(std::size_t p=0;p<origins.parameters.size();++p)origins.parameters[p].at={origins.begin.block,parameter_sites[p].second};
+        std::map<std::string,ir::analysis::BlockId,std::less<>> destination_blocks;
+        for(std::size_t b=0;b<f.blocks.size();++b) {
+            if(b>std::numeric_limits<ir::analysis::BlockId>::max() ||
+               !destination_blocks.emplace(f.blocks[b].label,static_cast<ir::analysis::BlockId>(b)).second)
+                throw Refused("inline return block identity is ambiguous");
+        }
+        const auto emitted=[&](const PendingSites::Emitted& at) {
+            return ir::analysis::InstrRef{destination_blocks.at(at.first),at.second};
+        };
+        for(auto& disposition:returned) {
+            if(disposition.store)disposition.row.store=emitted(*disposition.store);
+            if(disposition.load)disposition.row.load=emitted(*disposition.load);
+            disposition.row.cleanup=emitted(disposition.cleanup);
+            disposition.row.end=emitted(disposition.end);disposition.row.jump=emitted(disposition.jump);
+            origins.returns.push_back(std::move(disposition.row));
+        }
+        return {std::move(f),std::move(transferred_hot),std::move(origins)};
     }
     InliningReport run(){if(!options.maximum_operations){++report.budget_fallbacks;return std::move(report);}try{setup();}catch(const Refused& e){++report.budget_fallbacks;report.unavailable.push_back({"","",e.what()});return std::move(report);}if(report.operations>=options.maximum_operations)return std::move(report);
         for(;;){bool changed=false;for(std::size_t ci=0;ci<module.functions.size()&&!changed;++ci){auto& caller=module.functions[ci];if(caller.external_symbol)continue;for(std::size_t bi=0;bi<caller.blocks.size()&&!changed;++bi)for(std::size_t ii=0;ii<caller.blocks[bi].instructions.size()&&!changed;++ii){if(!tick())return std::move(report);const auto*p=std::get_if<Call>(&caller.blocks[bi].instructions[ii]);if(!p)continue;const auto key=std::tuple{ci,caller.blocks[bi].label,ii};if(declined.contains(key))continue;const auto call=*p;const auto found=functions.find(call.callee);if(found==functions.end()||ambiguous.contains(call.callee)){declined.insert(key);reject(ci,call,"callee unavailable or ambiguous");continue;}const auto reason=eligible(module.functions[found->second],call,ci,bi,ii);if(!reason.empty()){declined.insert(key);reject(ci,call,reason);continue;}
             try{if(!tick(size(caller))||!tick(size(module.functions[found->second])))return std::move(report);auto next=expand(caller,module.functions[found->second],ci,bi,ii);const auto old=size(caller),count=size(next.function);const auto growth=count>old?count-old:0;
                 const auto used=module_current-module_base,limit=module_base/2;
                 if((count>caller_base[ci]&&count-caller_base[ci]>caller_base[ci])||used>limit||growth>limit-used||growth>std::numeric_limits<std::size_t>::max()-module_current){++report.budget_fallbacks;declined.insert(key);reject(ci,call,"caller or module growth budget");continue;}
-                caller=std::move(next.function);hot=std::move(next.hot);module_current+=growth;report.instruction_growth=module_current-module_base;++report.inlined_calls;changed=true;
+                auto origins=ir::analysis::transfer_inline_origins(module,caller,module.functions[found->second],next.function,next.origins);
+                for(const auto& issue:origins.unavailable)report.unavailable.push_back({caller.name,call.callee,
+                    "binding origin component unavailable ("+std::to_string(static_cast<unsigned>(issue.component))+":"+std::to_string(static_cast<unsigned>(issue.reason))+")"});
+                caller=std::move(next.function);hot=std::move(next.hot);
+                if(module.binding_origins)module.binding_origins=std::move(origins.snapshots);
+                module_current+=growth;report.instruction_growth=module_current-module_base;++report.inlined_calls;changed=true;
             }catch(const BudgetStop&){++report.budget_fallbacks;return std::move(report);}catch(const Refused&e){declined.insert(key);reject(ci,call,e.what());}catch(const std::out_of_range&){declined.insert(key);reject(ci,call,"inline metadata reference unavailable");}catch(const std::length_error&){++report.budget_fallbacks;declined.insert(key);reject(ci,call,"inline storage size budget");}
         }}if(!changed)break;}return std::move(report);
     }

@@ -529,6 +529,16 @@ void Engine::instruction(const Instruction& instruction,Env& env,InstrRef at) {
         else put(out_.scalars,node->out,symbol(20,node->out,at.block,0));
         return;
     }
+    if(const auto* node=std::get_if<ConstantExact>(&instruction)) {
+        // Bare integer literals lower to ConstantExact. Only an integral,
+        // representable value supplies an extent; real/fractional and larger
+        // exact constants retain unknown facts.
+        if(node->type.kind==TypeKind::Int || node->type.kind==TypeKind::Nat)
+            if(const auto value=integer(node->spelling);value && (node->type.kind!=TypeKind::Nat || *value>=0)) {
+                integers_[node->out]=*value;put(out_.scalars,node->out,ShapeExtent(*value));
+            }
+        return;
+    }
     if(const auto* node=std::get_if<LoadLocal>(&instruction)) {
         const auto source=ssa_.load_source.find(node->out);
         auto def=source==ssa_.load_source.end()?ReachingDef{}:source->second;

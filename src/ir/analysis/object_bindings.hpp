@@ -31,6 +31,9 @@ struct ObjectIdentityFact {
   std::map<std::size_t, ObjectPath> references;
   std::vector<semantics::StoragePath> holders;
   bool available{}, address{}, error_return{};
+  std::vector<ScopedStoragePath> scoped_holders;
+  // Only actual typed carrier construction establishes a successful variant.
+  bool value_carrier{}, conditional_carrier{};
   bool operator==(const ObjectIdentityFact &) const = default;
 };
 struct ObjectIdentityEvent {
@@ -47,6 +50,17 @@ struct ConstructorIdentity {
 };
 using ConstructorIdentities =
     std::map<std::string, ConstructorIdentity, std::less<>>;
+struct InlineConstructorBirth {
+  std::uint64_t scope{};
+  DeclarationIdentity declaration;
+  Type result_type, object_type;
+  ObjectRoot allocation;
+  InstrRef completion;
+  std::vector<InstrRef> successful_returns;
+  std::vector<InlineParameterBinding> parameters;
+  std::vector<InlineReturnBinding> returns;
+  bool operator==(const InlineConstructorBirth &) const;
+};
 struct ObjectIdentityAnalysis {
   struct Scope {
     std::map<ValueId, ObjectIdentityFact> incoming;
@@ -62,6 +76,7 @@ struct ObjectIdentityAnalysis {
   std::vector<ObjectIdentityFact> returns;
   std::vector<ObjectIdentityEvent> events;
   bool complete{};
+  std::vector<InlineConstructorBirth> inline_births;
   ObjectIdentityFact at(InstrRef, ValueId) const;
 };
 struct ObjectBindingRequest {
@@ -87,6 +102,9 @@ struct ObjectBindingFact {
   std::size_t reference_field{};
   std::vector<std::vector<semantics::PathStep>> paths;
   std::vector<BindingCallEvidence> calls;
+  std::optional<ScopedStoragePath> scoped_holder;
+  std::optional<InlineConstructorBirth> inline_birth;
+  bool root_holder_available{true};
   // Structural membership only; initialization, shapes, gradient state,
   // uniqueness, donation and check deletion require their separate proofs.
 };

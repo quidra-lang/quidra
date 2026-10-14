@@ -1,4 +1,5 @@
 #include "llvm_backend/debug_module.hpp"
+#include "llvm_backend/authored_display_name.hpp"
 
 #include "quidra/abi/symbols.hpp"
 #include "quidra/member_function_names.hpp"
@@ -96,6 +97,8 @@ void DebugModule::emit_metadata(llvm_text::LlvmModule& module)const{
                 const auto dot=display.rfind('.');
                 if(dot!=std::string::npos) display=display.substr(0,dot)+".construct";
             }
+            if(const auto source=authored_specialization_display_name(f))
+                display=source->name+(source->constructor?".construct":"");
             const auto linkage=f.entrypoint?std::string(abi::symbol_namespace::entry):abi::user_symbol(f.name);
             out<<"!"<<*debug_subprograms_[i]
                <<" = distinct !DISubprogram(name: \""<<llvm_text::escape_metadata(display)

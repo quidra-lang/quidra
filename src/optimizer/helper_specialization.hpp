@@ -14,7 +14,7 @@ struct SpecializationOptions {
     std::uint64_t maximum_operations{2000000};
     std::size_t maximum_rounds{32};
 };
-struct CloneOrigin { std::string clone, source; };
+struct CloneOrigin { std::string clone, source; bool unchanged_body{}; };
 struct SpecializationUnavailable { std::string function, reason; };
 struct HelperSpecializationReport {
     std::size_t rewritten_calls{}, generated_clones{}, folded_tracking{}, updated_entries{};
@@ -23,6 +23,7 @@ struct HelperSpecializationReport {
     std::vector<std::string> removed_entries;
     std::vector<CloneOrigin> clones;
     std::vector<SpecializationUnavailable> unavailable;
+    std::shared_ptr<const ir::analysis::BindingOriginSnapshots> origin_owner;
     bool changed() const noexcept { return rewritten_calls || folded_tracking || updated_entries || !removed_entries.empty(); }
 };
 class HelperSpecialization {

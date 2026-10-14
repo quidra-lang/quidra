@@ -911,8 +911,10 @@ private:
                 auto array_captured = capture_array_contract(binding->declared_type, environment);
                 auto type = original_bindings_.contains(statement.get())
                     ? original_bindings_.at(statement.get()) : Type::simple(TypeKind::Invalid);
+                std::optional<Type> initializer_type;
                 if (binding->value) {
                     const auto value = expression_type(*binding->value, environment);
+                    initializer_type = value;
                     if (type.kind == TypeKind::Tensor && value.kind == TypeKind::Tensor) {
                         type.length = value.length;
                         type.tensor_known_shape_prefix = value.tensor_known_shape_prefix;
@@ -952,8 +954,10 @@ private:
                             if (constraint.check == ShapeAxisCheck::Variable && environment.scalars.contains(constraint.variable))
                                 captured[axis] = environment.scalars.at(constraint.variable);
                         }
-                        if (binding->value)
-                            prove_contract(*binding->value, type, captured, plan->second.ellipsis);
+                        // The declared binding shape is established only after
+                        // its check; it cannot prove the initializer's axes.
+                        if (initializer_type)
+                            prove_contract(*binding->value, *initializer_type, captured, plan->second.ellipsis);
                         for (std::size_t axis = 0; axis < captured.size(); ++axis)
                             if (captured[axis])
                                 set_pattern_extent(value, axis, captured.size(), plan->second.ellipsis,

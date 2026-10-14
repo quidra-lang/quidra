@@ -547,17 +547,22 @@ static void initialization_cases() {
   source.complete = true;
   source.semantic_parameter_for_ir_parameter = {0};
   source.availability.parameter_map = true;
+  source.availability.collections = true;
   source.collections.push_back(
       CollectionOrigin{{0, 2}, 2, 1, aggregate, {{}}, true});
   sources.functions.emplace(fn.name, source);
   ModuleSummaries summaries;
   auto proof = binding_proof(module, summaries, sources);
+  require(proof.collections.size() == 1,
+          "captured initialization query must retain one collection row");
   require(proof.collections[0].paths_available &&
               !proof.collections[0].initialized &&
               !proof.collections[0].available,
           "writable whole-root collect fabricated aggregate initialization");
   module.functions[0].parameters[0].writable = false;
   proof = binding_proof(module, summaries, sources);
+  require(proof.collections.size() == 1,
+          "readonly initialization query lost its collection row");
   require(proof.collections[0].initialized,
           "actual readonly value entry lost its initialization contract");
   module.functions[0].parameters.clear();
@@ -565,6 +570,8 @@ static void initialization_cases() {
       ClassMake{1, aggregate, {}}, ArrayMake{2, {1}, list}, ReturnVoid{}};
   sources.functions.at(fn.name).semantic_parameter_for_ir_parameter.clear();
   proof = binding_proof(module, summaries, sources);
+  require(proof.collections.size() == 1,
+          "incomplete allocation query lost its collection row");
   require(proof.collections[0].paths_available &&
               !proof.collections[0].initialized,
           "missing nonreference ClassMake field fabricated initialization");
@@ -573,6 +580,8 @@ static void initialization_cases() {
       FieldSet{1, 0, 3, integer}, ArrayMake{2, {1}, list}, ReturnVoid{}};
   sources.functions.at(fn.name).collections[0].at.index = 4;
   proof = binding_proof(module, summaries, sources);
+  require(proof.collections.size() == 1,
+          "initialized allocation query lost its collection row");
   require(proof.collections[0].initialized && proof.collections[0].available,
           "successful actual field write failed to establish aggregate "
           "initialization");

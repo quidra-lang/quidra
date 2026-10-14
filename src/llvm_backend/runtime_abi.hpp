@@ -669,8 +669,12 @@ inline constexpr LlvmCallee unary =
     llvm_callee<decltype(&quidra_tensor_unary)>("quidra_tensor_unary");
 inline constexpr LlvmCallee binary =
     llvm_callee<decltype(&quidra_tensor_binary)>("quidra_tensor_binary");
+inline constexpr LlvmCallee binary_proven =
+    llvm_callee<decltype(&quidra_tensor_binary_proven)>("quidra_tensor_binary_proven");
 inline constexpr LlvmCallee compare =
     llvm_callee<decltype(&quidra_tensor_compare)>("quidra_tensor_compare");
+inline constexpr LlvmCallee compare_proven =
+    llvm_callee<decltype(&quidra_tensor_compare_proven)>("quidra_tensor_compare_proven");
 inline constexpr LlvmCallee bool_reduce =
     llvm_callee<decltype(&quidra_tensor_bool_reduce)>("quidra_tensor_bool_reduce");
 inline constexpr LlvmCallee index =

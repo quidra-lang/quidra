@@ -3,6 +3,7 @@
 #include "quidra/optimizer.hpp"
 #include "quidra/ir/value_allocator.hpp"
 #include "ir/analysis/analysis_cache.hpp"
+#include "ir/analysis/call_graph.hpp"
 #include "ir/analysis/summary_facts.hpp"
 #include "ir/clone_contracts.hpp"
 #include "ir/facts/entry.hpp"
@@ -115,7 +116,21 @@ void bind_policy_facts(ir::Module& module, const RuleRegistry& registry) {
 } // namespace
 
 bool run_helper_specialization(ir::Module& module, const PassContext& context) {
-    if (!context.analyses || !interproc_on(context)) return false;
+    if (!context.analyses || !interproc_enabled(context)) return false;
+    if (!interproc_on(context)) {
+        auto observed = module;
+        auto options = context.options;
+        options.cfg_facts = ir::OptimizerMode::On;
+        options.interproc = ir::OptimizerMode::On;
+        options.exact_binding = DeclarationBindingMode::On;
+        auto registry = RuleRegistry::build(observed, options.exact_binding);
+        bind_policy_facts(observed, registry);
+        const FunctionIndex functions(observed);
+        ir::analysis::AnalysisCache analyses(observed);
+        const PassContext verification{registry, functions, options, &analyses};
+        run_helper_specialization(observed, verification);
+        return false;
+    }
     bool changed = false;
     std::uint64_t operations = 0;
     constexpr std::uint64_t maximum_operations = 2000000;
@@ -141,8 +156,10 @@ bool run_helper_specialization(ir::Module& module, const PassContext& context) {
                 function.validated_entry = entry->second;
         changed = report.changed() || changed;
         std::vector<ir::CloneReference> clones;
-        for (const auto& origin : report.clones) clones.push_back({origin.clone, origin.source});
+        for (const auto& origin : report.clones) clones.push_back({origin.clone, origin.source,
+            origin.unchanged_body ? ir::CloneIrProofs::PreserveUnchangedBody : ir::CloneIrProofs::Invalidate});
         if (!clones.empty()) import_contracts(module, context.options, clones);
+        if (report.origin_owner) module.binding_origins=std::move(report.origin_owner);
         if (report.rewritten_calls || report.generated_clones) {
             refresh_summaries(module);
             context.analyses->invalidate_all();
@@ -152,7 +169,21 @@ bool run_helper_specialization(ir::Module& module, const PassContext& context) {
 }
 
 bool run_budgeted_inlining(ir::Module& module, const PassContext& context) {
-    if (!interproc_on(context)) return false;
+    if (!inline_enabled(context)) return false;
+    if (!inline_on(context)) {
+        auto observed = module;
+        auto options = context.options;
+        options.cfg_facts = ir::OptimizerMode::On;
+        options.inline_functions = ir::OptimizerMode::On;
+        options.exact_binding = DeclarationBindingMode::On;
+        auto registry = RuleRegistry::build(observed, options.exact_binding);
+        bind_policy_facts(observed, registry);
+        const FunctionIndex functions(observed);
+        ir::analysis::AnalysisCache analyses(observed);
+        const PassContext verification{registry, functions, options, &analyses};
+        run_budgeted_inlining(observed, verification);
+        return false;
+    }
     InliningOptions options;
     std::uint64_t work = 0;
     const auto tick = [&]() {
@@ -225,6 +256,14 @@ bool run_budgeted_inlining(ir::Module& module, const PassContext& context) {
                 if (target != names.end() && target->second.size() == 1 && candidate[target->second.front()])
                     options.hot_sites.push_back({fn.name, b, i});
             }
+    const auto cleanup = ir::analysis::node_cleanup_functions(module, options.maximum_operations - work);
+    work += cleanup.operations;
+    if (!cleanup.available) return exhausted();
+    options.node_cleanup_modes.emplace();
+    for (const auto& function : module.functions) {
+        if (!tick()) return exhausted();
+        options.node_cleanup_modes->emplace(function.name, cleanup.functions.contains(function.name));
+    }
     options.maximum_operations -= work;
     const auto report = BudgetedInliner::run(module, context.registry, std::move(options));
     if (context.options.diagnostics)
@@ -267,6 +306,7 @@ ir::Module PassManager::run(ir::Module module) const {
             changed = pass.run(module, context);
             entries_validated = pass.run == run_helper_specialization;
             contracts_changed = changed && (pass.run == run_rule_dispatch || pass.run == run_helper_specialization || pass.run == run_budgeted_inlining ||
+                pass.run == run_check_elimination_first || pass.run == run_check_elimination_second ||
                 module.functions.size() != function_count);
         }
         if (changed) {

@@ -1,5 +1,10 @@
 #include "ir/facts/tensor.hpp"
 #include "ir/analysis/tensor_facts.hpp"
+#include "ir/analysis/analysis_cache.hpp"
+#include "quidra/compiler.hpp"
+#include "quidra/lowering.hpp"
+
+#include <algorithm>
 
 #include <cstdio>
 #include <stdexcept>
@@ -14,6 +19,62 @@ TensorFactAnalysis analyze(const Function& function,const ModuleSummaries& summa
     const auto cfg=build_cfg(function);const auto dom=dominators(cfg);const auto slots=classify_slots(function);
     const auto ssa=build_local_ssa(function,cfg,dom,slots);
     return compute_tensor_facts(function,cfg,dom,ssa,slots,summaries,sources,params);
+}
+void initializer_shape_contracts() {
+    const auto checked = check(R"(tensor<real32> guarded_sum(tensor<real32> first, tensor<real32> second)
+    tensor<real32>{2, 3} left = first
+    tensor<real32>{2, 3} right = second
+    return left + right
+)");
+    const auto module = lower(checked);
+    AnalysisCache cache(module);
+    bool found = false;
+    for (std::size_t f = 0; f < module.functions.size(); ++f) {
+        const auto& fn = module.functions[f];
+        if (!fn.declaration || fn.declaration->source_name != "guarded_sum") continue;
+        found = true;
+        std::size_t guards = 0;
+        bool checked_binary = false;
+        const auto& tensor_facts = cache.tensor_facts(f);
+        for (std::uint32_t b = 0; b < fn.blocks.size(); ++b)
+            for (std::uint32_t i = 0; i < fn.blocks[b].instructions.size(); ++i) {
+                const auto& instruction = fn.blocks[b].instructions[i];
+                if (const auto* guard = std::get_if<ShapedConstraintCheck>(&instruction)) {
+                    ++guards;
+                    require(guard->extents.size() == 2 && guard->extents[0] && guard->extents[1],
+                        "unknown initializer axes were proved from their declared binding shape");
+                    require(tensor_facts.at({b, i}, guard->value).type.length < 0,
+                        "declared binding shape became a pre-guard rank proof");
+                    const auto after = tensor_facts.at({b, i + 1}, guard->value);
+                    require(after.type.length == 2 && after.extents.size() == 2 &&
+                        after.extents[0].known() == 2 && after.extents[1].known() == 3,
+                        "successful initializer guard did not establish its actual axes");
+                }
+                if (const auto* binary = std::get_if<TensorBinary>(&instruction)) {
+                    for (const auto value : {binary->left, binary->right}) {
+                        const auto fact = tensor_facts.at({b, i}, value);
+                        require(fact.type.length == 2 && fact.extents.size() == 2 &&
+                            fact.extents[0].known() == 2 && fact.extents[1].known() == 3,
+                            "loaded initializer lost its validated post-guard geometry");
+                    }
+                    checked_binary = true;
+                }
+            }
+        require(guards == 2 && checked_binary, "real lowering omitted initializer checks or tensor consumer");
+    }
+    require(found, "authored initializer fixture declaration is missing");
+    const auto shape_error = [](const Diagnostic& error) {
+        return error.code == "TENSOR_SHAPE" || error.code == "TYPE_MISMATCH";
+    };
+    bool rejected = false;
+    try { (void)check(R"(tensor<real32>{2, 3} value = tensor.zeros<real32>([2, 4])
+)"); }
+    catch (const CompileError& error) { rejected = shape_error(error.diagnostic()); }
+    catch (const CompileErrors& errors) {
+        rejected = std::any_of(errors.diagnostics().begin(), errors.diagnostics().end(),
+            shape_error);
+    }
+    require(rejected, "known initializer extent mismatch no longer produces a compile error");
 }
 }
 int main() {
@@ -158,6 +219,19 @@ int main() {
         scoped.blocks[0].instructions[4]=ParallelBlock{};
         require(analyze(scoped,summaries,sources,policy).at({0,5},3).tracked==Tri::Unknown,
             "parallel boundary never retains unsupported descriptor mutation proofs");
+        Function exact;exact.name="exact_integer_extents";
+        exact.blocks={{"entry",{ConstantExact{1,"2",Type::simple(TypeKind::Int)},
+            NumericConvert{2,1,Type::simple(TypeKind::Int),Type::simple(TypeKind::Int64)},
+            ConstantExact{3,"3",Type::simple(TypeKind::Nat)},
+            ConstantExact{4,"1/2",Type::simple(TypeKind::Real)},
+            ConstantExact{5,"18446744073709551616",Type::simple(TypeKind::Nat)},ReturnVoid{}}}};
+        const auto exact_facts=analyze(exact,summaries,sources);
+        require(exact_facts.scalar_at({0,5},1).known()==2 && exact_facts.scalar_at({0,5},2).known()==2 &&
+            exact_facts.scalar_at({0,5},3).known()==3,"lowered bare integer literals and checked conversion lost extent facts");
+        require(exact_facts.scalar_at({0,5},4).kind==ShapeExtent::Kind::Unknown &&
+            exact_facts.scalar_at({0,5},5).kind==ShapeExtent::Kind::Unknown,
+            "fractional real or oversized exact literal gained an integer extent");
+        initializer_shape_contracts();
         std::puts("IR tensor facts: shared transfers, scoped guards, sparse SSA loops and policy joins verified");
     } catch (const std::exception& error) { std::fprintf(stderr, "%s\n", error.what()); return 1; }
 }

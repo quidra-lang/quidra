@@ -1,4 +1,5 @@
 #include "optimizer/helper_specialization.hpp"
+#include "ir/helper_binding_origins.hpp"
 #include "ir/analysis/analysis_cache.hpp"
 #include "platform/sha256.hpp"
 #include <algorithm>
@@ -181,15 +182,7 @@ struct Engine {
         for (const auto& [key, rows]:families) if (rows.size()>1) for (auto i:rows) { instances[i].clear(); unavailable(module.functions[i],"ambiguous exact declaration/concrete ABI instance"); }
         for (const auto& [name,e]:prior) if (e && e->origin==EntryFactOrigin::SpecializedCalls && index.contains(name)) entries.emplace(name,e);
     }
-    bool read_only(const Call& n) const {
-        if (!module.summaries) return false;
-        const auto* s=module.summaries->find(n.callee);
-        if (!s || !s->semantic || !s->descriptor_complete || s->descriptor_effects || !s->effects_complete || (s->effects&effect_bit::Opaque)) return false;
-        const auto& e=*s->semantic;
-        return !e.mutates_ambient && !e.mutates_receiver && e.reference_shared_writes.empty() && e.reference_shared_write_origins.empty() &&
-            std::none_of(e.mutates_shared_of_parameter.begin(),e.mutates_shared_of_parameter.end(),[](bool v){return v;}) &&
-            std::none_of(e.exposed_writes.begin(),e.exposed_writes.end(),[](const auto& v){return !v.empty();});
-    }
+    bool read_only(const Call& n) const {return helper_descriptor_read_only(module,n);}
     bool barrier(const Instruction& i, ValueId value, const AliasInfo& aliases) const {
         if (const auto* n=std::get_if<Call>(&i)) {
             if (read_only(*n)) return false;
@@ -278,23 +271,11 @@ struct Engine {
         for(auto& [i,e]:meets)if(!bad.contains(i)&&!open.contains(module.functions[i].name)) {e.fact_key=signature(e,true);next.emplace(module.functions[i].name,std::make_shared<const ValidatedEntryFacts>(std::move(e)));}
         return next;
     }
-    std::size_t fold(Function& f, const ValidatedEntryFacts& entry) {
-        const auto cfg=build_cfg(f);const auto dom=dominators(cfg);const auto slots=classify_slots(f);const auto ssa=build_local_ssa(f,cfg,dom,slots);
-        const ModuleSummaries no_summaries;const FactSources no_sources;
-        auto facts=compute_tensor_facts(f,cfg,dom,ssa,slots,module.summaries?*module.summaries:no_summaries,module.fact_sources?*module.fact_sources:no_sources,params(entry));
-        // Body-local effects are independently conservative. A prior opaque
-        // or descriptor-mutating operation prevents folding on every possible
-        // predecessor path; facts remain metadata for later analysis refresh.
-        std::vector<bool> dirty(cfg.succ.size()); bool changed=true;
-        while(changed){changed=false;for(const auto b:cfg.rpo){work.take();bool d=dirty[b];for(const auto& ins:f.blocks[b].instructions) {
-            if(const auto* c=std::get_if<Call>(&ins))d|=!read_only(*c);
-            else d|=std::holds_alternative<IndirectCall>(ins)||std::holds_alternative<ParallelBlock>(ins)||std::holds_alternative<StoreAddress>(ins)||std::holds_alternative<StoreReference>(ins)||std::holds_alternative<FieldSet>(ins)||std::holds_alternative<ArraySet>(ins)||std::holds_alternative<ArraySliceSet>(ins)||std::holds_alternative<TensorSet>(ins)||std::holds_alternative<TensorBackward>(ins);
-        }if(d)for(const auto s:cfg.succ[b])if(!dirty[s]){dirty[s]=true;changed=true;}}}
-        std::size_t count{};
-        for(const auto b:cfg.rpo){bool d=dirty[b];for(std::uint32_t j=0;j<f.blocks[b].instructions.size();++j){work.take();auto& ins=f.blocks[b].instructions[j];
-            if(const auto* n=std::get_if<TensorIsTracked>(&ins);n&&!d&&facts.at({b,j},n->tensor).tracked==Tri::False){const auto out=n->out;ins=ConstantBool{out,false};++count;}
-            if(const auto* c=std::get_if<Call>(&ins))d|=!read_only(*c);else d|=std::holds_alternative<IndirectCall>(ins)||std::holds_alternative<ParallelBlock>(ins)||std::holds_alternative<StoreAddress>(ins)||std::holds_alternative<StoreReference>(ins)||std::holds_alternative<FieldSet>(ins)||std::holds_alternative<ArraySet>(ins)||std::holds_alternative<ArraySliceSet>(ins)||std::holds_alternative<TensorSet>(ins)||std::holds_alternative<TensorBackward>(ins);
-        }}return count;
+    std::shared_ptr<const HelperTrackingProof> fold(Function& fn,std::shared_ptr<const ValidatedEntryFacts> entry) {
+        auto proof=prove_helper_tracking_folds(module,fn,std::move(entry),[&]{work.take();});
+        for(const auto& replacement:proof->replacements())
+            fn.blocks[replacement.at.block].instructions[replacement.at.index]=ConstantBool{replacement.out,false};
+        return proof;
     }
     HelperSpecializationReport run() {
         if(!options.exact_binding){report.unavailable.push_back({{},"helper specialization requires exact binding"});return report;}
@@ -307,6 +288,9 @@ struct Engine {
             const auto growth=base/2;if(growth>std::numeric_limits<std::size_t>::max()-base)throw Exhausted{};const auto maximum=base+growth;
             struct Edit {std::size_t caller;InstrRef at;std::string target;};std::vector<Edit> edits;
             std::vector<Function> added;
+            std::vector<HelperCloneOriginReceipt> clone_origins;
+            std::vector<HelperCallRetargetReceipt> call_origins;
+            std::map<std::size_t,std::shared_ptr<const std::string>> caller_bodies;
             std::map<std::string,std::size_t,std::less<>> counts;
             std::map<std::string,std::string,std::less<>> reuse;
             for(const auto& [name,e]:prior)if(e&&e->origin==EntryFactOrigin::SpecializedCalls&&index.contains(name)){++counts[e->source_instance];reuse.emplace(e->fact_key,name);}
@@ -325,11 +309,24 @@ struct Engine {
                     name="$spec."+platform::sha256_hex(entry.fact_key);
                     if(index.contains(name)){unavailable(source,"content-named clone collides with an unrelated function");continue;}
                     auto copy=source;copy.name=name;copy.entrypoint=false;copy.c_export_symbol.reset();copy.declaration->specialization_of=declaration_key(entry.declaration);
-                    work.take(n);const auto folded=fold(copy,entry);report.folded_tracking+=folded;
+                    auto owned_entry=std::make_shared<const ValidatedEntryFacts>(entry);
+                    work.take(n);const auto proof=fold(copy,owned_entry);report.folded_tracking+=proof->replacements().size();
+                    clone_origins.push_back({name,source.name,proof});
                     added.push_back(std::move(copy));total+=n;++counts[entry.source_instance];reuse.emplace(entry.fact_key,name);
-                    entries[name]=std::make_shared<const ValidatedEntryFacts>(entry);report.clones.push_back({name,source.name});
+                    entries[name]=std::move(owned_entry);report.clones.push_back({name,source.name});
                 }
-                for(auto row:rows)edits.push_back({sites[row].caller,sites[row].at,name});
+                for(auto row:rows) {
+                    const auto& site=sites[row];const auto& caller=module.functions[site.caller];
+                    const auto before=std::get<Call>(caller.blocks[site.at.block].instructions[site.at.index]);
+                    auto after=before;after.callee=name;
+                    auto [body,inserted]=caller_bodies.try_emplace(site.caller);
+                    if(inserted) {
+                        work.take(size(caller));
+                        body->second=std::make_shared<const std::string>(binding_origin_body_fields(caller));
+                    }
+                    call_origins.push_back({caller.name,source.name,name,body->second,instances[site.target],entries.at(name),site.at,before,std::move(after)});
+                    edits.push_back({site.caller,site.at,name});
+                }
             }
             // Original meet records are revalidatable metadata. Do not fold
             // the shared source body: later call-producing rewrites may weaken
@@ -337,6 +334,24 @@ struct Engine {
             report.entries=entries;
             for(const auto& [name,e]:prior)if(e && !entries.contains(name))report.removed_entries.push_back(name);
             for(const auto& [name,e]:entries){const auto it=prior.find(name);if(it==prior.end()||!it->second||it->second->origin!=e->origin||signature(*it->second,true)!=e->fact_key)++report.updated_entries;}
+            // Build owned origin receipts against the unchanged preimages.
+            // The returned owner is published by PassManager after semantic
+            // clone import; this prevents duplicate destination metadata.
+            auto origin_result=prepare_helper_origins(module,added,clone_origins,call_origins);
+            report.origin_owner=std::move(origin_result.snapshots);
+            for(const auto& issue:origin_result.unavailable)report.unavailable.push_back({issue.lookup,
+                "helper origin component unavailable ("+std::to_string(static_cast<unsigned>(issue.component))+":"+std::to_string(static_cast<unsigned>(issue.reason))+")"});
+            // Preserve IR proofs only when the actual post-transaction source
+            // and clone remain exactly equal, including all concrete ABI.
+            for(auto& origin:report.clones) {
+                const auto src=index.find(origin.source);
+                const auto target=std::find_if(added.begin(),added.end(),[&](const auto& fn){return fn.name==origin.clone;});
+                if(src==index.end() || target==added.end())continue;
+                auto projected=module.functions[src->second];
+                for(const auto& edit:edits)if(edit.caller==src->second)
+                    std::get<Call>(projected.blocks[edit.at.block].instructions[edit.at.index]).callee=edit.target;
+                origin.unchanged_body=helper_unchanged_body(projected,*target);
+            }
             // Allocate before mutation. No source/reference retained across the
             // vector append; any analysis/allocation failure leaves input IR.
             if(added.size()>module.functions.max_size()-module.functions.size())throw std::length_error("specialization function count exhausted");

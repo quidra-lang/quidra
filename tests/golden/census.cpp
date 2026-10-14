@@ -127,6 +127,8 @@ void count_module(const ir::Module& module, Counts& counts, Signatures& signatur
                                          std::is_same_v<T, ir::TensorCompare>) {
                         key = n.op + "|" + element_name(n.left_type, n.right_type) + "|" +
                               tensor_side(n.left_type) + tensor_side(n.right_type);
+                        if constexpr (std::is_same_v<T, ir::TensorBinary>) key += "|broadcast-proven=" + bit(n.broadcast_proven);
+                        else key += "|shape-proven=" + bit(n.shape_proven);
                     } else if constexpr (std::is_same_v<T, ir::ArrayGet>) {
                         key = array_access_key(types, n.array, n.element_type,
                                                n.initialization_proven, n.bounds_proven,

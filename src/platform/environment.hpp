@@ -33,6 +33,10 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+// The Windows printer API alias must not rewrite our metadata type names.
+#ifdef DeviceCapabilities
+#undef DeviceCapabilities
+#endif
 #else
 extern "C" {
 extern char** environ;

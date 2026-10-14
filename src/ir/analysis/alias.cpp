@@ -128,7 +128,7 @@ struct Builder {
         append(variables[id(out)].facts.sites, at);
     }
     void fresh(ValueId out, InstrRef at, bool autograd = false, bool tensor_value = true) {
-        auto& value = variables[id(out)]; value.contains = Contains::Yes; value.tensor = tensor_value;
+        auto& fresh_value = variables[id(out)]; fresh_value.contains = Contains::Yes; fresh_value.tensor = tensor_value;
         seed(id(out), StorageOrigin::Fresh, true, true, at);
         variables[id(out)].descriptor_owned = true; variables[id(out)].facts.reaches_autograd |= autograd;
         variables[id(out)].facts.may_have_other_owners |= autograd;

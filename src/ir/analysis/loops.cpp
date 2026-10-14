@@ -1,6 +1,7 @@
 #include "ir/analysis/loops.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <map>
 #include <limits>
 #include <set>

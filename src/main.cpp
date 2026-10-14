@@ -19,6 +19,7 @@
 #include "device_cli.hpp"
 #include "profile_cli.hpp"
 #include "ir_cli.hpp"
+#include "optimization_cli.hpp"
 #include "runtime/capture_request.hpp"
 #include "platform/environment.hpp"
 #include "platform/file_names.hpp"
@@ -179,10 +180,13 @@ std::size_t parse_max_errors(const std::string& text) {
 
 int build_native(const fs::path& source, const fs::path& output, bool keep_llvm = false,
                  std::size_t max_errors = 20, bool debug = false,
-                 const std::vector<fs::path>& link_inputs = {}) {
+                 const std::vector<fs::path>& link_inputs = {},
+                 const quidra::ir::OptimizerOptions& optimizer = {}) {
     require_qui_source(source);
+    quidra::CompileOptions options{max_errors, debug};
+    options.optimizer = optimizer;
     auto result = quidra::compile_file(
-        source, quidra::CompileOptions{max_errors, debug}, fs::current_path());
+        source, options, fs::current_path());
     auto ll = output;
     ll += ".ll";
     write_file(ll, result.llvm);
@@ -208,9 +212,11 @@ int build_native(const fs::path& source, const fs::path& output, bool keep_llvm 
 // with print_link_flags, the flags a C linker needs are printed on stdout.
 int build_library_archive(const fs::path& source, const fs::path& output, bool keep_llvm,
                           std::size_t max_errors, bool debug,
-                          const std::vector<fs::path>& link_inputs, bool print_link_flags) {
+                          const std::vector<fs::path>& link_inputs, bool print_link_flags,
+                          const quidra::ir::OptimizerOptions& optimizer = {}) {
     require_qui_source(source);
     quidra::CompileOptions options{max_errors, debug};
+    options.optimizer = optimizer;
     options.artifact = quidra::CompileArtifact::Library;
     auto result = quidra::compile_file(source, options, fs::current_path());
     auto ll = output;
@@ -252,7 +258,8 @@ int run_native(const fs::path& source, std::size_t max_errors = 20,
                const std::vector<std::string>& program_args = {},
                const std::vector<fs::path>& link_inputs = {},
                bool use_cache = true,
-               const quidra::platform::RuntimeEnvironment& runtime_environment = {}) {
+               const quidra::platform::RuntimeEnvironment& runtime_environment = {},
+               const quidra::ir::OptimizerOptions& optimizer = {}) {
     auto program_environment = runtime_environment;
     if (const auto capture = quidra::platform::environment_value("QUIDRA_METAL_CAPTURE");
         capture && quidra::profile::parse_capture_step(*capture)) {
@@ -263,7 +270,7 @@ int run_native(const fs::path& source, std::size_t max_errors = 20,
     const auto uncached = [&]() {
         quidra::run_artifact::TemporaryArtifact temp(source);
         const auto& executable = temp.executable();
-        if (build_native(source, executable, false, max_errors, false, link_inputs) != 0) return 1;
+        if (build_native(source, executable, false, max_errors, false, link_inputs, optimizer) != 0) return 1;
         return quidra::platform::run_program(
             program_environment.empty() ? executable : fs::absolute(executable), program_args,
             std::nullopt, std::nullopt, program_environment);
@@ -271,7 +278,7 @@ int run_native(const fs::path& source, std::size_t max_errors = 20,
     if (!use_cache) return uncached();
     require_qui_source(source);
     return quidra::run_cache::run_cached(
-        quidra::run_cache::DirectRun{source, max_errors, program_args, link_inputs}, uncached,
+        quidra::run_cache::DirectRun{source, max_errors, program_args, link_inputs, optimizer}, uncached,
         program_environment);
 }
 
@@ -301,12 +308,14 @@ void usage(std::ostream& out) {
         << "  " << cli << " info                       print CPU/GPU backend information\n"
         << "  " << cli << " profile " << source << " [--top N] [--split] [--roofline]\n"
         << "                                      [--trace PATH] [--timeline PATH] [-- ARGS...]\n"
-        << "  " << cli << " [--no-cache] " << source << " [ARGS...]\n"
+        << "  " << cli << " [--no-cache] [--opt=KEY=MODE] " << source << " [ARGS...]\n"
         << "                                      AOT compile/link and run with program arguments\n"
         << "  " << cli << " run " << source << " [--no-cache] [--link FILE] [-- ARGS...]\n"
         << "                                      compile and run; --link is repeatable\n"
         << "                                      direct runs reuse the run cache; --no-cache\n"
         << "                                      builds without it\n"
+        << "                                      run/build/llvm accept the same --opt keys as ir;\n"
+        << "                                      shorthand compiler options precede the source\n"
         << "  " << cli << " check " << source << " [--json] [--max-errors N]\n"
         << "                                      type-check without building\n"
         << "  " << cli << " build " << source << " [-o FILE] [--debug] [--link FILE] [--max-errors N]\n"
@@ -536,16 +545,30 @@ int main(int argc, char** argv) {
         }
     }
 
-    const bool direct_no_cache = argc >= 3 && std::string(argv[1]) == "--no-cache" &&
-                                 fs::path(argv[2]).extension() == quidra::source_extension;
-    if (direct_no_cache ||
-        (argc >= 2 && fs::path(argv[1]).extension() == quidra::source_extension)) {
-        const int first = direct_no_cache ? 2 : 1;
+    int first = 1;
+    bool direct_use_cache = true;
+    quidra::cli::OptimizationSettings direct_optimization;
+    try {
+        // Shorthand arguments after the source belong to the program, even
+        // when one is named --opt. Compiler options are prefix-only here.
+        while (first < argc) {
+            const std::string option = argv[first];
+            if (option == "--no-cache") direct_use_cache = false;
+            else if (!quidra::cli::parse_optimization_option(option, direct_optimization)) break;
+            ++first;
+        }
+    } catch (const std::exception& error) {
+        std::cerr << "quidra: " << error.what() << '\n';
+        return 1;
+    }
+    if (first < argc && fs::path(argv[first]).extension() == quidra::source_extension) {
         const fs::path input = argv[first];
         std::vector<std::string> program_args;
         for (int i = first + 1; i < argc; ++i) program_args.emplace_back(argv[i]);
         try {
-            return run_native(input, 20, program_args, {}, !direct_no_cache);
+            quidra::ir::OptimizerOptions optimizer;
+            quidra::cli::apply_optimization_settings(direct_optimization, optimizer);
+            return run_native(input, 20, program_args, {}, direct_use_cache, {}, optimizer);
         } catch (const quidra::CompileErrors& e) {
             print_compile_errors(input, e, false);
             return 1;
@@ -645,8 +668,13 @@ int main(int argc, char** argv) {
         }
 
         if (command == "llvm") {
-            if (argc != 3) throw std::runtime_error("quidra llvm does not accept additional options");
-            auto c = quidra::compile_file(input, {}, fs::current_path());
+            quidra::cli::OptimizationSettings optimization;
+            for (int i = 3; i < argc; ++i)
+                if (!quidra::cli::parse_optimization_option(argv[i], optimization))
+                    throw std::runtime_error("unknown llvm option: " + std::string(argv[i]));
+            quidra::CompileOptions options;
+            quidra::cli::apply_optimization_settings(optimization, options.optimizer);
+            auto c = quidra::compile_file(input, options, fs::current_path());
             std::cout << c.llvm;
             return 0;
         }
@@ -720,9 +748,11 @@ int main(int argc, char** argv) {
             bool print_link_flags = false;
             std::size_t max_errors = 20;
             std::vector<fs::path> link_inputs;
+            quidra::cli::OptimizationSettings optimization;
             for (int i = 3; i < argc; ++i) {
                 const std::string option = argv[i];
-                if (option == "-o" && i + 1 < argc) output = argv[++i];
+                if (quidra::cli::parse_optimization_option(option, optimization)) continue;
+                else if (option == "-o" && i + 1 < argc) output = argv[++i];
                 else if (option == "--keep-llvm") keep = true;
                 else if (option == "--lib") library = true;
                 else if (option == "--print-link-flags") print_link_flags = true;
@@ -734,14 +764,16 @@ int main(int argc, char** argv) {
             }
             if (print_link_flags && !library)
                 throw std::runtime_error("--print-link-flags requires --lib");
+            quidra::ir::OptimizerOptions optimizer;
+            quidra::cli::apply_optimization_settings(optimization, optimizer);
             if (library) {
                 // libNAME.a, NAME.lib on Windows.
                 const auto archive = quidra::platform::static_library_file_name(input.stem().string());
                 return build_library_archive(input, output.value_or(fs::path(archive)), keep,
-                                             max_errors, debug, link_inputs, print_link_flags);
+                                             max_errors, debug, link_inputs, print_link_flags, optimizer);
             }
             return build_native(input, output.value_or(input.stem()), keep, max_errors, debug,
-                                link_inputs);
+                                link_inputs, optimizer);
         }
 
         if (command == "debug") {
@@ -768,17 +800,21 @@ int main(int argc, char** argv) {
             std::vector<fs::path> link_inputs;
             bool program_mode = false;
             bool use_cache = true;
+            quidra::cli::OptimizationSettings optimization;
             for (int i = 3; i < argc; ++i) {
                 const std::string option = argv[i];
                 if (program_mode) program_args.push_back(option);
                 else if (option == "--") program_mode = true;
+                else if (quidra::cli::parse_optimization_option(option, optimization)) continue;
                 else if (option == "--no-cache") use_cache = false;
                 else if (option == "--link" && i + 1 < argc) link_inputs.emplace_back(argv[++i]);
                 else if (option == "--link") throw std::runtime_error("--link requires a file path");
                 else if (option == "--max-errors" && i + 1 < argc) max_errors = parse_max_errors(argv[++i]);
                 else throw std::runtime_error("unknown run option: " + option + "; use '--' before program arguments");
             }
-            return run_native(input, max_errors, program_args, link_inputs, use_cache);
+            quidra::ir::OptimizerOptions optimizer;
+            quidra::cli::apply_optimization_settings(optimization, optimizer);
+            return run_native(input, max_errors, program_args, link_inputs, use_cache, {}, optimizer);
         }
 
         usage(std::cerr);

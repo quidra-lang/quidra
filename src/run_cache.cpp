@@ -71,6 +71,7 @@ std::string path_text(const fs::path& path) {
 CompileOptions compile_options(const DirectRun& run) {
     CompileOptions options{run.max_errors, false};
     options.source_display_path = path_text(run.source);
+    options.optimizer = run.optimizer;
     return options;
 }
 

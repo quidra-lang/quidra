@@ -5,6 +5,8 @@
 #include "ir/analysis/loop_invariants.hpp"
 #include "ir/analysis/binding_proof.hpp"
 #include "quidra/ir/module.hpp"
+#include "ir/verify.hpp"
+#include "ir/analysis/work_budget.hpp"
 
 #include <array>
 #include <memory>
@@ -22,12 +24,14 @@ public:
     enum class Kind : std::uint8_t { Cfg, Dominators, PostDominators, DefUse, Slots,
                                      LocalSsa, Aliases, Liveness, TensorFacts, Loops,
                                      LoopInvariants, ObjectProvenance, BindingSources,
-                                     BindingProof, Count };
-    explicit AnalysisCache(const Module& module) : module_(module) {}
+                                     BindingProof, Verify, Count };
+    explicit AnalysisCache(const Module& module, WorkBudget* budget = nullptr) : module_(module), budget_(budget) {}
     AnalysisCache(const AnalysisCache&) = delete;
     AnalysisCache& operator=(const AnalysisCache&) = delete;
 
     const Cfg& cfg(std::size_t function);
+    // Uses this cache's actual inputs; hit work is zero, even at a zero ceiling.
+    const ir::VerifyReport& verify(std::size_t function);
     const DomTree& dominators(std::size_t function);
     const DomTree& post_dominators(std::size_t function, bool include_abnormal = true);
     const DefUse& def_use(std::size_t function);
@@ -58,10 +62,15 @@ public:
     void invalidate(std::size_t function);
     void invalidate_all() noexcept;
     std::uint64_t evaluations(Kind kind) const noexcept;
+    bool unmetered(Kind kind) const noexcept;
+    // First slice: CFG/verification walks are metered, but their dependency
+    // closure is not. Never turn an annotation into a complete upstream claim.
+    bool upstream_budget_complete() const noexcept { return false; }
 
 private:
     struct Entry {
         std::optional<Cfg> cfg;
+        std::optional<ir::VerifyReport> verify;
         std::optional<DomTree> dom;
         std::array<std::optional<DomTree>, 2> post;
         std::optional<DefUse> def_use;
@@ -76,7 +85,10 @@ private:
     };
     Entry& entry(std::size_t function);
     void evaluated(Kind kind) noexcept;
+    void entered_unmetered(Kind kind);
     const Module& module_;
+    WorkBudget* budget_{}; // Non-owning; request outlives this cache.
+    std::array<bool, static_cast<std::size_t>(Kind::Count)> unmetered_{};
     std::unordered_map<std::size_t, std::unique_ptr<Entry>> entries_;
     std::optional<BindingSources> binding_sources_;
     std::optional<BindingProof> binding_proof_;

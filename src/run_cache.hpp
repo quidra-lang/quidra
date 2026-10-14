@@ -42,6 +42,7 @@
 #include <vector>
 
 #include "platform/process.hpp"
+#include "quidra/optimizer.hpp"
 
 namespace quidra::run_cache {
 
@@ -51,6 +52,9 @@ struct DirectRun {
     std::vector<std::string> program_arguments;
     // As the command was given them.
     std::vector<std::filesystem::path> link_inputs;
+    // The same typed settings used by the uncached compiler. Optional mode
+    // values remain optional because their defaults depend on other modes.
+    ir::OptimizerOptions optimizer{};
 };
 
 // Runs `run` through the cache and returns its exit status. `uncached`

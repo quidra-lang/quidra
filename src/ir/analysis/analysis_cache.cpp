@@ -10,6 +10,7 @@ AnalysisCache::Entry& AnalysisCache::entry(std::size_t function) {
     if (function >= module_.functions.size()) throw std::out_of_range("IR analysis function index is out of range");
     const auto found = entries_.find(function);
     if (found != entries_.end()) return *found->second;
+    if (budget_) budget_->take();
     auto value = std::make_unique<Entry>();
     return *entries_.emplace(function, std::move(value)).first->second;
 }
@@ -21,34 +22,62 @@ std::uint64_t AnalysisCache::evaluations(Kind kind) const noexcept {
     const auto index = static_cast<std::size_t>(kind);
     return index < evaluations_.size() ? evaluations_[index] : 0;
 }
+void AnalysisCache::entered_unmetered(Kind kind) {
+    if (budget_) {
+        // Admission is charged; this does not substitute for producer loops.
+        budget_->take();
+        unmetered_[static_cast<std::size_t>(kind)] = true;
+    }
+}
+bool AnalysisCache::unmetered(Kind kind) const noexcept {
+    const auto index = static_cast<std::size_t>(kind);
+    return index < unmetered_.size() && unmetered_[index];
+}
 const Cfg& AnalysisCache::cfg(std::size_t function) {
     auto& value = entry(function).cfg;
-    if (!value) { value = build_cfg(module_.functions[function]); evaluated(Kind::Cfg); }
+    if (!value) {
+        if (budget_) budget_->take();
+        value = budget_ ? build_cfg(module_.functions[function], *budget_) : build_cfg(module_.functions[function]);
+        evaluated(Kind::Cfg);
+    }
+    return *value;
+}
+const ir::VerifyReport& AnalysisCache::verify(std::size_t function) {
+    auto& value = entry(function).verify;
+    if (!value) {
+        if (budget_) budget_->take();
+        const auto& graph = cfg(function);
+        const auto& dominance = dominators(function);
+        const auto& uses = def_use(function);
+        value = ir::verify(module_.functions[function], graph, dominance, uses, budget_);
+        evaluated(Kind::Verify);
+    }
     return *value;
 }
 const DomTree& AnalysisCache::dominators(std::size_t function) {
     auto& value = entry(function).dom;
-    if (!value) { value = analysis::dominators(cfg(function)); evaluated(Kind::Dominators); }
+    if (!value) { entered_unmetered(Kind::Dominators); value = analysis::dominators(cfg(function)); evaluated(Kind::Dominators); }
     return *value;
 }
 const DomTree& AnalysisCache::post_dominators(std::size_t function, bool abnormal) {
     auto& value = entry(function).post[abnormal ? 1 : 0];
-    if (!value) { value = analysis::post_dominators(cfg(function), abnormal); evaluated(Kind::PostDominators); }
+    if (!value) { entered_unmetered(Kind::PostDominators); value = analysis::post_dominators(cfg(function), abnormal); evaluated(Kind::PostDominators); }
     return *value;
 }
 const DefUse& AnalysisCache::def_use(std::size_t function) {
     auto& value = entry(function).def_use;
-    if (!value) { value = analysis::def_use(module_.functions[function], &module_); evaluated(Kind::DefUse); }
+    if (!value) { entered_unmetered(Kind::DefUse); value = analysis::def_use(module_.functions[function], &module_); evaluated(Kind::DefUse); }
     return *value;
 }
 const Slots& AnalysisCache::slots(std::size_t function) {
     auto& value = entry(function).slots;
-    if (!value) { value = classify_slots(module_.functions[function]); evaluated(Kind::Slots); }
+    if (!value) { entered_unmetered(Kind::Slots); value = classify_slots(module_.functions[function]); evaluated(Kind::Slots); }
     return *value;
 }
 const LocalSsa& AnalysisCache::local_ssa(std::size_t function) {
     auto& value = entry(function).local_ssa;
     if (!value) {
+        entered_unmetered(Kind::LocalSsa);
         value = build_local_ssa(module_.functions[function], cfg(function), dominators(function), slots(function));
         evaluated(Kind::LocalSsa);
     }
@@ -57,6 +86,7 @@ const LocalSsa& AnalysisCache::local_ssa(std::size_t function) {
 const AliasInfo& AnalysisCache::aliases(std::size_t function) {
     auto& value = entry(function).aliases;
     if (!value) {
+        entered_unmetered(Kind::Aliases);
         value = alias_analysis(module_.functions[function], def_use(function), local_ssa(function), slots(function), &module_);
         evaluated(Kind::Aliases);
     }
@@ -65,6 +95,7 @@ const AliasInfo& AnalysisCache::aliases(std::size_t function) {
 const Liveness& AnalysisCache::liveness(std::size_t function) {
     auto& value = entry(function).liveness;
     if (!value) {
+        entered_unmetered(Kind::Liveness);
         value = analysis::liveness(module_.functions[function], cfg(function), def_use(function), slots(function),
                                    aliases(function), {}, &local_ssa(function));
         evaluated(Kind::Liveness);
@@ -74,6 +105,7 @@ const Liveness& AnalysisCache::liveness(std::size_t function) {
 const TensorFactAnalysis& AnalysisCache::tensor_facts(std::size_t function) {
     auto& value = entry(function).tensor_facts;
     if (!value) {
+        entered_unmetered(Kind::TensorFacts);
         const ModuleSummaries empty_summaries;
         const facts::FactSources empty_sources;
         ParamFacts parameters;
@@ -111,6 +143,7 @@ const TensorFactAnalysis& AnalysisCache::tensor_facts(std::size_t function) {
 const LoopNest& AnalysisCache::loops(std::size_t function) {
     auto& value = entry(function).loops;
     if (!value) {
+        entered_unmetered(Kind::Loops);
         value = build_loops(cfg(function), dominators(function));
         evaluated(Kind::Loops);
     }
@@ -119,6 +152,7 @@ const LoopNest& AnalysisCache::loops(std::size_t function) {
 const LoopInvariants& AnalysisCache::loop_invariants(std::size_t function) {
     auto& value = entry(function).loop_invariants;
     if (!value) {
+        entered_unmetered(Kind::LoopInvariants);
         const ModuleSummaries empty_summaries;
         const auto& summary = module_.summaries ? *module_.summaries : empty_summaries;
         const LoopInvariantInputs inputs{def_use(function), local_ssa(function), slots(function),
@@ -131,6 +165,7 @@ const LoopInvariants& AnalysisCache::loop_invariants(std::size_t function) {
 }
 const BindingSources& AnalysisCache::binding_sources() {
     if (!binding_sources_) {
+        entered_unmetered(Kind::BindingSources);
         const ModuleSummaries empty_summaries;
         const semantics::InterfaceSources empty_interfaces;
         auto origins=read_binding_origins(module_);
@@ -145,6 +180,7 @@ const BindingSources& AnalysisCache::binding_sources() {
 const ObjectProvenance& AnalysisCache::object_provenance(std::size_t function) {
     auto& value = entry(function).object_provenance;
     if (!value) {
+        entered_unmetered(Kind::ObjectProvenance);
         const ModuleSummaries empty_summaries;
         value = analysis::object_provenance(module_.functions[function], cfg(function),
             dominators(function), local_ssa(function), slots(function), def_use(function),
@@ -155,6 +191,7 @@ const ObjectProvenance& AnalysisCache::object_provenance(std::size_t function) {
 }
 const BindingProof& AnalysisCache::binding_proof() {
     if (!binding_proof_) {
+        entered_unmetered(Kind::BindingProof);
         const ModuleSummaries empty_summaries;
         const auto& sources = binding_sources();
         std::vector<ObjectProvenance> observations;

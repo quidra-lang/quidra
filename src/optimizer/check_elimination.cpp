@@ -1,5 +1,7 @@
 #include "optimizer/check_elimination.hpp"
 #include "ir/analysis/analysis_cache.hpp"
+#include "ir/analysis/work_budget.hpp"
+#include "ir/check_binding_origins.hpp"
 #include "ir/canonical_encoding.hpp"
 #include "ir/fact_sources.hpp"
 #include "ir/verify.hpp"
@@ -16,13 +18,13 @@ using namespace ir::analysis;
 using namespace ir::facts;
 struct BudgetFailure {};
 struct Work {
-  std::uint64_t left{}, used{};
+  WorkBudget budget;
+  Work(std::uint64_t operations, std::size_t bytes)
+      : budget(WorkBudgetLimits{operations, bytes, 256}) {}
   void take() {
-    if (!left)
-      throw BudgetFailure{};
-    --left;
-    ++used;
+    budget.take();
   }
+  std::uint64_t used() const noexcept { return budget.used_operations(); }
 };
 // Exact raw authored fields. This deliberately does not call the canonical
 // symbol/location normalizer: a plan belongs to one original preimage.
@@ -113,11 +115,13 @@ private:
   void append(std::string_view text) {
     if (bytes_.size() > limit_ || text.size() > limit_ - bytes_.size())
       throw BudgetFailure{};
+    work_.budget.bytes(text.size());
     bytes_.append(text);
   }
   void word(std::uint64_t value) {
     if (bytes_.size() > limit_ || 8 > limit_ - bytes_.size())
       throw BudgetFailure{};
+    work_.budget.bytes(8);
     for (unsigned shift = 0; shift < 64; shift += 8)
       bytes_.push_back(static_cast<char>(value >> shift));
   }
@@ -271,11 +275,23 @@ bool relation(std::string_view op, int c) {
          : op == ">"  ? c > 0
                       : c >= 0;
 }
+CheckOriginAction origin_action(CheckAction action) {
+  switch (action) {
+  case CheckAction::Erase: return CheckOriginAction::Erase;
+  case CheckAction::BoundsFlag: return CheckOriginAction::BoundsFlag;
+  case CheckAction::InitializationFlag: return CheckOriginAction::InitializationFlag;
+  case CheckAction::OverflowFlag: return CheckOriginAction::OverflowFlag;
+  case CheckAction::InlineFlag: return CheckOriginAction::InlineFlag;
+  case CheckAction::BroadcastFlag: return CheckOriginAction::BroadcastFlag;
+  case CheckAction::ShapeFlag: return CheckOriginAction::ShapeFlag;
+  }
+  throw std::invalid_argument("unsupported check origin action");
+}
 class Engine {
 public:
   Engine(const Module &module, std::size_t function, Work &work,
-         CheckEliminationOptions options)
-      : fn_(module.functions.at(function)), cache_(module),
+         CheckEliminationOptions options, AnalysisCache& cache)
+      : fn_(module.functions.at(function)), cache_(cache),
         cfg_(cache_.cfg(function)), dom_(cache_.dominators(function)),
         defs_(cache_.def_use(function)), ssa_(cache_.local_ssa(function)),
         tensor_(cache_.tensor_facts(function)), work_(work), options_(options) {
@@ -295,7 +311,7 @@ public:
 
 private:
   const Function &fn_;
-  AnalysisCache cache_;
+  AnalysisCache& cache_;
   const Cfg &cfg_;
   const DomTree &dom_;
   const DefUse &defs_;
@@ -772,28 +788,32 @@ CheckElimination::analyze(const Module &module, std::size_t function,
   auto detail = std::make_shared<CheckEliminationPlan::Detail>();
   detail->function = function;
   detail->options = options;
-  Work work{options.maximum_operations, 0};
+  Work work{options.maximum_operations, options.maximum_preimage_bytes};
   try {
     if (function >= module.functions.size()) {
       detail->report.failure = CheckGap::MissingPlan;
       return CheckEliminationPlan(detail);
     }
     work.take();
-    const auto validity = ir::verify(module.functions[function], &module);
+    AnalysisCache cache(module, &work.budget);
+    const auto& validity = cache.verify(function);
     if (!validity.ssa_valid) {
       detail->report.failure = CheckGap::InvalidSsa;
-      detail->report.operations = work.used;
+      detail->report.operations = work.used();
       return CheckEliminationPlan(detail);
     }
     detail->dependencies =
         dependencies(module, work, options.maximum_preimage_bytes);
-    detail->report = Engine(module, function, work, options).run();
+    detail->report = Engine(module, function, work, options, cache).run();
     detail->ready = true;
   } catch (const BudgetFailure &) {
     detail->report = {};
     detail->report.failure = CheckGap::Budget;
+  } catch (const WorkBudgetExhausted &) {
+    detail->report = {};
+    detail->report.failure = CheckGap::Budget;
   }
-  detail->report.operations = work.used;
+  detail->report.operations = work.used();
   return CheckEliminationPlan(std::move(detail));
 }
 CheckApplyResult CheckElimination::apply(Module &module,
@@ -805,12 +825,19 @@ CheckApplyResult CheckElimination::apply(Module &module,
                          : CheckGap::MissingPlan};
   const auto &detail = *plan.detail_;
   Work work{std::min(detail.options.maximum_operations,
-                    maximum_operations.value_or(detail.options.maximum_operations)), 0};
+                    maximum_operations.value_or(detail.options.maximum_operations)),
+            detail.options.maximum_preimage_bytes};
   try {
     if (dependencies(module, work, detail.options.maximum_preimage_bytes) !=
         detail.dependencies)
-      return {false, 0, 0, CheckGap::PreimageMismatch, work.used};
-    auto output = module.functions.at(detail.function);
+      return {false, 0, 0, CheckGap::PreimageMismatch, work.used()};
+    const auto& before = module.functions.at(detail.function);
+    auto output = before;
+    CheckOriginTransfer transfer;
+    transfer.function = before.name;
+    transfer.invalidate_tensor_regions = !detail.report.certificates.empty();
+    for (const auto& proof : detail.report.certificates)
+      transfer.edits.push_back({proof.at, origin_action(proof.action)});
     std::vector<std::vector<bool>> erased;
     for (const auto &block : output.blocks)
       erased.emplace_back(block.instructions.size(), false);
@@ -823,7 +850,7 @@ CheckApplyResult CheckElimination::apply(Module &module,
                               .instructions[proof.at.index],
                           work, detail.options.maximum_preimage_bytes) !=
           proof.original_fields)
-        return {false, 0, 0, CheckGap::PreimageMismatch, work.used};
+        return {false, 0, 0, CheckGap::PreimageMismatch, work.used()};
       if (proof.action == CheckAction::Erase) {
         erased[proof.at.block][proof.at.index] = true;
         continue;
@@ -871,22 +898,46 @@ CheckApplyResult CheckElimination::apply(Module &module,
           },
           instruction);
       if (!accepted)
-        return {false, 0, 0, CheckGap::PreimageMismatch, work.used};
+        return {false, 0, 0, CheckGap::PreimageMismatch, work.used()};
     }
     for (std::size_t b = 0; b < output.blocks.size(); ++b) {
+      if (b > std::numeric_limits<BlockId>::max() ||
+          output.blocks[b].instructions.size() > std::numeric_limits<std::uint32_t>::max())
+        return {false, 0, 0, CheckGap::NotMaterializable, work.used()};
       std::vector<Instruction> instructions;
       instructions.reserve(output.blocks[b].instructions.size());
       for (std::size_t i = 0; i < output.blocks[b].instructions.size(); ++i) {
         work.take();
-        if (!erased[b][i])
+        const InstrRef original{static_cast<BlockId>(b), static_cast<std::uint32_t>(i)};
+        const InstrRef emitted{static_cast<BlockId>(b), static_cast<std::uint32_t>(instructions.size())};
+        transfer.boundaries.emplace(original, emitted);
+        if (!erased[b][i]) {
+          transfer.instructions.emplace(original, emitted);
           instructions.push_back(std::move(output.blocks[b].instructions[i]));
+        } else {
+          transfer.instructions.emplace(original, std::nullopt);
+        }
       }
+      transfer.boundaries.emplace(
+          InstrRef{static_cast<BlockId>(b), static_cast<std::uint32_t>(output.blocks[b].instructions.size())},
+          InstrRef{static_cast<BlockId>(b), static_cast<std::uint32_t>(instructions.size())});
       output.blocks[b].instructions = std::move(instructions);
     }
+    if (transfer.invalidate_tensor_regions) output.tensor_regions.clear();
+    auto origins = transfer_check_origins(module, before, output, transfer,
+        [&] { work.take(); }, work.budget.remaining_bytes(),
+        [&](std::size_t bytes) { work.budget.bytes(bytes); });
+    if (!origins.accepted)
+      return {false, 0, 0, origins.failure == CheckOriginFailure::Budget ?
+          CheckGap::Budget : CheckGap::PreimageMismatch, work.used()};
     module.functions[detail.function] = std::move(output);
-    return {true, detail.report.removed, detail.report.flagged, CheckGap::None, work.used};
+    module.binding_origins = std::move(origins.snapshots);
+    if (transfer.invalidate_tensor_regions) module.step_regions.reset();
+    return {true, detail.report.removed, detail.report.flagged, CheckGap::None, work.used()};
   } catch (const BudgetFailure &) {
-    return {false, 0, 0, CheckGap::Budget, work.used};
+    return {false, 0, 0, CheckGap::Budget, work.used()};
+  } catch (const WorkBudgetExhausted &) {
+    return {false, 0, 0, CheckGap::Budget, work.used()};
   }
 }
 } // namespace quidra::optimizer

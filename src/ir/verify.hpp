@@ -3,8 +3,19 @@
 #include <cstdint>
 #include <optional>
 #include <vector>
+namespace quidra::ir::analysis {
+struct Cfg;
+struct DomTree;
+class WorkBudget;
+} // namespace quidra::ir::analysis
 namespace quidra::ir {
-enum class SsaIssue : std::uint8_t { ZeroValue, MissingDefinition, MultipleDefinitions, DefinitionNotEarlier, DefinitionDoesNotDominate };
+enum class SsaIssue : std::uint8_t {
+    ZeroValue,
+    MissingDefinition,
+    MultipleDefinitions,
+    DefinitionNotEarlier,
+    DefinitionDoesNotDominate
+};
 struct SsaDiagnostic {
     SsaIssue issue{};
     ValueId value{};
@@ -29,4 +40,8 @@ struct VerifyReport {
 // Observational only: no consumer/pass integration. CFG structural errors
 // propagate from build_cfg; all indices refer to the unchanged function.
 VerifyReport verify(const Function&, const Module* module = nullptr);
+// Inputs must be the actual analyses of this unchanged function. Cache clients
+// use this overload to avoid recomputing CFG/dominance/operand occurrences.
+VerifyReport verify(const Function&, const analysis::Cfg&, const analysis::DomTree&,
+                    const analysis::DefUse&, analysis::WorkBudget* budget = nullptr);
 } // namespace quidra::ir

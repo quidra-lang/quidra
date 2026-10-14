@@ -36,6 +36,8 @@ struct Cfg {
 
 // Rejects duplicate/missing labels and instructions following a terminator
 // with invalid_argument. Empty/declaration functions have an empty graph.
+class WorkBudget;
 Cfg build_cfg(const Function& function);
+Cfg build_cfg(const Function& function, WorkBudget& budget);
 
 } // namespace quidra::ir::analysis

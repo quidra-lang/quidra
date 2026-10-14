@@ -153,6 +153,7 @@ set(QUIDRA_CORE_SOURCES
     src/ir/binding_origins.cpp
     src/ir/inline_binding_origins.cpp
     src/ir/helper_binding_origins.cpp
+    src/ir/check_binding_origins.cpp
     src/ir/facts/tensor.cpp
     src/ir/canonical_encoding.cpp
     src/ir/content_hash.cpp
@@ -771,7 +772,7 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   target_include_directories(quidra_shape_relation_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   add_test(NAME quidra_shape_relation_tests COMMAND quidra_shape_relation_tests)
 
-  foreach(analysis IN ITEMS analysis dominator def_use local_ssa alias liveness analysis_cache summary content_hash tensor_facts loop_invariant clone_contracts binding_proof binding_origin object_bindings inline_binding_origin helper_binding_origin step_regions step_region_annotation node_cleanup_query object_binding_inline)
+  foreach(analysis IN ITEMS analysis dominator def_use local_ssa alias liveness analysis_cache work_budget summary content_hash tensor_facts loop_invariant clone_contracts binding_proof binding_origin object_bindings inline_binding_origin helper_binding_origin check_binding_origin step_regions step_region_annotation node_cleanup_query object_binding_inline)
     add_executable(quidra_ir_${analysis}_tests tests/ir_${analysis}_tests.cpp)
     target_include_directories(quidra_ir_${analysis}_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(quidra_ir_${analysis}_tests PRIVATE quidra_core)
@@ -795,6 +796,8 @@ if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   endforeach()
   add_test(NAME quidra_ir_cli
       COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/ir_cli_tests.py $<TARGET_FILE:quidra>)
+  add_test(NAME quidra_native_optimizer_cli
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/native_optimizer_cli_tests.py $<TARGET_FILE:quidra>)
 
   # Emits baseline/inlined programs for the native ownership and trace gate.
   add_executable(quidra_inlining_native_driver

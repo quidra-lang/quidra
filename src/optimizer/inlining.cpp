@@ -131,7 +131,9 @@ struct Engine {
         for(const auto& b:callee.blocks){Block nb{labels.at(b.label),{}};if(b.instructions.empty())throw Refused("callee missing explicit terminator");for(std::size_t i=0;i<b.instructions.size();++i){auto n=b.instructions[i];if(i+1<b.instructions.size()&&terminal(n))throw Refused("callee instruction after terminator");mutate_operands(n,rename);
             if(auto*p=std::get_if<StatementBoundary>(&n))p->identity=statements.at(p->identity);
             auto scope_ref=[&](std::uint64_t& id){const auto p=scopes.find(id);if(p==scopes.end())throw Refused("unmapped nested scope");id=p->second;};
-            if(auto*p=std::get_if<InlineScopeBegin>(&n))scope_ref(p->scope);if(auto*p=std::get_if<InlineScopeCleanup>(&n))scope_ref(p->scope);if(auto*p=std::get_if<InlineScopeEnd>(&n))scope_ref(p->scope);
+            if(auto*p=std::get_if<InlineScopeBegin>(&n))scope_ref(p->scope);
+            if(auto*p=std::get_if<InlineScopeCleanup>(&n))scope_ref(p->scope);
+            if(auto*p=std::get_if<InlineScopeEnd>(&n))scope_ref(p->scope);
             if(const auto*p=std::get_if<Return>(&n)){if(p->type!=callee.result||call.no_normal_return)throw Refused("return ABI mismatch");nb.instructions.push_back(StoreLocal{result_name,p->value,p->type});has_return=true;}
             else if(std::holds_alternative<ReturnVoid>(n)){if(callee.result.kind!=TypeKind::Void||call.no_normal_return)throw Refused("void return ABI mismatch");has_return=true;}
             else if(const auto*p=std::get_if<Exit>(&n)){nb.instructions.push_back(InlineScopeCleanup{root_id});nb.instructions.push_back(InlineExit{root_id,p->status});continue;}

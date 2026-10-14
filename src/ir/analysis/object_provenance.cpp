@@ -45,7 +45,8 @@ struct Engine {
             while(current->parent) {
                 if(!seen.insert(current->identity).second)return {};
                 const auto parent=std::find_if(fn.inline_scopes.begin(),fn.inline_scopes.end(),[&](const auto& p){return p.identity==current->parent;});
-                if(parent==fn.inline_scopes.end())return {};current=&*parent;++depth;
+                if(parent==fn.inline_scopes.end())return {};
+                current=&*parent;++depth;
             }
             if(depth==best_depth && best && best->identity!=scope.identity)return {};
             if(depth>best_depth){best=&scope;best_depth=depth;}
@@ -55,7 +56,8 @@ struct Engine {
     const FunctionBindingSource* semantic_source(BlockId block)const {return function_source(sources,semantic_owner(block));}
     ObjectRoot root(ObjectRoot::Kind kind,InstrRef at,const Type& type)const{
         ObjectRoot r;r.kind=kind;r.function=fn.name;r.at=at;
-        if(const auto* c=layout(sources,type))r.class_identity=c->identity;return r;
+        if(const auto* c=layout(sources,type))r.class_identity=c->identity;
+        return r;
     }
     ObjectFact materialize(ObjectFact f,const Env& env)const{
         if(f.allocation && f.allocation->function==fn.name)if(const auto fields=env.fields.find({f.allocation->at.block,f.allocation->at.index});fields!=env.fields.end())f.elements=fields->second;
@@ -79,7 +81,8 @@ struct Engine {
         const auto* record=uses.find(value);if(!record)return false;
         std::set<std::string> slots;std::optional<InstrRef> growth;
         for(const auto& use:record->uses)if(const auto* g=std::get_if<ArrayGrowMove>(&fn.blocks.at(use.at.block).instructions.at(use.at.index));g && g->array==value) {
-            if(growth)return false;growth=use.at;
+            if(growth)return false;
+            growth=use.at;
         }
         if(growth)for(const auto& use:record->uses)if(use.at!=*growth && !dom.dominates(use.at,*growth))return false;
         for(const auto& use:record->uses){if(!use.role_available)return false;
@@ -109,13 +112,16 @@ struct Engine {
     }
     Env entry(BlockId block)const{
         std::vector<const Env*> input;auto first=external();if(block==0)input.push_back(&first);
-        for(const auto pred:cfg.pred[block])if(cfg.reachable[pred] && exits[pred])input.push_back(&*exits[pred]);if(input.empty())return {};
+        for(const auto pred:cfg.pred[block])
+            if(cfg.reachable[pred] && exits[pred])input.push_back(&*exits[pred]);
+        if(input.empty())return {};
         auto env=*input.front();
         auto meet=[&](auto& map,const auto member){for(auto it=map.begin();it!=map.end();){bool same=true;
             for(const auto* e:input){const auto& other=e->*member;const auto f=other.find(it->first);if(f==other.end() || !(f->second==it->second)){same=false;break;}}
             if(!same)it=map.erase(it);else ++it;}};
         meet(env.values,&Env::values);meet(env.locals,&Env::locals);meet(env.references,&Env::references);meet(env.fields,&Env::fields);
-        for(const auto* e:input)env.raw_bindings.insert(e->raw_bindings.begin(),e->raw_bindings.end());return env;
+        for(const auto* e:input)env.raw_bindings.insert(e->raw_bindings.begin(),e->raw_bindings.end());
+        return env;
     }
     bool initialized(const ObjectPath& path)const{
         if(path.root.kind!=ObjectRoot::Parameter || !origin)return false;
@@ -129,18 +135,21 @@ struct Engine {
         f.sources.clear();for(auto path:object.sources){path.steps.push_back(semantics::PathStep::field_named(c->fields[index].name));f.sources.push_back(std::move(path));}
         f.available=object.available && !f.sources.empty();
         if(index>=object.elements.size()){f.initialized=!f.sources.empty() && std::all_of(f.sources.begin(),f.sources.end(),[&](const auto& p){return initialized(p);});f.references_closed=!references(layout(sources,type));}
-        if(!f.initialized)gap(f,BindingGap::InitializationUnavailable);return f;
+        if(!f.initialized)gap(f,BindingGap::InitializationUnavailable);
+        return f;
     }
     void change_field(ObjectFact object,std::size_t index,ObjectFact value,Env& env,InstrRef at,bool reference){
         out.writes.push_back({at,object,value,index,reference,!object.available,semantic_owner(at.block)});
         if(!object.allocation || object.allocation->function!=fn.name)return;
         auto& fields=env.fields[{object.allocation->at.block,object.allocation->at.index}];
-        if(index>=fields.size())fields.resize(index+1);fields[index]=std::move(value);
+        if(index>=fields.size())fields.resize(index+1);
+        fields[index]=std::move(value);
         for(auto& [id,fact]:env.values)if(fact.allocation==object.allocation){fact=materialize(fact,env);out.scopes[at.block].changes[id].emplace_back(at.index+1,fact);}
     }
     void invalidate(Env& env,InstrRef at,BindingGap why,bool expose){
         auto kill=[&](ObjectFact& f){if(f.type.kind!=TypeKind::Class && f.type.kind!=TypeKind::Array && !f.address)return;
-            if(expose)out.exposures.push_back({at,f});f.available=false;f.initialized=false;f.array_closed=false;f.references_closed=false;f.elements.clear();gap(f,why);};
+            if(expose)out.exposures.push_back({at,f});
+            f.available=false;f.initialized=false;f.array_closed=false;f.references_closed=false;f.elements.clear();gap(f,why);};
         for(auto& [id,f]:env.values){kill(f);out.scopes[at.block].changes[id].emplace_back(at.index+1,f);}
         for(auto& [name,f]:env.locals){(void)name;kill(f);}for(auto& [name,f]:env.references){(void)name;kill(f);}env.fields.clear();
     }
@@ -223,7 +232,8 @@ BindingSources adapt_binding_sources(const Module& module,const ModuleSummaries&
         value.complete=original.contracts.classes_complete && original.contracts.declarations_complete && fields.size()<=layout.fields.size() && fields.size()<=layout.field_names.size();
         for(std::size_t i=0;i<fields.size();++i){value.complete &= i<layout.field_names.size() && fields[i].name==layout.field_names[i] && i<layout.fields.size() && fields[i].type.semantic.has_value();
             value.fields.push_back({fields[i].name,i<layout.fields.size()?layout.fields[i]:Type{},fields[i].is_const,fields[i].is_private,fields[i].reference});}
-        if(!c->generic_parameters.empty() && instance==c->instances.end())value.complete=false;const auto existing=result.classes.find(layout.name);if(existing==result.classes.end())result.classes.emplace(layout.name,std::move(value));
+        if(!c->generic_parameters.empty() && instance==c->instances.end())value.complete=false;
+        const auto existing=result.classes.find(layout.name);if(existing==result.classes.end())result.classes.emplace(layout.name,std::move(value));
         else if(existing->second.identity!=value.identity || existing->second.fields.size()!=value.fields.size())existing->second.complete=false;
     }
     for(const auto& fn:module.functions){if(!fn.declaration)continue;FunctionBindingSource origin;origin.declaration=*fn.declaration;

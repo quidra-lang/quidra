@@ -2,11 +2,12 @@
 #include "ir/content_hash.hpp"
 
 #include <limits>
+#include <utility>
 
 namespace quidra::ir::canonical_detail {
 std::int64_t ShapeSymbols::symbol(std::int64_t id) {
     if (const auto found = ids_.find(id); found != ids_.end()) return found->second;
-    if (ids_.size() >= static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
+    if (std::cmp_greater_equal(ids_.size(),std::numeric_limits<std::int64_t>::max()))
         throw std::overflow_error("too many IR shape symbols");
     const auto normalized = static_cast<std::int64_t>(ids_.size()) + 1;
     ids_.emplace(id,normalized);

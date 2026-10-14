@@ -274,7 +274,8 @@ LoopInvariants loop_invariants(const Function& fn,const Cfg& cfg,const DomTree& 
             for(const auto& phi:inputs.ssa.phis)if(blocks.contains(phi.block) && !invariant_phis.contains(phi.id.value)) {
                 std::vector<ReachingDef> defs;if(phi.entry)defs.push_back(*phi.entry);
                 for(const auto& [pred,def]:phi.incoming)if(cfg.reachable[pred])defs.push_back(def);
-                if(defs.empty())continue;const auto& first=defs.front();
+                if(defs.empty())continue;
+                const auto& first=defs.front();
                 const bool same=first.available && first.kind!=ReachingDef::Undefined && first.kind!=ReachingDef::Empty &&
                     std::all_of(defs.begin(),defs.end(),[&](const auto& def){return def==first;});
                 if(same && ((first.kind==ReachingDef::Store && invariant.contains(first.value)) || first.kind==ReachingDef::Param ||

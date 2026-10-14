@@ -22,7 +22,8 @@ BindingProof binding_proof(const Module& module,const ModuleSummaries& summaries
     BindingProof result;result.objects=std::move(observations);std::map<Key,std::size_t> fields;std::map<Key,const BindingField*> contracts;
     for(const auto& [name,c]:sources.classes){(void)name;for(std::size_t i=0;i<c.fields.size();++i){Key key{c.identity,i};if(fields.contains(key))continue;
         FieldProof proof;proof.owner=c.identity;proof.field=i;proof.name=c.fields[i].name;proof.available=c.complete;
-        if(!c.complete)proof.gaps.push_back(BindingGap::MissingClass);fields.emplace(key,result.fields.size());contracts.emplace(key,&c.fields[i]);result.fields.push_back(std::move(proof));}}
+        if(!c.complete)proof.gaps.push_back(BindingGap::MissingClass);
+        fields.emplace(key,result.fields.size());contracts.emplace(key,&c.fields[i]);result.fields.push_back(std::move(proof));}}
     for(std::size_t f=0;f<module.functions.size();++f){const auto& fn=module.functions[f];const auto& facts=result.objects[f];const auto* source=origin(sources,fn);
         const auto& reachable=facts.reachable;
         for(const auto& write:facts.writes){const auto* c=layout(sources,write.object.type);if(!c || write.field>=c->fields.size())continue;
@@ -37,7 +38,8 @@ BindingProof binding_proof(const Module& module,const ModuleSummaries& summaries
         auto identity_layout=[&](const ClassIdentity& identity)->const BindingClass* {
             for(const auto& [name,c]:sources.classes){(void)name;if(c.identity==identity)return &c;}return nullptr;};
         auto path_writer=[&](const ObjectPath& object,const std::vector<semantics::PathStep>& suffix,FieldWriter writer){
-            if(!object.root.class_identity)return;const auto* c=identity_layout(*object.root.class_identity);
+            if(!object.root.class_identity)return;
+            const auto* c=identity_layout(*object.root.class_identity);
             auto steps=object.steps;steps.insert(steps.end(),suffix.begin(),suffix.end());
             if(steps.empty()){if(c)for(std::size_t i=0;i<c->fields.size();++i)result.fields[fields.at({c->identity,i})].writers.push_back(writer);return;}
             for(std::size_t i=0;c && i<steps.size();++i){if(steps[i].kind!=semantics::StepKind::Field){

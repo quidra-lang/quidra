@@ -25,7 +25,7 @@ int main(){try{
     const auto live=liveness(function,cfg,uses,slots,aliases,{},&ssa);
     ModuleSummaries summaries;LoopInvariantInputs inputs{uses,ssa,slots,aliases,live,summaries};
     auto facts=loop_invariants(function,cfg,dom,loops,inputs);
-    require(facts.loops.size()==2 && std::binary_search(facts.loops[0].values.begin(),facts.loops[0].values.end(),4),
+    require(facts.loops.size()==2 && std::binary_search(facts.loops[0].values.begin(),facts.loops[0].values.end(),ValueId{4}),
         "pure scalar chain from unchanged local is invariant inside nested loops");
     require(facts.loops[0].locals.at("fixed").value_unchanged,"unchanged reaching local is a proved invariant");
     function.blocks[3].instructions.insert(function.blocks[3].instructions.begin(),Call{0,"unknown",{},Type::simple(TypeKind::Void)});

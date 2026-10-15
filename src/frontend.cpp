@@ -5063,18 +5063,44 @@ private:
         return true;
     }
 
+    static std::optional<TypeName> non_error_type(const TypeName& type) {
+        if (type.name != "union" || !type.dimensions.empty()) return std::nullopt;
+        auto residual = clone_type(type);
+        std::erase_if(residual.arguments, [](const TypeName& member) {
+            return member.name == "error" && member.dimensions.empty();
+        });
+        if (residual.arguments.empty() || residual.arguments.size() == type.arguments.size())
+            return std::nullopt;
+        if (residual.arguments.size() == 1) return clone_type(residual.arguments.front());
+        return residual;
+    }
+
+    bool concrete_argument_type_match(
+        const TypeName& expected, const TypeName& actual, bool allow_error_unwrap) const {
+        Substitution ignored;
+        if (infer_generic_pattern(expected, actual, {}, ignored)) return true;
+        // Ordinary value arguments may fail fast on an error alternative when
+        // their concrete destination accepts the success type. References and
+        // inferred generic arguments keep their original declared type.
+        if (allow_error_unwrap) {
+            if (const auto residual = non_error_type(actual))
+                return infer_generic_pattern(expected, *residual, {}, ignored);
+        }
+        return false;
+    }
+
     bool concrete_family_match(
         const FunctionDecl& function,
         const std::vector<CallArg>& args,
         const std::string& current_class,
-        const Substitution* explicit_arguments = nullptr) const {
+        const Substitution* explicit_arguments = nullptr,
+        bool allow_contextual_error_unwrap = false) const {
         const auto targets = bind_family_arguments(function, args);
         if (!targets) return false;
         const auto contextual_match = [&](const auto& self, const Expr& value,
-                                          const TypeName& expected) -> bool {
+                                          const TypeName& expected, bool allow_error_unwrap) -> bool {
             if (const auto actual = infer_expression_type(value, current_class)) {
-                Substitution ignored;
-                return infer_generic_pattern(expected, *actual, {}, ignored);
+                return concrete_argument_type_match(expected, *actual, allow_error_unwrap);
             }
             if (const auto* array = std::get_if<ArrayExpr>(&value.data)) {
                 if (expected.dimensions.empty()) return false;
@@ -5087,26 +5113,26 @@ private:
                     element.dimension_expressions.erase(element.dimension_expressions.begin());
                 element.array_depth = element.dimensions.size();
                 return std::all_of(array->elements.begin(), array->elements.end(),
-                    [&](const auto& item) { return self(self, *item, element); });
+                    [&](const auto& item) { return self(self, *item, element, allow_error_unwrap); });
             }
             if (const auto* conditional = std::get_if<IfExpr>(&value.data)) {
-                return self(self, *conditional->otherwise, expected) &&
+                return self(self, *conditional->otherwise, expected, allow_error_unwrap) &&
                     std::all_of(conditional->values.begin(), conditional->values.end(),
-                        [&](const auto& item) { return self(self, *item, expected); });
+                        [&](const auto& item) { return self(self, *item, expected, allow_error_unwrap); });
             }
             if (const auto* unary = std::get_if<UnaryExpr>(&value.data)) {
                 return (unary->op == "-" || unary->op == "+") &&
-                    self(self, *unary->operand, expected);
+                    self(self, *unary->operand, expected, allow_error_unwrap);
             }
             if (const auto* binary = std::get_if<BinaryExpr>(&value.data)) {
                 return expected.dimensions.empty() &&
                     (binary->op == "+" || binary->op == "-" || binary->op == "*" ||
                      binary->op == "/" || binary->op == "%" || binary->op == "^") &&
-                    self(self, *binary->left, expected) &&
-                    self(self, *binary->right, expected);
+                    self(self, *binary->left, expected, allow_error_unwrap) &&
+                    self(self, *binary->right, expected, allow_error_unwrap);
             }
             if (const auto* literal = std::get_if<LiteralConstantExpr>(&value.data))
-                return self(self, *literal->value, expected);
+                return self(self, *literal->value, expected, allow_error_unwrap);
             return (std::holds_alternative<IntegerExpr>(value.data) ||
                     std::holds_alternative<RealLiteralExpr>(value.data)) &&
                 expected.dimensions.empty() && expected.arguments.empty() &&
@@ -5118,7 +5144,9 @@ private:
             std::optional<TypeName> substituted;
             const auto& expected = explicit_arguments
                 ? substituted.emplace(substitute_raw(pattern, *explicit_arguments)) : pattern;
-            if (!contextual_match(contextual_match, *args[i].value, expected)) return false;
+            if (!contextual_match(contextual_match, *args[i].value, expected,
+                                  allow_contextual_error_unwrap &&
+                                  !function.parameters[(*targets)[i]].writable)) return false;
         }
         return true;
     }
@@ -5235,9 +5263,13 @@ private:
 
     std::optional<ContainerDomain> expression_container_domain(
         const Expr& expression, const std::string& current_class) const {
-        const auto actual = infer_expression_type(expression, current_class);
+        auto actual = infer_expression_type(expression, current_class);
+        if (actual) {
+            if (auto residual = non_error_type(*actual)) actual = std::move(residual);
+        }
         if (actual && !actual->dimensions.empty()) return ContainerDomain::Array;
         if (actual && actual->name == "tensor") return ContainerDomain::Tensor;
+        if (actual && actual->name == "union") return std::nullopt;
         if (actual) return ContainerDomain::Scalar;
         if (std::holds_alternative<IntegerExpr>(expression.data) ||
             std::holds_alternative<RealLiteralExpr>(expression.data))
@@ -5770,6 +5802,9 @@ private:
                 bool matches = false;
                 bool mutable_receiver = false;
                 bool call_matches = false;
+                bool exact_contextual_match = false;
+                bool exact_contextual_collision = false;
+                bool fallback_contextual_collision = false;
                 for (const auto* declaration : family) {
                     if (declaration->parameters.empty() ||
                         !declaration->parameters.front().is_extension ||
@@ -5779,19 +5814,32 @@ private:
                     const auto& param = declaration->parameters.front();
                     if (receiver_type && !contains_parameter(*receiver_type, deferred)) {
                         Substitution inferred;
-                        if (!infer_generic_pattern(param.type, *receiver_type,
-                                                   set_of(declaration->type_parameters), inferred)) continue;
-                        bool constraints_match = true;
+                        bool receiver_matches = infer_generic_pattern(
+                            param.type, *receiver_type, set_of(declaration->type_parameters), inferred);
                         for (std::size_t i = 0; i < declaration->type_parameters.size(); ++i) {
                             const auto argument = inferred.find(declaration->type_parameters[i]);
                             if (argument != inferred.end() &&
                                 !satisfies_generic_constraint(argument->second,
                                                               function_constraint(*declaration, i))) {
-                                constraints_match = false;
+                                receiver_matches = false;
                                 break;
                             }
                         }
-                        if (!constraints_match) continue;
+                        if (!receiver_matches && !param.writable) {
+                            if (declaration->type_parameters.empty()) {
+                                receiver_matches = concrete_argument_type_match(
+                                    param.type, *receiver_type, true);
+                            } else if (!extension_type_arguments.empty() &&
+                                       generic_arguments_satisfy(*declaration, extension_type_arguments)) {
+                                Substitution explicit_arguments;
+                                for (std::size_t i = 0; i < extension_type_arguments.size(); ++i)
+                                    explicit_arguments.emplace(declaration->type_parameters[i],
+                                                               clone_type(extension_type_arguments[i]));
+                                receiver_matches = concrete_argument_type_match(
+                                    substitute_raw(param.type, explicit_arguments), *receiver_type, true);
+                            }
+                        }
+                        if (!receiver_matches) continue;
                     }
                     arguments.front().writable = param.writable;
                     bool declaration_matches = false;
@@ -5799,7 +5847,7 @@ private:
                     if (extension_type_arguments.empty()) {
                         if (declaration->type_parameters.empty()) {
                             declaration_matches = concrete_family_match(
-                                *declaration, arguments, current_class);
+                                *declaration, arguments, current_class, nullptr, true);
                         } else if (const auto inferred = generic_family_match(
                                        *declaration, arguments, current_class)) {
                             declaration_matches = true;
@@ -5812,29 +5860,41 @@ private:
                             candidate_arguments.emplace(declaration->type_parameters[i],
                                                         clone_type(extension_type_arguments[i]));
                         declaration_matches = concrete_family_match(
-                            *declaration, arguments, current_class, &candidate_arguments);
+                            *declaration, arguments, current_class, &candidate_arguments, true);
                     }
                     // Inference may leave contextual literal arguments untyped.
                     // Check those against the solved parameter types before
                     // counting a generic family as applicable to this call.
                     if (declaration_matches && !declaration->type_parameters.empty())
                         declaration_matches = concrete_family_match(
-                            *declaration, arguments, current_class, &candidate_arguments);
+                            *declaration, arguments, current_class, &candidate_arguments,
+                            !extension_type_arguments.empty());
                     // An unknown type is not a wildcard. Literal receivers
                     // can still match through the ordinary family's concrete
                     // contextual argument rules above.
                     if (!receiver_type && !declaration_matches) continue;
-                    if (!receiver_type) {
+                    if (!receiver_type || (declaration_matches && non_error_type(*receiver_type))) {
                         const auto contextual_receiver =
                             materialize_type(param.type, candidate_arguments, deferred);
-                        contextual_receiver_collision |=
-                            receiver_has_method(contextual_receiver, node->method);
+                        const bool collision = receiver_has_method(contextual_receiver, node->method);
+                        if (concrete_family_match(
+                                *declaration, arguments, current_class, &candidate_arguments)) {
+                            exact_contextual_match = true;
+                            exact_contextual_collision |= collision;
+                        } else {
+                            fallback_contextual_collision |= collision;
+                        }
                     }
                     matches = true;
                     mutable_receiver |= param.writable;
                     call_matches |= declaration_matches;
                 }
                 if (!matches) continue;
+                // Inferred dispatch keeps an exact generic union match ahead
+                // of a concrete member that only matches after error removal.
+                // Such an unused member cannot introduce a native collision.
+                contextual_receiver_collision |= exact_contextual_match
+                    ? exact_contextual_collision : fallback_contextual_collision;
                 extensions.push_back({name, family.front()->source_file,
                                       mutable_receiver, call_matches});
             }

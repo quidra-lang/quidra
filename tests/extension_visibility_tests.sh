@@ -30,6 +30,18 @@ runs() {
     fi
 }
 
+fails() {
+    local name="$1" code="$2" status=0
+    cat > "$TMP/$name.qui"
+    "$QUIDRA" "$TMP/$name.qui" > "$TMP/$name.out" 2> "$TMP/$name.err" || status=$?
+    if [[ "$status" -ne 101 || -s "$TMP/$name.out" ]] ||
+       ! grep -Fq "runtime error[$code]" "$TMP/$name.err"; then
+        echo "FAIL $name: expected runtime error[$code], status $status" >&2
+        cat "$TMP/$name.out" "$TMP/$name.err" >&2
+        failures=$((failures + 1))
+    fi
+}
+
 rejects() {
     local name="$1" code="$2"
     cat > "$TMP/$name.qui"
@@ -133,6 +145,96 @@ auto y = b.copied()
 int[][3] expected_a = a
 int[][4] expected_b = b
 print(x == expected_a and y == expected_b)
+QUI
+
+runs fallible-concrete-and-explicit-receivers '6 6 3 3' <<'QUI'
+int | error fall(int value)
+    return value
+int twice(extend int value)
+    return value * 2
+T identity<T>(extend T value)
+    return value
+print("{twice(fall(3))} {fall(3).twice()} {identity<int>(fall(3))} {fall(3).identity<int>()}{NL}")
+QUI
+for form in 'twice(fall())' 'fall().twice()' 'identity<int>(fall())' 'fall().identity<int>()'; do
+    name="fallible-error-${form//[^a-z]/}"
+    fails "$name" RECEIVER_ERROR <<QUI
+int | error fall()
+    return error("receiver failed", code = "RECEIVER_ERROR")
+int twice(extend int value)
+    return value * 2
+T identity<T>(extend T value)
+    return value
+print($form)
+QUI
+done
+runs inferred-family-preserves-union $'true\ntrue\ntrue\ntrue' <<'QUI'
+T identity<T>(extend T value)
+    return value
+int identity(extend int value)
+    return value + 100
+int | error fall(bool fail)
+    if fail
+        return error("kept")
+    return 3
+match identity(fall(false))
+    int value
+        print("{value == 3}{NL}")
+    error problem
+        print("false{NL}")
+match fall(false).identity()
+    int value
+        print("{value == 3}{NL}")
+    error problem
+        print("false{NL}")
+match identity(fall(true))
+    int value
+        print("false{NL}")
+    error problem
+        print("{problem == error("kept")}{NL}")
+match fall(true).identity()
+    int value
+        print("false{NL}")
+    error problem
+        print("{problem == error("kept")}{NL}")
+QUI
+cat > "$TMP/generic-string.qui" <<'QUI'
+string string<T>(extend T value)
+    return "generic"
+string string(extend int value)
+    return "integer"
+QUI
+runs inferred-union-avoids-unused-native-collision 'generic generic generic generic' <<'QUI'
+import provider = "./generic-string.qui"
+int | error value = 3
+int | error fail()
+    return error("kept")
+print("{provider.string(value)} {value.string()} {provider.string(fail())} {fail().string()}{NL}")
+QUI
+rejects explicit-fallible-native-collision EXTENSION_COLLISION <<'QUI'
+import provider = "./generic-string.qui"
+int | error value = 3
+print(value.string<int>())
+QUI
+rejects inferred-fallible-free-stays-union GENERIC_CONSTRAINT <<'QUI'
+int | error fall()
+    return 3
+T twice<T: integer>(extend T value)
+    return value * 2
+print(twice(fall()))
+QUI
+rejects inferred-fallible-receiver-stays-union UNKNOWN_MEMBER <<'QUI'
+int | error fall()
+    return 3
+T twice<T: integer>(extend T value)
+    return value * 2
+print(fall().twice())
+QUI
+rejects mutable-fallible-receiver-stays-union UNKNOWN_MEMBER <<'QUI'
+void .increment(extend int &value)
+    value += 1
+int | error value = 3
+.value.increment()
 QUI
 
 cat > "$TMP/provider.qui" <<'QUI'

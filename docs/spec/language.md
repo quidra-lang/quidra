@@ -116,8 +116,9 @@ int[] b = :3        // [0, 1, 2, 3]
 int[] c = 0:<3      // [0, 1, 2]
 int[] d = 5:0:-2    // [5, 3, 1]
 int[] e = 3:0       // [3, 2, 1, 0]
-int[] invalid = 3:  // compile error: no end
 ```
+
+`int[] invalid = 3:` is rejected at compile time because a standalone range must have an end.
 
 Without directional exclusion markers, an omitted step follows the endpoint
 order; equal endpoints allow either nonzero explicit step. Directional markers

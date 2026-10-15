@@ -692,7 +692,7 @@ ValueId ExpressionLowering::lower_index(const Expr& e, const IndexExpr& n) {
             write_index = builder_.fresh();
             builder_.emit(LoadLocal{write_index, write_slot, integer});
         }
-        builder_.emit(ArraySet{output, write_index, item, element_type, site, true, true});
+        builder_.emit(ArraySet{output, write_index, item, element_type, site, false, true});
         if (is_mask) {
             auto next_write = builder_.fresh();
             builder_.emit(Binary{next_write, "+", write_index, one, integer, integer, 0, 0, true});

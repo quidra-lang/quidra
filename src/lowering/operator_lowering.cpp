@@ -99,7 +99,7 @@ ValueId OperatorLowering::lower_array_elementwise(const Expr& e, const BinaryExp
         const auto mapped = apply(
             left, l_array ? *lt.first : lt,
             right, r_array ? *rt.first : rt, *ot.first);
-        builder_.emit(ArraySet{result, index, mapped, *ot.first, site, true, true});
+        builder_.emit(ArraySet{result, index, mapped, *ot.first, site, false, true});
         auto next = builder_.fresh();
         builder_.emit(Binary{next, "+", index, one, index_type, index_type,
                              0, 0, true});

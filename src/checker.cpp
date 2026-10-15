@@ -9026,12 +9026,16 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                           node.target_expr()->span);
                     return;
                 }
-                const auto selected_type = check_expr(selector);
-                if (selected_type.kind == TypeKind::Array) {
-                    error("INVALID_ASSIGNMENT",
-                          "Index-array and boolean-mask selection is read-only; assign individual elements instead.",
-                          node.target_expr()->span);
-                    return;
+                // Scalar numeric literals need the index type supplied by
+                // check_address_target, rather than unconstrained inference.
+                if (!integer_category(numeric_literal_family(selector))) {
+                    const auto selected_type = check_expr(selector);
+                    if (selected_type.kind == TypeKind::Array) {
+                        error("INVALID_ASSIGNMENT",
+                              "Index-array and boolean-mask selection is read-only; assign individual elements instead.",
+                              node.target_expr()->span);
+                        return;
+                    }
                 }
             }
         }

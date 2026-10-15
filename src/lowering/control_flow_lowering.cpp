@@ -477,7 +477,20 @@ void ControlFlowLowering::lower_sequence_for(const ForStmt& n) {
         captured=AssignmentOrder::target_subexpressions(*n.iterable);
         for(const auto* operand:captured) lowerer_.capture_loop_operand(*operand);
     }
-    auto array=lowerer_.lower(source_expression);
+    // A writable loop over a nested array element must keep the element's
+    // actual storage. Value-index lowering snapshots a borrowed parent if
+    // the index executes code; that snapshot would silently discard writes
+    // such as `for int &x = &matrix[choose(&counter)][]`.
+    const bool writable_index_place =
+        n.writable && std::holds_alternative<IndexExpr>(source_expression.data);
+    ValueId array;
+    if (writable_index_place) {
+        const auto address = lowerer_.lower_address(source_expression, true);
+        array = builder_.fresh();
+        builder_.emit(LoadAddress{array, address, array_type});
+    } else {
+        array = lowerer_.lower(source_expression);
+    }
     std::optional<SliceBounds> slice_bounds;
     if(direct_slice) slice_bounds=lowerer_.lower_slice_bounds(*n.iterable,slice->items[0]);
     const auto iterable_initialization_guard =
@@ -485,7 +498,10 @@ void ControlFlowLowering::lower_sequence_for(const ForStmt& n) {
             ? facts_.array_initialization.reference_guard(source_expression)
             : std::optional<ValueId>{};
     const auto item=array_type.kind==TypeKind::Bin?Type::simple(TypeKind::Bin):*array_type.first;
-    const bool iterable_temporary=lifetime_.expression_owns_result(source_expression);
+    // A place loaded through its address is borrowed from the parent, even
+    // if the equivalent value-index expression would own a safety snapshot.
+    const bool iterable_temporary =
+        !writable_index_place && lifetime_.expression_owns_result(source_expression);
     // The writes of the body to the iterated storage, statement by
     // statement; a value loop over storage that some statement may write
     // reads through a copy-on-write source.
